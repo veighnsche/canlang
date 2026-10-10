@@ -184,6 +184,102 @@ await assert.rejects(orderPage.render(failingOrderContext,await orderPage.admit(
 assert.equal(failedDestinationReads,1,'first destination failure skips its caption and later controls');
 
 
+// URL destinations consume the genuine context-aware native helper. The
+// anonymous formatter fixture above retains its existing pure facade.
+async function compileDestination(source, name) {
+ const input=resolve(scratch,`${name}.can`);
+ writeFileSync(input,source);
+ const compiled=spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),input],
+  {encoding:'utf8',timeout:15000});
+ assert.equal(compiled.status,0,compiled.stdout+'\n'+compiled.stderr);
+ const artifact=resolve(scratch,`${name}.json`);writeFileSync(artifact,compiled.stdout);
+ const assembly=await assembleModules(loadArtifactFile(artifact),{
+  workDir:resolve(scratch,name),stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+  uiUrl:import.meta.resolve('@canlang/ui'),
+ });
+ const emitted=JSON.parse(compiled.stdout);
+ const page=async path=>{
+  const ref=emitted.pages.find(page=>page.path===path);assert.ok(ref);
+  return (await import(assembly.moduleUrls[ref.module]))[ref.export];
+ };
+ return {page,registry:(await import(assembly.entryUrl)).canApp()};
+}
+const urlSource=`app UrlDestinations
+Given
+ message caption(seed:text)="{seed}"@{}
+ derive destination(path:text):url=app_url(path=path)
+When
+Then
+ page /url-static title="URL"
+  button target=app_url("/") caption="Home"
+  button target=destination(path="/search?q=<tag>&page=1") caption="Search <all>"
+ page /url-order title="URL order"
+  button target=app_url(team.id) caption=caption(seed=team.id)
+  button caption=caption(seed=team.id) target=app_url(team.id)
+  button target=app_url(team.id) caption=caption(seed=team.id)
+   require false
+`;
+const urlFixture=await compileDestination(urlSource,'UrlDestinations');
+const urlStatic=await urlFixture.page('/url-static'),urlOrder=await urlFixture.page('/url-order');
+const trustedBase='https://configured.test/mount';
+function presentation(deploymentBase) {
+ return buildPresentationContext({
+  request:new Request('https://request-hint.test/url-static?poll=hint'),pathname:'/url-static',
+  isPartial:false,appDefaultLocale:'en',csrfToken:'',
+  principal:{actor:null,team:null,membership:null,binding:{kind:'none'},admitted_at:'2026-10-09T10:00:00Z'},
+  query:async()=>assert.fail('pure destinations do not query'),
+  ...(deploymentBase===undefined?{}:{deploymentBase}),
+  // These unrelated hints must never supply the trusted deployment base.
+  origin:'https://origin-hint.test',auth:{origin:'https://auth-hint.test'},
+ });
+}
+const urlContext=presentation(trustedBase);
+const urlHtml=await urlStatic.render(urlContext,await urlStatic.admit(urlContext));
+assert.ok(urlHtml.includes('href="https://configured.test/mount/">Home</a>'));
+assert.ok(urlHtml.includes('href="https://configured.test/mount/search?q=%3Ctag%3E&amp;page=1">Search &lt;all&gt;</a>'));
+assert.equal(await urlFixture.registry['UrlDestinations.destination'](urlContext,'/next'),
+ 'https://configured.test/mount/next','named builtin slot receives the original host context');
+const urlReads=[],urlValues=['/first?q=<tag>&page=1','<First>','<Second>','/second'];
+const urlOrderContext={...urlContext,team:{timezone:'UTC',get id(){
+ const index=urlReads.length;urlReads.push(index);
+ assert.ok(index<urlValues.length,'gated URL arguments must not evaluate');return urlValues[index];
+}}};
+const urlOrderedHtml=await urlOrder.render(urlOrderContext,await urlOrder.admit(urlOrderContext));
+assert.deepEqual(urlReads,[0,1,2,3],'URL source arguments and captions evaluate eagerly once in authored order');
+assert.ok(urlOrderedHtml.includes('href="https://configured.test/mount/first?q=%3Ctag%3E&amp;page=1">&lt;First&gt;</a>'));
+assert.ok(urlOrderedHtml.includes('href="https://configured.test/mount/second">&lt;Second&gt;</a>'));
+assert.equal((urlOrderedHtml.match(/class="btn"/g)??[]).length,2);
+let urlFailureReads=0;const urlFailure=new Error('first URL path operand');
+const brokenUrlContext={...urlContext,team:{timezone:'UTC',get id(){urlFailureReads++;throw urlFailure;}}};
+await assert.rejects(urlOrder.render(brokenUrlContext,await urlOrder.admit(brokenUrlContext)),error=>error===urlFailure);
+assert.equal(urlFailureReads,1,'path failure skips caption and later URL controls');
+const unconfigured=presentation(undefined);
+assert.equal(unconfigured.deploymentBase,undefined);
+await assert.rejects(urlStatic.render(unconfigured,await urlStatic.admit(unconfigured)),
+ /deploymentBase|deployment base|configured/i,'request, poll and auth hints cannot configure app_url');
+for(const path of ['//other.test/','/../escape','/bad\\path']) {
+ await assert.rejects(urlFixture.registry['UrlDestinations.destination'](urlContext,path),
+  'the original Values constructor refuses invalid app-relative paths');
+}
+const shadowSource=`app ShadowUrl
+Given
+ derive app_url(path:text):text=path
+When
+Then
+ page /shadow title="Shadow"
+  button target=app_url("/shadow?x=<x>&y=1") caption="Local"
+`;
+const shadowInput=resolve(scratch,'ShadowUrl.can');writeFileSync(shadowInput,shadowSource);
+const shadowCompile=spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),shadowInput],
+ {encoding:'utf8',timeout:15000});
+assert.equal(shadowCompile.status,10,shadowCompile.stdout+'\n'+shadowCompile.stderr);
+const shadowResponse=JSON.parse(shadowCompile.stdout);
+assert.ok(shadowResponse.diagnostics.some(diagnostic=>diagnostic.code==='E2002'),
+ 'the existing closed builtin-name rule refuses app_url redeclaration');
+assert.equal(shadowResponse.modules,undefined,'closed-name refusal publishes no artifact');
+console.log('URL buttons: native configured mount, escaped captions/URLs, ordered arguments, missing-base and closed-name refusals passed');
+
+
 const memberContext={memberships:['members']};
 const values = {
   location:'Brussels', resource:'Meeting room',

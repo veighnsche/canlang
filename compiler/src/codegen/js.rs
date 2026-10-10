@@ -4006,6 +4006,11 @@ impl<'a> Emitter<'a> {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
                 let mut parts = parts.to_vec();
+                if id == "app_url" {
+                    // Only the resolved builtin receives the trusted host context.
+                    // Source arguments retain their existing once-only ordering.
+                    parts.insert(0, "c".to_string());
+                }
                 if id == "sum" {
                     let element = match domain_type {
                         Some(ResolvedType::Array { element, .. }) => match element.as_ref() {
@@ -6090,6 +6095,9 @@ impl<'a> Emitter<'a> {
                         | ResolvedType::InlineMessage
                         | ResolvedType::Message(_)
                 ),
+                "target" if node.factory == "button" => {
+                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text | Scalar::Url))
+                }
                 "regionId" | "target" | "opens" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
