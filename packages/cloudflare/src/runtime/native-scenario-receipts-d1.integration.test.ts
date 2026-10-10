@@ -206,7 +206,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       import original from './main.js';
       import { artifact, modules, verdict } from './artifact.js';
       import { derivedInputs } from './derived-inputs.js';
-      import { handleOperationRequest, INPUT_CHOICES_VERSION } from './http-operations.js';
+      import { handleOperationRequest, handleCsvRequest, INPUT_CHOICES_VERSION } from './http-operations.js';
       import { assembleWorker, buildInvoker, createTeamOwnerStorageBoundary } from './assembly.js';
       import { createD1Storage } from '../vendor/state/storage/d1.js';
       import { createD1OwnerRouter } from '../vendor/state/storage/owner-router.js';
@@ -231,16 +231,19 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
           return {...selected,commit:async()=>{commits++;throw new Error('retained commit tripwire');}};
         }};
         const filesPort=new Proxy({},{get(){files++;throw new Error('retained file tripwire');}});
-        if(path.startsWith('/__native_saved/http/')) {
+        const csvRoute=path.startsWith('/__native_saved/csv/');
+        if(path.startsWith('/__native_saved/http/') || csvRoute) {
           // Public HTTP expires at 24 hours; the genuine seven-day session stays live.
           // Use the installed operation factory, baked catalog and activation verdict.
           const now=()=>Date.now()+25*60*60000;
           const installed=await assembleWorker(artifact,modules,{store:createD1Storage(env.DB),identityStore:identities,
             ownerStorage,now,files:{usesFiles:false,canonical:filesPort},http:{derivedInputs,
+              createCsvHandler:deps=>req=>handleCsvRequest(deps,req),
               createOperationHandler:Object.assign(deps=>(req,op)=>handleOperationRequest(deps,req,op),
                 {inputChoicesVersion:INPUT_CHOICES_VERSION})}},verdict);
           const target=new URL(request.url);
-          target.pathname='/api/operations/'+path.slice('/__native_saved/http/'.length);
+          target.pathname=csvRoute?'/api/csv/'+path.slice('/__native_saved/csv/'.length):
+            '/api/operations/'+path.slice('/__native_saved/http/'.length);
           const response=await installed.fetch(new Request(target,request));
           const headers=new Headers(response.headers);
           headers.set('x-native-retained-commits',String(commits));headers.set('x-native-retained-files',String(files));
@@ -382,6 +385,14 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const body=mutationWire(raw);
       return {response,body};
     }
+    async function expiredCsv(actor: Actor | null, body: unknown) {
+      const response=await request(actor,'/__native_saved/csv/commit',body);
+      assert.equal(response.headers.get('x-native-retained-commits'),'0');
+      assert.equal(response.headers.get('x-native-retained-files'),'0');
+      const raw=object(await response.json());
+      assert.equal(JSON.stringify(raw).includes('scenario-result/v1'),false,'private association never crosses CSV');
+      return {response,body:raw};
+    }
     async function receipt(id: string) {
       const stored=await cedar.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(id).first<ReceiptRow>(); assert.ok(stored);
       assert.equal(stored.app,'NativeSavedScenario'); assert.equal(stored.owner,ava.owner); assert.equal(stored.principal,ava.principal);
@@ -416,6 +427,77 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.deepEqual(await resources(), before, 'public malformed array admission changes no table');
       assert.equal(await cedar.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(operation_id).first(), null);
     }
+    // Exact existing CSV grammar maps the single quoted blank nullable array to null.
+    // Review and fresh commit use the installed production main, with no test-only CSV mount.
+    const csv='values\n""', csvBody={operation:arrayInput.name,csv};
+    const beforeCsvReview=await resources();
+    const csvFence=await cedar.prepare('SELECT * FROM fence').first<{id:number;revision:number}>(); assert.ok(csvFence);
+    const reviewedCsv=await request(ava,'/api/csv/review',csvBody); assert.equal(reviewedCsv.status,200);
+    const csvReview=object(await reviewedCsv.json());
+    assert.equal(JSON.stringify(csvReview).includes('scenario-result/v1'),false);
+    assert.equal(csvReview.operation,arrayInput.name);
+    assert.deepEqual(csvReview.rows,[{index:0,status:'valid',inputs:{values:null}}]);
+    assert.deepEqual(csvReview.counts,{total:1,valid:1,invalid:0,duplicate:0});
+    const csvConsent=object(csvReview.consent); assert.equal(csvConsent.principal,ava.principal);
+    assert.equal(csvConsent.operation,arrayInput.name); assert.equal(csvConsent.review_id,csvReview.review_id);
+    assert.deepEqual(await resources(),beforeCsvReview,'review changes no Identity or owner table');
+    const csvId=operationId(), csvSelection={...csvBody,consent:csvConsent,rows:[{index:0,operation_id:csvId}]};
+    const committedCsv=await request(ava,'/api/csv/commit',csvSelection); assert.equal(committedCsv.status,200);
+    const csvCommit=object(await committedCsv.json());
+    assert.equal(JSON.stringify(csvCommit).includes('scenario-result/v1'),false);
+    assert.ok(Array.isArray(csvCommit.rows)); assert.equal(csvCommit.rows.length,1);
+    const csvFreshRow=object(csvCommit.rows[0]), csvFresh=object(csvFreshRow.result);
+    assert.equal(csvFreshRow.index,0); assert.equal(csvFreshRow.operation_id,csvId); assert.equal(csvFreshRow.status,'committed');
+    assert.equal(csvFresh.status,'committed'); assert.equal(csvFresh.operation_id,csvId); assert.equal(csvFresh.result,null);
+    assert.deepEqual(csvFresh.records,[]);
+    const csvPhysical=await receipt(csvId);
+    assert.equal(csvPhysical.operation,arrayInput.name); assert.equal(csvPhysical.input_hash,await hashInputs({values:null}));
+    assert.equal(csvPhysical.committed_revision,csvFence.revision+1);
+    assert.deepEqual(await cedar.prepare('SELECT * FROM fence').first(),{...csvFence,revision:csvPhysical.committed_revision});
+    assert.deepEqual(await cedar.prepare('SELECT * FROM fence_log WHERE revision=?').bind(csvPhysical.committed_revision).first(),
+      {revision:csvPhysical.committed_revision,operation:csvPhysical.operation,at:csvPhysical.created_at});
+    assert.deepEqual(JSON.parse(csvPhysical.resolved_defaults),{});
+    const csvOutcome=object(JSON.parse(csvPhysical.outcome)); assert.equal(csvOutcome.result,null);
+    const csvAssociation=object(csvOutcome.scenario);
+    assert.equal(csvAssociation.kind,'scenario-result/v1'); assert.equal(csvAssociation.resultType,'int[]?');
+    assert.deepEqual(csvAssociation.plan,arrayInput.result.disclosure);
+    const afterCsvCommit=await resources(), csvOwner=`owner:${ava.owner}`;
+    const oldCsvReceipts=(await cedar.prepare('SELECT * FROM receipts').all()).results.filter(value=>value.operation_id!==csvId);
+    assert.equal(digest(oldCsvReceipts.map(value=>JSON.stringify(value)).sort()),beforeCsvReview[csvOwner]!.receipts!.digest);
+    const oldCsvFenceLog=(await cedar.prepare('SELECT * FROM fence_log').all()).results.filter(value=>value.revision!==csvPhysical.committed_revision);
+    assert.equal(digest(oldCsvFenceLog.map(value=>JSON.stringify(value)).sort()),beforeCsvReview[csvOwner]!.fence_log!.digest);
+    for (const key of Object.keys(beforeCsvReview)) {
+      if (key!==csvOwner) { assert.deepEqual(afterCsvCommit[key],beforeCsvReview[key]); continue; }
+      for (const table of Object.keys(beforeCsvReview[key]!)) if (!['receipts','fence','fence_log'].includes(table))
+        assert.deepEqual(afterCsvCommit[key]![table],beforeCsvReview[key]![table],`CSV commit leaves ${table} unchanged`);
+      assert.equal(afterCsvCommit[key]!.receipts!.count,beforeCsvReview[key]!.receipts!.count+1);
+      assert.equal(afterCsvCommit[key]!.fence_log!.count,beforeCsvReview[key]!.fence_log!.count+1);
+    }
+    const recoveredCsv=await expiredCsv(ava,csvSelection); assert.equal(recoveredCsv.response.status,200);
+    assert.equal(recoveredCsv.body.operation,arrayInput.name); assert.equal(recoveredCsv.body.review_id,csvReview.review_id);
+    const csvPrincipal=object(recoveredCsv.body.principal);
+    assert.equal(csvPrincipal.user_id,ava.principal); assert.equal(csvPrincipal.team_id,ava.owner);
+    assert.ok(Array.isArray(recoveredCsv.body.rows)); assert.equal(recoveredCsv.body.rows.length,1);
+    const csvReplayRow=object(recoveredCsv.body.rows[0]), csvReplay=object(csvReplayRow.result);
+    assert.equal(csvReplayRow.index,0); assert.equal(csvReplayRow.operation_id,csvId); assert.equal(csvReplayRow.status,'committed');
+    assert.equal(csvReplay.status,'replayed'); assert.equal(csvReplay.operation_id,csvId); assert.equal(csvReplay.result,null);
+    assert.deepEqual(csvReplay.records,[]);
+    const missingCsv=await expiredCsv(ava,{...csvSelection,rows:[{index:0,operation_id:operationId()}]});
+    assert.equal(missingCsv.response.status,200); assert.ok(Array.isArray(missingCsv.body.rows));
+    assert.equal(missingCsv.body.rows.length,1); const missingCsvRow=object(missingCsv.body.rows[0]);
+    assert.equal(missingCsvRow.status,'failed'); assert.equal(object(missingCsvRow.error).code,'not_found');
+    for (const actor of [ben,cal,dee,null]) {
+      const denied=await expiredCsv(actor,csvSelection);
+      assert.equal(denied.response.status,403); assert.equal(denied.body.code,'forbidden');
+    }
+    for (const path of ['/api/csv/review','/api/csv/commit']) {
+      const denied=await fetch(new URL(path,origin),{method:'POST',redirect:'manual',headers:{origin,
+        cookie:[bridgeCookie,ava.cookie].join('; '),'content-type':'application/json','x-csrf-token':'wrong'},
+        body:JSON.stringify(csvSelection)});
+      assert.equal(denied.status,403); assert.equal(object(await denied.json()).code,'forbidden');
+    }
+    assert.deepEqual(await resources(),afterCsvCommit,'saved CSV and every refusal change no table');
+    assert.deepEqual(await receipt(csvId),csvPhysical,'CSV retains the original source-owned receipt and hash');
     const saved=[];
     for (const [shapeIndex, shape] of [
       { values: null, flags: [], names: [], optional: null, available: true },
@@ -831,6 +913,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const revoked=await recovery(ava,witness.envelope); assert.equal(object(revoked.error).code,'forbidden');
       const http=await expiredHttp(ava,witness.envelope); assert.equal(http.response.status,403); assert.equal(http.body.code,'forbidden');
     }
+    const revokedCsv=await expiredCsv(ava,csvSelection);
+    assert.equal(revokedCsv.response.status,403); assert.equal(revokedCsv.body.code,'forbidden');
+    assert.deepEqual(await receipt(csvId),csvPhysical);
     assert.deepEqual(await resources(),beforeRevoked);
     assert.equal(await captureIsCurrent(capture), true);
   } finally {
