@@ -16,7 +16,7 @@ import { KernelTableError, WORK_DISPATCH_MODEL, WORK_OCCURRENCE_MODEL,
   readDispatchRow, readDispatchImageCorrelation, dispatchGenerationTargetProfile,
   newOccurrenceRow, readOccurrenceRow, newFanoutIntentRow, readFanoutIntentRow,
   newFanoutCheckpointRow, readFanoutCheckpointRow, newFanoutChildRow, readFanoutChildRow,
-  fanoutIntentRowId, fanoutCheckpointRowId, fanoutChildRowId } from './tables.js';
+  fanoutIntentRowId, fanoutCheckpointRowId, fanoutChildRowId, type OccurrenceRowData } from './tables.js';
 
 export interface StandardCompletionDeclaration {
   readonly source: string;
@@ -181,9 +181,11 @@ function installed(options: StandardCompletionSourceOptions) {
 }
 /** Real source only; a caller supplies an identity, never a completion DTO or routes.
  * Complete routes and cohort cuts are returned for ONE original fenced commit. */
-export function createStandardCompletionSourceCommand(options: StandardCompletionSourceOptions): SystemCommandDef {
+export function createStandardCompletionSourceCommand(options: StandardCompletionSourceOptions): Omit<SystemCommandDef, 'read'> & {
+  readonly read: (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => Promise<OccurrenceRowData>;
+} {
   const config = installed(options);
-  return Object.freeze({ name: 'work.standard-completion.stage', stage: async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => {
+  const originalSource = async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => {
     const revision = systemCommandStageRevision(ctx);
     const input = closed(copyData(args), ['deliveryId']), deliveryId = identity(input['deliveryId'], 128);
     const retained = await readSystemCommandRetainedOutbox(ctx, deliveryId);
@@ -224,8 +226,12 @@ export function createStandardCompletionSourceCommand(options: StandardCompletio
     const origin = { intent, originalCommit: stamp, dispatch: { operationId: data.operationId, source: data.source,
       occurrenceIndex: data.occurrenceIndex, originOccurrence: data.originOccurrence, created: dispatchRow.created, actor: dispatchRow.createdBy,
       ...(correlation === null ? {} : { correlation }) } };
-    const consumed = await ctx.load(WORK_OCCURRENCE_MODEL, sourceOccurrence as RecordId);
-    if (consumed !== null) {
+    return { revision, deliveryId, stamp, declaration, dispatchRow, data, resultContext, sourceOccurrence, definition, origin };
+  };
+  // One complete consumed validator owns both fenced replay and genuine reads.
+  const readConsumed = async (consumed: StoredRow, original: Awaited<ReturnType<typeof originalSource>>,
+    ctx: SystemCommandContext): Promise<OccurrenceRowData> => {
+    const { revision, deliveryId, stamp, declaration, resultContext, sourceOccurrence, definition, origin } = original;
       const row = copyData(consumed) as StoredRow, receipt = readOccurrenceRow(row);
       const source = closed(receipt.result, ['kind', 'definition', 'origin', 'terminal', 'event', 'payload', 'revision', 'handlers']);
       if (row.archivedAt !== null || receipt.occurrenceId !== sourceOccurrence || receipt.status !== 'completed' ||
@@ -274,7 +280,24 @@ export function createStandardCompletionSourceCommand(options: StandardCompletio
           if (child.fanoutId !== fanoutId || child.parentOccurrence !== sourceOccurrence || child.handler !== route.handler || child.recordId !== recordId) return refuse('consumed initial cohort child differs.');
         }
       }
-      return { result: freeze({ status: 'replayed', sourceOccurrence, event: declaration.event, payload }) };
+      return freeze(receipt);
+  };
+  return Object.freeze({ name: 'work.standard-completion.stage',
+    read: async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext): Promise<OccurrenceRowData> => {
+      const original = await originalSource(args, ctx);
+      const consumed = await ctx.load(WORK_OCCURRENCE_MODEL, original.sourceOccurrence as RecordId);
+      // Read authority never captures a current receipt or a new cohort cut.
+      if (consumed === null) return refuse('completion source has not been consumed.');
+      return readConsumed(consumed, original, ctx);
+    },
+    stage: async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => {
+    const original = await originalSource(args, ctx);
+    const { revision, deliveryId, stamp, declaration, dispatchRow, data, resultContext, sourceOccurrence, definition, origin } = original;
+    const consumed = await ctx.load(WORK_OCCURRENCE_MODEL, sourceOccurrence as RecordId);
+    if (consumed !== null) {
+      const receipt = await readConsumed(consumed, original, ctx);
+      const source = receipt.result as { payload: Readonly<Record<string, unknown>> };
+      return { result: freeze({ status: 'replayed', sourceOccurrence, event: declaration.event, payload: source.payload }) };
     }
     const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, deliveryId as RecordId);
     if (receiptRow === null) return refuse('persisted delivery receipt is absent.');
