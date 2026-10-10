@@ -5713,3 +5713,16 @@ scenario3000 native crash trace identifies unnecessary recursive IR clones in
 identity emission; borrowing preserves expression/output order and source gates
 without changing stack limits. Codegen121 passes; owning flat/native and current
 whole qualification remain required.
+
+
+### Query decision correspondence, 2026-10-10 — implemented, runtime activation withheld
+
+Join actual Query/collection facts by typed equality to the immutable checker and
+compare complete fresh IR before retaining optional decision sites. External
+predicates require the exact selected any/all slot and lexical alias; preserve
+source call chains and existing async/unsupported refusals. Unsupported query or
+predicate operands keep their own refusal rather than a secondary correspondence
+error. Owning decision7 and original flat6/order2/schedule2/disclosure18 pass;
+strict all-target lint/format0. This grants no runtime authority or StateRead
+admission. General reference-array loops need the defining ordered-domain and
+zero/conditional coverage contract, not fabricated static dependency evidence.
