@@ -12,6 +12,8 @@ import type {
   FileTransferMeta,
   FinalizeResult,
   FinalizedFile,
+  RetainedFinalizedFile,
+  FileRetentionPolicy,
   UploadIntentGrant,
   UploadIntentRequest,
 } from '@canlang/contracts';
@@ -25,6 +27,25 @@ import type {
 import { FILE_TRANSFER_META_KEY } from '../src/bridge.js';
 
 describe('files contracts', () => {
+  it('retains finalized file facts as JSON-safe receiver and lifetime metadata', () => {
+    const retention: FileRetentionPolicy = { unattachedHorizonMs: 60_000, retentionMs: 120_000 };
+    const retained: RetainedFinalizedFile = {
+      ref: 'file_1',
+      receiver: { app: 'CanExpense', team: 'team_1', owner: 'team_1', principal: 'user_1' },
+      provenance: { kind: 'request', app: 'CanExpense', team: 'team_1', owner: 'team_1', principal: 'user_1',
+        adapter: 'deployment.web', deliveryId: 'del_1', resultPath: '/receipt' },
+      contentType: 'application/pdf', sizeBytes: 17,
+      bytesDigest: `sha256:${'a'.repeat(64)}`,
+      finalizedAtMs: Date.parse('2026-10-04T15:00:00Z'), retention,
+    };
+    assert.deepEqual(JSON.parse(JSON.stringify(retained)), retained);
+    assert.equal(typeof retained.finalizedAtMs, 'number');
+    assert.deepEqual(Object.keys(retained).sort(), ['ref', 'receiver', 'provenance', 'contentType',
+      'sizeBytes', 'bytesDigest', 'finalizedAtMs', 'retention'].sort());
+    assert.equal(Object.hasOwn(retained, 'row'), false);
+    assert.equal(Object.hasOwn(retained, 'grants'), false);
+  });
+
   it('models the upload intent request and grant', () => {
     const request: UploadIntentRequest = {
       upload_id: 'upl_1',

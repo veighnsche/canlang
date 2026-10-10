@@ -1,7 +1,7 @@
 /** Explicit Node host storage. Metadata and bytes share one SQLite transaction. */
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import type { DatetimeValue, FilePolicy } from '@canlang/contracts';
+import type { DatetimeValue, FilePolicy, FileRetentionPolicy } from '@canlang/contracts';
 import { decodeValue, encodeValue } from '@canlang/values';
 import type { BlobStorePort, ClockPort, PagedFinalizedStorePort, PagedIntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
 import { assertSafeBlobKey } from '../ports.js';
@@ -9,7 +9,7 @@ import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
 import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContentAtOffset, completeUploadContent } from '../upload/index.js';
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
-import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes } from '../finalize/index.js';
+import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
 import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
 import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt } from '../retention/index.js';
 import type { RetentionConfig, RetentionBatchOptions } from '../retention/index.js';
@@ -214,6 +214,11 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     recordAttachment: (ref: string, recordRef: string, caller: ReceivingContext) =>
       store.transaction(() => recordAttachment(finalize, ref, recordRef, caller)),
     readBytes: (ref: string, caller: ReceivingContext) => readFinalizedBytes(finalize, ref, caller),
+    /** Consistent real byte/metadata observation; facts alone grant no row or read access. */
+    observeFile: (ref: string, caller: ReceivingContext, retention: FileRetentionPolicy) =>
+      store.transaction(() => observeFinalizedFile(finalize, ref, caller, { policy, retention })),
+    revalidateFile: (saved: unknown, caller: ReceivingContext, retention: FileRetentionPolicy) =>
+      store.transaction(() => revalidateRetainedFinalizedFile(finalize, saved, caller, { policy, retention })),
     /** Explicit receiving policy; the full sweep rolls back on interrupted cleanup. */
     runRetention: (config: RetentionConfig) => store.transaction(() => runRetention({
       clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
