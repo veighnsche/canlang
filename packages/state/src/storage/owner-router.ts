@@ -23,6 +23,8 @@ const EMPTY_TABLES = [
   'records', 'receipts', 'history', 'outbox', 'schedules', 'unique_claims',
   'snapshots', 'migration_staging', 'migration_progress', 'migration_outcomes',
   'migration_failures',
+  'file_reference_authority', 'file_reference_inventories', 'file_reference_migrations',
+  'file_reference_publications', 'file_retirements',
 ] as const;
 // D1 creates its reserved provider metadata table on the first schema write.
 // Only that exact provider table is excluded; unknown application tables refuse.

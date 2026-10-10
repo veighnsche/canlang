@@ -5,6 +5,7 @@
 
 export { FenceConflictError, StorageConstraintError } from './port.js';
 export type { StorageConstraintKind, StoragePort } from './port.js';
+export type { FileReferenceStoragePort, FileRetirementAuthority } from '@canlang/contracts';
 export { createD1Storage, ensureSchema as ensureD1Schema } from './d1.js';
 export { createDOStorage, ensureSchema as ensureDOSchema } from './durable-object.js';
 export { createMemoryStorage, createTestMemoryStorage } from './memory.js';
@@ -17,3 +18,4 @@ export {
 } from './schema.js';
 export { createD1OwnerRouter } from './owner-router.js';
 export type { D1OwnerScope, TrustedD1OwnerBinding } from './owner-router.js';
+export { STATE_FILE_REFERENCE_PRODUCER } from './file-reference-inventory.js';

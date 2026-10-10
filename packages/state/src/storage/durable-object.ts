@@ -70,9 +70,24 @@ import type {
   StagedRow,
   StagedRowCursor,
   StoredRow,
+  FileReferenceStoragePort,
+  FileRetirementAuthority,
+  FrameworkFileReferenceProducer,
+  FileReferencePublishMigrationChunk,
+  FileReferenceFlipInstalledSnapshot,
+  InstallFileReferenceInventory,
+  InstalledFileReferenceInventory,
+  RetireFinalizedFile,
+  FinalizedFileRetirement,
+  FinalizedFileRef,
 } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
+import {
+  FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy,
+  guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement,
+  type FileGuardState, type FileGuardRow,
+} from './file-retirement.js';
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
@@ -191,6 +206,7 @@ function toCommitError(
   expected: Revision,
   error: unknown,
 ): FenceConflictError | StorageConstraintError {
+  if (error instanceof FenceConflictError || error instanceof StorageConstraintError) return error;
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes('fence_log')) {
     let actual: Revision | null = null;
@@ -208,6 +224,69 @@ function toCommitError(
     return new StorageConstraintError('receipt_reuse', message);
   }
   return new StorageConstraintError('unknown', message);
+}
+
+function readFileGuard(storage: DurableObjectStorage): FileGuardState {
+  const authority = storage.sql.exec<{ authority: string }>(
+    'SELECT authority FROM file_reference_authority WHERE id = 1',
+  ).toArray()[0];
+  return {
+    authority: authority === undefined ? null : checkedFileAuthority(JSON.parse(authority.authority)),
+    inventories: storage.sql.exec<{ installed: string }>(
+      'SELECT installed FROM file_reference_inventories ORDER BY owner',
+    ).toArray().map(row => fileGuardCopy(JSON.parse(row.installed))),
+    migrations: storage.sql.exec<{ migration_id: string; inventory: string }>(
+      'SELECT migration_id, inventory FROM file_reference_migrations ORDER BY migration_id',
+    ).toArray().map(row => ({ migrationId: row.migration_id, inventory: fileGuardCopy(JSON.parse(row.inventory)) })),
+    publications: storage.sql.exec<{ model: string; id: string; migration_id: string }>(
+      'SELECT model, id, migration_id FROM file_reference_publications ORDER BY model, id',
+    ).toArray().map(row => ({ model: row.model, id: row.id, migrationId: row.migration_id })),
+    retirements: storage.sql.exec<{ retirement: string }>(
+      'SELECT retirement FROM file_retirements ORDER BY ref',
+    ).toArray().map(row => fileGuardCopy(JSON.parse(row.retirement))),
+  } as FileGuardState;
+}
+
+/** Query one extra row so a complete-census bound can only refuse, never truncate. */
+function readFileRows(storage: DurableObjectStorage, maxRows = FILE_GUARD_MAX_ROWS): FileGuardRow[] {
+  return storage.sql.exec<RecordRow>(
+    `SELECT ${RECORD_COLUMNS} FROM records ORDER BY model, id LIMIT ?`, maxRows + 1,
+  ).toArray().map(row => ({ model: row.model, row: toStoredRow(row) }));
+}
+
+/** Authority and retirement rows are append-only; declaration correspondence can change. */
+function persistFileGuard(storage: DurableObjectStorage, state: FileGuardState): void {
+  if (state.authority === null) return;
+  const previous = readFileGuard(storage);
+  checkFileBinding(previous, state.authority);
+  if (previous.authority === null) {
+    storage.sql.exec('INSERT INTO file_reference_authority(id, authority) VALUES (1, ?)', JSON.stringify(state.authority));
+  }
+  storage.sql.exec('DELETE FROM file_reference_inventories');
+  for (const installed of state.inventories) {
+    storage.sql.exec('INSERT INTO file_reference_inventories(owner, installed) VALUES (?, ?)',
+      installed.inventory.owner, JSON.stringify(installed));
+  }
+  storage.sql.exec('DELETE FROM file_reference_migrations');
+  for (const migration of state.migrations) {
+    storage.sql.exec('INSERT INTO file_reference_migrations(migration_id, inventory) VALUES (?, ?)',
+      migration.migrationId, JSON.stringify(migration.inventory));
+  }
+  storage.sql.exec('DELETE FROM file_reference_publications');
+  for (const publication of state.publications) {
+    storage.sql.exec('INSERT INTO file_reference_publications(model, id, migration_id) VALUES (?, ?, ?)',
+      publication.model, publication.id, publication.migrationId);
+  }
+}
+
+function fenceFileWrite(storage: DurableObjectStorage, expected: Revision, at: number, operation: string): Revision {
+  const current = readRevisionInner(storage);
+  if (!Number.isSafeInteger(expected) || expected < 0) throw new Error('Invalid expectedRevision');
+  if (expected !== current) throw new FenceConflictError(expected, current);
+  const next = (expected + 1) as Revision;
+  storage.sql.exec('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)', next, at, operation);
+  storage.sql.exec('UPDATE fence SET revision = ? WHERE id = ?', next, FENCE_ROW_ID);
+  return next;
 }
 
 /** One parameterized statement inside a commit transaction. */
@@ -708,13 +787,35 @@ function planDiscardStaged(input: DiscardStagedRows, next: number, at: number): 
  * Durable Object SQLite-backed `StoragePort`. Call `ensureSchema(storage)`
  * once before first use.
  */
-export function createDOStorage(storage: DurableObjectStorage): StoragePort {
-  return {
+export function createDOStorage(storage: DurableObjectStorage, authority: FileRetirementAuthority, producers?: readonly FrameworkFileReferenceProducer[]): FileReferenceStoragePort;
+export function createDOStorage(storage: DurableObjectStorage, authority?: undefined, producers?: readonly FrameworkFileReferenceProducer[]): StoragePort;
+export function createDOStorage(storage: DurableObjectStorage, authority?: FileRetirementAuthority,
+  producers: readonly FrameworkFileReferenceProducer[] = []): StoragePort | FileReferenceStoragePort {
+  const framework = bindFileFrameworkProducers(producers);
+  const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
+  const assertBinding = (): void => {
+    if (binding !== undefined) {
+      const state = readFileGuard(storage);
+      checkFileBinding(state, binding);
+      checkFileFrameworkBinding(state, framework);
+      checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+    }
+  };
+  const capture = <T>(input: T): T => {
+    const state = readFileGuard(storage);
+    checkFileBinding(state, binding);
+    checkFileFrameworkBinding(state, framework);
+    checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+    return binding !== undefined || state.authority !== null ? fileGuardCopy(input) : input;
+  };
+  const port: StoragePort = {
     async readRevision(): Promise<Revision> {
+      assertBinding();
       return readRevisionInner(storage);
     },
 
     async load(model: ModelName, id: RecordId): Promise<StoredRow | null> {
+      assertBinding();
       const rows = storage.sql
         .exec<RecordRow>(
           `SELECT ${RECORD_COLUMNS} FROM records WHERE model = ? AND id = ?`,
@@ -727,6 +828,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async query(spec: QuerySpec): Promise<ReadonlyArray<StoredRow>> {
+      assertBinding();
       const bindings: unknown[] = [spec.model as string];
       let sql = `SELECT ${RECORD_COLUMNS} FROM records WHERE model = ?`;
       if (spec.parent !== undefined) {
@@ -753,6 +855,8 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
+      assertBinding();
+      batch = capture(batch);
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
         throw new Error(`Invalid expectedRevision: ${JSON.stringify(batch.expectedRevision)}`);
@@ -776,9 +880,15 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const statements = planCommit(batch, next, at, operation);
       try {
         transact(storage, () => {
+          const state = readFileGuard(storage);
+          checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
+          checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+          const before = state.authority === null ? [] : readFileRows(storage);
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
+          if (state.authority !== null) guardFileCommit(state, binding, before, readFileRows(storage), framework);
         });
       } catch (error) {
         throw toCommitError(storage, batch.expectedRevision, error);
@@ -787,6 +897,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async readReceipt(identity: ReceiptIdentity): Promise<Receipt | null> {
+      assertBinding();
       const rows = storage.sql
         .exec<ReceiptRow>(
           `SELECT ${RECEIPT_COLUMNS} FROM receipts WHERE app = ? AND owner = ? AND ` +
@@ -803,6 +914,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async outboxPending(): Promise<ReadonlyArray<OutboxIntent>> {
+      assertBinding();
       // S6: pending only, deterministic (created_at, intent_id) order —
       // identical ordering to the memory adapter's comparator.
       const rows = storage.sql
@@ -815,6 +927,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async outboxGet(intentId: string): Promise<RetainedOutboxIntent | null> {
+      assertBinding();
       const rows = storage.sql
         .exec<RetainedOutboxRow>(
           `SELECT ${OUTBOX_COLUMNS}, status, committed_revision, created_at FROM outbox WHERE intent_id = ?`, intentId,
@@ -825,6 +938,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {
+      assertBinding();
       const rows = storage.sql
         .exec<ScheduleRow>(`SELECT ${SCHEDULE_COLUMNS} FROM schedules WHERE "key" = ?`, key)
         .toArray();
@@ -833,6 +947,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>> {
+      assertBinding();
       checkSchedulesLimit(limit);
       const rows = storage.sql
         .exec<ScheduleRow>(
@@ -845,6 +960,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
+      assertBinding();
       const rows = storage.sql
         .exec<HistoryRow>(
           `SELECT ${HISTORY_COLUMNS} FROM history WHERE model = ? AND record_id = ? ` +
@@ -859,6 +975,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async readInstalledSnapshot(owner: string): Promise<InstalledSnapshot | null> {
+      assertBinding();
       // S7: null when the owner was never installed (fresh installs take a
       // separate path and never apply transitions).
       const rows = storage.sql
@@ -869,6 +986,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async readMigrationProgress(migrationId: string): Promise<MigrationProgress | null> {
+      assertBinding();
       // S7: null when the migration never staged anything.
       const rows = storage.sql
         .exec<ProgressRow>(
@@ -885,6 +1003,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       cursor: StagedRowCursor | null,
       limit: number,
     ): Promise<ReadonlyArray<StagedRow>> {
+      assertBinding();
       // S7: (model, record id) order after the cursor, capped at limit.
       checkStagedRowsLimit(limit);
       const bindings: unknown[] = [migrationId];
@@ -900,6 +1019,8 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async stageMigrationRows(input: StageMigrationChunk): Promise<CommitResult> {
+      assertBinding();
+      input = capture(input);
       // S7: ONE fenced transaction: upsert staged rows (idempotent restage)
       // plus the progress row, atomically.
       checkMigrationExpected(storage, input.expectedRevision);
@@ -908,6 +1029,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const statements = planStage(input, next, at);
       try {
         transact(storage, () => {
+          assertBinding();
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
@@ -919,6 +1041,8 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
+      assertBinding();
+      input = capture(input);
       // S7: ONE fenced transaction: upsert live records, insert history,
       // dispose drops, upsert progress — atomically. Live rows are pre-read
       // for metadata carry-over, synchronously with zero awaits.
@@ -940,8 +1064,21 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const statements = planPublish(input, next, at, existing);
       try {
         transact(storage, () => {
+          const state = readFileGuard(storage);
+          checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
+          checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+          const before = state.authority === null ? [] : readFileRows(storage);
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
+          }
+          if (state.authority !== null) {
+            const nextState = guardFilePublish(state, binding, input.migrationId,
+              (input as Partial<FileReferencePublishMigrationChunk>).fileReferenceInventory,
+              before, readFileRows(storage),
+              input.rows.map(row => ({ model: row.targetModel as string, id: row.recordId as string })),
+              input.drops.map(row => ({ model: row.model as string, id: row.recordId as string })), framework);
+            persistFileGuard(storage, nextState);
           }
         });
       } catch (error) {
@@ -951,6 +1088,8 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
+      assertBinding();
+      input = capture(input);
       // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
       // (dropOwner): the pointer is deleted instead of installed; a removal
       // against an already-absent pointer is a no-op success. Otherwise ONE
@@ -960,6 +1099,39 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       }
       if (input.snapshot !== null && input.snapshot.owner !== input.owner) {
         throw new Error('flipInstalledSnapshot: snapshot.owner must equal the flip owner.');
+      }
+      if (readFileGuard(storage).authority !== null) {
+        try {
+          return transact(storage, () => {
+            const state = readFileGuard(storage);
+            checkFileBinding(state, binding);
+            checkFileFrameworkBinding(state, framework);
+            checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+            const installedRow = storage.sql.exec<SnapshotRow>(
+              `SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`, input.owner,
+            ).toArray()[0] ?? null;
+            const existing = installedRow === null ? null : toInstalledSnapshot(installedRow);
+            const current = readRevisionInner(storage);
+            // A matching pointer is insufficient: reinterpretation and exact
+            // declaration correspondence are checked before idempotency.
+            const nextState = guardFileFlip(state, binding,
+              input as FlipInstalledSnapshot & Partial<Pick<FileReferenceFlipInstalledSnapshot, 'fileReferenceInventory'>>,
+              readFileRows(storage), (current + 1) as Revision, existing, framework);
+            const same = input.snapshot === null ? existing === null : existing !== null &&
+              existing.snapshotId === input.snapshot.snapshotId && existing.digest === input.snapshot.digest;
+            if (same) return { revision: current, flipped: false };
+            checkMigrationExpected(storage, input.expectedRevision);
+            if (input.expectedRevision !== current) throw new FenceConflictError(input.expectedRevision, current);
+            const next = (current + 1) as Revision;
+            for (const statement of planFlip(input, next, Date.now())) {
+              storage.sql.exec(statement.sql, ...statement.bindings);
+            }
+            persistFileGuard(storage, nextState);
+            return { revision: next, flipped: true };
+          });
+        } catch (error) {
+          throw toCommitError(storage, input.expectedRevision, error);
+        }
       }
       const installed =
         storage.sql
@@ -985,6 +1157,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const statements = planFlip(input, next, at);
       try {
         transact(storage, () => {
+          assertBinding();
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
@@ -996,6 +1169,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async readMigrationOutcomes(migrationId: string): Promise<ReadonlyArray<MigrationOutcome>> {
+      assertBinding();
       // S7: recorded skips in record (seq) order.
       const rows = storage.sql
         .exec<OutcomeRow>(
@@ -1007,6 +1181,8 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async recordMigrationFailure(input: RecordMigrationFailure): Promise<CommitResult> {
+      assertBinding();
+      input = capture(input);
       // B3: ONE fenced transaction: failed mark plus the durable failure
       // row. Marking an active migration failed is a caller error.
       checkRecoveryInput(input.migrationId, input.leg);
@@ -1029,6 +1205,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const statements = planFailureRecord(input, next, at);
       try {
         transact(storage, () => {
+          assertBinding();
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
@@ -1040,6 +1217,8 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async discardStagedRows(input: DiscardStagedRows): Promise<CommitResult> {
+      assertBinding();
+      input = capture(input);
       // B3: ONE fenced transaction: staged rows plus the progress row go;
       // the failure record stays. Active progress refuses (no rollback
       // past the flip).
@@ -1060,6 +1239,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       const statements = planDiscardStaged(input, next, at);
       try {
         transact(storage, () => {
+          assertBinding();
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
@@ -1071,6 +1251,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     },
 
     async readMigrationFailure(migrationId: string): Promise<MigrationFailure | null> {
+      assertBinding();
       // B3: null when the migration never failed.
       const rows = storage.sql
         .exec<FailureRow>(
@@ -1082,4 +1263,88 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
       return row === null ? null : toMigrationFailure(row);
     },
   };
+  if (binding === undefined) return registerFileFrameworkStorage(port, framework);
+  return registerFileFrameworkStorage<FileReferenceStoragePort>({
+    ...port,
+    fileRetirementAuthority: binding,
+
+    async installFileReferenceInventory(input: InstallFileReferenceInventory): Promise<CommitResult> {
+      input = fileGuardCopy(input);
+      try {
+        return transact(storage, () => {
+          const state = readFileGuard(storage);
+          checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
+          checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+          const current = readRevisionInner(storage);
+          checkMigrationExpected(storage, input.expectedRevision);
+          if (input.expectedRevision !== current) throw new FenceConflictError(input.expectedRevision, current);
+          const snapshots = storage.sql.exec<SnapshotRow>(
+            `SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`,
+          ).toArray().map(toInstalledSnapshot);
+          const plan = planFileInstall(state, binding, input, snapshots,
+            readFileRows(storage), (current + 1) as Revision, framework);
+          if (!plan.changed) return { revision: current };
+          const next = fenceFileWrite(storage, input.expectedRevision, Date.now(), 'files:install-reference-inventory');
+          storage.sql.exec(
+            'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, installed_at) VALUES (?, ?, ?, ?, ?)',
+            plan.snapshot.owner, plan.snapshot.snapshotId, plan.snapshot.digest,
+            plan.snapshot.installedRevision, plan.snapshot.installedAt,
+          );
+          persistFileGuard(storage, plan.state);
+          return { revision: next };
+        });
+      } catch (error) {
+        throw toCommitError(storage, input.expectedRevision, error);
+      }
+    },
+
+    async readFileReferenceInventory(owner: string): Promise<InstalledFileReferenceInventory | null> {
+      const state = readFileGuard(storage);
+      checkFileBinding(state, binding);
+      checkFileFrameworkBinding(state, framework);
+      checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+      return fileGuardCopy(state.inventories.find(item => item.inventory.owner === owner) ?? null);
+    },
+
+    async retireFinalizedFile(input: RetireFinalizedFile): Promise<FinalizedFileRetirement> {
+      input = fileGuardCopy(input);
+      try {
+        return transact(storage, () => {
+          const state = readFileGuard(storage);
+          checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
+          checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+          const current = readRevisionInner(storage);
+          const previous = state.retirements.find(fact => fact.file.ref === input.file.ref);
+          if (previous === undefined) {
+            checkMigrationExpected(storage, input.expectedRevision);
+            if (input.expectedRevision !== current) throw new FenceConflictError(input.expectedRevision, current);
+          }
+          const validBound = Number.isSafeInteger(input.maxRows) && input.maxRows > 0;
+          const rows = previous !== undefined || !validBound
+            ? [] : readFileRows(storage, input.maxRows);
+          const plan = planFileRetirement(state, binding, input, rows, (current + 1) as Revision, framework);
+          if (!plan.fresh) return fileGuardCopy(plan.fact);
+          fenceFileWrite(storage, input.expectedRevision, input.atMs, 'files:retire-finalized-file');
+          storage.sql.exec('INSERT INTO file_retirements(ref, retirement) VALUES (?, ?)',
+            plan.fact.file.ref, JSON.stringify(plan.fact));
+          return fileGuardCopy(plan.fact);
+        });
+      } catch (error) {
+        throw toCommitError(storage, input.expectedRevision, error);
+      }
+    },
+
+    async readFinalizedFileRetirement(ref: FinalizedFileRef): Promise<FinalizedFileRetirement | null> {
+      const state = readFileGuard(storage);
+      checkFileBinding(state, binding);
+      checkFileFrameworkBinding(state, framework);
+      checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
+      if (typeof ref !== 'string' || ref.length === 0) {
+        throw new StorageConstraintError('reference', 'File retirement: immutable File ref required');
+      }
+      return fileGuardCopy(state.retirements.find(fact => fact.file.ref === ref) ?? null);
+    },
+  }, framework);
 }

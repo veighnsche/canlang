@@ -16,6 +16,7 @@
  * - POST /exec  { sql, params? } -> { ok, rows } for probe SELECTs.
  */
 import { createDOStorage, ensureSchema } from '../../dist/src/storage/durable-object.js';
+import { STATE_FILE_REFERENCE_PRODUCER } from '../../dist/src/storage/file-reference-inventory.js';
 
 const TABLES = [
   'records',
@@ -29,6 +30,8 @@ const TABLES = [
   'migration_progress',
   'migration_outcomes',
   'migration_failures',
+  'file_reference_authority', 'file_reference_inventories', 'file_reference_migrations',
+  'file_reference_publications', 'file_retirements',
 ];
 
 function serializeError(error) {
@@ -70,8 +73,10 @@ export class TestDO {
         return Response.json({ ok: true });
       }
       if (request.method === 'POST' && url.pathname === '/reopen') {
+        const body = await request.json();
         await ensureSchema(this.state.storage);
-        this.store = createDOStorage(this.state.storage);
+        const producers = body.framework === 'state' ? [STATE_FILE_REFERENCE_PRODUCER] : [];
+        this.store = body.authority === undefined ? createDOStorage(this.state.storage, undefined, producers) : createDOStorage(this.state.storage, body.authority, producers);
         return Response.json({ ok: true });
       }
       if (request.method === 'POST' && url.pathname === '/exec') {

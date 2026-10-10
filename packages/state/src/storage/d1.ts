@@ -75,6 +75,9 @@ import type {
 } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
+import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
+import type { FileGuardState, FileGuardRow, FileFrameworkBinding } from './file-retirement.js';
+import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileReferenceStoragePort, FileReferencePublishMigrationChunk, FileReferenceFlipInstalledSnapshot, InstallFileReferenceInventory, InstalledFileReferenceInventory, RetireFinalizedFile, FinalizedFileRetirement, FinalizedFileRef } from '@canlang/contracts';
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
@@ -196,9 +199,83 @@ async function toCommitError(
   return new StorageConstraintError('unknown', message);
 }
 
+/** One read-only D1 batch obtains a coherent revision and complete durable guard. */
+async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | undefined,
+  framework: FileFrameworkBinding, maxRows = FILE_GUARD_MAX_ROWS) {
+  const results = await db.batch([
+    db.prepare('SELECT revision FROM fence WHERE id = 1'),
+    db.prepare('SELECT authority FROM file_reference_authority WHERE id = 1'),
+    db.prepare('SELECT installed FROM file_reference_inventories ORDER BY owner'),
+    db.prepare('SELECT migration_id, inventory FROM file_reference_migrations ORDER BY migration_id'),
+    db.prepare('SELECT model, id, migration_id FROM file_reference_publications ORDER BY model, id'),
+    db.prepare('SELECT retirement FROM file_retirements ORDER BY ref'),
+    db.prepare(`SELECT ${RECORD_COLUMNS} FROM records ORDER BY model, id LIMIT ?`).bind(maxRows + 1),
+    db.prepare(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`),
+  ]);
+  const revisionRow = results[0]!.results[0] as { revision: number } | undefined;
+  if (revisionRow === undefined) throw new Error('schema not initialized: fence row is missing (run ensureSchema first)');
+  const assignment = results[1]!.results[0] as { authority: string } | undefined;
+  const state: FileGuardState = {
+    authority: assignment === undefined ? null : checkedFileAuthority(JSON.parse(assignment.authority)),
+    inventories: results[2]!.results.map(raw => fileGuardCopy(JSON.parse((raw as { installed: string }).installed) as InstalledFileReferenceInventory)),
+    migrations: results[3]!.results.map(raw => { const row = raw as { migration_id: string; inventory: string }; return { migrationId: row.migration_id, inventory: fileGuardCopy(JSON.parse(row.inventory)) }; }),
+    publications: results[4]!.results.map(raw => { const row = raw as { model: string; id: string; migration_id: string }; return { model: row.model, id: row.id, migrationId: row.migration_id }; }),
+    retirements: results[5]!.results.map(raw => fileGuardCopy(JSON.parse((raw as { retirement: string }).retirement) as FinalizedFileRetirement)),
+  };
+  checkFileBinding(state, binding);
+  checkFileFrameworkBinding(state, framework);
+  const rows: FileGuardRow[] = (state.authority === null && binding === undefined ? [] : results[6]!.results).map(raw => { const row = raw as RecordRow; return { model: row.model, row: toStoredRow(row) }; });
+  const snapshots = results[7]!.results.map(raw => toInstalledSnapshot(raw as SnapshotRow));
+  checkFileGuardSnapshots(state, snapshots);
+  return { revision: revisionRow.revision as Revision, state, rows, snapshots };
+}
+function requireFileRevision(expected: Revision, actual: Revision): void {
+  if (!Number.isSafeInteger(expected) || expected < 0) throw new Error(`Invalid expectedRevision: ${JSON.stringify(expected)}`);
+  if (expected !== actual) throw new FenceConflictError(expected, actual);
+}
+function captureFileInput<T>(input: T): { value?: T; error?: unknown } {
+  try { return { value: fileGuardCopy(input) }; } catch (error) { return { error }; }
+}
+function guardedFileInput<T>(input: T, captured: { value?: T; error?: unknown }, guarded: boolean): T {
+  if (!guarded) return input;
+  if (captured.error !== undefined) throw captured.error;
+  return captured.value!;
+}
+function fileGuardStatements(db: D1Database, state: FileGuardState) {
+  const statements = [];
+  if (state.authority !== null) statements.push(db.prepare('INSERT OR IGNORE INTO file_reference_authority(id, authority) VALUES (1, ?)').bind(JSON.stringify(state.authority)));
+  statements.push(db.prepare('DELETE FROM file_reference_inventories'), db.prepare('DELETE FROM file_reference_migrations'), db.prepare('DELETE FROM file_reference_publications'));
+  for (const installed of state.inventories) statements.push(db.prepare('INSERT INTO file_reference_inventories(owner, installed) VALUES (?, ?)').bind(installed.inventory.owner, JSON.stringify(installed)));
+  for (const migration of state.migrations) statements.push(db.prepare('INSERT INTO file_reference_migrations(migration_id, inventory) VALUES (?, ?)').bind(migration.migrationId, JSON.stringify(migration.inventory)));
+  for (const row of state.publications) statements.push(db.prepare('INSERT INTO file_reference_publications(model, id, migration_id) VALUES (?, ?, ?)').bind(row.model, row.id, row.migrationId));
+  return statements;
+}
+function commitFileRows(before: readonly FileGuardRow[], batch: CommitBatch): FileGuardRow[] {
+  const rows = new Map(before.map(entry => [JSON.stringify([entry.model, entry.row.id]), entry]));
+  for (const write of batch.writes) {
+    const id = write.kind === 'insert' ? write.row.id : write.id;
+    const key = JSON.stringify([write.model, id]);
+    if (write.kind === 'remove') rows.delete(key);
+    else if (write.kind === 'insert') rows.set(key, { model: write.model, row: write.row });
+    else {
+      const original = rows.get(key);
+      // SQL UPDATE preserves the live identity and creation metadata.
+      if (original !== undefined) rows.set(key, { model: write.model, row: {
+        ...write.row, id: original.row.id, created: original.row.created, createdBy: original.row.createdBy,
+      } });
+    }
+  }
+  return [...rows.values()];
+}
+
 /** D1-backed `StoragePort`. Call `ensureSchema(db)` once before first use. */
-export function createD1Storage(db: D1Database): StoragePort {
-  return {
+export function createD1Storage(db: D1Database, authority: FileRetirementAuthority, producers?: readonly FrameworkFileReferenceProducer[]): FileReferenceStoragePort;
+export function createD1Storage(db: D1Database, authority?: undefined, producers?: readonly FrameworkFileReferenceProducer[]): StoragePort;
+export function createD1Storage(db: D1Database, authority?: FileRetirementAuthority,
+  producers: readonly FrameworkFileReferenceProducer[] = []): StoragePort | FileReferenceStoragePort {
+  const framework = bindFileFrameworkProducers(producers);
+  const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
+  const storage: StoragePort = {
     async readRevision(): Promise<Revision> {
       return readRevisionInner(db);
     },
@@ -238,6 +315,13 @@ export function createD1Storage(db: D1Database): StoragePort {
     },
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
+      const captured = captureFileInput(batch);
+      const guard = await readFileGuard(db, binding, framework);
+      batch = guardedFileInput(batch, captured, guard.state.authority !== null || binding !== undefined);
+      if (guard.state.authority !== null) {
+        requireFileRevision(batch.expectedRevision, guard.revision);
+        guardFileCommit(guard.state, binding, guard.rows, commitFileRows(guard.rows, batch), framework);
+      }
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
         throw new Error(`Invalid expectedRevision: ${JSON.stringify(batch.expectedRevision)}`);
@@ -247,7 +331,7 @@ export function createD1Storage(db: D1Database): StoragePort {
       // density the scheme rests on. Reject those up front. Race-safe with
       // zero honest false-positives: revisions are monotonic, so an honest
       // `expected` (current at read time) can never exceed current later.
-      const current = await readRevisionInner(db);
+      const current = guard.revision;
       if (expected > (current as number)) {
         throw new FenceConflictError(batch.expectedRevision, current);
       }
@@ -624,12 +708,16 @@ export function createD1Storage(db: D1Database): StoragePort {
     },
 
     async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
+      const captured = captureFileInput(input);
+      const guard = await readFileGuard(db, binding, framework);
+      input = guardedFileInput(input, captured, guard.state.authority !== null || binding !== undefined);
       // S7: ONE fenced batch: upsert live records from staged rows at their
       // target versions, insert history, dispose drops (remove + drop
       // history), and upsert progress — atomically. Existing live rows are
       // pre-read for metadata carry-over (same fence-serialized safety as
       // checkWriteVersions: a concurrent commit aborts our fence INSERT).
       await checkMigrationExpected(db, input.expectedRevision);
+      if (guard.state.authority !== null) requireFileRevision(input.expectedRevision, guard.revision);
       const next = (input.expectedRevision as number) + 1;
       const at = Date.now();
       const existing = new Map<string, RecordRow | null>();
@@ -640,6 +728,17 @@ export function createD1Storage(db: D1Database): StoragePort {
           .first<RecordRow>();
         existing.set(`${row.targetModel as string}\0${row.recordId as string}`, found);
       }
+      const mergedRows = input.rows.map(row => {
+        const merged = mergePublishedColumns(row, existing.get(`${row.targetModel as string}\0${row.recordId as string}`) ?? null, input.history);
+        return { model: row.targetModel as string, row: { id: row.recordId, version: row.version, ...merged, parent: row.parent, data: row.data } };
+      });
+      const after = new Map(guard.rows.map(entry => [JSON.stringify([entry.model, entry.row.id]), entry]));
+      for (const row of mergedRows) after.set(JSON.stringify([row.model, row.row.id]), row);
+      for (const drop of input.drops) after.delete(JSON.stringify([drop.model, drop.recordId]));
+      const guardedState = guardFilePublish(guard.state, binding, input.migrationId,
+        (input as FileReferencePublishMigrationChunk).fileReferenceInventory, guard.rows, [...after.values()],
+        mergedRows.map(entry => ({ model: entry.model, id: entry.row.id as string })),
+        input.drops.map(drop => ({ model: drop.model as string, id: drop.recordId as string })), framework);
       const statements = [
         db
           .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
@@ -765,6 +864,7 @@ export function createD1Storage(db: D1Database): StoragePort {
             input.progress.updatedRevision as number,
           ),
       );
+      if (guard.state.authority !== null) statements.push(...fileGuardStatements(db, guardedState));
       try {
         await db.batch(statements);
       } catch (error) {
@@ -774,6 +874,9 @@ export function createD1Storage(db: D1Database): StoragePort {
     },
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
+      const captured = captureFileInput(input);
+      const guard = await readFileGuard(db, binding, framework);
+      input = guardedFileInput(input, captured, guard.state.authority !== null || binding !== undefined);
       // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
       // (dropOwner): the pointer is deleted instead of installed; a removal
       // against an already-absent pointer is a no-op success. Otherwise ONE
@@ -790,18 +893,26 @@ export function createD1Storage(db: D1Database): StoragePort {
         .prepare(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`)
         .bind(input.owner)
         .first<SnapshotRow>();
+      const guardedState = guardFileFlip(guard.state, binding, input as FileReferenceFlipInstalledSnapshot,
+        guard.rows, ((input.expectedRevision as number) + 1) as Revision,
+        installed === null ? null : toInstalledSnapshot(installed), framework);
       if (input.snapshot === null) {
         if (installed === null) {
-          return { revision: await readRevisionInner(db), flipped: false };
+          const revision = await readRevisionInner(db);
+          if (guard.state.authority !== null) requireFileRevision(guard.revision, revision);
+          return { revision, flipped: false };
         }
       } else if (
         installed !== null &&
         installed.snapshot_id === input.snapshot.snapshotId &&
         installed.digest === input.snapshot.digest
       ) {
-        return { revision: await readRevisionInner(db), flipped: false };
+        const revision = await readRevisionInner(db);
+        if (guard.state.authority !== null) requireFileRevision(guard.revision, revision);
+        return { revision, flipped: false };
       }
       await checkMigrationExpected(db, input.expectedRevision);
+      if (guard.state.authority !== null) requireFileRevision(input.expectedRevision, guard.revision);
       const next = (input.expectedRevision as number) + 1;
       const at = Date.now();
       const snapshotStatement =
@@ -867,6 +978,7 @@ export function createD1Storage(db: D1Database): StoragePort {
           )
           .bind(input.migrationId, 'active', next, 'active', next),
       );
+      if (guard.state.authority !== null) statements.push(...fileGuardStatements(db, guardedState));
       try {
         await db.batch(statements);
       } catch (error) {
@@ -982,4 +1094,72 @@ export function createD1Storage(db: D1Database): StoragePort {
       return row === null ? null : toMigrationFailure(row);
     },
   };
+  if (binding === undefined) return registerFileFrameworkStorage(storage, framework);
+  // Reads and bookkeeping recheck the assignment and complete persisted framework inventory.
+  const checkedStorage = Object.fromEntries(Object.entries(storage).map(([name, method]) => [name,
+    async (...args: unknown[]) => {
+      const captured = fileGuardCopy(args);
+      await readFileGuard(db, binding, framework);
+      return (method as (...values: unknown[]) => Promise<unknown>)(...captured);
+    },
+  ])) as unknown as StoragePort;
+  const extension: FileReferenceStoragePort = {
+    ...checkedStorage,
+    fileRetirementAuthority: binding,
+    async installFileReferenceInventory(request: InstallFileReferenceInventory): Promise<CommitResult> {
+      const input = fileGuardCopy(request);
+      const guard = await readFileGuard(db, binding, framework);
+      requireFileRevision(input.expectedRevision, guard.revision);
+      const next = ((input.expectedRevision as number) + 1) as Revision;
+      const plan = planFileInstall(guard.state, binding, input, guard.snapshots, guard.rows, next, framework);
+      if (!plan.changed) {
+        requireFileRevision(guard.revision, await readRevisionInner(db));
+        return { revision: guard.revision };
+      }
+      try {
+        await db.batch([
+          db.prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)').bind(next, Date.now(), 'file:install'),
+          db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+          db.prepare('INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, installed_at) VALUES (?, ?, ?, ?, ?)')
+            .bind(plan.snapshot.owner, plan.snapshot.snapshotId, plan.snapshot.digest, plan.snapshot.installedRevision, plan.snapshot.installedAt),
+          ...fileGuardStatements(db, plan.state),
+        ]);
+      } catch (error) { throw await toCommitError(db, input.expectedRevision, error); }
+      return { revision: next };
+    },
+    async readFileReferenceInventory(owner: string): Promise<InstalledFileReferenceInventory | null> {
+      const checkedOwner = fileGuardCopy(owner);
+      const guard = await readFileGuard(db, binding, framework);
+      return fileGuardCopy(guard.state.inventories.find(item => item.inventory.owner === checkedOwner) ?? null);
+    },
+    async retireFinalizedFile(request: RetireFinalizedFile): Promise<FinalizedFileRetirement> {
+      const input = fileGuardCopy(request);
+      if (!Number.isSafeInteger(input.maxRows) || input.maxRows < 1) throw new StorageConstraintError('reference', 'File retirement: positive complete census bound required');
+      const guard = await readFileGuard(db, binding, framework, input.maxRows);
+      if (!guard.state.retirements.some(fact => fact.file.ref === input.file.ref)) requireFileRevision(input.expectedRevision, guard.revision);
+      const next = ((guard.revision as number) + 1) as Revision;
+      const plan = planFileRetirement(guard.state, binding, input, guard.rows, next, framework);
+      if (!plan.fresh) {
+        requireFileRevision(guard.revision, await readRevisionInner(db));
+        return fileGuardCopy(plan.fact);
+      }
+      requireFileRevision(input.expectedRevision, guard.revision);
+      try {
+        await db.batch([
+          db.prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)').bind(next, input.atMs, 'file:retire'),
+          db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
+          db.prepare('INSERT INTO file_retirements(ref, retirement) VALUES (?, ?)').bind(plan.fact.file.ref, JSON.stringify(plan.fact)),
+        ]);
+      } catch (error) { throw await toCommitError(db, input.expectedRevision, error); }
+      return fileGuardCopy(plan.fact);
+    },
+    async readFinalizedFileRetirement(ref: FinalizedFileRef): Promise<FinalizedFileRetirement | null> {
+      const checkedRef = fileGuardCopy(ref);
+      const guard = await readFileGuard(db, binding, framework);
+      return fileGuardCopy(guard.state.retirements.find(fact => fact.file.ref === checkedRef) ?? null);
+    },
+    publishMigrationChunk: checkedStorage.publishMigrationChunk,
+    flipInstalledSnapshot: checkedStorage.flipInstalledSnapshot,
+  };
+  return registerFileFrameworkStorage(extension, framework);
 }
