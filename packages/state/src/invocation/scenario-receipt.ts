@@ -7,13 +7,14 @@
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
-import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
+import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import type { PolicyTable } from '../policy/grants.js';
+import { buildPolicyTable, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
+import { checkedMembershipFact, checkedAuthoritySnapshot } from '../policy/membership-facts.js';
 import { queryRecordsObserved, projectSavedRecordForViewer } from '../query/engine.js';
 import { MAX_MEMBERSHIP_SNAPSHOT_USERS, type Membership, type MembershipSnapshot, type ResolvedIdentity } from '@canlang/contracts';
 import { admitOwnerStageCall, type AdmittedCall } from './admission.js';
@@ -182,6 +183,7 @@ interface BoundPlan {
   readonly arrays: GeneratedOperationDef['inputArrays']; readonly nullableRefs: NonNullable<GeneratedOperationDef['inputNullableRefs']>;
   readonly valueSchema: NormalizedSchema | undefined; readonly parameterStyle: boolean;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>; readonly valueTypes: CanonicalValueTypes | undefined;
+  readonly canonicalModels: readonly CanonicalModelDescriptor[];
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
@@ -286,20 +288,6 @@ function membershipOwner(call: AdmittedCall): ReceiptOwnerSession | undefined {
   return ownerSessions.get(call) ?? (context !== undefined && 'value' in context && typeof context.value === 'object' &&
     context.value !== null ? ownerContexts.get(context.value) : undefined);
 }
-/** Complete detached Identity facts, shared by execution and saved authority. */
-function checkedMembershipFact(value: unknown, team: string, person: string): Membership | null {
-  if (value === null) return null;
-  const row = object(dataCopy(value), ['membership_id', 'team_id', 'user_id', 'is_owner', 'roles', 'status', 'created_at', 'updated_at']);
-  text(row['membership_id']); text(row['created_at']); text(row['updated_at']);
-  if (row['team_id'] !== team || row['user_id'] !== person || typeof row['is_owner'] !== 'boolean' ||
-      (row['status'] !== 'active' && row['status'] !== 'removed')) return invalid('Identity reader returned a foreign pair or unknown membership state.');
-  if (!Array.isArray(row['roles'])) return invalid('Identity roles must be an array.');
-  for (const value of row['roles']) {
-    const role = object(value, ['role', 'granted_at', 'granted_by']);
-    text(role['role']); text(role['granted_at']); text(role['granted_by']);
-  }
-  return deepFreeze(row) as unknown as Membership;
-}
 /** Internal observer join shared with the separate genuine dispatch lifetime.
  * Intentionally absent from public barrels; this grants no execution frame. */
 export async function readScenarioCurrentMembership(reader: MembershipReader, team: string, person: string): Promise<boolean> {
@@ -308,28 +296,6 @@ export async function readScenarioCurrentMembership(reader: MembershipReader, te
   // Preserve this execution observer's existing separate enrollment budget.
   list(found.roles);
   return found.status === 'active';
-}
-
-function checkedAuthoritySnapshot(value: MembershipSnapshot, team: string,
-  users: readonly string[]): ReadonlyMap<string, Membership | null> {
-  const snapshot = object(value, ['team_id', 'entries']);
-  if (snapshot.team_id !== team) return invalid('Identity snapshot crossed its requested Team.');
-  const entries = snapshot.entries;
-  if (!Array.isArray(entries) || Object.getPrototypeOf(entries) !== Array.prototype ||
-      entries.length !== users.length || Reflect.ownKeys(entries).length !== users.length + 1) {
-    return invalid('Identity snapshot must preserve every requested position.');
-  }
-  const facts = new Map<string, Membership | null>();
-  for (let index = 0; index < users.length; index++) {
-    const descriptor = Object.getOwnPropertyDescriptor(entries, String(index));
-    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) {
-      return invalid('Identity snapshot entries require own data.');
-    }
-    const entry = object(descriptor.value, ['user_id', 'membership']);
-    if (entry.user_id !== users[index]) return invalid('Identity snapshot user order or identity changed.');
-    facts.set(stableStringify([team, users[index]]), checkedMembershipFact(entry.membership, team, users[index]!));
-  }
-  return facts;
 }
 
 /** Evaluate at the authored expression point, using only Dev's actual capture
@@ -614,7 +580,8 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
 
 /** Registry-owned registration after exact artifact source/callable checking. */
 export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[],
-  defaults: { readonly parameterStyle: boolean; readonly valueSchema?: NormalizedSchema; readonly valueTypes?: CanonicalValueTypes }): void {
+  defaults: { readonly parameterStyle: boolean; readonly valueSchema?: NormalizedSchema; readonly valueTypes?: CanonicalValueTypes;
+    readonly canonicalModels: readonly CanonicalModelDescriptor[] }): void {
   const claim = def.descriptor.result?.disclosure;
   if (claim === undefined) return;
   if (def.kind !== 'scenario' && def.kind !== 'read') return invalid('dependency plans require a scenario or checked read.');
@@ -652,6 +619,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels: new Map(models.map(model => [model.name as ModelName, deepFreeze(dataCopy(model))])),
+    canonicalModels: Object.freeze(defaults.canonicalModels.map(model => deepFreeze(dataCopy(model)))),
     valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
 }
 
@@ -743,7 +711,14 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
   if (bound === undefined || !bound.plan.queries?.length || invokedPlans.has(def) || queryProducers.has(def)) return invalid('query producer requires one checked source binding before execution.');
   object(producer, ['source', 'app', 'policy']); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) return invalid('query producer differs from its checked source/policy.');
-  const policy: PolicyTable = new Map([...producer.policy].map(([model, value]) => [model, deepFreeze(dataCopy(value))]));
+  const policies = [...producer.policy].map(([model, value]) => {
+    const copied = dataCopy(value);
+    if (copied.model !== model) return invalid('query policy model differs from its owning key.');
+    return copied;
+  });
+  // A detached policy must be validated anew against the registry's real
+  // canonical declarations so its private row field bindings survive copying.
+  const policy = buildPolicyTable(policies, bound.canonicalModels);
   if (bound.plan.queries.some(query => !policy.has(query.model))) return invalid('query model requires its actual viewer policy.');
   queryProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy }));
 }
@@ -1810,7 +1785,21 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   let authorityDrift = false;
   let coherentFacts: ReadonlyMap<string, Membership | null> | undefined;
   let unseenAuthority = false;
+  const owningSnapshot = Object.getOwnPropertyDescriptor(input.memberships, 'findMembershipsSnapshot');
   const memberships: MembershipReader = {
+    ...(owningSnapshot !== undefined && 'value' in owningSnapshot && typeof owningSnapshot.value === 'function' ? {
+      findMembershipsSnapshot: async (team: string, users: readonly string[]): Promise<MembershipSnapshot> => {
+        if (coherentFacts === undefined) return owningSnapshot.value.call(input.memberships, team, users);
+        return { team_id: team, entries: users.map(user => {
+          const key = stableStringify([team, user]);
+          if (!coherentFacts!.has(key)) {
+            unseenAuthority = true;
+            throw new StateError('forbidden', 'Nested row grant requested authority absent from the coherent snapshot.');
+          }
+          return { user_id: user, membership: coherentFacts!.get(key)! };
+        }) };
+      },
+    } : {}),
     async findMembership(team, user) {
       if (coherentFacts !== undefined) {
         const key = stableStringify([team, user]);
@@ -1838,12 +1827,17 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const project = async (member: Awaited<ReturnType<typeof membership>>) => {
     const context = { actorUserId, teamId, membership: member, memberships };
     if (!await evaluateBy(def.by, context)) return withheld;
-    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = []) => {
+    const currentSavedRow = async (model: ModelName, saved: StoredRow) => {
       const current = await input.store.load(model, saved.id); const inventory = currentBound.models.get(model);
       if (inventory === undefined || current === null || current.archivedAt !== null || current.version < saved.version ||
           current.created !== saved.created || current.createdBy !== saved.createdBy ||
           (current.parent?.model ?? null) !== (saved.parent?.model ?? null) ||
           (current.parent?.id ?? null) !== (saved.parent?.id ?? null)) return null;
+      return current;
+    };
+    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = []) => {
+      const current = await currentSavedRow(model, saved); const inventory = currentBound.models.get(model);
+      if (current === null || inventory === undefined) return null;
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
         originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field))] });
     };
@@ -1855,9 +1849,15 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       const observed = saved.queries?.find(query => query.queryId === plan?.id);
       if (plan === undefined || observed === undefined) return false;
       try {
+        const currentRows: StoredRow[] = [];
+        for (const candidate of observed.candidates) {
+          const current = await currentSavedRow(plan.model, candidate.row);
+          if (current === null) return false;
+          currentRows.push(current);
+        }
         await queryRecordsObserved({ model: plan.model, modelDescriptor: queryModelDescriptor(bound, plan), authority: 'viewer',
           policy: input.policy, context: { actorUserId, teamId }, memberships,
-          store: { ...input.store, readRevision: () => input.store.readRevision(), query: async () => observed.candidates.map(candidate => candidate.row) },
+          store: { ...input.store, readRevision: () => input.store.readRevision(), query: async () => currentRows },
           archived: plan.archived, ...(plan.order.length === 0 ? {} : { order: plan.order }) }, () => true,
         [...new Set(plan.dependencies.filter(dep => dep.role === 'control').map(dep => dep.field))]);
         return true;

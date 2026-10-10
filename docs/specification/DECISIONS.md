@@ -6226,8 +6226,9 @@ Allow only a checked read-query protected array to retain its genuine required:f
 Manual review CLEAR for Dev9884e876 finite native target ABI correction. Only protected arrays in an owning checked read-query may retain ordinary required:false metadata; scalar scenarios, singular optional references, defaults and unsupported inputs still refuse. Exact static child preparation requires every authored input; State retains owning bounds/nullability/version/current reference checks. Honest fixtures add omitted-array rollback refusal while preserving all other lifetime/no-effect/replay/history controls. Reuse the two changed direct component cases and owning Cloudflare emission. Actual Complete native/source workflow and the original pure/private application remain unfinished; no required-marker falsification or receipt authority expansion. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
 
+### 2026-10-10 — join Complete query recipes to fresh executable owners (unfinished native publication)
 
-Compiler intake of reviewed LOCALbb234ad8, 2026-10-10 (unfinished source joins): preserve both committed275b439e ande9a248ba compiler units while consuming exact reviewed Dev948 actual reader, Files/Interfaces4a explicit upload range contract, Packagesf0 State Identity test dependency/lock repair and378 protocol documentation. Reuse all unchanged owning outcomes, including generated public1/1, Dev48, upload168 and boundary0. No independent common repair, remote publication, native read grant, File association fabrication or hold release. Reconcile accumulated staged compiler tree/history preserving all released allocations and unadvanced complete checkpoint.
+Prepare the typed receipt recipe inside actual emission only from original immutable Complete, fresh source lowering and the indexed supplied executable owner. Independently check a detached owner so it cannot conceal changed guards/body. Exact query source, return, four influences and nominal projection reuse the owning source validator; source map serialization reuses the prepared typed plan. Existing composite/read publication gate still withdraws capture until defining Dev dispatch/ordinary-array contracts. Actual installed State query-schema consumer and permanent skew controls pass; affected129/129, final corrected sourceproducer4/4, strict all-target Clippy/format0 and finite correction review CLEAR. Reuse unchanged analyzer303 and public1/1 outcomes. No whole application or native query acceptance follows.
 
 ### 2026-10-10 — prepare protected query child calls without granting partial output (unfinished)
 
@@ -6248,6 +6249,7 @@ public1/1 results. Actual native publication must retain strict host lifetime an
 select the query return exactly once, then qualify genuine compiled public and
 protected parent execution after reviewed defining Dev/State intake. Full
 references and existing precise holds stay unfinished.
+The actual typed attachment saved-replay blocker additionally requires State's defining File association: snapshotScenarioReceiptEffects currently rejects every nonempty fileAssignments. Compiler's current File exclusion cannot be removed safely by publishing a scalar or fabricated void recipe. State/Files/Dev must establish admitted finalized File provenance, assignment/lifetime and retained replay checks first; Compiler then supplies owning checked File source/Set recipe. Preserve actual Dev source/replay/readback assertions and precise existing human holds.
 
 ### 2026-10-10 — manual local integration of e9a248ba
 
@@ -6314,3 +6316,53 @@ with no host or behavioral assertion weakened. Whole/editor and unchanged
 owner results are reused. Bound result consumption and original application
 purity/row-policy/File/event contracts remain distinct dependencies;58/67 and
 precise human holds are unchanged. Local coherent commit for coordinator review.
+
+Compiler intake of reviewed LOCALbb234ad8, 2026-10-10 (unfinished source joins): preserve both committed275b439e ande9a248ba compiler units while consuming exact reviewed Dev948 actual reader, Files/Interfaces4a explicit upload range contract, Packagesf0 State Identity test dependency/lock repair and378 protocol documentation. Reuse all unchanged owning outcomes, including generated public1/1, Dev48, upload168 and boundary0. No independent common repair, remote publication, native read grant, File association fabrication or hold release. Reconcile accumulated staged compiler tree/history preserving all released allocations and unadvanced complete checkpoint.
+
+### 2026-10-10 — prepare protected query child calls without granting partial output (unfinished)
+
+Require a separately Complete acyclic query child and the exact original
+nondefault parent parameters. Preserve authored input order and an unused
+binding; consuming that bound result remains declined until owning provenance
+is implemented. Actual codegen correspondence uses owning model Ref descriptors,
+parent version requirements, read-child version omission and exact finite bounds;
+ordinary reused reference arrays are not nominal value aliases. The immutable
+fresh prepared query recipe alone owns executable/source correspondence.
+
+The current native publication gate withdraws both child and parent recipes;
+genuine full emission reports E6008 for the unsupported call and activates no
+capture helper. Affected320/320 and finite independent review qualify preparation
+only. Setup corrections preserve the actual catalog owner and distinguish
+E3005 cycle rejection from disclosure refusal. Reuse unchanged whole/editor and
+public1/1 results. Actual native publication must retain strict host lifetime and
+select the query return exactly once, then qualify genuine compiled public and
+protected parent execution after reviewed defining Dev/State intake. Full
+references and existing precise holds stay unfinished.
+
+### 2026-10-10 — manual local integration of 59e6733c
+
+Manual source review CLEAR for Compiler59e6733c finite protected query parent preparation. Only direct original nondefault parent references or bounded reference arrays may prepare a separately Complete acyclic query child; preserve authored input/call order, unused binding, actual Ref model/version and matching finite bounds. Consumed results, copied/computed/defaulted operands and general unsupported calls remain refused. Source, indexed IR and actual published disclosure must agree; immutable fresh prepared recipes own executable authority. The native result gate remains CLOSED: actual full emission reports expected E6008 and withdraws parent/child disclosure and helpers. Reuse320 affected checks and strict lint/format;58/67 whole completion unchanged. Reviewed Dev dual host lifetime is in local main6c3d350c. Compiler owns one-selection correction and genuine Complete publication/compiled public-private-parent qualification; typed File, row-selected policy and precise holds remain separate. Preserve all existing decision text; reconcile living ownership/coverage without advancing complete checkpoint. No remote push or publication.
+
+## 2026-10-10 — declare Work’s genuine Identity test dependency
+
+Work’s defining subject observation tests consume the actual Identity Memory snapshot producer. Add @canlang/identity:workspace:* only to Work devDependencies and matching authoritative workspace lock metadata. Preserve the actual public testing import, State/Work producer chain and unchanged dependency guard; no substitute snapshots or sibling-dist access. Reviewed LOCAL9fb2c0aa intake preserves the two edits and all local commits.
+
+Offline frozen install with ignored scripts passes on Bun1.4.2. The declared Work workspace link points to this worktree’s owning Identity package; Node24 resolves its actual bare testing entry, createMemoryIdentityStore and findMembershipsSnapshot. Current-source boundary passes13packages/914JS-TS/1308runtime-context/0violations. Capability owns its new b3 consumer source and behavior qualification; these checks release only the common dependency prerequisite. No broad rerun, push or change to precise human holds.
+
+### 2026-10-10 — manual local integration of 2d29467f
+
+Direct manual review CLEAR for Packages2d29467f common test prerequisite: add only Work owning Identity workspace devDependency and matching authoritative Bun lock metadata. Preserve the actual bare Identity testing constructor/snapshot method, genuine Capability consumer and strict package boundary guard; no production edge, fixture substitute or source bypass. Reuse owning offline frozen install with ignored scripts, actual declared workspace link/testing entry resolution and source-current boundary13packages/914JS-TS/1308runtime-context/zero violations. This releases Capability Work b3 subject/receipt behavioral validation; Capability retains ownership of its actual changed consumers and qualification. No broader build/test rerun, whole-workflow acceptance or recipient-specific hold changes. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — bind role subjects to owning stored user fields (implemented State; workflow unfinished)
+
+Choose additive roleSubject.person:string|{model,field}, validated against the owning canonical singular user/user? field, with private validated-policy/row bindings and exact stored {id} resolution. This preserves static authoring and lazy actor/combinator semantics while preventing actor substitution, native reference coercion, field/schema/owner confusion or malformed absence from granting beneath NOT. Cache only row-independent predicates. Detached query policies must be revalidated against the registry's actual canonical declarations; copying their JSON cannot copy private authority.
+
+Reuse the established genuine same-Team1–99 full-fact snapshot protocol for current row grants. One original complete observation includes caller plus evaluated row subjects and relevant read gates across parent/child pages or selected read refs. Confirm policy only before source callbacks; retain identical full facts through actual async transforms/receipt loads and final State revision checks. Saved disclosure authorizes CURRENT subjects and returns ORIGINAL values/versions. No new table, sequential multi-fact fallback, source replay, cross-store atomicity or return-time lease follows.
+
+State clean emission, corrected saved receipt/query74 and role/loader/default53 pass;126 unchanged expanded-run outcomes are reused. Initial failures revealed noncanonical fixture wires and actual detached-policy binding loss and were corrected without weakening assertions. Five genuine Work selected-receipt controls await safe intake of reviewed Packages2d29467f dependency release in LOCAL0f8965dc. Compiler exact source selector/callable transport and Dev native/current-reader adoption remain separate required joins; this is an unfinished implementation checkpoint, not canonical acceptance. The typed-File association join remains blocked on Packages' exact finalized assignment/lifetime contract, then State's existing association consumer, Compiler source metadata and Dev native/current repair. Proposed model-source cardinality and exact human holds remain unchanged.
+
+### 2026-10-10 — manual local integration of 9458e68e
+
+Manual producer/consumer source reviews CLEAR for Capability9458e68e finite State row-selected subject authority. Exact owning canonical singular user/user? declarations bind private policy/row context; canonical stored identities resolve lazily with no actor substitution or copied-policy authority. Cache only row-independent predicates. Genuine complete same-Team1–99 caller/subject membership observations include relevant original read refs and page parent/child/operation gates before callbacks, then retain identical full facts through transforms, receipt loads and final State revision fences without source replay or sequential multi-subject fallback. Saved disclosure authorizes current row subjects while returning original captured values/versions. Reuse clean owning State emission, corrected74 plus126 unchanged expanded results and53 role/loader/default checks; no reruns. Five newly authored genuine Work selected-receipt cases remain unrun at this checkpoint, pending owning safe intake of the already reviewed Work Identity dependency in local0f8965dc; Capability continues that affected validation and corrections. Exact descriptor/API is now available for Compiler checked source/role/callable transport and Dev genuine native/current Identity adoption. Typed File retained association awaits its separate Packages defining release; proposed cardinality consultation and all recipient-specific holds remain unchanged. Full canonical/native workflows and all four plans remain unfinished. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Compiler intake of reviewed LOCALbf8dd7f8, 2026-10-10 (unfinished row-policy native join): preserve committedd74 native query unit and all source histories while consuming exact State9458e68e row-subject evaluator/descriptor and released Work Identity test dependency. Reuse State253 and recorded owning build/results; no shared source fix or broad rerun. Canonical roleSubject person model/field must derive from owning singular stored user/user? declaration; Compiler source transport and Dev actual native current-reader remain required. Reconcile actual accumulated staged tree/history with prior allocations and complete checkpoint unadvanced; local-only, precise holds retained.
