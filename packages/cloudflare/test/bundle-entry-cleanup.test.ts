@@ -57,7 +57,7 @@ vi.mock("node:child_process", async (original) => {
       // Use the unmocked fs writer so the entry-write hook remains decisive.
       fs.writeFileSync(output, args[1]!.includes("mcp-bundle")
         ? "createMcpHandler createArtifactRegistry createArtifactCatalog IdentityError"
-        : "handleOperationRequest IdentityError handlePageRequest handlePagePreferencePost handleAuthRequest SESSION_EXPIRES_MS createSourceFormBindings", "utf8");
+        : "handleOperationRequest IdentityError handlePageRequest handlePagePreferencePost handleAuthRequest SESSION_EXPIRES_MS createSourceFormBindings receiverFromIdentity", "utf8");
     },
   };
 });
@@ -101,7 +101,7 @@ for (const [label, build] of [["MCP", buildMcpBundle], ["HTTP", buildHttpOperati
     it("returns original successful contents and cleans after output read", () => {
       expect(build()).toBe(label === "MCP"
         ? "createMcpHandler createArtifactRegistry createArtifactCatalog IdentityError"
-        : "handleOperationRequest IdentityError handlePageRequest handlePagePreferencePost handleAuthRequest SESSION_EXPIRES_MS createSourceFormBindings");
+        : "handleOperationRequest IdentityError handlePageRequest handlePagePreferencePost handleAuthRequest SESSION_EXPIRES_MS createSourceFormBindings receiverFromIdentity");
       expect(control.events).toEqual(["write", "process", "read", "cleanup"]);
       expect(existsSync(control.directories[0]!)).toBe(false);
     });
