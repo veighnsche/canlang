@@ -132,6 +132,7 @@ export {
   type CommittedFileReferences, type FileReferenceConsumer, type FileReferenceConsumerInput,
   createSystemRegistry,
   systemCommandStageRevision,
+  readSystemCommandRetainedOutbox,
   enrollSystemCommandCommitCheck,
   createTransactionPort,
   defineSystemCommand,

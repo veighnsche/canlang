@@ -11,6 +11,7 @@ import {
   createSystemRegistry,
   enrollSystemCommandCommitCheck,
   systemCommandStageRevision,
+  readSystemCommandRetainedOutbox,
   type SystemCommandContext,
   defineSystemCommand,
   outboxAckCommand,
@@ -83,6 +84,76 @@ describe('createSystemRegistry', () => {
     assert.deepEqual(await pendingIntentIds(world.store), ['sys-b']);
     await commands.run('outbox.ack', { intentIds: ['sys-a'] }, runCtx('sys-run-3'), deps);
     assert.deepEqual(await pendingIntentIds(world.store), ['sys-b']);
+  });
+
+  it('reads the actual original outbox after acknowledgement inside the five-key issued stage', async () => {
+    const world = await setupPortsWorld();
+    await invokeStage(world, { execute: makeStagingHandler({ intents: [makeStagedIntent('retained-a')] }) });
+    const original = await world.store.outboxGet('retained-a');
+    assert.ok(original?.originalCommit);
+    await registry().run('outbox.ack', { intentIds: ['retained-a'] }, runCtx('retained-ack'), { store: world.store });
+    let captured: SystemCommandContext | undefined;
+    const read = defineSystemCommand({ name: 'test.retained', stage: async (_args, ctx) => {
+      captured = ctx;
+      assert.deepEqual(Object.keys(ctx).sort(), ['actor', 'load', 'now', 'operation', 'query']);
+      const retained = await readSystemCommandRetainedOutbox(ctx, 'retained-a');
+      assert.deepEqual(retained?.intent, original.intent);
+      assert.deepEqual(retained?.originalCommit, original.originalCommit);
+      assert.equal(retained?.status, 'dispatched');
+      assert.equal(await readSystemCommandRetainedOutbox(ctx, 'missing'), null);
+      return { result: retained };
+    } });
+    await createSystemRegistry([read]).run(read.name, {}, runCtx('retained-read'), { store: world.store });
+    assert.throws(() => readSystemCommandRetainedOutbox(captured!, 'retained-a'), /closed or poisoned/);
+    assert.throws(() => readSystemCommandRetainedOutbox({ ...captured! }, 'retained-a'), /not issued/);
+  });
+
+  it('poisons copied retained-reader contexts and does not commit after a caught forgery', async () => {
+    const world = await setupPortsWorld();
+    const before = await world.store.readRevision();
+    const read = defineSystemCommand({ name: 'test.retained-forgery', stage: (_args, ctx) => {
+      assert.throws(() => readSystemCommandRetainedOutbox({ ...ctx }, 'anything'), /not issued/);
+      return { result: null };
+    } });
+    const error = await captureStateError(() => createSystemRegistry([read]).run(read.name, {},
+      runCtx('retained-forgery'), { store: world.store }));
+    assert.equal(error.code, 'validation');
+    assert.equal(await world.store.readRevision(), before);
+  });
+
+  it('refuses fence drift after the original retained carrier read', async () => {
+    const world = await setupPortsWorld();
+    await invokeStage(world, { execute: makeStagingHandler({ intents: [makeStagedIntent('retained-race')] }) });
+    const original = await world.store.outboxGet('retained-race');
+    const read = defineSystemCommand({ name: 'test.retained-race', stage: async (_args, ctx) => {
+      const retained = await readSystemCommandRetainedOutbox(ctx, 'retained-race');
+      assert.ok(retained?.originalCommit);
+      await world.store.commit(makeBatch(await world.store.readRevision(), {}));
+      return { result: retained };
+    } });
+    const error = await captureStateError(() => createSystemRegistry([read]).run(read.name, {},
+      runCtx('retained-race'), { store: world.store }));
+    assert.equal(error.code, 'busy');
+    assert.deepEqual(await world.store.outboxGet('retained-race'), original);
+  });
+
+  it('withholds a run with an unawaited retained read and closes the pending reader', async () => {
+    const world = await setupPortsWorld(), before = await world.store.readRevision();
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const originalRead = world.store.outboxGet;
+    world.store.outboxGet = async id => { await gate; return originalRead(id); };
+    let pending: Promise<unknown> | undefined;
+    const read = defineSystemCommand({ name: 'test.retained-pending', stage: (_args, ctx) => {
+      pending = readSystemCommandRetainedOutbox(ctx, 'pending').catch(error => error);
+      return { result: null };
+    } });
+    const error = await captureStateError(() => createSystemRegistry([read]).run(read.name, {},
+      runCtx('retained-pending'), { store: world.store }));
+    assert.equal(error.code, 'validation');
+    release();
+    assert.match(String(await pending), /crossed its original stage/);
+    assert.equal(await world.store.readRevision(), before);
   });
 
   it('replaces, updates, and cancels schedules via scheduleGet', async () => {

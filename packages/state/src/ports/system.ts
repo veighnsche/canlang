@@ -23,6 +23,7 @@ import type {
   DomainWrite,
   HistoryEntry,
   OutboxIntent,
+  RetainedOutboxIntent,
   Revision,
   ScheduleOp,
   StoragePort,
@@ -65,6 +66,7 @@ export interface SystemCommandContext {
 /** Actual registry-issued staging capability, separate from caller context. */
 interface SystemStageLedger {
   readonly revision: Revision;
+  readonly readOutbox: StoragePort['outboxGet'];
   readonly checks: Array<() => boolean | Promise<boolean>>;
   phase: 'stage' | 'checks' | 'closed';
   pendingReads: number;
@@ -98,6 +100,17 @@ function actualStage(ctx: SystemCommandContext): SystemStageLedger {
 /** The original physical checkpoint; this grants neither a store nor authority. */
 export function systemCommandStageRevision(ctx: SystemCommandContext): Revision {
   return actualStage(ctx).revision;
+}
+/** Original retained carrier through this issued stage's tracked reader.
+ * No new context member, store handle, source grant or reconstructed stamp.
+ */
+export function readSystemCommandRetainedOutbox(ctx: SystemCommandContext,
+  intentId: string): Promise<RetainedOutboxIntent | null> {
+  const ledger = actualStage(ctx);
+  if (typeof intentId !== 'string' || intentId === '' || intentId.length > STAGING_MAX_ID_LENGTH) {
+    return stageFailure(ledger, 'System retained outbox reader requires a bounded intent identity.');
+  }
+  return ledger.readOutbox(intentId);
 }
 /** Enroll only during this actual stage. Registry closes and consumes once. */
 export function enrollSystemCommandCommitCheck(ctx: SystemCommandContext,
@@ -207,7 +220,8 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
         throw new StateError('validation', 'System runs need a non-empty operation identity.');
       }
       const revision = await deps.store.readRevision();
-      const ledger: SystemStageLedger = { revision, checks: [], phase: 'stage', pendingReads: 0, poisoned: false };
+      const ledger: SystemStageLedger = { revision, checks: [], phase: 'stage', pendingReads: 0, poisoned: false,
+        readOutbox: (intentId) => read(() => deps.store.outboxGet(intentId)) };
       const read = async <T>(work: () => Promise<T>): Promise<T> => {
         if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
         ledger.pendingReads++;
