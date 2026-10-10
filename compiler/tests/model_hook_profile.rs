@@ -1,0 +1,172 @@
+//! Hook classification uses real source checking and owning IR declarations.
+//! It supplies no native consumer or execution evidence.
+use canlang_compiler::{
+    analysis::{
+        catalog::{CatalogRequest, load_catalog},
+        check_program,
+        resolve::SymbolId,
+    },
+    codegen::{
+        ir::{self, IrItemKind, IrProgram},
+        model_policy_profile::local_hook_supported,
+    },
+    source::{SourceDb, Span},
+};
+
+fn hook(source: &str, clean: bool) -> (IrProgram, SymbolId) {
+    hook_with_expected_diagnostic(source, clean, None)
+}
+
+fn hook_with_expected_diagnostic(
+    source: &str,
+    clean: bool,
+    expected: Option<&str>,
+) -> (IrProgram, SymbolId) {
+    let mut db = SourceDb::new();
+    let file = db.add("model-hook.can".into(), source.into());
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(
+        diagnostics.iter().all(|d| !d.code.starts_with("E1")),
+        "{diagnostics:?}"
+    );
+    if clean {
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+    if let Some(code) = expected {
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic.code == code),
+            "{diagnostics:?}"
+        );
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.code == code),
+            "{diagnostics:?}"
+        );
+    }
+    let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    if clean {
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+    let scenario = program
+        .items
+        .iter()
+        .find(|item| matches!(item.kind, IrItemKind::Scenario { hook: Some(_), .. }))
+        .expect("real hook declaration")
+        .id;
+    (program, scenario)
+}
+
+#[test]
+fn checked_ordered_candidate_adjustments_and_staged_create_are_supported() {
+    let (program, scenario) = hook(include_str!("fixtures/hook_order_rollback.can"), true);
+    assert!(
+        local_hook_supported(&program, scenario),
+        "{:#?}",
+        program.item(scenario)
+    );
+}
+
+#[test]
+fn checked_candidate_identity_and_native_version_are_readonly_supported_leaves() {
+    let source = include_str!("fixtures/hook_order_rollback.can").replace(
+        "   require event.after.accept",
+        "   require event.after.version>0\n   let id=event.after.id\n   require id!=\"\"\n   require event.after.accept",
+    );
+    let (program, scenario) = hook(&source, true);
+    assert!(
+        local_hook_supported(&program, scenario),
+        "{:#?}",
+        program.item(scenario)
+    );
+}
+
+#[test]
+fn checked_scalar_lets_owned_cases_and_bounded_branches_preserve_state_defaults() {
+    let source = r#"app HookProfile
+Given
+ Entry {title:text,count:int,accept:bool,phase:enum(draft,done)=draft}
+ Audit {note:text,author:user server=actor,at:datetime server=now}
+ policy Entry read=members
+ policy Audit read=members
+When
+ crud Entry by=members fields=title,count,accept,phase
+ scenario adjust on=Entry.update
+  do
+   let title=event.after.title
+   let count=event.after.count
+   require count>=0 and not event.after.accept==false
+   if event.after.accept
+    set event.after {title=title,count=count+1,phase=done}
+    create Audit {note=event.after.title} as audit
+   else
+    set event.after {phase=draft}
+Then
+"#;
+    let (program, scenario) = hook(source, true);
+    assert!(
+        local_hook_supported(&program, scenario),
+        "{:#?}",
+        program.item(scenario)
+    );
+}
+
+#[test]
+fn checked_metadata_queries_calls_unknown_leaves_and_delete_hooks_are_refused() {
+    let original = include_str!("fixtures/hook_order_rollback.can");
+    for source in [
+        original.replace("require event.after.accept", "let created=event.after.created"),
+        original.replace("require event.after.accept", "require count(Audit)>0"),
+        original.replace(" Audit {note:text}", " Audit {note:text}\n derive accepted(value:bool):bool = value")
+            .replace("require event.after.accept", "require accepted(event.after.accept)"),
+        original.replace(" Entry {state:text,accept:bool}", " Entry {state:text,accept:bool,values:text[]}"),
+        original.replace(" scenario adjustEntry on=Entry.update", " scenario adjustEntry on=Entry.delete")
+            .replace("   require event.after.state==\"proposed\"\n   set event.after {state=\"first\"}\n   create Audit {note=event.after.state} as audit\n   require event.after.state==\"first\"\n   set event.after {state=\"second\"}\n   require event.after.state==\"second\"\n   require event.after.accept", "   require event.before.accept"),
+    ] {
+        let (program, scenario) = hook(&source, false);
+        assert!(!local_hook_supported(&program, scenario), "{source}");
+    }
+}
+
+#[test]
+fn source_rejected_same_trigger_staging_and_metadata_writes_do_not_qualify() {
+    let original = include_str!("fixtures/hook_order_rollback.can");
+    for source in [
+        original.replace(
+            "create Audit {note=event.after.state} as audit",
+            "create Entry {state=\"another\",accept=true} as entry",
+        ),
+        original.replace(
+            "set event.after {state=\"first\"}",
+            "set event.after {version=1}",
+        ),
+    ] {
+        let (program, scenario) = hook(&source, false);
+        assert!(!local_hook_supported(&program, scenario), "{source}");
+    }
+}
+
+#[test]
+fn source_rejected_foreign_staged_models_do_not_acquire_local_hook_coverage() {
+    let source = include_str!("fixtures/hook_order_rollback.can")
+        .replace(
+            "app HookOrder\n",
+            "app HookOrder\nuse Foreign {ForeignAudit}\n",
+        )
+        .replace(
+            "create Audit {note=event.after.state} as audit",
+            "create ForeignAudit {note=event.after.state} as audit",
+        )
+        + "package Foreign\n Given\n  export ForeignAudit {note:text}\n When\n Then\n";
+    let (program, scenario) = hook_with_expected_diagnostic(&source, false, Some("E4001"));
+    assert!(!local_hook_supported(&program, scenario));
+}

@@ -10093,6 +10093,10 @@ impl<'a> Emitter<'a> {
                 &format!("const crudWhen={{{}}};", entries.join(",")),
             );
         }
+        let native_hooks = local_policies.is_some_and(|plan| !plan.hook_bindings.is_empty());
+        if native_hooks {
+            self.emit_hooks_map(out, entry_span, true);
+        }
         out.push(entry_span, Some("canApp".to_string()), "return {");
         if !self.ir.crud_when.is_empty() {
             out.push(entry_span, Some("canApp".to_string()), "crudWhen,");
@@ -10121,7 +10125,11 @@ impl<'a> Emitter<'a> {
         self.emit_retention_map(out, entry_span);
         self.emit_preferences_valid(out, entry_span);
         self.emit_derives_map(out, entry_span);
-        self.emit_hooks_map(out, entry_span);
+        if native_hooks {
+            out.push(entry_span, Some("canApp".to_string()), "hooks,");
+        } else {
+            self.emit_hooks_map(out, entry_span, false);
+        }
         if let Some(plan) = local_policies {
             self.emit_model_policy_bindings(out, entry_span, plan);
         }
@@ -10162,6 +10170,16 @@ impl<'a> Emitter<'a> {
                 js_string(&binding.owner_package),
                 js_string(&self.ir.item(binding.model).canonical),
                 js_string(kind)
+            ));
+        }
+        for binding in &plan.hook_bindings {
+            entries.push(format!(
+                "{{id:{},module:{},ownerPackage:{},model:{},kind:\"hook\",run:hooks[{}].run}}",
+                js_string(&binding.id),
+                js_string(module),
+                js_string(&binding.owner_package),
+                js_string(&self.ir.item(binding.model).canonical),
+                js_string(&binding.operation)
             ));
         }
         out.push(
@@ -10322,10 +10340,10 @@ impl<'a> Emitter<'a> {
     /// Emit the `hooks` map: one engine-shaped `{name, ops, run}`
     /// descriptor per pre-commit hook, keyed by source trigger. The run
     /// function binds `($candidate, $hookCtx)`, builds the live `event`
-    /// views over the candidate plus trigger identity, stages through the
-    /// hook context, and returns the pending candidate. Sparse like every
-    /// other `canApp()` member: omitted when the program declares no hooks.
-    fn emit_hooks_map(&mut self, out: &mut JsWriter, span: Span) {
+    /// Checked native hooks receive State's original projected snapshots and
+    /// owning context; their policy binding reuses this exact callback. Legacy
+    /// profiles retain the existing engine convention until their owner joins.
+    fn emit_hooks_map(&mut self, out: &mut JsWriter, span: Span, native: bool) {
         let hooks: Vec<IrItem> = self
             .ir
             .items
@@ -10349,12 +10367,17 @@ impl<'a> Emitter<'a> {
             let hook = *hook;
             let handler = binding_ident("s", &item.canonical);
             let key = hook_trigger_key(self.ir, &hook);
-            let prefix = if index == 0 { "hooks:{" } else { "" };
+            let prefix = if index == 0 {
+                if native { "const hooks={" } else { "hooks:{" }
+            } else {
+                ""
+            };
+            let context_arg = if native { ",c" } else { "" };
             out.push(
                 item.span,
                 Some(item.canonical.clone()),
                 &format!(
-                    "{prefix}{}:{{name:{},ops:[{}],run:async function {handler}($candidate,$hookCtx){{",
+                    "{prefix}{}:{{name:{},ops:[{}],run:async function {handler}($candidate,$hookCtx{context_arg}){{",
                     js_string(&key),
                     js_string(&item.canonical),
                     js_string(hook_engine_op(hook.op))
@@ -10363,7 +10386,11 @@ impl<'a> Emitter<'a> {
             out.push(
                 item.span,
                 Some(item.canonical.clone()),
-                "const event={after:{...$candidate,id:$hookCtx.triggerId,version:($hookCtx.before?$hookCtx.before.version+1:1),parent:($hookCtx.before?$hookCtx.before.parent:null)},before:($hookCtx.before?{...$hookCtx.before.data,id:$hookCtx.before.id,version:$hookCtx.before.version,parent:$hookCtx.before.parent}:null)};",
+                if native {
+                    "const event={before:$hookCtx.before,after:$hookCtx.after===null?null:{...$hookCtx.after,...$candidate,version:$hookCtx.after.version}};"
+                } else {
+                    "const event={after:{...$candidate,id:$hookCtx.triggerId,version:($hookCtx.before?$hookCtx.before.version+1:1),parent:($hookCtx.before?$hookCtx.before.parent:null)},before:($hookCtx.before?{...$hookCtx.before.data,id:$hookCtx.before.id,version:$hookCtx.before.version,parent:$hookCtx.before.parent}:null)};"
+                },
             );
             out.push(
                 item.span,
@@ -10395,7 +10422,11 @@ impl<'a> Emitter<'a> {
             close.push_str(sep);
             out.push(item.span, Some(item.canonical.clone()), &close);
         }
-        out.push(span, Some("canApp".to_string()), "},");
+        out.push(
+            span,
+            Some("canApp".to_string()),
+            if native { "};" } else { "}," },
+        );
     }
 
     /// Emit derived functions as module-scope named functions
