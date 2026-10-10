@@ -5194,6 +5194,15 @@ The unchanged complete native Text case exposed a real post-cancel race with ori
 
 After clean affected CF emission, the SAME entire original nativeD1/localHTTP Text case1/1 passes48.22s and directly affected whole Images nativeD1/receivingSQLite/localHTTP case1/1 passes36.27s. Preserve the original source SHA, generated artifact and test body/assertions; remove passive diagnostics and reuse unchanged producer/bin/catalog checks. The two actual consumers share ordinary retained lookup/pin/qualification/receipt mechanisms; Images retains durable job/receiving-byte evidence and its installed observation ceiling, while Text retains the genuine live handle/durable progress and a distinct window capped by its existing generation ceiling. Both preserve unknown usage and late success. No cancel_scope/child-membership/coordinator package follows from this evidence. Exact consumer source55b7cc44 has passed coordinator bounded manual review; reported Text/Images results are reused at those scopes. Controlled provider/native adapter-reopen results do not accept whole original CanChat/CanCreative rule/current-context/attachment or production model/account/tokenizer/all-host gates. LOCAL-only/no-push holds remain.
 
+### 2026-10-10 — retain original protected-call producer prerequisite (unfinished)
+
+Task44 native success does not establish Task39 canonical calls. The original CanWorkbench approve workflow calls context and step.proposal.call, then requires the workplace invariant before recording approval; called effects and approval must share rollback. Current Compiler IrStmt::Call explicitly lacks section13 lowering and JS refuses it, while Invocation target extraction drops the executable operand. Record exact Compiler checked operand/allowlist/emission and Dev/State current argument/version/target admission plus enclosing transaction join as prerequisites, preserving original Task11 rules/context. Values construction alone cannot supply admission. Source inspected once; no new runtime test, surrogate source or implementation/acceptance claim. Complete original corpus/reversible-effect/conditional pilot and production gates remain separately owned.
+
+
+### 2026-10-10 — intake reviewed current control and caller release locally (unfinished)
+
+Intake exact coordinator-reviewed LOCAL5a4bad5c61f4981a4d740b867c1f3cc3fa5ad519 onto preserved unfinishede9902e7d. Reuse the manually reviewed unchanged native Text1/1 (48.22s) and affected Images1/1 (36.27s); no intake rerun. Preserve Dev's actual native qualifier and Testkit's exact declared caller recipe repair; Dev owns the unchanged complete41 consumer. Reconcile actual staged tree and both parent histories since complete8249342707:1551commits,10789net deltas,11333history paths,513history-only,9287pending allocations,zero new paths. Preserve owners/allocations, original source/rule/corpus/recovery/provider gates and recipient-specific human holds; complete checkpoint stays unadvanced. This worker now owns the defining Task39 same-owner/same-caller State transaction facade; Compiler and Dev retain their real checked-call and native binding producers. No remote push, review wait or main integration.
+
 ## 2026-10-10 — expose an optional owned Node Chromium producer
 
 Use Testkit's Node-only `@canlang/testkit/browser/chromium` leaf with optional `@playwright/test` pinned to the existing locked1.63.0. The invoking application resolves that producer; Testkit root never reexports it, and portable runtime imports gain no browser edge. The producer loads its own exact resolved driver entry and exposes driver/executable paths for Dev-owned capture/currency checks. True missing driver/executable withholds UI qualification; malformed/broken installed exports, API/loading, nonfile or permission failures remain errors. Availability neither downloads nor proves UI behavior. Real acquisition owns the exact headless executable, positive finite launch bound, shared awaited close and signal cleanup. Since the locked driver has no launch signal port, late cancellation awaits bounded launch and cleanup before rejection; it cannot claim immediate physical cancellation. The installed declaration guard recognizes actual declared optional dependencies while retaining resolution and owned missing/corrupt gates. No new browser package, framework or version matrix is introduced.
@@ -5220,6 +5229,34 @@ Use only exact installed Chromium on the same compiled HelpOffice preview. Ownin
 
 Shared graph/type validation reveals3 real CF→Testkit typeof-import edges; Testkit already dependsCF. Packages owns the finite Contracts Node browser type port, manifests/type graph and genuine Testkit reexport, avoiding a new cycle or copied driver types. Consumer runtime remains an invoking-app-resolved literal Testkit leaf. Save related source/checks as unfinished, then consume coordinator-reviewed Packages697304be Contracts type release before whole UI qualification. Cancellation, parent acceptance and all precise human holds remain unadvanced.
 
+## 2026-10-10 — retain checked production call operands and declaring schemas
+
+Preserve a static operation's checked symbol/source and a dynamic call's actual
+typed operand separately from its declaration-derived allowed target IDs.
+Those IDs index existing owning parameter/model/result declarations; authored
+inputs retain order and typed shorthand anchors. Publish checked statement
+result/void/opaque facts for `as` binding without inventing compatible results
+for heterogeneous targets. Only an exact checked read-scenario call preserves
+member-path narrowing; potentially mutating or unknown calls still invalidate.
+
+This is the compiler producer for existing Task39, not executable acceptance.
+State owns same-caller admission inside the existing owner session/outer fence;
+Dev owns a source-bound private native facade, once-evaluated values and bounded
+result/dependency correspondence. Keep E6008 until that defining consumer is
+released. Structural InvocationRef data, direct handlers, child contexts and
+nested invocation/receipt/commit cannot replace it. Precise BDD3/Task22 holds
+remain separate; all changes stay local for coordinator review.
+
+Owning invocation target5/5 and existing call controls8/8 pass on the actual
+installed catalog/Node24; unchanged emitter121/121 is reused after the isolated
+read-narrowing correction. Strict all-target lint/format pass. The actual CLI
+still refuses call publication with E6008 and no generic producer decode gap.
+
+The same declaration-derived argument rule applies to shorthand: consume its
+existing checked key-node type for additional action targets, just as for an
+explicit expression. Owning action-call1/1 passes with rejection/span parity and
+compatible positives; no runtime API or held policy changes.
+
 ## 2026-10-10 — share the optional Node browser types without a package cycle
 
 Dev's actual Cloudflare browser/capture consumer cannot declare Testkit merely to type its application-installed producer: Testkit already depends on Cloudflare, so that reverse edge cycles the genuine producer graph. Put the existing Chromium identity, availability, acquisition and owned-browser types plus the actual two-method `ChromiumProducer` port in a Node-only `@canlang/contracts/browser/chromium` leaf. Both owners already depend on Contracts. Preserve the genuine Playwright `Browser`; Contracts declares its exact1.63.0 types as an optional peer, without requiring a browser for its ordinary root. Testkit imports/reexports the same types, retains its runtime driver/error class/installed literal leaf and changes no function body. Cloudflare consumes Contracts types and still resolves the optional runtime producer from the invoking application. No browser root export, duplicate driver types, guard exception or reverse package edge is introduced. Dev confirms the port needs only availability/acquire methods and owned browser, with no error-class type.
@@ -5233,3 +5270,15 @@ Consume only coordinator-reviewed Packages697304bef359c65e4b0b016d8d0c57e6b59cd3
 ## 2026-10-10 — preserve exact browser observations and await cancellation cleanup (unfinished UI)
 
 Consume owning shell branding, top-level source cards and UI FSI/PDI display isolation without relaxing physical values, row counts, source hashes, replay, resource or security assertions. The SAME complete case reaches actual member read after its page authority matrix, but fails the former nested-heading selector in60.657s; the corrected source remains unqualified. Genuine whole native HelpOffice/browser cancellation1/1 passes27.206s at its actual authentication intervention: all four identities resolved, AbortError/no proof/mutation/preference, all contexts closed before rejection, unchanged resources, awaited owned lease and current capture. Check abort after the helper's awaited context cleanup to avoid a late return at that boundary. CF emission/root noEmit pass; reuse unaffected capture13/inventory9 and producer results. Save this coherent unfinished unit before taking exact released State3e9/LOCAL146cc API for the assigned native child-call adapter; no full UI, Workbench, Office or parent acceptance follows.
+
+### 2026-10-10 — bind actual calls into the admitted owner transaction (unfinished)
+
+Choose the finite State call facade over full Compiler inlining or deferral to a broader execution ABI. The existing private admitted caller/session is the one transaction owner; exact Dev source/callable verification binds checked finite callsites and actual native adapters. State selects the evaluated static operation or frozen InvocationRef, validates its owning canonical inputs/current target by/original versions against the real stage, issues a bounded child frame and retains complete supported child disclosure plus private commit guards. Real CRUD cause/inputs/hooks/defaults and final invariants share the same pipeline. Preserve root owner/caller/time/operation identity, one receipt/commit and exact replay. Child stage attribution changes only the owning operation/source; create record IDs use a private occurrence suffix. No public nested Invoke, fabricated context, override of reviewed arguments or result schema inferred from a target spelling. Opaque/undeclared target results remain null metadata.
+
+Three independently worded equivalent JEV choice requests use the verified original Workbench rollback requirement and the same outcomes for all alternatives. All favor the bound State facade (probabilities0.97/0.94/0.97; confidence0.95/0.91/0.95; modeljev1.13.0). Preserve full adjacent scenario-owner-call request/response1..3 records. There is no disagreement to investigate; the advice does not certify native source binding, query/composite closure or acceptance. Complete Workbench context read/query, source rules/conditional grants, actual authored update normalization, result schemas/composite lifetime, child computed-default and framework attribution retain their defining Compiler/Dev/Contracts prerequisites. Root-only default/framework producers refuse child reuse; File/Delivery/Action provenance and OUTBOX hold stay closed. The coherent API and defining/affected checks are implementation evidence only, pending coordinator manual review and real consumer qualification.
+
+Final State clean emission passes;20 defining call cases and46 affected disclosure/owner/default cases pass66/66 (146.90ms). Reuse57 unchanged fence/pipeline/CRUD/parity cases from the earlier123/123 (292.86ms). The affected genuine State/Work framework join passes10/10 (212.49ms). These defining/compatibility checks leave exact native call/source and whole Workbench acceptance open.
+
+## 2026-10-10 — intake the reviewed State child-call producer locally (unfinished adapter)
+
+Consume exact coordinator-reviewed LOCAL146cc8bfef1c64773dced3a232721f0289450cba, preserving Devd08d browser source/checkpoints. Reuse owning State3e9 finite admission/rollback/provenance and66+10 affected checks,57 unchanged, and Compiler4b4/c248 checked call-fact results at their scopes. Bind Dev private native call/result/source interfaces to the State-issued child inside the actual enclosing transaction; no second invoke, receipt, finalizer or copied admission. Reconcile both independent histories and source allocations without advancing the complete checkpoint. Current Compiler source requires a fresh native output and required Contracts/State/CF outputs before real consumer qualification. Workbench, latest whole HelpOffice UI, T04/T11 and Office/G2–G3 remain unfinished; precise holds remain.

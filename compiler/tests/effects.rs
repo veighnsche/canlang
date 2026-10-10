@@ -602,6 +602,26 @@ fn heterogeneous_action_call() {
     let catalog = fixture();
     let (_, _, diags) = run(HETEROGENEOUS_ACTION, Some(&catalog));
     assert_findings(HETEROGENEOUS_ACTION, &diags, &[("E4041", "\"s\"", 1)]);
+    for binding in ["{v}", "{v=v}"] {
+        let source = HETEROGENEOUS_ACTION
+            .replace(
+                "pick(ref:action(set_text,set_num))",
+                "pick(ref:action(set_text,set_num),v:text)",
+            )
+            .replace("{v=\"s\"}", binding);
+        let (_, _, diags) = run(&source, Some(&catalog));
+        let argument = source.find(&format!("call ref {binding}")).unwrap()
+            + "call ref {".len()
+            + if binding == "{v=v}" { 2 } else { 0 };
+        assert_eq!(diags.len(), 1, "{binding}: {diags:?}");
+        assert_eq!(diags[0].code, "E4041", "{binding}");
+        assert_eq!(diags[0].primary.start, argument as u32, "{binding}");
+        assert_eq!(diags[0].primary.end, (argument + 1) as u32, "{binding}");
+
+        let compatible = source.replace("set_num(v:int)", "set_num(v:text)");
+        let (_, _, diags) = run(&compatible, Some(&catalog));
+        assert!(diags.is_empty(), "compatible {binding}: {diags:?}");
+    }
 }
 
 // --- E4042 delete disabled -------------------------------------------------
