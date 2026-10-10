@@ -17,6 +17,7 @@ import type { InstalledMailSender } from '@canlang/services';
 import { EmailV1Adapter } from '@canlang/services/mail/adapter';
 import { distribution } from '@canlang/values/distribution';
 import { createSystemRegistry, systemCommandStageRevision, type SystemCommandDef } from '@canlang/state';
+import { hashInputs } from '@canlang/state/invocation/replay';
 import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import { ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperationId, seedRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -39,7 +40,7 @@ import { createNativeStandardCompletionSourceCommand, invokeRetainedHandlerOccur
 import { createBoundCohortTick } from '../dist/runtime/cohort-tick.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
-const APP = 'CompletionProjection', ENTRY = asModel(`${APP}.Entry`), EVENT = `${APP}.Primary.send.completed`;
+const APP = 'CompletionProjection', ENTRY = asModel(`${APP}.Entry`), AUDIT = asModel(`${APP}.CompletionAudit`), EVENT = `${APP}.Primary.send.completed`;
 const bounds = { maxSources: 8, maxHandlers: 8, maxMembers: 8, chunkSize: 2 };
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 function object(value: unknown): Record<string, unknown> {
@@ -68,6 +69,8 @@ test('unchanged native private completion consumes original retained Email and f
     const artifact = JSON.parse(originals[0]!.toString('utf8')) as CompileArtifact;
     assert.equal(artifact.artifact_version, 1); assert.equal(artifact.modules.length, 1);
     assert.deepEqual(artifact.sources, [{ path: 'completion-projection.can', sha256: hash(originals[1]!) }]);
+    assert.equal(hash(originals[1]!), '45621cc809a9576c84381c9439b7383d7b87c0e322d9444ed2a58e3fece60139',
+      'exact released effectful private source, consumed unchanged');
     assert.equal(hash(originals[2]!), hash(await readFile(fileURLToPath(distribution.catalog))), 'exact owning installed catalog');
     assert.deepEqual(artifact.operations, [], 'private source fixture retains the public publication refusal');
     const artifactJson = JSON.stringify(artifact), dir = await mkdtemp(join(tmpdir(), 'can-native-completion-consumer-'));
@@ -79,6 +82,9 @@ test('unchanged native private completion consumes original retained Email and f
       const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));
       const body = object(JSON.parse(Buffer.concat(chunks).toString('utf8'))); sends.push(body);
       assert.equal(request.headers['idempotency-key'], body['delivery_id']);
+      if (body['subject'] === 'Rejected native completion') {
+        response.writeHead(400, { 'content-type': 'application/json' }); response.end(JSON.stringify({ error: 'rejected' })); return;
+      }
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ reference: `accepted-${body['delivery_id']}` }));
     });
@@ -125,29 +131,40 @@ test('unchanged native private completion consumes original retained Email and f
           } : null }) });
       const store = await boundary.forIdentity(identity), foreign = await boundary.forTrustedScope(foreignScope, clock.nowMs());
       const batches: Parameters<StoragePort['commit']>[0][] = [];
-      const observed: StoragePort = { ...store, commit: async batch => { batches.push(structuredClone(batch)); return store.commit(batch); } };
+      const observeStore = (selected: StoragePort): StoragePort => ({ ...selected, commit: async batch => {
+        batches.push(structuredClone(batch)); return selected.commit(batch);
+      } });
+      const observed = observeStore(store);
+      const observedBoundary = { ...boundary, async forTrustedScope(selected: WorkScope, now: number) {
+        const original = await boundary.forTrustedScope(selected, now);
+        return { ...original, store: observeStore(original.store) };
+      } };
       const all = async () => ({ a: await snapshot(dbA), b: await snapshot(dbB), identity: await snapshot(identityDb) });
       const isolated = { b: await snapshot(dbB), identity: await snapshot(identityDb) };
       const query = (model: string) => store.query({ model: asModel(model), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] });
       const memberIds = ['a', 'b', 'c'];
       for (const id of memberIds) await seedRow(observed, ENTRY, { id, data: { seen: id }, createdBy: user.user_id, updatedBy: user.user_id });
       const domainBefore = await query(ENTRY), historyBefore = await Promise.all(memberIds.map(id => store.historyFor(ENTRY, asId(id))));
+      assert.deepEqual(await query(AUDIT), []);
       const native = await createNativeStandardCompletionSourceCommand({ asm, artifact, scope, identities, bounds });
       const sourceRegistry = createSystemRegistry([native]);
       const read = (selected: StoragePort = observed) => sourceRegistry.read(native.name, { deliveryId },
         { actor: user.user_id, now: clock.nowMs(), operation: EVENT, operationId: 'completion-read' }, { store: selected });
       let deliveryId = '';
       const originId = nextId(), mailInput = { to: 'recipient@example.test', subject: 'Native completion', body: 'Local retained Email', attachments: [] };
-      const send: SystemCommandDef = { name: 'component.completion.send', stage: async (_args, ctx) => {
-        const staged = await stageCanonicalSend({ operationId: originId, source: 'std.EmailV1.send', occurrenceIndex: 0,
-          request: { binding: `${APP}.Primary`, from: 'deployment.primary', arguments: mailInput }, originOccurrence: null }, ctx);
-        const receipt = newReceiptRow({ deliveryId: staged.delivery.id, revision: systemCommandStageRevision(ctx) + 1,
-          status: 'pending', result: null, error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: ctx.now, actor: ctx.actor });
-        return { ...staged.effects, writes: [...staged.effects.writes ?? [], { kind: 'insert', model: asModel(RECEIPT_MODEL), row: receipt }],
-          result: { deliveryId: staged.delivery.id } };
-      } };
-      const sent = await createSystemRegistry([send]).run(send.name, {},
-        { actor: user.user_id, now: clock.nowMs(), operation: send.name, operationId: originId }, { store: observed });
+      const sendDelivery = async (operationId: ReturnType<typeof nextId>, input: typeof mailInput) => {
+        const send: SystemCommandDef = { name: 'component.completion.send', stage: async (_args, ctx) => {
+          const staged = await stageCanonicalSend({ operationId, source: 'std.EmailV1.send', occurrenceIndex: 0,
+            request: { binding: `${APP}.Primary`, from: 'deployment.primary', arguments: input }, originOccurrence: null }, ctx);
+          const receipt = newReceiptRow({ deliveryId: staged.delivery.id, revision: systemCommandStageRevision(ctx) + 1,
+            status: 'pending', result: null, error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: ctx.now, actor: ctx.actor });
+          return { ...staged.effects, writes: [...staged.effects.writes ?? [], { kind: 'insert', model: asModel(RECEIPT_MODEL), row: receipt }],
+            result: { deliveryId: staged.delivery.id } };
+        } };
+        return createSystemRegistry([send]).run(send.name, {},
+          { actor: user.user_id, now: clock.nowMs(), operation: send.name, operationId }, { store: observed });
+      };
+      const sent = await sendDelivery(originId, mailInput);
       deliveryId = String(object(sent.result)['deliveryId']);
       const original = await store.outboxGet(deliveryId); assert.ok(original?.originalCommit);
       assert.equal(original.intent.operationId, originId); assert.equal(original.intent.target, 'std.EmailV1.send');
@@ -241,13 +258,72 @@ test('unchanged native private completion consumes original retained Email and f
       try { await writeFile(modulePath, Buffer.concat([originalJs, Buffer.from('\n// changed staged source\n')]));
         await noEffects(() => read(), /assembly|module|correspondence|source/i); }
       finally { await writeFile(modulePath, originalJs); }
+      const assertBodyReceipt = async (batch: Parameters<StoragePort['commit']>[0], handler: string) => {
+        assert.ok(batch.receipt); assert.equal(batch.receipt.identity.app, APP);
+        assert.equal(batch.receipt.identity.owner, team.team_id);
+        assert.equal(batch.receipt.identity.principal, `completion:${EVENT}`);
+        assert.equal(batch.receipt.identity.operation, handler);
+        assert.equal(batch.receipt.committedRevision, Number(batch.expectedRevision) + 1);
+        assert.deepEqual(await store.readReceipt(batch.receipt.identity), batch.receipt);
+        assert.deepEqual((await dbA.prepare('SELECT revision,at,operation FROM fence_log WHERE revision=?')
+          .bind(batch.receipt.committedRevision).all()).results,
+        [{ revision: batch.receipt.committedRevision, at: batch.receipt.createdAt, operation: handler }]);
+        for (const key of ['outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'outboxAck'] as const)
+          assert.deepEqual(batch[key] ?? [], [], `${handler}: no unrelated ${key}`);
+        for (const history of batch.history) {
+          assert.equal(history.operation, handler); assert.equal(history.operationId, batch.receipt.identity.operationId);
+          assert.equal(history.actor, `completion:${EVENT}`); assert.equal(history.at, batch.receipt.createdAt);
+        }
+      };
+      const assertUnrelatedTables = (before: Awaited<ReturnType<typeof all>>, after: Awaited<ReturnType<typeof all>>) => {
+        assert.deepEqual(after.b, before.b); assert.deepEqual(after.identity, before.identity);
+        assert.deepEqual(Object.keys(after.a), Object.keys(before.a));
+        for (const table of Object.keys(before.a))
+          if (!['records', 'history', 'receipts', 'fence', 'fence_log', 'sqlite_sequence'].includes(table))
+            assert.deepEqual(after.a[table], before.a[table], `${table}: body leaves every unrelated table unchanged`);
+      };
       for (const handler of [`${APP}.primary_first`, `${APP}.primary_last`]) {
-        const before = batches.length;
+        const before = batches.length, revisionBefore = await store.readRevision(), resourcesBefore = await all();
         assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical({ ...ordinary, selector: { ...selector, handler } }))['status'], 'completed');
         assert.equal(batches.length, before + 1); assert.ok(batches.at(-1)!.receipt);
-        assert.equal(batches.at(-1)!.receipt!.identity.operation, handler);
-        assert.equal(batches.at(-1)!.receipt!.committedRevision, Number(batches.at(-1)!.expectedRevision) + 1);
-        assert.equal(batches.at(-1)!.writes.some(write => write.model === ENTRY), false);
+        const batch = batches.at(-1)!; await assertBodyReceipt(batch, handler);
+        assert.equal(await store.readRevision(), Number(revisionBefore) + 1);
+        assert.equal(batch.receipt!.outcome.status, 'committed');
+        const business = batch.writes.filter(write => write.model === AUDIT || write.model === ENTRY);
+        if (handler === `${APP}.primary_first`) {
+          assert.equal(business.length, 1); const write = business[0]!; assert.equal(write.kind, 'insert');
+          if (write.kind !== 'insert') throw new Error('Original ordinary body did not create its Audit');
+          assert.equal(write.model, AUDIT); assert.equal(write.row.version, 1);
+          assert.deepEqual(write.row.data, { delivery: deliveryId, reference: `accepted-${deliveryId}` });
+          assert.deepEqual(await store.load(AUDIT, write.row.id), write.row);
+          assert.deepEqual(await query(AUDIT), [write.row]);
+          assert.equal(write.row.created, batch.receipt!.createdAt); assert.equal(write.row.updated, batch.receipt!.createdAt);
+          assert.equal(write.row.createdBy, `completion:${EVENT}`); assert.equal(write.row.updatedBy, `completion:${EVENT}`);
+          assert.equal(batch.history.length, 1);
+          const history = batch.history[0]!; assert.equal(history.model, AUDIT); assert.equal(history.recordId, write.row.id);
+          assert.equal(history.version, 1); assert.equal(history.change, 'create'); assert.equal(history.before, null);
+          assert.deepEqual(history.after, write.row.data); assert.deepEqual(await store.historyFor(AUDIT, write.row.id), batch.history);
+          assert.ok(batch.receipt!.outcome.status === 'committed');
+          assert.deepEqual(batch.receipt!.outcome.recordVersions.filter(row => row.model === AUDIT || row.model === ENTRY),
+            [{ model: AUDIT, id: write.row.id, version: 1 }]);
+        } else { assert.deepEqual(business, []); assert.deepEqual(batch.history, []); }
+        const framework = batch.writes.filter(write => write.model !== AUDIT && write.model !== ENTRY);
+        assert.deepEqual(framework.map(write => [write.model, write.kind]),
+          [[WORK_HANDLER_OCCURRENCE_MODEL, 'update'], [WORK_OCCURRENCE_MODEL, 'insert']]);
+        const resourcesAfter = await all(); assertUnrelatedTables(resourcesBefore, resourcesAfter);
+        assert.equal(resourcesAfter.a['receipts']!.length, resourcesBefore.a['receipts']!.length + 1);
+        assert.equal(resourcesAfter.a['fence_log']!.length, resourcesBefore.a['fence_log']!.length + 1);
+        assert.equal(resourcesAfter.a['history']!.length, resourcesBefore.a['history']!.length + batch.history.length);
+        const priorSeq = resourcesBefore.a['history']!.reduce((max, row) => Math.max(max, Number(row['seq'])), 0);
+        assert.deepEqual(resourcesAfter.a['history']!.filter(row => Number(row['seq']) <= priorSeq), resourcesBefore.a['history']);
+        assert.deepEqual(resourcesAfter.a['receipts']!.filter(row => row['operation_id'] !== batch.receipt!.identity.operationId),
+          resourcesBefore.a['receipts']);
+        assert.deepEqual(resourcesAfter.a['fence_log']!.filter(row => row['revision'] !== batch.receipt!.committedRevision),
+          resourcesBefore.a['fence_log']);
+        const changedKeys = new Set(batch.writes.map(write => `${write.model}\0${write.kind === 'remove' ? write.id : write.row.id}`));
+        const untouched = (rows: Record<string, unknown>[]) => rows.filter(row => !changedKeys.has(`${row['model']}\0${row['id']}`));
+        assert.deepEqual(untouched(resourcesAfter.a['records']!), untouched(resourcesBefore.a['records']!));
+        assert.deepEqual(await query(ENTRY), domainWithLate);
         const snapshotBefore = await all(), replayBatches = batches.length;
         assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical({ ...ordinary, selector: { ...selector, handler } }))['status'], 'replayed');
         assert.equal(batches.length, replayBatches); assert.deepEqual(await all(), snapshotBefore);
@@ -256,7 +332,8 @@ test('unchanged native private completion consumes original retained Email and f
         source: { occurrenceId: sourceOccurrence, event: EVENT, scope }, store: observed, identities, now: clock.nowMs });
       assert.equal(generated.identity.actor, null); assert.equal(generated.identity.team?.team_id, team.team_id);
       const producers = await loadFanoutStateProducers();
-      const tick = await createBoundCohortTick({ artifact, asm, identities, ownerStorage: boundary, scope, now: clock.nowMs });
+      const tick = await createBoundCohortTick({ artifact, asm, identities, ownerStorage: observedBoundary, scope, now: clock.nowMs });
+      const beforeCohort = await all(), auditsBeforeCohort = await query(AUDIT), firstCohortBatch = batches.length;
       for (let turn = 0; ; turn++) {
         assert.ok(turn < 12, 'bounded real retained tick settles the original three members');
         await tick.tick();
@@ -267,10 +344,37 @@ test('unchanged native private completion consumes original retained Email and f
       assert.deepEqual(children.map(child => child.recordId).sort(), memberIds);
       assert.ok(children.every(child => child.state === 'completed' && child.parentOccurrence === sourceOccurrence));
       assert.deepEqual(readFanoutIntentRow((await store.load(WORK_FANOUT_INTENT_MODEL, intents[0]!.id))!).members, memberIds);
-      assert.deepEqual((await query(ENTRY)).filter(row => row.id !== 'late'), domainBefore);
-      assert.deepEqual(await query(ENTRY), domainWithLate, 'noop emitted bodies cannot change even the late excluded row');
-      assert.deepEqual(await Promise.all(memberIds.map(id => store.historyFor(ENTRY, asId(id)))), historyBefore);
+      const cohortBatches = batches.slice(firstCohortBatch).filter(batch => batch.receipt?.identity.operation === `${APP}.primary_cohort`);
+      assert.equal(cohortBatches.length, 3, 'one canonical body receipt per original frozen member');
+      const updatedIds: string[] = [];
+      for (const batch of cohortBatches) {
+        await assertBodyReceipt(batch, `${APP}.primary_cohort`);
+        const business = batch.writes.filter(write => write.model === ENTRY || write.model === AUDIT);
+        assert.equal(business.length, 1); const write = business[0]!;
+        assert.equal(write.kind, 'update'); if (write.kind !== 'update') throw new Error('Original cohort did not update its admitted member');
+        assert.equal(write.model, ENTRY); updatedIds.push(write.id);
+        const originalRow = domainBefore.find(row => row.id === write.id); assert.ok(originalRow);
+        assert.equal(write.expectedVersion, originalRow.version); assert.equal(write.row.version, Number(originalRow.version) + 1);
+        assert.deepEqual(write.row.data, { seen: `accepted-${deliveryId}` });
+        assert.deepEqual(await store.load(ENTRY, write.id), write.row);
+        assert.deepEqual({ ...write.row, version: originalRow.version, data: originalRow.data,
+          updated: originalRow.updated, updatedBy: originalRow.updatedBy }, originalRow);
+        assert.equal(batch.history.length, 1); const history = batch.history[0]!;
+        assert.equal(history.model, ENTRY); assert.equal(history.recordId, write.id); assert.equal(history.version, write.row.version);
+        assert.equal(history.change, 'update'); assert.deepEqual(history.before, originalRow.data); assert.deepEqual(history.after, write.row.data);
+        assert.deepEqual(await store.historyFor(ENTRY, write.id), [...historyBefore[memberIds.indexOf(write.id)]!, history]);
+        assert.ok(batch.receipt!.outcome.status === 'committed');
+        assert.deepEqual(batch.receipt!.outcome.recordVersions.filter(row => row.model === ENTRY || row.model === AUDIT),
+          [{ model: ENTRY, id: write.id, version: write.row.version }]);
+      }
+      assert.deepEqual(updatedIds.sort(), memberIds);
+      assert.deepEqual((await query(ENTRY)).map(row => [row.id, row.version, row.data]),
+        [...domainBefore.map(row => [row.id, Number(row.version) + 1, { seen: `accepted-${deliveryId}` }]),
+          ['late', domainWithLate.find(row => row.id === 'late')!.version, { seen: 'late' }]]);
+      assert.deepEqual((await query(ENTRY)).find(row => row.id === 'late'), domainWithLate.find(row => row.id === 'late'));
       assert.deepEqual(await store.historyFor(ENTRY, asId('late')), []);
+      assert.deepEqual(await query(AUDIT), auditsBeforeCohort);
+      assertUnrelatedTables(beforeCohort, await all());
       const receipts = await dbA.prepare('SELECT app, owner, principal, operation, operation_id AS operationId FROM receipts ORDER BY operation_id').all<ReceiptIdentity>();
       assert.equal(receipts.results.length, 5, 'two ordinary and three cohort canonical invocation receipts');
       for (const identity of receipts.results) {
@@ -278,32 +382,149 @@ test('unchanged native private completion consumes original retained Email and f
         const saved = await store.readReceipt(identity); assert.ok(saved); assert.equal(saved.outcome.status, 'committed');
         assert.equal(saved.identity.app, APP); assert.equal(saved.identity.owner, scope.owner);
       }
-      const replayBefore = await all(), idsBefore = sequence, writesBefore = batches.length;
-      let cursor: string | null = null; const replayed: string[] = [];
-      for (let page = 0; ; page++) {
-        assert.ok(page < 3);
-        const turn = await runFanoutSchedulerTurn({ store: observed, fanoutId: generated.fanoutId, cursor,
-          bounds: { pageLimit: 2, maxDrives: 2 }, policy: { maxAttempts: 3, horizonMs: 60000 }, meta: { actor: generated.trustedSource, nowMs: clock.nowMs() },
-          maxClaimAgeMs: 60000, cohort: { model: generated.cohort.model },
-          freeze: { cutoff: { sourceOccurrence, handler: `${APP}.primary_cohort` }, cohort: generated.cohort, owner: team.team_id,
-            bounds: { ...generated.bounds, maxAttempts: 3 } }, guard: { predicate: null, frozenInputs: null }, evaluateGuard: () => true,
-          readSnapshot: (_child, row) => row, fenceFor: () => ({ owner: team.team_id,
-            revalidateAuthority: async () => (await identities.findTeamById(team.team_id)) !== null }), body: generated.body, producers,
-          invoke: { registry: generated.registry, memberships: identities, clock, identity: generated.identity, app: APP,
-            source: 'schedule', childOperation: `${APP}.primary_cohort`, refInput: generated.refInput, inputs: generated.inputs,
-            kind: 'trusted', trustedSource: generated.trustedSource, operationIdFor: nextId } });
-        assert.equal(turn.status, 'turn'); if (turn.status !== 'turn') throw new Error('retained terminal turn absent');
-        assert.ok(turn.driven.every(child => child.status === 'replayed')); replayed.push(...turn.driven.map(child => child.recordId));
-        if (turn.done) break; assert.ok(turn.cursor); cursor = turn.cursor;
-      }
-      assert.deepEqual(replayed, memberIds); assert.equal(sequence, idsBefore); assert.equal(batches.length, writesBefore);
-      assert.deepEqual(await read().then(value => value.result), consumed); assert.deepEqual(await all(), replayBefore);
+      const replayFanout = async (body: typeof generated, source: string, members: string[]) => {
+        const replayBefore = await all(), idsBefore = sequence, writesBefore = batches.length;
+        let cursor: string | null = null; const replayed: string[] = [];
+        for (let page = 0; ; page++) {
+          assert.ok(page < 3);
+          const turn = await runFanoutSchedulerTurn({ store: observed, fanoutId: body.fanoutId, cursor,
+            bounds: { pageLimit: 2, maxDrives: 2 }, policy: { maxAttempts: 3, horizonMs: 60000 }, meta: { actor: body.trustedSource, nowMs: clock.nowMs() },
+            maxClaimAgeMs: 60000, cohort: { model: body.cohort.model },
+            freeze: { cutoff: { sourceOccurrence: source, handler: `${APP}.primary_cohort` }, cohort: body.cohort, owner: team.team_id,
+              bounds: { ...body.bounds, maxAttempts: 3 } }, guard: { predicate: null, frozenInputs: null }, evaluateGuard: () => true,
+            readSnapshot: (_child, row) => row, fenceFor: () => ({ owner: team.team_id,
+              revalidateAuthority: async () => (await identities.findTeamById(team.team_id)) !== null }), body: body.body, producers,
+            invoke: { registry: body.registry, memberships: identities, clock, identity: body.identity, app: APP,
+              source: 'schedule', childOperation: `${APP}.primary_cohort`, refInput: body.refInput, inputs: body.inputs,
+              kind: 'trusted', trustedSource: body.trustedSource, operationIdFor: nextId } });
+          assert.equal(turn.status, 'turn'); if (turn.status !== 'turn') throw new Error('retained terminal turn absent');
+          assert.ok(turn.driven.every(child => child.status === 'replayed')); replayed.push(...turn.driven.map(child => child.recordId));
+          if (turn.done) break; assert.ok(turn.cursor); cursor = turn.cursor;
+        }
+        assert.deepEqual(replayed, members); assert.equal(sequence, idsBefore); assert.equal(batches.length, writesBefore);
+        assert.deepEqual(await read().then(value => value.result), consumed); assert.deepEqual(await all(), replayBefore);
+      };
+      await replayFanout(generated, sourceOccurrence, memberIds);
       assert.deepEqual(await query(WORK_SCHEDULE_MODEL), []); assert.equal(sends.length, 1);
       const finalOutbox = await store.outboxGet(deliveryId); assert.ok(finalOutbox);
       assert.equal(finalOutbox.status, 'dispatched'); assert.deepEqual(finalOutbox.intent, original.intent);
       assert.deepEqual(finalOutbox.originalCommit, original.originalCommit);
       assert.deepEqual({ b: await snapshot(dbB), identity: await snapshot(identityDb) }, isolated);
       assert.ok((await query(WORK_HANDLER_OCCURRENCE_MODEL)).map(readHandlerOccurrenceRow).every(route => route.state === 'completed'));
+
+      // The unchanged source guard runs before create/set. A genuine terminal
+      // provider failure reaches that false branch; it proves body non-commit,
+      // not a late failure after a staged domain write.
+      const failedOrigin = nextId(), rejectedInput = { ...mailInput, subject: 'Rejected native completion' };
+      const failedSend = await sendDelivery(failedOrigin, rejectedInput);
+      const failedDeliveryId = String(object(failedSend.result)['deliveryId']);
+      const failedOriginal = await store.outboxGet(failedDeliveryId); assert.ok(failedOriginal?.originalCommit);
+      const failedDrive = await dispatcher.drive({ intentId: failedDeliveryId, actor: user.user_id, operation: 'component.completion.drive',
+        nowMs: clock.nowMs, nextClaimId: () => `claim-${++sequence}`, maxClaimAgeMs: 60000,
+        claimOperationId: nextId(), recordOperationId: nextId(), classifyFailure, evaluateGuard: () => true, readStateSnapshot: () => null,
+        fence: { owner: team.team_id, attemptDispatch: attemptDispatch as FenceAttemptDispatchFn,
+          revalidateAuthority: async () => (await identities.findMembership(team.team_id, user.user_id))?.is_owner === true } });
+      assert.equal(failedDrive.status, 'recorded'); assert.equal(sends.length, 2);
+      assert.deepEqual(sends[1], { ...rejectedInput, delivery_id: failedDeliveryId });
+      const retainedFailedOutbox = await store.outboxGet(failedDeliveryId); assert.ok(retainedFailedOutbox);
+      const failedTerminalRow = await store.load(asModel(RECEIPT_MODEL), asId(failedDeliveryId)); assert.ok(failedTerminalRow);
+      const failedTerminal = readReceiptRow(failedTerminalRow); assert.equal(failedTerminal.receipt.status, 'failed');
+      assert.equal(failedTerminal.receipt.result, null); assert.ok(failedTerminal.receipt.error);
+      const failureIssue = await sourceRegistry.run(native.name, { deliveryId: failedDeliveryId },
+        { actor: user.user_id, now: clock.nowMs(), operation: EVENT, operationId: nextId() }, { store: observed });
+      assert.equal(object(failureIssue.result)['status'], 'staged');
+      const failedSource = String(object(failureIssue.result)['sourceOccurrence']);
+      assert.deepEqual(object(failureIssue.result)['payload'], { delivery_id: failedDeliveryId,
+        status: 'failed', result: null, error: failedTerminal.receipt.error });
+      const failedSourceRead = await sourceRegistry.read(native.name, { deliveryId: failedDeliveryId },
+        { actor: user.user_id, now: clock.nowMs(), operation: EVENT, operationId: 'failed-completion-read' }, { store: observed });
+      const failedSourceProof = object(failedSourceRead.result);
+      assert.deepEqual(object(object(failedSourceProof['result'])['origin'])['intent'], failedOriginal.intent);
+      assert.deepEqual(object(object(failedSourceProof['result'])['origin'])['originalCommit'], failedOriginal.originalCommit);
+      assert.deepEqual((object(failedSourceProof['result'])['handlers'] as Record<string, unknown>[]).map(route => route['handler']),
+        expectedCensus[0]!.handlers);
+      const failedOrdinary = { ...ordinary, selector: { ...selector, sourceOccurrence: failedSource } };
+      const beforeFailedBody = await all(), failedBatches = batches.length, failedRevision = await store.readRevision();
+      const rejectedBody = object(await invokeRetainedHandlerOccurrenceCanonical(failedOrdinary));
+      assert.equal(rejectedBody['status'], 'failed'); assert.equal(batches.length, failedBatches + 1);
+      assert.equal(await store.readRevision(), Number(failedRevision) + 1);
+      const failedBatch = batches.at(-1)!; await assertBodyReceipt(failedBatch, `${APP}.primary_first`);
+      assert.deepEqual(failedBatch.writes.map(write => [write.model, write.kind]),
+        [[WORK_HANDLER_OCCURRENCE_MODEL, 'update'], [WORK_OCCURRENCE_MODEL, 'insert']]);
+      assert.deepEqual(failedBatch.history, []); assert.ok(failedBatch.receipt!.outcome.status === 'committed');
+      assert.equal(object(failedBatch.receipt!.outcome.result)['status'], 'failed');
+      assert.deepEqual(failedBatch.receipt!.outcome.recordVersions.filter(row => row.model === ENTRY || row.model === AUDIT), []);
+      const failedRoute = (await query(WORK_HANDLER_OCCURRENCE_MODEL)).map(readHandlerOccurrenceRow)
+        .find(route => route.sourceOccurrence === failedSource && route.handler === `${APP}.primary_first`); assert.ok(failedRoute);
+      assert.equal(failedRoute.state, 'failed');
+      const failedBodyRow = await store.load(WORK_OCCURRENCE_MODEL, asId(failedRoute.occurrenceId)); assert.ok(failedBodyRow);
+      const failedBodyReceipt = readOccurrenceRow(failedBodyRow);
+      assert.equal(failedBodyReceipt.status, 'failed'); assert.equal(failedBodyReceipt.code, 'require-false');
+      const afterFailedBody = await all(); assertUnrelatedTables(beforeFailedBody, afterFailedBody);
+      assert.deepEqual(afterFailedBody.a['history'], beforeFailedBody.a['history']);
+      assert.deepEqual(afterFailedBody.a['sqlite_sequence'], beforeFailedBody.a['sqlite_sequence']);
+      const businessRows = (rows: Record<string, unknown>[]) => rows.filter(row => row['model'] === ENTRY || row['model'] === AUDIT);
+      assert.deepEqual(businessRows(afterFailedBody.a['records']!), businessRows(beforeFailedBody.a['records']!));
+      const failedKeys = new Set(failedBatch.writes.map(write => `${write.model}\0${write.kind === 'remove' ? write.id : write.row.id}`));
+      const untouchedFailure = (rows: Record<string, unknown>[]) => rows.filter(row => !failedKeys.has(`${row['model']}\0${row['id']}`));
+      assert.deepEqual(untouchedFailure(afterFailedBody.a['records']!), untouchedFailure(beforeFailedBody.a['records']!));
+      assert.equal(afterFailedBody.a['receipts']!.length, beforeFailedBody.a['receipts']!.length + 1);
+      assert.equal(afterFailedBody.a['fence_log']!.length, beforeFailedBody.a['fence_log']!.length + 1);
+      assert.deepEqual(afterFailedBody.a['receipts']!.filter(row => row['operation_id'] !== failedBatch.receipt!.identity.operationId),
+        beforeFailedBody.a['receipts']);
+      assert.deepEqual(afterFailedBody.a['fence_log']!.filter(row => row['revision'] !== failedBatch.receipt!.committedRevision),
+        beforeFailedBody.a['fence_log']);
+      assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical(failedOrdinary))['status'], 'replayed');
+      assert.equal(batches.length, failedBatches + 1); assert.deepEqual(await all(), afterFailedBody);
+      const failedLast = { ...failedOrdinary, selector: { ...failedOrdinary.selector, handler: `${APP}.primary_last` } };
+      const beforeFailedLast = batches.length;
+      assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical(failedLast))['status'], 'completed');
+      assert.equal(batches.length, beforeFailedLast + 1); await assertBodyReceipt(batches.at(-1)!, `${APP}.primary_last`);
+      assert.deepEqual(batches.at(-1)!.writes.filter(write => write.model === ENTRY || write.model === AUDIT), []);
+      assert.deepEqual(batches.at(-1)!.history, []);
+      const lastReplay = await all();
+      assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical(failedLast))['status'], 'replayed');
+      assert.equal(batches.length, beforeFailedLast + 1); assert.deepEqual(await all(), lastReplay);
+      const failedGenerated = await createCanonicalCommittedCohortBody({ artifact, asm, app: APP, handler: `${APP}.primary_cohort`,
+        source: { occurrenceId: failedSource, event: EVENT, scope }, store: observed, identities, now: clock.nowMs });
+      const failedMembers = [...memberIds, 'late'];
+      const failedIntent = (await query(WORK_FANOUT_INTENT_MODEL)).map(readFanoutIntentRow)
+        .find(intent => intent.sourceOccurrence === failedSource); assert.ok(failedIntent);
+      assert.deepEqual(failedIntent.members, failedMembers); assert.equal(failedIntent.handler, `${APP}.primary_cohort`);
+      const beforeFailedCohort = await all(), firstFailedCohortBatch = batches.length;
+      for (let turn = 0; ; turn++) {
+        assert.ok(turn < 16, 'the genuine failed delivery cohort settles its four original frozen members');
+        await tick.tick();
+        const progress = await readFanoutSchedulerProgress({ store, fanoutId: failedGenerated.fanoutId, pageLimit: 4, producers });
+        if (progress.terminal) { assert.equal(progress.failed, 4); assert.equal(progress.completed, 0); break; }
+      }
+      const failedChildren = (await query(WORK_FANOUT_CHILD_MODEL)).map(readFanoutChildRow)
+        .filter(child => child.parentOccurrence === failedSource);
+      assert.deepEqual(failedChildren.map(child => child.recordId).sort(), failedMembers);
+      assert.ok(failedChildren.every(child => child.handler === `${APP}.primary_cohort` && child.state === 'failed' &&
+        child.causeKind === 'failed' && child.causeReason === 'business-rejection'));
+      const failedCohortBatches = batches.slice(firstFailedCohortBatch).filter(batch => batch.receipt?.identity.operation === `${APP}.primary_cohort`);
+      assert.equal(failedCohortBatches.length, 4, 'one genuine State rejection receipt for each failed body');
+      for (const batch of failedCohortBatches) {
+        await assertBodyReceipt(batch, `${APP}.primary_cohort`);
+        assert.ok(batch.receipt!.outcome.status === 'rejected'); assert.equal(batch.receipt!.outcome.code, 'rule_failed');
+        assert.deepEqual(batch.writes, []); assert.deepEqual(batch.history, []);
+      }
+      assert.deepEqual(failedCohortBatches.map(batch => batch.receipt!.inputHash).sort(),
+        (await Promise.all(failedMembers.map(id => hashInputs({ ...failedGenerated.inputs,
+          [failedGenerated.refInput]: { id } })))).sort(), 'rejections retain the exact source arguments and original admitted member slots');
+      const afterFailedCohort = await all(); assertUnrelatedTables(beforeFailedCohort, afterFailedCohort);
+      assert.deepEqual(businessRows(afterFailedCohort.a['records']!), businessRows(beforeFailedCohort.a['records']!));
+      assert.deepEqual(afterFailedCohort.a['history'], beforeFailedCohort.a['history']);
+      assert.deepEqual(afterFailedCohort.a['sqlite_sequence'], beforeFailedCohort.a['sqlite_sequence']);
+      assert.equal(afterFailedCohort.a['receipts']!.length, beforeFailedCohort.a['receipts']!.length + 4);
+      assert.deepEqual(failedIntent.members, (await query(WORK_FANOUT_INTENT_MODEL)).map(readFanoutIntentRow)
+        .find(intent => intent.sourceOccurrence === failedSource)!.members);
+      await replayFanout(failedGenerated, failedSource, failedMembers);
+      assert.deepEqual(await store.outboxGet(deliveryId), finalOutbox);
+      assert.deepEqual(await store.outboxGet(failedDeliveryId), retainedFailedOutbox);
+      assert.deepEqual(await query(WORK_SCHEDULE_MODEL), []);
+      assert.deepEqual({ b: await snapshot(dbB), identity: await snapshot(identityDb) }, isolated);
       assert.equal(JSON.stringify(artifact), artifactJson);
       assert.deepEqual(await Promise.all([artifactPath, sourcePath, catalogPath].map(path => readFile(path))), originals);
     } finally {
