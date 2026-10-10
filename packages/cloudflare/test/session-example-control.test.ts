@@ -577,8 +577,14 @@ it("stop aborts and waits for private qualification cleanup without retaining it
 });
 
 it("withholds completed malformed qualification and aborts changed captured producers", async () => {
-  for(const mode of ["mutable","wrong-tuple","accessor","proof-id-accessor","producer-change"] as const) {
+  for(const mode of ["mutable","wrong-tuple","accessor","proof-id-accessor","inherited-bundle-field","inherited-proof-field",
+    "inherited-example-check","array-iterator-accessor","array-some-accessor","producer-change"] as const) {
     let entered!:()=>void,release!:()=>void,aborted!:()=>void,qualifications=0,getters=0;
+    let inheritedKey:string|undefined, inheritedDescriptor:PropertyDescriptor|undefined;
+    const installInheritedGetter=(key:string)=>{
+      inheritedKey=key;inheritedDescriptor=Object.getOwnPropertyDescriptor(Object.prototype,key);
+      Object.defineProperty(Object.prototype,key,{configurable:true,get(){getters++;return "inherited qualification tripwire";}});
+    };
     const started=new Promise<void>(resolve=>{entered=resolve;});
     const gate=new Promise<void>(resolve=>{release=resolve;});
     const cancelled=new Promise<void>(resolve=>{aborted=resolve;});
@@ -591,6 +597,24 @@ it("withholds completed malformed qualification and aborts changed captured prod
       if(mode==="proof-id-accessor")return Object.freeze({...bundle,proofs:Object.freeze([
         Object.freeze({...bundle.proofs[0]!,get id(){getters++;return bundle.proofs[0]!.id;}}),...bundle.proofs.slice(1),
       ])});
+      if(mode==="inherited-bundle-field") {
+        const {producerInputsDigest:_digest,...missing}=bundle;installInheritedGetter("producerInputsDigest");
+        return Object.freeze(missing) as typeof bundle;
+      }
+      if(mode==="inherited-proof-field") {
+        const {runtimeCheck:_runtime,...missing}=bundle.proofs[0]!;installInheritedGetter("runtimeCheck");
+        return Object.freeze({...bundle,proofs:Object.freeze([Object.freeze(missing),...bundle.proofs.slice(1)])}) as typeof bundle;
+      }
+      if(mode==="inherited-example-check")installInheritedGetter("exampleCheck");
+      if(mode==="array-iterator-accessor"||mode==="array-some-accessor") {
+        const prototype=Object.create(Array.prototype);
+        Object.defineProperty(prototype,mode==="array-iterator-accessor"?Symbol.iterator:"some",{
+          get(){getters++;return mode==="array-iterator-accessor"?Array.prototype[Symbol.iterator]:()=>false;},
+        });
+        const proofs=[Object.freeze({...bundle.proofs[0]!,profile:"wrong-profile"}),...bundle.proofs.slice(1)];
+        Object.setPrototypeOf(proofs,Object.freeze(prototype));
+        return Object.freeze({...bundle,proofs:Object.freeze(proofs)});
+      }
       return bundle;
     }});
     try {
@@ -603,9 +627,15 @@ it("withholds completed malformed qualification and aborts changed captured prod
       }
       release();await new Promise(resolve=>setTimeout(resolve,30));
       for(let i=0;i<2;i++)expect(await fixture.client.request({command:"diagnostic.detail",payload}))
-        .toMatchObject({current:mode!=="producer-change",construct_help:{candidateCoverage:"unknown"}});
+        .toMatchObject({current:mode!=="producer-change",construct_help:{candidateCoverage:mode==="inherited-example-check"?"complete":"unknown"}});
       expect(qualifications).toBe(1);expect(getters).toBe(0);
-    } finally {release();await fixture.owner.stop();}
+    } finally {
+      if(inheritedKey!==undefined) {
+        if(inheritedDescriptor===undefined)delete (Object.prototype as Record<string,unknown>)[inheritedKey];
+        else Object.defineProperty(Object.prototype,inheritedKey,inheritedDescriptor);
+      }
+      release();await fixture.owner.stop();
+    }
   }
 });
 
