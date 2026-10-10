@@ -1079,7 +1079,11 @@ export interface CanonicalNominalResult {
   readonly fields: ReadonlyArray<CanonicalNominalLeaf>;
 }
 
-/** The one checked nominal schema inventory carried by an artifact. */
+/**
+ * The one checked nominal value inventory carried by an artifact.
+ * Stored model references resolve against the loader's same-load model names,
+ * separately from these structural contracts, enums and aliases.
+ */
 export interface CanonicalValueTypes {
   readonly contracts: ReadonlyArray<CanonicalNominalResult>;
   /** Finite bounded text aliases; nominal names resolve through the checked schema. */
