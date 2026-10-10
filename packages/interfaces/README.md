@@ -79,6 +79,15 @@ run the owning TypeScript check or compiled `node:test` suite uncached.
 Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
 steps; use the public commands above to prepare dependencies.
 
+The full File journey kernel requires `readCurrentBytes` and
+`readCurrentSnapshot(ref, physicalReceiver, retention)` from its owning Files
+binding. The latter returns immutable facts and the exact detached bytes
+validated with them. It forwards the original method, arguments, result/null
+and errors without revalidation, separate provenance reads or legacy fallback.
+Files owns current physical policy validation; State and the host must separately
+establish current field/occurrence authority before disclosure. An absent or
+nonfunction binding refuses at kernel construction.
+
 ## Source layout
 
 All paths under `packages/interfaces/`:

@@ -7028,6 +7028,46 @@ physical bytes, with no State grant, shared-reference retention, authenticated
 provider, durable-host download or original workflow acceptance. Coordinator
 manual local intake is pending; all precise holds remain.
 
+### 2026-10-10 — forward the required current File byte seam
+
+The existing structural Interfaces File journey now requires the released
+Files `readCurrentBytes(ref, physicalReceiver, retention)` binding. Validate it
+upfront and call it as the original binding method, preserving exact arguments,
+returned byte/null identity and synchronous/asynchronous errors. Missing or
+nonfunction bindings refuse by name. No legacy-read fallback, duplicated File
+validator, runtime Files dependency or State authority is introduced.
+
+Final owning Interfaces emission and all15 existing extended adapter cases
+pass. One actual public Files SQLite upload/finalization through the public
+Interfaces journey passes after reopen, including detached bytes, current
+policy/foreign/exact unswept deadline refusal, unchanged stores and a legacy-read
+tripwire. Finite source/test review is clear. Reuse unchanged Files9 and the
+accepted exact portable229 scopes; this adapter result does not qualify State
+grants, protected host download, shared-reference retention or provider ingress.
+Dev consumes this required method and supplies it in its common assembly
+fixture from the genuine Files producer; the current State authority wrapper
+and all precise host/native/provider prerequisites and holds remain separate.
+Coordinator manual local source intake is pending; full TECH-F02 is unfinished.
+
+### 2026-10-10 — bind the current reader in the genuine assembly fixture
+
+The existing typed File journey fixture supplies its new required method
+through genuine `readCurrentFinalizedBytes`, using the same finalized/blob
+stores, owning clock, upload policy and forwarded physical receiver/retention.
+Only that literal and its public Files import change. Cloudflare noEmit and
+both affected actual journey cases pass;19 unrelated cases are unselected.
+Preserve every original auth/CSRF/offset/digest/provenance/attachment/bytes and
+refusal assertion. Reuse Interfaces15 and its real SQLite consumer result;
+no new producer build or protected native read qualification is claimed.
+
+Coordinator has separately reviewed/released State11fe at local maina71.
+Its complete canonical slot census and guarded whole-field/Identity read API
+are available for safe intake; revision revalidation supplies no deletion lock.
+Dev owns actual protected host/native adoption and credential/session freshness;
+physical deletion serialization and actual provider ingress retain their
+defining owners. This finite common fixture correction awaits manual intake,
+with full TECH-F02 and every precise hold unchanged.
+
 ### 2026-10-10 — manual local integration of a770ebb5
 
 Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
@@ -7039,3 +7079,53 @@ Merge only coordinator-released LOCAL a22d44870f662806a3a4bdf39910e62738361699 i
 ### 2026-10-10 — manual local integration of 11fe6689
 
 Manually reviewed exact Capability11fe current File authority wrapper, complete finite owning Values/schema/profile census and exact required File array loader markers. Genuine current model/record/whole-field/ref, available model and parent read, same whole-field by+when grants, coherent full Identity, original row/declaration/policy/operation and State revision are checked before and after the physical callback; returned bytes are detached and current reader is distinct from the original physical receiver. Complete reference facts preserve independent nested/duplicate/nullable/union/recursive/archived/hook-materialized occurrences without model target loads or disclosure. Reuse13 original defining passes, two corrected required-array/recursive/derived-hook groups and seven affected intake checks:22 distinct outcomes, owning State/Files emission0 and boundary13/934/1391/zero. Public State root/ports createFileReferenceConsumer is released to Dev/Packages. Native protected download, Interfaces actual adoption, deletion serialization and provider deployment remain separate unfinished owner scopes; no cross-store lock or return-time/full-workflow guarantee. Preserve prior canonical task acceptance and every human hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — manual local integration of aba83b95
+
+Manually reviewed exact Packagesaba83b required FileJourney current-byte forwarding over the actual Files520 same-snapshot producer. Required seam validates upfront and preserves exact ref/physicalReceiver/retention/method receiver/bytes-or-null and sync/async error identity, with no legacy or second-read fallback and no runtime Files dependency/State grant. Reuse affected Interfaces15/15/emission0 and genuine public SQLite upload-finalize/reopen/policy/expiry/detachment/no-writes/no-fallback qualification; no host/full-workflow claim. State11fe is now independently reviewed/integrated at a71 and its current authority API released to Dev. Packages separately owns only the existing typed CF assembly fixture compatibility literal; Dev owns actual protected native host consumption. Keep deletion serialization/provider deployment and all precise holds open; retain authoritative prior scopes and complete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — manual local integration of 3dc40fc6
+
+Manually reviewed exact Packages3dc40fc6 finite three-line existing assembly fixture correction: actual public Files readCurrentFinalizedBytes over the same finalized/blob stores and clock, upload.policy, exact original physical receiver and forwarded retention. No assertion, host implementation or fake/legacy reader changed. Reuse owning CF noEmit0 and two actual finalized-file journey passes in241ms; nineteen unrelated cases were unselected, not newly qualified. Retain earlier Interfaces15 and public SQLite forwarding results at their finite scopes. Both State11fe current authority and Interfacesaba83b same-snapshot forwarding are reviewed/released, clearing producer blockers for Dev actual protected native read; full original workflows, complete deletion serialization and actual provider ingress remain unfinished. Reconcile authoritative prerequisite owners without advancing complete824 checkpoint or altering any human hold; no publication. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — keep Invoice reconciliation cases under lexical precedence (unfinished composition)
+
+Rename only the assigned nonexported Invoice reconcile handler to observe_payment on=ReconcileDue (drafta8f1151). Lexical bindings precede contextual enum cases, so the original handler captured seven PaymentRequest.kind expressions; retaining the owning enum cases and provider Payments.reconcile preserves source intent without a language change. Original guards, evaluation order, permissions, scheduling and examples stay unchanged, with no scenario consumer to rename. Exact original25/catalog analysis118→111 (Invoice48→41) is complete/omitted0 with all source hashes matching; separate provider-event E3010 remains. Only isolated Invoice249→242 corpus expectation changes, preserving52 rows/full assertions and51 unchanged rows; affected table1/1 passes2.11s. Reuse unchanged compiler/strict/editor and exact released finite native consumers at f87. Original application qualification remains unfinished; Employees purity, Volunteer unresolved bindings and precise BDD3/Task22 holds remain. No remote publication.
+
+### 2026-10-10 — use distinct Field query aliases for stored state cases (unfinished composition)
+
+Rename only the assigned two local CanField query aliases from pending to candidate, retaining their state receivers and actual [pending,unknown] enum values (draft9f60e7d). Accepted lexical precedence otherwise captures pending as a Replacement row rather than a state. Keep all current authority/skill/location and completion guards, evaluation order/effects/examples unchanged; no language or schema change. Exact original25/catalog complete/omitted0/current hashes clear precisely two E3001:111→109, Field12→10. Only isolated Field115→113 corpus snapshot changes, retaining52 rows/full assertions and51 unchanged rows; affected table1/1 passes2.03s. The released-handler collision remains separate. Original application/native qualification and precise holds remain unfinished; local only.
+
+### 2026-10-10 — manual local integration of 41d8076c
+
+Manually review exact Compiler6e/41d and local drafta8/9f: nonexported Invoice reconciliation handler and two Field replacement aliases preserve owning enum semantics and actual guards, effects, order and examples. Reuse owner affected corpus1/1 passes2.11s and2.03s, all52 rows/full assertions, unchanged compiler checks and exact original25/catalog matching hashes/omitted0. Current complete original composition118→111→109 with no artifact remains unfinished. Preserve the newer native Task39 record and all recipient-specific holds; no native or whole-plan acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+**2026-10-10 — Protected native File consumer (unfinished atomic snapshot join).** Bind exact State11fe current whole-field authority to actual loaded source declarations, selected owner store and current authenticated caller, then consume Interfacesaba current bytes with the original receiver from genuine Files metadata and explicit retention. Preserve current credentials/source/row/field/revision fences, uniform withheld404 and no-store/nosniff/attachment headers. Pin/recheck complete physical metadata after the callback and immediately before response; these checks refuse observed drift but are not an atomic metadata/byte snapshot or deletion lock. Full unchanged native File workflow1/1 passes4846.02ms; real source-native two-owner/shared-reader/security/race/no-effect workflow1/1 passes16.12s with no legacy reads/fallback. State/Interfaces/CF clean emissions pass. Default reference bound was corrected to admitted20000 before the successful runs. Preserve all meaningful assertions; initial test setup failures corrected through actual membership reactivation and distinct genuine locator uploads. Packages owns the exact same-snapshot metadata/bytes release; cross-store surviving-reference deletion and authenticated provider/deployment remain missing, and scalar finite results do not establish Office/G2–G3 or original application acceptance.
+
+
+### 2026-10-10 — manual local intake of exact Dev aaf8f1af
+
+Manual exact source and current authority review is CLEAR for Dev aaf8f1af. Intake only bound-files and its two directly related existing native tests plus owning records, without worker ancestry or active-worktree mutations. Reuse owner complete native1/1 in4846.02ms and genuine source-native two-owner/shared-reader/race/no-effect1/1 in16.12s, State/Interfaces/CF clean emits0. Current whole-field State authority surrounds one validated physical byte callback using the original actual Files receiver, while current authenticated reader and selected owner store remain independent. Preserve all genuine drift/refusal controls and response fences. Same validated metadata/bytes snapshot is Packages-owned and unfinished; current metadata checkpoints are not an atomic snapshot, deletion lock or provider/native-full acceptance. Retain original109 diagnostics, complete checkpoint and all precise human holds. No remote publication.
+
+
+### 2026-10-10 — same-read current File response snapshot
+
+Implementation choice: expose Files `readCurrentFinalizedSnapshot` as frozen `{facts, bytes}` directly from the existing current validator. The immutable retained facts describe the exact detached bytes checked once for receiver, provenance, lifecycle, current File policy, digest and finalization-anchored lifetime. SQLite `readCurrentSnapshot` keeps that read inside its existing metadata/byte transaction; Interfaces requires and forwards the structural result with original arguments, method receiver, object/null and error identity. Response MIME/size/digest must come from these facts, since a separate provenance read can become stale during an awaited binding. Existing byte-only behavior and private observation identity are preserved. This snapshot is nongrant data; Dev alone owns current State/Identity and protected native response consumption.
+
+Files/Interfaces owning emissions pass; affected SQLite10/10 and Interfaces15/15 pass. A genuine public SQLite upload/finalize/reopen through async Interfaces forwarding changes same-size PDF storage to text after await and returns matching current MIME/digest/bytes with one read, detached mutation, frozen facts, foreign/exact unswept expiry denial, no writes or separate reader fallback. CF owning noEmit and both existing genuine assembly journeys pass (19 unrelated cases unselected). Finite independent source/test review is clear; coordinator manual source acceptance pending. Reuse unchanged earlier outcomes. Separate maintained isolated verifier at reviewed3dce, before this source unit, qualifies the changed State11fe public closure/Dev60b emitted tuple with231modules and existing controls; no protected native, cross-store deletion/provider or full-packet acceptance. All precise human holds remain.
+
+### 2026-10-10 — manual local integration of 776c73c2
+
+Manually review exact Packages776c73c2 source and genuine SQLite/Interfaces/common fixture consumers CLEAR. The additive public snapshot exposes immutable nongrant facts and detached bytes from the same existing currentFileRead; SQLite uses its existing transaction and Interfaces preserves original result/arguments/method/errors. Reuse owner actual SQLite10/10 in61.86ms, Interfaces15/15 in70.77ms, real public upload/finalize/reopen async same-size metadata+byte correspondence check0, and genuine common assembly2/2 in332ms with owning emissions/noEmit0. Preserve byte-only behavior, State authority/current owner/reader separation, all real policy/lifetime/digest refusals and explicit remaining native snapshot intake, required File[]! producer, deletion fencing/provider/full-plan holds. This is the physical producer release only, with no whole-workflow or checkpoint promotion. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — agree required File metadata with the released owning loader (unfinished workflow)
+
+Emit file[]! for a checked nonnullable required File model field and its generated CRUD create/update inputs, matching exact released State11fe marker correspondence. Keep field-only array.required and omission behavior independent; do not change ordinary/nullable/scalar/parameter/return or other element types. The old helper omitted field requiredness and produced file[], so genuine receiving State rejected the compiler artifact. Actual compiled artifact→released State descriptor loader/File profile/Values codecs passes1/1 in0.71s, including missing/null, identity enrichment, type/requiredness/nullable and canonical-source skew refusals; supplied empty remains valid. Required-array event inputs retain their existing E6008 refusal. Current required whole/lint validation is pending at this coherent checkpoint; defining native consumer and original application acceptance remain separate with precise holds. No publication.
+
+### 2026-10-10 — manual local integration of 73ac1cbf
+
+Finite manual source review is CLEAR for exact Compiler73ac1cbf emitter/test, identical to reviewed994d except truthful current-head whole-qualification false. Both owning model and generated CRUD create/update descriptors retain required File[]! with array.required:true; all other nullable/scalar/ordinary/parameter/return/element encodings remain unchanged. Reuse actual compiled artifact into released State11fe loader/profile and Values codecs1/1 in0.71s, all correspondence/refusal controls and clean State graph12/12/cache0. Declared events retain their existing refusal; no admission expansion. Release this component to Capability for its actual source-to-State mutation/census check while required current compiler whole/lint remains pending. Full native/File/original application58/67, deletion/provider and precise holds stay unfinished; no complete checkpoint promotion. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+### 2026-10-10 — Capability intake of required File array source producer (unfinished)
+
+Consume only exact coordinator-reviewed LOCAL2cb320fe containing Compiler73ac1cbf, preserving unfinished68d/908 and the actual draft checkout. The owning model/CRUD producer now carries file[]! with its true required marker; ordinary/nullable/scalar/result/event profiles keep their existing scopes. The actual source-to-State CRUD/census/SQLite/replay/refusal consumer is authored and still awaits the genuine changed local CLI build and one direct execution. Reuse the22 unchanged State outcomes and released physical/native results at their original scopes; current Compiler whole/lint remains pending. Mandatory accumulated staged-tree/both-history upkeep retains11391 prior allocations,79 feature paths/30 target leaves and complete824934 without advancement; the new State consumer remains inherited-unallocated. No generated-policy/native/deletion/provider/full-roadmap acceptance or human-hold change.
+

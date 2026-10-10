@@ -141,6 +141,15 @@ corrupt, terminal, foreign or logically expired files before a retention
 sweep, and performs no second byte read or metadata write. Legacy
 `readFinalizedBytes`/`readBytes` retain their physical receiver checks.
 
+`readCurrentFinalizedSnapshot` returns frozen `{facts, bytes}` from that same
+single validation. Its immutable `RetainedFinalizedFile` facts describe the
+exact detached bytes returned, including content type, size and digest. The
+SQLite binding exposes `readCurrentSnapshot(ref, physicalReceiver, retention)`
+in the same transaction. Response consumers use these facts with these bytes;
+a separate provenance read can become stale across an awaited binding. Bytes
+remain mutable and detached; this snapshot is neither an observation handle
+nor a State disclosure grant.
+
 The protected read consumer must obtain State's current whole-field grant
 and exact File occurrence, then recheck State and Identity after asynchronous
 physical reads before disclosing bytes. Dev supplies the actual compiled

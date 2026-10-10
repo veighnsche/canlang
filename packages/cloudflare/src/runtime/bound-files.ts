@@ -1,4 +1,6 @@
-import type { CompileArtifact, FileRetentionPolicy, ResolvedIdentity, StoragePort } from '@canlang/contracts';
+import type { CompileArtifact, FileRetentionPolicy, FinalizedFile, ModelName, RecordId, ResolvedIdentity, StoragePort } from '@canlang/contracts';
+import type { FinalizedStorePort, StoredFileRecord } from '@canlang/files/ports';
+import { createFileReferenceConsumer, StateError } from '@canlang/state';
 import type { IdentityStore } from '@canlang/identity';
 import { assertAudience, IdentityError, resolveIdentity } from '@canlang/identity';
 import {
@@ -7,9 +9,9 @@ import {
 } from '@canlang/interfaces';
 import type { UploadDeps } from '@canlang/interfaces';
 import type { FileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
-import { decodeValue } from '@canlang/values';
+import { decodeValue, encodeValue } from '@canlang/values';
 import type { AssembledModules } from './modules.js';
-import { invokeReadCanonical } from './invoke.js';
+import { invokeReadCanonical, loadCanonicalDescriptors } from './invoke.js';
 import type { CanonicalMembershipReader } from './invoke.js';
 import type { CanonicalFileBinding } from './file-staging.js';
 import type { TeamOwnerStorageBoundary } from '../worker/assembly.js';
@@ -63,10 +65,20 @@ export interface BoundFileHandlerOpts {
   readonly identityStore: IdentityStore;
   readonly clock: { nowMs(): number };
   readonly upload: UploadDeps & { readonly kernel: FileJourneyKernel };
+  /** Genuine receiving store; saved receiver facts convey no disclosure grant. */
+  readonly physicalFiles: Pick<FinalizedStorePort, 'get'>;
+  readonly retention: FileRetentionPolicy;
+  readonly fileReferenceBounds?: { readonly maxRows: number; readonly maxReferences: number };
 }
 
 function notFound(): Response {
   return jsonErrorResponse(buildBusinessError('not_found'), 404);
+}
+
+function physicalCheckpoint(record: StoredFileRecord): string {
+  return JSON.stringify({ ...record, file: {
+    ...record.file, finalizedAt: encodeValue('datetime', record.file.finalizedAt),
+  } });
 }
 
 /** Native host join; upload routing/authentication remains owned by Interfaces. */
@@ -77,6 +89,11 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
   if (opts.ownerStorage !== undefined && opts.ownerStorage.app !== opts.upload.app.appId) {
     throw new Error('File owner storage must belong to the declared app.');
   }
+  if (typeof opts.physicalFiles?.get !== 'function' || opts.retention === undefined) {
+    throw new Error('File downloads require the receiving store and explicit retention.');
+  }
+  const retention = Object.freeze({ ...opts.retention });
+  const bounds = Object.freeze({ ...(opts.fileReferenceBounds ?? { maxRows: 10_000, maxReferences: 20_000 }) });
   return async request => {
     const pathname = new URL(request.url).pathname;
     if (!pathname.startsWith('/files/read/')) return handleUploadRequest(opts.upload, request);
@@ -112,16 +129,47 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       const row = result.records.find(candidate => candidate.id === id);
       if (row === undefined || !Object.hasOwn(row.data, field) || row.data[field] === null) return null;
       const value = decodeValue('file', row.data[field]) as { id: string };
-      return { id: value.id, revision: result.revision, version: row.version };
+      return { id: value.id, revision: result.revision, version: row.version, store };
     };
     try {
       const identity = await resolveCaller();
       const first = await authorized(identity);
       if (first === null) return notFound();
-      const receiver = receiverFromIdentity(opts.upload.app.appId, identity);
-      const metadata = await opts.upload.kernel.readProvenance(first.id, receiver);
-      const bytes = await opts.upload.kernel.readBytes(first.id, receiver);
-      if (metadata?.id !== first.id || bytes === null || bytes.byteLength !== metadata.sizeBytes) return notFound();
+      const caller = receiverFromIdentity(opts.upload.app.appId, identity);
+      const scope = { app: caller.app, team: caller.team, owner: caller.owner };
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      if (loaded.ruledModels.has(model)) return notFound();
+      type ConsumerInput = Parameters<typeof createFileReferenceConsumer>[0];
+      const consumer = createFileReferenceConsumer({
+        scope, store: first.store, memberships: opts.memberships,
+        policy: loaded.policy as ConsumerInput['policy'], registry: loaded.registry as ConsumerInput['registry'],
+        canonicalModels: loaded.models, artifactModels: opts.artifact.models!,
+        ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }), ...bounds,
+      });
+      const physical: { metadata: FinalizedFile | null; checkpoint: string | null } = { metadata: null, checkpoint: null };
+      const bytes = await consumer.read({ model: model as ModelName, recordId: id as RecordId, field, ref: first.id }, caller,
+        async slot => {
+          const stored = opts.physicalFiles.get(slot.ref);
+          if (stored?.file.id !== slot.ref || stored.owner.app !== scope.app ||
+              stored.owner.team !== scope.team || stored.owner.owner !== scope.owner) return null;
+          const checkpoint = physicalCheckpoint(stored);
+          // The actual original receiver selects physical bytes. State grants
+          // the current reader independently, including another current member.
+          const receiver = Object.freeze({ ...stored.owner });
+          const metadata = await opts.upload.kernel.readProvenance(slot.ref, receiver);
+          if (metadata?.id !== slot.ref || physicalCheckpoint({ ...stored, file: metadata }) !== checkpoint) return null;
+          const current = await opts.upload.kernel.readCurrentBytes(slot.ref, receiver, retention);
+          if (current === null || current.byteLength !== metadata.sizeBytes) return null;
+          // Refuse physical metadata drift across the asynchronous host seam.
+          // This checkpoint is neither a cross-store lock nor a deletion fence.
+          const latestPhysical = opts.physicalFiles.get(slot.ref);
+          if (latestPhysical === null || physicalCheckpoint(latestPhysical) !== checkpoint) return null;
+          physical.metadata = metadata;
+          physical.checkpoint = checkpoint;
+          return current;
+        });
+      const metadata = physical.metadata;
+      if (metadata === null || bytes === null) return notFound();
       // Bytes cross the response boundary only after current credentials and grants
       // are checked again; a changed model revision cannot authorize the old file.
       const latestIdentity = await resolveCaller();
@@ -130,12 +178,15 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       const latest = await authorized(latestIdentity);
       if (latest === null || latest.id !== first.id || latest.version !== first.version ||
           latest.revision !== first.revision) return notFound();
+      const disclosedPhysical = opts.physicalFiles.get(first.id);
+      if (disclosedPhysical === null || physicalCheckpoint(disclosedPhysical) !== physical.checkpoint) return notFound();
       return new Response(new Uint8Array(bytes), { headers: {
         'content-type': metadata.contentType, 'content-length': String(bytes.byteLength),
         'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff',
         'content-disposition': 'attachment',
       } });
     } catch (error) {
+      if (error instanceof StateError && (error.code === 'forbidden' || error.code === 'conflict')) return notFound();
       const business = fromUnknown(error);
       const { status, body } = toHttpResponse(business);
       return jsonErrorResponse(body, error instanceof IdentityError ? 401 : status);
