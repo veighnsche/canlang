@@ -8,7 +8,7 @@ use canlang_compiler::{
     },
     codegen::{
         ir::{self, IrExpr, IrItemKind, IrProgram, IrStmt},
-        scenario_queries::serialize_query_sources,
+        scenario_queries::{serialize_complete_query_receipt, serialize_query_sources},
     },
     source::{SourceDb, Span},
 };
@@ -51,8 +51,11 @@ fn root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap()
 }
 fn checked() -> (SourceDb, CheckedProgram, IrProgram, Option<Catalog>) {
+    checked_source(SOURCE)
+}
+fn checked_source(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Option<Catalog>) {
     let mut db = SourceDb::new();
-    let file = db.add("query-sources.can".into(), SOURCE.into());
+    let file = db.add("query-sources.can".into(), source.into());
     let path = root().join("packages/values/dist/catalog.json");
     let (catalog, ds) = load_catalog(&CatalogRequest {
         flag: Some(&path),
@@ -66,6 +69,256 @@ fn checked() -> (SourceDb, CheckedProgram, IrProgram, Option<Catalog>) {
     let (ir, ds) = ir::build(&program, &db, catalog.as_ref());
     assert!(ds.is_empty(), "{ds:?}");
     (db, program, ir, catalog)
+}
+
+fn complete_plan(
+    db: &SourceDb,
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    catalog: Option<&Catalog>,
+) -> Option<Value> {
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "workbench.context")
+        .unwrap();
+    serialize_complete_query_receipt(
+        program,
+        ir,
+        owner,
+        db,
+        catalog,
+        "$can$m$5175657279536f7572636573.mjs",
+    )
+}
+
+#[test]
+fn complete_query_recipe_matches_real_state_schema_but_publication_stays_closed() {
+    let source = SOURCE.replace(
+        "require active_member(actor,team)",
+        "require count(targets)>0",
+    );
+    let (db, program, ir, catalog) = checked_source(&source);
+    let produced =
+        complete_plan(&db, &program, &ir, catalog.as_ref()).expect("whole checked query closure");
+    assert_eq!(
+        Some(produced.clone()),
+        plan(&db, &program, &ir, catalog.as_ref())
+    );
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("complete-query-source", "1.0", 1);
+    result.complete = true;
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &program,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "workbench.context")
+        .unwrap();
+    assert!(operation["result"].get("disclosure").is_none());
+    let module = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(module.contains("canScenarioQuerySources"));
+    for helper in [
+        "executeScenarioReceiptQuery",
+        "observeScenarioReceiptQueryDependency",
+        "bindScenarioReceiptQueryResult",
+        "selectScenarioReceiptReturn",
+    ] {
+        assert!(
+            !module.contains(helper),
+            "unfinished publication activated {helper}"
+        );
+    }
+    let scratch = tempfile::tempdir().unwrap();
+    let artifact_path = scratch.path().join("artifact.json");
+    let recipe_path = scratch.path().join("receipt.json");
+    let runner = scratch.path().join("complete-query-schema.mjs");
+    std::fs::write(&artifact_path, serde_json::to_vec(&artifact).unwrap()).unwrap();
+    std::fs::write(&recipe_path, serde_json::to_vec(&produced).unwrap()).unwrap();
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(resolve(process.argv[2],'packages/cloudflare/package.json'));
+const artifact=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const produced=JSON.parse(readFileSync(process.argv[4],'utf8'));
+const {loadArtifactDescriptors}=await import(pathToFileURL(require.resolve('@canlang/state/invocation/registry')));
+const state=dirname(require.resolve('@canlang/state'));
+const {checkScenarioResultDisclosurePlan}=await import(pathToFileURL(resolve(state,'invocation/scenario-receipt.js')));
+const {checkQueryInventory}=await import(pathToFileURL(resolve(state,'invocation/scenario-query-plan.js')));
+const loaded=loadArtifactDescriptors(artifact,{by:{role:'members'}});
+const checked=checkScenarioResultDisclosurePlan(produced);
+checkQueryInventory(checked,'workbench.Fact[]',artifact.models,loaded.valueSchema);
+assert.deepEqual(checked,produced);
+assert.equal(checked.returns.length,1);
+assert.equal(checked.returns[0].influences.length,4);
+assert.equal(checked.returns[0].projection.fields.length,7);
+assert.equal(artifact.operations.find(operation=>operation.name==='workbench.context').result.disclosure,undefined);
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root())
+        .arg(artifact_path)
+        .arg(recipe_path)
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+}
+
+#[test]
+fn complete_query_recipe_requires_original_proof_and_fresh_executable_correspondence() {
+    use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
+    let source = SOURCE.replace(
+        "require active_member(actor,team)",
+        "require count(targets)>0",
+    );
+    let (db, program, original, catalog) = checked_source(&source);
+    let id = original
+        .items
+        .iter()
+        .find(|item| item.canonical == "workbench.context")
+        .unwrap()
+        .id;
+    assert!(complete_plan(&db, &program, &original, catalog.as_ref()).is_some());
+    for corruption in 0..10 {
+        let mut ir = original.clone();
+        match corruption {
+            0..=4 => {
+                let ScenarioDisclosure::Complete(proof) =
+                    ir.scenario_disclosures.get_mut(&id).unwrap()
+                else {
+                    panic!()
+                };
+                match corruption {
+                    0 => proof.returns[0].influences.pop().map(|_| ()).unwrap(),
+                    1 => proof.returns[0].id = "borrowed-return".into(),
+                    2 => proof.returns[0].node = proof.node,
+                    3 => proof.source.sha256 = "foreign-source".into(),
+                    _ => proof.returns[0].source.module = "foreign-owner".into(),
+                }
+            }
+            5 => {
+                let IrItemKind::Scenario { guards, .. } = &mut ir.items[id.0 as usize].kind else {
+                    panic!()
+                };
+                guards.clear();
+            }
+            6 => {
+                let IrItemKind::Scenario { params, .. } = &mut ir.items[id.0 as usize].kind else {
+                    panic!()
+                };
+                params.reverse();
+            }
+            7 => {
+                let IrItemKind::Scenario { effects, .. } = &mut ir.items[id.0 as usize].kind else {
+                    panic!()
+                };
+                let IrStmt::Return {
+                    value: Some(value), ..
+                } = &mut effects[2]
+                else {
+                    panic!()
+                };
+                let IrExpr::Query(query) = &mut value.expr else {
+                    panic!()
+                };
+                query
+                    .source
+                    .as_mut()
+                    .unwrap()
+                    .projection
+                    .as_mut()
+                    .unwrap()
+                    .fields
+                    .swap(0, 1);
+            }
+            8 => {
+                let IrItemKind::Scenario { effects, .. } = &mut ir.items[id.0 as usize].kind else {
+                    panic!()
+                };
+                let IrStmt::Require { cond, .. } = &mut effects[1] else {
+                    panic!()
+                };
+                cond.expr = IrExpr::Bool(true);
+            }
+            _ => {
+                let (declined_db, declined_program, declined_ir, declined_catalog) = checked();
+                let mut forged = declined_ir.clone();
+                forged
+                    .scenario_disclosures
+                    .insert(id, original.scenario_disclosures[&id].clone());
+                assert!(
+                    complete_plan(
+                        &declined_db,
+                        &declined_program,
+                        &forged,
+                        declined_catalog.as_ref()
+                    )
+                    .is_none()
+                );
+                continue;
+            }
+        }
+        assert!(
+            complete_plan(&db, &program, &ir, catalog.as_ref()).is_none(),
+            "corruption {corruption}"
+        );
+        if matches!(corruption, 5 | 8) {
+            // A valid detached owner cannot conceal a changed indexed body.
+            let detached = &original.items[id.0 as usize];
+            for serialize in [serialize_query_sources, serialize_complete_query_receipt] {
+                assert!(
+                    serialize(
+                        &program,
+                        &ir,
+                        detached,
+                        &db,
+                        catalog.as_ref(),
+                        "$can$m$5175657279536f7572636573.mjs",
+                    )
+                    .is_none(),
+                    "detached owner concealed corruption {corruption}"
+                );
+            }
+        }
+    }
+    let (declined_db, declined_program, declined_ir, declined_catalog) = checked();
+    assert!(
+        complete_plan(
+            &declined_db,
+            &declined_program,
+            &declined_ir,
+            declined_catalog.as_ref()
+        )
+        .is_none()
+    );
+    let mut changed_db = db;
+    changed_db.add(
+        "query-sources.can".into(),
+        source.replace("count(targets)>0", "count(targets)>1"),
+    );
+    assert!(complete_plan(&changed_db, &program, &original, catalog.as_ref()).is_none());
 }
 fn plan(
     db: &SourceDb,
