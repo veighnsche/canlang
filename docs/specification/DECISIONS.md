@@ -6812,3 +6812,29 @@ status records name the concrete corrections and remaining ownership.
 ### 2026-10-10 — manual local integration of 815a3b97
 
 Finite independent analyzer, IR, emission and source-control review is clear for the stored Step parent and Run location/targets operands. The final mechanical let-and-return cleanup preserves the reviewed behavior. Owner qualification records current compiler whole 1418 passing over 139 targets with zero failed, ignored, filtered or skipped bodies, actual required engines and native/permission execution; final strict Clippy and formatting pass. These results are reused without repeating unchanged checks. Actual Dev hydration, private same-load State binding and separate current target admission remain required; original Volunteer and Workbench source analysis and the precise BDD3/Task22 holds remain open. This coherent source is integrated locally, not accepted as a complete original workflow or plan. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — preserve original composition workflows in assigned source corrections (unfinished)
+
+Implement only the coordinator-assigned Affiliate/CRM/Desk/Event corrections.
+Reuse CommissionResult's owning enums; compare the partner's exact three
+milestones explicitly so the provider's reversed case cannot qualify a sale.
+Make Deal.owner an ordinary actor-default field while preserving its existing
+creation exclusion, current worker/salesperson eligibility and reassignment
+examples. Supply the genuine required purchased access window with the owning
+site id/timezone, weekdays1..5,09:00..18:00,close_after0 and earlier fold.
+Rename only Desk add_note/Event change_schedule operations and their actual
+forms, preserving stored cases, local bindings, labels, guards, effects and all
+examples. These are source corrections under accepted rules, not new semantics.
+
+Local draft057ce7d/598a6e8/3efd895 are implemented. Final exact Dev ordered25
+ordinary compile/catalog check2.176s clears six representatives with every
+actual source path/hash matching; analysis still exits10 complete=true/omitted0
+with127 findings versus138 and emits no artifact. Native behavior/examples
+remain unqualified. Focused corpus table fails three changed source pins:
+CRM144→146,Desk78→74,Event203→202;49 rows, including Affiliate39, unchanged.
+Imported fixture location/fold names explain CRM's isolated-scope increase.
+Preserve expected counts pending the coordinator's narrow review/disposition.
+Reuse unchanged production compiler/strict/editor results at their prior scope;
+changed draft corpus is not whole qualified. Remaining original diagnostics
+require exact source-owner assignments; Dev owns original native consumption.
+Original58/67 and precise BDD3/Task22 holds stay unchanged; no remote publication.
