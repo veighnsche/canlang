@@ -207,7 +207,7 @@ async function d1Handles(): Promise<Handles> {
 async function doHandles(): Promise<Handles> {
   const mf = new Miniflare({ modules: true,
     modulesRoot: fileURLToPath(new URL('../../../', import.meta.url)),
-    scriptPath: fileURLToPath(new URL('../../../test/storage/do-test-worker.js', import.meta.url)),
+    scriptPath: fileURLToPath(new URL('../../test/storage/do-test-worker.js', import.meta.url)),
     modulesRules: [{ type: 'ESModule', include: ['**/*.js'] }], compatibilityDate: '2025-01-01',
     durableObjects: { TEST_DO: { className: 'TestDO', useSQLite: true, unsafePreventEviction: true } } });
   const proxy = (): StoragePort => new Proxy({} as StoragePort, {

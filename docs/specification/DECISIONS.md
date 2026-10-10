@@ -7585,3 +7585,25 @@ Use one sparse generated appDefinition.standardCompletions array, exposed by ori
 ### 2026-10-10 — selected local integration of private completion loader321f2d8f
 
 Finite manual review CLEAR; integrate only exact CF runtime/test paths and directly related records, excluding divergent Dev ancestry. Reuse owning unissued-census/accessor refusal1/1 Bun40.35ms and unchanged complete compiled native two-owner D1 committed CRUD/ordinary/frozen-cohort regression1/1 Node26898.98ms, clean CF emit/root noEmit and unchanged boundary results at their scopes. Sparse same-reference census, actual module/callable/schema/R-before-nullability/declaration-order proofs and bounded own wire shape precede Values; enrollment freezes scope and rechecks original source/current owner through genuine State-issued stage. Retained, anchored and void execution remains refused. Capability must supply actual registry-issued tracked read-only original-source runner plus factored Work replay reader without committing, fake stage or fresh cohort capture; Compiler must supply the checked producer. State File retirement compatibility/DO, Files physical consumer, Dev host joins and every precise hold remain. No remote push or whole-plan acceptance.
+
+### 2026-10-10 — rebuild the genuine State DO test worker (finite common gate)
+
+Bundle the original State-owned worker and actual emitted adapter/dependency
+closure during normal State build:emit with pinned owning esbuild. Publish the
+same built dist/test/storage/do-test-worker.js testing asset for every existing
+internal/exported loader. Preserve the raw worker protocol, real DO SQLite and
+transaction/reopen assertions; missing dependencies fail without stale output,
+mock maps, skipped imports or fallback. Only existing loader path hunks change.
+
+Reviewed7a owning emission and55 existing conformance/durable receipt outcomes
+pass2728.80ms. Public export/all13 internal path correspondence, unchanged raw
+worker bytes, missing actual adapter refusal, byte-identical restoration build
+and affected package boundary pass; finite source review CLEAR. This qualifies
+the common loader with the current producer. Published unfinished State485
+retirement source remains unconsumed here; Capability owns required framework
+metadata adaptation and its new guards/issuer/DO qualification. Full physical
+Files/Dev joins and every precise native/backend/security/publication hold remain.
+
+### 2026-10-10 — manual local integration of 4879ed41
+
+Manually reviewed canonical built DO test worker: unchanged original worker and adapter/assertions, required genuine emitted dependency graph, fail-closed stale asset removal, normal owning build and matching internal/public loaders. Reuse the owning frozen installs/build and 55 existing DO conformance/scenario checks; this finite common loader qualification does not qualify the pending State retirement/framework graph or native File issuer. Packages owns common build/contract hunks; Capability owns changed State runtime qualification. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
