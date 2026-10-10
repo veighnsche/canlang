@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "24c0aaa583930f93053adaeaf51fa158c27f2b43",
+  "integrated_source_pin": "6b9ecc42d6d89f8a536ca17d3888ecbb753fe11d",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2033,
+    "commit_count_since_checkpoint": 2038,
     "net_path_deltas": 10891,
     "history_touched_paths": 11435,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9388,
-    "scope": "Worker exact coordinator-reviewed24c0aaa5/4879 DO built-worker prerequisite intake onto unfinished0bd45161 and a8e40e9f. Actual staged tree and both complete histories since824934: 2033 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Register new State owning framework source/test and Work actual combined producer test plus Packages canonical worker build; preserve every prior exact allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all human holds. Complete checkpoint unadvanced; unchanged component results reused and actual changed DO qualification remains next."
+    "scope": "Worker exact coordinator-reviewed6b9ecc42/773 closed ReceiptError contract and reviewed a8e40e9f read-only release intake onto unfinished08e95 DO preparation. Actual staged tree and both complete histories since824934: 2038 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Preserve every prior exact allocation tuple/owner/strongest scope/retirement/task,79 features/30 leaves and human holds; complete checkpoint unadvanced. Actual object adoption, nonempty activate/resume join and changed DO qualification remain required, unchanged38/9 reused."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -67996,5 +67996,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Worker exact coordinator-reviewed24c0aaa5/4879 DO built-worker prerequisite intake onto unfinished0bd45161 and a8e40e9f. Actual staged tree and both complete histories since824934: 2033 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Register new State owning framework source/test and Work actual combined producer test plus Packages canonical worker build; preserve every prior exact allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all human holds. Complete checkpoint unadvanced; unchanged component results reused and actual changed DO qualification remains next."
+  "current_maintenance_summary": "Worker exact coordinator-reviewed6b9ecc42/773 closed ReceiptError contract and reviewed a8e40e9f read-only release intake onto unfinished08e95 DO preparation. Actual staged tree and both complete histories since824934: 2038 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Preserve every prior exact allocation tuple/owner/strongest scope/retirement/task,79 features/30 leaves and human holds; complete checkpoint unadvanced. Actual object adoption, nonempty activate/resume join and changed DO qualification remain required, unchanged38/9 reused."
 }

@@ -7645,3 +7645,35 @@ Manually reviewed canonical built DO test worker: unchanged original worker and 
 Worker exact coordinator-reviewed24c0aaa5/4879 DO built-worker prerequisite intake onto unfinished0bd45161 and a8e40e9f. Actual staged tree and both complete histories since824934: 2033 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Register new State owning framework source/test and Work actual combined producer test plus Packages canonical worker build; preserve every prior exact allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all human holds. Complete checkpoint unadvanced; unchanged component results reused and actual changed DO qualification remains next.
 
 Prepared actual changed DO retirement/framework assertions consume the reviewed built worker asset and bind only the literal actual State producer inside the original worker protocol. They cover complete domain/control census, persisted/reopened decisions, missing producer/legacy writes, opaque/unknown-field SQL rollback and target publication/activation correspondence. Checkpoint unfinished: normal owning State build reaches canonical bundle then fails ERR_MODULE_NOT_FOUND esbuild in this worktree's pre-release node_modules; tsc succeeds but no DO assertion outcome exists. Packages owns the released locked esbuild prerequisite; obtain through normal frozen dependency install with lifecycle scripts disabled. No loader rewrite, fallback bundle or native preparation. Exact released6b9ecc42/773 closed ReceiptError vocabulary is next intake; all prior outcomes and holds preserved.
+### 2026-10-10 — genuine read-only consumed completion (unfinished native join)
+
+State SystemRegistry.read(name,args,runContext,{store}) issues the same exact five-key private context and original read ledger as run, validates settled loads/queries/retained outbox, refuses poisoned/copied/closed/pending/check-enrollment/write-staging/fence-drift execution, detaches the result and closes with zero commit/resource effects. The owning Work command.read({deliveryId},actualContext) reuses one factory-local original-source and complete consumed-route validator with stage replay. It returns only the detached retained OccurrenceRowData, preserving original payload after current receipt expiry and later cohort growth. Missing consumption refuses before current receipt reads or new membership capture. No unissued Dev workStageContext can substitute.
+
+Final State and Work owning emissions pass. State system35 plus owning framework shape3 =38/38 pass405.07ms; the35 system results qualify this runner and include25 affected staging checks. Work9/9 pass442.11ms, zero fail/cancel/skip. Initial malformed branded fixture types and Work optional-read signature overlap were corrected before final emission; early dependent emission was retried only after the State producer completed. Dev genuine same-load native intake, Compiler executable/private admission and original/provider/full-roadmap acceptance remain owning prerequisites. Local-only checkpoint; all precise human holds persist.
+
+### 2026-10-10 — selected local integration of read-only completion a8e40e9f
+
+Finite State and Work manual reviews CLEAR. Integrate exact four runner/reader source and test paths plus the directly related existing task record; exclude unfinished State retirement485 ancestry. Reuse owning35 State system and9 Work cases at their declared scopes, zero failures/skips, and final emissions. The genuine private tracked context settles original reads, refuses poisoned/pending/check/write/fence drift execution, returns detached consumed source through the shared full route validator and closes without commit. Dev must consume the actual runner and reader; Compiler private executable producer, native admission, File framework/DO/physical issuer and every precise human hold remain unqualified. Preserve all allocation tuples and the unadvanced complete checkpoint; no remote push, publication or whole-plan acceptance.
+
+### 2026-10-10 — describe closed receipt-error controls (unfinished State join)
+
+Extend the shared framework field vocabulary only for closed flat required
+string controls, matching State's actual nullable ReceiptError code/message.
+Outer omission/nullability retains its declared semantics; extra/nested/opaque
+JSON does not gain an exemption. Work's existing closed validator handles the
+shape after bounded own-data detachment; all nine actual Work inventories stay
+unchanged. State owns its receipt descriptor and runtime qualification. Opaque
+receipt results still require checked source/type/current-authority joins.
+
+Owning Contracts and Work emissions pass. In-memory public type controls use
+the actual ReceiptError membership and reject missing/extra/nonstring/nested
+object/opaque fields; finite source review CLEAR. Reuse unchanged Work runtime
+checks, with no new State runtime acceptance inferred. Permanent issuer and
+all-writer barriers, physical Files deletion/reopen and Dev routing remain
+unfinished; exact holds and parent completion statuses are preserved.
+
+### 2026-10-10 — manual local integration of 7738135a
+
+Finite manual review CLEAR for necessary closed flat required string-field control vocabulary and bounded detached Work validator compatibility. Actual nine Work inventory descriptors remain unchanged; no arbitrary JSON or opaque result exemption. Reuse owning Contracts/Work emissions and exact ReceiptError membership/negative type controls, unchanged Work runtime results. Capability must bind the actual State ReceiptError producer descriptor and qualify nested own-data error controls in its real framework/retirement graph. State DO, physical Files, opaque result/source authority and native joins remain unfinished; preserve every precise hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Worker exact coordinator-reviewed6b9ecc42/773 closed ReceiptError contract and reviewed a8e40e9f read-only release intake onto unfinished08e95 DO preparation. Actual staged tree and both complete histories since824934: 2038 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Preserve every prior exact allocation tuple/owner/strongest scope/retirement/task,79 features/30 leaves and human holds; complete checkpoint unadvanced. Actual object adoption, nonempty activate/resume join and changed DO qualification remain required, unchanged38/9 reused.

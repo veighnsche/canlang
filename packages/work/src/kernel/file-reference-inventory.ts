@@ -115,6 +115,10 @@ function closed(value: unknown, fields: Readonly<Record<string, Field>>): Record
     const member = data[key];
     if (field.kind === 'opaque') continue;
     if (member === null && field.nullable === true) continue;
+    if (field.value === 'object') {
+      closed(member, field.fields);
+      continue;
+    }
     if (field.value === 'string-array' ? !Array.isArray(member) || member.some(item => typeof item !== 'string') :
         typeof member !== field.value || field.value === 'number' && !Number.isFinite(member)) return invalid(`invalid ${key}.`);
   }
