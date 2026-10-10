@@ -1,5 +1,5 @@
-//! Generic nongrant query-source opt-in through canonical Memory reads.
-//! This separate cohort does not admit the original workbench or native receipts.
+//! Ordinary and complete native query reads through canonical Memory lifetimes.
+//! Both retain the original bounded Workbench body and public read semantics.
 #![cfg(unix)]
 
 use std::{path::Path, process::Command};
@@ -37,7 +37,7 @@ package workbench
 "#;
 
 #[test]
-fn nongrant_query_source_opt_in_preserves_actual_read_result_and_live_admission() {
+fn query_source_opt_in_preserves_actual_read_result_and_live_admission() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     // Verify only the three retained statements, not original guard admission.
     let original = include_str!("../../draft/CanWorkbench.can");
@@ -84,21 +84,39 @@ fn nongrant_query_source_opt_in_preserves_actual_read_result_and_live_admission(
             .unwrap();
         assert_eq!(operation["kind"], "read");
         assert_eq!(operation["result"]["type"], "workbench.Fact[]");
-        assert!(operation["result"].get("disclosure").is_none());
+        if native {
+            let plan = &operation["result"]["disclosure"];
+            assert_eq!(plan["version"], 1);
+            assert_eq!(plan["queries"].as_array().unwrap().len(), 1);
+            assert_eq!(plan["queries"][0]["model"], "todo.Task");
+            assert_eq!(
+                plan["returns"][0]["projection"]["kind"],
+                "query-contract-array"
+            );
+            assert_eq!(
+                plan["returns"][0]["projection"]["fields"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                7
+            );
+        } else {
+            assert!(operation["result"].get("disclosure").is_none());
+        }
         assert!(operation.get("disclosure").is_none());
         let modules = artifact["modules"].as_array().unwrap();
-        for module in modules {
-            let js = module["js"].as_str().unwrap();
-            for helper in [
-                "executeScenarioReceiptQuery",
-                "bindScenarioReceiptQueryResult",
-                "observeScenarioReceiptQueryDependency",
-            ] {
-                assert!(
-                    !js.contains(helper),
-                    "nongrant module must not activate {helper}"
-                );
-            }
+        for helper in [
+            "executeScenarioReceiptQuery",
+            "bindScenarioReceiptQueryResult",
+            "observeScenarioReceiptQueryDependency",
+        ] {
+            assert_eq!(
+                modules
+                    .iter()
+                    .any(|module| module["js"].as_str().unwrap().contains(helper)),
+                native,
+                "complete native reads publish {helper}; ordinary reads retain their generic lowering"
+            );
         }
         assert_eq!(
             modules.iter().any(|module| module["js"]
@@ -136,8 +154,9 @@ const shim=resolve(base,'observed-stdlib.mjs');
 // Observe genuine helpers without replacing values, membership, or execution.
 writeFileSync(shim,`
 export * from ${JSON.stringify(seamUrl)};
-import {records as nativeRecords,same as nativeSame} from ${JSON.stringify(seamUrl)};
+import {records as nativeRecords,same as nativeSame,executeScenarioReceiptQuery as nativeQuery} from ${JSON.stringify(seamUrl)};
 export async function records(...args){const rows=await nativeRecords(...args);globalThis.queryReadTrace.rows.push({model:args[1],rows});return rows;}
+export async function executeScenarioReceiptQuery(...args){const rows=await nativeQuery(...args);globalThis.queryReadTrace.rows.push({model:globalThis.queryReadTrace.queryModels.get(args[1]),rows});return rows;}
 export function same(...args){const result=nativeSame(...args);globalThis.queryReadTrace.equal.push({left:args[0],right:args[1],result});return result;}
 `);
 for(const native of [false,true]){
@@ -161,7 +180,8 @@ for(const native of [false,true]){
  const member=await seedMember(memberships,{isOwner:false});
  const identity=makeIdentity({membership:member.membership,email:member.user.email});
  const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
- const trace={rows:[],equal:[]};globalThis.queryReadTrace=trace;let sequence=0;
+ const queries=artifact.operations.find(operation=>operation.name==='workbench.context').result.disclosure?.queries??[];
+ const trace={rows:[],equal:[],queryModels:new Map(queries.map(query=>[query.id,query.model]))};globalThis.queryReadTrace=trace;let sequence=0;
  async function create(model,inputs){
   const outcome=await invoker.invokeMutation({operation:`${model}.create`,operation_id:uuidv7(FIXED_NOW,++sequence),inputs},identity);
   assert.ok('result'in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
@@ -216,7 +236,7 @@ for(const native of [false,true]){
  await memberships.removeMembership(member.membership.membership_id);
  await refused([{id:one.id}],location,identity,'forbidden');assert.equal(trace.rows.length,0);
 }
-console.log('nongrant query source opt-in: actual ordered Fact[] read, false membership, bounds, no receipts, and live admission passed');
+console.log('ordinary and native query reads: actual ordered Fact[] read, false membership, bounds, no receipts, and live admission passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(

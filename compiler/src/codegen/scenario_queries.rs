@@ -42,9 +42,9 @@ pub fn serialize_query_sources(
     .ok()
 }
 
-/// Whole checked query closure, still unfinished for native publication.
-/// The emitter's existing result gate withdraws this recipe until the defining
-/// public-read/private-child dispatch contract is released.
+/// Whole checked query closure for the released public-read/private-child
+/// dispatch. Only this immutable source/fresh executable producer can prepare
+/// the nominal query receipt; a source inventory alone remains nongrant.
 pub fn serialize_complete_query_receipt(
     program: &CheckedProgram,
     ir: &IrProgram,
