@@ -3018,14 +3018,22 @@ test-only strict all-target Clippy28.68s, format/diff0 and actual current real
 LSP capability roundtrip pass; unchanged editor TypeScript result is reused.
 No native committed activation/original Volunteer/full-plan claim follows.
 
-**Next stored-Member original producer.** State94822fbb supplies a candidate
-private `bindScenarioReceiptReferenceProducer(def,{source,app,policy})` on
-existing checked dependencies, genuine source-field/current whole grant and
-Identity/final row guards/recovery/implicit parent metadata; its loader correction
-for canonical model ref valueType remains owner-pending. Compiler's finite next
-unit retains genuine Step→Run parent, Run.location and bounded ordered
-Run.targets operands with real dependency IDs/field/source/IR correspondence.
-The three original gates are query_child_call, expr_member/field_type_id and
-protected_query_input/native recipe validation. Target-ID admission alone cannot
-supply originating field authority. No new common DTO or arbitrary read ABI.
+**Stored-Member original producer, 2026-10-10 — unfinished native join.**
+Reviewed State94822fbb+1983baf9 and its canonical model loader correction are
+consumed exactly through LOCAL3add4d85; changed State clean emission passes.
+The original `call context {location=step.parent.location,targets=step.parent.targets} as fresh`
+now retains the actual Step→Run containment and whole owning Run field reads.
+Private source snapshots pin full storage ownership, one genuine parent and
+reused Scope identity/literal bounds1..10; canonical reference valueType is
+emitted by the actual stored-model producer. Array order/duplicates and separate
+field-only `!` remain intact. Original caller Step remains required/versioned;
+no authored version read or target-row view is invented. Count/guard consumers
+retain source evidence. Copies, helpers, nullable/general dereference/returns
+and source/IR owner/type/constraint skew remain refused. New source/full native
+emission/count-only refusal target passes3/3. Finite review's root-owner omission
+is corrected with exact ModelOwner snapshot and a permanent Run Team/App control.
+Required broader changed-source validation and strict checks are running; prior
+1415 source results do not qualify this new producer. Dev still owns genuine
+same-load hydration/private binder/current target admission; no executable
+runtime consumer or original149-diagnostic Workbench acceptance is claimed.
 Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.

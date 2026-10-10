@@ -230,8 +230,8 @@ pub struct CheckedScenarioSource {
     pub decision_sites: Option<Vec<CheckedDecisionSite>>,
     /// Complete bounded query lineage only; absence is not an empty proof.
     pub queries: Option<Vec<DisclosureQuery>>,
-    /// Private source snapshot for singular stored contract fields reachable
-    /// from this scenario's model parameters. This grants no admission.
+    /// Private source snapshot for owning stored Contracts and the finite
+    /// one-parent Model reference operands. This grants no admission.
     pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
 }
 
@@ -243,6 +243,9 @@ pub(crate) struct CheckedStoredContractSchema {
     pub span: crate::source::Span,
     pub source: DisclosureSource,
     pub model: bool,
+    /// Exact implicit containment owner; never an authored stored field.
+    pub parent: Option<SymbolId>,
+    pub owner: Option<super::resolve::ModelOwner>,
     pub field_order: Vec<SymbolId>,
     pub fields: Vec<CheckedStoredContractField>,
 }
@@ -259,6 +262,8 @@ pub(crate) struct CheckedStoredContractField {
     pub required_array: bool,
     pub declared: String,
     pub constraints: Option<super::resolve::CheckedValueConstraints>,
+    /// Actual checked reusable field identity, separate from inherited bounds.
+    pub reuse: Option<SymbolId>,
     pub trim: bool,
     pub min: Option<(NodeKey, i64, DisclosureSource)>,
     pub max: Option<(NodeKey, i64, DisclosureSource)>,
@@ -463,6 +468,8 @@ pub fn analyze_scenario_disclosure(
                     {
                         supplied.record = Some(*symbol);
                         if !scenario.read && param.default.is_none() {
+                            supplied.reference_origin =
+                                Some(ReferenceOrigin::Parameter(param.param));
                             let parameter =
                                 resolve.symbols.get(param.param.0 as usize).ok_or_else(|| {
                                     cx.fail(param.node, "missing admitted parameter declaration")
@@ -716,6 +723,22 @@ struct ValuePath {
     /// This marker admits only direct cardinality consumption, never a row view.
     query_child: Option<SymbolId>,
     contract_value: Option<ContractValue>,
+    /// Narrow original input -> implicit parent -> required reference operand.
+    reference_origin: Option<ReferenceOrigin>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ReferenceOrigin {
+    Parameter(SymbolId),
+    Parent {
+        parameter: SymbolId,
+        model: SymbolId,
+    },
+    Field {
+        parameter: SymbolId,
+        model: SymbolId,
+        field: SymbolId,
+    },
 }
 
 impl ValuePath {
@@ -826,6 +849,131 @@ impl<'a> Closure<'a> {
             key = NodeKey::of(child);
         }
         false
+    }
+
+    /// Canonical required Model references are operands only, never ordinary
+    /// disclosure return types or general stored-field traversal values.
+    fn reference_operand_type_id(&self, ty: &ResolvedType) -> Option<String> {
+        let (base, array) = match ty {
+            ResolvedType::Array {
+                element,
+                ordered: true,
+                nonempty: false,
+            } => (element.as_ref(), true),
+            ty => (ty, false),
+        };
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = base
+        else {
+            return None;
+        };
+        let declaration = self.resolve.symbols.get(symbol.0 as usize)?;
+        if !matches!(declaration.kind, SymbolKind::Model { .. }) {
+            return None;
+        }
+        Some(format!(
+            "{}{}",
+            declaration.canonical,
+            if array { "[]" } else { "" }
+        ))
+    }
+
+    /// A stored reference array must genuinely reuse the exact child Scope
+    /// field, with the same inherited literal range and no receiving skew.
+    fn reference_field_bounds(&self, field: SymbolId, parameter: SymbolId) -> bool {
+        let Some(alias) = self.query_parameter_bounds(parameter) else {
+            return false;
+        };
+        self.types.symbol_types.get(&field) == self.types.symbol_types.get(&parameter)
+            && self.reference_array_source_bounds(field, alias)
+    }
+
+    fn reference_array_source_bounds(&self, field: SymbolId, alias: SymbolId) -> bool {
+        if self.types.field_reuse_sources.get(&field) != Some(&alias)
+            || !matches!(self.resolve.symbols.get(alias.0 as usize).map(|symbol| &symbol.kind),
+                Some(SymbolKind::Field { owner, .. }) if matches!(self.resolve.symbols.get(owner.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Contract { .. })))
+        {
+            return false;
+        }
+        let literal_bounds = |start: SymbolId| -> Option<(u64, u64)> {
+            let mut current = start;
+            let mut seen = HashSet::new();
+            let mut chain = Vec::new();
+            loop {
+                if !seen.insert(current) || seen.len() > 128 {
+                    return None;
+                }
+                let SymbolKind::Field { owner, .. } =
+                    self.resolve.symbols.get(current.0 as usize)?.kind
+                else {
+                    return None;
+                };
+                let data = self
+                    .effects
+                    .models
+                    .get(&owner)
+                    .and_then(|model| model.fields.iter().find(|data| data.field == current))
+                    .or_else(|| {
+                        self.effects.records.get(&owner).and_then(|record| {
+                            record.fields.iter().find(|data| data.field == current)
+                        })
+                    })?;
+                if self.types.symbol_types.get(&current) != self.types.symbol_types.get(&field) {
+                    return None;
+                }
+                chain.push(data);
+                let Some(next) = self.types.field_reuse_sources.get(&current) else {
+                    break;
+                };
+                current = *next;
+            }
+            let mut min = None;
+            let mut max = None;
+            for data in chain.into_iter().rev() {
+                for modifier in &data.modifiers {
+                    let slot = match modifier.name.as_str() {
+                        "min" => &mut min,
+                        "max" => &mut max,
+                        _ => continue,
+                    };
+                    let key = self.query_group(modifier.value?)?;
+                    if self.nodes.get(&key)?.kind != SyntaxKind::Literal
+                        || self.types.node_types.get(&key)
+                            != Some(&ResolvedType::Scalar(Scalar::Int))
+                    {
+                        return None;
+                    }
+                    let value = self
+                        .db
+                        .get(key.file)?
+                        .text
+                        .get(key.start as usize..key.end as usize)?
+                        .trim()
+                        .parse::<u64>()
+                        .ok()?;
+                    // Repeating the inherited literal is harmless; changing it
+                    // loses correspondence even when the new range narrows.
+                    if slot.is_some_and(|prior| prior != value) {
+                        return None;
+                    }
+                    *slot = Some(value);
+                }
+            }
+            let (min, max) = (min?, max?);
+            (min >= 1 && min <= max && max <= 200).then_some((min, max))
+        };
+        literal_bounds(field).is_some() && literal_bounds(field) == literal_bounds(alias)
+    }
+
+    /// Require the actual original parameter syntax, so a copied lexical value
+    /// cannot acquire the new parent-edge permission from its carried marker.
+    fn original_reference_parameter(&self, key: NodeKey, parameter: SymbolId) -> bool {
+        self.nodes
+            .get(&key)
+            .is_some_and(|node| node.kind == SyntaxKind::NameRef)
+            && matches!(self.query_binding(key), Some(Binding::Symbol(id)) if *id == parameter)
     }
 
     fn field_type_id(
@@ -1127,6 +1275,13 @@ impl<'a> Closure<'a> {
                 SymbolKind::Model { .. }
             ) {
                 pending.push((*symbol, true));
+                if let SymbolKind::Model {
+                    owner: super::resolve::ModelOwner::ChildOf(parent),
+                    ..
+                } = self.resolve.symbols.get(symbol.0 as usize)?.kind
+                {
+                    pending.push((parent, true));
+                }
             }
         }
         let mut seen = HashSet::new();
@@ -1153,11 +1308,19 @@ impl<'a> Closure<'a> {
                 return None;
             }
             let source = self.source(declaration.module, node).ok()?;
+            let parent = match declaration.kind {
+                SymbolKind::Model {
+                    owner: super::resolve::ModelOwner::ChildOf(parent),
+                    ..
+                } => Some(parent),
+                _ => None,
+            };
             let mut fields = Vec::new();
             for field in order {
                 let ty = self.types.symbol_types.get(field)?;
                 if model
                     && !matches!(ty, ResolvedType::Record { symbol, .. } if is_contract(*symbol))
+                    && self.reference_operand_type_id(ty).is_none()
                 {
                     continue;
                 }
@@ -1182,16 +1345,29 @@ impl<'a> Closure<'a> {
                             record.fields.iter().find(|data| data.field == *field)
                         })
                     })?;
+                if model
+                    && matches!(ty, ResolvedType::Array { .. })
+                    && self.reference_operand_type_id(ty).is_some()
+                    && self
+                        .types
+                        .field_reuse_sources
+                        .get(field)
+                        .is_none_or(|alias| !self.reference_array_source_bounds(*field, *alias))
+                {
+                    continue;
+                }
                 let member_source = self.source(member.module, data.node).ok()?;
                 let mut trim = false;
                 let mut min = None;
                 let mut max = None;
                 let mut current = *field;
                 let mut reused = HashSet::new();
+                let mut reused_order = Vec::new();
                 loop {
                     if !reused.insert(current) || reused.len() > 64 {
                         return None;
                     }
+                    reused_order.push(current);
                     let symbol = self.resolve.symbols.get(current.0 as usize)?;
                     let SymbolKind::Field { owner, .. } = &symbol.kind else {
                         return None;
@@ -1231,10 +1407,27 @@ impl<'a> Closure<'a> {
                     };
                     current = *next;
                 }
+                // Reference-array bounds retain their genuine reusable field owner.
+                if self.reference_operand_type_id(ty).is_some() {
+                    for reused_field in &reused_order {
+                        let SymbolKind::Field { owner, .. } =
+                            self.resolve.symbols.get(reused_field.0 as usize)?.kind
+                        else {
+                            return None;
+                        };
+                        if is_contract(owner) {
+                            pending.push((owner, false));
+                        }
+                    }
+                }
                 let constraints = self.types.value_constraints.get(field).cloned();
                 let mut declared = checked_stored_contract_type_id(
                     ty,
-                    constraints.as_ref().and_then(|value| value.alias),
+                    if self.reference_operand_type_id(ty).is_some() {
+                        None
+                    } else {
+                        constraints.as_ref().and_then(|value| value.alias)
+                    },
                     self.resolve,
                     0,
                 )?;
@@ -1252,6 +1445,7 @@ impl<'a> Closure<'a> {
                     required_array: data.required_array,
                     declared,
                     constraints,
+                    reuse: self.types.field_reuse_sources.get(field).copied(),
                     trim,
                     min,
                     max,
@@ -1276,7 +1470,7 @@ impl<'a> Closure<'a> {
                     }
                 }
             }
-            if !model || !fields.is_empty() {
+            if !model || !fields.is_empty() || parent.is_some() {
                 inventory.push(CheckedStoredContractSchema {
                     id,
                     canonical: declaration.canonical.clone(),
@@ -1284,6 +1478,11 @@ impl<'a> Closure<'a> {
                     span: declaration.span,
                     source,
                     model,
+                    parent,
+                    owner: match declaration.kind {
+                        SymbolKind::Model { owner, .. } => Some(owner),
+                        _ => None,
+                    },
                     field_order: order.clone(),
                     fields,
                 });
@@ -3009,6 +3208,67 @@ impl<'a> Closure<'a> {
             let model = value
                 .record
                 .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
+            if field_name == "parent" {
+                let Some(ReferenceOrigin::Parameter(parameter)) = value.reference_origin else {
+                    return Err(self.fail(key, "parent needs required original scenario parameter"));
+                };
+                let owner = self
+                    .resolve
+                    .symbols
+                    .get(model.0 as usize)
+                    .ok_or_else(|| self.fail(key, "missing implicit parent model"))?;
+                let SymbolKind::Model {
+                    owner: super::resolve::ModelOwner::ChildOf(parent),
+                    fields,
+                    ..
+                } = &owner.kind
+                else {
+                    return Err(self.fail(key, "parent needs checked child containment"));
+                };
+                let expected = ResolvedType::Record {
+                    symbol: *parent,
+                    stored: true,
+                };
+                if !calls.is_empty()
+                    || !self.original_reference_parameter(base_key, parameter)
+                    || fields.iter().any(|field| {
+                        self.resolve
+                            .symbols
+                            .get(field.0 as usize)
+                            .is_some_and(|field| field.name == "parent")
+                    })
+                    || self.effects.models.get(&model).is_none_or(|model| {
+                        model.owner != super::resolve::ModelOwner::ChildOf(*parent)
+                    })
+                    || *ty != expected
+                {
+                    return Err(self.fail(key, "implicit parent source correspondence"));
+                }
+                let type_id = self
+                    .reference_operand_type_id(&expected)
+                    .ok_or_else(|| self.fail(key, "missing implicit parent owning declaration"))?;
+                value.reads.push(DisclosureDependency {
+                    id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                    source: self.source(module, key)?,
+                    node: key,
+                    calls: calls.to_vec(),
+                    role: DependencyRole::Data,
+                    model,
+                    field: model,
+                    model_name: owner.canonical.clone(),
+                    field_name: "parent".into(),
+                    ty: expected,
+                    type_id,
+                });
+                value.observed.push((key, calls.to_vec()));
+                value.record = Some(*parent);
+                value.reference = None;
+                value.reference_origin = Some(ReferenceOrigin::Parent {
+                    parameter,
+                    model: *parent,
+                });
+                continue;
+            }
             if field_name == "version" {
                 if *ty != ResolvedType::Scalar(Scalar::Int) {
                     return Err(self.fail(key, "unestablished intrinsic version type"));
@@ -3057,7 +3317,71 @@ impl<'a> Closure<'a> {
             if field_ty != ty || field.module != owner.module {
                 return Err(self.fail(key, "stored field schema identity mismatch"));
             }
-            let type_id = if let ResolvedType::Record {
+            let parent_origin = match value.reference_origin {
+                Some(ReferenceOrigin::Parent {
+                    parameter,
+                    model: parent,
+                }) if parent == model => Some(parameter),
+                _ => None,
+            };
+            if parent_origin.is_some()
+                && (self.reference_operand_type_id(field_ty).is_none()
+                    || !self
+                        .nodes
+                        .get(&base_key)
+                        .is_some_and(|node| node.kind == SyntaxKind::Member)
+                    || !value
+                        .reads
+                        .iter()
+                        .any(|read| read.node == base_key && read.field_name == "parent"))
+            {
+                return Err(self.fail(
+                    key,
+                    "parent edge needs direct required Model reference field",
+                ));
+            }
+            let type_id = if let Some(parameter) = parent_origin {
+                let declaration = self
+                    .effects
+                    .models
+                    .get(&model)
+                    .and_then(|model| {
+                        model
+                            .fields
+                            .iter()
+                            .find(|candidate| candidate.field == field.id)
+                    })
+                    .ok_or_else(|| self.fail(key, "missing checked reference field declaration"))?;
+                if declaration.default.is_some()
+                    || declaration.server.is_some()
+                    || !calls.is_empty()
+                {
+                    return Err(
+                        self.fail(key, "reference operand needs required direct stored field")
+                    );
+                }
+                if matches!(field_ty, ResolvedType::Array { .. }) {
+                    let alias = self
+                        .types
+                        .field_reuse_sources
+                        .get(&field.id)
+                        .ok_or_else(|| {
+                            self.fail(key, "reference array needs genuine Scope field reuse")
+                        })?;
+                    if !matches!(self.resolve.symbols.get(alias.0 as usize).map(|symbol| &symbol.kind),
+                        Some(SymbolKind::Field { owner, .. }) if matches!(self.resolve.symbols.get(owner.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Contract { .. })))
+                    {
+                        return Err(self.fail(key, "reference array needs owning Scope field"));
+                    }
+                }
+                value.reference_origin = Some(ReferenceOrigin::Field {
+                    parameter,
+                    model,
+                    field: field.id,
+                });
+                self.reference_operand_type_id(field_ty)
+                    .ok_or_else(|| self.fail(key, "reference operand canonical type"))?
+            } else if let ResolvedType::Record {
                 symbol: contract, ..
             } = field_ty
             {
@@ -3200,6 +3524,17 @@ impl<'a> Closure<'a> {
             ));
         }
         let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
+        if left.iter().any(|value| {
+            matches!(
+                value.reference_origin,
+                Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
+            )
+        }) {
+            return Err(self.fail(
+                key,
+                "stored reference operand needs direct child or count consumer",
+            ));
+        }
         if matches!(op, "and" | "or" | "??") {
             let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
             if left.len().saturating_mul(right.len().saturating_add(1)) > 1024 {
@@ -3241,6 +3576,17 @@ impl<'a> Closure<'a> {
                 return Err(self.fail(key, "unsupported scalar operator"));
             }
             let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
+            if right.iter().any(|value| {
+                matches!(
+                    value.reference_origin,
+                    Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
+                )
+            }) {
+                return Err(self.fail(
+                    key,
+                    "stored reference operand needs direct child or count consumer",
+                ));
+            }
             self.product(key, &left, &right)
         }
     }
@@ -3317,7 +3663,9 @@ impl<'a> Closure<'a> {
                 == self.types.node_types.get(&argument)
             && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
         {
-            return Ok(vec![ValuePath::default()]);
+            let mut retained = value.clone();
+            retained.query_child = None;
+            return Ok(vec![retained]);
         }
         if calls.is_empty()
             && let Some(argument) = self.query_count(key)
@@ -3344,6 +3692,41 @@ impl<'a> Closure<'a> {
             return Ok(values);
         }
         if calls.is_empty()
+            && let Some(argument) = self.query_count(key)
+            && self
+                .nodes
+                .get(&argument)
+                .is_some_and(|node| node.kind == SyntaxKind::Member)
+            && matches!(
+                self.types.node_types.get(&argument),
+                Some(ResolvedType::Array { .. })
+            )
+            && self
+                .types
+                .node_types
+                .get(&argument)
+                .is_some_and(|ty| self.reference_operand_type_id(ty).is_some())
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            let mut values = self.expr(argument, module, env, calls)?;
+            for value in &mut values {
+                let Some(ReferenceOrigin::Field { field, .. }) = value.reference_origin else {
+                    return Err(self.fail(key, "count needs original parent reference-array field"));
+                };
+                let alias = self
+                    .types
+                    .field_reuse_sources
+                    .get(&field)
+                    .ok_or_else(|| self.fail(key, "count needs bounded source Scope"))?;
+                // The same genuine inherited bounds apply before any child call.
+                if !self.reference_array_source_bounds(field, *alias) {
+                    return Err(self.fail(key, "count needs exact positive finite source bounds"));
+                }
+                value.reference_origin = None;
+            }
+            return Ok(values);
+        }
+        if calls.is_empty()
             && let Some(value) = self.query_child_collection(key, module, env)
         {
             return Ok(vec![value]);
@@ -3351,10 +3734,13 @@ impl<'a> Closure<'a> {
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
             let alternatives = self.expr(*argument, module, env, calls)?;
-            if alternatives
-                .iter()
-                .any(|value| value.contract_value.is_some())
-            {
+            if alternatives.iter().any(|value| {
+                value.contract_value.is_some()
+                    || matches!(
+                        value.reference_origin,
+                        Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
+                    )
+            }) {
                 return Err(self.fail(
                     key,
                     "canonical Contract wire needs its direct local consumer",
@@ -4219,7 +4605,7 @@ impl<'a> Closure<'a> {
             .ok_or_else(|| self.fail(effect.node, "call target is not a mutation scenario"))?
             .clone();
         if child.read && child.on.is_none() {
-            return self.query_child_call(effect, module, &child, *operation);
+            return self.query_child_call(effect, module, env, calls, &child, *operation);
         }
         if effect.binding.is_some() || child.on.is_some() {
             return Err(self.fail(
@@ -4305,13 +4691,15 @@ impl<'a> Closure<'a> {
         Ok(paths)
     }
 
-    /// Only original caller parameters can prepare this finite read child.
-    /// Candidate dependencies belong to the child's query lifetime, never an
-    /// invented scalar observation on the parent call or its unused binding.
+    /// Original caller parameters, or their exact one-parent reference fields,
+    /// prepare this finite read child. Keep actual source reads separately from
+    /// candidate dependencies in the child's query lifetime.
     fn query_child_call(
         &mut self,
         effect: &Effect,
         module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
         child: &super::effects::ScenarioData,
         operation: SymbolId,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
@@ -4329,6 +4717,7 @@ impl<'a> Closure<'a> {
         }
         let mut keys = Vec::new();
         let mut parent_owner = None;
+        let mut evaluated = ValuePath::default();
         for argument in &effect.args {
             let parameter = child
                 .params
@@ -4347,10 +4736,44 @@ impl<'a> Closure<'a> {
                 ));
             }
             let key = argument.value.unwrap_or(argument.key_node);
-            let Some(Binding::Symbol(input)) = self.query_binding(key) else {
-                return Err(self.fail(key, "query child needs original caller parameter operand"));
+            let member = self
+                .nodes
+                .get(&key)
+                .is_some_and(|node| node.kind == SyntaxKind::Member);
+            let (input, source_field) = if member {
+                let values = self.expr(key, module, env, calls)?;
+                if values.len() != 1 {
+                    return Err(self.fail(key, "query child reference operand path mismatch"));
+                }
+                let value = &values[0];
+                let Some(ReferenceOrigin::Field {
+                    parameter,
+                    model,
+                    field,
+                }) = value.reference_origin
+                else {
+                    return Err(
+                        self.fail(key, "query child needs exact original parent field operand")
+                    );
+                };
+                if value.reads.len() != 2
+                    || !value
+                        .reads
+                        .iter()
+                        .any(|read| read.model == model && read.field == field)
+                {
+                    return Err(self.fail(key, "query child parent field source mismatch"));
+                }
+                evaluated.join(value);
+                (parameter, Some(field))
+            } else {
+                let Some(Binding::Symbol(input)) = self.query_binding(key) else {
+                    return Err(
+                        self.fail(key, "query child needs original caller parameter operand")
+                    );
+                };
+                (*input, None)
             };
-            let input = *input;
             let Some(SymbolKind::Param { owner, .. }) = self
                 .resolve
                 .symbols
@@ -4392,16 +4815,21 @@ impl<'a> Closure<'a> {
                 .get(&parameter.param)
                 .ok_or_else(|| self.fail(key, "missing query child input type"))?;
             if self.types.node_types.get(&key) != Some(expected)
-                || self.types.symbol_types.get(&input) != Some(expected)
+                || (source_field.is_none() && self.types.symbol_types.get(&input) != Some(expected))
             {
                 return Err(self.fail(key, "query child input needs exact owning checked type"));
             }
             match expected {
                 ResolvedType::Record { stored: true, .. } => {}
                 ResolvedType::Array { .. }
-                    if self.query_parameter_bounds(input).is_some()
-                        && self.query_parameter_bounds(input)
-                            == self.query_parameter_bounds(parameter.param) => {}
+                    if source_field.map_or_else(
+                        || {
+                            self.query_parameter_bounds(input).is_some()
+                                && self.query_parameter_bounds(input)
+                                    == self.query_parameter_bounds(parameter.param)
+                        },
+                        |field| self.reference_field_bounds(field, parameter.param),
+                    ) => {}
                 _ => {
                     return Err(self.fail(
                         key,
@@ -4420,10 +4848,8 @@ impl<'a> Closure<'a> {
                 input_keys: keys,
             },
         )?;
-        Ok(vec![ValuePath {
-            query_child: Some(operation),
-            ..ValuePath::default()
-        }])
+        evaluated.query_child = Some(operation);
+        Ok(vec![evaluated])
     }
 
     fn transition(
@@ -4942,6 +5368,16 @@ impl<'a> Closure<'a> {
                             self.fail(effect.node, "missing immutable initializer")
                         })?;
                         for evaluated in self.expr(value, module, &flow.env, calls)? {
+                            if matches!(
+                                evaluated.reference_origin,
+                                Some(
+                                    ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. }
+                                )
+                            ) {
+                                return Err(
+                                    self.fail(value, "stored reference operand cannot be copied")
+                                );
+                            }
                             if !compatible(&flow.evaluated, &evaluated.decisions) {
                                 continue;
                             }
@@ -4980,16 +5416,33 @@ impl<'a> Closure<'a> {
                                 continue;
                             }
                             let mut path = flow.clone();
+                            // The new finite reference operand retains whole
+                            // source-field authority even on a scalar return.
+                            // Ordinary scalar/Contract guard pruning is unchanged.
+                            path.controls.join(
+                                &self.control(ValuePath {
+                                    reads: value
+                                        .reads
+                                        .iter()
+                                        .filter(|dependency| {
+                                            self.reference_operand_type_id(&dependency.ty).is_some()
+                                        })
+                                        .cloned()
+                                        .collect(),
+                                    ..ValuePath::default()
+                                })?,
+                            );
                             let admitted_guard = self.control(ValuePath {
                                 intrinsics: value.intrinsics.clone(),
-                                // Whole canonical contract authority belongs
-                                // to the successful stored-value comparison,
+                                // Whole canonical Contract/reference-field
+                                // authority belongs to the successful guard,
                                 // including void/effect returns. Keep existing
                                 // ordinary scalar authorization pruning.
                                 reads: value.reads.iter().filter(|dependency| {
                                     matches!(&dependency.ty, ResolvedType::Record {symbol,..}
                                         if self.resolve.symbols.get(symbol.0 as usize)
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
+                                        || self.reference_operand_type_id(&dependency.ty).is_some()
                                 }).cloned().collect(),
                                 ..ValuePath::default()
                             })?;

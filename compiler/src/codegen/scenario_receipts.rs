@@ -14,7 +14,7 @@ use crate::syntax::SyntaxKind;
 
 use super::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrEffectCallTarget, IrExpr, IrGuard, IrItem, IrItemKind,
-    IrProgram, IrStmt, IrType, TypedExpr,
+    IrOwner, IrProgram, IrStmt, IrType, TypedExpr,
 };
 use super::js::{JsModel, JsModelField, JsModelFieldType, JsValueTypes};
 
@@ -436,7 +436,6 @@ pub(super) fn collect_native_scenario_receipt(
                 (base.as_ref(), field, None)
             };
             if field != &dependency.field_name
-                || !matches!(base.expr, IrExpr::Name(_))
                 || base.ty
                     != (ResolvedType::Record {
                         symbol: dependency.model,
@@ -446,108 +445,158 @@ pub(super) fn collect_native_scenario_receipt(
                 return None;
             }
             let owner = ir.items.get(dependency.model.0 as usize)?;
-            let stored = ir.items.get(dependency.field.0 as usize)?;
             let IrItemKind::Model { fields, .. } = &owner.kind else {
                 return None;
             };
-            let IrItemKind::Field {
-                owner: field_owner,
-                ty: IrType::Known(ty),
-                required_array,
-                modifiers,
-                ..
-            } = &stored.kind
-            else {
-                return None;
-            };
-            if owner.id != dependency.model
-                || stored.id != dependency.field
-                || *field_owner != owner.id
-                || !fields.contains(&stored.id)
-                || owner.canonical != dependency.model_name
-                || stored.name != dependency.field_name
-                || *required_array
-                || ty != &dependency.ty
-            {
-                return None;
-            }
-            let descriptors: Vec<_> = models
-                .iter()
-                .filter(|model| model.name == owner.canonical)
-                .collect();
-            if descriptors.len() != 1 {
-                return None;
-            }
-            let declared: Vec<_> = descriptors[0]
-                .fields
-                .iter()
-                .filter(|field| field.name == stored.name)
-                .collect();
-            if declared.len() != 1 {
-                return None;
-            }
-            let transport_type = if let ResolvedType::Enum {
-                owner: Some(enum_owner),
-                cases,
-            } = ty
-            {
-                // This inventory adaptation belongs only to a real transition
-                // recipe. Standalone machine-field reads retain their refusal.
-                if sites.transitions.is_empty()
-                    || *enum_owner != stored.id
-                    || dependency.type_id != stored.canonical
-                    || !modifiers.machine
+            let parent_read = field == "parent" && dependency.field == dependency.model;
+            let transport_type = if parent_read {
+                if transition.is_some() || !dependency.calls.is_empty() {
+                    return None;
+                }
+                let expression = sites.members.get(&site)?.first()?;
+                let (child, parent) = checked_parent_reference(ir, item, expression, db?)?;
+                let mut descriptors = models.iter().filter(|model| model.name == child.canonical);
+                let descriptor = descriptors.next()?;
+                if descriptors.next().is_some()
+                    || child.id != dependency.model
+                    || parent.canonical != dependency.type_id
+                    || dependency.ty
+                        != (ResolvedType::Record {
+                            symbol: parent.id,
+                            stored: true,
+                        })
+                    || descriptor.parent.as_deref() != Some(parent.canonical.as_str())
+                    || descriptor.scope_app
+                    || descriptor.fields.iter().any(|field| field.name == "parent")
                 {
                     return None;
                 }
-                let descriptor = declared[0];
-                let JsModelFieldType::Enum { values } = &descriptor.field else {
+                parent.canonical.clone()
+            } else {
+                let stored = ir.items.get(dependency.field.0 as usize)?;
+                let IrItemKind::Field {
+                    owner: field_owner,
+                    ty: IrType::Known(ty),
+                    required_array,
+                    modifiers,
+                    ..
+                } = &stored.kind
+                else {
                     return None;
                 };
-                let machine = descriptor.machine.as_ref()?;
-                if descriptor.nullable
-                    || descriptor.array_required.is_some()
-                    || values != cases
-                    || &machine.states != cases
-                    || !cases.contains(&machine.initial)
+                if owner.id != dependency.model
+                    || stored.id != dependency.field
+                    || *field_owner != owner.id
+                    || !fields.contains(&stored.id)
+                    || owner.canonical != dependency.model_name
+                    || stored.name != dependency.field_name
+                    || ty != &dependency.ty
                 {
                     return None;
                 }
-                if let Some((from, to)) = transition
-                    && (!cases.contains(from)
-                        || !cases.contains(to)
-                        || !machine.transitions.iter().any(|edge| {
-                            edge.from == *from && edge.to == *to && edge.operation == item.canonical
-                        }))
+                let descriptors: Vec<_> = models
+                    .iter()
+                    .filter(|model| model.name == owner.canonical)
+                    .collect();
+                if descriptors.len() != 1 {
+                    return None;
+                }
+                let declared: Vec<_> = descriptors[0]
+                    .fields
+                    .iter()
+                    .filter(|field| field.name == stored.name)
+                    .collect();
+                if declared.len() != 1 {
+                    return None;
+                }
+                if !matches!(base.expr, IrExpr::Name(_)) {
+                    let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
+                    if parent.id != dependency.model {
+                        return None;
+                    }
+                }
+                let reference_type = reference_operand_type_id(ir, ty);
+                let transport_type = if let Some(reference_type) = reference_type {
+                    if transition.is_some() || !dependency.calls.is_empty() {
+                        return None;
+                    }
+                    let expression = sites.members.get(&site)?.first()?;
+                    let original = stored_reference_operand(ir, item, expression, db?)?;
+                    if original.id != stored.id
+                        || reference_type != dependency.type_id
+                        || !stored_reference_descriptor_matches(ir, original, declared[0])
+                    {
+                        return None;
+                    }
+                    reference_type
+                } else if *required_array {
+                    return None;
+                } else if let ResolvedType::Enum {
+                    owner: Some(enum_owner),
+                    cases,
+                } = ty
                 {
-                    return None;
-                }
-                let inline = format!("enum({})", cases.join(","));
-                if inventory_type(descriptor)? != inline {
-                    return None;
-                }
-                inline
-            } else if let Some(contract) = stored_contract_inventory_type(
-                ir,
-                value_types,
-                ty,
-                declared[0],
-                stored,
-                checked.source_facts.as_deref(),
-                db,
-            ) {
-                if transition.is_some() || contract != dependency.type_id {
-                    return None;
-                }
-                contract
-            } else {
-                if transition.is_some()
-                    || !supported_type_id(&dependency.type_id)
-                    || inventory_type(declared[0])?.as_str() != dependency.type_id
-                {
-                    return None;
-                }
-                dependency.type_id.clone()
+                    // This inventory adaptation belongs only to a real transition
+                    // recipe. Standalone machine-field reads retain their refusal.
+                    if sites.transitions.is_empty()
+                        || *enum_owner != stored.id
+                        || dependency.type_id != stored.canonical
+                        || !modifiers.machine
+                    {
+                        return None;
+                    }
+                    let descriptor = declared[0];
+                    let JsModelFieldType::Enum { values } = &descriptor.field else {
+                        return None;
+                    };
+                    let machine = descriptor.machine.as_ref()?;
+                    if descriptor.nullable
+                        || descriptor.array_required.is_some()
+                        || values != cases
+                        || &machine.states != cases
+                        || !cases.contains(&machine.initial)
+                    {
+                        return None;
+                    }
+                    if let Some((from, to)) = transition
+                        && (!cases.contains(from)
+                            || !cases.contains(to)
+                            || !machine.transitions.iter().any(|edge| {
+                                edge.from == *from
+                                    && edge.to == *to
+                                    && edge.operation == item.canonical
+                            }))
+                    {
+                        return None;
+                    }
+                    let inline = format!("enum({})", cases.join(","));
+                    if inventory_type(descriptor)? != inline {
+                        return None;
+                    }
+                    inline
+                } else if let Some(contract) = stored_contract_inventory_type(
+                    ir,
+                    value_types,
+                    ty,
+                    declared[0],
+                    stored,
+                    checked.source_facts.as_deref(),
+                    db,
+                ) {
+                    if transition.is_some() || contract != dependency.type_id {
+                        return None;
+                    }
+                    contract
+                } else {
+                    if transition.is_some()
+                        || !supported_type_id(&dependency.type_id)
+                        || inventory_type(declared[0])?.as_str() != dependency.type_id
+                    {
+                        return None;
+                    }
+                    dependency.type_id.clone()
+                };
+                transport_type
             };
             let role = match dependency.role {
                 DependencyRole::Data => ReceiptRole::Data,
@@ -911,6 +960,249 @@ fn inventory_type(field: &JsModelField) -> Option<String> {
     supported_type_id(&type_id).then_some(type_id)
 }
 
+/// The finite source operand uses one genuine containment edge from the
+/// original required scenario input. It is not a general reference traversal.
+fn checked_parent_reference<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+)> {
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
+    if field != "parent" {
+        return None;
+    }
+    let mut parameters = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|parameter| parameter.name == *name);
+    let parameter = parameters.next()?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol,
+                stored: true,
+            }),
+        default: None,
+        default_node: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let file = db.get(base.span.file)?;
+    if parameters.next().is_some()
+        || *parameter_owner != owner.id
+        || base.ty
+            != (ResolvedType::Record {
+                symbol: *symbol,
+                stored: true,
+            })
+        || base.span.file != value.span.file
+        || base.span.start != value.span.start
+        || base.span.end >= value.span.end
+        || file
+            .text
+            .get(base.span.start as usize..base.span.end as usize)?
+            != name
+    {
+        return None;
+    }
+    let inventory = source.stored_contracts.as_deref()?;
+    let mut children = inventory
+        .iter()
+        .filter(|schema| schema.model && schema.id == *symbol);
+    let child = children.next()?;
+    let mut parents = inventory
+        .iter()
+        .filter(|schema| schema.model && Some(schema.id) == child.parent);
+    let parent = parents.next()?;
+    if children.next().is_some()
+        || parents.next().is_some()
+        || value.ty
+            != (ResolvedType::Record {
+                symbol: parent.id,
+                stored: true,
+            })
+        || child.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == "parent")
+        })
+        || !reference_read_matches(ir, owner, value, child.id, child.id, &parent.canonical)
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, child, db)?;
+    match_stored_contract_schema(ir, parent, db)?;
+    Some((child, parent))
+}
+
+fn reference_read_matches(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    model: crate::analysis::resolve::SymbolId,
+    field: crate::analysis::resolve::SymbolId,
+    type_id: &str,
+) -> bool {
+    let Some(ScenarioDisclosure::Complete(checked)) = ir.scenario_disclosures.get(&owner.id) else {
+        return false;
+    };
+    checked
+        .returns
+        .iter()
+        .flat_map(|returned| &returned.dependencies)
+        .any(|read| {
+            read.model == model
+                && read.field == field
+                && read.ty == value.ty
+                && read.type_id == type_id
+                && read.calls.is_empty()
+                && read.source == checked.source
+                && node_span(read.node) == value.span
+        })
+}
+
+pub(super) fn stored_reference_operand<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let (_, parent) = checked_parent_reference(ir, owner, base, db)?;
+    let mut fields = parent
+        .fields
+        .iter()
+        .filter(|original| original.name == *field);
+    let original = fields.next()?;
+    let member = ir.items.get(original.id.0 as usize)?;
+    let IrItemKind::Field {
+        default: None,
+        server: None,
+        modifiers,
+        ..
+    } = &member.kind
+    else {
+        return None;
+    };
+    let type_id = reference_operand_type_id(ir, &original.ty)?;
+    if fields.next().is_some()
+        || original.owner != parent.id
+        || original.ty != value.ty
+        || modifiers.machine
+        || !reference_read_matches(ir, owner, value, parent.id, original.id, &type_id)
+    {
+        return None;
+    }
+    match_stored_contract_field(ir, original, db)?;
+    // Reused array bounds retain the actual Scope declaration. Target models
+    // are checked nominal identities; they do not become recursive row views.
+    if matches!(original.ty, ResolvedType::Array { .. }) {
+        let source = super::scenario_calls::checked_source(ir, owner, db)?;
+        let inventory = source.stored_contracts.as_deref()?;
+        let reused = original.reuse?;
+        let mut scopes = inventory.iter().filter(|schema| {
+            !schema.model
+                && schema
+                    .fields
+                    .iter()
+                    .any(|field| field.id == reused && field.ty == original.ty)
+        });
+        let scope = scopes.next()?;
+        if scopes.next().is_some() {
+            return None;
+        }
+        match_stored_contract_schema(ir, scope, db)?;
+        for field in &scope.fields {
+            match_stored_contract_field(ir, field, db)?;
+        }
+        let (min, max) = (original.min.as_ref()?.1, original.max.as_ref()?.1);
+        let reused = scope.fields.iter().find(|field| field.id == reused)?;
+        if !(1..=200).contains(&min)
+            || max < min
+            || max > 200
+            || reused.min.as_ref()?.1 != min
+            || reused.max.as_ref()?.1 != max
+        {
+            return None;
+        }
+    }
+    Some(original)
+}
+
+fn reference_operand_type_id(ir: &IrProgram, ty: &ResolvedType) -> Option<String> {
+    let (base, array) = match ty {
+        ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        } => (element.as_ref(), true),
+        ty => (ty, false),
+    };
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = base
+    else {
+        return None;
+    };
+    let model = ir.items.get(symbol.0 as usize)?;
+    (model.id == *symbol && matches!(model.kind, IrItemKind::Model { .. }))
+        .then(|| format!("{}{}", model.canonical, if array { "[]" } else { "" }))
+}
+
+fn stored_reference_descriptor_matches(
+    ir: &IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    field: &JsModelField,
+) -> bool {
+    let Some(type_id) = reference_operand_type_id(ir, &original.ty) else {
+        return false;
+    };
+    let array = matches!(original.ty, ResolvedType::Array { .. });
+    let base = type_id.strip_suffix("[]").unwrap_or(&type_id);
+    let bound = |value: &Option<(crate::analysis::NodeKey, i64, DisclosureSource)>| {
+        value
+            .as_ref()
+            .map(|(_, value, _)| serde_json::Value::from(*value))
+    };
+    field.name == original.name
+        && matches!(&field.field, JsModelFieldType::Ref { model } if model == base)
+        && field.value_type.as_deref() == Some(type_id.as_str())
+        && !field.nullable
+        && !field.server_only
+        && field.default.is_none()
+        && field.machine.is_none()
+        && field.required == (!array || original.required_array)
+        && field.array_required == array.then_some(original.required_array)
+        && field.trim == original.trim.then_some(true)
+        && field.min == bound(&original.min)
+        && field.max == bound(&original.max)
+}
+
 /// Only an owning whole stored contract dependency uses this codec. Its local
 /// members are already canonical values; neither nominal results nor stored
 /// reference views gain admission here.
@@ -1056,8 +1348,31 @@ fn match_stored_contract_schema(
 ) -> Option<()> {
     let item = ir.items.get(schema.id.0 as usize)?;
     let fields = match &item.kind {
-        IrItemKind::Model { fields, .. } if schema.model => fields,
-        IrItemKind::Contract { fields, .. } if !schema.model => fields,
+        IrItemKind::Model { fields, owner, .. }
+            if schema.model
+                && match owner {
+                    IrOwner::ChildOf(parent) => {
+                        schema.parent == Some(*parent)
+                            && schema.owner
+                                == Some(crate::analysis::resolve::ModelOwner::ChildOf(*parent))
+                    }
+                    IrOwner::Team => {
+                        schema.parent.is_none()
+                            && schema.owner == Some(crate::analysis::resolve::ModelOwner::Team)
+                    }
+                    IrOwner::App => {
+                        schema.parent.is_none()
+                            && schema.owner == Some(crate::analysis::resolve::ModelOwner::App)
+                    }
+                } =>
+        {
+            fields
+        }
+        IrItemKind::Contract { fields, .. }
+            if !schema.model && schema.parent.is_none() && schema.owner.is_none() =>
+        {
+            fields
+        }
         _ => return None,
     };
     if item.id != schema.id

@@ -3117,6 +3117,30 @@ impl<'a> Cx<'a> {
                     match field {
                         "id" => return ResolvedType::Scalar(Scalar::Text),
                         "version" => return ResolvedType::Scalar(Scalar::Int),
+                        "parent" => {
+                            if let Some(SymbolKind::Model {
+                                owner: ModelOwner::ChildOf(parent),
+                                ..
+                            }) = self
+                                .program
+                                .symbols
+                                .get(symbol.0 as usize)
+                                .map(|symbol| &symbol.kind)
+                                && self
+                                    .program
+                                    .effects
+                                    .models
+                                    .get(symbol)
+                                    .is_some_and(|model| {
+                                        model.owner == ModelOwner::ChildOf(*parent)
+                                    })
+                            {
+                                return ResolvedType::Record {
+                                    symbol: *parent,
+                                    stored: true,
+                                };
+                            }
+                        }
                         "created" | "updated" => {
                             return ResolvedType::Scalar(Scalar::Datetime);
                         }

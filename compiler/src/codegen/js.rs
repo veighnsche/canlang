@@ -2429,10 +2429,32 @@ impl<'a> Emitter<'a> {
     }
 
     fn model_value_type(&self, ty: &IrType) -> Option<String> {
-        if let IrType::Known(resolved) = ty
-            && let Some(name) = self.nominal_value_type(resolved)
-        {
-            return Some(name);
+        if let IrType::Known(resolved) = ty {
+            fn reference_type(ir: &IrProgram, ty: &ResolvedType) -> Option<String> {
+                match ty {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => {
+                        let model = ir.items.get(symbol.0 as usize)?;
+                        (model.id == *symbol && matches!(model.kind, IrItemKind::Model { .. }))
+                            .then(|| model.canonical.clone())
+                    }
+                    ResolvedType::Nullable(inner) => {
+                        reference_type(ir, inner).map(|name| format!("{name}?"))
+                    }
+                    ResolvedType::Array { element, .. } => {
+                        reference_type(ir, element).map(|name| format!("{name}[]"))
+                    }
+                    _ => None,
+                }
+            }
+            if let Some(name) = self
+                .nominal_value_type(resolved)
+                .or_else(|| reference_type(self.ir, resolved))
+            {
+                return Some(name);
+            }
         }
         checked_string_value_type(ty).map(str::to_string)
     }
