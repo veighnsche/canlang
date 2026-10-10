@@ -2,7 +2,8 @@ import { encode } from "@jridgewell/sourcemap-codec";
 import { lookup } from "../src/runtime/sourcemap.js";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { ActivationVerdict, CompileArtifact, SourceMap } from "@canlang/contracts";
 import {
@@ -18,7 +19,8 @@ import {
   writeDeployBundle,
 } from "../src/deploy/bundle.js";
 import { startLocalDev } from "../src/dev/local-run.js";
-import { scanModuleImports } from "../src/deploy/module-imports.js";
+import { rewriteModuleImports, scanModuleImports } from "../src/deploy/module-imports.js";
+import { resolveProducerFile } from "../src/deploy/producer-files.js";
 // Cross-package journey import: interfaces DIST (never src), per the
 // mcp-route.test.ts precedent. Proves bake parity with the real rule.
 import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
@@ -592,7 +594,7 @@ describe("deploy bundle (P-B)", () => {
 });
 
 describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
-  it("stages the state tree and rewrites pinned-runtime producer imports to vendor keys", () => {
+  it("stages the state tree and rewrites pinned-runtime producer imports to vendor keys", async () => {
     const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
     expect(bundle.modules["vendor/state/storage/d1.js"]).toContain("createD1Storage");
     expect(bundle.modules["vendor/identity/index.js"]).toContain("./authentication/grants.js");
@@ -612,6 +614,36 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     const stdlib = bundle.modules["vendor/stdlib/index.js"] ?? "";
     expect(stdlib).toContain("../values/index.js");
     expect(stdlib).not.toMatch(/from\s+["']@canlang\/values["']/);
+    const leafFile = resolveProducerFile("@canlang/state/receipt/authored-delivery", "bun run --filter @canlang/state build");
+    expect(leafFile.replaceAll("\\", "/")).toMatch(/\/dist\/src\/receipt\/authored-delivery\.js$/);
+    const runtimeFile = resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build");
+    const [leaf, compatibility] = await Promise.all([
+      import(pathToFileURL(leafFile).href),
+      import(pathToFileURL(join(dirname(runtimeFile), "receipt-staging.js")).href),
+    ]);
+    expect(typeof leaf.stageAuthoredDelivery).toBe("function");
+    expect(compatibility.stageAuthoredDelivery).toBe(leaf.stageAuthoredDelivery);
+    expect(Object.keys(leaf)).toEqual(["stageAuthoredDelivery"]);
+    const leafKey = "vendor/state/receipt/authored-delivery.js";
+    const stagedLeaf = bundle.modules[leafKey]!;
+    expect(stagedLeaf).toContain("export async function stageAuthoredDelivery(");
+    // Restore only relocated import specifiers to compare the entire genuine
+    // owning emitted body, rather than accepting a substitute implementation.
+    const restoredLeaf = rewriteModuleImports(stagedLeaf, leafKey, specifier =>
+      specifier === "../../contracts/index.js" ? "@canlang/contracts"
+        : specifier === "../../values/index.js" ? "@canlang/values" : specifier,
+    { profile: "trusted-producer" }).js;
+    expect(restoredLeaf).toBe(readFileSync(leafFile, "utf8"));
+    const compatKey = "runtime/receipt-staging.js";
+    expect(scanModuleImports(bundle.modules[compatKey]!, compatKey).map(record => record.specifier))
+      .toEqual(["../vendor/state/receipt/authored-delivery.js"]);
+    expect(bundle.modules[compatKey]).toContain("stageAuthoredDelivery");
+    expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
+    const missingLeaf = { ...bundle.modules };
+    delete missingLeaf[leafKey];
+    expect(() => assertLinksResolve(missingLeaf))
+      .toThrow(/receipt-staging\.js.*authored-delivery\.js.*no such staged module/);
   });
 
   it("assertLinksResolve refuses dangling relative and bare imports", () => {
