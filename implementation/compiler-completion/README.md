@@ -2928,15 +2928,17 @@ disclosure26/sourceproducer4/actualnative1); relevant boxed-query consumers167
 rerun, unchanged outcomes reused. Strict all-targetClippy/format0 and finite
 source/static-call review CLEAR. No whole-suite/application acceptance claimed.
 
-**Next original prerequisites.** State owns canonical stored Step.input/type
-workbench.Input wire/current-authority observation for count(step.input.facts);
-subsequent contract members remain local values. Dev owns same-private-owner
-current-stage stored singular/array reference hydration for step.parent operands.
-Compiler retains these exact source/provenance joins and the nested old/fresh
-predicate. State File lifetime is released at reviewed LOCALa8de5109; assignment-
-only Compiler File input/Set source and actual Dev staging/replay remain. Continue
-that ready unit after this coherent commit. Full58/67 and precise BDD3/Task22
-holds remain unchanged.
+**Next original prerequisites.** Reviewed State3ea3b6b9/f13c9a69 releases whole
+stored Step.input/type workbench.Input wire/current-authority observation.
+Compiler's finite stored-input count and nested old/fresh comparison now execute
+through that real owner. Dev still owns same-private-owner current-stage stored
+singular/array reference hydration for step.parent operands. Assignment-only
+Compiler File source is qualified; reviewed LOCALd11197ca supplies Dev's genuine
+host component, with actual original D1 journey validation still Dev-owned.
+SEQ048 checked compiler inventory/private id-version producer is qualified below.
+Reviewed State/Workd7ec5f26+f89d12fa and Packagesaf731606 are released in
+LOCAL7a3b7df6; Dev genuine source enrollment/native consumption remains required. Full58/67 and precise
+BDD3/Task22 holds remain unchanged.
 
 **Assignment-only File source (unfinished native host join), 2026-10-10.**
 The unchanged TypedFileJourney attachment scenario now has Complete disclosure
@@ -2955,3 +2957,75 @@ released State/Files/Interfaces dependencies build16/16 after frozen local
 installation; unchanged whole/editor results are reused. Dev owns actual native
 File binding/staging/retained replay and the unchanged real D1 journey. This
 source unit does not close that workflow or58/67; precise holds remain.
+
+**Stored Input comparison (unfinished original approve), 2026-10-10.**
+The exact original Input declaration, including worker:user, now emits its
+canonical schema. Count and nested all(old)/any(fresh) consume local contract
+values while observing only owning whole Step.input. Inner IR member spans
+retain actual source anchors. A private bounded source/schema join rejects
+changed types, owners, constraints, source and missing source; copied arrays,
+helpers and saved-reference row/version traversal remain declined. Canonical
+contract guards retain their owning control dependencies without changing
+ordinary scalar guard pruning. Owning source2 and genuine CLI/Memory native1
+pass: real CRUD storage, nested short-circuit order, bounds, stale versions,
+rollback, saved no-execution replay and current membership withholding. Editor
+typecheck, actual LSP round-trip, strict all-target Clippy and formatting pass.
+Required broad qualification covers1408 passes, two failures, zero ignored,
+filtered or body skips. Both unchanged non-File replay tripwires fail after the
+released Dev File component touches its port before establishing an assignment
+(invoke.ts5810); Dev owns the exact correction. Passing targets are reused;
+only the two affected native cases require the released repair. Finite source
+review is clear; coordinator acceptance and whole-suite acceptance are pending.
+Original step.parent operands, pure/dynamic approve and owner/held joins remain.
+
+
+**Committed-model source producer (unfinished native join), 2026-10-10.**
+The agreed Contracts descriptor is emitted once as the identical optional
+`committedChanges` artifact/appDefinition inventory. Clean immutable checked
+declarations retain complete ordinary/cohort matches in declaration order and
+canonical imported model/source identities. Existing private operation admission
+uses required text `id` and integer `version`, plus the actual cohort ref; a
+deleted id requires no row lookup. Trusted handlers stay outside user operation
+metadata. Existing callables, cohorts and source maps retain linkage. Closed
+contextual payloads expose only id/version. Altered public analysis tables,
+missing/duplicate/skewed IR, invalid model IDs and raw/missing/stale source refuse
+publication. Review found source-census and invalid-model refusal defects; both
+are corrected and the finite followup is CLEAR. Final affected135 pass; unchanged
+migration9/typed artifact2/typed BDD2 controls are reused,148 distinct affected.
+Actual CLI and Node24 witness complete metadata/private scalar/cohort ABI,
+imports, deletion, declared-event isolation, legacy omission and refusals.
+This qualifies declaration emission; Dev still owns actual State/Work enrollment,
+frozen membership/current authority and original CanVolunteer execution. The
+reviewed LOCAL7a3b7df6 runtime/DTO carrier awaits ancestry-safe intake at the
+coherent boundary. Final strict all-target Clippy passes25.02s; format/diff0.
+The earlier whole1408+2runtime failures remains historical for this source unit.
+Original58/67 and precise BDD3/Task22 holds remain unchanged.
+
+
+**Committed-source validation and owner repair intake, 2026-10-10.**
+Coherent cc6 is reviewed/integrated. Exact ancestry-safe LOCAL5b38/c4c30e29
+carriers add the defining Contracts/State/Work source components and Dev39f061bb
+File-port repair while preserving local source/tests. Current required broad
+run has1411passes, two expected-diagnostic/corpus pin failures, and only the two
+known Dev cases excluded pending repair; zero ignored or skipped bodies. Typed
+committed event.id removes nine genuine Customer findings (58→49); unknown
+snapshot now refuses E2013 and the whole payload still refuses writes E3009.
+Update those two expectations, qualify each once, and reuse all other passes.
+After current graph26/26 uncached30.648s and changed CF clean emission, both
+unchanged failing native assertions pass1/1 (scalar replay2.06s, lifecycle1.04s).
+Combined distinct changed-source qualification is1415passing tests. Final
+test-only strict all-target Clippy28.68s, format/diff0 and actual current real
+LSP capability roundtrip pass; unchanged editor TypeScript result is reused.
+No native committed activation/original Volunteer/full-plan claim follows.
+
+**Next stored-Member original producer.** State94822fbb supplies a candidate
+private `bindScenarioReceiptReferenceProducer(def,{source,app,policy})` on
+existing checked dependencies, genuine source-field/current whole grant and
+Identity/final row guards/recovery/implicit parent metadata; its loader correction
+for canonical model ref valueType remains owner-pending. Compiler's finite next
+unit retains genuine Step→Run parent, Run.location and bounded ordered
+Run.targets operands with real dependency IDs/field/source/IR correspondence.
+The three original gates are query_child_call, expr_member/field_type_id and
+protected_query_input/native recipe validation. Target-ID admission alone cannot
+supply originating field authority. No new common DTO or arbitrary read ABI.
+Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.

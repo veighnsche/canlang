@@ -45,8 +45,9 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     await ensureSchema(db); return createD1Storage(db);
   };
   try {
-    const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
-    const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
+    const artifactBytes = await readFile(fixturePath, 'utf8');
+    let artifact = JSON.parse(artifactBytes) as CompileArtifact;
+    let asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui'),
     });
@@ -98,7 +99,10 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
         return result;
       } };
     };
+    // One explicit receiving policy and canonical binding belong to each host.
+    const retentionPolicy = { unattachedHorizonMs: 120_000, retentionMs: 600_000 };
     let kernel = kernelFor();
+    let canonicalFiles = createCanonicalFileBinding(kernel, retentionPolicy);
     const uploadDeps = (): UploadDeps & { kernel: typeof kernel } => ({
       app: { appId: APP, brand: APP, appDefaultLocale: 'en', ownerLabels: new Map() },
       files: { usesFiles: () => true }, kernel, clock,
@@ -110,8 +114,22 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
       memberships: identities, identityStore: identities, clock, upload: uploadDeps() });
     let handler = handlerFor();
     const invokerFor = () => buildInvoker(artifact, asm, state, { memberships: identities,
-      now: () => now, files: createCanonicalFileBinding(kernel) });
+      now: () => now, files: canonicalFiles });
     let invoker = invokerFor();
+    let reopenedHosts = 0;
+    const reassembleHost = async () => {
+      artifact = JSON.parse(artifactBytes) as CompileArtifact;
+      reopenedHosts += 1;
+      asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
+        workDir: join(dir, reopenedHosts === 1 ? 'modules-reopened' : `modules-reopened-${reopenedHosts}`),
+        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        uiUrl: import.meta.resolve('@canlang/ui'),
+      });
+      kernel = kernelFor();
+      canonicalFiles = createCanonicalFileBinding(kernel, retentionPolicy);
+      handler = handlerFor();
+      invoker = invokerFor();
+    };
     const catalog = catalogFromArtifactOperations(artifact);
     const derivedInputs: Record<string, DerivedOperationInputs> = {};
     for (const operation of artifact.operations ?? []) {
@@ -259,7 +277,7 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     // handler and generated HTTP operation join as this native deployment.
     const browserWorker = await assembleWorker(artifact, asm, { store: state,
       identityStore: identities, now: () => now,
-      files: { usesFiles: true, kernel, canonical: createCanonicalFileBinding(kernel), fetch: handler },
+      files: { usesFiles: true, kernel, canonical: canonicalFiles, fetch: handler },
       http: { derivedInputs, createOperationHandler: deps => (request, operation) =>
         handleOperationRequest(deps as unknown as HttpDeps, request, operation) },
     }, { active: true });
@@ -314,7 +332,7 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     fileStore.close(); fileStore = undefined;
     await miniflare!.dispose(); miniflare = undefined;
     state = await openD1(); fileStore = createSqliteFileStore(join(dir, 'files.sqlite'));
-    kernel = kernelFor(); handler = handlerFor(); invoker = invokerFor();
+    await reassembleHost();
     const reopened = await handler(authRequest(downloadPath, 'GET'));
     assert.equal(reopened.status, 200); assert.deepEqual(new Uint8Array(await reopened.arrayBuffer()), BYTES);
     assert.deepEqual((await state.load(MODEL, asId(row.id)))?.data['attachment'], { id: browserRef });
@@ -322,7 +340,6 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.equal(fileStore.files.get(ref)?.attachedRecord, retainedRecord);
     // Receiving-side retention is an explicit host policy over the same
     // persistent metadata and bytes used by this compiled file journey.
-    const retentionPolicy = { unattachedHorizonMs: 120_000, retentionMs: 600_000 };
     let interruptCleanupKey: string | null = null;
     const retentionFor = () => {
       const nativeStore = fileStore!;
@@ -408,7 +425,7 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
       fileStore!.close(); fileStore = undefined;
       await miniflare!.dispose(); miniflare = undefined;
       state = await openD1(); fileStore = createSqliteFileStore(join(dir, 'files.sqlite'));
-      kernel = kernelFor(); handler = handlerFor(); invoker = invokerFor();
+      await reassembleHost();
     };
     await reopenRetention();
     assert.deepEqual(fileStore!.files.listAll(), beforeSweepFiles);
@@ -455,7 +472,7 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     // Existing revocation controls above remain unchanged. Restore the real
     // receiving member and use its current session for retention refusals.
     await identities.reactivateMembership(ownerMembership.membership_id, { is_owner: true, roles: [] });
-    kernel = kernelFor(); handler = handlerFor(); invoker = invokerFor();
+    kernel = nativeKernel; handler = handlerFor(); invoker = invokerFor();
     now = retentionStarted + retentionPolicy.retentionMs;
     const beforeExpiryFiles = fileStore!.files.listAll();
     const expiredFiles = retentionFor().runRetention(retentionPolicy);

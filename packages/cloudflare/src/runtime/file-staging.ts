@@ -1,4 +1,7 @@
-import type { CompileArtifact, DomainWrite, ResolvedIdentity, StoragePort } from '@canlang/contracts';
+import type {
+  CompileArtifact, DomainWrite, FinalizedFileObservation, FinalizedFileReceiver,
+  ModelName, RecordId, ResolvedIdentity, RetainedFinalizedFile, StoragePort,
+} from '@canlang/contracts';
 import { decodeValue } from '@canlang/values';
 import type { CanonicalExecutionEffects, CanonicalGuardRevalidation } from './invoke.js';
 
@@ -6,6 +9,8 @@ import type { CanonicalExecutionEffects, CanonicalGuardRevalidation } from './in
 export interface CanonicalFileBinding {
   validate(ref: string, identity: ResolvedIdentity, app: string): Promise<boolean>;
   retain(ref: string, record: string, identity: ResolvedIdentity, app: string): Promise<void>;
+  observe?(ref: string, identity: ResolvedIdentity, app: string): Promise<FinalizedFileObservation | null>;
+  revalidate?(saved: RetainedFinalizedFile, receiver: FinalizedFileReceiver): Promise<boolean>;
 }
 
 export interface FileAttachment {
@@ -20,11 +25,21 @@ export async function stageFileReferences(input: {
   readonly identity: ResolvedIdentity;
   readonly app: string;
   readonly files?: CanonicalFileBinding;
+  /** Pin the trusted receiving producer before any actual observation awaits. */
+  readonly prepareObservation?: () => void;
+  /** Trusted host capture for explicit, checked assignment locators only. */
+  readonly observeAssignment?: (input: {
+    readonly model: ModelName;
+    readonly recordId: RecordId;
+    readonly field: string;
+    readonly observation: FinalizedFileObservation;
+  }) => void;
   readonly refuse: (message: string) => never;
 }): Promise<{ readonly guards: CanonicalGuardRevalidation[]; readonly attachments: FileAttachment[] }> {
   const attachments: FileAttachment[] = [];
   const guards: CanonicalGuardRevalidation[] = [];
   const assigned = new Set<string>();
+  const observed = new Set<string>();
   const assignmentKey = (model: string, recordId: string, field: string) => JSON.stringify([model, recordId, field]);
   if (input.effects.fileAssignments !== undefined) {
     if (!Array.isArray(input.effects.fileAssignments)) input.refuse('File assignment intent must be an internal list.');
@@ -70,6 +85,19 @@ export async function stageFileReferences(input: {
           input.refuse('A file reference must be finalized and owned by the receiving caller.');
         }
         const files = input.files;
+        if (input.observeAssignment !== undefined && assigned.has(assignmentKey(write.model, row.id, field.name))) {
+          const key = JSON.stringify([write.model, row.id, field.name, ref]);
+          if (!observed.has(key)) {
+            if (files.observe === undefined || files.revalidate === undefined) {
+              input.refuse('Saved file assignment requires its installed receiving observer and revalidator.');
+            }
+            input.prepareObservation?.();
+            const observation = await files.observe(ref, input.identity, input.app);
+            if (observation === null) input.refuse('Saved file assignment requires a genuine live receiving File observation.');
+            input.observeAssignment({ model: write.model, recordId: row.id, field: field.name, observation });
+            observed.add(key);
+          }
+        }
         guards.push({ name: 'file.finalized', evaluate: () => files.validate(ref, input.identity, input.app) });
         attachments.push({ ref, record: `${write.model}/${row.id}/${field.name}` });
       }
@@ -88,6 +116,8 @@ export async function retainCommittedFiles(input: {
   readonly inputs: Record<string, unknown>;
   readonly result: unknown;
   readonly attachments: readonly FileAttachment[];
+  /** Checked scenarios retain only their actual validated assignment effects. */
+  readonly stagedOnly?: boolean;
   readonly store: StoragePort;
   readonly files: CanonicalFileBinding;
   readonly identity: ResolvedIdentity;
@@ -96,14 +126,14 @@ export async function retainCommittedFiles(input: {
   const attachments = new Map(input.attachments.map(attachment => [`${attachment.record}\0${attachment.ref}`, attachment]));
   const operation = input.artifact.operations?.find(candidate => candidate.name === input.operation);
   const locators: { model: string; id: string }[] = [];
-  for (const field of operation?.inputs.fields ?? []) {
+  for (const field of input.stagedOnly === true ? [] : operation?.inputs.fields ?? []) {
     if (field.field.kind !== 'ref') continue;
     const value = input.inputs[field.name];
     if (value !== null && typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
       locators.push({ model: field.field.model, id: value.id });
     }
   }
-  if (operation?.kind === 'create' && input.result !== null && typeof input.result === 'object' &&
+  if (input.stagedOnly !== true && operation?.kind === 'create' && input.result !== null && typeof input.result === 'object' &&
       'id' in input.result && typeof input.result.id === 'string') {
     const model = input.artifact.models?.find(candidate => `${candidate.name}.create` === input.operation);
     if (model !== undefined) locators.push({ model: model.name, id: input.result.id });

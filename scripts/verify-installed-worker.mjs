@@ -90,6 +90,8 @@ async function verifyConsumer(checkout) {
   assert.ok(plain.modules && !Object.keys(plain.modules).some(key => key.endsWith('values_semantics.js')), 'values backend remains opt-in');
   for (const marker of api.MCP_BUNDLE_MARKERS) assert.ok(first.modules[api.MCP_HANDLER_MODULE].includes(marker));
   for (const marker of api.HTTP_BUNDLE_MARKERS) assert.ok(first.modules[api.HTTP_OPERATIONS_MODULE].includes(marker));
+  assert.match(first.modules[api.HTTP_OPERATIONS_MODULE], /\bexport\s*\{[^}]*\breceiverFromIdentity\b[^}]*\}/s, 'the genuine HTTP bundle must expose the receiving principal named export');
+  assert.match(first.modules['runtime/invoke.js'], /^\s*import\s*\{\s*receiverFromIdentity\s*\}\s*from\s*['"]\.\.\/worker\/http-operations\.js['"]/m, 'the current owning runtime must consume the genuine HTTP principal export');
   for (const [key, source] of Object.entries(first.modules)) {
     assert.ok(!source.includes(checkout), `runtime module contains checkout path: ${key}`);
     assert.ok(!source.includes('/packages/'), `runtime module contains sibling package path: ${key}`);
@@ -171,7 +173,12 @@ async function verifyConsumer(checkout) {
   const acornKey = 'vendor/acorn/acorn.js';
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/acorn/')), [acornKey]);
   assert.equal(first.modules[acornKey], readFileSync(acornFile, 'utf8'));
-  const missingAcorn = { ...first.modules, 'installed-acorn-link-control.js': `export { parse } from ${JSON.stringify('./' + acornKey)};` };
+  const acornRuntime = first.modules['runtime/invoke.js'];
+  assert.match(acornRuntime, /^\s*import\s*\{\s*parse\s+as\s+parseJavaScript\s*\}\s*from\s*['"]\.\.\/vendor\/acorn\/acorn\.js['"]/m,
+    'actual released runtime parser must import the canonical staged Acorn producer');
+  assert.doesNotMatch(acornRuntime, /^\s*import\b[^\n]*\bfrom\s*['"]acorn['"]/m,
+    'actual runtime must not retain a bare Acorn import');
+  const missingAcorn = { ...first.modules };
   delete missingAcorn[acornKey];
   assert.throws(() => api.assertLinksResolve(missingAcorn), /no such staged module/, 'missing actual Acorn ESM key');
 
