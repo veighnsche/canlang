@@ -7263,9 +7263,9 @@ async function runReadScenarioSeam(
         throw new StateError('forbidden', 'Delivery read authority changed during the read scenario.');
       }
     }
+    if (await opts.store.readRevision() !== call.revision) throw new StateError('conflict', 'State changed before read scenario disclosure.');
     queryFrame?.assertCompleted();
     queryFrame?.result(outcome.value);
-    if (await opts.store.readRevision() !== call.revision) throw new StateError('conflict', 'State changed before read scenario disclosure.');
     return result;
   } finally { queryFrame?.close(); }
 }

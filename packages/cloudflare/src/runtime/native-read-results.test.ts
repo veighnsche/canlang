@@ -310,6 +310,35 @@ it('owns checked public query markers and result lifetimes without mutation rece
     } finally { if (timer !== undefined) clearTimeout(timer); release?.(); }
     await new Promise<void>(resolve => { setImmediate(resolve); });
     await unchanged();
+    let domainQueries = 0, finalFences = 0, caughtFinalFailure: unknown;
+    const finalFence: StoragePort = { ...w.store,
+      query: async query => {
+        const rows = await w.physical.query(query);
+        if (query.model === TASK) domainQueries++;
+        return rows;
+      },
+      readRevision: async () => {
+        const revision = await w.store.readRevision();
+        // The second physical query is the current-grant re-admission of the
+        // full original domain. Its first fence belongs to that reader; the
+        // next is the public callback's final awaited disclosure fence.
+        if (domainQueries === 2 && ++finalFences === 2) {
+          try { namespace.lateSelection(); } catch (error) { caughtFinalFailure = error; }
+        }
+        return revision;
+      },
+    };
+    const finalCalls = namespace.queryInspect().executions;
+    const finalRefusal = await w.invokerFor(finalFence).invokeRead(request('normal'), w.identity);
+    assert.equal(domainQueries, 2, 'one source query and one current-grant domain re-admission');
+    assert.equal(finalFences, 2, 'caught helper failure occurs during the actual final awaited fence');
+    assert.ok(caughtFinalFailure instanceof Error);
+    assert.match(caughtFinalFailure.message, /completed exact binding/);
+    assert.ok('error' in finalRefusal, 'a caught final-fence helper failure stays terminal');
+    assert.equal(finalRefusal.error.code, 'validation');
+    assert.equal(Object.hasOwn(finalRefusal.error, 'operation_id'), false);
+    assert.deepEqual(namespace.queryInspect(), { predicateCalls: 3, executions: finalCalls + 1 });
+    await unchanged();
     let revokedSnapshot: Awaited<ReturnType<typeof w.snapshot>> | undefined;
     namespace.setAfterQuery(async () => {
       await w.identities.removeMembership(w.membership.membership_id);
