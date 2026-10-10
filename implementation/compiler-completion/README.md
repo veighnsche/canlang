@@ -740,6 +740,7 @@ compiler leaves:
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
+| Capability Task39 protected call | Compiler retains the actual invocation operand, owning target IDs/input declarations, authored input order and result binding. Capability/State must release same-caller target admission in the existing owner session; Dev must release the source-bound private native facade/result-dependency bridge. Calls still refuse E6008; no nested invocation, receipt or commit substitutes for the missing consumer. Separate BDD3/Task22 holds remain. |
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium and2a5d2c72 temporary-profile/wait units are consumed. Actual local native forms/browser2/2 and corrected readonly polling1/1 pass; selected Images source profile still requires its artifact. Dev owns the selected-profile prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
@@ -2003,7 +2004,22 @@ now selects its declared `person` in an existing update table, preserving the
 other-caller, forbidden-outsider and rename rows. The owning target passes
 **6/6**; actual emitted example functions retain the exact person recipe,
 canonical reviewer role, selected caller and both changed-field expectations.
-This checks compiler output, not Identity execution. Dev owns the actual
-Identity/member example journey and current-profile capture; Packages owns the
-shared bundle prerequisite. Unchanged production/compiler qualification above
-is reused; no broad native rerun, reference-count credit or BDD3 hold release.
+Dev's reviewed **172340d1/1cb0c527** subsequently passes the SAME native/private
+case **1/1** with actual selected Identity/reviewer, outsider refusal and physical
+rename/replay/isolation. Its finite **26** core proofs are reused at that scope;
+UI/T11/application and broader profile acceptance remain separate. No compiler
+rerun, reference-count credit or BDD3 hold release follows this consumer result.
+
+**Task39 checked call producer — unfinished executable join, 2026-10-10.**
+Calls retain actual checked dynamic operands separately from owning operation
+IDs, authored ordered typed inputs, `as` binding and checked value/void/opaque
+results. Target IDs link the existing declaring parameter/model/result schemas;
+heterogeneous results acquire no invented common schema. Checked static read
+calls preserve member-path non-null facts; mutation/dynamic/unknown calls retain
+invalidation. Genuine lowering remains blocked on State same-session admission
+and Dev's exact source-bound facade/result-dependency contract. Publication
+continues to refuse E6008. Owning invocation target **5/5**, existing call controls
+**8/8**, prior unchanged emitter **121/121**, strict all-target lint and formatting
+pass. The initial nullable-member failure exposed read-call invalidation and is
+corrected; the mutation control still refuses that same path. This producer grants no transaction/native Task39
+acceptance, broader reference credit or access to held BDD3/Task22 contracts.
