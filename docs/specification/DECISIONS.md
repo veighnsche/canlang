@@ -6959,3 +6959,38 @@ Existing native scalar File owner-download/reopen/revocation results remain at t
 ### 2026-10-10 — manual local intake of File hostb666 correspondence
 
 Manual exact current bound-files.ts and provider ingress source inspection agrees with Devb666 observed facts: scalar model/record/field route repeats canonical read/current credentials after physical awaits and checks original file/version/revision, but fixed store/current-reader physical principal and explicit host injection leave wider routing/shared-reader/reference and provider qualification open. Interfaces verifier is injected and mapping is pure; assembly ingress remains fail-closed. Release only observed facts and required host correspondence, not an implemented wrapper/provider or replacement public API. Packages solely implements the same validated byte snapshot producer; Capability owns State current locator/grants and complete reference/removal facts; Dev owns physical routing/current versus receiving principal and exact callback consumption. Actual cross-store deletion serialization and provider configuration remain explicit host/deployment prerequisites. Preserve each precise hold; no unrelated implementation, complete checkpoint advance or publication.
+
+### 2026-10-10 — current physical File reads return their verified snapshot
+
+Reuse the genuine Files observation validator for `readCurrentFinalizedBytes`,
+with explicit physical receiver, current File policy and retention. Read once,
+check size and copy before digest/type validation, then return those verified
+bytes. The actual SQLite `readCurrentBytes` binding runs it in the existing
+metadata/byte transaction. Keep observation identity, retained captured/current
+horizons, provenance, original finalization time and legacy physical reads.
+This avoids a validate/discard/second-read gap without inventing row authority.
+
+Final owning Files emission passes; actual SQLite affected suite9/9 passes
+with four new snapshot/reopen/no-write/policy/deadline/foreign/corruption/terminal
+controls and five unchanged observation/revalidation controls. Independent
+finite source/test review is clear. Reuse unchanged upload/finalization/bounded
+retention results and the exact prior common229 scope; no protected download or
+current whole-head installed qualification follows.
+
+Capability/State owns canonical current committed File slots, independent
+row/field occurrences, removal/replacement/shared references and whole-field,
+parent and Identity checks before/after physical reads. Dev's released b666953d
+host contract owns exact scalar locator/verified descriptor/available operation,
+selected owner store and current reader versus physical original receiver.
+Packages owns Files retention/bytes and the Interfaces kernel. A complete
+owner/revision census must remain serialized through physical deletion; an
+asynchronous scan followed by a separate sweep cannot prove atomic retention.
+Deployment/provider namespace/key/age verification and persistent authenticated
+occurrence/delivery/digest/operation/receiving-effect replay correlation are
+still absent defining prerequisites. The single attachment marker grants
+neither shared-reference lifetime nor row reads. Parent scope is unfinished;
+coordinator manual source intake remains due and all precise holds persist.
+
+### 2026-10-10 — manual local integration of 520cc55b
+
+Manually reviewed exact owning Files producer520cc55b: one physical read copied before digest/type/size checks, current receiver/lifecycle/configured policy and explicit retention preserved, actual SQLite transaction, no metadata writes or legacy fallback. Reuse the nine affected SQLite passes and existing Files emission result; unchanged prior qualifications stay at their original scopes. Public root/finalize export and SQLite readCurrentBytes are released for separate State authority and physical-owner host joins. TECH-F02 shared-reference fence, protected business-field authority, native host integration and actual provider delivery remain unfinished. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
