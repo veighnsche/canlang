@@ -8381,3 +8381,32 @@ Consume only reviewed Compiler1be8fb24’s existing private producer recipe. Its
 ### 2026-10-11 — reviewed local late completion consumer
 
 Independently reviewed Dev8c831c50 complete original retained completion consumer CLEAR. Select only its unchanged-source consumer test and directly related records; parent correspondence preserves all earlier success, HTTP400 guard, scope/current authority, source/terminal/census and full resource assertions. Reuse actual original native1/1 57309.76ms with zero failures/cancellations/skips and CF emission/frozen types0. Exact original HTTP200 late sentinel reaches unique authored rejection after original awaited Create/Set; stable source control flow supports staging, with no extra telemetry API or substituted body. Ordinary canonical framework bookkeeping and four frozen rejected cohort receipts preserve zero business effects/history/versions and bounded no-ID/no-batch/no-send replay. Compiler owning original source317bd50a already integrated at724; release this finite native prerequisite for its existing subsequent bounded source-aware work, while public E6008, opaque/native File, provider ingress, original full apps/Office/G2-G3 and precise holds remain. Preserve all allocations and unadvanced complete checkpoint; local integration only.
+
+
+## 2026-10-11 — Original typed Images fixture retirement readers
+
+Register only State's file-retirement-storage.test.ts and Work's
+file-retirement-framework.test.ts reading the owning Cloudflare
+`typed-images-progress.can` fixture. This existing checkout-input policy permits
+the complete original source asset for genuine Compiler emission. Cloudflare
+exports no fixture locator and packs only dist; introducing a reverse runtime
+dependency would add a cycle. Keep production path/import predicates unchanged.
+
+The changed maintained allowed case passes1/1 in70.213083ms, accepting eleven
+canonical reads. The final negative case passes1/1 in60.830834ms: twelve
+wrong-reader/target paths and nine cross-package imports refuse, including the
+exact fixture's static State and dynamic Work imports plus sibling source
+imports. Reuse the unchanged positive outcome after the negative-only edit.
+Finite read-only policy/locator review CLEAR; no unchanged builds, full scans
+or runtime checks repeated.
+
+Coordinator reviews the exact local common delta. Capability owns actual new
+consumer source/boundary and persisted runtime checks; its incoming read hunks
+are absent here. Compiler owns missing original Images valueTypes emission;
+the reported six complete original cases remain explicitly skipped pending
+that producer. This finite asset policy grants no runtime/native workflow or
+parent acceptance and preserves all precise human holds.
+
+### 2026-10-11 — reviewed local images integration
+
+Select only Packages4a9dac4c two exact State/Work retirement test-to-owning Images asset registrations and defining cases, independently reviewed CLEAR. Generalized controlled test helper populates owning packages; production exact path and import predicates remain unchanged. Reuse allowed1/1 70.213083ms and final refusal1/1 60.830834ms:11canonical reads,12wrong-reader/target refusals and9static/dynamic source/fixture import refusals. Complete original asset remains owning source; no reverse package runtime API cycle, locator invention or copied/pruned fixture. Capability owns actual incoming read hunks/current-source boundary qualification and full persisted opaque assertions. Compiler owns original Images complete inventory producer; six original runtime cases remain skipped/unaccepted. Preserve all allocations, precise holds and unadvanced complete checkpoint; local-only integration.

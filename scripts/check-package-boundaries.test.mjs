@@ -6,7 +6,7 @@ import ts from 'typescript';
 import { test } from 'node:test';
 import { checkoutInputs, checkPackageBoundaries } from './check-package-boundaries.mjs';
 
-function fixture(t, { source = '', declared = true, rootSource, paths, bDependencies, version = 'workspace:*', aExports, cloudflareConsumers } = {}) {
+function fixture(t, { source = '', declared = true, rootSource, paths, bDependencies, version = 'workspace:*', aExports, packageConsumers } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'can-package-boundaries-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const write = (file, content) => { const full = path.join(root, file); mkdirSync(path.dirname(full), { recursive: true }); writeFileSync(full, typeof content === 'string' ? content : `${JSON.stringify(content)}\n`); };
@@ -27,10 +27,10 @@ function fixture(t, { source = '', declared = true, rootSource, paths, bDependen
     mkdirSync(scope, { recursive: true });
     symlinkSync(path.join(root, 'packages', name), path.join(scope, name), 'junction');
   }
-  if (cloudflareConsumers) {
-    write('packages/cloudflare/package.json', { name: '@canlang/cloudflare', type: 'module' });
-    write('packages/cloudflare/tsconfig.json', { compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext', rootDir: 'src', outDir: 'dist' }, include: ['src'] });
-    for (const [file, content] of Object.entries(cloudflareConsumers)) write(`packages/cloudflare/${file}`, content);
+  for (const [name, consumers] of Object.entries(packageConsumers ?? {})) {
+    write(`packages/${name}/package.json`, { name: `@canlang/${name}`, type: 'module' });
+    write(`packages/${name}/tsconfig.json`, { compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext', rootDir: 'src', outDir: 'dist' }, include: ['src'] });
+    for (const [file, content] of Object.entries(consumers)) write(`packages/${name}/${file}`, content);
   }
   if (rootSource) write('tools/probe.mjs', rootSource);
   return { root, write, check: () => checkPackageBoundaries(root) };
@@ -96,7 +96,7 @@ test('rejects sibling source/output shortcuts and root-tool shortcuts', t => {
   assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 3);
 });
 
-test('allows only registered canonical fixture reads from exact Cloudflare consumers', t => {
+test('allows only registered canonical fixture reads from exact consumers', t => {
   const consumers = {
     'src/dev/session-service.test.ts': `
       import { readFileSync } from 'node:fs';
@@ -138,7 +138,23 @@ test('allows only registered canonical fixture reads from exact Cloudflare consu
       readFileSync(join(root, 'compiler/tests/fixtures/anonymous-message-consumer.mjs'));
     `,
   };
-  const f = fixture(t, { cloudflareConsumers: consumers });
+  const f = fixture(t, { packageConsumers: {
+    cloudflare: consumers,
+    state: { 'test/file-retirement-storage.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const root = fileURLToPath(new URL('../../../', import.meta.url));
+      readFileSync(join(root, 'packages/cloudflare/test/fixtures/typed-images-progress.can'));
+    ` },
+    work: { 'test/file-retirement-framework.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const root = fileURLToPath(new URL('../../../', import.meta.url));
+      readFileSync(join(root, 'packages/cloudflare/test/fixtures/typed-images-progress.can'));
+    ` },
+  } });
   const result = f.check();
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
@@ -151,11 +167,13 @@ test('allows only registered canonical fixture reads from exact Cloudflare consu
     'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
     'packages/cloudflare/test/committed-model-consumer.test.ts',
     'packages/cloudflare/test/compiler-check.integration.test.ts',
+    'packages/state/test/file-retirement-storage.test.ts',
+    'packages/work/test/file-retirement-framework.test.ts',
   ]);
 });
 
-test('rejects other fixture reads and cross-package source imports from Cloudflare consumers', t => {
-  const f = fixture(t, { cloudflareConsumers: {
+test('rejects other fixture reads and cross-package source imports from exact consumers', t => {
+  const f = fixture(t, { packageConsumers: { cloudflare: {
     'test/compiler-check.integration.test.ts': `
       import { readFileSync } from 'node:fs';
       import { join, resolve } from 'node:path';
@@ -193,10 +211,44 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       readFileSync(join(root, 'compiler/tests/fixtures/Another.can'));
       readFileSync(join(root, 'compiler/tests/fixtures/Another.mjs'));
     `,
-  } });
+  }, state: {
+    'test/file-retirement-storage.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      import '../../cloudflare/src/index.js';
+      import '../../cloudflare/test/fixtures/typed-images-progress.can';
+      const root = fileURLToPath(new URL('../../../', import.meta.url));
+      readFileSync(join(root, 'packages/cloudflare/test/fixtures/another.can'));
+    `,
+    'test/other.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const root = fileURLToPath(new URL('../../../', import.meta.url));
+      readFileSync(join(root, 'packages/cloudflare/test/fixtures/typed-images-progress.can'));
+    `,
+  }, work: {
+    'test/file-retirement-framework.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      import '../../cloudflare/src/index.js';
+      await import('../../cloudflare/test/fixtures/typed-images-progress.can');
+      const root = fileURLToPath(new URL('../../../', import.meta.url));
+      readFileSync(join(root, 'packages/cloudflare/test/fixtures/another.can'));
+    `,
+    'test/other.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const root = fileURLToPath(new URL('../../../', import.meta.url));
+      readFileSync(join(root, 'packages/cloudflare/test/fixtures/typed-images-progress.can'));
+    `,
+  } } });
   const result = f.check();
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 8);
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 5);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 12);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 9);
   assert.deepEqual(result.registered, []);
 });
 
