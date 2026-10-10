@@ -15,8 +15,8 @@
  * schemas and stays an S8 join with L1/L6; this module enforces only the
  * structural request shape plus the absent-file-slot rule.
  */
-import { createHash } from 'node:crypto';
-import { TextDecoder } from 'node:util';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import type {
   ContentCheck,
   FilePolicy,
@@ -170,7 +170,7 @@ export function checkContent(
 
 /** Digest of immutable bytes for conflict detection (`sha256:` hex). */
 export function sha256Hex(bytes: Uint8Array): string {
-  return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  return `sha256:${bytesToHex(sha256(bytes))}`;
 }
 
 /** Staging blob key for an intent. Callers must pass the stored id. */

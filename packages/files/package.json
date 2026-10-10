@@ -27,7 +27,8 @@
   "dependencies": {
     "@canlang/contracts": "workspace:*",
     "@canlang/values": "workspace:*",
-    "@canlang/services": "workspace:*"
+    "@canlang/services": "workspace:*",
+    "@noble/hashes": "2.4.0"
   },
   "exports": {
     "./host/sqlite": {
