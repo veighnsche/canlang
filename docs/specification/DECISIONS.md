@@ -5787,7 +5787,7 @@ clean CF emission, root noEmit and package boundaries pass; unchanged runtime
 results are reused at their recorded scopes.
 
 
-### 2026-10-10 — retain ordered history during bounded loop qualification (unfinished)
+### 2026-10-10 — retain ordered history during bounded loop qualification (tested finite D1)
 
 Consume the exact reviewed Compiler bounded-reference-loop producer through the
 existing immutable source/artifact and real generated D1 invoker. Derive the
@@ -5795,12 +5795,19 @@ empty/nonempty return and dependency IDs from its actual plan; retain original
 ordered observation, current-stage, one-commit, receipt/hash, full-table and
 Identity assertions. No private plan is fabricated and no public ABI is added.
 
-The first actual run fails at original A0→1 then1→2 history: State's owner-session
-finalization emits only net A0→2, despite the existing ordered-history contract
-in DESIGN.md503. State owns that correction. Preserve the required history gate
-and distinguish implemented later replay/refusal assertions from reached checks.
-Local native/CF builds, root noEmit and package boundaries pass; native D1 replay
-is not qualified. General loop outputs, query/preclaim and G2/G3 remain open.
+The first actual run failed at original A0→1 then1→2 history: State's owner-session
+finalization emitted only net A0→2, despite the existing ordered-history contract
+in DESIGN.md503. Preserve that unfinished318 checkpoint and its required gate.
+Reviewed State72a4ce23 restores actual ordered stage history, and the unchanged
+consumer318f8efd now passes against exact Compiler14b07710 on LOCAL61240891.
+Actual compiled/captured D1 qualification1/1 passes13.92s with zero skips:
+original inputs/hash, observations0/0/1 and versions1/1/2, three history entries,
+two final rows, one root commit, genuine populated/empty/omitted void association
+and no-effect replay, scalar7 replay, limit bookkeeping and all table/Identity
+admission refusals. Work/State/CF clean emissions, root noEmit and boundaries
+13/911/1282/zero pass; reuse owning State94 and prior exact Compiler results.
+No assertion was relaxed or private association fabricated. General loop outputs,
+query/preclaim and G2/G3 remain open.
 
 ### 2026-10-10 — intake checked decision transport (unfinished native consumer)
 
