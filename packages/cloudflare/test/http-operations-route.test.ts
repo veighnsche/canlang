@@ -46,6 +46,7 @@ import {
   handleOperationRequest,
 } from "@canlang/interfaces/http/operations";
 import type { HttpDeps as RealHttpDeps } from "@canlang/interfaces";
+import { handleCsvRequest } from "@canlang/interfaces";
 import type { McpDeps as RealMcpDeps } from "@canlang/interfaces";
 import { createMcpHandler } from "@canlang/interfaces/mcp/server";
 import {
@@ -286,6 +287,7 @@ interface HttpOpsWorker {
 
 async function assembleHttpOpsWorker(opts: {
   withHttpFactory?: boolean;
+  withCsvFactory?: boolean;
   withMcpFactory?: boolean;
   operations?: unknown[];
 }): Promise<HttpOpsWorker> {
@@ -319,12 +321,17 @@ async function assembleHttpOpsWorker(opts: {
             derivedInputs,
           },
         }),
-    ...(opts.withHttpFactory === false
+    ...(opts.withHttpFactory === false && opts.withCsvFactory !== true
       ? null
       : {
           http: {
-            createOperationHandler: (d) => (req, op) =>
-              handleOperationRequest(d as unknown as RealHttpDeps, req, op),
+            ...(opts.withHttpFactory === false ? {} : {
+              createOperationHandler: (d: HttpDeps) => (req: Request, op: string) =>
+                handleOperationRequest(d as unknown as RealHttpDeps, req, op),
+            }),
+            ...(opts.withCsvFactory !== true ? {} : {
+              createCsvHandler: (d: HttpDeps) => (req: Request) => handleCsvRequest(d as unknown as RealHttpDeps, req),
+            }),
             derivedInputs,
           },
         }),
@@ -405,6 +412,62 @@ async function modelRows(store: StoragePort, model: string): Promise<Array<{ id:
 /* ------------------------------------------------------------------ */
 /* Route proofs: the join serves, the interim stays honest.            */
 /* ------------------------------------------------------------------ */
+
+describe("worker CSV review/commit installed join", () => {
+  it("names the missing CSV join and delegates joined method/path refusals", async () => {
+    const absent = await assembleHttpOpsWorker({});
+    for (const path of ['/api/csv/review','/api/csv/commit']) {
+      const response = await absent.fetch(new Request(`https://test.invalid${path}`, {method:'POST'}));
+      expect(response.status).toBe(501);
+      expect(await response.json()).toMatchObject({code:'assembly-interim',message:expect.stringContaining('createCsvHandler')});
+    }
+    const joined = await assembleHttpOpsWorker({withCsvFactory:true,withHttpFactory:false});
+    for (const path of ['/api/csv/review','/api/csv/commit','/api/csv/unknown']) {
+      expect((await joined.fetch(new Request(`https://test.invalid${path}`))).status).toBe(404);
+    }
+    expect(await modelRows(joined.store,'Shop.Gadget')).toEqual([]);
+  });
+
+  it("uses the same checked catalog and canonical owner invoker with only the CSV factory mounted", async () => {
+    const w = await assembleHttpOpsWorker({withCsvFactory:true,withHttpFactory:false});
+    const csv = 'title,stock,note\ncsv,3,';
+    const body = {operation:GADGET_CREATE_OP,csv};
+    const post = (path:string, value:unknown) => w.fetch(new Request(`https://test.invalid${path}`, {
+      method:'POST',headers:{'content-type':'application/json',cookie:w.cookie,'x-csrf-token':w.csrf},body:JSON.stringify(value),
+    }));
+    const reviewed = await post('/api/csv/review',body);
+    expect(reviewed.status).toBe(200);
+    const review = await reviewed.json() as {consent:unknown;rows:unknown[];counts:unknown};
+    expect(review.rows).toEqual([{index:0,status:'valid',inputs:{title:'csv',stock:'3',note:null}}]);
+    expect(review.counts).toEqual({total:1,valid:1,invalid:0,duplicate:0});
+    expect(await modelRows(w.store,'Shop.Gadget')).toEqual([]);
+    const operation_id = freshOperationId();
+    const selection = {...body,consent:review.consent,rows:[{index:0,operation_id}]};
+    const committed = await post('/api/csv/commit',selection);
+    expect(committed.status).toBe(200);
+    expect(await committed.json()).toMatchObject({rows:[{index:0,operation_id,status:'committed',result:{status:'committed',operation_id}}]});
+    const stored = await modelRows(w.store,'Shop.Gadget');
+    expect(stored).toHaveLength(1);expect(stored[0]?.data).toMatchObject({title:'csv',stock:'3',note:null});
+    const replayed = await post('/api/csv/commit',selection);
+    expect(replayed.status).toBe(200);
+    expect(await replayed.json()).toMatchObject({rows:[{index:0,operation_id,status:'committed',result:{status:'replayed',operation_id}}]});
+    expect(await modelRows(w.store,'Shop.Gadget')).toEqual(stored);
+  });
+
+  it("preserves session and CSRF admission before CSV review or commit", async () => {
+    const w = await assembleHttpOpsWorker({withCsvFactory:true});
+    for (const path of ['/api/csv/review','/api/csv/commit']) for (const headers of [
+      {'content-type':'application/json'},
+      {'content-type':'application/json',cookie:w.cookie,'x-csrf-token':'wrong'},
+    ]) {
+      const response = await w.fetch(new Request(`https://test.invalid${path}`, {
+        method:'POST',headers,body:JSON.stringify({operation:GADGET_CREATE_OP,csv:'title\ncsv'}),
+      }));
+      expect(response.status).toBe(403);expect(await response.json()).toMatchObject({code:'forbidden'});
+    }
+    expect(await modelRows(w.store,'Shop.Gadget')).toEqual([]);
+  });
+});
 
 describe("worker POST /api/operations/* (C3 op-route join)", () => {
   it("keeps the explicit interim 501 without the factory", async () => {
