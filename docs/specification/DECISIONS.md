@@ -6976,3 +6976,21 @@ occurrence/delivery/digest/operation/receiving-effect replay correlation are
 still absent defining prerequisites. The single attachment marker grants
 neither shared-reference lifetime nor row reads. Parent scope is unfinished;
 coordinator manual source intake remains due and all precise holds persist.
+
+### 2026-10-10 — qualify the portable current File byte producer
+
+Extend the maintained isolated installed workerd probe to call the actual
+staged current reader after genuine Files finalization. Controlled explicitly
+non-durable ports are fixture storage; fixed assertions require original
+verified bytes, one physical read, detached snapshot and foreign/corrupt/exact
+unswept expiry refusal. Preserve every existing production, producer-loss,
+syntax, Work/State identity, Acorn, WASM and browser/integrity control.
+
+Changed Cloudflare emission and the genuine Files body/closure case pass;
+reuse the owning Files520 emission and unchanged graph outputs. The fresh
+isolated229 install passes on Node24.19 with checkout reads denied and only
+Cloudflare directly bound. Actual production workerd401 and every old control
+remain. Finite independent script review is clear. This qualifies portable
+physical bytes, with no State grant, shared-reference retention, authenticated
+provider, durable-host download or original workflow acceptance. Coordinator
+manual local intake is pending; all precise holds remain.
