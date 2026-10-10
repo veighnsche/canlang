@@ -7393,3 +7393,32 @@ Work emission passes; five real producer groups pass1020.07ms and added generic 
 ### 2026-10-10 — manual local integration of dc7e6ce1
 
 Finite independent and manual review CLEAR for original issued-stage retained outbox/dispatch/terminal receipt correspondence, original declared R before nullable envelope, all ordinary routes, complete frozen cohorts, initial child chunks and source consumption under ONE original revision fence. Replay validates retained route/inventory without recensus. Reuse actual owning6 distinct producer groups with clean Work emission and boundary13/938/1400/zero, and unchanged State25. Exact installed source config is now a released producer prerequisite; Compiler actual same-load checked alias/from/owner/schema/complete handler projection and closed nested nullable private operation admission, Dev genuine native intake and provider authentication remain unfinished. No synthetic source authority, native/provider/whole-plan acceptance or human hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — define the checked State File-retirement storage extension (unfinished runtime)
+
+Release additive defining types in Contracts state.ts/files.ts for Capability's
+exact State producer handoff. FileReferenceStoragePort requires one immutable
+persisted State/physical-Files authority, full same-load declaration inventory
+bound to installed owner/snapshotId/digest, bounded original-revision retirement
+and original permanent decision readback. Storage derives File occurrences; no
+optional caller reference list enters CommitBatch. Refined publish/flip inputs
+require target inventory and explicit null on removal. Generic ports remain
+unchanged; guarded State adapters must refuse missing legacy evidence and check
+commit, pre-staged migration publication and schema reinterpretation at their
+actual atomic boundary. Initial installation preserves an existing matching
+snapshot's original revision/time. Immutable File identity excludes policy;
+RetainedFinalizedFile retains its existing shape.
+
+Final owning Contracts emission and focused in-memory public consumer/refusal
+controls pass. Two finite contract reviews resolved single-authority lookup and
+lost-reply cleanup: verify persisted physical identity each retry, bytes when
+present, and require the exact original retirementId terminal tombstone to accept
+already-deleted bytes. No runtime test or proof file is added and unchanged checks
+are reused. Types supply no durable issuer or guard. Capability owns the actual
+State implementation; Packages consumes its exact released producer; Dev owns
+real persisted Files store assignment/routing and recovery qualification. Current
+cross-store deletion remains unsupported, provider unreleased and all holds intact.
+
+### 2026-10-10 — manual local integration of 679cb253
+
+Finite independent and manual review CLEAR for additive REQUIRED FileReferenceStoragePort and immutable finalized identity, preserving generic StoragePort/CommitBatch/migration and RetainedFinalizedFile shape compatibility. Permanent authority separates State owner/store from physical receiver/store; install/read/retire/readback binds full declarations and original revision, publication/activation requires complete target evidence. Reuse owning clean Contracts emission and public compatibility/refusal controls. Types supply no issuer, atomic guard, stored pin, tombstone, cross-store deletion or native recovery. Capability State actual backend guards and persisted retirement, then Packages genuine reopened Files consumer and Dev complete host routing/contention/interruption/reopen remain required. Legacy omitted evidence cannot bypass guards. All precise holds unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
