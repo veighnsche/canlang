@@ -144,6 +144,7 @@ describe("deploy bundle (P-B)", () => {
     expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/work/"))).toEqual([
       "vendor/work/intent/staging.js",
       "vendor/work/kernel/arguments.js",
+      "vendor/work/kernel/committed-model-source.js",
       "vendor/work/kernel/dispatch-staging.js",
       "vendor/work/kernel/handler-occurrence.js",
       "vendor/work/kernel/occurrence-staging.js",
@@ -859,6 +860,33 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       expect(restored).toBe(readFileSync(file, "utf8"));
       producers.push(await import(pathToFileURL(file).href));
     }
+    const workDistribution = await import("@canlang/work/distribution");
+    const committedFile = new URL("kernel/committed-model-source.js", workDistribution.distribution.modules);
+    const committedKey = "vendor/work/kernel/committed-model-source.js";
+    const committed = bundle.modules[committedKey];
+    expect(committed).toBeDefined();
+    const restoredCommitted = rewriteModuleImports(committed!, committedKey, imported =>
+      imported === "../../state/index.js" ? "@canlang/state" : imported,
+    { profile: "trusted-producer" }).js;
+    expect(restoredCommitted).toBe(readFileSync(committedFile, "utf8"));
+    expect(scanModuleImports(committed!, committedKey).map(record => record.specifier)).toContain("../../state/index.js");
+    const workRoot = await import(pathToFileURL(resolveProducerFile("@canlang/work", "bun run --filter @canlang/work build")).href);
+    const committedProducer = await import(committedFile.href);
+    expect(typeof committedProducer.createCommittedModelSourceStager).toBe("function");
+    expect(workRoot.createCommittedModelSourceStager).toBe(committedProducer.createCommittedModelSourceStager);
+    // Both public State routes preserve the same defining source-stage identity.
+    const stateRoot = await import(pathToFileURL(resolveProducerFile("@canlang/state", "bun run --filter @canlang/state build")).href);
+    const mutationFile = resolveProducerFile("@canlang/state/mutation", "bun run --filter @canlang/state build");
+    const mutation = await import(pathToFileURL(mutationFile).href);
+    const sourceFinalization = await import(pathToFileURL(join(dirname(mutationFile), "source-finalization.js")).href);
+    expect(typeof sourceFinalization.readOwnerMutationSourceStage).toBe("function");
+    expect(stateRoot.readOwnerMutationSourceStage).toBe(sourceFinalization.readOwnerMutationSourceStage);
+    expect(mutation.readOwnerMutationSourceStage).toBe(sourceFinalization.readOwnerMutationSourceStage);
+    expect(bundle.modules["vendor/state/index.js"]).toBeDefined();
+    expect(scanModuleImports(bundle.modules["vendor/state/index.js"]!, "vendor/state/index.js").map(record => record.specifier))
+      .toContain("./mutation/index.js");
+    expect(scanModuleImports(bundle.modules["vendor/state/mutation/index.js"]!, "vendor/state/mutation/index.js").map(record => record.specifier))
+      .toContain("./source-finalization.js");
     const receipt = producers[0]!;
     const functions = await receipt.loadWorkReceiptFns();
     expect(functions.observeSelectedReceipt).toBe(producers[1]!.observeSelectedReceipt);
@@ -880,12 +908,70 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       "vendor/work/receipt/index.js",
       "vendor/work/observation/observation.js",
       "vendor/work/observation/association.js",
+      "vendor/state/index.js",
+      "vendor/state/mutation/source-finalization.js",
     ]) {
       const missing = { ...bundle.modules };
       delete missing[key];
       expect(() => assertLinksResolve(missing)).toThrow(/no such staged module/);
     }
   });
+
+  it.each(["runtime", "vendor"] as const)("restricts %s root Work imports to the selected genuine named stager", async (kind) => {
+    // Import-form controls exercise the real staging gate. They do not stand
+    // in for Dev's owning runtime consumer or its native workflow.
+    const runtime = dirname(resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build"));
+    const fixture = kind === "runtime" ? mkdtempSync(join(tmpdir(), "can-work-import-form-")) : undefined;
+    if (fixture !== undefined) {
+      for (const entry of readdirSync(runtime).filter(name => name.endsWith(".js"))) {
+        writeFileSync(join(fixture, entry), readFileSync(join(runtime, entry)));
+      }
+    }
+    const workDistribution = await import("@canlang/work/distribution");
+    const target = fixture === undefined
+      ? new URL("kernel/committed-model-source.js", workDistribution.distribution.modules)
+      : join(fixture, "context.js");
+    const original = readFileSync(target);
+    const key = kind === "runtime" ? "runtime/context.js" : "vendor/work/kernel/committed-model-source.js";
+    const options = { repoRoot, ...(fixture === undefined ? {} : { runtimeDistDir: fixture }), verdict: ACTIVE_VERDICT };
+    const selected = "createCommittedModelSourceStager";
+    try {
+      for (const source of [
+        `import { ${selected} as selectedWorkStager } from "@canlang/work";`,
+        `import { ${selected} as selectedWorkStager } from "@canlang/\\u0077ork";`,
+      ]) {
+        writeFileSync(target, `${original.toString("utf8")}\n${source}\nexport const importFormControl = selectedWorkStager;\n`);
+        const bundle = buildDeployBundle(testArtifact(), options);
+        const specifiers = scanModuleImports(bundle.modules[key]!, key).map(record => record.specifier);
+        expect(specifiers).toContain(kind === "runtime" ? "../vendor/work/kernel/committed-model-source.js" : "./committed-model-source.js");
+        expect(specifiers).not.toContain("@canlang/work");
+      }
+      for (const source of [
+        'import { createIntent } from "@canlang/work";',
+        `import { ${selected} as selectedWorkStager, createIntent } from "@canlang/work";`,
+        'import work from "@canlang/work";',
+        'import * as work from "@canlang/work";',
+        'import "@canlang/work";',
+        `export { ${selected} as exportedWorkStager } from "@canlang/work";`,
+        'export * from "@canlang/work";',
+        'const work = import("@canlang/work");',
+        'const work = import(`@canlang/work`);',
+        'const specifier = "@canlang/work"; const work = import(specifier);',
+        "const work = loadProducerModule('@canlang/work', 'committed model source finalizer');",
+        'import { createIntent } from "@canlang/\\u0077ork";',
+      ]) {
+        writeFileSync(target, `${original.toString("utf8")}\n${source}\n`);
+        expect(() => buildDeployBundle(testArtifact(), options), source).toThrow(/only.*named.*createCommittedModelSourceStager/);
+      }
+      if (kind === "vendor") {
+        writeFileSync(target, "export function {\n");
+        expect(() => buildDeployBundle(testArtifact(), options)).toThrow(/committed-model-source\.js.*invalid JavaScript syntax/);
+      }
+    } finally {
+      writeFileSync(target, original);
+      if (fixture !== undefined) rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 15000);
 
   it("stages the genuine public Files finalizer closure with shared noble dependencies", () => {
     // This overlay exercises runtime import/constant rewriting only. The Files
