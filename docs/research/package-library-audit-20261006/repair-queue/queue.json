@@ -4469,7 +4469,8 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "TV01 exact reader/command/source graph; TV02/3 original oracle/coverage; TV04/5 native cleanup remains HOLD; TV14/15 type/hash/installed provenance. Each EC item requires only its exact relevant gate. RowScope cleanup can release independently after current exception contract."
+        "TV01 exact reader/command/source graph; TV02/3 original oracle/coverage; TV04/5 native cleanup remains HOLD; TV14/15 type/hash/installed provenance. Each EC item requires only its exact relevant gate. RowScope cleanup can release independently after current exception contract.",
+        "Finite checked selector-channel Testkit consumer is implemented/tested. Compiler owns declaration-derived selectorChannels emission and actual generated/native qualification; Dev owns the existing Cloudflare prepareRowCells checked input-only channel consumer. Existing conditional oracle/installed/native preparation prerequisites and precise holds remain; no whole parent acceptance."
       ],
       "intended_deleted_mechanisms": [
         "Conditional repeated10213 primitive projection (retain131 Values/72 Work caller rows), old flat/native embedded fixtures, pure test setup and six repeated JSON sections only after immutable donor/deterministic reader correspondence. These are test/evidence savings, zero production reduction. No deletion now."
