@@ -1,7 +1,9 @@
 //! Private completion projection, separate from terminal-source runtime authority.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
-use canlang_compiler::codegen::ir::{self, IrEventSource, IrItemKind, IrProgram};
+use canlang_compiler::codegen::ir::{
+    self, IrBinOp, IrEventSource, IrExpr, IrItemKind, IrProgram, IrStmt,
+};
 use canlang_compiler::codegen::{artifact, bdd, js};
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::Path;
@@ -20,14 +22,18 @@ When
   do
    let status=event.status
    require event.result!=null
+   let reference=event.result.reference
    create CompletionAudit {delivery=event.delivery_id,reference=event.result.reference} as audit
+   require reference!="late-reject"
  scenario secondary on=Secondary.send.completed
   do let status=event.status
  scenario primary_cohort on=Primary.send.completed each=Entry as entry
   do
    let status=event.status
    require event.result!=null
+   let reference=event.result.reference
    set entry {seen=event.result.reference}
+   require reference!="late-reject"
  scenario primary_last on=Primary.send.completed
   do let status=event.status
  scenario cash on=Cash.cancel.completed
@@ -75,6 +81,33 @@ fn build(source: &str) -> (SourceDb, IrProgram, Catalog) {
 fn standard_completion_projection_keeps_routes_census_and_complete_native_value_schemas() {
     use std::process::Command;
     let (db, ir, catalog) = build(SOURCE);
+    for (handler, creates) in [("primary_first", true), ("primary_cohort", false)] {
+        let item = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == format!("CompletionProjection.{handler}"))
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &item.kind else {
+            unreachable!()
+        };
+        assert_eq!(
+            effects.len(),
+            5,
+            "{handler}: complete authored statement order"
+        );
+        assert!(
+            matches!(&effects[3], IrStmt::Create { .. }) && creates
+                || matches!(&effects[3], IrStmt::Set { .. }) && !creates,
+            "{handler}: domain write precedes the late guard"
+        );
+        assert!(
+            matches!(&effects[4], IrStmt::Require { cond, .. }
+                if matches!(&cond.expr, IrExpr::Binary { op: IrBinOp::Ne, left, right }
+                    if matches!(&left.expr, IrExpr::Name(value) if value == "reference")
+                        && matches!(&right.expr, IrExpr::Text(value) if value == "late-reject"))),
+            "{handler}: exact authored late rejection follows the domain write"
+        );
+    }
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(
