@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T23:16:43Z",
+  "updated_utc": "2026-10-10T23:21:58Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -100,10 +100,10 @@
     "reused_results": "Unchanged strict all-target Clippy/format and editor/client/LSP qualification; current whole includes actual compiler corpus/LSP/completion/native tests."
   },
   "latest_component": {
-    "base_commit": "3d90c8d44c9a36e12425f2de4fcb983e1efd3ca6",
-    "state": "app_url_source_and_native_helper_consumer_qualified_remaining_validation_unfinished",
-    "record": "anonymous_message_bindings/codegen",
-    "outcome": "Selected app_url builtin lowering now passes the original host context before authored arguments; button target alone admits validated Url strings. Exact reviewed Packagesdd688 helper/carrier consumed through safe FF3d90, with zero incoming compiler delta and preserved edits. Actual original CLI/native CF stdlib/UI fixture passes configured deployment base+mount, URL/caption escaping, source order/once/gates/first failure, absent-config refusal despite request/poll/auth hints and Values invalid paths. Closed builtin redeclaration remains E2002/no artifact. Owning bindings9 pass (unchanged sibling8 plus corrected native1/1 1.17s); fmt/diff0. Owner dependency graph22/22 uncached23.969s; actual unchanged effectful completion consumer1/1 52802.09ms, zero skips. Prior565/445 strict all-target Clippy0 in1m15s; changed app_url codegen/unrun whole/strict remain in progress. Public terminal E6008 remains pending own late staged-write rollback; File targets and Dev actual installed/preview/deployment/mounted HTTP flows remain separate.58/67/nine and BDD3/S9Q07/Task22/T11 holds unchanged."
+    "base_commit": "f8fb77fa19f126bc8e55d10d5ba529ad8d2259ac",
+    "state": "readonly_update_before_source_and_native_consumer_qualified_whole_unfinished",
+    "record": "model_hook_profile/hook_order_rollback_runtime",
+    "outcome": "Checked update hooks now read exact readonly event.before business leaves/id/version using the original trigger operation and existing model/type checks; create/delete/nullable shells/unknown/transitive/metadata writes remain refused. Actual CLI/native owning consumer captures original state/id/version while ordered after adjustments proceed; all13 guards, staged Audit/history/canonical receipt/fence, late rejection rollback and no-execution success/failure replay pass. Stored domain int correctly remains wire text; metadata version remains numeric. Owning hook profile11 (.52s), policy producer4 (.28s), rule profile6 (.01s), scope2 (.68s), codegen121 (.33s) and native6 (unchanged5 plus corrected positive1/1 1.10s) pass. Existing operation-result metadata witness now asserts exact stored Email/Email[]/Timezone and preserves their unsupported public input/result profile:3 pass (sibling2 plus corrected1/1 .92s).153 affected outcomes, fmt/diff0; current whole continuation and strict pending. Full Maintain still needs complete model closure/parent/pure calls/hook emit/schedule owner contracts; no broad admission.58/67/nine and all precise holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -847,6 +847,10 @@
     "state": "original_source_native_memory_and_portable_contextual_workflows_qualified_full_plan_unfinished",
     "fixture": "../../compiler/tests/fixtures/hook_order_contextual.can",
     "outcome": "Expose one permanent original full contextual source fixture, byte-identical to the qualified runtime case (SHA2564c4ebefea8e03bd50f59c471608ca534a6ed0ba6d21ad8f3c377b061951970f7), and use it in existing full/core Rust native cases. Actual CLI artifact is compiler/target/hook-context-artifact.json with the original owning catalog; no independently reconstructed Dev source needed. Original four native success/rejection/full/core cases4/4 pass1.42s. Current whole uncovered two outdated context-refusal tests and an obsolete two-argument/absent-after ABI host witness; update them to assert bounded native context/callable/policy/staging, preserving every exact nongrant/foreign/disabled/source-token/unsupported-whole refusal and readonly after metadata. Corrected hook_context_scope2/2 .55s, owning legal bindings1/1 1.32s; unchanged sibling2 pass reused. Production unchanged from565; whole passed prefix reused and remaining current checks/strict lint due. Reviewed original portable full-context Dev workflow now passes1/1 66466.99ms at a0c32979, including real late staged-Audit rollback and saved receipt replay;58/67/nine and precise holds unchanged.",
-    "strict_source_tuple": "Owner reports strict all-target Clippy on frozen44535ef9 exit0 in1m15s. Whole remaining corrected/unrun suffix continues; subsequent active app_url changes require their own affected validation. This result is not whole-plan acceptance."
+    "strict_source_tuple": "Owner reports strict all-target Clippy on frozen44535ef9 exit0 in1m15s. Whole remaining corrected/unrun suffix continues; subsequent active app_url changes require their own affected validation. This result is not whole-plan acceptance.",
+    "readonly_update_before": {
+      "state": "source_and_native_owning_update_profile_qualified",
+      "outcome": "Checked update hooks now read exact readonly event.before business leaves/id/version using the original trigger operation and existing model/type checks; create/delete/nullable shells/unknown/transitive/metadata writes remain refused. Actual CLI/native owning consumer captures original state/id/version while ordered after adjustments proceed; all13 guards, staged Audit/history/canonical receipt/fence, late rejection rollback and no-execution success/failure replay pass. Stored domain int correctly remains wire text; metadata version remains numeric. Owning hook profile11 (.52s), policy producer4 (.28s), rule profile6 (.01s), scope2 (.68s), codegen121 (.33s) and native6 (unchanged5 plus corrected positive1/1 1.10s) pass. Existing operation-result metadata witness now asserts exact stored Email/Email[]/Timezone and preserves their unsupported public input/result profile:3 pass (sibling2 plus corrected1/1 .92s).153 affected outcomes, fmt/diff0; current whole continuation and strict pending. Full Maintain still needs complete model closure/parent/pure calls/hook emit/schedule owner contracts; no broad admission.58/67/nine and all precise holds unchanged."
+    }
   }
 }

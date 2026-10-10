@@ -24,6 +24,16 @@ fn authored_hook_crud_preserves_core_typed_context_and_defaults() {
     run_native_hook_case("contextual_core");
 }
 
+#[test]
+fn authored_update_hook_keeps_native_before_stable_through_adjustments_and_replay() {
+    run_native_hook_case("before_positive");
+}
+
+#[test]
+fn authored_update_hook_before_capture_rolls_back_late_rejection_and_replays() {
+    run_native_hook_case("before_rollback");
+}
+
 fn run_native_hook_case(case: &str) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
@@ -49,6 +59,18 @@ fn run_native_hook_case(case: &str) {
             .replace(",actor_email:email", "")
             .replace(",team_timezone=team.timezone", "")
             .replace(",actor_email=actor.email", "")
+    } else {
+        source
+    };
+    let source = if matches!(case, "before_positive" | "before_rollback") {
+        // The original ordered candidate/staging workflow remains intact; its
+        // update-only snapshot reads use the real native before projection.
+        source
+            .replace("Audit {note:text,", "Audit {note:text,before_state:text,before_id:text,before_version:int,")
+            .replace("require event.after.version==2", "require event.after.version==2\n   require event.before.state==\"initial\"\n   require event.before.id==event.after.id\n   require event.before.version==1\n   require event.before.accept")
+            .replace("create Audit {note=event.after.state}", "create Audit {note=event.after.state,before_state=event.before.state,before_id=event.before.id,before_version=event.before.version}")
+            .replace("require event.after.state==\"first\"", "require event.after.state==\"first\"\n   require event.before.state==\"initial\"")
+            .replace("require event.after.state==\"second\"", "require event.after.state==\"second\"\n   require event.before.state==\"initial\"\n   require event.before.version==1")
     } else {
         source
     };
@@ -158,12 +180,13 @@ async function snapshot(){
   auditHistory:await store.historyFor(asModel(auditModel),asId(stagedId))};
 }
 const before=await snapshot();assert.equal(before.audit,null);assert.deepEqual(before.auditHistory,[]);
-if(process.argv[3]==='rollback'){
+const beforeCase=['before_positive','before_rollback'].includes(process.argv[3]);
+if(['rollback','before_rollback'].includes(process.argv[3])){
 const failed=await invoke(operation,{record:{id,version:'1'},state:'proposed',accept:false});
 const failedRequest=lastRequest;
 assert.ok('error' in failed,JSON.stringify(failed));
 assert.equal(failed.error.code,'rule_failed');
-assert.deepEqual(checks.map(check=>check.condition),[true,true,true,true,true,false],
+assert.deepEqual(checks.map(check=>check.condition),[...Array(beforeCase?12:5).fill(true),false],
  'native guards see readonly identity/version and both ordered adjustments before the late refusal');
 const after=await snapshot();
 assert.deepEqual(after.entry,before.entry,'late refusal preserves Entry data and version');
@@ -190,7 +213,7 @@ const positiveBatchCount=batches.length;
 const succeeded=await invoke(operation,{record:{id,version:'1'},state:'proposed',accept:true});
 const successRequest=lastRequest;
 committed(succeeded);
-assert.deepEqual(checks.map(check=>check.condition),[true,true,true,true,true,true]);
+assert.deepEqual(checks.map(check=>check.condition),Array(beforeCase?13:6).fill(true));
 const final=await snapshot();
 assert.equal(final.revision,before.revision+1,'one fenced positive commit');
 assert.equal(batches.length,positiveBatchCount+1);
@@ -211,7 +234,14 @@ if(['contextual','contextual_core'].includes(process.argv[3])){
  assert.equal(final.audit.data.explicit_at,final.audit.data.at,
   'typed Datetime now and omitted State server=now agree within the same live invocation');
 }else{
-assert.deepEqual(final.audit.data,{note:'first',author:{id:identity.actor.user_id},at:new Date(FIXED_NOW).toISOString()});
+assert.deepEqual(final.audit.data,{note:'first',author:{id:identity.actor.user_id},at:new Date(FIXED_NOW).toISOString(),
+ ...(beforeCase?{before_state:'initial',before_id:id,before_version:'1'}:{})});
+if(beforeCase){
+ assert.equal(final.audit.data.before_state,before.entry.data.state,'staged values retain immutable old state after candidate adjustment');
+ assert.equal(final.audit.data.before_id,before.entry.id);
+ assert.equal(BigInt(final.audit.data.before_version),BigInt(before.entry.version));
+ assert.equal(final.entry.data.state,'second');assert.equal(final.entry.version,2);
+}
 }
 for(const row of [final.entry,final.audit]){
  assert.equal(row.created,FIXED_NOW);assert.equal(row.updated,FIXED_NOW);

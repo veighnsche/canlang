@@ -334,6 +334,92 @@ fn checked_ordered_candidate_adjustments_and_staged_create_are_supported() {
 }
 
 #[test]
+fn checked_update_before_leaves_are_readonly_and_keep_exact_snapshot_types() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar};
+    let source = r#"app BeforeProfile
+Given
+ Entry {state:text,accept:bool,note:text?,phase:enum(draft,done)=draft}
+ Audit {old_state:text,old_id:text,old_version:int}
+ policy Entry read=members
+ policy Audit read=members
+When
+ crud Entry by=members fields=state,accept,note,phase
+ scenario adjust on=Entry.update
+  do
+   require event.before.state=="initial"
+   require event.before.id==event.after.id
+   require event.before.version+1==event.after.version
+   require event.before.accept
+   require event.before.note==null
+   require event.before.phase==draft
+   set event.after {state="first"}
+   require event.before.state=="initial"
+   create Audit {old_state=event.before.state,old_id=event.before.id,old_version=event.before.version} as audit
+   set event.after {state="second"}
+   require event.before.state=="initial"
+Then
+"#;
+    let (program, scenario) = contextual_hook(source, true);
+    let IrItemKind::Scenario { effects, .. } = &program.item(scenario).kind else {
+        panic!("hook");
+    };
+    let IrStmt::Require { cond, .. } = &effects[0] else {
+        panic!("before guard");
+    };
+    let IrExpr::Binary { left, .. } = &cond.expr else {
+        panic!("comparison");
+    };
+    assert_eq!(expression_path(left), ["event", "before", "state"]);
+    assert_eq!(left.ty, ResolvedType::Scalar(Scalar::Text));
+    let IrStmt::Create { input, .. } = &effects[8] else {
+        panic!("snapshot capture");
+    };
+    let IrExpr::Object(values) = &input.expr else {
+        panic!("capture values");
+    };
+    assert_eq!(
+        values
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>(),
+        ["old_state", "old_id", "old_version"]
+    );
+    for ((_, value), (field, ty)) in values.iter().zip([
+        ("state", Scalar::Text),
+        ("id", Scalar::Text),
+        ("version", Scalar::Int),
+    ]) {
+        assert_eq!(expression_path(value), ["event", "before", field]);
+        assert_eq!(value.ty, ResolvedType::Scalar(ty));
+    }
+}
+
+#[test]
+fn checked_before_paths_preserve_create_delete_nullable_unknown_and_write_refusals() {
+    let original = include_str!("fixtures/hook_order_rollback.can");
+    for source in [
+        // Valid source, but create's bare null side is outside this update-leaf profile.
+        original.replace("on=Entry.update", "on=Entry.create")
+            .replace("require event.after.accept", "require event.before==null"),
+        original.replace("on=Entry.update", "on=Entry.delete")
+            .replace("   require event.after.state==\"proposed\"\n   set event.after {state=\"first\"}\n   create Audit {note=event.after.state} as audit\n   require event.after.state==\"first\"\n   set event.after {state=\"second\"}\n   require event.after.state==\"second\"\n   require event.after.accept", "   require event.before.accept"),
+        original.replace("Entry {state:text,accept:bool}", "Entry {state:text,accept:bool,note:text?}")
+            .replace("require event.after.accept", "let unsupported=event.before.note.length"),
+        original.replace("require event.after.accept", "let unknown=event.before.missing"),
+        original.replace("require event.after.accept", "set event.before {state=\"changed\"}"),
+        original.replace("require event.after.accept", "set event.before {version=2}"),
+        original.replace("require event.after.accept", "let transitive=event.before.parent"),
+        original.replace("on=Entry.update", "on=Entry.create")
+            .replace("require event.after.accept", "require event.before.accept"),
+    ] {
+        let (program, scenario) = hook(&source, false);
+        assert!(!local_hook_supported(&program, scenario), "{source}");
+        let output = js::emit_program(&program);
+        assert!(output.model_policies.is_none(), "refused source publishes no partial policy claim: {source}");
+    }
+}
+
+#[test]
 fn checked_candidate_identity_and_native_version_are_readonly_supported_leaves() {
     let source = include_str!("fixtures/hook_order_rollback.can").replace(
         "   require event.after.accept",
