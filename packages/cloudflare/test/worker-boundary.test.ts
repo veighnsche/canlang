@@ -34,12 +34,14 @@ function importSpecifier(line: string): string | undefined {
 }
 
 function isPortableAssemblyImport(file: string, line: string): boolean {
-  if (file !== "src/dev/example-runner.ts" || importSpecifier(line) !== "../worker/assembly.js") return false;
+  if (importSpecifier(line) !== "../worker/assembly.js") return false;
   const bindings = /^import\s+\{([^}]+)\}\s+from\s/u.exec(line)?.[1];
   if (bindings === undefined) return false;
   // Published portable invocation/storage constructors; the serving worker
   // entry and main, wildcard imports and other assembly exports stay barred.
-  const allowed = new Set(["buildInvoker", "createTeamOwnerStorageBoundary", "type TeamOwnerStorageBoundary"]);
+  const allowed = file === "src/dev/example-runner.ts"
+    ? new Set(["buildInvoker", "createTeamOwnerStorageBoundary", "type TeamOwnerStorageBoundary"])
+    : file === "src/dev/file-retirement.ts" ? new Set(["createTeamOwnerStorageBoundary"]) : new Set<string>();
   return bindings.split(",").every(binding => allowed.has(binding.trim().split(/\s+as\s+/u)[0]!));
 }
 
@@ -107,6 +109,30 @@ describe("worker bundle boundary", () => {
   });
 
   it("keeps Node hosts out of Worker serving entries while retaining the portable assembly contract", () => {
+    const retirementFile = "src/dev/file-retirement.ts";
+    expect(isPortableAssemblyImport(retirementFile,
+      "import { createTeamOwnerStorageBoundary } from '../worker/assembly.js'")).toBe(true);
+    expect(isPortableAssemblyImport(retirementFile,
+      "import { createTeamOwnerStorageBoundary as createBoundary } from '../worker/assembly.js';")).toBe(true);
+    expect(isPortableAssemblyImport("src/dev/example-runner.ts",
+      "import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from '../worker/assembly.js';")).toBe(true);
+    for (const line of [
+      "import { buildInvoker } from '../worker/assembly.js';",
+      "import { createTeamOwnerStorageBoundary, buildInvoker } from '../worker/assembly.js';",
+      "import { type TeamOwnerStorageBoundary } from '../worker/assembly.js';",
+      "import { assembleWorker } from '../worker/assembly.js';",
+      "import * as assembly from '../worker/assembly.js';",
+      "import assembly from '../worker/assembly.js';",
+      "import '../worker/assembly.js';",
+      "import { createTeamOwnerStorageBoundary } from '../worker/entry.js';",
+      "import { createTeamOwnerStorageBoundary } from '../worker/main.js';",
+      "import { createTeamOwnerStorageBoundary } from '@canlang/cloudflare/worker/assembly';",
+      "export { createTeamOwnerStorageBoundary } from '../worker/assembly.js';",
+    ]) expect(isPortableAssemblyImport(retirementFile, line), line).toBe(false);
+    expect(isPortableAssemblyImport("src/dev/other.ts",
+      "import { createTeamOwnerStorageBoundary } from '../worker/assembly.js';")).toBe(false);
+    expect(isPortableAssemblyImport("src/dev/example-runner.ts",
+      "import { assembleWorker } from '../worker/assembly.js';")).toBe(false);
     const manifest = JSON.parse(readSource("package.json")) as {
       exports: Record<string, { default?: string }>;
     };
