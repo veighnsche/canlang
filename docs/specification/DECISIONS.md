@@ -7214,6 +7214,57 @@ The released State census is complete bounded evidence, not atomic deletion auth
 
 Independent and manual finite review is CLEAR for the exact declared standard event source/type/body/example/effect join. Reuse the owning actual44 affected checks and current whole1422/138 targets with required real engines, zero failures/ignored/filtered/bodySKIP, strict Clippy/fmt0. Original25/catalog71 to69 removes only two Invoice findings; Inbox retains the newly exposed nominal comparison/opaque DatetimeValue refusals. Complete source witnesses, runtime E6008, full-plan counts and recipient-specific holds remain. This validates preceding standard completion and required File source units; it does not admit native terminal/event transport or close whole plans. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
+
+### 2026-10-10 — preserve Refer inputs under closed builtin naming (unfinished)
+
+Rename only the assigned nonexported join scenario to join_program and its actual button/comment/spec consumer. This accepted authoring correction preserves closed builtin join, verified actor email, active program, absence of an existing own Advocate, unique code and original creation/evaluation order. Original25/catalog69→65 clears only its four redeclaration/input-scope findings with no additions, matching current hashes and no artifact. Isolated Refer79→75 and all52 corpus rows/full assertions qualify1/1 in3.30s;51 other expectations stay unchanged. Reuse the preceding unchanged compiler production whole1422/138 and strict lint1m02s/fmt0. Source qualification is separate from coordinator intake and original native application acceptance. Maintain original-business cancellation attribution needs exact hook-context/identity ownership; do not replace it with trusted-null or arbitrary user input. Nine full references and precise holds remain; local only.
+
+
+### 2026-10-10 — retain Propose held enum identity (unfinished)
+
+Rename only the assigned nonexported held callback to hold_result. Accepted lexical-first lookup then leaves stored held cases available without altering the callback source, correlations, monotonic version/deadline guards, permissions, effect order or examples. Original25/catalog65→56 clears only seven E3001/two E3002 captures, with matching current hashes and no artifact; isolated Propose127→118 and all52 corpus rows/full assertions qualify1/1 in5.37s,51 other expectations unchanged. Reuse prior Refer and unchanged compiler whole1422/138/strict lint1m02s. No native completion routing or whole application/reference acceptance follows. Leave request input renaming is withdrawn: its admitted named model-fixture input and observation consumer require exact binding-aware Compiler alignment under existing lexical/fixture rules, with precise BDD3 and separate S9-Q07 holds preserved. Local only.
+
+### 2026-10-10 — manual local integration of 01245cd2
+
+Manually reviewed exact draft c97f4098 (including reviewed f887678f): CanRefer private join_program and its sole action/spec references preserve guards/inputs/create/order; CanPropose changes only the private callback name to hold_result, preserving its on binding, complete body and every held case. No public export or generated mjs change. Reuse actual original25/catalog69 to65 to56, complete/current witnesses with no added diagnostics or artifact; owning all52 corpus assertions pass at3.30s and5.37s, only Refer79 to75 and Propose127 to118 change. Unchanged Compiler1422/138 and strict outcomes remain valid at their recorded production source scope, with no new native original-application claim. Datetime/example-channel joins and every precise hold remain separate. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — route checked lexical inputs separately from example wire overrides
+
+Coordinator accepted the finite optional selectorChannels contract: a dense selector-aligned input/request/caller array emitted from Compiler checked lexical identities. Testkit applies input paths to operation inputs, request paths to the separate wire envelope and caller only to as; it never derives the checked channel from mutable input shape. Validate own metadata and exact arity/known entries/channel correspondence before closures, and copy/freeze selectors and channels before asynchronous evaluation. Reject a contradictory lexical request plus wire request channel in one table. Metadata absence deliberately preserves old producer routing. A whole declared request value supplied by a row cell may create its input root; fixture-field materialization retains the original baseline identity and current prepared fixture, with no blanket missing-root admission rule. Forward channels to the existing host materializer; preserve caller/actor, input-cell arity, unsafe-path refusals, clone semantics and separate wire overrides.
+
+Changed owning Testkit emission0 and the two affected existing suites37/37 pass with zero failures/skips in620ms. Finite independent source review is CLEAR. These qualify the finite Testkit consumer and deliberate legacy compatibility, not Compiler generated/native or Dev current-host adoption. Compiler owns declaration-derived analysis/IR/BDD emission and actual source-to-native qualification; Dev owns only matching CF prepareRowCells channel forwarding/input filter. Full DEL-E02 and all precise native-preparation/backend/timezone/retirement/publication/security holds remain unchanged. No duplicate proof documents or unchanged check reruns.
+
+### 2026-10-10 — manual local integration of ecc46d57
+
+Finite Testkit selector-channel reader/router and fixture/caller consumer review is CLEAR. Reuse owning tsc0 and37 affected checks covering dense own metadata, arity and contradictions, copied frozen routing across awaits, whole lexical request creation, fixture identity, caller and wire separation, unsafe paths and deliberate legacy behavior when metadata is absent. Exact Compiler emission and Dev materializer/native producer-consumer qualification remain pending; no authority, policy, held preparation or whole-plan acceptance follows. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — map only the released DatetimeValue representation (unfinished)
+
+Consume the exact released Contracts/Values frozen bigint DatetimeValue facade as
+the existing datetime scalar. This narrowly supersedes the earlier opaque leaf
+decision; WorkflowField and unknown named leaves remain opaque. No Object/Opaque
+compatibility or whole-message comparison is introduced. Actual emitted
+IncomingEmail.received input and typed equality pass the installed Cloudflare/
+State Memory consumer1/1 in1.16s: constructor offset normalization, canonical
+millisecond-Z wire, inclusive0001..9999 range, malformed/noncanonical/range/type/
+null refusals and preserved enum/receipt controls. isDatetime remains a shape
+guard, not range/provenance admission. Unknown WorkflowInspection.fields is
+ArrayOpaque and real CLI E6008 publishes no modules; text/duration comparison
+refuses E3002.
+
+Affected355 distinct checks pass; only Inbox43→41 changes in the all52/full-
+assertion corpus,51 other pins retained. Finite independent review is CLEAR.
+Corrected test assumptions use the real CLI publication stage and actual
+input.field.kind rather than an invented valueType. Current changed whole/lint
+and original25 recomputation follow the related checked-selector unit; prior
+frozen1422/138 is historical for this new production change. Whole IncomingEmail
+identity/equality, verified native ingress,58/67/nine references and precise
+BDD3/Task22 holds remain unfinished. Local commits only.
+
+### 2026-10-10 — manual local integration of d26442ca
+
+Finite independent and manual review is CLEAR for exact DatetimeValue scalar-leaf correspondence and the actual generated-source CF/State Memory consumer. Reuse355 distinct affected passing checks and final native1/1 at1.16s; no generic Object/Opaque widening and WorkflowField/std-ingress E6008 refusals remain. Inbox43 to41 corpus is qualified; original25 recomputation and changed whole/lint remain pending with the related checked-selector unit, so historical1422/138 is not current-head acceptance. Full-plan counts and recipient-specific holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 ### 2026-10-10 — original retained outbox inside issued State stage (unfinished completion join)
 
 Expose readSystemCommandRetainedOutbox through the existing State root/ports surfaces and private registry stage ledger. Reuse actual owner-local outboxGet, including original publication provenance after acknowledgement, with tracked read lifetime and the original commit revision. Preserve SystemCommandContext's exact five-key shape so existing genuine canonical-send seals remain valid; no new raw storage handle or source/provider grant. Copied/foreign/closed contexts, caught provenance failure, pending reads and fence drift refuse. Owning State clean emit and25 affected system tests pass106.78ms with zero fail/cancel/skip; unchanged imports/boundaries and File/other State outcomes are reused. Actual Work terminal/source/correlation/all-handler consumption is next; Compiler checked executable standard projection/private admission and Dev real native loader remain unreleased, independently of analysis-stage1422/138/strict0. No provider mounting, full-workflow acceptance or hold change.
@@ -7225,3 +7276,61 @@ Use installed immutable Work wiring over the genuine State original-stage reader
 All ordinary routes, complete frozen cohorts, first children and consumption receipt share the original expectedRevision commit. Full rows are detached and bounded identically at creation/replay; replay checks original inventory, allows later progress and never queries fresh membership. Overflow, copied/closed contexts, partial/colliding effects and fence races refuse atomically. Export through existing commands/root only. Installed source/schema/model/scope/declarations do not establish Compiler correspondence, current native owner/source authority or authenticated ingress. Executable projection/private nested nullable admission stays E6008-blocked; Dev owns actual loaded correspondence and enrollment.
 
 Work emission passes; five real producer groups pass1020.07ms and added generic Email1/1 passes257.92ms, reusing five unchanged outcomes. Six cases have zero failure/cancellation/skip; boundaries13/938/1400/0 pass and State25/106.78ms is reused. Focused review's repeated-object codec and replay-budget defects were corrected before tests. Coordinator finite acceptance remains pending. Preserve complete workflows, named dependencies and all human holds; no publication/provider activation follows.
+
+### 2026-10-10 — manual local integration of 3000bc8c
+
+Finite independent and manual review CLEAR for original retained outbox access through the private actual stage ledger and existing tracked owner-store outboxGet. Reuse owning State clean emission and25 affected checks106.78ms, zero failures/skips. Five-key context/canonical-send shape, copied/foreign/closed/pending reader refusal, original revision commit fence and retained publication facts remain. This releases a State source prerequisite only; Work issuer, checked Compiler executable projection, Dev native intake and real provider authentication/correlation remain unfinished. Included physical deletion prerequisite is an observed absent cross-store authority, not a wrapper or runtime acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — select durable retirement for cross-store File deletion (unfinished)
+
+Select permanent retirement admission in the authoritative State owner while
+preserving the actual D1 State plus separate `files.sqlite` topology. A common
+transaction would require an unreleased backend/topology change; a revision
+observation, single attachment marker or process-local mutex cannot protect
+physical deletion. The current profile remains unsupported for shared-reference
+physical deletion until the named primitives below are implemented and qualified.
+
+Capability State owns publication of genuine persistent retirement identity at
+the same atomic fence as the complete canonical reference census's original
+revision and installed declaration correspondence. Every reference-changing
+`StoragePort.commit` and `publishMigrationChunk` must honor the barrier at its
+actual storage commit; previously staged migration rows must recheck it when
+published. `flipInstalledSnapshot` must establish that activation cannot
+reinterpret existing values into retired File references, or refuse. The census
+includes nested, collection, optional/nullable and archived occurrences. Legacy
+writers lacking the checked profile cannot bypass the guard. A racing writer
+either wins first and invalidates the original census, or loses to retirement
+without partial effects. Retry preserves the original durable decision; retirement
+does not expire or reopen. Existing retention policy still determines eligibility.
+
+Packages owns the shared/Files consumer after State's exact producer release:
+authenticate the persisted issuer after reopen, bind app/team/State owner to the
+trusted physical Files receiver/store and immutable original File identity,
+then persist terminal metadata plus delete bytes in the existing Files
+transaction. Copied DTOs and process-local observation handles prove no durable
+issuance. Wrong-store, altered or stale physical correspondence refuses before
+effects. A crash after State retirement resumes idempotent cleanup with the
+admission barrier closed. Dev owns complete writer/deleter participation, exact
+physical owner routing and genuine D1/SQLite contention/interruption/reopen
+qualification. All reference writers for a physical File must resolve to the
+same authoritative State store; another owner pin or copied database cannot
+substitute for its durable issuer. A profile spanning additional State stores
+remains unsupported without admission atomic with every affected commit. No
+unnamed deployment worker supplies the primitive. This does not promise revocation of detached bytes or atomic return-time disclosure.
+
+The human approved three exact topology/deletion Choice payloads to TypeSafe;
+each completed once with JEV1.13.0. All selected durable retirement with probability
+0.99/0.88/1.0 and confidence0.98/0.82/1.0, without rationale. Advice supports the
+direction, not implementation acceptance. Two finite independent source reviews
+identified required migration, activation, legacy, scope and reopened-issuer
+coverage; these remain named prerequisites in existing TECH-F02 records. No
+runtime API or producer is fabricated and unchanged checks are reused. The
+authenticated provider namespace/key/age and durable occurrence/original
+delivery/digest/operation/receiving-effect contract remains separately unreleased.
+All parent statuses and precise holds remain unchanged; manual integration pending.
+
+### 2026-10-10 — manual local integration of b5ca7781
+
+Finite independent and manual review CLEAR for the necessary TECH-F02 durable retirement direction. Preserve D1 plus separate files.sqlite and explicitly unsupported current shared-reference deletion. Capability State must release persisted retirement at the same atomic census/original revision/installed declaration fence and guard every writer, pre-staged migration publication and schema activation. Packages consumes authentic reopened issuer and immutable physical identity in terminal Files metadata/bytes transaction; Dev owns same-authoritative-store routing and genuine contention/interruption/reopen checks. Three preauthorized Jev calls are completed advice, not runtime acceptance. No runtime checks repeated, new API fabricated, provider activation or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Worker intake of exact1c4eadf1 onto unfinished Workdc7e6ce1 preserves both append histories and actual draft checkout. Full staged-tree/both-parent registration since824934 is2004commits/10883net/11427history/513history-only/9380pending, with two new Work paths; direct consistency retains every prior allocation tuple, owner/scope/retirement/task,79features/30leaves and unadvanced complete checkpoint. Reuse unchanged finite results. Packages owns the pending exact common state.ts/files.ts retirement/declaration/physical identity contract; State must not fabricate it while preparing the backend/migration/activation producer. Files consumer and actual Dev owner topology remain separate. All human holds persist.

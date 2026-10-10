@@ -3,7 +3,7 @@
 
 use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog, nominal_schema};
 use canlang_compiler::analysis::check_program;
-use canlang_compiler::analysis::types::ResolvedType;
+use canlang_compiler::analysis::types::{ResolvedType, Scalar};
 use canlang_compiler::codegen::ir::{self, IrItemKind, IrType};
 use canlang_compiler::source::{SourceDb, Span};
 use canlang_compiler::syntax::cst::SyntaxKind;
@@ -83,7 +83,63 @@ fn std_nominal_field_reuse_preserves_delivery_status_enum_and_native_inputs() {
     assert!(
         matches!(&copy.kind, IrItemKind::DeriveFn { result:IrType::Known(ResolvedType::Enum { cases: actual, .. }), .. } if actual == &cases)
     );
+    assert_eq!(
+        nominal_schema("IncomingEmail").unwrap().fields.last(),
+        Some(&("received", "DatetimeValue"))
+    );
+    let received = checked
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "NominalFieldReuse.received_equal")
+        .unwrap();
+    let parameter = checked.effects.scenarios[&received.id].params[0].param;
+    assert_eq!(
+        checked.types.symbol_types[&parameter],
+        ResolvedType::Scalar(Scalar::Datetime)
+    );
+    let received_copy = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "NominalFieldReuse.received_copy")
+        .unwrap();
+    assert!(matches!(
+        &received_copy.kind,
+        IrItemKind::DeriveFn {
+            result: IrType::Known(ResolvedType::Scalar(Scalar::Datetime)),
+            ..
+        }
+    ));
 
+    // Source refusals stay typed; the released datetime join admits no text/duration cast.
+    for replacement in ["\"2026-10-01T00:00:00Z\"", "1h"] {
+        let invalid = source.replace(
+            "received==datetime(\"2026-10-01T00:00:00Z\")",
+            &format!("received=={replacement}"),
+        );
+        let mut invalid_db = SourceDb::new();
+        let invalid_id = invalid_db.add("invalid-datetime.can".into(), invalid);
+        let (_, diagnostics) = check_program(&invalid_db, &[invalid_id], catalog.as_ref());
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E3002"),
+            "{diagnostics:?}"
+        );
+    }
+    let opaque = "app OpaqueLeaf\nuse std {WorkflowInspection}\nGiven\nWhen\n scenario accept(value:WorkflowInspection.fields) -> bool by=members\n  do return true\nThen\n";
+    let mut opaque_db = SourceDb::new();
+    let opaque_id = opaque_db.add("opaque-leaf.can".into(), opaque.into());
+    let (opaque_checked, diagnostics) = check_program(&opaque_db, &[opaque_id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let accept = opaque_checked
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "OpaqueLeaf.accept")
+        .unwrap();
+    let parameter = opaque_checked.effects.scenarios[&accept.id].params[0].param;
+    assert!(matches!(&opaque_checked.types.symbol_types[&parameter],
+        ResolvedType::Array { element, .. }
+        if matches!(element.as_ref(), ResolvedType::Opaque(_))));
     let compile = |path: &Path| {
         Command::new(env!("CARGO_BIN_EXE_can"))
             .args(["compile", "--format=json", "--catalog"])
@@ -93,6 +149,19 @@ fn std_nominal_field_reuse_preserves_delivery_status_enum_and_native_inputs() {
             .output()
             .unwrap()
     };
+    let opaque_input = scratch.path().join("opaque-leaf.can");
+    std::fs::write(&opaque_input, opaque).unwrap();
+    let refused = compile(&opaque_input);
+    assert_eq!(refused.status.code(), Some(10));
+    let response: serde_json::Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert!(
+        response["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008")
+    );
+    assert!(response.get("modules").is_none());
     let compiled = compile(&input);
     assert!(
         compiled.status.success(),
