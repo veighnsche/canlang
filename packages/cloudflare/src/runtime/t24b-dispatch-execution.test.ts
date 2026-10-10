@@ -212,6 +212,8 @@ describe("t24b worker assembly: dispatch command composition", () => {
         "schedule.cancel",
         "schedule.replace",
         "work.dispatch.claim",
+        "work.dispatch.stop-pending",
+        "work.dispatch.pin-image-control",
         "work.dispatch.record-attempt",
         "work.dispatch.requeue",
         "work.dispatch.release",
@@ -224,7 +226,7 @@ describe("t24b worker assembly: dispatch command composition", () => {
         "work.dispatch.recover",
       ],
     );
-    assert.equal(composed.length, 14);
+    assert.equal(composed.length, 16);
     assert.ok(Object.isFrozen(composed));
   });
 

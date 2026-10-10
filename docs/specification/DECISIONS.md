@@ -5639,3 +5639,70 @@ The actual private CLI/Unix component and owning card tests pass28/28, including
 Consume the real Work async kernel through an explicit paired evaluator and lexical input port, forwarding its exact private execution. Pin authority/kernel/evaluator before awaits, load held-row attempt/occurrence facts through owning Work, preserve trigger-origin versus operator-run identity, and refuse a moved physical checkpoint before skip/provider handling. Preserve synchronous behavior and refuse guarded Generation cleanup/recovery lacking its separate execution lifetime. No provider payload becomes lexical capture.
 
 Six new/eight actual async attempts pass; full affected Node result is76/78, with actual Work composition and own-boolean marker expectations assigned to Packages for shared repair. Existing native Email/D1/DO7/7, final clean CF emission, root noEmit and boundaries13/903/1279/zero pass. Owning native rebuild8.92s passes;21 dependency emissions are reused after fixing the changed CF item shape from the genuine Work row. This is explicitly unfinished: the existing physical claim precedes runFenceGate, while native membership/when must execute before claim. State/Work own the missing eligibility/original-guard-checkpoint/evidence-to-authoritative-commit port; no copying of eligibility rules or claim-first source acceptance is permitted. Defining native source/frozen-input/current-reader joins, G2/G3 and exact holds remain open.
+## 2026-10-10 — refuse unjoined async dispatch guards before publication (unfinished)
+
+Awaited derived expressions cannot appear in synchronous `when:()=>...` callbacks.
+Refuse E6008/no modules until the real live dispatch observer and frozen lexical
+transport exist; preserve admitted source and ordinary synchronous callback
+behavior. Actual CLI/refusal/executed binding3/3 and codegen121 pass. Do not hoist
+membership reads or accept Promises as booleans. Compiler's eventual lazy capture
+producer and State/Dev dispatch lifetime are prerequisites; no broader hold or
+Task22 lookup release is implied.
+
+
+## 2026-10-10 — join nominal model references to emitted inventory (unfinished native query)
+
+Admit an ordinary contract model leaf only through its exact checked Model
+SymbolId and canonical name in the actual emitted model inventory. Keep nominal
+contract fixed-point closure and existing unsupported wrappers; reference leaves
+do not copy model row schemas or confer existence/version/authority evidence.
+Use released Values normalization with actual same-load model names. Actual CLI/
+installed consumer4/4 and independent finite review pass; nullable/ordered arrays
+and wire/native version behavior remain owning codec semantics. Same-load loader
+and original native query/result provenance qualification remain separate.
+
+
+### 2026-10-10 — observe membership in its active owner execution (unfinished source join)
+
+Bind Compiler v1 occurrence metadata through the existing checked callable/source loader, then require Dev's freshly consumed native arguments and Invoke's private current Identity reader at each actual active_member expression. A source occurrence is reusable; each runtime evaluation captures a new exact Values user and verified Team pair. Actual leading/body REQUIRE and active query candidate lifetimes share the enclosing owner/checkpoint. Positive and negative membership Bool comparisons enter the private outer guard ledger independently of executor effects and trusted admission. Unknown provenance/status, stale or concurrent execution and caught misuse poison the owner; later SEND cannot reuse this API.
+
+State clean emission and35 defining membership plus22 call/24 query Node tests pass81/81; the query suite still covers29 controls through its multi-mode Fact case. Reuse unchanged legacy46. This accepts no Compiler/Dev/native source behavior, saved-result membership closure or StateRead gate expansion. Separate dispatch qualification uses its own live Work execution/current service-owner Team.
+
+
+### 2026-10-10 — bind deferred membership to its own Work execution (unfinished native join)
+
+Use a definition-bound State producer with Work's literal live-handle and enrollment ports; open once at actual guard entry and retain that execution privately in the observer closure. Consume each actually evaluated native user/Team pair once before await. Match the exact freshly resolved source-owner Identity Team to the Work checkpoint; an actor-null service owner suffices for this membership tuple and grants no deferred caller identity. Compare both positive and negative observations using privately retained reader/pair/checkpoint after Work closes the handle. Caught malformed inputs, copied source handles, changed Teams, failed readers and pending/concurrent observations refuse before skip or claim; source guards are not replayed.
+
+State/Work clean emissions and25/25 actual MemoryStorage/Work port checks pass with explicitly fixture Identity/native adapters. Reuse unchanged Work20 and State81. Dev's production won-claim admission/native lexical/capture join and Compiler source closure/emission remain necessary; saved-result membership closure and StateRead/pure/default/when activation stay proposed. Component checks do not solve cross-store atomicity or qualify the original application.
+
+
+## 2026-10-10 — serialize qualified decision source facts (unfinished runtime transport)
+
+Convert only the real qualified source/IR consumer output to the existing
+version1 site vocabulary. Preserve exact canonical identities, sources, offsets,
+stages/positions, argument order, slots, defaults and frames; use bounded fallible
+existing type IDs, including user and Team. Literal default module metadata must
+join the original checked module even without a nested call. Owning6/6 validates
+actual JSON and skew refusals. This is internal structural transport, without
+artifact registration, runtime private issuance, effect admission or authority.
+
+
+### 2026-10-10 — intake released decision and bounded-ref prerequisites (unfinished consumers)
+
+Intake exact reviewed LOCAL2430 onto coherent451102c1, preserving both parent decisions and source ownership. Use Packagesd559 canonical array/nullable/min/max and ordered generic PendingRef `name/index` emission, Compiler e60/183 exact1..10/decision facts and released Worke100/3771 ports. State owns the actual current per-element original-version/checkpoint and InvocationRef encoding consumer; Dev owns private native element correspondence. Preserve repeated refs and current permissions; no generated distinctness or shared CI/validator rewrite. Contracts/State clean emissions pass; reuse finite owner20 and50/37/3/34 outcomes. Reconciliation1665commits/10824net/11368history/513history-only/9321pending registers four membership paths and preserves79featurepaths/30targetleaves. Complete824 checkpoint remains unadvanced; original workflows/native source gates remain open.
+
+The deferred membership producer binds once per distinct predicate within a checked scenario, rather than once for the entire scenario. Actual CanRent correspondence/CanCatch notify source demonstrates multiple guarded SEND occurrences; transitive membership in Workbench is separately evidenced, not an asserted combined native case. Keep per-binding private handles and refuse duplicate predicate binding. Changed State/Work clean emissions and dispatch membership26/26 pass, with no Compiler-v1 schema change or native predicate/source qualification. Unchanged20/81 results are reused.
+
+
+### 2026-10-10 — consume ordered owner reference arrays (unfinished native join)
+
+Remove the explicit owner-array refusal and use the released generic indexed PendingRefs with existing per-occurrence current-row/version/parent checkpoint loading. Preserve authored order and repetitions. Encode each frozen InvocationRef nominal reference against its selected owning model, retaining optional canonical versions and null containers; let the existing descriptor/generic producer apply version-required and length rules. No inferred distinctness or version requirement for an unversioned descriptor.
+
+State clean emission and final new29/29 pass107.15ms; reuse unchanged existing22/22 from the relevant initial run. Twenty new rollback assertions initially assumed no revision increment; corrected them to require the existing retained failure receipt's one increment while preserving all asserted domain rollback. Dev private native array/frame correspondence and original source/workflow qualification remain open.
+
+
+### 2026-10-10 — consume actual Team vocabulary and unique SEND occurrences (unfinished source join)
+
+Consume existing Compiler canonical `Team` in the active_member slot, refusing lowercase `team` without adding a Values primitive or schema. Retain exact owner/source/guard-node identity across all predicate bindings before issuing opaque occurrence handles. Predicate aliases or altered authored position cannot duplicate a physical SEND guard. Failed overlap leaves a legitimate distinct site bindable. Correct current producer comments to require membership observation before claim. State/Work clean emissions and affected35/35 plus27/27 pass; Compiler owns the sole actual DTO→installed checker check. Other unchanged outcomes are reused.
+
+Proposed durable membership disclosure must use existing scenario outcomes/child associations with Compiler-owned return/query/control/lazy closure and a defining membership dependency/observation family. Commit-only callGuards disappear durably and cannot certify saved dependencies. Original multi-subject privacy needs a coherent Identity fence: existing projection deliberately withholds authorityFacts.size>1. This remains a prerequisite, not acceptance through a single-subject fixture or repeated non-atomic reads. State's retention/reader/projection extension is blocked on those exact producer facts.

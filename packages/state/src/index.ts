@@ -144,6 +144,10 @@ export {
   type TransactionPort,
 } from './ports/index.js';
 export type { MembershipReader } from './policy/roles.js';
+export { bindScenarioDispatchMembershipProducer,
+  type ScenarioDispatchMembershipPorts, type ScenarioDispatchMembershipProducer,
+  type ScenarioDispatchMembershipExecution, type ScenarioDispatchMembershipHandle,
+} from './invocation/dispatch-membership.js';
 export type { PolicyTable } from './policy/grants.js';
 export type { OperationRegistry } from './invocation/registry.js';
 export type { ClockPort } from './invocation/context.js';
@@ -153,6 +157,8 @@ export {
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
+  bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembership,
+  type ScenarioReceiptMembershipProducer, type ScenarioReceiptMembershipSite, type ScenarioReceiptMembershipHandle,
   type ScenarioReceiptCallProducer, type ScenarioReceiptCallFrame,
   bindScenarioReceiptQueryProducer, executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency, bindScenarioReceiptQueryResult,
   type ScenarioReceiptQueryProducer, type ScenarioReceiptQueryResult, type ScenarioReceiptQuerySlot, type ScenarioReceiptQueryHandle,
