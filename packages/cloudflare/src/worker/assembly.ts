@@ -500,7 +500,7 @@ export type InterimKernelCreateOutcome =
 /** Mirror of `KernelAppendOutcome` (`packages/interfaces/src/ports.ts:285`). */
 export type InterimKernelAppendOutcome =
   | { readonly status: "appended"; readonly receivedBytes: number }
-  | { readonly status: "failed"; readonly reason: "foreign" | "closed" | "expired" | "oversized" };
+  | { readonly status: "failed"; readonly reason: "foreign" | "closed" | "expired" | "oversized" | "conflict" };
 
 /** Mirror of `KernelCompleteOutcome` (`packages/interfaces/src/ports.ts:289`). */
 export type InterimKernelCompleteOutcome =
@@ -530,6 +530,7 @@ export interface InterimFileKernel {
     intentId: string,
     caller: InterimUploadReceiver,
     chunk: Uint8Array,
+    expectedOffset: number,
   ): Promise<InterimKernelAppendOutcome>;
   complete(
     intentId: string,
