@@ -120,7 +120,7 @@ fn ordinary_schedule_uses_checked_declaring_package() {
     let scratch = tempfile::tempdir().unwrap();
     let mut source = "app Composed uses=[alpha,beta]\n".to_string();
     for owner in ["alpha", "beta"] {
-        source.push_str(&format!("package {owner}\n Given\n  Entry {{timer:text,due:datetime,title:text}}\n  policy Entry read=members\n  contract Packet {{message:text}}\n  contract UnsupportedPacket {{entry:Entry}}\n  event UnsupportedCompound {{plain:text,details:UnsupportedPacket}}\n  event Compound {{plain:text,details:Packet}}\n  event Due {{entry:Entry,note:text min=1 max=16 trim,tags:text[] max=3,count:int=17 min=0 max=20}}\n When\n  scenario compound on=Compound\n   do require event.details.message==\"Nested\"\n  scenario unsupported_compound on=UnsupportedCompound\n   do require true\n  scenario fire on=Due\n   do require event.entry.title==\"Authored\"\n  scenario arm(record:Entry) by=members\n   do schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n  scenario stop(record:Entry) by=members\n   do cancel record.timer\n  scenario later_failure(record:Entry) by=members\n   do\n    schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n    require false\n    cancel record.timer\n Then\n"));
+        source.push_str(&format!("package {owner}\n Given\n  Entry {{timer:text,due:datetime,title:text}}\n  policy Entry read=members\n  contract Packet {{message:text}}\n  contract UnsupportedPacket {{entry:Entry,address:email}}\n  event UnsupportedCompound {{plain:text,details:UnsupportedPacket}}\n  event Compound {{plain:text,details:Packet}}\n  event Due {{entry:Entry,note:text min=1 max=16 trim,tags:text[] max=3,count:int=17 min=0 max=20}}\n When\n  scenario compound on=Compound\n   do require event.details.message==\"Nested\"\n  scenario unsupported_compound on=UnsupportedCompound\n   do require true\n  scenario fire on=Due\n   do require event.entry.title==\"Authored\"\n  scenario arm(record:Entry) by=members\n   do schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n  scenario stop(record:Entry) by=members\n   do cancel record.timer\n  scenario later_failure(record:Entry) by=members\n   do\n    schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n    require false\n    cancel record.timer\n Then\n"));
     }
     let input = scratch.path().join("schedule.can");
     std::fs::write(&input, &source).unwrap();
@@ -239,7 +239,7 @@ for(const owner of ['alpha','beta']){
  trace.length=0;await callable(`${owner}.compound`)(context,{event:compoundPayload});
  assert.deepEqual(trace,[['check',true]]);
  assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].event,`${owner}.UnsupportedCompound`);
- assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].invocation,undefined,'model-containing contract omits the whole private descriptor');
+ assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].invocation,undefined,'unsupported email leaf omits the whole private descriptor');
  assert(!artifact.valueTypes.contracts.some(contract=>contract.name===`${owner}.UnsupportedPacket`));
  assert(!artifact.operations.some(operation=>operation.name===`${owner}.unsupported_compound`));
  assert(!artifact.operations.some(operation=>operation.name===`${owner}.compound`));

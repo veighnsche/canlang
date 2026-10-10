@@ -54,6 +54,7 @@ pub fn collect_decision_sources(
         return None;
     };
     let mut semantics = SemanticJoin {
+        program,
         actual: ir,
         expected: &fresh,
         nodes: 0,
@@ -270,7 +271,12 @@ impl Consumer<'_> {
         match &e.expr {
             IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                 for a in args {
-                    self.expression(a, chain, stack, site, matched, depth + 1)?;
+                    if let IrExpr::Lambda { body, .. } = &a.expr {
+                        collection_lambda(self.program, args, a)?;
+                        self.expression(body, chain, stack, site, matched, depth + 1)?;
+                    } else {
+                        self.expression(a, chain, stack, site, matched, depth + 1)?;
+                    }
                 }
                 let mut found = site.calls.iter().enumerate().filter(|(_, p)| {
                     self.same(p.node, e.span)
@@ -441,6 +447,28 @@ impl Consumer<'_> {
                     _ => return None,
                 }
             }
+            IrExpr::Query(query) => {
+                checked_query(self.program, query)?;
+                if let IrQueryDomain::Value { base, .. } = &query.domain {
+                    self.expression(base, chain, stack, site, matched, depth + 1)?;
+                }
+                for expression in [
+                    &query.parent,
+                    &query.where_pred,
+                    &query.limit,
+                    &query.archived,
+                    &query.select,
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    if let IrExpr::Lambda { body, .. } = &expression.expr {
+                        self.expression(body, chain, stack, site, matched, depth + 1)?;
+                    } else {
+                        self.expression(expression, chain, stack, site, matched, depth + 1)?;
+                    }
+                }
+            }
             IrExpr::Binary { left, right, .. } => {
                 self.expression(left, chain, stack, site, matched, depth + 1)?;
                 self.expression(right, chain, stack, site, matched, depth + 1)?;
@@ -476,6 +504,7 @@ impl Consumer<'_> {
 
 // Compare typed semantic structure against the original lowering, never text/debug output.
 struct SemanticJoin<'a> {
+    program: &'a CheckedProgram,
     actual: &'a IrProgram,
     expected: &'a IrProgram,
     nodes: usize,
@@ -551,7 +580,7 @@ impl SemanticJoin<'_> {
             }
             (IrExpr::Call { target: x, args: a }, IrExpr::Call { target: y, args: b }) => {
                 self.target(x, y, depth + 1, None)?;
-                self.expressions(a, b, depth + 1)?;
+                self.call_arguments(a, b, depth + 1)?;
             }
             (
                 IrExpr::BoundCall {
@@ -566,9 +595,88 @@ impl SemanticJoin<'_> {
                 },
             ) if s == t => {
                 self.target(x, y, depth + 1, Some(s))?;
-                self.expressions(a, b, depth + 1)?;
+                self.call_arguments(a, b, depth + 1)?;
             }
+            (IrExpr::Query(a), IrExpr::Query(b)) => self.query(a, b, depth + 1)?,
             _ => return None,
+        }
+        Some(())
+    }
+    fn call_arguments(&mut self, a: &[TypedExpr], b: &[TypedExpr], d: usize) -> Option<()> {
+        if a.len() != b.len() {
+            return None;
+        }
+        for (x, y) in a.iter().zip(b) {
+            match (&x.expr, &y.expr) {
+                (
+                    IrExpr::Lambda {
+                        param: p,
+                        body: xbody,
+                    },
+                    IrExpr::Lambda {
+                        param: q,
+                        body: ybody,
+                    },
+                ) if p == q && x.ty == y.ty && x.span == y.span => {
+                    collection_lambda(self.program, a, x)?;
+                    collection_lambda(self.program, b, y)?;
+                    self.expression(xbody, ybody, d)?;
+                }
+                _ => self.expression(x, y, d)?,
+            }
+        }
+        Some(())
+    }
+    fn query(&mut self, a: &IrQuery, b: &IrQuery, d: usize) -> Option<()> {
+        checked_query(self.program, a)?;
+        checked_query(self.program, b)?;
+        if a.source != b.source
+            || a.collection_call != b.collection_call
+            || a.where_async != b.where_async
+            || a.select_param != b.select_param
+            || a.order.len() != b.order.len()
+        {
+            return None;
+        }
+        for (x, y) in a.order.iter().zip(&b.order) {
+            if x.field != y.field || x.descending != y.descending {
+                return None;
+            }
+        }
+        match (&a.domain, &b.domain) {
+            (IrQueryDomain::Model(x), IrQueryDomain::Model(y)) if x == y => {}
+            (
+                IrQueryDomain::Value { base: x, alias: p },
+                IrQueryDomain::Value { base: y, alias: q },
+            ) if p == q => self.expression(x, y, d)?,
+            _ => return None,
+        }
+        for (x, y) in [
+            (&a.parent, &b.parent),
+            (&a.where_pred, &b.where_pred),
+            (&a.limit, &b.limit),
+            (&a.archived, &b.archived),
+            (&a.select, &b.select),
+        ] {
+            match (x, y) {
+                (None, None) => {}
+                (Some(x), Some(y)) => match (&x.expr, &y.expr) {
+                    (
+                        IrExpr::Lambda {
+                            param: p,
+                            body: xbody,
+                        },
+                        IrExpr::Lambda {
+                            param: q,
+                            body: ybody,
+                        },
+                    ) if p == q && x.ty == y.ty && x.span == y.span => {
+                        self.expression(xbody, ybody, d)?
+                    }
+                    _ => self.expression(x, y, d)?,
+                },
+                _ => return None,
+            }
         }
         Some(())
     }
@@ -1124,4 +1232,58 @@ fn serial_type(
         }
         _ => return None,
     })
+}
+
+fn checked_query(program: &CheckedProgram, query: &IrQuery) -> Option<()> {
+    let source = query.source.as_ref()?;
+    if program.types.checked_queries.get(&source.node) != Some(source) {
+        return None;
+    }
+    if let Some(call) = query.collection_call.as_ref()
+        && (program.types.checked_collection_calls.get(&call.node) != Some(call.as_ref())
+            || call.query != source.node)
+    {
+        return None;
+    }
+    Some(())
+}
+fn collection_lambda(
+    program: &CheckedProgram,
+    args: &[TypedExpr],
+    lambda: &TypedExpr,
+) -> Option<()> {
+    let IrExpr::Lambda { param, body } = &lambda.expr else {
+        return None;
+    };
+    let mut candidates = args.iter().filter_map(|arg| match &arg.expr {
+        IrExpr::Query(q) => q.collection_call.as_deref().map(|c| (q, c)),
+        _ => None,
+    });
+    let (query, call) = candidates.next()?;
+    if candidates.next().is_some() {
+        return None;
+    }
+    checked_query(program, query)?;
+    if !matches!(call.builtin.as_str(), "any" | "all") {
+        return None;
+    }
+    let predicate = call.predicate.as_ref()?;
+    let selected = program.types.selected_calls.get(&call.node)?;
+    let predicate_slot = selected.slots.get(1).copied().flatten()?;
+    if !std::ptr::eq(args.get(predicate_slot)?, lambda)
+        || selected.arguments.get(predicate_slot) != Some(&predicate.node)
+        || lambda.ty != predicate.ty
+        || body.ty != predicate.ty
+    {
+        return None;
+    }
+    let source = query.source.as_ref()?;
+    let clause = source.clauses.iter().find(|c| c.node == call.alias)?;
+    let crate::analysis::types::CheckedQueryClauseKind::As { name } = &clause.kind else {
+        return None;
+    };
+    if name != param {
+        return None;
+    }
+    Some(())
 }

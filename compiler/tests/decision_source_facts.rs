@@ -34,6 +34,288 @@ fn check(sources: &[(&str, &str)]) -> (SourceDb, CheckedProgram, Vec<Diagnostic>
 }
 
 #[test]
+fn imported_query_decisions_join_actual_query_collection_and_predicate_sources() {
+    use canlang_compiler::codegen::{
+        ir::{self, IrExpr, IrItemKind, IrQueryDomain, IrStmt},
+        scenario_decisions::{collect_decision_sources, serialize_decision_sources},
+    };
+    let source = "app QueryDecision\nuse employee {Employee,staff}\nGiven\nWhen\n scenario run(person:user) by=members\n  require staff(person)\n  do require count(Employee as e where e.active)>0\nThen\n";
+    let helper = "package employee\n Given\n  export Employee {user:user,active:bool=false,rank:int=0}\n  OtherEmployee {user:user,active:bool=false}\n  policy Employee read=members\n  policy OtherEmployee read=members\n  export derive staff(person:user):bool = any(Employee as e,abs(e.rank)>0 and e.user==person and e.active)\n When\n Then\n";
+    let (db, initial, diagnostics) =
+        check(&[("query-decision.can", source), ("employee.can", helper)]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(initial.checked_files()[0], 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, initial.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryDecision.run")
+        .unwrap()
+        .id;
+    let helper_id = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "employee.staff")
+        .unwrap()
+        .id;
+    let other_model = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "employee.OtherEmployee")
+        .unwrap()
+        .id;
+    let sites = collect_decision_sources(
+        &program,
+        &lowered,
+        &lowered.items[owner.0 as usize],
+        &db,
+        catalog.as_ref(),
+    )
+    .expect("actual pure query decisions retain source correspondence");
+    assert_eq!(sites.len(), 2);
+    assert_eq!(sites[0].stage, CheckedDecisionStage::LeadingRequire);
+    assert_eq!(sites[1].stage, CheckedDecisionStage::BodyRequire);
+    assert!(
+        matches!(sites[0].calls[0].target,CheckedDecisionCallTarget::DeriveFn(id) if id==helper_id)
+    );
+    let any = sites[0]
+        .calls
+        .iter()
+        .find(|call| matches!(&call.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="any"))
+        .unwrap();
+    assert_eq!(any.source.module, "employee");
+    assert_eq!(any.chain.len(), 1);
+    assert_eq!(any.chain[0].derive, helper_id);
+    assert_eq!(any.slots, vec![Some(0), Some(1)]);
+    let predicate_call = sites[0]
+        .calls
+        .iter()
+        .find(|call| matches!(&call.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="abs"))
+        .unwrap();
+    assert_eq!(predicate_call.source.module, "employee");
+    assert_eq!(predicate_call.source.path, "employee.can");
+    assert_eq!(predicate_call.chain.len(), 1);
+    assert_eq!(predicate_call.chain[0].derive, helper_id);
+    assert_eq!(predicate_call.chain[0].node, sites[0].calls[0].node);
+    assert_eq!(predicate_call.chain[0].source.path, "query-decision.can");
+    assert_eq!(predicate_call.slots, vec![Some(0)]);
+    assert_eq!(sites[0].calls.len(), 3);
+    assert_eq!(sites[0].calls[1].node, predicate_call.node);
+    assert_eq!(sites[0].calls[2].node, any.node);
+    let argument_text = |node: canlang_compiler::analysis::NodeKey| {
+        let file = db.get(node.file).unwrap();
+        file.text[node.start as usize..node.end as usize].to_owned()
+    };
+    assert_eq!(
+        predicate_call
+            .arguments
+            .iter()
+            .map(|(node, _)| argument_text(*node))
+            .collect::<Vec<_>>(),
+        vec!["e.rank"]
+    );
+    assert_eq!(
+        predicate_call.arguments[0].1,
+        canlang_compiler::analysis::types::ResolvedType::Scalar(
+            canlang_compiler::analysis::types::Scalar::Int
+        )
+    );
+    let IrItemKind::DeriveFn {
+        expr: Some(body), ..
+    } = &lowered.items[helper_id.0 as usize].kind
+    else {
+        panic!("actual derive")
+    };
+    let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &body.expr else {
+        panic!("actual any")
+    };
+    let IrExpr::Query(query) = &args[0].expr else {
+        panic!("actual model query")
+    };
+    let query_fact = query.source.as_ref().unwrap();
+    let collection = query.collection_call.as_ref().unwrap();
+    assert_eq!(program.types.checked_queries[&query_fact.node], *query_fact);
+    assert_eq!(
+        program.types.checked_collection_calls[&collection.node],
+        **collection
+    );
+    assert_eq!(collection.query, query_fact.node);
+    assert_eq!(collection.builtin, "any");
+    assert!(
+        query.where_pred.is_none(),
+        "external predicate is not an authored where clause"
+    );
+    let IrExpr::Lambda {
+        param,
+        body: predicate,
+    } = &args[1].expr
+    else {
+        panic!("actual external predicate")
+    };
+    assert_eq!(param, "e");
+    assert_eq!(
+        collection.predicate.as_ref().unwrap().node.start,
+        predicate.span.start
+    );
+    let json = serde_json::to_value(
+        serialize_decision_sources(
+            &program,
+            &lowered,
+            &lowered.items[owner.0 as usize],
+            &db,
+            catalog.as_ref(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        json[0]["calls"][0]["target"],
+        serde_json::json!({"kind":"derive","name":"employee.staff"})
+    );
+    assert_eq!(json[0]["calls"][1]["target"]["id"], "abs");
+    let serial_any = json[0]["calls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|call| call["target"]["id"] == "any")
+        .unwrap();
+    assert_eq!(serial_any["arguments"][0]["type"], "employee.Employee[]");
+    assert_eq!(serial_any["arguments"][1]["type"], "bool");
+    assert_eq!(json[1]["calls"][0]["target"]["id"], "count");
+    for corruption in 0..11 {
+        let mut changed = lowered.clone();
+        if corruption == 10 {
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+            else {
+                panic!()
+            };
+            let IrStmt::Require { cond, .. } = &mut effects[0] else {
+                panic!()
+            };
+            let IrExpr::Binary { left, .. } = &mut cond.expr else {
+                panic!()
+            };
+            let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut left.expr
+            else {
+                panic!()
+            };
+            let IrExpr::Query(query) = &mut args[0].expr else {
+                panic!()
+            };
+            query.where_pred.as_mut().unwrap().expr = IrExpr::Bool(false);
+        } else {
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &mut changed.items[helper_id.0 as usize].kind
+            else {
+                panic!()
+            };
+            let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut body.expr
+            else {
+                panic!()
+            };
+            if corruption == 9 {
+                args[1].expr = IrExpr::Bool(true);
+            } else if corruption >= 7 {
+                let IrExpr::Lambda { param, body } = &mut args[1].expr else {
+                    panic!()
+                };
+                match corruption {
+                    7 => *param = "foreign".into(),
+                    _ => body.expr = IrExpr::Bool(false),
+                }
+            } else {
+                let IrExpr::Query(query) = &mut args[0].expr else {
+                    panic!()
+                };
+                match corruption {
+                    0 => query.source = None,
+                    1 => query.collection_call = None,
+                    2 => {
+                        let node = query.source.as_ref().unwrap().node;
+                        query.source.as_mut().unwrap().domain = node;
+                    }
+                    3 => query.collection_call.as_mut().unwrap().model = other_model,
+                    4 => {
+                        query.collection_call.as_mut().unwrap().alias =
+                            query.source.as_ref().unwrap().node
+                    }
+                    5 => query.domain = IrQueryDomain::Model("employee.OtherEmployee".into()),
+                    _ => {
+                        query
+                            .collection_call
+                            .as_mut()
+                            .unwrap()
+                            .predicate
+                            .as_mut()
+                            .unwrap()
+                            .node
+                            .start += 1
+                    }
+                }
+            }
+        }
+        assert!(
+            collect_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "query corruption {corruption}"
+        );
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "serial query corruption {corruption}"
+        );
+    }
+    let async_helper=helper.replace("  export derive staff", "  derive same(person:user,candidate:user):bool = person==candidate\n  export derive staff").replace("abs(e.rank)>0 and e.user==person", "same(e.user,person)");
+    let (async_db, async_initial, diagnostics) = check(&[
+        ("query-decision.can", source),
+        ("employee.can", &async_helper),
+    ]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (async_program, diagnostics) =
+        check_program(&async_db, async_initial.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (async_ir, diagnostics) = ir::build(&async_program, &async_db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let output = canlang_compiler::codegen::js::emit_program(&async_ir);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message
+                    == "cannot lower scoped predicate: Values any/all require a synchronous predicate"),
+        "an awaited derive collection predicate remains unsupported: {:?}",
+        output.diagnostics
+    );
+}
+
+#[test]
 fn imported_pure_helpers_preserve_decision_sites_slots_defaults_and_chains() {
     let source = "app DecisionFacts\nuse helpers {acceptable}\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\nWhen\n scenario run(person:user,a:int,b:int) by=members\n  require acceptable(last=b,first=a)\n  do\n   require active_member(person,team) and active_member(person,team)\n   if a>0\n    require acceptable(first=a)\n   send LLM.cancel {revision=1,source=\"fixed\"} when=acceptable(first=a,last=b) as stop\nThen\n";
     let helper = "package helpers\n Given\n  export derive acceptable(first:int,last:int=abs(-2)):bool = first>0 and last>0\n When\n Then\n";
@@ -414,6 +696,45 @@ fn serial_v1_preserves_actual_sources_types_slots_defaults_and_frames() {
         .unwrap(),
     )
     .unwrap();
+    // Consume this exact compiler serialization through the installed State checker.
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("decision-sites.json");
+    std::fs::write(&input, serde_json::to_vec(&json).unwrap()).unwrap();
+    let runner = scratch.path().join("check-membership.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(resolve(process.argv[2],'package.json'));
+const state=dirname(require.resolve('@canlang/state'));
+const {checkScenarioReceiptMembershipSites}=await import(pathToFileURL(resolve(state,'invocation/scenario-membership-plan.js')));
+const produced=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const checked=checkScenarioReceiptMembershipSites(produced);
+assert.deepEqual(checked,produced,'installed State preserves genuine compiler sources, stages, slots, defaults and frames');
+assert.ok(Object.isFrozen(checked));
+assert.equal(checked[1].calls[0].arguments[0].type,'user');
+assert.equal(checked[1].calls[0].arguments[1].type,'Team');
+assert.equal(checked[2].calls[0].defaults[0].parameter,'helpers.good.last');
+assert.equal(checked[2].calls[1].chain[0].derive,'helpers.good');
+const lower=structuredClone(produced);
+lower[1].calls[0].arguments[1].type='team';
+assert.throws(()=>checkScenarioReceiptMembershipSites(lower),error=>error.code==='validation');
+console.log('actual compiler v1 decision sites accepted by installed State; lowercase Team refused');
+"#).unwrap();
+    let consumed = std::process::Command::new("node")
+        .arg(&runner)
+        .arg(root)
+        .arg(&input)
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "installed State decision consumer: {}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
     assert_eq!(json.as_array().unwrap().len(), 3);
     assert_eq!(json[0]["version"], 1);
     assert_eq!(json[0]["owner"], "DecisionSerial.run");

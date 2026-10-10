@@ -344,6 +344,74 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
   return issueDispatchClaim(deps, item.id);
 }
 
+/** Internal guard-only phase, entered after the owning command admits eligibility. */
+export interface DispatchGuardPhaseInput {
+  readonly predicate: string;
+  readonly frozenInputs: unknown;
+  readonly stateSnapshot: unknown;
+  readonly checkpoint: DispatchFence['checkpoint'] | undefined;
+  readonly intent: AnyOutboxIntent;
+  readonly evaluateGuard: AsyncGuardEvaluator;
+}
+export interface DispatchGuardPhase {
+  readonly result: boolean;
+  /** One-shot closed evidence consumption; never executes authored source again. */
+  readonly revalidate: () => Promise<boolean>;
+}
+
+/**
+ * Issues the actual guard handle and retains observations independently of claim
+ * eligibility. The owning State consumer can transfer the closed one-shot check
+ * to its existing commit fence; this phase neither claims nor opens a checkpoint.
+ */
+export async function runDispatchGuardPhase(input: DispatchGuardPhaseInput): Promise<DispatchGuardPhase> {
+  const context: DispatchGuardExecutionContext = Object.freeze({
+    predicate: input.predicate,
+    frozenInputs: snapshotGuardData(input.frozenInputs),
+    stateSnapshot: snapshotGuardData(input.stateSnapshot),
+    checkpoint: input.checkpoint === undefined ? undefined : snapshotGuardData(input.checkpoint),
+    intent: snapshotGuardData(input.intent),
+  });
+  const execution = Object.freeze({}) as DispatchGuardExecution;
+  const ledger: DispatchGuardExecutionLedger = { context, revalidations: [] };
+  guardExecutions.set(execution, ledger);
+  let result: boolean;
+  try {
+    const verdict = input.evaluateGuard(context.predicate, context.frozenInputs, context.stateSnapshot, execution);
+    result = typeof verdict === 'boolean' ? verdict : await verdict;
+  } finally {
+    guardExecutions.delete(execution);
+  }
+  if (typeof result !== 'boolean') throw new TypeError('dispatch guard must return a boolean');
+  let consumed = false;
+  let poisoned = false;
+  const healthy = () => {
+    if (poisoned) throw new TypeError('dispatch guard evidence is poisoned');
+  };
+  return Object.freeze({ result, revalidate: async (): Promise<boolean> => {
+    if (consumed) {
+      poisoned = true;
+      throw new TypeError('dispatch guard evidence has already been consumed');
+    }
+    consumed = true;
+    try {
+      // Re-read observations even for a false guard before recording its skip.
+      for (const revalidate of ledger.revalidations) {
+        healthy();
+        const current = await revalidate();
+        healthy();
+        if (typeof current !== 'boolean') throw new TypeError('dispatch guard revalidation must return a boolean');
+        if (!current) return false;
+      }
+      healthy();
+      return true;
+    } catch (error) {
+      poisoned = true;
+      throw error;
+    }
+  } });
+}
+
 /** Await guard and then current authority. This decision still requires fenced persistence. */
 export async function attemptDispatchAsync(deps: AsyncDispatchDeps, attempt: AsyncDispatchAttempt): Promise<DispatchOutcome> {
   const refusal = dispatchPreflight(deps, attempt);
@@ -354,31 +422,16 @@ export async function attemptDispatchAsync(deps: AsyncDispatchDeps, attempt: Asy
   const fence = attempt.fence;
   const authority = fence?.revalidateAuthority;
   if (predicate !== null) {
-    const context: DispatchGuardExecutionContext = Object.freeze({
+    const phase = await runDispatchGuardPhase({
       predicate,
-      frozenInputs: snapshotGuardData(attempt.frozenInputs),
-      stateSnapshot: snapshotGuardData(attempt.stateSnapshot),
-      checkpoint: fence === undefined ? undefined : snapshotGuardData(fence.checkpoint),
-      intent: snapshotGuardData(attempt.intent),
+      frozenInputs: attempt.frozenInputs,
+      stateSnapshot: attempt.stateSnapshot,
+      checkpoint: fence?.checkpoint,
+      intent: attempt.intent,
+      evaluateGuard: deps.evaluateGuard,
     });
-    const execution = Object.freeze({}) as DispatchGuardExecution;
-    const ledger: DispatchGuardExecutionLedger = { context, revalidations: [] };
-    guardExecutions.set(execution, ledger);
-    let result: boolean;
-    try {
-      const verdict = deps.evaluateGuard(predicate, context.frozenInputs, context.stateSnapshot, execution);
-      result = typeof verdict === 'boolean' ? verdict : await verdict;
-    } finally {
-      guardExecutions.delete(execution);
-    }
-    if (typeof result !== 'boolean') throw new TypeError('dispatch guard must return a boolean');
-    // Re-read observations even for a false guard before recording its skip.
-    for (const revalidate of ledger.revalidations) {
-      const current = await revalidate();
-      if (typeof current !== 'boolean') throw new TypeError('dispatch guard revalidation must return a boolean');
-      if (!current) return { status: 'refused-revoked', outboxId };
-    }
-    if (result !== true) return { status: 'skipped', verdict: { outboxId, result: false } };
+    if (await phase.revalidate() !== true) return { status: 'refused-revoked', outboxId };
+    if (!phase.result) return { status: 'skipped', verdict: { outboxId, result: false } };
   }
   if (authority !== undefined && await authority.call(fence) !== true) {
     return { status: 'refused-revoked', outboxId };
