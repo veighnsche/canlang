@@ -60,7 +60,7 @@ after(async () => {
   finally { if (staging) await rm(staging, { recursive: true, force: true }); }
 });
 
-async function fixture(selectedAssembly: AssembledModules = asm) {
+async function fixture(selectedAssembly: AssembledModules = asm, selectedArtifact = artifact, selectedModel = model) {
   const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
   const team = await identities.createTeam({});
   const user = await identities.createUser({ email: 'member@native-local-rules.test', password_hash: 'unused', email_verified: true });
@@ -72,9 +72,9 @@ async function fixture(selectedAssembly: AssembledModules = asm) {
   const { store: backing, probe } = createTestMemoryStorage();
   const batches: CommitBatch[] = [];
   const store: StoragePort = { ...backing, commit: async batch => { batches.push(batch); return backing.commit(batch); } };
-  const invoker = buildInvoker(artifact, selectedAssembly, store, { memberships: identities, now: () => now });
+  const invoker = buildInvoker(selectedArtifact, selectedAssembly, store, { memberships: identities, now: () => now });
   const invoke = (kind: string, inputs: Record<string, unknown>, id = operationId(now)) =>
-    invoker.invokeMutation({ operation: `${model}.${kind}`, operation_id: id, inputs }, identity);
+    invoker.invokeMutation({ operation: `${selectedModel}.${kind}`, operation_id: id, inputs }, identity);
   const rows = () => store.query({ model, authority: 'owner', archived: 'include' });
   const snapshot = async () => ({ rows: await rows(), outbox: probe.outboxAll(), revision: await store.readRevision() });
   const commit = async (kind: string, inputs: Record<string, unknown>, id?: OperationId): Promise<MutationResult> => {
@@ -142,6 +142,73 @@ it('consumes native int64 policies through create, saved replay, and current mem
   assert.ok(projected && Array.isArray(projected.records), 'actual canonical read projection');
   assert.equal(projected.records.length, 1);
   assert.deepEqual(projected.records[0]!.data, { ...inputs, quantity: '7', locked: false, state: 'open' });
+});
+
+it('keeps genuine unclaimed native hooks refused without executing their candidate changes', async () => {
+  const scratch = await mkdtemp(join(root, '.can-native-unclaimed-hook-'));
+  const sourcePath = join(scratch, 'NativeUnclaimedHook.can');
+  const text = 'app NativeUnclaimedHook\nGiven\n Item {label:text}\nWhen\n crud Item by=members fields=label\n scenario changed on=Item.update\n  do set event.after {label="Hook"}\nThen\n';
+  await writeFile(sourcePath, text);
+  const hookCapture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
+    appPath: sourcePath, compilerPath: join(root, 'compiler/target/debug/can'),
+    catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
+  try {
+    const compiled = await compileCapturedSingleFile(hookCapture);
+    assert.equal(compiled.kind, 'artifact', `actual hook compilation: ${compiled.kind}`);
+    if (compiled.kind !== 'artifact') throw new Error('Native hook fixture did not compile');
+    const emitted = compiled.artifact;
+    const originalArtifact = JSON.stringify(emitted);
+    const owningModel = 'NativeUnclaimedHook.Item' as ModelName;
+    const operation = `${owningModel}.update`;
+    assert.equal(emitted.modelPolicies?.some(policy => policy.hooks.some(hook => hook.operation === operation)) ?? false, false,
+      'this released compiler has no checked hook producer');
+    assert.equal(emitted.callables.filter(callable => callable.kind === 'handler' && callable.member.join('.') === `hooks.${operation}.run`).length, 1);
+    const assembly = await assembleModules({ artifact: emitted, sourcePath }, { workDir: join(scratch, 'assembly'),
+      stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
+    const loaded = await loadCanonicalDescriptors(assembly, emitted);
+    assert.equal(loaded.unsupportedHookOperations?.has(operation), true);
+    const f = await fixture(assembly, emitted, owningModel);
+    const createId = operationId(f.now);
+    const created = await f.commit('create', { label: 'Original' }, createId);
+    assert.equal(created.operation_id, createId);
+    const row = await f.store.load(owningModel, createId as unknown as RecordId);
+    assert.ok(row);
+    const before = { revision: await f.store.readRevision(), history: f.probe.historyFor(owningModel, row.id), outbox: f.probe.outboxAll(), batches: f.batches.length };
+    const inputs = { record: { id: row.id, version: String(row.version) }, label: 'Requested' };
+    const id = operationId(f.now);
+    const denied = await f.invoke('update', inputs, id);
+    assert.ok('error' in denied, JSON.stringify(denied));
+    assert.equal(denied.error.code, 'validation');
+    assert.match(denied.error.message, /requires unsupported canonical hooks/);
+    assert.deepEqual(await f.store.load(owningModel, row.id), row, 'neither requested nor legacy hook candidate is published');
+    assert.deepEqual(f.probe.historyFor(owningModel, row.id), before.history);
+    assert.deepEqual(f.probe.outboxAll(), before.outbox);
+    assert.equal(await f.store.readRevision(), before.revision + 1);
+    assert.equal(f.batches.length, before.batches + 1, 'one genuine State rejection batch');
+    const rejectedBatch = f.batches.at(-1)!;
+    assert.equal(rejectedBatch.expectedRevision, before.revision);
+    for (const field of ['writes', 'history', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'outboxAck'] as const)
+      assert.deepEqual(rejectedBatch[field] ?? [], [], `rejection stages no ${field}`);
+    assert.ok(f.identity.actor && f.identity.team);
+    const receipt = await f.store.readReceipt({ app: 'NativeUnclaimedHook', owner: f.identity.team.team_id,
+      principal: f.identity.actor.user_id, operation: operation as OperationName, operationId: id });
+    assert.ok(receipt && receipt.outcome.status === 'rejected');
+    assert.equal(receipt.outcome.code, 'validation');
+    assert.equal(receipt.inputHash, await hashInputs(inputs));
+    assert.equal(receipt.committedRevision, before.revision + 1);
+    assert.deepEqual(rejectedBatch.receipt, receipt);
+    assert.deepEqual(receipt.resolvedDefaults, {});
+    assert.deepEqual(await f.invoke('update', inputs, id), denied, 'rejected replay preserves original refusal');
+    const replay = await f.invoke('create', { label: 'Original' }, createId);
+    assert.ok('result' in replay, JSON.stringify(replay));
+    assert.equal(replay.result.status, 'replayed');
+    assert.deepEqual(replay.result.records, created.records, 'original create replay stays exact');
+    assert.equal(await f.store.readRevision(), before.revision + 1);
+    assert.equal(f.batches.length, before.batches + 1);
+    assert.equal(JSON.stringify(emitted), originalArtifact, 'artifact is consumed without repair');
+    assert.equal(await readFile(sourcePath, 'utf8'), text);
+    assert.equal(await captureIsCurrent(hookCapture), true);
+  } finally { await rm(scratch, { recursive: true, force: true }); }
 });
 
 it('rejects each source-ordered false invariant with exact receipt bookkeeping and no domain effects', async () => {
@@ -224,7 +291,7 @@ it('refuses changed staged JS and maps on native cache hits and canonical invoca
     try {
       // Even semantically neutral drift invalidates exact captured bytes.
       await writeFile(file, Buffer.concat([original, Buffer.from('\n')]));
-      await assert.rejects(loadCanonicalDescriptors(asm, artifact), /captured artifact or module closure/, label);
+      await assert.rejects(loadCanonicalDescriptors(asm, artifact), /captured artifact or module closure|staged module bytes changed/, label);
       const result = await f.invoke('create', { quantity: '1', label: `must refuse stale ${label}` });
       assert.ok('error' in result, label);
       assert.equal(result.error.code, 'validation', label);

@@ -8,6 +8,9 @@ import type { AssembledModules } from "./modules.js";
 
 /** Private infrastructure failure: never convert correspondence drift to a business receipt. */
 export class AssemblyCorrespondenceError extends Error {
+  // Transport renders infrastructure admission refusal as validation. This
+  // remains distinct from StateError, so State cannot save a business receipt.
+  readonly code = 'validation' as const;
   constructor(message: string) { super(message); this.name = 'AssemblyCorrespondenceError'; }
 }
 

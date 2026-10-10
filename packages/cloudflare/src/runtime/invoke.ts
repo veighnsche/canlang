@@ -124,6 +124,8 @@ import { createCommittedModelSourceStager, createStandardCompletionSourceCommand
 import { enrollSystemCommandCommitCheck } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
+import { assertOwnerMutationHookContext } from '@canlang/state/mutation';
+import type { OwnerMutationHookContext } from '@canlang/state/mutation';
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
 import type { BoundReadPageInvoker } from '@canlang/state/ports/transact';
 import type {
@@ -2774,9 +2776,9 @@ export function assertStateMachineProducerCapability(artifact: CompileArtifact, 
   }
 }
 
-/** Retain owning emitted hook targets until State supplies canonical hook finalization. */
-async function collectUnsupportedHookOperations(asm: AssembledModules, artifact: CompileArtifact): Promise<ReadonlySet<string>> {
-  const targets = new Set<string>();
+/** Retain every owning emitted hook occurrence until its exact binding is admitted. */
+async function collectNativeHookOccurrences(asm: AssembledModules, artifact: CompileArtifact): Promise<ReadonlyMap<string, readonly { readonly module: string; readonly id: string }[]>> {
+  const targets = new Map<string, { readonly module: string; readonly id: string }[]>();
   const seen = new Set<string>();
   const callableWhere = 'Canonical hook callables';
   const callables = readMetadataArray(readMetadataMember(artifact, 'callables', callableWhere)?.value, callableWhere, 'callables');
@@ -2817,7 +2819,9 @@ async function collectUnsupportedHookOperations(asm: AssembledModules, artifact:
           JSON.stringify(['hooks', target, 'run']));
       if (matches.length !== 1) throw new Error(`${where} hook lacks its exact owning emitted callable.`);
       seen.add(`${module}\0${name}`);
-      targets.add(target);
+      const occurrences = targets.get(target) ?? [];
+      occurrences.push({ module, id: name });
+      targets.set(target, occurrences);
     }
   }
   for (const callable of callables) {
@@ -3168,7 +3172,8 @@ export async function loadCanonicalDescriptors(
   }
   const producers = await loadCanonicalStateProducers();
   const committedChanges = claimedCommitted ? await loadCheckedCommittedChanges(asm, artifact, producers) : new Map<string, CheckedCommittedChange>();
-  const unsupportedHookOperations = await collectUnsupportedHookOperations(asm, artifact);
+  const hookOccurrences = await collectNativeHookOccurrences(asm, artifact);
+  const unsupportedHookOperations = new Set(hookOccurrences.keys());
   const ops = readPreloadOperations(artifact);
   const crudBy = new Map<string, CanonicalByPredicate>();
   for (const op of ops) {
@@ -3245,6 +3250,14 @@ export async function loadCanonicalDescriptors(
     native: { models: loaded.models, refs: loaded.refs, containment: loaded.containment,
       producers, ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) },
   });
+  if (ownerPolicyControl !== undefined) {
+    for (const [operation, occurrences] of hookOccurrences) {
+      if (occurrences.every(occurrence => loaded.modelPolicies!.some(descriptor => descriptor.module === occurrence.module &&
+          descriptor.hooks.some(hook => hook.id === occurrence.id && hook.operation === operation)))) {
+        unsupportedHookOperations.delete(operation);
+      }
+    }
+  }
   let rowPolicyAssembly: AssembledModules | undefined = rowPolicyAssemblies.get(artifact);
   if (rowPolicyAssembly !== undefined) await verifyCheckedAssembly(asm, artifact);
   const manifests = await collectModelPolicyManifests(asm, modelFields,
@@ -4355,8 +4368,8 @@ async function loadLocalOwnerPolicyControl(input: {
   const descriptors = input.loaded.modelPolicies;
   if (descriptors === undefined || descriptors.length === 0 || !Object.isFrozen(descriptors)) throw new Error('Local owner policies require immutable nonempty loaded claims.');
   for (const descriptor of descriptors) {
-    if (descriptor.rules.length === 0 || descriptor.hooks.length !== 0 || descriptor.rules.some(rule => rule.kind === 'invariant' && rule.dependencies.length !== 0)) {
-      throw new Error('Local owner policy dependencies and hooks are unsupported.');
+    if (descriptor.rules.length + descriptor.hooks.length === 0 || descriptor.rules.some(rule => rule.kind === 'invariant' && rule.dependencies.length !== 0)) {
+      throw new Error('Local owner policies require nonempty claims without unjoined invariant dependencies.');
     }
   }
   const activeFrames = new WeakMap<InvocationContext, { active: boolean }>();
@@ -4373,6 +4386,108 @@ async function loadLocalOwnerPolicyControl(input: {
     const bindings = carrier === undefined ? [] : localPolicyArray(carrier);
     const adapted: OwnerModelPolicyBinding[] = [];
     for (const raw of bindings) {
+      if (localPolicyMember(localPolicyObject(raw), 'kind') === 'hook') {
+        const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'run']);
+        const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
+        const run = localPolicyMember(binding, 'run');
+        const descriptor = owning.find(candidate => candidate.model === model);
+        const hook = descriptor?.hooks.find(candidate => candidate.id === id);
+        if (descriptor === undefined || hook === undefined || localPolicyMember(binding, 'module') !== emitted.path ||
+            localPolicyMember(binding, 'ownerPackage') !== descriptor.ownerPackage || typeof run !== 'function') {
+          throw new Error('Native owner hook differs from its exact loaded claim.');
+        }
+        const legacy = localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(registry, 'hooks')), hook.operation), ['name', 'ops', 'run']);
+        const callables = input.artifact.callables.filter(callable => callable.id === hook.id && callable.kind === 'handler');
+        if (legacy.name !== hook.id || !sameLocalPolicyStrings(localPolicyStrings(legacy.ops), [hook.op]) ||
+            legacy.run !== run || callables.length !== 1 || callables[0]!.module !== descriptor.module ||
+            !sameLocalPolicyStrings(callables[0]!.member, ['hooks', hook.operation, 'run'])) {
+          throw new Error('Native owner hook lacks its original callback/CRUD/callable correspondence.');
+        }
+        const encodeFields = (model: string, value: unknown): Record<string, unknown> => {
+          const definition = input.native.models.find(candidate => candidate.name === model);
+          if (definition === undefined) throw new input.native.producers.errors('validation', 'Hook stage names no loaded model.');
+          const fields = localPolicyObject(value), wire: Record<string, unknown> = Object.create(null);
+          for (const name of Object.keys(fields)) {
+            const declared = definition.fields[name];
+            if (declared?.valueType === undefined) throw new input.native.producers.errors('validation', 'Hook field lacks its exact loaded type.');
+            wire[name] = encodeCanonicalField(input.native.producers.errors, declared.valueType,
+              localPolicyMember(fields, name), input.native.valueSchema);
+          }
+          return wire;
+        };
+        adapted.push(Object.freeze({ id: hook.id, model: descriptor.model, kind: 'hook',
+          module: descriptor.module, ownerPackage: descriptor.ownerPackage,
+          run: async (candidate: Record<string, unknown>, original: OwnerMutationHookContext): Promise<Record<string, unknown>> => {
+            assertOwnerMutationHookContext(original);
+            const frame = activeFrames.get(original.context);
+            if (frame?.active !== true || original.triggerModel !== descriptor.model || original.op !== hook.op ||
+                original.context.operation !== hook.operation) {
+              throw new input.native.producers.errors('validation', 'Native hook has no original live owning CRUD frame.');
+            }
+            let active = true;
+            let failed = false, firstFailure: unknown;
+            const assertLive = (): void => {
+              if (failed) throw firstFailure;
+              assertOwnerMutationHookContext(original);
+              if (!active || !frame.active) throw new input.native.producers.errors('validation', 'Native hook frame is closed.');
+            };
+            const guarded = <T>(action: () => T): T => {
+              try { assertLive(); return action(); }
+              catch (error) { if (!failed) { failed = true; firstFailure = error; } throw firstFailure; }
+            };
+            const refuse = (): never => guarded(() => { throw new input.native.producers.errors('validation', 'Native hooks cannot access raw storage or unjoined effects.'); });
+            const store: StoragePort = Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
+              readReceipt: refuse, outboxGet: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
+              readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
+              publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
+              recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
+            const fields = (data: unknown): Record<string, unknown> => Object.fromEntries(Object.keys(localPolicyObject(data)).map(name => {
+              if (input.native.models.find(model => model.name === descriptor.model)?.fields[name]?.valueType === undefined) {
+                throw new input.native.producers.errors('validation', 'Hook candidate lacks an exact loaded field type.');
+              }
+              return [name, nativeRecordField(input.native, descriptor.model, name, localPolicyMember(data as object, name))];
+            }));
+            const view = (row: StoredRow | null) => row === null ? null : nativeProjectedRecord(input.native, descriptor.model, row);
+            const c = createContext({
+              caller: Object.freeze({ userId: original.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
+              store, clock: () => guarded(() => original.context.now),
+              memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
+              qualified: original.context,
+            });
+            freezeScenarioSnapshot(c);
+            const bridge = Object.freeze({ before: view(original.before), after: view(original.after),
+              triggerId: original.triggerId, triggerModel: original.triggerModel, op: original.op,
+              actor: c.actor, now: c.now,
+              stage: (value: unknown): void => guarded(() => {
+                const staged = localPolicyObject(value, ['op', 'model', 'id', 'parent', 'data']);
+                if (typeof staged.model !== 'string' || typeof staged.id !== 'string' || staged.id === '' ||
+                    !['create', 'update'].includes(String(staged.op))) {
+                  throw new input.native.producers.errors('validation', 'Native hook stage lacks its exact write identity.');
+                }
+                const parent = localPolicyMember(staged, 'parent');
+                const checkedParent = parent === undefined ? undefined : localPolicyObject(parent, ['model', 'id']);
+                if (checkedParent !== undefined && (staged.op !== 'create' || Object.keys(checkedParent).length !== 2 ||
+                    typeof checkedParent.model !== 'string' || typeof checkedParent.id !== 'string' || checkedParent.id === '')) {
+                  throw new input.native.producers.errors('validation', 'Native hook stage has a malformed or immutable parent.');
+                }
+                original.stage({ op: staged.op as 'create' | 'update', model: staged.model as ModelName, id: staged.id as RecordId,
+                  ...(checkedParent === undefined ? {} : { parent: { model: checkedParent.model as ModelName, id: checkedParent.id as RecordId } }),
+                  data: encodeFields(staged.model, localPolicyMember(staged, 'data')) });
+              }),
+              // Declared event/schedule projection is an owning prerequisite;
+              // native payloads cannot be passed as an unchecked wire object.
+              schedule: refuse, cancel: (key: string) => guarded(() => original.cancel(key)),
+              transitive: Object.freeze({ openScope: refuse, load: refuse }),
+            });
+            try {
+              const answer: unknown = await (run as (candidate: Record<string, unknown>, bridge: unknown, c: HandlerContext) => unknown)(fields(candidate), bridge, c);
+              assertLive();
+              return encodeFields(descriptor.model, answer);
+            } finally { active = false; }
+          },
+        }));
+        continue;
+      }
       const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate']);
       const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
       const kind = localPolicyMember(binding, 'kind'), evaluate = localPolicyMember(binding, 'evaluate');
