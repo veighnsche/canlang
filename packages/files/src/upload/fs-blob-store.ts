@@ -9,6 +9,10 @@
  * production binding either: live bytes move to R2 behind this same
  * port at the S8 join through the L7 runner, and no R2 traffic happens
  * here.
+ * Synchronous writes can still be interrupted between byte and metadata
+ * operations. This port supplies neither a multi-store transaction nor
+ * concurrent-owner serialization or power-loss fsync guarantees. The
+ * journey must validate count drift and retained publication phases.
  */
 import {
   appendFileSync,

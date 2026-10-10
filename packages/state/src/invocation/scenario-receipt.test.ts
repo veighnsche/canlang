@@ -4,10 +4,12 @@
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { CanTypeId, OperationId, OperationName, Receipt, ScenarioResultDisclosurePlan, StoragePort } from '@canlang/contracts';
+import type { CanTypeId, MembershipSnapshot, OperationId, OperationName, Receipt, ScenarioResultDisclosurePlan, StoragePort } from '@canlang/contracts';
+import { createFrozenClock, createMemoryIdentityStore as createIdentityMemoryStore } from '@canlang/identity/testing';
 import { createMemoryStorage } from '../storage/memory.js';
 import { StateError } from '../errors.js';
 import { buildPolicyTable } from '../policy/grants.js';
+import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { IncompatibleArtifactError, loadArtifactDescriptors, loadExecutionDescriptorSet, type ArtifactDescriptorSlice } from './registry.js';
 import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
 import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn,
@@ -657,6 +659,207 @@ describe('execution-associated saved scenario disclosure', () => {
       assert.deepEqual(await projectScenarioReceipt({ ...w, registry, policy, memberships, receipt }),
         { result: null, records: [] });
       assert.deepEqual(await snapshot(), before);
+    }
+  });
+
+  // Actual Identity memory producer plus the existing State receipt fixture.
+  // These qualify the defining consumer protocol, not workerd/D1 or Compiler
+  // source capture. Legacy singular doubles above remain unchanged.
+  async function coherentWorld() {
+    const w = await world(); const receipt = await save(w);
+    const identities = createIdentityMemoryStore({ clock: createFrozenClock(FIXED_NOW) });
+    const caller = await identities.createMembership({ team_id: w.member.team.team_id,
+      user_id: w.member.user.user_id, is_owner: false, roles: w.member.membership.roles });
+    const subject = await identities.createMembership({ team_id: caller.team_id, user_id: 'review-subject',
+      is_owner: false, roles: [{ role: 'Shop.review', granted_at: caller.created_at, granted_by: caller.user_id }] });
+    const registryFor = (by: ByPredicate) => loadArtifactDescriptors(artifact(), { by }).registry;
+    const by: ByPredicate = { and: ['members', { roleSubject: { role: 'Shop.review', person: subject.user_id } }] };
+    return { ...w, receipt, identities, caller, subject, registryFor, registry: registryFor(by) };
+  }
+
+  it('uses two actual coherent snapshots for every caller/subject grant without singular fallback', async () => {
+    const w = await coherentWorld(); let singulars = 0; const requests: readonly string[][] = [];
+    let discoveryReads = 0;
+    const memberships: MembershipReader = { findMembership: async (team, user) => {
+      assert.equal(requests.length, 0, 'coherent reprojection must not fall back to singular reads');
+      singulars++; return w.identities.findMembership(team, user);
+    }, findMembershipsSnapshot: async (team, users) => {
+      assert.equal(team, w.caller.team_id); assert.ok(Object.isFrozen(users));
+      if (requests.length === 0) discoveryReads = singulars;
+      (requests as string[][]).push([...users]);
+      return w.identities.findMembershipsSnapshot(team, users);
+    } };
+    const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{
+      by: { and: [{ role: 'Shop.reader' }, { roleSubject: { role: 'Shop.review', person: w.subject.user_id } }] },
+      fields: ['visible', 'private', 'token'],
+    }] }]);
+    const before = { revision: await w.store.readRevision(), row: await w.store.load(MODEL, w.row.id),
+      receipt: await w.store.readReceipt(w.receipt.identity), history: await w.store.historyFor(MODEL, w.row.id) };
+    const projected = await projectScenarioReceipt({ ...w, memberships, policy });
+    assert.equal(projected.result, 'original visible');
+    assert.equal(projected.records[0]!.data['visible'], 'committed visible');
+    assert.equal(Object.hasOwn(projected.records[0]!.data, 'token'), false);
+    assert.deepEqual(requests, [[w.caller.user_id, w.subject.user_id], [w.caller.user_id, w.subject.user_id]]);
+    assert.equal(singulars, discoveryReads);
+    assert.deepEqual({ revision: await w.store.readRevision(), row: await w.store.load(MODEL, w.row.id),
+      receipt: await w.store.readReceipt(w.receipt.identity), history: await w.store.historyFor(MODEL, w.row.id) }, before);
+  });
+
+  it('preserves actual absent/removed negative subjects and lazy denied caller order', async () => {
+    for (const state of ['absent', 'removed', 'false', 'caller-denied']) {
+      const w = await coherentWorld(); let snapshots = 0; const lookedUp: string[] = [];
+      const person = state === 'absent' ? 'absent-reviewer' : w.subject.user_id;
+      if (state === 'absent') await w.identities.createMembership({ team_id: 'other-team', user_id: person,
+        is_owner: true, roles: w.subject.roles });
+      if (state === 'removed' || state === 'false') await w.identities.removeMembership(w.subject.membership_id);
+      if (state === 'caller-denied') await w.identities.removeMembership(w.caller.membership_id);
+      const role: ByPredicate = { roleSubject: { role: 'Shop.review', person } };
+      const registry = w.registryFor({ and: ['members', state === 'false' || state === 'caller-denied' ? role : { not: role }] });
+      const memberships: MembershipReader = { findMembership: async (team, user) => {
+        lookedUp.push(user); return w.identities.findMembership(team, user);
+      }, findMembershipsSnapshot: async (team, users) => {
+        snapshots++; const observed = await w.identities.findMembershipsSnapshot(team, users);
+        if (state === 'absent') assert.equal(observed.entries[1]!.membership, null);
+        if (state === 'removed' || state === 'false') assert.equal(observed.entries[1]!.membership!.status, 'removed');
+        return observed;
+      } };
+      const projected = await projectScenarioReceipt({ ...w, memberships, registry });
+      if (state === 'false' || state === 'caller-denied') assert.deepEqual(projected, { result: null, records: [] });
+      else assert.equal(projected.result, 'original visible');
+      assert.equal(snapshots, state === 'caller-denied' ? 0 : 2);
+      if (state === 'caller-denied') assert.ok(lookedUp.every(user => user === w.caller.user_id));
+    }
+  });
+
+  it('never upgrades oscillating singular successes into a coherent conjunction', async () => {
+    const w = await coherentWorld(); await w.identities.removeMembership(w.caller.membership_id);
+    let snapshots = 0;
+    const memberships: MembershipReader = { findMembership: async (team, user) => {
+      if (user === w.caller.user_id) {
+        await w.identities.removeMembership(w.subject.membership_id);
+        await w.identities.reactivateMembership(w.caller.membership_id, { is_owner: false, roles: w.caller.roles });
+      } else {
+        assert.equal(user, w.subject.user_id);
+        await w.identities.removeMembership(w.caller.membership_id);
+        await w.identities.reactivateMembership(w.subject.membership_id, { is_owner: false, roles: w.subject.roles });
+      }
+      const current = await w.identities.findMembership(team, user); assert.equal(current?.status, 'active');
+      return current;
+    }, findMembershipsSnapshot: async (team, users) => {
+      snapshots++; const observed = await w.identities.findMembershipsSnapshot(team, users);
+      assert.equal(observed.entries.every(entry => entry.membership?.status === 'active'), false);
+      return observed;
+    } };
+    const revision = await w.store.readRevision();
+    assert.deepEqual(await projectScenarioReceipt({ ...w, memberships }), { result: null, records: [] });
+    assert.equal(snapshots, 1); assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await w.store.readReceipt(w.receipt.identity), w.receipt);
+  });
+
+  it('withholds discovery drift and full same-clock authority changes through the final coherent reread', async () => {
+    for (const change of ['discovery', 'first-snapshot', 'roles', 'grant-time', 'grant-author', 'owner', 'removed', 'State-revision']) {
+      const w = await coherentWorld(); let snapshots = 0, loads = 0, singulars = 0;
+      const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{
+        by: { and: [{ role: 'Shop.reader' }, { roleSubject: { role: 'Shop.review', person: w.subject.user_id } }] },
+        fields: ['visible'],
+      }] }]);
+      const mutate = async () => {
+        if (change === 'owner') await w.identities.reactivateMembership(w.subject.membership_id,
+          { is_owner: true, roles: w.subject.roles });
+        else if (change === 'removed') await w.identities.removeMembership(w.subject.membership_id);
+        else if (change === 'State-revision') {
+          const row = await w.store.load(MODEL, w.row.id); assert.ok(row);
+          await updateRow(w.store, MODEL, row, { data: { ...row.data, visible: 'later current value' } });
+        }
+        else await w.identities.setMembershipRoles(w.subject.membership_id, change === 'grant-time'
+          ? [{ ...w.subject.roles[0]!, granted_at: '2026-10-05T00:00:00.000Z' }]
+          : change === 'grant-author' ? [{ ...w.subject.roles[0]!, granted_by: 'another-granter' }]
+          : [...w.subject.roles, { role: 'Shop.changed', granted_at: w.subject.created_at, granted_by: w.caller.user_id }]);
+      };
+      const memberships: MembershipReader = { findMembership: async (team, user) => {
+        if (change === 'discovery' && ++singulars === 3) await mutate();
+        return w.identities.findMembership(team, user);
+      }, findMembershipsSnapshot: async (team, users) => {
+        snapshots++; if (change === 'first-snapshot') await mutate();
+        return w.identities.findMembershipsSnapshot(team, users);
+      } };
+      const store: StoragePort = { ...w.store, load: async (model, id) => {
+        const row = await w.store.load(model, id);
+        if (++loads === 3 && change !== 'discovery' && change !== 'first-snapshot') await mutate();
+        return row;
+      } };
+      assert.deepEqual(await projectScenarioReceipt({ ...w, memberships, policy, store }), { result: null, records: [] }, change);
+      const subject = await w.identities.findMembership(w.subject.team_id, w.subject.user_id);
+      assert.equal(subject!.updated_at, w.subject.updated_at, 'full facts must detect changes despite equal clocks');
+      assert.equal(snapshots, change === 'discovery' ? 0 : change === 'first-snapshot' || change === 'State-revision' ? 1 : 2);
+      assert.deepEqual(await w.store.readReceipt(w.receipt.identity), w.receipt);
+    }
+  });
+
+  it('validates exact own snapshot facts and rejects malformed getters without execution', async () => {
+    for (const bad of ['team', 'count', 'order', 'user', 'membership-team', 'status', 'grant', 'extra', 'getter', 'array-getter']) {
+      const w = await coherentWorld(); let getterCalls = 0;
+      const memberships: MembershipReader = { findMembership: w.identities.findMembership,
+        findMembershipsSnapshot: async (team, users) => {
+          const output = JSON.parse(JSON.stringify(await w.identities.findMembershipsSnapshot(team, users))) as MembershipSnapshot;
+          const mutable = output as unknown as { team_id: string; entries: { user_id: string; membership: Record<string, unknown> }[] };
+          if (bad === 'team') mutable.team_id = 'foreign';
+          if (bad === 'count') mutable.entries.pop();
+          if (bad === 'order') mutable.entries.reverse();
+          if (bad === 'user') mutable.entries[1]!.user_id = 'foreign';
+          if (bad === 'membership-team') mutable.entries[1]!.membership['team_id'] = 'foreign';
+          if (bad === 'status') mutable.entries[1]!.membership['status'] = ['active'];
+          if (bad === 'grant') mutable.entries[1]!.membership['roles'] = [{ role: 'Shop.review' }];
+          if (bad === 'extra') mutable.entries[1]!.membership['extra'] = true;
+          if (bad === 'getter') Object.defineProperty(mutable.entries[1]!.membership, 'roles', {
+            enumerable: true, get() { getterCalls++; throw new Error('snapshot getter executed'); } });
+          if (bad === 'array-getter') Object.defineProperty(mutable.entries, '1', {
+            enumerable: true, get() { getterCalls++; throw new Error('snapshot entry getter executed'); } });
+          return output;
+        } };
+      const revision = await w.store.readRevision();
+      await assert.rejects(projectScenarioReceipt({ ...w, memberships }), validation, bad);
+      assert.equal(getterCalls, 0); assert.equal(await w.store.readRevision(), revision);
+      assert.deepEqual(await w.store.readReceipt(w.receipt.identity), w.receipt);
+    }
+  });
+
+  it('detaches observed facts, refuses unseen reprojection pairs, and never chunks the 99-user boundary', async () => {
+    for (const control of ['detached', 'unseen', '99', '100', 'method-getter']) {
+      const w = await coherentWorld(); let snapshots = 0, loads = 0, methodGets = 0;
+      let exposed: MembershipSnapshot | undefined;
+      const policy = new Map(w.policy);
+      const count = control === '99' ? 98 : 99;
+      const registry = control === '99' || control === '100' ? w.registryFor({ and: ['members',
+        ...Array.from({ length: count }, (_, i) => ({ not: { roleSubject: { role: 'Shop.review', person: `absent-${i}` } } }))] }) : w.registry;
+      const memberships: MembershipReader = { findMembership: async (team, user) => {
+        assert.equal(snapshots, 0, 'no unseen or coherent singular fallback');
+        return w.identities.findMembership(team, user);
+      }, findMembershipsSnapshot: async (team, users) => {
+        snapshots++; assert.ok(users.length <= 99);
+        const output = await w.identities.findMembershipsSnapshot(team, users);
+        if (control === 'unseen') policy.set(MODEL, buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{
+          by: { roleSubject: { role: 'Shop.review', person: 'unseen-person' } }, fields: ['visible'],
+        }] }]).get(MODEL)!);
+        if (control === 'detached' && snapshots === 1) {
+          exposed = JSON.parse(JSON.stringify(output)) as MembershipSnapshot; return exposed;
+        }
+        return output;
+      } };
+      if (control === 'method-getter') Object.defineProperty(memberships, 'findMembershipsSnapshot', {
+        get() { methodGets++; throw new Error('method getter executed'); } });
+      const store: StoragePort = { ...w.store, load: async (model, id) => {
+        const row = await w.store.load(model, id);
+        if (++loads === 3 && exposed !== undefined) {
+          (exposed.entries[0]!.membership as unknown as { roles: unknown[] }).roles = [];
+        }
+        return row;
+      } };
+      const projected = await projectScenarioReceipt({ ...w, registry, policy, memberships, store });
+      if (control === 'detached' || control === '99') assert.equal(projected.result, 'original visible');
+      else assert.deepEqual(projected, { result: null, records: [] });
+      assert.equal(snapshots, control === '100' || control === 'method-getter' ? 0 : control === 'unseen' ? 1 : 2);
+      assert.equal(methodGets, 0);
     }
   });
 

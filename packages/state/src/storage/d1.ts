@@ -77,6 +77,7 @@ import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from '
 import type { StoragePort } from './port.js';
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
+  ALTER_OUTBOX_COMMITTED_REVISION,
   FENCE_ROW_ID,
   SCHEMA_STATEMENTS,
   isDuplicateColumnError,
@@ -87,13 +88,13 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   for (const statement of SCHEMA_STATEMENTS) {
     await db.exec(statement);
   }
-  // B3: backfill the outbox contract column on pre-B3 databases; fresh
-  // databases (and re-runs) already have it, so duplicate-column is fine.
-  try {
-    await db.exec(ALTER_OUTBOX_HANDLER_CONTRACT);
-  } catch (error) {
-    if (!isDuplicateColumnError(error)) {
-      throw error;
+  // Add missing columns without reconstructing legacy publication facts.
+  // A legacy original revision remains NULL; only new fenced inserts fill it.
+  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION]) {
+    try {
+      await db.exec(alteration);
+    } catch (error) {
+      if (!isDuplicateColumnError(error)) throw error;
     }
   }
 }
@@ -400,8 +401,8 @@ export function createD1Storage(db: D1Database): StoragePort {
           db
             .prepare(
               'INSERT INTO outbox(intent_id, operation, operation_id, target, arguments, ' +
-                'occurrence_index, dispatch_guard, handler_contract, status, created_at) ' +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+                'occurrence_index, dispatch_guard, handler_contract, status, created_at, committed_revision) ' +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
             )
             .bind(
               intent.intentId,
@@ -413,6 +414,7 @@ export function createD1Storage(db: D1Database): StoragePort {
               intent.dispatchGuard ?? null,
               intent.handlerContract ?? null,
               at,
+              next,
             ),
         );
       }
@@ -484,7 +486,7 @@ export function createD1Storage(db: D1Database): StoragePort {
 
     async outboxGet(intentId: string): Promise<RetainedOutboxIntent | null> {
       const row = await db
-        .prepare(`SELECT ${OUTBOX_COLUMNS}, status FROM outbox WHERE intent_id = ?`)
+        .prepare(`SELECT ${OUTBOX_COLUMNS}, status, committed_revision, created_at FROM outbox WHERE intent_id = ?`)
         .bind(intentId)
         .first<RetainedOutboxRow>();
       return row === null ? null : toRetainedOutboxIntent(row);

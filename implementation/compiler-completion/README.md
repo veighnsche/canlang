@@ -2730,3 +2730,20 @@ event payload provenance, public nominal Fact[] codec or private child admission
 The original event payload/atomic source and Fact[] prerequisites above remain
 SKIP with exact owners; BDD3/Task22 holds remain precise. No unchanged full Cargo,
 editor or owning tests are repeated, and no remote push follows this intake.
+
+
+**Reviewed native query codec/read-child release (unfinished source join),
+2026-10-10.** Intake exact reviewed LOCALc1bbffe8/Dev763330ec onto4fdb151f,
+preserving all histories and released allocations. Reuse Dev49 finite outcomes
+and owner clean emits/root/boundaries. Same-load nominal contract/array result
+conversion and protected complete query-read child preparation are now released.
+The unchanged generated public Fact[] consumer is assigned to Dev for its one
+actual qualification; Compiler does not duplicate that execution. Its prior0/1
+remains historical until that result arrives. Next Compiler unit owns truthful
+whole checked scan/count/select Complete, receipt publication, acyclic parent
+CALL/protected inputs and bound result correspondence with an actual generated
+parent consumer. This source inventory alone proves none of these. State49e/3e
+saved multisubject and351/919 original outbox provenance releases are finite
+owner prerequisites; reuse their owning qualification. Filesdf1 repair remains
+Packages-owned and does not release any Compiler hold. Original pure membership,
+checked subject-policy source transport and precise BDD3/Task22 holds remain.

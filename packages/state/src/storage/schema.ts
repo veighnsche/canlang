@@ -41,7 +41,7 @@ export const SCHEMA_STATEMENTS: ReadonlyArray<string> = [
   'CREATE TABLE IF NOT EXISTS records(model TEXT NOT NULL, id TEXT NOT NULL, version INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL, archived_at INTEGER NULL, owner TEXT NOT NULL DEFAULT \'\', parent_model TEXT NULL, parent_id TEXT NULL, data TEXT NOT NULL, PRIMARY KEY(model, id))',
   'CREATE TABLE IF NOT EXISTS receipts(app TEXT NOT NULL, owner TEXT NOT NULL, principal TEXT NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, input_hash TEXT NOT NULL, resolved_defaults TEXT NOT NULL, outcome TEXT NOT NULL, committed_revision INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(app, owner, principal, operation, operation_id))',
   'CREATE TABLE IF NOT EXISTS history(seq INTEGER PRIMARY KEY AUTOINCREMENT, model TEXT NOT NULL, record_id TEXT NOT NULL, version INTEGER NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, actor TEXT NOT NULL, at INTEGER NOT NULL, change TEXT NOT NULL, "before" TEXT NULL, "after" TEXT NULL)',
-  'CREATE TABLE IF NOT EXISTS outbox(intent_id TEXT PRIMARY KEY, operation TEXT NOT NULL, operation_id TEXT NOT NULL, target TEXT NOT NULL, arguments TEXT NOT NULL, occurrence_index INTEGER NOT NULL, dispatch_guard TEXT NULL, handler_contract TEXT NULL, status TEXT NOT NULL DEFAULT \'pending\', created_at INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS outbox(intent_id TEXT PRIMARY KEY, operation TEXT NOT NULL, operation_id TEXT NOT NULL, target TEXT NOT NULL, arguments TEXT NOT NULL, occurrence_index INTEGER NOT NULL, dispatch_guard TEXT NULL, handler_contract TEXT NULL, status TEXT NOT NULL DEFAULT \'pending\', created_at INTEGER NOT NULL, committed_revision INTEGER NULL)',
   'CREATE TABLE IF NOT EXISTS schedules("key" TEXT PRIMARY KEY, at INTEGER NOT NULL, event TEXT NOT NULL, payload TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS unique_claims(model TEXT NOT NULL, key_name TEXT NOT NULL, key_value TEXT NOT NULL, record_id TEXT NOT NULL, PRIMARY KEY(model, key_name, key_value))',
   'CREATE TABLE IF NOT EXISTS snapshots(owner TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL, digest TEXT NOT NULL, installed_revision INTEGER NOT NULL, installed_at INTEGER NOT NULL)',
@@ -70,6 +70,10 @@ export const SCHEMA_SQL: string = SCHEMA_STATEMENTS.map((s) => `${s};`).join('\n
  */
 export const ALTER_OUTBOX_HANDLER_CONTRACT: string =
   'ALTER TABLE outbox ADD COLUMN handler_contract TEXT NULL';
+
+/** Original fenced publication revision; legacy rows deliberately remain NULL. */
+export const ALTER_OUTBOX_COMMITTED_REVISION: string =
+  'ALTER TABLE outbox ADD COLUMN committed_revision INTEGER NULL';
 
 /** True when an ALTER failure is just "column already exists". */
 export function isDuplicateColumnError(error: unknown): boolean {
