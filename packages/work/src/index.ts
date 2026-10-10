@@ -5,6 +5,7 @@ export * from './intent/index.js';
 export * from './kernel/commands.js';
 export * from './kernel/committed-model-source.js';
 export * from './kernel/tables.js';
+export * from './kernel/file-reference-inventory.js';
 export * from './observation/association.js';
 export * from './observation/observation.js';
 export * from './observation/ports.js';
