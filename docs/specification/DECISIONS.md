@@ -5674,3 +5674,12 @@ existing type IDs, including user and Team. Literal default module metadata must
 join the original checked module even without a nested call. Owning6/6 validates
 actual JSON and skew refusals. This is internal structural transport, without
 artifact registration, runtime private issuance, effect admission or authority.
+
+
+## 2026-10-10 — keep bounded disclosure traversal within the normal stack
+
+Split heavy expression arms from the recursive dispatch frame so the existing
+depth64 guard returns its normal refusal before stack exhaustion. Preserve
+source admission, counters and evaluation/path order; retain the original flat
+80-term regression. Existing library154 and decision6 pass on the default stack.
+Do not lower the supported bound, enlarge the stack or skip the crashing case.
