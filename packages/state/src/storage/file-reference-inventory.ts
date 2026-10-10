@@ -1,5 +1,5 @@
 import type { FrameworkFileReferenceField as Field, FrameworkFileReferenceModel,
-  FrameworkFileReferenceProducer, ModelName, StoredRow } from '@canlang/contracts';
+  FrameworkFileReferenceProducer, ModelName, ReceiptError, StoredRow } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow,
   type AssociationRowData, type ReceiptRowData } from '../receipt/tables.js';
@@ -14,10 +14,12 @@ const nullableNumber = Object.freeze({ ...number, nullable: true } as const);
 const result = Object.freeze({ kind: 'opaque', role: 'retained-result' } as const);
 const deferred = Object.freeze({ kind: 'opaque', role: 'deferred-input' } as const);
 type Fields<T> = { readonly [K in keyof T]-?: Field };
+const errorFields = Object.freeze({ code: string, message: string } satisfies Fields<ReceiptError>);
+const nullableError = Object.freeze({ kind: 'control', value: 'object', fields: errorFields, nullable: true } as const);
 const association = { recordModel: string, recordId: string, field: string,
   deliveryId: string, source: string, revision: number } satisfies Fields<AssociationRowData>;
 const receipt = { deliveryId: string, revision: number, status: string, result,
-  error: result, contentRef: nullableString, resultExpiresAtMs: nullableNumber } satisfies Fields<ReceiptRowData>;
+  error: nullableError, contentRef: nullableString, resultExpiresAtMs: nullableNumber } satisfies Fields<ReceiptRowData>;
 const navigation = { owner: string, fanoutId: string, sourceOccurrence: string,
   handler: string, cohort: string, intentVersion: number,
   lastVisitedChildId: nullableString } satisfies Fields<FanoutNavigationData>;
@@ -80,6 +82,7 @@ function closed(value: unknown, fields: Readonly<Record<string, Field>>): Record
     const member = data[key];
     if (field.kind === 'opaque') continue;
     if (member === null && field.nullable === true) continue;
+    if (field.value === 'object') { closed(member, field.fields); continue; }
     if (field.value === 'string-array' ? !Array.isArray(member) || member.some(item => typeof item !== 'string') :
         typeof member !== field.value || field.value === 'number' && !Number.isFinite(member)) return invalid(`invalid ${key}.`);
   }

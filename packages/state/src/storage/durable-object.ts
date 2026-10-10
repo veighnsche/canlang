@@ -84,7 +84,7 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import {
-  FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy,
+  FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy,
   guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow,
 } from './file-retirement.js';
@@ -1263,8 +1263,8 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       return row === null ? null : toMigrationFailure(row);
     },
   };
-  if (binding === undefined) return port;
-  return {
+  if (binding === undefined) return registerFileFrameworkStorage(port, framework);
+  return registerFileFrameworkStorage<FileReferenceStoragePort>({
     ...port,
     fileRetirementAuthority: binding,
 
@@ -1346,5 +1346,5 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       }
       return fileGuardCopy(state.retirements.find(fact => fact.file.ref === ref) ?? null);
     },
-  };
+  }, framework);
 }

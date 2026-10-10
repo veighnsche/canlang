@@ -6,9 +6,13 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { ArtifactModel, CanTypeId, DomainWrite, FileReferenceInventory,
   FileReferenceStoragePort, FileRetirementAuthority, FinalizedFileIdentity,
-  FrameworkFileReferenceProducer, InstalledSnapshot, ModelName, Revision, StoragePort, StoredRow } from '@canlang/contracts';
+  FrameworkFileReferenceProducer, InstalledSnapshot, ModelName, Revision, StagedRow, StoragePort, StoredRow } from '@canlang/contracts';
 import { STATE_FILE_REFERENCE_PRODUCER, createD1Storage, createTestMemoryStorage,
   ensureD1Schema, StorageConstraintError } from '@canlang/state/storage';
+import { StateError } from '@canlang/state';
+import { activate, resumeMigration, validateTransition } from '@canlang/state/migration';
+import { buildModelTableFromCanonical } from '@canlang/state/mutation/models';
+import { normalizeValueTypes } from '@canlang/values';
 import { loadArtifactDescriptors } from '@canlang/state/invocation/registry';
 import { newAssociationRow, newReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { stageFanoutNavigationWrite, stageFanoutOwnerScanWrite,
@@ -219,4 +223,91 @@ for (const backend of backends) describe(`Framework File admission: ${backend.na
 });
 it('rejects duplicated actual owning exports at trusted binding construction', () => {
   assert.throws(() => createTestMemoryStorage(authority, [WORK_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]));
+});
+
+
+describe('actual Memory migration engine with mixed State and Work File inventory', () => {
+  const clock = { nowMs: () => 888 };
+  function enginePlan(installed: InstalledSnapshot, old: FileReferenceInventory, target: FileReferenceInventory,
+    migrationId: string) {
+    const table = (declarations: FileReferenceInventory) => buildModelTableFromCanonical(declarations.canonicalModels,
+      { valueSchema: normalizeValueTypes(declarations.valueTypes, declarations.canonicalModels.map(model => model.name)).valueSchema });
+    const oldModels = table(old), desiredModels = table(target);
+    const plan = validateTransition(installed, { migrationId, owner: installed.owner,
+      fromSnapshotId: installed.snapshotId, fromDigest: installed.digest,
+      toSnapshotId: target.snapshotId, toDigest: target.digest, bodyDigest: 'mixed-engine-body', directives: [] },
+    oldModels, desiredModels);
+    return { plan, oldModels, desiredModels };
+  }
+  async function stagedMigration(migrationId: string, ids: readonly string[]) {
+    const store = createTestMemoryStorage(authority, producers).store;
+    const old = inventory(), target = { ...inventory(), snapshotId: 'mixed-target', digest: 'mixed-target-digest' };
+    assert.equal(old.frameworkModels.length, 13); assert.deepEqual(target.frameworkModels, old.frameworkModels);
+    await install(store, old);
+    const controls = controlRows();
+    const domain = ids.map(id => ({ ...makeRow({ id, data: { attachment: { id: `file-${id}` } } }), parent: null }));
+    await store.commit(makeBatch(await store.readRevision(), { writes: [
+      ...domain.map(row => ({ kind: 'insert' as const, model: MODEL, row })),
+      ...controls.map(([model, row]) => ({ kind: 'insert' as const, model, row })),
+    ] }));
+    const engine = enginePlan((await store.readInstalledSnapshot(old.owner))!, old, target, migrationId);
+    const staged: StagedRow[] = domain.map(row => ({ targetModel: MODEL, recordId: row.id,
+      version: row.version, data: row.data, parent: null, converted: false,
+      created: row.created, createdBy: row.createdBy, archivedAt: row.archivedAt }));
+    const revision = await store.readRevision();
+    await store.stageMigrationRows({ expectedRevision: revision, migrationId, rows: staged,
+      progress: { migrationId, phase: 'staged', stagedCursor: null, publishCursor: null,
+        updatedRevision: asRevision(revision + 1) } });
+    return { store, old, target, controls, domain, staged, engine };
+  }
+  it('activate carries all 13 owning families while publishing only real staged domain rows', async () => {
+    const migrationId = 'mixed-engine-activate';
+    const { store, target, controls, domain, engine } = await stagedMigration(migrationId, ['record']);
+    const activated = await activate({ store, ...engine, inventory: [], chunkSize: 1, clock,
+      fileReferenceInventory: target });
+    assert.equal(activated.flipped, true);
+    const installed = (await store.readFileReferenceInventory(target.owner))!;
+    assert.deepEqual(installed.inventory, target); assert.equal(installed.snapshot.installedAt, 888);
+    assert.equal(installed.snapshot.installedRevision, activated.revision);
+    assert.equal((await store.readMigrationProgress(migrationId))?.phase, 'active');
+    assert.deepEqual((await store.query({ model: MODEL, authority: 'owner', order: [{ field: 'id', direction: 'asc' }] }))
+      .map(row => row.data), domain.map(row => row.data));
+    for (const [model, original] of controls) assert.deepEqual(await store.load(model, original.id), original);
+    const retired = await store.retireFinalizedFile({ expectedRevision: activated.revision,
+      inventory: { owner: target.owner, snapshotId: target.snapshotId, digest: target.digest }, file: file(),
+      disposition: 'orphaned', retention: { unattachedHorizonMs: 10, retentionMs: 100 }, atMs: 900,
+      maxRows: 30, maxReferences: 100 });
+    assert.deepEqual(retired.snapshot, installed.snapshot);
+  });
+  it('resumeMigration completes an interrupted real mixed-inventory publication without changing framework controls', async () => {
+    const migrationId = 'mixed-engine-resume';
+    const { store, target, controls, domain, staged, engine } = await stagedMigration(migrationId, ['record', 'second']);
+    const revision = await store.readRevision(), first = staged[0]!;
+    await store.publishMigrationChunk({ expectedRevision: revision, migrationId, rows: [first], history: [], drops: [],
+      fileReferenceInventory: target, progress: { migrationId, phase: 'publishing', stagedCursor: null,
+        publishCursor: { model: MODEL, recordId: first.recordId }, updatedRevision: asRevision(revision + 1) } });
+    assert.equal((await store.readInstalledSnapshot(snapshot.owner))?.snapshotId, snapshot.snapshotId);
+    const resumed = await resumeMigration({ store, ...engine, mappers: new Map(), oldLocks: new Map(),
+      inventory: [], chunkSize: 1, clock, fileReferenceInventory: target });
+    assert.equal(resumed.flip?.flipped, true); assert.equal(resumed.progress?.phase, 'active');
+    assert.deepEqual((await store.readFileReferenceInventory(target.owner))?.inventory, target);
+    assert.equal((await store.readInstalledSnapshot(target.owner))?.installedAt, 888);
+    assert.deepEqual((await store.query({ model: MODEL, authority: 'owner', order: [{ field: 'id', direction: 'asc' }] }))
+      .map(row => row.data), domain.map(row => row.data));
+    for (const [model, original] of controls) assert.deepEqual(await store.load(model, original.id), original);
+  });
+  it('a copied adapter cannot authorize nonempty owning framework inventory or advance migration state', async () => {
+    const migrationId = 'mixed-engine-copied-store';
+    const { store, old, target, controls, domain, engine } = await stagedMigration(migrationId, ['record']);
+    const revision = await store.readRevision(), progress = await store.readMigrationProgress(migrationId);
+    const installed = await store.readFileReferenceInventory(old.owner);
+    await assert.rejects(activate({ store: { ...store }, ...engine, inventory: [], chunkSize: 1, clock,
+      fileReferenceInventory: target }), error => error instanceof StateError && error.code === 'validation');
+    assert.equal(await store.readRevision(), revision);
+    assert.deepEqual(await store.readMigrationProgress(migrationId), progress);
+    assert.deepEqual(await store.readFileReferenceInventory(old.owner), installed);
+    assert.equal(await store.readMigrationFailure(migrationId), null);
+    for (const original of domain) assert.deepEqual(await store.load(MODEL, original.id), original);
+    for (const [model, original] of controls) assert.deepEqual(await store.load(model, original.id), original);
+  });
 });

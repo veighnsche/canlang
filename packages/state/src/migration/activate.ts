@@ -71,7 +71,7 @@ import { noteUnexpectedFailure } from './recover.js';
 import type { RetainedSet } from './retain.js';
 import { canonicalUniqueValue } from './validate.js';
 import type { ValidatedMigrationPlan } from './transition.js';
-import { checkedFileInventory } from '../storage/file-retirement.js';
+import { checkedFileInventoryForStorage } from '../storage/file-retirement.js';
 
 /** One activation call: store, plan, inventory, tables, bounds, clock. */
 export interface ActivateInput {
@@ -118,6 +118,7 @@ interface DropCandidate {
  */
 export async function activate(input: ActivateInput): Promise<FlipResult> {
   const { store, plan, inventory, retained, oldModels, desiredModels, chunkSize, clock, isExpiredRow } = input;
+  const fileDeclarations = migrationFileInventory(store, plan, input.fileReferenceInventory);
   if (!Number.isInteger(chunkSize) || chunkSize < 1) {
     throw new Error(`Invalid migration chunk size: ${JSON.stringify(chunkSize)}`);
   }
@@ -145,8 +146,8 @@ export async function activate(input: ActivateInput): Promise<FlipResult> {
       throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
     }
     const actor = `migration:${plan.toSnapshotId}`;
-    await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow, input.fileReferenceInventory);
-    const result = await flipToInstalled(store, plan, now, disposition, input.fileReferenceInventory);
+    await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow, fileDeclarations);
+    const result = await flipToInstalled(store, plan, now, disposition, fileDeclarations);
     if (!result.flipped) {
       // The evidence gate proved installed == from (and from != target) up
       // front, so a no-op flip means the pointer moved under us past the
@@ -417,7 +418,7 @@ export async function publishStagedAndDrops(
   isExpiredRow?: (row: StoredRow) => boolean,
   fileReferenceInventory?: FileReferenceInventory,
 ): Promise<void> {
-  const declarations = migrationFileInventory(plan, fileReferenceInventory);
+  const declarations = migrationFileInventory(store, plan, fileReferenceInventory);
   let published = false;
   await checkActivationEvidence(store, plan);
   if (isExpiredRow !== undefined) {
@@ -797,7 +798,7 @@ export async function flipToInstalled(
   disposition: ActivationDisposition,
   fileReferenceInventory?: FileReferenceInventory,
 ): Promise<FlipResult> {
-  const declarations = migrationFileInventory(plan, fileReferenceInventory);
+  const declarations = migrationFileInventory(store, plan, fileReferenceInventory);
   const revision = await store.readRevision();
   const dropping = plan.ownerAction.kind === 'drop';
   if (dropping && (await store.readInstalledSnapshot(plan.owner)) === null) {
@@ -842,10 +843,10 @@ export async function flipToInstalled(
   }
 }
 
-function migrationFileInventory(plan: ValidatedMigrationPlan, input?: FileReferenceInventory): FileReferenceInventory | undefined {
+function migrationFileInventory(store: StoragePort, plan: ValidatedMigrationPlan, input?: FileReferenceInventory): FileReferenceInventory | undefined {
   if (input === undefined) return undefined;
   try {
-    const declarations = checkedFileInventory(input);
+    const declarations = checkedFileInventoryForStorage(store, input);
     if (declarations.owner !== plan.owner || declarations.snapshotId !== plan.toSnapshotId || declarations.digest !== plan.toDigest) {
       throw new StateError('validation', 'Migration File declarations must match the exact target snapshot.');
     }
