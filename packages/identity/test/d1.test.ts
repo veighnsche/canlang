@@ -26,6 +26,115 @@ import {
 
 const NOW = Date.parse('2026-10-04T15:00:00.000Z');
 
+test('D1 snapshot is one complete bound SELECT, detached from later equal-clock mutations', async () => {
+  const { db, d1, store } = await setup();
+  const { user, team, membership } = await setupUserTeam(store);
+  const subject = await store.createMembership({ team_id: team.team_id, user_id: 'subject', is_owner: false,
+    roles: [{ role: 'Tasks.review', granted_at: new Date(NOW).toISOString(), granted_by: user.user_id }] });
+  await store.removeMembership(subject.membership_id);
+  const otherTeam = await store.createTeam({});
+  await store.createMembership({ team_id: otherTeam.team_id, user_id: 'absent', is_owner: true, roles: [] });
+  const statements: { sql: string; values: unknown[] }[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const observing: IdentityD1Database = {
+    exec: sql => d1.exec(sql),
+    prepare(sql) { return { bind(...values) {
+      statements.push({ sql, values });
+      const bound = d1.prepare(sql).bind(...values);
+      return { ...bound, async all<T>() {
+        const observed = await bound.all<T>();
+        await gate;
+        return observed;
+      } };
+    } }; },
+  };
+  const snapshotStore = createD1IdentityStore(observing);
+  const users = ['subject', 'absent', user.user_id, user.user_id];
+  const pending = snapshotStore.findMembershipsSnapshot(team.team_id, users);
+  users[0] = 'absent';
+  await store.removeMembership(membership.membership_id);
+  await store.reactivateMembership(subject.membership_id, { is_owner: true, roles: [] });
+  release();
+  const snapshot = await pending;
+  assert.equal(statements.length, 1);
+  assert.match(statements[0]!.sql, /^WITH wanted.*SELECT .*LEFT JOIN identity_memberships/);
+  assert.deepEqual(statements[0]!.values, ['subject', 'absent', user.user_id, user.user_id, team.team_id]);
+  assert.equal(snapshot.team_id, team.team_id);
+  assert.deepEqual(snapshot.entries.map(e => e.user_id), ['subject', 'absent', user.user_id, user.user_id]);
+  assert.equal(snapshot.entries[0]!.membership!.status, 'removed');
+  assert.equal(snapshot.entries[0]!.membership!.is_owner, false);
+  assert.equal(snapshot.entries[0]!.membership!.roles[0]!.role, 'Tasks.review');
+  assert.equal(snapshot.entries[1]!.membership, null);
+  assert.equal(snapshot.entries[2]!.membership!.status, 'active');
+  assert.equal(snapshot.entries[2]!.membership!.is_owner, true);
+  assert.deepEqual(snapshot.entries[2], snapshot.entries[3]);
+  assert(Object.isFrozen(snapshot.entries[0]!.membership!.roles[0]));
+  assert(Object.isFrozen(snapshot.entries) && Object.isFrozen(snapshot.entries[2]!.membership));
+  assert.equal(snapshot.entries[2]!.membership!.updated_at, (await store.findMembershipById(membership.membership_id))!.updated_at);
+  db.close();
+});
+
+test('D1 snapshot admits the maximum in one query and refuses malformed requests before I/O', async () => {
+  const { db, d1 } = await setup();
+  const binds: unknown[][] = [];
+  const store = createD1IdentityStore({ exec: sql => d1.exec(sql), prepare(sql) {
+    return { bind(...values) { binds.push(values); return d1.prepare(sql).bind(...values); } };
+  } });
+  let calls = 0;
+  const accessor = ['caller'];
+  Object.defineProperty(accessor, '0', { get() { calls++; return 'caller'; } });
+  for (const users of [[], new Array<string>(1), accessor, [''], Array<string>(100).fill('caller')]) {
+    await assert.rejects(store.findMembershipsSnapshot('team', users));
+  }
+  await assert.rejects(store.findMembershipsSnapshot('', ['caller']));
+  assert.equal(calls, 0);
+  assert.equal(binds.length, 0);
+  const users = Array<string>(99).fill('missing');
+  users[98] = "quoted' OR 1=1 --";
+  const snapshot = await store.findMembershipsSnapshot('team', users);
+  assert.equal(binds.length, 1);
+  assert.equal(binds[0]!.length, 100);
+  assert.equal(snapshot.entries.length, 99);
+  assert(snapshot.entries.every(e => e.membership === null));
+  assert.equal(snapshot.entries[98]!.user_id, users[98]);
+  db.close();
+});
+
+test('D1 snapshot refuses incomplete, skewed and corrupt facts instead of narrowing authority', async () => {
+  const { db, d1, store } = await setup();
+  const { user, team } = await setupUserTeam(store);
+  const corruptions: ((rows: Record<string, unknown>[]) => void)[] = [
+    rows => { rows.pop(); },
+    rows => { rows.push(rows[0]!); },
+    rows => { rows.reverse(); },
+    rows => { rows[0]!['ordinal'] = 1; },
+    rows => { rows[0]!['requested_user_id'] = 'other'; },
+    rows => { rows[0]!['team_id'] = 'other'; },
+    rows => { rows[0]!['user_id'] = 'other'; },
+    rows => { rows[0]!['is_owner'] = 2; },
+    rows => { rows[0]!['status'] = 'unknown'; },
+    rows => { rows[0]!['roles'] = '{}'; },
+    rows => { rows[0]!['roles'] = '[{"role":"Tasks.review"}]'; },
+    rows => { rows[1]!['status'] = 'active'; },
+  ];
+  for (const corrupt of corruptions) {
+    const changed = createD1IdentityStore({ exec: sql => d1.exec(sql), prepare(sql) {
+      return { bind(...values) {
+        const bound = d1.prepare(sql).bind(...values);
+        return { ...bound, async all<T>() {
+          const result = await bound.all<Record<string, unknown>>();
+          const rows = result.results.map(r => ({ ...r }));
+          corrupt(rows);
+          return { results: rows as T[] };
+        } };
+      } };
+    } });
+    await assert.rejects(changed.findMembershipsSnapshot(team.team_id, [user.user_id, 'missing']));
+  }
+  db.close();
+});
+
 /** Adapt node:sqlite to the store's minimal D1 surface (no new deps). */
 function wrapSqlite(db: DatabaseSync): IdentityD1Database {
   return {

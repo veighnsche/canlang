@@ -658,8 +658,8 @@
       }
     },
     "TECH-I01": {
-      "planning_status": "blocked",
-      "state": "independently accepted finite OAuth one-use correction; committed33f12d62",
+      "planning_status": "partial; bounded defining read implemented/tested; whole mutation J2 blocked",
+      "state": "implemented and owning-tested bounded coherent membership producer; coordinator review/consumer intake pending; not whole TECH-I01 acceptance",
       "files": [
         "packages/identity/src/ports.ts",
         "packages/identity/src/storage/d1.ts",
@@ -673,20 +673,19 @@
         "packages/contracts/src/identity.ts",
         "packages/state/src/ports/identity.ts"
       ],
-      "current_bounded_prerequisite": "FP.IDENTITY-CONTRACT remains proposed; prior JEV shared-fence trio retained. Four actual shared-db/fence/guard/batch/memory questions need current-source owner reconciliation before broad identity atomicity implementation; void D1 OAuth consume remains concrete SEC01 gap, not fixed by metadata work.",
+      "current_bounded_prerequisite": "Current-source Identity global DB / team State DB placement reconciled. Contracts MembershipSnapshot and Identity findMembershipsSnapshot supply one bounded read observation; full shared mutation fence remains proposed. Explicit OAuth consumed/unavailable winner already accepted33f12d62.",
       "agent": "/root/review_state_private",
       "model": "gpt-6.1-sol",
       "effort": "high",
       "source_facts": "/private/tmp/canlang-repair-go-20261007/identity-contract/source-reconciliation.json",
       "active_files": [
+        "packages/contracts/src/identity.ts",
         "packages/identity/src/ports.ts",
+        "packages/identity/src/membership-snapshot.ts",
         "packages/identity/src/storage/d1.ts",
         "packages/identity/src/testing.ts",
-        "packages/identity/src/authentication/oauth.ts",
-        "packages/cloudflare/src/runtime/env-assembly.ts",
-        "packages/identity/test/oauth.test.ts",
         "packages/identity/test/d1.test.ts",
-        "packages/cloudflare/test/mcpd-env-assembly.test.ts"
+        "packages/identity/test/membership-snapshot.test.ts"
       ],
       "outputs": "/private/tmp/canlang-repair-go-20261007/oauth-consume",
       "contract": "Explicit consumed/unavailable outcome; only exact consumed mints. Declared D1 result.meta.changes numeric0/1; malformed outcome refuses. Consume-before-mint first failure retained; full shared identity/state fence J2 remains open.",
@@ -708,8 +707,211 @@
       "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open",
       "commit": "33f12d62",
       "remaining_prerequisite": {
-        "prerequisite": "Whole J2 transaction fence, guard, statement and memory contract; recovery/last-owner atomic winner/replay qualification.",
-        "owner": "Identity/Contracts/State transaction contract owners"
+        "prerequisite": "Dev exact mirror; Capability/State+Dev multi-member observation consumption/native qualification; broader J2 database placement, mutation guard/batch ownership/Memory semantics and recovery/last-owner atomic winner/replay.",
+        "owner": "Dev, Capability/State, Identity/Contracts transaction owners"
+      },
+      "coherent_membership_consultation": {
+        "status": "complete; advice only",
+        "basis": "Current-source defining-owner reconciliation; AGENTS general JEV preauthorization. No previous intrinsic or held legacy payload approval reused. Facts only, no source/app/provider/user payload or credentials.",
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "goal": "Release the smallest complete defining Identity producer for one coherent observation of all caller/subject memberships needed by an unchanged-State-row authorization decision. Full multi-step identity mutation atomicity remains separate.",
+              "accepted_behavior": [
+                "An already-admitted operation may finish at an earlier genuinely coherent authorized point.",
+                "A conjunction of memberships never simultaneously authorized must refuse, even if sequential reads repeatedly match.",
+                "Preserve team scope, caller/subject identity, removed status, owner and role provenance, missing facts, finite bounds, and policy evaluation order. No new global epoch or unbounded reread."
+              ],
+              "current_source": [
+                "IdentityStore exposes only singular findMembership(team,user). D1 uses individual atomic SQL statements, UNIQUE(team_id,user_id), and wall-clock updated_at, not a revision.",
+                "Production global Identity uses env.DB; concrete team State uses separate STATE_DB or owner-routed databases. Legacy global State may share Identity DB. Current shared-fence draft assumes colocation, not universally true.",
+                "State role lookups use the current team and distinct caller/subject user IDs. State and Dev own consuming this new producer within their unchanged-row/revision/lifetime checks.",
+                "Memory mutations execute synchronously before Promise settlement; it is a test double with no native transaction-fence qualification.",
+                "D1 current adapter uses raw prepare/exec without read-replication Sessions API. Default queries execute on primary. D1 has 100 bound parameters per query."
+              ],
+              "release_criteria": [
+                "Finite exact complete same-team requested membership set; one coherent database observation, explicit missing and removed facts, detached immutable roles/owner/status data. No cross-time conjunction, truncation, silent chunking, scope changes or durable token promise.",
+                "Current physical database placement must be honored. Recovery cascades, last-owner guards and broader J2 mutation fence must stay proposed unless actually implemented and qualified.",
+                "Source and direct relational/memory tests belong to Identity/Contracts; downstream real consumer qualification belongs to State/Dev."
+              ]
+            },
+            "questions": {
+              "next_identity_contract": {
+                "type": "choice",
+                "instructions": "Choose the next defining Identity contract implementation that completely meets release_criteria and accepted_behavior at current_source, with the least necessary owner/deployment changes. Compare all options fairly. Do not treat a read observation as full J2 mutation atomicity, confidence as proof, or a narrower helper without full bounded membership facts as success.",
+                "criteria": {
+                  "bounded_read": "Add a bounded same-team multi-member read using one primary Identity SELECT and synchronous detached Memory capture. Preserve requested positions, absence, statuses and immutable complete membership facts. This releases one observation point for downstream composition, without a reusable revision or multi-step mutation atomicity. Broad J2 stays open.",
+                  "owned_revision": "First introduce an Identity-owned monotonic per-team revision with every membership writer atomically bumping it, schema/transaction seams, and finite stable-snapshot reads. This gives reusable correspondence across reads but requires complete writer coverage and new storage semantics; State/Dev still consume it.",
+                  "shared_fence": "First reconcile placement by colocating Identity with team State and implement the whole shared-fence mutation/guard/batch contract and Memory semantics. This can connect mutation atomicity and State correspondence, but requires deployment and owner-routing changes before the defining read can ship.",
+                  "defer": "No listed option can safely meet the accepted behavior from these verified facts; retain multi-member refusal and seek the precise missing owner fact before implementing."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "goal": "Release the smallest complete defining Identity producer for one coherent observation of all caller/subject memberships needed by an unchanged-State-row authorization decision. Full multi-step identity mutation atomicity remains separate.",
+              "accepted_behavior": [
+                "An already-admitted operation may finish at an earlier genuinely coherent authorized point.",
+                "A conjunction of memberships never simultaneously authorized must refuse, even if sequential reads repeatedly match.",
+                "Preserve team scope, caller/subject identity, removed status, owner and role provenance, missing facts, finite bounds, and policy evaluation order. No new global epoch or unbounded reread."
+              ],
+              "current_source": [
+                "IdentityStore exposes only singular findMembership(team,user). D1 uses individual atomic SQL statements, UNIQUE(team_id,user_id), and wall-clock updated_at, not a revision.",
+                "Production global Identity uses env.DB; concrete team State uses separate STATE_DB or owner-routed databases. Legacy global State may share Identity DB. Current shared-fence draft assumes colocation, not universally true.",
+                "State role lookups use the current team and distinct caller/subject user IDs. State and Dev own consuming this new producer within their unchanged-row/revision/lifetime checks.",
+                "Memory mutations execute synchronously before Promise settlement; it is a test double with no native transaction-fence qualification.",
+                "D1 current adapter uses raw prepare/exec without read-replication Sessions API. Default queries execute on primary. D1 has 100 bound parameters per query."
+              ],
+              "release_criteria": [
+                "Finite exact complete same-team requested membership set; one coherent database observation, explicit missing and removed facts, detached immutable roles/owner/status data. No cross-time conjunction, truncation, silent chunking, scope changes or durable token promise.",
+                "Current physical database placement must be honored. Recovery cascades, last-owner guards and broader J2 mutation fence must stay proposed unless actually implemented and qualified.",
+                "Source and direct relational/memory tests belong to Identity/Contracts; downstream real consumer qualification belongs to State/Dev."
+              ]
+            },
+            "questions": {
+              "next_identity_contract": {
+                "type": "choice",
+                "instructions": "For the verified present adapters, select the appropriate next producer release for simultaneous membership authority. Require exact same-team complete facts and a genuine coherent point; weigh revision and colocation benefits against their necessary whole-writer/deployment prerequisites. Preserve the remaining full J2 proposal and downstream owner qualification. Defer if none is sufficient.",
+                "criteria": {
+                  "bounded_read": "Add a bounded same-team multi-member read using one primary Identity SELECT and synchronous detached Memory capture. Preserve requested positions, absence, statuses and immutable complete membership facts. This releases one observation point for downstream composition, without a reusable revision or multi-step mutation atomicity. Broad J2 stays open.",
+                  "owned_revision": "First introduce an Identity-owned monotonic per-team revision with every membership writer atomically bumping it, schema/transaction seams, and finite stable-snapshot reads. This gives reusable correspondence across reads but requires complete writer coverage and new storage semantics; State/Dev still consume it.",
+                  "shared_fence": "First reconcile placement by colocating Identity with team State and implement the whole shared-fence mutation/guard/batch contract and Memory semantics. This can connect mutation atomicity and State correspondence, but requires deployment and owner-routing changes before the defining read can ship.",
+                  "defer": "No listed option can safely meet the accepted behavior from these verified facts; retain multi-member refusal and seek the precise missing owner fact before implementing."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "goal": "Release the smallest complete defining Identity producer for one coherent observation of all caller/subject memberships needed by an unchanged-State-row authorization decision. Full multi-step identity mutation atomicity remains separate.",
+              "accepted_behavior": [
+                "An already-admitted operation may finish at an earlier genuinely coherent authorized point.",
+                "A conjunction of memberships never simultaneously authorized must refuse, even if sequential reads repeatedly match.",
+                "Preserve team scope, caller/subject identity, removed status, owner and role provenance, missing facts, finite bounds, and policy evaluation order. No new global epoch or unbounded reread."
+              ],
+              "current_source": [
+                "IdentityStore exposes only singular findMembership(team,user). D1 uses individual atomic SQL statements, UNIQUE(team_id,user_id), and wall-clock updated_at, not a revision.",
+                "Production global Identity uses env.DB; concrete team State uses separate STATE_DB or owner-routed databases. Legacy global State may share Identity DB. Current shared-fence draft assumes colocation, not universally true.",
+                "State role lookups use the current team and distinct caller/subject user IDs. State and Dev own consuming this new producer within their unchanged-row/revision/lifetime checks.",
+                "Memory mutations execute synchronously before Promise settlement; it is a test double with no native transaction-fence qualification.",
+                "D1 current adapter uses raw prepare/exec without read-replication Sessions API. Default queries execute on primary. D1 has 100 bound parameters per query."
+              ],
+              "release_criteria": [
+                "Finite exact complete same-team requested membership set; one coherent database observation, explicit missing and removed facts, detached immutable roles/owner/status data. No cross-time conjunction, truncation, silent chunking, scope changes or durable token promise.",
+                "Current physical database placement must be honored. Recovery cascades, last-owner guards and broader J2 mutation fence must stay proposed unless actually implemented and qualified.",
+                "Source and direct relational/memory tests belong to Identity/Contracts; downstream real consumer qualification belongs to State/Dev."
+              ]
+            },
+            "questions": {
+              "next_identity_contract": {
+                "type": "choice",
+                "instructions": "Which contract should the Identity owner implement next to unblock a multi-subject decision while retaining every stated authority guarantee? Evaluate the same finite complete observation outcome for the single-query, owned-revision and shared-fence alternatives, considering actual split database placement and Memory limitations. Select defer if a verified prerequisite is missing.",
+                "criteria": {
+                  "bounded_read": "Add a bounded same-team multi-member read using one primary Identity SELECT and synchronous detached Memory capture. Preserve requested positions, absence, statuses and immutable complete membership facts. This releases one observation point for downstream composition, without a reusable revision or multi-step mutation atomicity. Broad J2 stays open.",
+                  "owned_revision": "First introduce an Identity-owned monotonic per-team revision with every membership writer atomically bumping it, schema/transaction seams, and finite stable-snapshot reads. This gives reusable correspondence across reads but requires complete writer coverage and new storage semantics; State/Dev still consume it.",
+                  "shared_fence": "First reconcile placement by colocating Identity with team State and implement the whole shared-fence mutation/guard/batch contract and Memory semantics. This can connect mutation atomicity and State correspondence, but requires deployment and owner-routing changes before the defining read can ship.",
+                  "defer": "No listed option can safely meet the accepted behavior from these verified facts; retain multi-member refusal and seek the precise missing owner fact before implementing."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "next_identity_contract": {
+                "type": "choice",
+                "choice": "bounded_read",
+                "confidence": 0.99,
+                "probabilities": {
+                  "bounded_read": 0.99,
+                  "owned_revision": 0.0,
+                  "shared_fence": 0.0,
+                  "defer": 0.01
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1051,
+              "output_tokens": 53
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "next_identity_contract": {
+                "type": "choice",
+                "choice": "bounded_read",
+                "confidence": 0.96,
+                "probabilities": {
+                  "bounded_read": 0.97,
+                  "owned_revision": 0.0,
+                  "shared_fence": 0.0,
+                  "defer": 0.03
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1049,
+              "output_tokens": 53
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "next_identity_contract": {
+                "type": "choice",
+                "choice": "bounded_read",
+                "confidence": 0.96,
+                "probabilities": {
+                  "bounded_read": 0.97,
+                  "owned_revision": 0.0,
+                  "shared_fence": 0.0,
+                  "defer": 0.03
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1047,
+              "output_tokens": 53
+            }
+          }
+        ],
+        "uncertainty": "All select bounded_read, probabilities .99/.97/.97, confidence .99/.96/.96; remaining deferral .01/.03/.03. No disagreement. Advice only: actual SQL/direct memory qualification performed; native/downstream acceptance and broader mutation J2 remain open.",
+        "approval": "Human explicitly approved these exact three TECH-I01 requests and TypeSafe destination after the automatic approval review rejected generic preauthorization. No earlier payload approval reused."
+      },
+      "bounded_membership_release": {
+        "status": "implemented; clean defining emits and109 owning Identity checks pass; review/consumer qualification pending",
+        "contract": "findMembershipsSnapshot(team_id,user_ids): Promise<MembershipSnapshot>;1–99 same-team ordered positions including duplicates/absence/removed/owner/full roles; immutable detached facts. One captured request, one primary bound SELECT; Memory synchronous complete capture. No chunk/fallback/revision/authority token/latest-at-return/mutation J2 claim.",
+        "writer_lease": "Human-authorized TECH-I01 defining source unit; root sole writer for active_files, including explicitly named membership-snapshot.test.ts. Finite queue_resume read-only review; no other source writer.",
+        "validation": {
+          "contracts_emit": "clean ordinary build exit0",
+          "identity_emit": "clean ordinary build exit0",
+          "identity_tests": "109/109 pass, zero fail/skip/cancel; real SQLite one-query/99users+1team bind boundary/order/absence/removed/equal-clock later mutation; malformed requests/skewed/corrupt results and frozen detached Memory/zero accessor execution",
+          "source_check": "blocked by exact Dev Identity mirror TS2741 at mcpd-env-assembly.test.ts81/526 only; root repeated only after mirror prerequisite intake",
+          "finite_review": "CLEAR for bounded defining producer/tests/addendum after fixing Memory own-data matching;109 results/builds reused. Native, Dev mirror and State consumption remain separate gates."
+        },
+        "prerequisites": [
+          {
+            "owner": "Dev",
+            "needed": "Exact Cloudflare env-assembly IdentityStore mirror additive method signature/type; source assignment failure released to coordinator."
+          },
+          {
+            "owner": "Capability/State",
+            "needed": "Consume single observation for all distinct caller/subject membership facts while retaining State rows/revisions/order/lifetime; no mixing later singular reads."
+          },
+          {
+            "owner": "Dev",
+            "needed": "Real native D1/State runtime adapter and complete multi-member consumer qualification."
+          }
+        ],
+        "limits": "Whole Identity mutation winner/recovery/last-owner/security acceptance, remaining J2 choice and downstream/native/installed qualification remain open. Precise native preparation/publication/payload holds unchanged."
       }
     },
     "TECH-I02": {
@@ -1614,7 +1816,7 @@
         "prerequisite": "New State-authored delivery leaf route now passes exact installed import and real workerd/D1 portable bundle checks; manually reviewed/released at LOCAL67554d14 and consumed in reviewed6da0dd1d. Selected entry source/lock/tool/emit/pack/actual supported-host correspondence and full-current native/profile consumers remain owner gates; native preparation stays held.",
         "owner": "Dev/Capability original native consumers and each delivery/release/installed supported-host owner"
       },
-      "current_validation_gap": "Historical emergency installed-closure checkpoint was subsequently qualified at its recorded local source: actual installed-only Worker/abs/auth/Wasm/missing-corrupt asset and170export/13owner declaration gates passed with797thirdparty diagnostics retained. Reuse those unchanged results only at their source scope. Current integrated source and finite portable bundle repair below do not establish all installed/supported-host/native/full-release qualification; native preparation remains held.",
+      "current_validation_gap": "Current existing installed declaration and Worker gates both pass once against reviewed local044b961a9b14935c36043d07249effafefe93318. Actual tarball-only Node24 consumer checks174typed exports/13owners with zero owned/consumer diagnostics and zero undeclared imports;797third-party diagnostics remain retained. Installed216module Worker/abs/auth/Wasm/deterministic/browser/missing-corrupt asset and missing receipt-observer refusals pass with checkout reads denied. This replaces the stale current-head installed-closure prerequisite only at the selected existing-gate scope; all selected authored source/lock/tool/emit/pack/actual supported-host/native/full-release correspondence and native preparation HOLD remain separate. Historical170export/13owner results retain their original source scope.",
       "portable_import_fixture_slice": {
         "state": "Implemented and affected fixture passed; coordinator review pending",
         "source": "Coordinator-released mainfdd03cb7 contains exact owning Dev40222c25 complete quoted-literal rewrite and preserved public State mutation subpaths. No duplicate source repair.",
@@ -1644,6 +1846,17 @@
         "behavior": "Three common fixture producers use owning bundleSha256 over actual module bytes/counts, replacing placeholders. Real writers snapshot actual bytes and enforce text/mixed/resource metadata before publication. Four legitimate positive scratch paths canonicalize the actual directory to avoid Mac /var alias; product symlink refusal unchanged. Keep all mutated-digest/layout/prototype/resource/containment/sentinel/no-partial-output assertions.",
         "validation": "CF owning emit passed. Three affected suites initially28pass/4fail, all4positives fail only Mac temp-alias symlink guard after truthful digest. Correct positive scratch paths; affected4/4rerun pass with11unselected, unchanged28reuse. No native/browser/fullworkspace rerun or whole release acceptance.",
         "limit": "Finite actual local filesystem writer/common-gate consumer only; owning native-D1 feature, installed/supported-host/release and exact native/timezone holds remain separate."
+      },
+      "current_installed_qualification": {
+        "source": "044b961a9b14935c36043d07249effafefe93318; current changed Cloudflare and Testkit ordinary emits exit0. Prior22-task CF graph and unchanged Work-kernel emission reused; no Compiler/native preparation/Values-Wasm rebuild.",
+        "commands": "Node24.19.0: scripts/verify-installed-types.mjs --skip-build and scripts/verify-installed-worker.mjs --skip-build each execute once and exit0. Local scratch pack/install only; no publication or workspace-link consumer.",
+        "types": "174typed exports across13owners; TypeScript5.9.3 strict skipLibCheck=false; zero owned/consumer diagnostics and undeclared edges,797third-party diagnostics retained. Missing/corrupt owned declarations fail the actual gate; restoration recovers the exact baseline.",
+        "worker": "Cloudflare-only direct binding,11-owner isolated transitive closure;216modules deterministic. Actual installed production workerd/D1 initialize401 without assembly failure; opt-in compiled Values ABI1/add-int probe returns3. Real UI asset bytes and pinned Wasm match their installed producers; four missing/corrupt asset cases refuse; missing receipt observer remains fail-closed.",
+        "existing_evidence": [
+          "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-n7hBFH/consumer/evidence.json",
+          "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-RaUq9U/consumer/evidence.json"
+        ],
+        "limits": "Finite current installed-package closure qualified; coordinator acceptance pending. Node24/Mac/selected workerd profile only, not every declared earliest Node/Bun/host profile or actual authored scenario/SDK/browser/native/full release. ABI1/add-int is only the existing asset execution probe, not backend adoption or TS retirement. DEL-R01/full48/333 remain unfinished; exact preparation/publication/payload/security/P03-P11/D05/Q10/EX12-13 holds unchanged. No source fix was required, so no bookkeeping-only worker commit is made."
       }
     },
     "DEL-E02": {
