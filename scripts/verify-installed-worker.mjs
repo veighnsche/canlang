@@ -139,6 +139,21 @@ async function verifyConsumer(checkout) {
   assert.ok(!first.modules['runtime/invoke.js'].includes('@canlang/work/receipt'));
   api.assertLinksResolve(first.modules); api.assertWorkerdLoadable(first.modules);
 
+  const filesClosure = ['vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
+  assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/files/')).sort(), [...filesClosure].sort());
+  // The State consumer is separately owned. Require the actual portable
+  // finalizer explicitly in this link control, as the workerd probe does below.
+  const filesLinkControl = 'export { readFinalizedFileObservation } from "./vendor/files/finalize/index.js";';
+  for (const key of filesClosure) {
+    const missing = { ...first.modules, 'installed-files-link-control.js': filesLinkControl }; delete missing[key];
+    assert.throws(() => api.assertLinksResolve(missing), /no such staged module/, `missing ${key}`);
+  }
+  const filesFinalizeEntry = ownerModule('@canlang/files/finalize');
+  const filesFinalize = await import(filesFinalizeEntry);
+  assert.equal(filesFinalize.readFinalizedFileObservation({}), null, 'raw data supplies no live Files identity');
+  assert.ok(first.modules['vendor/files/upload/index.js'].includes('../../noble-hashes/sha2.js'));
+  assert.ok(first.modules['vendor/files/upload/index.js'].includes('../../noble-hashes/utils.js'));
+
   // Reuse the actual serving control at a new installed location. This child
   // cannot read checkout source and exercises the uninjected Node fallback
   // through genuine Identity, State receipt rows and the public Work producer.
@@ -160,6 +175,9 @@ async function verifyConsumer(checkout) {
     new URL('sessions/comparison-node.js', distributions.identity.modules),
     new URL('stale-node-only.js', new URL('../observation/', workReceiptEntry)),
     new URL('stale.test.js', new URL('../observation/', workReceiptEntry)),
+    new URL('../host/stale.js', filesFinalizeEntry),
+    new URL('../upload/stale-node-only.js', filesFinalizeEntry),
+    new URL('stale.test.js', filesFinalizeEntry),
   ].map(fileURLToPath);
   const staleSaved = staleFiles.map(file => existsSync(file) ? readFileSync(file) : null);
   try {
@@ -178,7 +196,8 @@ async function verifyConsumer(checkout) {
   }
 
   // Mutate only isolated producer files, never the checkout's shared outputs.
-  for (const specifier of ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association']) {
+  for (const specifier of ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association',
+    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports']) {
     const file = fileURLToPath(ownerModule(specifier)); const saved = readFileSync(file);
     try {
       rmSync(file);
@@ -210,7 +229,8 @@ async function verifyConsumer(checkout) {
   }
 
   // Exercise CompiledWasm in workerd, using the actual selected binary, glue,
-  // backend, and rewritten producer graph. The probe only supplies its entry.
+  // backend, and rewritten producer graph, plus the genuine portable Files
+  // digest/strict decoder and nongrant extractor. The probe supplies its entry.
   const backendKey = Object.keys(first.modules).find(key => key.endsWith('/values-bindings/backend.js'));
   assert.ok(backendKey, 'selected values backend must be staged');
   const probeKey = 'installed-wasm-probe.js';
@@ -218,9 +238,11 @@ async function verifyConsumer(checkout) {
     `import compiled from ${JSON.stringify('./' + wasmKey)};`,
     `import * as glue from ${JSON.stringify('./' + glueKey)};`,
     `import { wasmBackend } from ${JSON.stringify('./' + backendKey)};`,
+    'import { sha256Hex, checkContent } from "./vendor/files/upload/index.js";',
+    'import { readFinalizedFileObservation } from "./vendor/files/finalize/index.js";',
     'glue.initSync({ module: compiled });',
     'const backend = wasmBackend(glue);',
-    'export default { fetch() { return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])) }); } };',
+    'export default { fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}) } }); } };',
   ].join('\n');
   const wasmWorker = await startLocalDev({
     workerName: 'installed-wasm-regression', compatibilityDate: '2026-07-15',
@@ -231,7 +253,12 @@ async function verifyConsumer(checkout) {
     const response = await wasmWorker.dispatch('/');
     assert.equal(response.status, 200);
     wasmWorkerResult = await response.json();
-    assert.deepEqual(wasmWorkerResult, { compiled: true, abi: REQUIRED_ABI_VERSION, sum: '3' });
+    assert.deepEqual(wasmWorkerResult, { compiled: true, abi: REQUIRED_ABI_VERSION, sum: '3', files: {
+      slicedDigest: `sha256:${digest(new Uint8Array([0x00, 0xff, 0x80, 0x01]))}`,
+      pdf: { claimedType: 'text/plain', detectedType: 'application/pdf', sizeBytes: 5, verdict: 'accepted' },
+      invalidText: { claimedType: 'text/plain', detectedType: null, sizeBytes: 2, verdict: 'rejected' },
+      rawObservation: null,
+    } });
   } finally {
     await wasmWorker.dispose();
   }
@@ -258,7 +285,7 @@ async function verifyConsumer(checkout) {
       writeFileSync(file, saved);
     }
   }
-  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 } };
+  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 4, portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' } };
   writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 }
