@@ -7004,3 +7004,25 @@ The genuine compiled unchanged typed-File source, actual Identity, two pinned D1
 ### 2026-10-10 — manual local intake of exact Dev60b2108b
 
 Manually reviewed exact Dev60b2108b finite owner-routing source and genuine compiled two-owner D1/Identity/SQLite fixture: configured TeamOwnerStorageBoundary selects the physical team store without fallback, app mismatch refuses, and actor/team continuity is checked before a second State read after physical awaits. Intake only two owning source/test paths and their existing PLAN/DEC record; no unreviewed branch ancestry. Reuse actual strengthened owner-routing1/1 in7.926s, unchanged full legacy File1/1, clean CF emission/root noEmit and boundary13/931/1388/zero. Existing fixed-store mode remains explicit; current reader still equals physical receiving principal. Packages520 reader is now independently reviewed/released in mainca8, but State current-slot authority, exact snapshot callback consumption, shared reader/reference retention and actual provider joins remain open. Preserve precise holds, living coverage and complete checkpoint; no publication.
+
+### 2026-10-10 — qualify the portable current File byte producer
+
+Extend the maintained isolated installed workerd probe to call the actual
+staged current reader after genuine Files finalization. Controlled explicitly
+non-durable ports are fixture storage; fixed assertions require original
+verified bytes, one physical read, detached snapshot and foreign/corrupt/exact
+unswept expiry refusal. Preserve every existing production, producer-loss,
+syntax, Work/State identity, Acorn, WASM and browser/integrity control.
+
+Changed Cloudflare emission and the genuine Files body/closure case pass;
+reuse the owning Files520 emission and unchanged graph outputs. The fresh
+isolated229 install passes on Node24.19 with checkout reads denied and only
+Cloudflare directly bound. Actual production workerd401 and every old control
+remain. Finite independent script review is clear. This qualifies portable
+physical bytes, with no State grant, shared-reference retention, authenticated
+provider, durable-host download or original workflow acceptance. Coordinator
+manual local intake is pending; all precise holds remain.
+
+### 2026-10-10 — manual local integration of a770ebb5
+
+Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
