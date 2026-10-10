@@ -207,11 +207,21 @@ test('query result retains actual provisional reference and version before a lat
     const final = await session.finalize();
     return { ...final, outbox: final.outbox ?? [], result: value };
   }, observeCommittedReceipt: value => { receipt = value; } });
-  assert.ok(receipt); assert.equal((await w.store.load(MODEL, w.rows[0]!.id))!.data['key'], 'final');
-  const facts = (await projectScenarioReceipt({ ...w, receipt })).result as ReturnType<typeof wire>;
-  assert.equal(facts.find(item => item.task.id === w.rows[0]!.id)!.key, 'intermediate');
+  assert.ok(receipt);
+  const finalRow = await w.store.load(MODEL, w.rows[0]!.id); assert.ok(finalRow);
+  assert.equal(finalRow.version, 2); assert.deepEqual(finalRow.data, { key: 'final', done: true, approved: true });
+  const expected = {
+    result: [
+      { task: { id: 'task-a', version: '1' }, version: '1', key: 'a' },
+      { task: { id: 'task-c', version: '2' }, version: '2', key: 'intermediate' },
+    ],
+    records: [{ ...finalRow, parent: finalRow.parent ?? null }],
+  };
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), expected);
   await w.memberships.createMembership({ team_id: w.member.team.team_id, user_id: w.member.user.user_id, is_owner: false, roles: [] });
-  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+  // Renewed membership still grants every original query influence; projection
+  // preserves the issued intermediate facts beside the final changed record.
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), expected);
 });
 
 for (const mode of ['copy-call', 'foreign-store', 'concurrent'] as const)
@@ -324,4 +334,160 @@ test('reexecuting one checked query occurrence refuses and poisons the owner wit
     await assert.rejects(session.finalize(), stateError); return empty();
   } }), stateError);
   assert.equal(seen.length, 3); assert.deepEqual(await domain(w), before);
+});
+
+/** Full original Fact field profile at State's existing native read boundary;
+ * source generation and the complete original .can workflow remain separate. */
+test('original seven-field Fact profile binds genuine child query slots, bounds and nominal enum in one owner receipt', async () => {
+  const taskModel = asModel('todo.Task'), locationModel = asModel('Locations.Location');
+  const factType = 'workbench.Fact[]' as CanTypeId, priorityType = 'todo.Task.priority' as CanTypeId;
+  const mapped = [
+    { name: 'title', type: 'text' as CanTypeId }, { name: 'description', type: 'text?' as CanTypeId },
+    { name: 'due', type: 'datetime?' as CanTypeId }, { name: 'priority', type: priorityType },
+    { name: 'done', type: 'bool' as CanTypeId },
+  ];
+  for (const mode of ['preserve', 'guard', 'title-bound', 'description-bound', 'version-bound', 'enum'] as const) {
+    const slice = artifact(true);
+    slice.valueTypes = { contracts: [{ name: 'workbench.Fact', fields: [
+      { name: 'task', type: taskModel }, { name: 'version', type: 'int', min: '1' },
+      { name: 'title', type: 'text', trim: true, min: 1, max: 2000 },
+      { name: 'description', type: 'text?', max: 8000 }, { name: 'due', type: 'datetime?' },
+      { name: 'priority', type: priorityType }, { name: 'done', type: 'bool' },
+    ] }], enums: [{ name: priorityType, cases: ['low', 'normal', 'high'] }] };
+    slice.models = [
+      { name: taskModel, deleteMode: 'archive', fields: [
+        { name: 'title', field: { kind: 'string' }, valueType: 'text', required: true, serverOnly: false, trim: true, min: 1, max: 2000 },
+        { name: 'description', field: { kind: 'string' }, valueType: 'text?', required: false, serverOnly: false, nullable: true, max: 8000 },
+        { name: 'due', field: { kind: 'datetime' }, valueType: 'datetime?', required: false, serverOnly: false, nullable: true },
+        { name: 'priority', field: { kind: 'enum', values: ['low', 'normal', 'high'] }, valueType: priorityType, required: true, serverOnly: false },
+        { name: 'done', field: { kind: 'boolean' }, required: true, serverOnly: false },
+        { name: 'location', field: { kind: 'ref', model: locationModel }, required: true, serverOnly: false },
+      ] },
+      { name: locationModel, deleteMode: 'archive', fields: [{ name: 'name', field: { kind: 'string' }, required: true, serverOnly: false }] },
+    ];
+    const plan = { version: 1 as const, source: source(), queries: [{ id: 'original-tasks', source: source(), model: taskModel,
+      order: [{ field: 'title', direction: 'asc' as const }], limit: null, archived: 'exclude' as const,
+      dependencies: [
+        { id: 'location-control', source: source(), role: 'control' as const, field: 'location', type: locationModel as CanTypeId },
+        { id: 'title-order', source: source(), role: 'control' as const, field: 'title', type: 'text' as CanTypeId },
+        ...mapped.map(item => ({ id: `${item.name}-data`, source: source(), role: 'data' as const, field: item.name, type: item.type })),
+      ],
+    }], returns: [{ id: 'original-facts-return', source: source(), dependencies: [],
+      influences: (['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
+        .map(kind => ({ id: kind, kind, queryId: 'original-tasks' })),
+      projection: { kind: 'query-contract-array' as const, queryId: 'original-tasks', source: source(), fields: [
+        { name: 'task', kind: 'reference' as const }, { name: 'version', kind: 'version' as const },
+        ...mapped.map(item => ({ name: item.name, kind: 'field' as const, field: item.name })),
+      ] },
+    }] };
+    slice.operations!.find(operation => operation.name === READ)!.result = { type: factType, disclosure: plan };
+    const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+    const parent = loaded.registry.get(ROOT), read = loaded.registry.get(READ);
+    assert.ok(parent && isGeneratedOperationDef(parent)); assert.ok(read && isGeneratedOperationDef(read));
+    const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
+    const member = await seedMember(memberships, { isOwner: false });
+    const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
+    const fields = ['title', 'description', 'due', 'priority', 'done', 'location'];
+    const policy = buildPolicyTable([{ model: taskModel, secretFields: [], grants: [{ by: 'members', fields }] },
+      { model: locationModel, secretFields: [], grants: [{ by: 'members', fields: ['name'] }] }]);
+    bindScenarioReceiptQueryProducer(read, { source: source(), app: APP, policy });
+    const table = buildModelTable([modelDef(taskModel, { fields: Object.fromEntries(fields.map(name => [name,
+      name === 'description' || name === 'due' ? { ...field(), nullable: true } : field({ required: true })])) }),
+      modelDef(locationModel, { fields: { name: field({ required: true }) } })]);
+    await seedRow(store, locationModel, { id: 'location-selected', data: { name: 'selected' } });
+    await seedRow(store, locationModel, { id: 'location-other', data: { name: 'other' } });
+    const due = '2026-10-12T09:00:00.000Z';
+    const first = await seedRow(store, taskModel, { id: 'original-first', data: {
+      title: 'Alpha', description: null, due: null, priority: 'normal', done: false, location: { id: 'location-selected' },
+    } });
+    await seedRow(store, taskModel, { id: 'original-second', data: {
+      title: 'Zulu', description: 'Description', due, priority: 'high', done: true, location: { id: 'location-selected' },
+    } });
+    await seedRow(store, taskModel, { id: 'original-false', data: {
+      title: 'Other', description: null, due: null, priority: 'low', done: false, location: { id: 'location-other' },
+    } });
+    const before = await store.query({ model: taskModel, authority: 'owner', limit: 10 });
+    let receipt: Receipt | undefined, returned: unknown, predicates = 0;
+    bindScenarioReceiptCallProducer(parent, { source: source(), app: APP, registry: loaded.registry,
+      sites: [{ id: 'original-facts-site', source: source(), kind: 'operation', targets: [{ operation: READ, interface: read.descriptor }], resultType: factType }],
+      prepare: (_def, inputs) => inputs as ClosedInputs,
+      execute: async frame => {
+        const result = await executeScenarioReceiptQuery(frame.call, store, { queryId: 'original-tasks', predicate: async ({ slot, record }) => {
+          predicates++;
+          observeScenarioReceiptQueryDependency(frame.call, store, { slot, dependencyId: 'location-control' });
+          observeScenarioReceiptQueryDependency(frame.call, store, { slot, dependencyId: 'title-order' });
+          const location = record.data['location']; assert.ok(location && typeof location === 'object' && 'id' in location);
+          return location.id === 'location-selected';
+        } });
+        const value: Record<string, unknown>[] = result.rows.map(({ record }) => ({ task: { id: record.id, version: String(record.version) },
+          version: String(record.version), ...Object.fromEntries(mapped.map(item => [item.name, record.data[item.name]])) }));
+        if (mode === 'title-bound') value[0]!['title'] = 'x'.repeat(2001);
+        if (mode === 'description-bound') value[0]!['description'] = 'x'.repeat(8001);
+        if (mode === 'version-bound') value[0]!['version'] = '0';
+        if (mode === 'enum') value[0]!['priority'] = 'urgent';
+        if (mode === 'title-bound' || mode === 'description-bound' || mode === 'version-bound' || mode === 'enum') {
+          assert.throws(() => bindScenarioReceiptQueryResult(frame.call, store, { query: result.query,
+            returnId: 'original-facts-return', wire: value, rows: result.rows.map(row => row.slot) }), stateError);
+          return value;
+        }
+        bindScenarioReceiptQueryResult(frame.call, store, { query: result.query,
+          returnId: 'original-facts-return', wire: value, rows: result.rows.map(row => row.slot) });
+        selectScenarioReceiptReturn(frame.call, store, 'original-facts-return'); return value;
+      },
+    });
+    const w = { store, memberships, identity, policy, registry: loaded.registry, app: APP, source: 'test', clock: { nowMs: () => FIXED_NOW },
+      envelope: makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), {}) };
+    const input = { ...w, execute: async (call: AdmittedCall) => {
+      const session = await beginScenarioReceiptMutation(call, store, { table, bounds });
+      await session.stage({ op: 'update', model: taskModel, id: first.id, data: { title: 'Beta' } }, cause);
+      if (mode === 'title-bound' || mode === 'description-bound' || mode === 'version-bound' || mode === 'enum') {
+        await assert.rejects(invokeScenarioReceiptCall(call, store, { site: 'original-facts-site', target: READ, inputs: {} }), stateError);
+        await assert.rejects(session.finalize(), stateError); return empty();
+      }
+      returned = await invokeScenarioReceiptCall(call, store, { site: 'original-facts-site', target: READ, inputs: {} });
+      await session.stage({ op: 'update', model: taskModel, id: first.id, data: { title: 'Final' } }, cause);
+      if (mode === 'guard') throw new StateError('rule_failed', 'Original Fact post-read requirement failed.');
+      selectScenarioReceiptReturn(call, store, 'root-return'); const final = await session.finalize();
+      return { ...final, outbox: final.outbox ?? [], result: null };
+    }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
+    const expected = [
+      { task: { id: 'original-first', version: '2' }, version: '2', title: 'Beta', description: null, due: null, priority: 'normal', done: false },
+      { task: { id: 'original-second', version: '1' }, version: '1', title: 'Zulu', description: 'Description', due, priority: 'high', done: true },
+    ];
+    if (mode !== 'preserve') {
+      await assert.rejects(invoke(input), stateError);
+      assert.deepEqual(await store.query({ model: taskModel, authority: 'owner', limit: 10 }), before);
+      assert.deepEqual(await store.historyFor(taskModel, first.id), []);
+    } else {
+      assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt); assert.deepEqual(returned, expected);
+      const child = readScenarioReceiptAssociation(receipt)!.calls![0]!;
+      assert.deepEqual(child.result, expected); assert.equal(child.scenario!.queries![0]!.candidates.length, 3);
+      for (const candidate of child.scenario!.queries![0]!.candidates) {
+        assert.ok(candidate.dependencies.includes('location-control'));
+        assert.ok(candidate.dependencies.includes('title-order'));
+      }
+      assert.equal(child.scenario!.queries![0]!.candidates.find(candidate => candidate.row.id === 'original-false')!.matched, false);
+      const finalRow = await store.load(taskModel, first.id); assert.ok(finalRow); assert.equal(finalRow.data['title'], 'Final');
+      const projected = await projectScenarioReceipt({ ...w, receipt });
+      assert.deepEqual(projected, { result: null, records: [{ ...finalRow, parent: finalRow.parent ?? null,
+        data: { title: 'Final', description: null, due: null, done: false } }] });
+      assert.ok(!Object.hasOwn(projected.records[0]!.data, 'priority'));
+      assert.ok(!Object.hasOwn(projected.records[0]!.data, 'location'));
+      assert.deepEqual(child.result, expected);
+      assert.equal((await invoke(input)).status, 'replayed'); assert.deepEqual(readScenarioReceiptAssociation(receipt)!.calls![0]!.result, expected);
+    }
+    assert.equal(predicates, 3);
+  }
+});
+
+test('owning loader refuses a metadata-named direct query dependency before empty-domain authority can be claimed', () => {
+  const slice = artifact();
+  slice.models![0]!.fields.push({ name: 'version', field: { kind: 'integer' }, valueType: 'int', required: true, serverOnly: false });
+  const operation = slice.operations!.find(item => item.name === ROOT); assert.ok(operation?.result?.disclosure);
+  const plan = operation.result.disclosure, queryPlan = plan.queries![0]!;
+  operation.result = { ...operation.result, disclosure: { ...plan, queries: [{ ...queryPlan,
+    dependencies: [...queryPlan.dependencies, { id: 'version-control', source: source(), role: 'control',
+      field: 'version', type: 'int' as CanTypeId }],
+  }] } };
+  assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), /metadata-named/);
 });
