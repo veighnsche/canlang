@@ -270,6 +270,9 @@ pub struct Effect {
     pub verb: EffectVerb,
     /// Resolved target, when the statement has one.
     pub target: Option<EffectTarget>,
+    /// Actual checked `call`/`send` target expression, separate from its
+    /// declaration-derived possible operation identities.
+    pub target_node: Option<NodeKey>,
     /// `let` name or `as` binding (`create`/`call`/`send`).
     pub binding: Option<String>,
     /// `for` item name.
@@ -3074,6 +3077,7 @@ impl<'a> Cx<'a> {
             node: NodeKey::of(node),
             verb: EffectVerb::Let,
             target: None,
+            target_node: None,
             binding: None,
             item: None,
             args: Vec::new(),
@@ -3178,6 +3182,7 @@ impl<'a> Cx<'a> {
             SyntaxKind::Call => {
                 effect.verb = EffectVerb::Call;
                 let target = parts.iter().find(|n| is_expression(n.kind)).copied();
+                effect.target_node = target.map(NodeKey::of);
                 effect.target = target.and_then(|t| self.operation_target(module, text, t));
                 if self.checks_on
                     && let Some(target) = target
@@ -3237,6 +3242,7 @@ impl<'a> Cx<'a> {
             SyntaxKind::Send => {
                 effect.verb = EffectVerb::Send;
                 let target = parts.iter().find(|n| is_expression(n.kind)).copied();
+                effect.target_node = target.map(NodeKey::of);
                 effect.target = target.and_then(|t| self.operation_target(module, text, t));
                 effect.when = bare_keyword_value(node, "when", text).map(NodeKey::of);
                 effect.args = effect_args(text, node);
@@ -3749,8 +3755,10 @@ impl<'a> Cx<'a> {
             .find(|n| n.kind == SyntaxKind::Object)
             .copied();
         let Some(object) = object else { return };
-        for (key, _key_node, value) in object_entries(object, text) {
-            let Some(value) = value else { continue };
+        for (key, key_node, value) in object_entries(object, text) {
+            // entry_value records the checked binding/narrowed type on the
+            // shorthand key, just as explicit values have an expression type.
+            let value = value.unwrap_or(key_node);
             let mut expected: Vec<(SymbolId, ResolvedType)> = Vec::new();
             let mut unknown = false;
             for op in targets.iter().skip(1) {

@@ -4438,7 +4438,11 @@ impl<'a> Emitter<'a> {
                 record, changes, ..
             } => vec![record, changes],
             IrStmt::Transition { record, .. } | IrStmt::Delete { record, .. } => vec![record],
-            IrStmt::Call { inputs, .. } => vec![inputs],
+            IrStmt::Call { target, inputs, .. } => target
+                .operand()
+                .into_iter()
+                .chain(std::iter::once(inputs))
+                .collect(),
             IrStmt::Emit { payload, .. } => vec![payload],
             IrStmt::Send { args, when, .. } => std::iter::once(args).chain(when.iter()).collect(),
             IrStmt::Schedule {
@@ -4607,11 +4611,18 @@ impl<'a> Emitter<'a> {
                 )]
             }
             IrStmt::Call {
-                operation,
+                target,
                 inputs: _,
                 binding: _,
+                result: _,
                 span,
             } => {
+                let operation = target
+                    .operations()
+                    .iter()
+                    .map(|id| self.ir.items[id.0 as usize].canonical.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",");
                 self.unsupported(
                     "call effect",
                     &format!(

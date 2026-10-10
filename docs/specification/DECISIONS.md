@@ -5212,3 +5212,49 @@ Choose the finite State call facade over full Compiler inlining or deferral to a
 Three independently worded equivalent JEV choice requests use the verified original Workbench rollback requirement and the same outcomes for all alternatives. All favor the bound State facade (probabilities0.97/0.94/0.97; confidence0.95/0.91/0.95; modeljev1.13.0). Preserve full adjacent scenario-owner-call request/response1..3 records. There is no disagreement to investigate; the advice does not certify native source binding, query/composite closure or acceptance. Complete Workbench context read/query, source rules/conditional grants, actual authored update normalization, result schemas/composite lifetime, child computed-default and framework attribution retain their defining Compiler/Dev/Contracts prerequisites. Root-only default/framework producers refuse child reuse; File/Delivery/Action provenance and OUTBOX hold stay closed. The coherent API and defining/affected checks are implementation evidence only, pending coordinator manual review and real consumer qualification.
 
 Final State clean emission passes;20 defining call cases and46 affected disclosure/owner/default cases pass66/66 (146.90ms). Reuse57 unchanged fence/pipeline/CRUD/parity cases from the earlier123/123 (292.86ms). The affected genuine State/Work framework join passes10/10 (212.49ms). These defining/compatibility checks leave exact native call/source and whole Workbench acceptance open.
+## 2026-10-10 — expose an optional owned Node Chromium producer
+
+Use Testkit's Node-only `@canlang/testkit/browser/chromium` leaf with optional `@playwright/test` pinned to the existing locked1.63.0. The invoking application resolves that producer; Testkit root never reexports it, and portable runtime imports gain no browser edge. The producer loads its own exact resolved driver entry and exposes driver/executable paths for Dev-owned capture/currency checks. True missing driver/executable withholds UI qualification; malformed/broken installed exports, API/loading, nonfile or permission failures remain errors. Availability neither downloads nor proves UI behavior. Real acquisition owns the exact headless executable, positive finite launch bound, shared awaited close and signal cleanup. Since the locked driver has no launch signal port, late cancellation awaits bounded launch and cleanup before rejection; it cannot claim immediate physical cancellation. The installed declaration guard recognizes actual declared optional dependencies while retaining resolution and owned missing/corrupt gates. No new browser package, framework or version matrix is introduced.
+
+Owning graph24/24 passes10.628s; final changed loader emission and root noEmit pass. Five isolated emitted-leaf controls pass; the affected dynamic CommonJS positive control1/1 passes after review correction, with four unchanged results reused. Initial controls failed before execution on macOS temp path aliases; canonicalize the actual root, preserving exact entry identity. Review caught the valid driver's dynamically assembled CommonJS exports: load the same reported entry via owning require, without relying on synthetic ESM named exports. Boundaries13packages/895files/1217expressions report zero violations. A genuine Testkit tarball with isolated locked driver-chain and Node-type copies passes strict Node leaf declarations without escaping module resolution, browser-condition refusal, real Chromium page execution, explicit shared close and acquired-abort cleanup; its scratch is removed. These finite Node producer/packaging results do not repeat or accept the original41 application/Office browser workflow. Coordinator manual integration and Dev's actual same-preview UI consumer/capture remain; ordinary preview stays useful when the optional producer is absent. Precise native preparation/local publication/payload holds and parent counts remain.
+
+## 2026-10-10 — intake the genuine declared-user probe locally (unfinished)
+
+Consume exact coordinator-reviewed LOCAL172340d1d8f9fc2333147fc80ff7359f013519c3 onto preserved Deva43b38e5. Packages e038b2c8 supplies only actual same-suite raw user recipes to the load-time caller probe, validates exact user kind, and preserves one user extraction, no business provisioning and foreign/non-user refusals. Reuse its graph24/24, affected38/38 and installed-root checks at their defining scopes. Reconcile the authoritative staged merge tree with existing owners/allocations and complete checkpoint unadvanced. Refresh Testkit/CF, then Dev alone reruns the same full41 source/all3 callers/rename through its actual installed Node qualifier. No borrowed generated result constitutes local D1 Identity acceptance; browser tooling absence does not block the core26 consumer, and all publication/recipient holds remain.
+
+The SAME complete41-card native/private-session case at this reviewed intake now passes1/1 in43.733s: real CRUD/rename, original and isolated authored callers, authorization, source/resources, receipt/history/fence, replay/readback and owned cleanup retain all assertions. The finite26 core cards qualify; unknown candidate coverage, empty messageKinds, false intent evidence, zero external calls and immutable bundle/cache behavior remain. UI cards and whole T04/T11/Office/G2–G3 stay unfinished. Testkit/CF emissions, root noEmit and zero-violation boundaries13packages/893files/1204expressions pass; reuse the unchanged originating diagnostic. Save this outcome in the same local intake unit before proceeding to the independently ready browser consumer.
+
+## 2026-10-10 — retain checked production call operands and declaring schemas
+
+Preserve a static operation's checked symbol/source and a dynamic call's actual
+typed operand separately from its declaration-derived allowed target IDs.
+Those IDs index existing owning parameter/model/result declarations; authored
+inputs retain order and typed shorthand anchors. Publish checked statement
+result/void/opaque facts for `as` binding without inventing compatible results
+for heterogeneous targets. Only an exact checked read-scenario call preserves
+member-path narrowing; potentially mutating or unknown calls still invalidate.
+
+This is the compiler producer for existing Task39, not executable acceptance.
+State owns same-caller admission inside the existing owner session/outer fence;
+Dev owns a source-bound private native facade, once-evaluated values and bounded
+result/dependency correspondence. Keep E6008 until that defining consumer is
+released. Structural InvocationRef data, direct handlers, child contexts and
+nested invocation/receipt/commit cannot replace it. Precise BDD3/Task22 holds
+remain separate; all changes stay local for coordinator review.
+
+Owning invocation target5/5 and existing call controls8/8 pass on the actual
+installed catalog/Node24; unchanged emitter121/121 is reused after the isolated
+read-narrowing correction. Strict all-target lint/format pass. The actual CLI
+still refuses call publication with E6008 and no generic producer decode gap.
+
+The same declaration-derived argument rule applies to shorthand: consume its
+existing checked key-node type for additional action targets, just as for an
+explicit expression. Owning action-call1/1 passes with rejection/span parity and
+compatible positives; no runtime API or held policy changes.
+
+
+### 2026-10-10 — intake exact checked-call producer locally (unfinished)
+
+Exact reviewed LOCALa9085535 onto coherent unfinished State-call3e9f1615: actual staged tree and both parent histories since complete8249342707 register1559commits,10799net deltas,11343history paths,513history-only,9297pending allocations,7new paths. Preserve both parent owners/scopes/allocations, original acceptance/retirement/provider gates and precise human holds; complete checkpoint unadvanced. Reuse the coordinator-reviewed Compiler operand5/5, call8/8 and all-target shorthand1/1 outcomes. Preserve checked static-read-only narrowing and mutating/dynamic invalidation, genuine package browser boundary and Dev-owned41 outcome. Do not infer native child binding, query/composite/rule acceptance or source publication from IR facts; E6008 remains. Coherent State-call3e9f1615 has its defining/compatibility evidence and awaits manual review and actual native consumer. No worker/main publication or cloud restart.
+
+Coordinator manual admission/rollback/provenance review now releases exact State-call3e9f1615 via LOCAL146cc8bfef1c64773dced3a232721f0289450cba; no actionable source defect, existing66+10 and57 unchanged outcomes reused. Accept only the finite State producer. Dev source/callable/native adoption, Compiler actual emission, original read/query/composite/rule/grant/update-normalization and child default/framework joins remain open; Task22 and publication holds remain. No original Workbench/native credit follows.
