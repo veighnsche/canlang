@@ -6631,3 +6631,14 @@ At reviewed e7b95 carrier scope, changed Cloudflare emission passes, the affecte
 ### 2026-10-10 — manual local integration of 54a26b74
 
 Manual finite source review CLEAR for the genuine Interfaces principal reexport through the existing pure HTTP entry, exact named export and actual current invoke import. Cleanup failure/order/error identity and parser controls remain unchanged. Reuse changed Cloudflare emission0, actual HTTP case1, HTTP cleanup12 and complete installed226 graph with real production workerd initialize401 at current Dev0bdf source. This releases the common module-link prerequisite; actual current G1 and full original native File browser/reopen/retention qualification remain Dev work, with UI offset0 still Packages-owned. All recipient-specific holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — supply the initial upload offset from generated forms
+
+The generated form client sends each file as one complete-byte PUT. Supply canonical upload-offset0 to the released Interfaces range protocol while preserving content type, CSRF, exact bytes and every finalize/form/error assertion. There is no need for a new header API or retry algorithm for this existing initial range.
+
+Owning UI/browser emission passes; all six existing S7 upload-flow checks pass without skips, and independent finite source review CLEAR. This qualifies the owning scripted request protocol only. Dev owns the unchanged real native File/SQLite/D1/browser/replay/current-authority consumer, and concurrent/provider/power-loss parent requirements and precise holds remain open. Local coordinator integration only.
+
+### 2026-10-10 — manual local integration of cb847afb
+
+Manual source review CLEAR for the existing generated-form wholebyte PUT supplying upload-offset0 to the genuine Interfaces append protocol. Preserve exact bytes, CSRF, digest, finalize and error assertions; no retry redesign or new header API. Reuse owning UI and actual browser emission0 plus all six maintained S7 upload-flow cases without skips. This releases the observed common upload prerequisite, not full original native File browser/reopen/retention acceptance. Dev owns that actual workflow and current G1 requalification after the genuine receiver export. Preserve precise recipient holds and all unfinished parent assignments. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
