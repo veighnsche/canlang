@@ -2779,3 +2779,35 @@ owning source metadata; current row-independent by caches cannot represent
 read=auditor(row.person). The separately recorded committed-model event payload
 and atomic original source remain Capability/Dev prerequisites. No broader
 completion, original Workbench guard acceptance or BDD3/Task22 hold release.
+
+
+**Complete query receipt producer (unfinished runtime join), 2026-10-10.**
+The actual emission pipeline now prepares a typed native query recipe from the
+immutable original Complete proof, fresh lowering and indexed supplied IR.
+Source inventory alone still grants nothing. Exact return/source/projection and
+all four influences must match; no scalar observations are invented. The source
+map reuses the prepared plan. Independent review exposed detached-owner skew:
+both the separate owner and indexed executable scenario now match fresh lowering.
+Permanent controls preserve the genuine external-membership refusal and reject
+proof, header/input/body/mapping/source and detached-owner corruption. The actual
+DTO passes installed State's owning nominal query schema. Affected129/129 pass
+(codegen121, native4, sourceproducer4); only the affected producer4 reruns after
+that review correction and passes. Strict all-target Clippy/format0 and finite
+final correction review CLEAR. Unchanged303 analyzer/editor/whole-history results
+are reused. Existing composite/read publication gate continues to remove the
+prepared recipe before any handler capture; no public private-frame activation.
+Next native publication and genuine protected parent consumer still need the
+exact Dev/Capability releases recorded above.
+
+**SKIP typed attachment saved replay — defining File association prerequisite,
+2026-10-10.** Dev's unchanged TypedFileJourney attach(entry,attachment,accept)
+sets the real finalized file then requires accept. Compiler correctly leaves
+File outside its scalar Complete profile. Source-only disclosure cannot repair
+saved replay: State scenario-receipt snapshotScenarioReceiptEffects explicitly
+refuses nonempty fileAssignments (line1294). Capability/State must release the
+actual admitted finalized File input/assignment/lifetime and retained replay
+association, with Files provenance and Dev native producer correspondence.
+Compiler then owns checked File input/Set recipe and exact owning source emission;
+Dev owns preserved actual upload/attachment/replay/readback qualification. No
+fabricated disclosure, generated-CRUD substitution, empty assignment or weakened
+assertion. This is a defining prerequisite, not a new human hold.

@@ -1386,8 +1386,18 @@ pub(super) fn emit_program_with_query_sources(
     native_receipts: bool,
     db: &crate::source::SourceDb,
     queries: &std::collections::BTreeMap<String, serde_json::Value>,
+    query_receipts: &std::collections::BTreeMap<
+        String,
+        super::scenario_receipts::NativeScenarioReceipt,
+    >,
 ) -> JsOutput {
-    emit_program_with_sources(ir, native_receipts, Some(db), Some(queries))
+    emit_program_with_sources(
+        ir,
+        native_receipts,
+        Some(db),
+        Some(queries),
+        Some(query_receipts),
+    )
 }
 
 fn emit_program_with_receipt_sources(
@@ -1395,7 +1405,7 @@ fn emit_program_with_receipt_sources(
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
 ) -> JsOutput {
-    emit_program_with_sources(ir, native_receipts, db, None)
+    emit_program_with_sources(ir, native_receipts, db, None, None)
 }
 
 fn emit_program_with_sources(
@@ -1403,6 +1413,9 @@ fn emit_program_with_sources(
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
     queries: Option<&std::collections::BTreeMap<String, serde_json::Value>>,
+    query_receipts: Option<
+        &std::collections::BTreeMap<String, super::scenario_receipts::NativeScenarioReceipt>,
+    >,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.validate_model_field_bounds();
@@ -1453,6 +1466,13 @@ fn emit_program_with_sources(
                 &module_path(&entry_name),
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
+            }
+        }
+        if let Some(query_receipts) = query_receipts {
+            for item in &ir.items {
+                if let Some(recipe) = query_receipts.get(&item.canonical) {
+                    emitter.native_receipts.insert(item.id, recipe.clone());
+                }
             }
         }
     }
