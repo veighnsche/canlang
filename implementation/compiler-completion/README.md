@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1390 qualifies exact e67 query producer plus State9e intake at72f51295 with required real engines/native/permission bodies and zero skips. The subsequent nongrant activation/reference/map correction passes affected140 and strict lint/format; its unchanged real Fact[] public consumer now passes Dev's actual1/1 qualification. Bounded whole query analysis passes affected303 and strict lint/format; native read publication still needs Dev's public/private helper dispatch; reviewed ordinary-array child admission is now intaken. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1390 qualifies exact e67 query producer plus State9e intake at72f51295 with required real engines/native/permission bodies and zero skips. The subsequent nongrant activation/reference/map correction passes affected140 and strict lint/format; its unchanged real Fact[] public consumer now passes Dev's actual1/1 qualification. Bounded whole query analysis passes affected303 and strict lint/format; finite native query publication and genuine public/private parent execution now pass after reviewed owner intake; the original application remains unfinished. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2832,3 +2832,29 @@ editor and Dev public1/1 results are reused. Next is reviewed owner intake,
 exactly-once return selection, immutable recipe publication and the actual
 compiled public/private parent consumer. Original Workbench policy/purity,
 File lifetime, committed event prerequisites and precise human holds remain.
+
+**Finite native query publication and actual parent consumer (unfinished
+original application), 2026-10-10.** Reviewed Dev38/1af dual public/private
+lifetimes and State973 owning projection are intaken. Native read publication
+requires the private immutable prepared-recipe set and exact source/typed-plan
+equality. Raw IR Complete and nongrant source data still cannot activate it.
+Projection binds the actual evaluated result; the owning Return selects exactly
+once, preserving the host's strict marker contract. Real full emission now
+publishes the checked child and direct protected parent without diagnostics.
+
+Affected154/154 pass (codegen121, sourceproducer4, disclosure23, native4,
+actual public1, actual protected-parent1). Genuine CLI modules and installed
+Node24.19/Memory preserve the three original body statements, ordered seven-field
+Fact[] and original reference/version slots. Public reads change no receipt,
+history or revision. Private unused-child execution captures full false/selected
+domain and lazy dependency reads, shares one parent commit, and replays without
+execution. Count/location failures roll back; bounds/version/nonmember/revocation
+refuse. Ordinary saved replay with revoked membership returns withheld null;
+explicit retained admission refuses forbidden, both without effects. The initial
+macOS path-alias and replay-envelope expectations were corrected to genuine
+existing contracts. Fresh released Contracts/State/Files/Interfaces/Cloudflare
+emissions pass; no shared source repair. Strict all-target Clippy/format0 and
+finite independent activation review CLEAR. Unchanged whole/editor/owner results
+are reused. Bound child result consumption, original pure/source/row policy,
+File assignment lifetime, committed event source and precise holds remain;
+this finite declared cohort does not close58/67 or the original application.

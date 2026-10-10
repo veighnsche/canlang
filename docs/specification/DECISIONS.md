@@ -6292,3 +6292,25 @@ Await the actual final revision check before asserting terminal query health and
 Manual review CLEAR for Dev38cfc597 plus final fence correction1af76e32. Genuine admitted public reads privately issue receipt-free helper lifetimes; reuse actual viewer projections, full false/empty observation domains, original selected slots/native references/order and State bound query/return/schema projection. Current authority and revision re-admission remain genuine; private children retain exact State call/store/root fences. Caught failures, pending work, changed results and late markers are terminal; final physical revision await now precedes synchronous terminal health/result checks and finally closure. Reuse owning private48 and legacy public1 results, clean emits/root types/boundary0, and corrected affected public1 passing90.90ms with13 refusal modes plus actual final-fence caught-failure regression. Compiler duplicate return-selection correction and genuine Complete compiled public/private/parent workflows remain pending, separate from typed File retained association, row-selected policy and Office/G1–G3. Full plans and precise holds remain incomplete. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
 Compiler intake of reviewed LOCAL6c3d350c, 2026-10-10 (unfinished native source): preserve59e parent preparation ande015 owner intake. Exact reviewed Dev38cfc597/1af76e32 dual lifetime and contained Packages retention source now coexist. Reuse owner private48, legacypublic1, corrected public1 with13 negative/final-await modes, clean emits/root/boundary0 and recorded finite retention results. Public viewer and private State receipt frames remain distinct actual owning lifetimes; strict markers/current grant/lazy identity and final poison checks are retained. This resolves the defining helper dispatch prerequisite, while Compiler owns once-only return selection, immutable prepared publication and genuine CLI public/protected parent qualification next. Reconcile actual staged tree/history with released allocations and complete checkpoint unadvanced. No shared gate rewrite, broad rerun, publication or hold release.
+
+### 2026-10-10 — publish immutable Complete queries through genuine runtime lifetimes (unfinished original application)
+
+Only the private immutable CheckedProgram/fresh-executable recipe set can
+publish nominal read disclosure; require exact typed-plan/source equality.
+Raw IR Complete and source inventory alone remain nongrant. Bind the evaluated
+projection before the owning Return's single selection; preserve the strict
+public/private host marker and lifetime contracts rather than tolerating a
+duplicate. Direct original protected parent inputs and unused child bindings now
+join the actual installed runtime.
+
+Affected154/154 pass, including genuine compiled public and private parent
+consumers with original scan/count/select, full false/selected domain, lazy
+reads, exact ordered Fact[]/original versions, one parent commit, rollback and
+effect-free replay/current membership checks. Existing saved identity replay
+withholds null after revocation; explicit retained admission refuses forbidden.
+Fresh released package emissions and strict all-target lint/format pass; finite
+activation review CLEAR. Setup-only path/replay expectations were corrected,
+with no host or behavioral assertion weakened. Whole/editor and unchanged
+owner results are reused. Bound result consumption and original application
+purity/row-policy/File/event contracts remain distinct dependencies;58/67 and
+precise human holds are unchanged. Local coherent commit for coordinator review.
