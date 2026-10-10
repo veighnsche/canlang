@@ -1,6 +1,7 @@
 /** Trusted host routing to physically isolated D1 stores; never an auth resolver. */
 import type { D1Database } from '@cloudflare/workers-types';
-import type { StoragePort } from '@canlang/contracts';
+import type { FileReferenceStoragePort, FileRetirementAuthority,
+  FrameworkFileReferenceProducer, StoragePort } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from './d1.js';
 
 /** Selected only after canonical Identity/Work admission resolves the owner. */
@@ -15,6 +16,10 @@ export interface TrustedD1OwnerBinding extends D1OwnerScope {
   readonly db: D1Database;
   /** Explicit host authorization to assign an independently verified empty DB. */
   readonly initializeFresh?: true;
+  /** Original physical State/Files assignment; source tags are not authority. */
+  readonly fileRetirementAuthority?: FileRetirementAuthority;
+  /** Actual same-load owning exports, captured before database inspection. */
+  readonly fileReferenceProducers?: readonly FrameworkFileReferenceProducer[];
 }
 
 const PIN_TABLE = 'state_owner_pin';
@@ -33,18 +38,34 @@ const PIN_SCHEMA = 'CREATE TABLE IF NOT EXISTS state_owner_pin (id INTEGER PRIMA
 
 type OwnerPin = D1OwnerScope;
 
-function boundStore(db: D1Database, scope: D1OwnerScope): StoragePort {
-  const store = createD1Storage(db);
+function boundStore(db: D1Database, scope: D1OwnerScope,
+  authority?: FileRetirementAuthority, producers?: readonly FrameworkFileReferenceProducer[]): StoragePort {
+  // The real constructor snapshots authority and complete owning validators
+  // synchronously. Later route/configuration changes cannot repin this adapter.
+  const store = authority === undefined ? createD1Storage(db, undefined, producers) :
+    createD1Storage(db, authority, producers);
+  if ('fileRetirementAuthority' in store) {
+    const binding = store.fileRetirementAuthority as FileRetirementAuthority;
+    if (binding.app !== scope.app || binding.receiver.owner !== scope.owner) {
+      throw new Error('owner-storage: File assignment app/owner mismatch');
+    }
+  }
   const check = (identity: D1OwnerScope): void => {
     if (!matches(identity, scope)) throw new Error('owner-storage: receipt app/owner mismatch');
   };
-  return { ...store,
-    async readReceipt(identity) { check(identity); return store.readReceipt(identity); },
-    async commit(batch) {
-      if (batch.receipt !== null) check(batch.receipt.identity);
-      return store.commit(batch);
-    },
+  const readReceipt = store.readReceipt;
+  const commit = store.commit;
+  // Keep the constructor-returned object and its private migration binding.
+  // A spread wrapper would preserve methods but lose that correspondence.
+  store.readReceipt = async identity => {
+    check(identity);
+    return readReceipt.call(store, identity);
   };
+  store.commit = async batch => {
+    if (batch.receipt !== null) check(batch.receipt.identity);
+    return commit.call(store, batch);
+  };
+  return store;
 }
 
 function checkedScope(scope: D1OwnerScope): D1OwnerScope {
@@ -95,12 +116,13 @@ async function inspect(db: D1Database): Promise<{ tables: Set<string>; pin: Owne
   return { tables, pin: null };
 }
 
-async function openBinding(binding: TrustedD1OwnerBinding, scope: D1OwnerScope): Promise<StoragePort> {
+async function openBinding(binding: Pick<TrustedD1OwnerBinding, 'db' | 'initializeFresh'>,
+  scope: D1OwnerScope, store: StoragePort): Promise<StoragePort> {
   const db = binding.db;
   const inspected = await inspect(db);
   if (inspected.pin !== null) {
     if (!matches(inspected.pin, scope)) throw new Error('owner-storage: persisted app/owner pin mismatch');
-    return boundStore(db, scope);
+    return store;
   }
   if (binding.initializeFresh !== true) {
     throw new Error('owner-storage: unassigned database requires explicit verified fresh assignment');
@@ -128,13 +150,20 @@ async function openBinding(binding: TrustedD1OwnerBinding, scope: D1OwnerScope):
     // Concurrent same-owner initialization is idempotent. Another owner's pin
     // must refuse even when two distinct JS handles alias one physical DB.
     const assigned = await pin(db);
-    if (assigned !== null && matches(assigned, scope)) return boundStore(db, scope);
+    if (assigned !== null && matches(assigned, scope)) return store;
     throw new Error('owner-storage: fresh assignment failed or database belongs to another owner', { cause: error });
   }
   const assigned = await pin(db);
   if (assigned === null || !matches(assigned, scope)) throw new Error('owner-storage: persisted app/owner pin mismatch');
-  return boundStore(db, scope);
+  return store;
 }
+
+type RouterInput<Binding extends TrustedD1OwnerBinding> = {
+  readonly resolveBinding: (scope: D1OwnerScope) => Binding | null | Promise<Binding | null>;
+};
+type OwnerRouter<Port extends StoragePort> = {
+  readonly ownerScopedStoragePort: (scope: D1OwnerScope) => Promise<Port>;
+};
 
 /**
  * No global fallback, allocation, repinning, provider switch or route cache.
@@ -142,17 +171,30 @@ async function openBinding(binding: TrustedD1OwnerBinding, scope: D1OwnerScope):
  * databases is privileged and cannot be exposed as another tenant's route.
  * Returned ports preserve the existing adapter's rows, receipts and errors.
  */
-export function createD1OwnerRouter(input: {
-  readonly resolveBinding: (scope: D1OwnerScope) => TrustedD1OwnerBinding | null | Promise<TrustedD1OwnerBinding | null>;
-}): { readonly ownerScopedStoragePort: (scope: D1OwnerScope) => Promise<StoragePort> } {
+export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding & {
+  readonly fileRetirementAuthority: FileRetirementAuthority;
+}>): OwnerRouter<FileReferenceStoragePort>;
+export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding>): OwnerRouter<StoragePort>;
+export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding>): OwnerRouter<StoragePort> {
   return Object.freeze({
     async ownerScopedStoragePort(requested: D1OwnerScope): Promise<StoragePort> {
       const scope = checkedScope(requested);
       const route = await input.resolveBinding(scope);
       if (route === null) throw new Error('owner-storage: no trusted binding for resolved app/owner');
       if (!matches(checkedScope(route), scope)) throw new Error('owner-storage: trusted route app/owner mismatch');
+      const authority = Object.getOwnPropertyDescriptor(route, 'fileRetirementAuthority');
+      const producers = Object.getOwnPropertyDescriptor(route, 'fileReferenceProducers');
+      if ((authority !== undefined && !('value' in authority)) ||
+          (producers !== undefined && !('value' in producers)) ||
+          ('fileRetirementAuthority' in route && authority === undefined) ||
+          ('fileReferenceProducers' in route && producers === undefined)) {
+        throw new Error('owner-storage: File binding requires own configuration data');
+      }
       // Copy the route before awaiting: configuration mutation cannot repin it.
-      return openBinding({ ...scope, db: route.db, ...(route.initializeFresh === true ? { initializeFresh: true } : {}) }, scope);
+      const binding = { db: route.db, ...(route.initializeFresh === true ? { initializeFresh: true as const } : {}) };
+      const store = boundStore(binding.db, scope, authority?.value as FileRetirementAuthority | undefined,
+        producers?.value as readonly FrameworkFileReferenceProducer[] | undefined);
+      return openBinding(binding, scope, store);
     },
   });
 }
