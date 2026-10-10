@@ -3304,3 +3304,22 @@ and original25 recomputation follow the related checked-selector unit; prior
 frozen1422/138 is historical for this new production change. Whole IncomingEmail
 identity/equality, verified native ingress,58/67/nine references and precise
 BDD3/Task22 holds remain unfinished. Local commits only.
+
+
+### 2026-10-10 — preserve Invoice receipt and void identities (unfinished composition)
+
+Assigned draft8a2f83f renames only private receipt→generate_receipt and
+void→void_invoice, plus three actual action lists and one form. Preserve
+Documents.receipt/receipt_result, enum/modal identities, guards, permissions,
+complete bodies/order/effects and every example. Same current CLI original25/
+catalog46→35 removes exactly11 Invoice findings, adds none, complete/omitted0
+and all25 current hashes/no artifact. Baseline46 already includes the separately
+unfinished Leave observation producer's10 reductions from prior qualified56;
+no native acceptance or attribution of those10 to Invoice.
+
+Actual isolated212→203 removes10 prior findings and adds unresolved void at707,
+where the isolated source lacks its owning state. Full composition resolves it.
+Only Invoice pin203 changes here; all52/full assertions remain. Full table
+qualification awaits the separate Leave/Purchase pin correction. Current new
+production whole/lint remains pending, Purchase source rename is unassigned and
+exported Rent remains excluded.58/67/nine open and precise holds unchanged.

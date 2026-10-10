@@ -1074,7 +1074,7 @@ fn draft_outcome_table() {
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
         ("draft/CanInbox.can", 41),
-        ("draft/CanInvoice.can", 212),
+        ("draft/CanInvoice.can", 203),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
         ("draft/CanLeave.can", 79),
