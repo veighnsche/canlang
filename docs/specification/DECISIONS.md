@@ -6422,3 +6422,18 @@ Current fresh dependency/Cloudflare emission22/22 and direct Work plus Cloudflar
 ### 2026-10-10 — manual local integration of 6afa18d7
 
 Manual source/consumer review CLEAR for Packages1d334fd8 plus completed6afa18d7 DD009 unit. Replace the fabricated State observer overlay with genuine public Work receipt/observation/association bodies, function identity and exact relative closure. Preserve absent optional State observer, bridge/Node/test exclusions and broken present-module refusals. Reuse current fresh22, owning direct emission, maintained bundle3 and complete isolated installed verifier: checkout-denied actual uninjected Node serving, stale isolated residue, three missing actual producer entries/leaves, real workerd authentication401, WASM ABI/add-int and unchanged deterministic/browser/asset controls. Exact qualified archive bodies correspond to owning emitted source. This accepts the finite installed Node and bundle/artifact component; actual uninjected Receipt.read in workerd remains Dev-owned and native preparation/publication remain held. Packages continues the separately released Files portable digest/UTF8 and genuine finalize Worker closure prerequisite. State Files dependency b156 was already selected and is preserved without duplicate source. Existing decisions, physical owners and allocations remain; complete checkpoint is unadvanced. No remote push or publication.
+
+
+Compiler bound child count, 2026-10-10 (unfinished original workflow): use
+existing State complete child association and Dev exact schema decoding. Admit
+only checked direct count(CallAs) with exact Complete occurrence/result type,
+binding the actual awaited wire after authored input evaluation. All retained
+child authority gates parent disclosure; add no scalar observation/row grant.
+Copies/general fields/first/helper uses remain refused. Affected313, strict
+lint/format and finite source/authority review CLEAR; genuine native guard,
+return, post-child rollback, retained cardinality, replay and withholding pass.
+Original approve source provenance, full58/67 and precise holds remain open.
+
+### 2026-10-10 — manual local integration of 667aa0af
+
+Manual source and actual consumer reviews CLEAR for Compiler667aa0af finite direct bound-child count. Require exact Complete child call occurrence and checked result/argument/int types; bind the genuine awaited wire after authored inputs. State retains and reauthorizes the whole original child association before saved parent disclosure. Raw/source/IR recipe gates and copies/first/helper/general result refusals remain. Reuse313 affected outcomes, strict lint/format and actual CLI native parent count guard/return, child count refusal and later accept=false rollback, retained cardinality, effect-free replay and current authority withholding. No new runtime API, scalar observation or row grant. Original any/all/projection/source workflows,58/67 completion and precise BDD3/Task22/File/cardinality/native holds remain unfinished. Existing decisions and physical allocations remain; complete checkpoint is unadvanced. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
