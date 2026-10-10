@@ -14,12 +14,17 @@ import {
   completeUploadContent,
   sha256Hex,
   stagingKeyForIntent,
+  DEFAULT_FILE_POLICY,
 } from '../src/upload/index.js';
 import {
   finalizeUpload,
   blobKeyForFile,
   ingestVerifiedEventBytes,
   readFinalizedBytes,
+  observeFinalizedFile,
+  readFinalizedFileObservation,
+  revalidateRetainedFinalizedFile,
+  recordAttachment,
 } from '../src/finalize/index.js';
 import { handleCreateIntent } from '../src/bridge.js';
 import {
@@ -55,6 +60,242 @@ function completedIntent(h: ReturnType<typeof makeHarness>): {
     digest: sha256Hex(PDF_BYTES),
   };
 }
+
+const OBSERVATION_RETENTION = { unattachedHorizonMs: 60_000, retentionMs: 120_000 };
+const OBSERVATION_OPTIONS = { policy: DEFAULT_FILE_POLICY, retention: OBSERVATION_RETENTION };
+
+function finalizedObservationFixture() {
+  const dir = mkdtempSync(join(tmpdir(), 'can-file-observation-'));
+  const path = join(dir, 'metadata.sqlite');
+  let store = createSqliteFileStore(path);
+  const h = makeHarness();
+  const upload = { ...h.upload, intents: store.intents, blobs: store.blobs };
+  const finalize = { ...h.finalize, intents: store.intents, files: store.files, blobs: store.blobs };
+  const completed = completedIntent({ ...h, upload });
+  const outcome = finalizeUpload(finalize, { ...completed, bytesDigest: completed.digest, caller: RECEIVER });
+  assert.equal(outcome.status, 'finalized');
+  if (outcome.status !== 'finalized') throw new Error('setup: finalization refused');
+  const ref = outcome.file.id;
+  return {
+    ref, clock: h.clock,
+    deps: () => ({ clock: h.clock, files: store.files, blobs: store.blobs }),
+    store: () => store,
+    binding: () => createSqliteFileBindings(store, { clock: h.clock, intentTtlMs: INTENT_TTL_MS, urlBase: ORIGIN_URL }),
+    reopen() { store.close(); store = createSqliteFileStore(path); },
+    close() { store.close(); rmSync(dir, { recursive: true, force: true }); },
+  };
+}
+
+describe('admitted finalized file facts from real SQLite storage', () => {
+  it('observes genuine finalized event item provenance across JSON snapshot and SQLite reopen', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-event-observation-'));
+    const path = join(dir, 'metadata.sqlite');
+    let store = createSqliteFileStore(path);
+    const h = makeHarness();
+    const deps = () => ({ clock: h.clock, files: store.files, blobs: store.blobs });
+    try {
+      const saved = [0, 1].map(itemIndex => {
+        const provenance = { kind: 'event' as const, source: 'deployment.mail', adapter: 'deployment.mail',
+          occurrenceId: 'occ_observed', fieldPath: 'attachments', itemIndex };
+        const result = ingestVerifiedEventBytes({ ...h.finalize, intents: store.intents, files: store.files, blobs: store.blobs }, {
+          provenance, receiver: RECEIVER, claimedType: 'text/plain', bytes: TEXT_BYTES, policy: DEFAULT_FILE_POLICY,
+        });
+        assert.equal(result.status, 'finalized');
+        if (result.status !== 'finalized') throw new Error('setup: event rejected');
+        const observation = readFinalizedFileObservation(observeFinalizedFile(deps(), result.file.id, RECEIVER, OBSERVATION_OPTIONS));
+        assert.ok(observation);
+        assert.deepEqual(observation.provenance, provenance);
+        assert.deepEqual(observation.receiver, RECEIVER);
+        assert.equal(observation.bytesDigest, sha256Hex(TEXT_BYTES));
+        return JSON.parse(JSON.stringify(observation));
+      });
+      assert.notEqual(saved[0].ref, saved[1].ref);
+      store.close(); store = createSqliteFileStore(path);
+      for (const retained of saved) {
+        assert.equal(revalidateRetainedFinalizedFile(deps(), retained, RECEIVER, OBSERVATION_OPTIONS), true);
+        assert.equal(revalidateRetainedFinalizedFile(deps(), retained, OTHER_PRINCIPAL, OBSERVATION_OPTIONS), false);
+        let getters = 0;
+        const provenance = Object.defineProperty({ ...retained.provenance }, 'itemIndex', {
+          enumerable: true, get() { getters++; return retained.provenance.itemIndex; },
+        });
+        assert.equal(revalidateRetainedFinalizedFile(deps(), { ...retained, provenance }, RECEIVER, OBSERVATION_OPTIONS), false);
+        assert.equal(getters, 0);
+        for (const itemIndex of [-1, 0.5, retained.provenance.itemIndex + 1]) {
+          assert.equal(revalidateRetainedFinalizedFile(deps(), {
+            ...retained, provenance: { ...retained.provenance, itemIndex },
+          }, RECEIVER, OBSERVATION_OPTIONS), false);
+        }
+        const current = store.files.get(retained.ref);
+        for (const nowMs of [retained.finalizedAtMs - 1, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+          const clocked = { ...deps(), clock: { nowMs: () => nowMs } };
+          assert.equal(observeFinalizedFile(clocked, retained.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+          assert.equal(revalidateRetainedFinalizedFile(clocked, retained, RECEIVER, OBSERVATION_OPTIONS), false);
+        }
+        assert.deepEqual(store.files.get(retained.ref), current);
+        assert.deepEqual(store.blobs.read(blobKeyForFile(retained.ref)), TEXT_BYTES);
+      }
+    } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('admits detached frozen JSON-safe facts without writes, rejects copied handles and revalidates after reopen', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      const beforeIntents = h.store().intents.listAll();
+      const handle = observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS);
+      assert.ok(handle);
+      const saved = readFinalizedFileObservation(handle);
+      assert.ok(saved);
+      assert.deepEqual(saved, { ref: h.ref, receiver: RECEIVER, provenance: original.file.provenance,
+        contentType: original.file.contentType, sizeBytes: PDF_BYTES.length, bytesDigest: sha256Hex(PDF_BYTES),
+        finalizedAtMs: original.finalizedAtMs, retention: OBSERVATION_RETENTION });
+      assert.notEqual(saved.receiver, RECEIVER);
+      assert.notEqual(saved.provenance, original.file.provenance);
+      assert.notEqual(saved.retention, OBSERVATION_RETENTION);
+      for (const value of [saved, saved.receiver, saved.provenance, saved.retention]) assert.ok(Object.isFrozen(value));
+      assert.deepEqual(JSON.parse(JSON.stringify(saved)), saved);
+      let shapeReads = 0;
+      const accessor = Object.defineProperty({}, 'ref', { enumerable: true, get() { shapeReads++; return h.ref; } });
+      const proxy = new Proxy(handle, { get() { shapeReads++; throw new Error('shape read'); },
+        ownKeys() { shapeReads++; throw new Error('shape keys'); } });
+      for (const forged of [saved, { ...handle }, Object.create(handle), accessor, proxy, null]) {
+        assert.equal(readFinalizedFileObservation(forged), null);
+      }
+      assert.equal(shapeReads, 0);
+      assert.deepEqual(h.store().files.get(h.ref), original);
+      assert.deepEqual(h.store().intents.listAll(), beforeIntents);
+      assert.deepEqual(h.store().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+      h.reopen();
+      const wire = JSON.parse(JSON.stringify(saved));
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), wire, RECEIVER, OBSERVATION_OPTIONS), true);
+      assert.equal(h.binding().revalidateFile(wire, RECEIVER, OBSERVATION_RETENTION), true);
+      const installedHandle = h.binding().observeFile(h.ref, RECEIVER, OBSERVATION_RETENTION);
+      assert.ok(readFinalizedFileObservation(installedHandle));
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), wire, OTHER_PRINCIPAL, OBSERVATION_OPTIONS), false);
+      assert.equal(observeFinalizedFile(h.deps(), h.ref, OTHER_PRINCIPAL, OBSERVATION_OPTIONS), null);
+    } finally { h.close(); }
+  });
+
+  it('refuses changed owners, missing or same-length changed bytes and altered immutable metadata', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      const saved = readFinalizedFileObservation(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS));
+      assert.ok(saved);
+      const changedBytes = new Uint8Array(PDF_BYTES);
+      changedBytes[changedBytes.length - 1] = changedBytes[changedBytes.length - 1]! ^ 1;
+      for (const bytes of [null, changedBytes]) {
+        if (bytes === null) h.store().blobs.remove(blobKeyForFile(h.ref));
+        else h.store().blobs.write(blobKeyForFile(h.ref), bytes);
+        assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, OBSERVATION_OPTIONS), false);
+        assert.equal(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+      }
+      h.store().blobs.write(blobKeyForFile(h.ref), PDF_BYTES);
+      const altered: StoredFileRecord[] = [
+        { ...original, owner: OTHER_PRINCIPAL },
+        { ...original, file: { ...original.file, bytesDigest: sha256Hex(TEXT_BYTES) } },
+        { ...original, file: { ...original.file, contentType: 'text/plain' } },
+        { ...original, file: { ...original.file, sizeBytes: PDF_BYTES.length + 1 } },
+        { ...original, file: { ...original.file, provenance: { ...BINDING, kind: 'request', ...RECEIVER, deliveryId: 'changed-delivery' } } },
+        { ...original, finalizedAtMs: original.finalizedAtMs + 1 },
+        { ...original, file: { ...original.file, finalizedAt: { kind: 'datetime', ms: original.file.finalizedAt.ms + 1n } } },
+      ];
+      for (const row of altered) {
+        h.store().files.put(row);
+        assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, OBSERVATION_OPTIONS), false);
+        assert.deepEqual(h.store().files.get(h.ref), row);
+      }
+      h.store().files.put(original);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, OBSERVATION_OPTIONS), true);
+      let getterCalls = 0;
+      const unsafe = Object.defineProperty({ ...saved }, 'receiver', { enumerable: true, get() { getterCalls++; return RECEIVER; } });
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), unsafe, RECEIVER, OBSERVATION_OPTIONS), false);
+      assert.equal(getterCalls, 0);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER,
+        { ...OBSERVATION_OPTIONS, policy: { ...DEFAULT_FILE_POLICY, maxBytes: PDF_BYTES.length - 1 } }), false);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER,
+        { ...OBSERVATION_OPTIONS, policy: { ...DEFAULT_FILE_POLICY, types: ['image/png'] } }), false);
+    } finally { h.close(); }
+  });
+
+  it('enforces unswept horizons, attachment retention and original policy despite a longer current horizon', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      const saved = readFinalizedFileObservation(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS));
+      assert.ok(saved);
+      const longer = { policy: DEFAULT_FILE_POLICY, retention: { unattachedHorizonMs: 600_000, retentionMs: 1_200_000 } };
+      h.clock.setNowMs(original.finalizedAtMs + OBSERVATION_RETENTION.unattachedHorizonMs - 1);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, OBSERVATION_OPTIONS), true);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER,
+        { ...OBSERVATION_OPTIONS, retention: { ...OBSERVATION_RETENTION, unattachedHorizonMs: 1 } }), false);
+      h.clock.advanceBy(1);
+      assert.equal(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, longer), false);
+      assert.equal(h.store().files.get(h.ref)?.state, 'finalized');
+      h.clock.setNowMs(original.finalizedAtMs);
+      assert.equal(recordAttachment({ files: h.store().files, clock: h.clock }, h.ref, 'Expense_1/receipt', RECEIVER).status, 'attached');
+      const attached = h.store().files.get(h.ref)!;
+      const attachedSaved = readFinalizedFileObservation(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS));
+      assert.ok(attachedSaved);
+      h.clock.setNowMs(original.finalizedAtMs + OBSERVATION_RETENTION.retentionMs - 1);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), attachedSaved, RECEIVER, OBSERVATION_OPTIONS), true);
+      h.clock.advanceBy(1);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), attachedSaved, RECEIVER, longer), false);
+      assert.equal(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+      h.clock.setNowMs(original.finalizedAtMs);
+      for (const state of ['orphaned', 'expired'] as const) {
+        const terminal = { ...attached, state };
+        h.store().files.put(terminal);
+        assert.equal(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+        assert.equal(revalidateRetainedFinalizedFile(h.deps(), attachedSaved, RECEIVER, longer), false);
+        assert.deepEqual(h.store().files.get(h.ref), terminal);
+        assert.deepEqual(h.store().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+      }
+    } finally { h.close(); }
+  });
+
+  it('requires a timely persisted first attachment beyond the unattached deadline and never renews it', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      const saved = readFinalizedFileObservation(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS));
+      assert.ok(saved);
+      const deadline = original.finalizedAtMs + OBSERVATION_RETENTION.unattachedHorizonMs;
+      h.clock.setNowMs(deadline);
+      assert.equal(recordAttachment({ files: h.store().files, clock: h.clock }, h.ref, 'Expense_late', RECEIVER).status, 'attached');
+      assert.equal(h.store().files.get(h.ref)?.attachedAtMs, deadline);
+      assert.equal(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, OBSERVATION_OPTIONS), false);
+
+      h.store().files.put(original);
+      h.clock.setNowMs(original.finalizedAtMs);
+      assert.equal(recordAttachment({ files: h.store().files }, h.ref, 'Expense_legacy', RECEIVER).status, 'attached');
+      assert.equal(h.store().files.get(h.ref)?.attachedAtMs, undefined);
+      assert.ok(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS));
+      h.clock.setNowMs(deadline);
+      assert.equal(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), saved, RECEIVER, OBSERVATION_OPTIONS), false);
+
+      h.store().files.put(original);
+      const firstAttachment = original.finalizedAtMs + 1;
+      h.clock.setNowMs(firstAttachment);
+      assert.equal(recordAttachment({ files: h.store().files, clock: h.clock }, h.ref, 'Expense_first', RECEIVER).status, 'attached');
+      const timely = readFinalizedFileObservation(observeFinalizedFile(h.deps(), h.ref, RECEIVER, OBSERVATION_OPTIONS));
+      assert.ok(timely);
+      h.clock.setNowMs(deadline + 1);
+      assert.equal(recordAttachment({ files: h.store().files, clock: h.clock }, h.ref, 'Expense_remarked', RECEIVER).status, 'attached');
+      assert.equal(h.store().files.get(h.ref)?.attachedAtMs, firstAttachment);
+      assert.equal(h.store().files.get(h.ref)?.attachedRecord, 'Expense_remarked');
+      h.reopen();
+      assert.equal(h.store().files.get(h.ref)?.attachedAtMs, firstAttachment);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), timely, RECEIVER, OBSERVATION_OPTIONS), true);
+      assert.equal(revalidateRetainedFinalizedFile(h.deps(), timely, RECEIVER, {
+        ...OBSERVATION_OPTIONS, retention: { ...OBSERVATION_RETENTION, unattachedHorizonMs: 1 },
+      }), false);
+    } finally { h.close(); }
+  });
+});
 
 describe('finalization', () => {
   it('repeating a finalize returns the same reference', () => {
