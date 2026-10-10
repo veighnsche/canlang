@@ -7332,3 +7332,26 @@ Finite independent and manual review CLEAR for the necessary TECH-F02 durable re
 ### 2026-10-10 — selected local integration of Dev selector consumer94e27958
 
 Finite independent/manual review CLEAR; integrate only the two leased CF source/test files and directly related records, excluding divergent carrier ancestry. Reuse genuine compiled consumer1/1 at4974.29ms, owning clean emissions/noEmit0/boundary13/935/1393/zero and unchanged Testkit37. The metadata is hand-authored for consumer validation; actual Compiler generated-source/native qualification remains pending. Preserve original fixture identity/current rows, wire/caller separation and deliberate legacy absence. Existing owners, checkpoint and all precise holds remain; no remote push.
+
+
+### 2026-10-10 — preserve Invoice receipt and void identities (unfinished composition)
+
+Assigned draft8a2f83f renames only private receipt→generate_receipt and
+void→void_invoice, plus three actual action lists and one form. Preserve
+Documents.receipt/receipt_result, enum/modal identities, guards, permissions,
+complete bodies/order/effects and every example. Same current CLI original25/
+catalog46→35 removes exactly11 Invoice findings, adds none, complete/omitted0
+and all25 current hashes/no artifact. Baseline46 already includes the separately
+unfinished Leave observation producer's10 reductions from prior qualified56;
+no native acceptance or attribution of those10 to Invoice.
+
+Actual isolated212→203 removes10 prior findings and adds unresolved void at707,
+where the isolated source lacks its owning state. Full composition resolves it.
+Only Invoice pin203 changes here; all52/full assertions remain. Full table
+qualification awaits the separate Leave/Purchase pin correction. Current new
+production whole/lint remains pending, Purchase source rename is unassigned and
+exported Rent remains excluded.58/67/nine open and precise holds unchanged.
+
+### 2026-10-10 — manual local integration of 22dbd12b
+
+Finite independent and manual review CLEAR for exact draft8a2f83f six private name/reference edits: receipt to generate_receipt plus all3 action lists and void to void_invoice plus its sole form. Preserve providers/receipt_result, modal and enum identities, complete bodies/grants/effects/order/examples. Reuse owning isolated212 to203 source correspondence,10 removed/1 exposed E2001 void in incomplete isolated state; complete composition resolves it. Owning original25 measured46 to35 removes11Invoice only, but baseline46 includes unfinished Leave producer changes and is not this local-main current count. Complete original25/all52/current whole/lint recomputation remains pending at the related source unit. No original/native application or whole-plan acceptance, source export, generated output or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
