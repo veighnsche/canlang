@@ -6,9 +6,10 @@ import { join } from 'node:path';
 import { deserialize, serialize } from 'node:v8';
 import { handleCreateIntent } from '../src/bridge.js';
 import type { IntentStorePort, UploadIntentRecord } from '../src/ports.js';
+import { createSqliteFileStore, createSqliteFileBindings } from '../src/host/sqlite.js';
 import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
-import { appendUploadContent, completeUploadContent, sha256Hex, stagingKeyForIntent, type UploadDeps } from '../src/upload/index.js';
-import { BINDING, OTHER_PRINCIPAL, RECEIVER, makeHarness, uploadRequest } from './helpers.js';
+import { appendUploadContent, appendUploadContentAtOffset, completeUploadContent, sha256Hex, stagingKeyForIntent, type UploadDeps } from '../src/upload/index.js';
+import { BINDING, INTENT_TTL_MS, ORIGIN_URL, OTHER_PRINCIPAL, RECEIVER, makeHarness, uploadRequest } from './helpers.js';
 
 function open(declared = 3) {
   const h = makeHarness();
@@ -70,7 +71,7 @@ for (const first of ['foreign', 'expired', 'closed', 'count', 'policy'] as const
     h.blobs.write(key, new TextEncoder().encode('AAAA'));
     const record = h.intents.get(id)!;
     if (first === 'expired') h.clock.setNowMs(record.expiresAtMs);
-    if (first === 'closed') h.intents.put({ ...record, state: 'complete' });
+    if (first === 'closed') h.intents.put({ ...record, state: 'rejected' });
     if (first === 'count') h.intents.put({ ...record, receivedBytes: 2 });
     const o = observed(first === 'policy' ? { ...h.upload, policy: { ...h.upload.policy, maxBytes: 2 } } : h.upload);
     assert.deepEqual(completeUploadContent(o.deps, id, first === 'foreign' ? OTHER_PRINCIPAL : RECEIVER), {
@@ -155,8 +156,8 @@ function persistedIntents(path: string): IntentStorePort {
   };
 }
 
-for (const transfer of ['A', 'AB']) {
-  test(`FS ${transfer.length === 1 ? 'full' : 'partial'} append crash, reopen and retry closes before another append`, () => {
+for (const retryPath of ['legacy', 'offset'] as const) for (const transfer of ['A', 'AB']) {
+  test(`FS ${retryPath} ${transfer.length === 1 ? 'full' : 'partial'} append crash, reopen and retry closes before another append`, () => {
     const dir = mkdtempSync(join(tmpdir(), 'can-completion-size-'));
     try {
       const h = makeHarness({ blobs: createFsBlobStore(join(dir, 'blobs')) });
@@ -169,14 +170,16 @@ for (const transfer of ['A', 'AB']) {
       const crash = new Error('after append before counted metadata');
       const broken = observed(upload).deps;
       broken.blobs.append = (key: string, chunk: Uint8Array) => { upload.blobs.append(key, chunk.slice(0, 1)); throw crash; };
-      assert.throws(() => appendUploadContent(broken, created.intentId, RECEIVER, bytes), error => error === crash);
+      assert.throws(() => retryPath === 'legacy' ? appendUploadContent(broken, created.intentId, RECEIVER, bytes) : appendUploadContentAtOffset(broken, created.intentId, RECEIVER, bytes, 0), error => error === crash);
       assert.equal(upload.intents.get(created.intentId)?.receivedBytes, 0);
       const reopened = { ...upload, blobs: createFsBlobStore(join(dir, 'blobs')), intents: persistedIntents(intentsPath) };
       assert.deepEqual(reopened.blobs.read(stagingKeyForIntent(created.intentId)), new TextEncoder().encode('A'));
       const o = observed(reopened);
-      assert.deepEqual(appendUploadContent(o.deps, created.intentId, RECEIVER, bytes), { status: 'failed', reason: 'closed' });
+      assert.deepEqual(retryPath === 'legacy' ? appendUploadContent(o.deps, created.intentId, RECEIVER, bytes) : appendUploadContentAtOffset(o.deps, created.intentId, RECEIVER, bytes, 0), { status: 'failed', reason: 'closed' });
       assert.deepEqual(o.events, ['size', 'remove', 'put']);
       assert.deepEqual(completeUploadContent(o.deps, created.intentId, RECEIVER), { status: 'failed', reason: 'closed' });
+      assert.deepEqual(o.events, ['size', 'remove', 'put']);
+      assert.deepEqual(appendUploadContentAtOffset(o.deps, created.intentId, RECEIVER, bytes, 0), { status: 'failed', reason: 'closed' });
       assert.deepEqual(o.events, ['size', 'remove', 'put']);
       const record = reopened.intents.get(created.intentId)!;
       assert.equal(record.state, 'rejected');
@@ -188,5 +191,94 @@ for (const transfer of ['A', 'AB']) {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+}
+
+
+for (const transfer of ['A', 'AB']) {
+  test(`SQLite ${transfer.length === 1 ? 'full' : 'partial'} physical append interruption rolls back before reopen retry`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-completion-sqlite-'));
+    const path = join(dir, 'files.sqlite');
+    let store = createSqliteFileStore(path);
+    try {
+      const clock = makeHarness().clock;
+      const options = { clock, intentTtlMs: INTENT_TTL_MS, urlBase: ORIGIN_URL };
+      let binding = createSqliteFileBindings(store, options);
+      const created = binding.createIntent({ request: uploadRequest({ name: 'a.txt', type: 'text/plain', size: String(transfer.length) }), receiver: RECEIVER, binding: BINDING });
+      assert.equal(created.status, 'granted');
+      if (created.status !== 'granted') throw new Error('expected SQLite grant');
+      const key = stagingKeyForIntent(created.intentId);
+      const before = store.intents.get(created.intentId);
+      const bytes = new TextEncoder().encode(transfer);
+      const append = store.blobs.append;
+      const fault = new Error('after real SQLite append before counted metadata');
+      let writes = 0;
+      store.blobs.append = (blobKey, chunk) => {
+        append(blobKey, chunk.slice(0, 1));
+        writes++;
+        throw fault;
+      };
+      assert.throws(() => binding.append(created.intentId, RECEIVER, bytes, 0), error => error === fault);
+      assert.equal(writes, 1);
+      store.close();
+      store = createSqliteFileStore(path);
+      binding = createSqliteFileBindings(store, options);
+      assert.deepEqual(store.intents.get(created.intentId), before);
+      assert.equal(store.blobs.read(key), null);
+      assert.equal(store.blobs.sizeOf(key), null);
+      assert.deepEqual(store.files.listAll(), []);
+      assert.deepEqual(binding.append(created.intentId, RECEIVER, bytes, 0), { status: 'appended', receivedBytes: bytes.length });
+      store.close();
+      store = createSqliteFileStore(path);
+      binding = createSqliteFileBindings(store, options);
+      const saved = store.intents.get(created.intentId);
+      const realAppend = store.blobs.append;
+      let repeatedWrites = 0;
+      store.blobs.append = (blobKey, chunk) => { repeatedWrites++; realAppend(blobKey, chunk); };
+      assert.deepEqual(binding.append(created.intentId, RECEIVER, bytes, 0), { status: 'appended', receivedBytes: bytes.length });
+      assert.equal(repeatedWrites, 0);
+      assert.deepEqual(store.intents.get(created.intentId), saved);
+      assert.deepEqual(store.blobs.read(key), bytes);
+      assert.equal(binding.complete(created.intentId, RECEIVER).status, 'completed');
+      assert.equal(store.intents.get(created.intentId)?.bytesDigest, sha256Hex(bytes));
+      assert.equal(store.intents.get(created.intentId)?.detectedType, 'text/plain');
+      assert.equal(store.intents.get(created.intentId)?.receivedBytes, bytes.length);
+    } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+}
+
+for (const corruption of ['bytes', 'size', 'count', 'digest', 'type'] as const) {
+  test(`SQLite repeated completion refuses persisted ${corruption} corruption without healing`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-completed-sqlite-'));
+    const path = join(dir, 'files.sqlite');
+    let store = createSqliteFileStore(path);
+    try {
+      const options = { clock: makeHarness().clock, intentTtlMs: INTENT_TTL_MS, urlBase: ORIGIN_URL };
+      let binding = createSqliteFileBindings(store, options);
+      const created = binding.createIntent({ request: uploadRequest({ name: 'a.txt', type: 'text/plain', size: '3' }), receiver: RECEIVER, binding: BINDING });
+      assert.equal(created.status, 'granted');
+      if (created.status !== 'granted') throw new Error('expected SQLite grant');
+      const key = stagingKeyForIntent(created.intentId);
+      assert.equal(binding.append(created.intentId, RECEIVER, new TextEncoder().encode('ABC'), 0).status, 'appended');
+      assert.equal(binding.complete(created.intentId, RECEIVER).status, 'completed');
+      const completed = store.intents.get(created.intentId)!;
+      if (corruption === 'bytes' || corruption === 'size') store.blobs.write(key, new TextEncoder().encode(corruption === 'bytes' ? 'ABD' : 'ABCD'));
+      if (corruption === 'count') store.intents.put({ ...completed, receivedBytes: 2 });
+      if (corruption === 'digest') store.intents.put({ ...completed, bytesDigest: sha256Hex(new TextEncoder().encode('ABD')) });
+      if (corruption === 'type') store.intents.put({ ...completed, detectedType: 'application/pdf' });
+      store.close();
+      store = createSqliteFileStore(path);
+      binding = createSqliteFileBindings(store, options);
+      const before = { intents: store.intents.listAll(), files: store.files.listAll(), bytes: store.blobs.read(key) };
+      let effects = 0;
+      const append = store.blobs.append, write = store.blobs.write, remove = store.blobs.remove, put = store.intents.put;
+      store.blobs.append = (k, bytes) => { effects++; append(k, bytes); };
+      store.blobs.write = (k, bytes) => { effects++; write(k, bytes); };
+      store.blobs.remove = k => { effects++; remove(k); };
+      store.intents.put = row => { effects++; put(row); };
+      assert.deepEqual(binding.complete(created.intentId, RECEIVER), { status: 'failed', reason: 'closed' });
+      assert.equal(effects, 0);
+      assert.deepEqual({ intents: store.intents.listAll(), files: store.files.listAll(), bytes: store.blobs.read(key) }, before);
+    } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
   });
 }
