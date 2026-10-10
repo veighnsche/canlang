@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -153,20 +153,66 @@ async function ownerFixture(constructRanking?: SessionConstructRankingOptions, r
     unobserves: () => unobserves };
 }
 
+/** A watcher hint may arrive between a genuine check and example admission.
+ * Retry only before execution; source bytes and producer provenance stay exact.
+ */
+async function checkAndAdmitExample<T>(fixture: Pick<Awaited<ReturnType<typeof ownerFixture>>, "app" | "client">,
+  execute: (revision: string) => Promise<T>) {
+  const authored = readFileSync(fixture.app);
+  const calls = producer.calls.length;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    expect(readFileSync(fixture.app)).toEqual(authored);
+    expect(producer.calls).toHaveLength(calls);
+    const checked = await fixture.client.request({ command: "check" }) as {
+      revision: string; source_revision: string; state: string; current: boolean; preview: string;
+      evidence: { capture_complete: boolean; analysis_complete: boolean };
+    };
+    expect(readFileSync(fixture.app)).toEqual(authored);
+    if (checked.state === "superseded") { expect(producer.calls).toHaveLength(calls); continue; }
+    expect(checked).toMatchObject({ state: "valid", current: true, preview: "ready",
+      evidence: { capture_complete: true, analysis_complete: true } });
+    let value: T;
+    try { value = await execute(checked.revision); }
+    catch (error) {
+      if (typeof error !== "object" || error === null || !("code" in error) || error.code !== "REVISION_CONFLICT") throw error;
+      expect(readFileSync(fixture.app)).toEqual(authored);
+      expect(producer.calls).toHaveLength(calls);
+      continue;
+    }
+    expect(readFileSync(fixture.app)).toEqual(authored);
+    // Preserve the caller's exact CLI code/detail assertion for other failures;
+    // cancellation, deadlines and transport failures are never retried.
+    if (typeof value === "object" && value !== null && "command" in value && "ok" in value && value.ok === false) {
+      return { checked, value };
+    }
+    expect(producer.calls).toHaveLength(calls + 1);
+    expect(producer.calls[calls]).toMatchObject({ sourceRevision: checked.source_revision,
+      bytes: [...Buffer.from(`artifact:${createHash("sha256").update(authored).digest("hex")}`)] });
+    return { checked, value };
+  }
+  throw new Error("exact authored example did not reach current admission after four attempts");
+}
+
 it("runs through the private owner, retains safe failure lookup, and reruns copied bytes", async () => {
   const fixture = await ownerFixture();
   try {
-    const checked = await fixture.client.request({ command: "check" }) as { revision: string; preview: string };
-    expect(checked.preview).toBe("ready");
+    const initialCheck = await fixture.client.request({ command: "check" }) as { revision: string; preview: string };
+    expect(initialCheck.preview).toBe("ready");
     const control = (args: string[]) => runDevControlArgv(args, {
       cwd: fixture.root, discover: async () => fixture.client,
     });
     expect(await control(["example.run"])) .toMatchObject({ ok: false, code: "REVISION_REQUIRED" });
     expect(await control(["example.run", "--expected-revision", "r999"]))
       .toMatchObject({ ok: false, code: "REVISION_CONFLICT" });
-    const run = await control(["example.run", "--expected-revision", checked.revision,
-      "--operation", "Office.use", "--row", "0"]);
-    expect(run).toMatchObject({ ok: true, result: { schema: "can.dev.example-run.v1", executed: 1,
+    const { checked, value: run } = await checkAndAdmitExample(fixture, async revision => {
+      const envelope = await control(["example.run", "--expected-revision", revision,
+        "--operation", "Office.use", "--row", "0"]);
+      if (!envelope.ok && envelope.code === "REVISION_CONFLICT") {
+        throw Object.assign(new Error(envelope.detail), { code: envelope.code });
+      }
+      return envelope;
+    });
+    expect(run, run.ok ? "example.run" : `${run.code}: ${run.detail}`).toMatchObject({ ok: true, result: { schema: "can.dev.example-run.v1", executed: 1,
       revision: checked.revision, replay: { available: false } } });
     const result = controlResult<{ run_id: string; focus: { ref: string }; artifact_digest: string }>(run);
     expect(producer.calls).toHaveLength(1);
@@ -308,9 +354,10 @@ it("refreshes retained capture order when a failed artifact epoch returns", asyn
     const source = "app Office\nGiven\nWhen\nThen\n";
     const run = async (label: string) => {
       writeFileSync(fixture.app, `${source}## ${label}\n`);
-      const { revision } = await fixture.client.request({ command: "check" }) as { revision: string };
-      return fixture.client.request({ command: "example.run", payload: { expectedRevision: revision } }) as
-        Promise<{ focus: { ref: string }; artifact_digest: string }>;
+      const { value } = await checkAndAdmitExample(fixture, revision => fixture.client.request({
+        command: "example.run", payload: { expectedRevision: revision },
+      }) as Promise<{ focus: { ref: string }; artifact_digest: string }>);
+      return value;
     };
     for (const label of ["A", "B", "C", "D", "E", "F", "G", "H"]) await run(label);
     const newestA = await run("A");

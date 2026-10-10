@@ -518,9 +518,17 @@ function serveConnection(
   let bytes = Buffer.alloc(0);
   const handshakeTimer = setTimeout(() => socket.destroy(), DEFAULT_HANDSHAKE_MS);
   let idleTimer: NodeJS.Timeout | undefined;
+  let requestController: AbortController | undefined;
+  // A peer may disappear while its handshake or response is being written.
+  // Fail only that connection, keeping the owner and other requests alive.
+  socket.on("error", () => {
+    requestController?.abort();
+    socket.destroy();
+  });
   socket.on("close", () => {
     clearTimeout(handshakeTimer);
     if (idleTimer) clearTimeout(idleTimer);
+    requestController?.abort();
   });
   socket.on("data", (chunk: Buffer) => {
     if (stage === "busy" || stage === "done") {
@@ -565,6 +573,7 @@ function serveConnection(
       stage = "busy";
       const command: SessionSocketCommand = { command: frame.command, payload: frame.payload };
       const controller = new AbortController();
+      requestController = controller;
       controllers.add(controller);
       const timer = setTimeout(() => controller.abort(), requestMs);
       void Promise.race([
@@ -574,10 +583,15 @@ function serveConnection(
         ), { once: true })),
       ]).then(
         result => {
+          if (socket.destroyed) return;
           try { writeLine(socket, { type: "response", id: frame!.id, ok: true, result: result ?? null }, maxResponse); }
-          catch { writeLine(socket, { type: "response", id: frame!.id, ok: false, error: { code: "RESPONSE_TOO_LARGE", message: "control response exceeds byte limit" } }, maxResponse); }
+          catch {
+            try { writeLine(socket, { type: "response", id: frame!.id, ok: false, error: { code: "RESPONSE_TOO_LARGE", message: "control response exceeds byte limit" } }, maxResponse); }
+            catch { socket.destroy(); }
+          }
         },
         error => {
+          if (socket.destroyed) return;
           const code = error instanceof SessionSocketError ? error.code : "REQUEST_FAILED";
           const message = error instanceof SessionSocketError ? error.message : "control request failed";
           try { writeLine(socket, { type: "response", id: frame!.id, ok: false, error: { code, message } }, maxResponse); }
@@ -587,7 +601,7 @@ function serveConnection(
         clearTimeout(timer);
         controllers.delete(controller);
         stage = "done";
-        socket.end();
+        if (!socket.destroyed) socket.end();
       });
       break;
     }
