@@ -339,6 +339,7 @@ describe("deploy bundle (P-B)", () => {
     const ops = bundle.modules[HTTP_OPERATIONS_MODULE] as string;
     for (const marker of [
       "handleOperationRequest",
+      "handleCsvRequest",
       "handlePageRequest",
       "handlePagePreferencePost",
       "IdentityError",
@@ -349,6 +350,8 @@ describe("deploy bundle (P-B)", () => {
     // tens of KB (no MCP SDK weight).
     expect(ops.length).toBeGreaterThan(10_000);
     expect(bundle.httpOperationsBytes).toBe(ops.length);
+    expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(() => assertWorkerdLoadable({ [HTTP_OPERATIONS_MODULE]: ops })).not.toThrow();
   });
 
   it("stages artifact.js with the artifact, portable module URLs, and the verdict", () => {

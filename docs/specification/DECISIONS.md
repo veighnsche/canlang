@@ -5787,7 +5787,7 @@ clean CF emission, root noEmit and package boundaries pass; unchanged runtime
 results are reused at their recorded scopes.
 
 
-### 2026-10-10 — retain ordered history during bounded loop qualification (unfinished)
+### 2026-10-10 — retain ordered history during bounded loop qualification (tested finite D1)
 
 Consume the exact reviewed Compiler bounded-reference-loop producer through the
 existing immutable source/artifact and real generated D1 invoker. Derive the
@@ -5795,12 +5795,19 @@ empty/nonempty return and dependency IDs from its actual plan; retain original
 ordered observation, current-stage, one-commit, receipt/hash, full-table and
 Identity assertions. No private plan is fabricated and no public ABI is added.
 
-The first actual run fails at original A0→1 then1→2 history: State's owner-session
-finalization emits only net A0→2, despite the existing ordered-history contract
-in DESIGN.md503. State owns that correction. Preserve the required history gate
-and distinguish implemented later replay/refusal assertions from reached checks.
-Local native/CF builds, root noEmit and package boundaries pass; native D1 replay
-is not qualified. General loop outputs, query/preclaim and G2/G3 remain open.
+The first actual run failed at original A0→1 then1→2 history: State's owner-session
+finalization emitted only net A0→2, despite the existing ordered-history contract
+in DESIGN.md503. Preserve that unfinished318 checkpoint and its required gate.
+Reviewed State72a4ce23 restores actual ordered stage history, and the unchanged
+consumer318f8efd now passes against exact Compiler14b07710 on LOCAL61240891.
+Actual compiled/captured D1 qualification1/1 passes13.92s with zero skips:
+original inputs/hash, observations0/0/1 and versions1/1/2, three history entries,
+two final rows, one root commit, genuine populated/empty/omitted void association
+and no-effect replay, scalar7 replay, limit bookkeeping and all table/Identity
+admission refusals. Work/State/CF clean emissions, root noEmit and boundaries
+13/911/1282/zero pass; reuse owning State94 and prior exact Compiler results.
+No assertion was relaxed or private association fabricated. General loop outputs,
+query/preclaim and G2/G3 remain open.
 
 ### 2026-10-10 — intake checked decision transport (unfinished native consumer)
 
@@ -5840,3 +5847,34 @@ correction against the existing DESIGN503/accepted DEC1774 contract. Compiler
 source remains14b; actual changed graph22/22 uncached and only affected native
 receipt target4/4 pass once. Reuse unchanged1386/focused301/lint/format at their
 recorded scope, with this consumer delta; Dev owns actual D1 qualification.
+## 2026-10-10 — delegate expired plain scenario recovery (unfinished workflow)
+
+Connect checked plain HTTP and CSV scenario submissions whose UUIDv7 age validator reports expiration to the published callable invokeRetainedMutation method only. Keep missing or malformed dedicated ports age-refused without ordinary fallback, fresh calls ordinary and malformed/future IDs refused. HTTP framing, owning binding and current credential liveness still precede the call. CSV preserves review consent, selection/current authority, raw inputs/IDs and authored row order; invalid/duplicate rows stay uninvoked. Signed scenario form_binding retains its age refusal and existing restoration rules. CRUD routing is unchanged.
+
+The current Cloudflare facade selects positive State retained-only admission, requires the checked source disclosure plan and exact saved association, and refuses missing exports, legacy/malformed associations, changed hashes and unseen receipts. State owns current secrecy/type/row lifetime/authority and repeated zero/single membership projection; multiple distinct membership observations remain withheld. No transport invents a receipt, schema, projection or authority, and no expired identity reaches ordinary scenario execution through this consumer.
+
+Final Interfaces clean emission passes. Maintained affected HTTP/CSV files initially pass58/59; a new fixture missing its required description is corrected, and only that failed case reruns1/1 successfully. Reuse the other58 results. Initial two nullable actor assertion type errors are corrected before the successful owning build. New HTTP and mounted CSV controls retain current identity/raw envelopes, dedicated replay and conflict/not_found refusals, absent/null/nonfunction ports, bound/closed input checks, fresh routing, signed binding hold and reverse-selection source order. Finite source review is clear; unchanged State/Cloudflare security/effect and prior native/CRUD scopes are reused. This is component adapter qualification, with genuine current compiled/installed/browser/durable scenario and complete parent acceptance still open.
+
+DEL-C01's proposed scalar-alias normalization change is withdrawn: released1c2341af governs receiving contract-field trim, while supported direct bounded NAME text aliases decode unchanged and identical admitted rows already deduplicate. Do not add a no-op helper, new alias normalization or CSV coercion. Its concrete SR02/resource/installed/browser/durable gates remain. Correct stale authored-delivery release-pending notes from the existing accepted67554d14/6da0dd1d record; that bookkeeping grants no broader qualification. No preparation/publication/payload/security hold changes.
+
+### 2026-10-10 — qualify expired native scenario HTTP recovery (tested finite transport; parent unfinished)
+
+Consume reviewed LOCAL6be21b88/Packages0e90525d through the existing genuine `NativeSavedScenario` portable two-owner D1 consumer. A fixed nonce-protected trusted host mounts the actual installed `assembleWorker` operation router, baked derived inputs, activation verdict and published Interfaces operation factory. Share its clock with canonical admission at25hours, beyond the owning24-hour HTTP gate; actual Identity login's seven-day session remains live. Preserve separate16-minute dedicated recovery. Requests do not register evidence, select admission modes or supply successful invokers/receipt plans. Signed scenario form bindings remain age-refused under the owning producer.
+
+Correct the existing retained commit tripwire to wrap the StoragePort returned by the owner boundary directly; the old nested store replacement did not guard its actual commit method. Inspect raw HTTP JSON for private association leakage before the wire parser discards unknown fields. Consume State72's released authored-history contract in the same existing machine consumer: two source transitions retain idle→queued and queued→generating entries with identical root attribution/reserved version2, one final row, revision and receipt. Preserve existing no-effect, receipt/hash, source/issuer/JS/map, rollback, readback and security assertions.
+
+Final affected actual native test passes1/1 in75.07s with zero skips/cancellations. All19 scalar/array/derive and24 machine/default witnesses replay through expired HTTP without execution/commit/file/new effects; omitted defaults and changed inputs conflict, unseen identities refuse, current archived rows withhold content and current/revoked authority is enforced against actual Identity and both owner databases. Initial77.79s pass preceded the raw-JSON assertion correction; only the affected consumer reruns after that relevant edit. Interfaces/CF clean emission, root noEmit and package boundaries13/911/1282/zero pass. Owning Packages59 and unchanged Compiler/State/static native scopes are reused. This finite installed HTTP qualification does not establish CSV/browser transport, broader source/disclosure/authority joins, native query/preclaim, live diagnostic branch ranking, Office G2/G3 or release acceptance; precise human holds persist.
+
+### 2026-10-10 — mount installed CSV review and commit (finite native/host tested; parent unfinished)
+
+Mount the defining Interfaces CSV handler through the existing installed HTTP bundle and main/assembly factories. Operation and CSV transports share one dependency producer for the genuine checked catalog, owner-selecting invoker, Identity/CSRF/current membership and clock. Recognize the two public CSV paths, preserve defining method/error handling, explicit absent/legacy join refusal and activation requirements. Re-export actual installed CSV bytes deterministically; do not duplicate its parser, consent, row selection, authority or retained-admission implementation.
+
+Qualify existing compiled `NativeSavedScenario.array_input(values:int[]?)` with the exact one-blank-cell CSV `values\n""`, whose owning grammar/Values mapping supplies own values:null. Actual production main performs review and fresh commit; the trusted25-hour host uses the same installed assembly/CSV factory and original live seven-day session for expired replay. Review changes no table; fresh commit produces exactly one real receipt/hash/result:null/revision/fence/log and leaves prior receipts/logs and other resources unchanged. Retained CSV reports row committed around the canonical replayed result with the same ID/null. Keep raw-response privacy, original receipt, current principal/team, unseen-row failure, consent/CSRF/revoked authority, no commit/file access and complete Identity/two-owner snapshots. Source/issuer/JS/map, CRUD/replay/readback/rollback/history and all43 existing native scenario witnesses remain asserted.
+
+Actual affected native journey passes1/1 in73.88s, zero skips/cancellations; CF clean emission/root noEmit/boundaries13/911/1285/zero and18 main-loader checks pass at their implementation scopes. The changed bundle case passes1/1 with29 unrelated cases unselected. Preserve the initial20 pre-routing accessor-fixture refusals and terminated/cleaned stalled broad bundle attempt as historical results. Packagesa77b948b's exact native-ESM/source-claim fixture correction is now independently CLEAR and intaken through reviewed LOCALda5c032e, preserving every Dev source blob and its three CSV cases. The SAME maintained combined20 HTTP/MCP/CSV cases pass once in2.98s; all three previously blocked CSV cases now execute missing-join/method/path refusal, checked catalog/canonical commit+replay and session/CSRF admission. Common harness qualification is resolved without weakening production metadata or existing assertions. Reuse the recorded native/loader/bundle, owning Packages17/17/59, State94/Compiler and unchanged static-native scopes; no fixture-only re-emission/global/native/full-suite rerun. This finite installed CSV/native/host result does not establish browser/general authority/source/native query/preclaim, T04/T11/Office G2/G3 or release acceptance. Precise human holds persist.
+
+## 2026-10-10 — restore native HTTP route fixture admission (unfinished workflow)
+
+Use Node's native ESM loader for the installed Worker assembly and the exact authored fixture module, matching existing MCP fixtures. Vitest's transformed export getters correctly fail canonical own-data metadata admission; keep that production guard intact. The explicitly hand-written artifact now declares its actual module bytes and SHA-256, real entry URL, defining Shop app identity and unchanged shared members policy. Keep injected Interfaces handlers and form-binding registries in their existing loader graph so fragment rendering observes the same registry.
+
+The accepted File transport repair uses Values' closed `{id}` wire object. Update the positive rich input to that shape and retain both empty-ID and primitive-string refusals, exact `/doc` error fields, HTTP/MCP parity and zero model writes. All framing, binding, session/CSRF, receipt/replay, CRUD-handler and fragment assertions remain. After these fixture corrections and refreshing changed emitted runtime prerequisites, the maintained route suite passes17/17 without skips; the owning CF graph passes22/22 and root typechecking passes. Finite source review is clear. This repairs the common fixture only; Dev retains its active CSV host and native consumer changes, whose qualification is separate. No full-parent acceptance or human hold changes.

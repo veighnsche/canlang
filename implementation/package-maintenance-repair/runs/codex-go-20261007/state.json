@@ -538,7 +538,7 @@
       "root_read_released": true,
       "commit_pending": false,
       "commit": "89d885a9",
-      "remaining_prerequisite": "Finite State intrinsic/input and Work7f927643 prerequisites released. State framework producer b6472540/a4e25acb plus genuine Dev5c adapter are consumed through exact reviewed LOCAL main8a807bb4 at their unfinished qualified scopes. Finite authored-delivery public-route repair now passes22producer/2installed-workerd cases, awaiting coordinator exact release. Capability owns original complete native Text/Task44; Dev owns optional-loader compatibility and unchanged complete41 profile. Broader receipt/disclosure/Identity/lifetime/native/publication gates remain; no parent acceptance."
+      "remaining_prerequisite": "Finite State intrinsic/input and Work7f927643 prerequisites released. State framework producer b6472540/a4e25acb plus genuine Dev5c adapter are consumed through exact reviewed LOCAL main8a807bb4 at their unfinished qualified scopes. Finite authored-delivery public-route repair now passes22producer/2installed-workerd cases, manually reviewed/released at LOCAL67554d14 and consumed in reviewed6da0dd1d. Capability owns original complete native Text/Task44; Dev owns optional-loader compatibility and unchanged complete41 profile. Broader receipt/disclosure/Identity/lifetime/native/publication gates remain; no parent acceptance."
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -1159,7 +1159,7 @@
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/csv/grammar.ts"
       ],
-      "residual_evidence": "Released Compilerb2c1a425 alias identity consumed with genuine CLI→mounted CSV regression; owning bounds/NAME now reachable and required empty alias retains raw text. Prior ordinary Contract/date/scalar checks retain scope. Nominal normalization authority, selectedSR02resource and installed/browser/durable parent joins remain open.",
+      "residual_evidence": "Released Compilerb2c1a425 alias identity consumed with genuine CLI→mounted CSV regression; owning bounds/NAME now reachable and required empty alias retains raw text. Prior ordinary Contract/date/scalar checks retain scope. Current supported bounded NAME alias identity needs no added normalization; selectedSR02resource and installed/browser/durable parent joins remain open.",
       "finite_own_data_slice": {
         "state": "independently accepted finite correction; committed4d103fbe",
         "files": [
@@ -1216,20 +1216,20 @@
         }
       },
       "remaining_prerequisite": {
-        "prerequisite": "Direct bounded-alias descriptor/consumer prerequisite resolved at the finite genuine source slice below. Remaining nominal duplicate normalization must follow its owning Values contract; selectedSR02 resource/installed/browser/durable and original parent joins remain separate.",
-        "owner": "Values owning normalization contract; separately selected resource/current-context and installed/durable owners"
+        "prerequisite": "Direct bounded-alias descriptor/consumer prerequisite resolved. Current supported singular bounded NAME text aliases decode unchanged and identical admitted inputs already deduplicate; no missing raw-distinct/equal-normalized behavior is demonstrated. Selected SR02 resource/current-context and installed/browser/durable original parent joins remain.",
+        "owner": "Selected resource/current-context and installed/browser/durable defining owners; future normalization only if an actual owning Values profile changes identity"
       },
       "stored_field_constraint_slice": {
         "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
         "source": "Exact published8f4cd883e47e63718993d5e37798538d1898d3e1 JS model field/builder/serializer and codegen/typed artifact/typed descriptor tests consumed; no unrelated Compiler source or plan.",
         "behavior": "Stored fields emit checked trim and exact literal min/max. Safe text/array lengths are numbers; large integer/decimal bounds preserve wire spelling. Unsafe length/nonliteral bounds refuseE6008 instead of disappearing.",
-        "validation": "Rust1.99locked/offline19codegen+2typedArtifact+6typedDescriptors pass; changed-source format passes. Direct genuine currentCLI/catalog artifact\u2192State loader/canonical model table\u2192emitted increment hook\u2192Mutation/Memory passes trim/native2n\u2192stored3, decimal1.20/5.00 and array1/2bounds. Nine invalid blank/upper/lower/array/hook-overflow cases refuse with atomic revision/row/history rollback; inclusive endpoints pass. Initial probe overasserted optional enum valueType, corrected before successful real run.",
+        "validation": "Rust1.99locked/offline19codegen+2typedArtifact+6typedDescriptors pass; changed-source format passes. Direct genuine currentCLI/catalog artifact→State loader/canonical model table→emitted increment hook→Mutation/Memory passes trim/native2n→stored3, decimal1.20/5.00 and array1/2bounds. Nine invalid blank/upper/lower/array/hook-overflow cases refuse with atomic revision/row/history rollback; inclusive endpoints pass. Initial probe overasserted optional enum valueType, corrected before successful real run.",
         "limit": "Bounded nominal text-alias source profile, complete specialization/CSV/resource/installed/durable joins and original parent obligations remain separate; existing finite alias loader controls retained."
       },
       "ordinary_contract_csv_qualification": {
         "state": "Historical finite qualification retained; direct alias negative failures superseded by releasedb2c1a425 consumer slice below",
         "source": "Released Compiler1ed611360438e6c623c63722118c4ef3c1daf054/d3ab04b0 in reviewedmain310b926e; current locked/offline actual can binary built. Source appCsvProbe declares runtime Choice, ordinary Payload{value:text}, and intake(required:Choice.pick.choice,nullable:Choice.pick.choice?,optional:Choice.pick.choice=\"fallback\",payload:Payload?) ->text bymembers.",
-        "validation": "Actual currentCLI/catalog artifact\u2192catalogFromArtifactOperations\u2192mounted CSV review/commit: compound JSON text stays raw and refuses /payload binding_mismatch; mapped nullable blanks=null and unmapped optional fallback stays absent. Valid raw cells/candidates and consent stable across rereview/commit. Selecting a valid and invalid compound row yields committed/invalid and exactly one unchanged downstream scripted invoker call. Review performs no invocation; invalid compound never invokes. Scratch cleaned; source/metadata not rewritten.",
+        "validation": "Actual currentCLI/catalog artifact→catalogFromArtifactOperations→mounted CSV review/commit: compound JSON text stays raw and refuses /payload binding_mismatch; mapped nullable blanks=null and unmapped optional fallback stays absent. Valid raw cells/candidates and consent stable across rereview/commit. Selecting a valid and invalid compound row yields committed/invalid and exactly one unchanged downstream scripted invoker call. Review performs no invocation; invalid compound never invokes. Scratch cleaned; source/metadata not rewritten.",
         "blocker": "Exact CsvProbe.Choice.pick.choice {type:text,min:1,max:80,format:name} exists in valueTypes alongside Payload, but direct alias operation fields emit kind:string/valueType:text (nullabletext). Empty, bad NAME and81char rows consequently pass review; genuine nominal-blank correction cannot be qualified through this erased producer path.",
         "limit": "Actual compiled inventory and mounted Interfaces/UI/Values consumer; downstream invoker scripted, not State/installed/browser/durable or fullDEL-C01 acceptance. Ordinary compound cells remain unsupported raw strings; no new JSON-cell syntax or normalization. Native preparation/release HOLD unchanged."
       },
@@ -1255,11 +1255,16 @@
         "behavior": "Shared mapping retains required singular checked text-alias empty cell as own empty text, allowing existing owning Values min1 binding_mismatch rather than missing-required. Nullable mapped blank=null; mapped optional and unmapped defaults stay absent. Compound cells remain raw strings/refuse; no new normalization or compound syntax.",
         "validation": "Fresh locked/offline CLI build, UI/Interfaces owning emits and affected genuine actualCLI regression1/1 passed0.70s,1unchangedIR case unselected. Real emitted alias schema/catalog→public mounted CSV review/commit covers empty/badNAME/81char owning refusals, two valid raw candidates, nullable/default/array omission, raw compound schema refusal, independent golden consent, zero review effects and exactly2valid source-ordered scripted downstream calls with original IDs. Affected existing scalar/date controls2/2 and test rustfmt pass. Compiler owning2/2,codegen121/strict checks reused at source scope; no fabricated descriptor substitute.",
         "limit": "Genuine emitted repository CLI/public mounted Interfaces/UI/Values boundary with scripted downstream only; not State/browser/installed/durable or whole parent acceptance. Native preparation/release and timezone/JEV holds unchanged."
+      },
+      "nominal_identity_reassessment": {
+        "state": "Coordinator withdrew proposed nominal duplicate correction after verified producer facts; no no-op helper, CSV coercion or speculative producer added.",
+        "evidence": "Released1c2341af is present: it retains receiving contract-field trim/bounds. Contracts state1141 and Values schema134/core1513 permit direct aliases only as bounded text with NAME format; direct alias decode remains unchanged. One current installed Values comparison confirms padded direct NAME refuses format, plain NAME decodes unchanged, and only receiving structural contract trim makes both values equal. Compound CSV cells remain unsupported raw strings. Existing alias/scalar/consent/source validation reused unchanged.",
+        "limits": "This corrects a stale readiness premise, not full DEL-C01 acceptance or a new Values/Compiler producer request. Concrete resource/installed/browser/durable gates and all precise holds remain."
       }
     },
     "DEL-C02": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Partial: existing CRUD and bounded plain-scenario replay-age delegation implemented/tested; frozen review context/integrity/per-row authority and complete parent qualification remain blocked.",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/confirm.ts",
@@ -1267,8 +1272,8 @@
       ],
       "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open",
       "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD aged replay has landed. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed integrity, per-row review authority and scenario disclosure before scenario age delegation.",
-        "owner": "Interfaces/UI/Identity/State review owners; scenario disclosure producer"
+        "prerequisite": "Checked CRUD and bounded plain-scenario aged replay delegation are available. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed integrity and per-row review authority stay separate; expired signed scenario-form restoration and multi-member projection remain unavailable.",
+        "owner": "Interfaces/UI/Identity review owners; Capability/Identity broader scenario projection and coherent multi-member snapshot; Dev actual installed/native consumers"
       }
     },
     "DEL-C02-order": {
@@ -1546,10 +1551,10 @@
         "commands_released": true,
         "commit_ready": false,
         "type_correction": "Root ReadonlySet<string> annotation resolves reported TS2345 without behavioral change; owner resumes same noEmit only after this edit. Actual producer failure remains.",
-        "library_fit": "Source-only Solhigh defining fit favors Acorn+eslint-scope replacing masker/wrapper/textual guard exception, retaining import owner. Original closure163physical lines, estimate90\u2013120; achieved reduction and target/actual producer qualification still pending. No installation or adoption performed.",
+        "library_fit": "Source-only Solhigh defining fit favors Acorn+eslint-scope replacing masker/wrapper/textual guard exception, retaining import owner. Original closure163physical lines, estimate90–120; achieved reduction and target/actual producer qualification still pending. No installation or adoption performed.",
         "next_action": "Capture qualified source/dependencies and clean exact released private fit; retain separate namespace/provenance/wider gates.",
         "verification": "Private34 controls include retained real MCP/current HTTP; added constructor1/1; private TypeScript0. Identical installed-source constructor1/1 after successful script-free join; unchanged checks reused.",
-        "maintenance": "Original production closure163\u219259 including3imports:104lines removed. Approx776KB newly locked runtime dependencies+234KBdev types; host-only.",
+        "maintenance": "Original production closure163→59 including3imports:104lines removed. Approx776KB newly locked runtime dependencies+234KBdev types; host-only.",
         "dependencies": "acorn8.18.0 eslint-scope8.4.0 estree-walker3.0.3; dev @types/eslint-scope3.7.7; declaredNode>=22 unchanged",
         "commit": "7326dff1"
       },
@@ -1606,8 +1611,8 @@
       "commands_released": true,
       "status": "Finite source-owned UI/Interfaces/currentCF static stage and runtime mapping qualified narrowly. Exact Dev3d37c2b28b04aa3cf8ce5f4a03e4867fb4a1887f portable assembly-verification/State mutation-index prerequisite consumed without duplicate implementation; Modules owning17/17 result reused. Common deploy fixture now requires runtime/stdlib and private verification leaf, maps generated stdlib and Work receipt to their defining portable producers, and preserves both required DB abs imports. Actual22producer build tasks pass. Three affected layout/rewrite/receipt cases pass; two DB boot cases initially refuse missing appDefinition.id, then pass after handwritten entries declare it, retaining real workerd/D1 unauth401/grant401, inactive500 and authorized operation discovery. Remaining25unchanged owning Dev bundle results reused at their original scope; no full-current suite claim. Source-derived caller/installed/native/full-current closure gates remain open.",
       "remaining_prerequisite": {
-        "prerequisite": "New State-authored delivery leaf route now passes exact installed import and real workerd/D1 portable bundle checks; coordinator exact release pending. Selected entry source/lock/tool/emit/pack/actual supported-host correspondence and full-current native/profile consumers remain owner gates; native preparation stays held.",
-        "owner": "Coordinator exact route release; Dev/Capability original native consumers and each delivery/release owner"
+        "prerequisite": "New State-authored delivery leaf route now passes exact installed import and real workerd/D1 portable bundle checks; manually reviewed/released at LOCAL67554d14 and consumed in reviewed6da0dd1d. Selected entry source/lock/tool/emit/pack/actual supported-host correspondence and full-current native/profile consumers remain owner gates; native preparation stays held.",
+        "owner": "Dev/Capability original native consumers and each delivery/release/installed supported-host owner"
       },
       "current_validation_gap": "Historical emergency installed-closure checkpoint was subsequently qualified at its recorded local source: actual installed-only Worker/abs/auth/Wasm/missing-corrupt asset and170export/13owner declaration gates passed with797thirdparty diagnostics retained. Reuse those unchanged results only at their source scope. Current integrated source and finite portable bundle repair below do not establish all installed/supported-host/native/full-release qualification; native preparation remains held.",
       "portable_import_fixture_slice": {
@@ -1744,17 +1749,17 @@
     },
     "REPLAY-IP07": {
       "planning_status": "blocked",
-      "state": "Checked CRUD HTTP/CSV implemented, tested and root-reviewed; full packet partial pending scenario authority/result provenance",
+      "state": "Checked CRUD and bounded plain checked-scenario HTTP/CSV retained delegation implemented and affected local checks passed; full packet remains partial pending broader current authority/disclosure/installed/native gates.",
       "files": [
         "packages/interfaces/src/http/operations.ts",
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/envelope/validate.ts"
       ],
-      "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
+      "blocker": "Current published zero/single-distinct-membership scenario receipt projection is available and plain HTTP/CSV delegation is qualified below. Coherent multi-member Identity snapshots, broader source/legacy disclosure/current installed/native joins and precise held payload/preparation gates remain; expired signed scenario-form restoration stays age-refused.",
       "evidence": "security-joins.json",
       "remaining_prerequisite": {
-        "prerequisite": "Scenario execution-owned provenance/current-authority projection remains. Capability's zero/single-distinct membership finite slice is not yet released; multi-member authority needs Identity's coherent snapshot contract below. Expired signed create/update recovery is qualified through the owning runtime facade; broader host/installed and original parent gates remain. Keep scenario age gate; no full packet acceptance.",
-        "owner": "Capability scenario provenance/current-authority producer; Identity coherent membership snapshot contract; Dev broader host consumers; Packages existing Interfaces consumer"
+        "prerequisite": "Published checked zero/single-distinct-membership scenario projection and the dedicated CF retained-only producer are available. Plain HTTP/CSV delegation is manually reviewed at exact0e90525d and incorporated in this local main source integration. Coherent multi-member Identity snapshots, broader source/legacy disclosure/current authority and actual installed/browser/durable/native qualification remain defining prerequisites. Expired signed scenario-form restoration stays age-refused; precise preparation/publication/payload/security holds and full parent remainder remain.",
+        "owner": "Identity coherent multi-member authority; Capability/State broader source, lifetime and authority producers; Dev/installed/browser/durable scenario consumers; addressed human holds only"
       },
       "membership_snapshot_prerequisite": {
         "state": "Blocked and skipped pending exact defining owner release; no Packages implementation",
@@ -1789,7 +1794,7 @@
         "trusted_forwarding_release": {
           "source": "Exact independent seven-file retained-only slice from local Dev79fc63eb3b0e3859fa920e0b9dbf1a5b2c4a6c28: forced State entry/exports/test and CF dedicated path/host method/three-test fixture. Exclude Contracts, registry, model-policy/session/pipeline feature source. Mirror optional restoreRetained in CF SourceFormBindings for transport consumer.",
           "behavior": "Positive installed invokeRetainedReceiptOnly required; no ordinary fallback, untyped conflicting mode forced to receipt-only, checked CRUD/current projection only. Scenario disclosure refuses; no execution, commit or file retention/metadata repair.",
-          "validation": "State\u2192Cloudflare emits pass; two affected State retained controls and three actual CF retained consumers pass Node24 zero skips. Additional CF noEmit after type-only mirror passes. Snapshot rows/history/outbox/receipt/revision, exact hash/identity, revoked authority, closed caller modes and absent dedicated producer execute.",
+          "validation": "State→Cloudflare emits pass; two affected State retained controls and three actual CF retained consumers pass Node24 zero skips. Additional CF noEmit after type-only mirror passes. Snapshot rows/history/outbox/receipt/revision, exact hash/identity, revoked authority, closed caller modes and absent dedicated producer execute.",
           "limit": "Actual public context-aware runtime facade connects emitted CRUD to the canonical HandlerContext in the direct consumer below. Full parent/host/installed qualification remains separate; local integration only."
         },
         "expired_consumer": {
@@ -1800,6 +1805,16 @@
           "owner": "Packages completed the existing genuine compiled Interfaces consumer qualification with the owning public Cloudflare runtime; broader scenario/host producers retain their existing obligations.",
           "limit": "Current emitted native/JSON HTTP over real CF buildInvoker and State Memory only; actual installed/browser/durable and completeREPLAY-IP07 acceptance are unclaimed. Delete source binding production remains unavailable. Scenario current projection and parent gates remain blocked; native preparation/release HOLD retained. Historical254f883d unfinished checkpoint label remains preservation history, superseded here only at this finite qualification scope."
         }
+      },
+      "bounded_scenario_consumer": {
+        "state": "Adapter and finite installed plain HTTP/native CSV/host implemented, affected qualification passed at recorded scopes, and coordinator manual source review CLEAR. Exact Devcf72fb9a, Packagesa77b948b and Deva928ca73 are integrated locally. Combined20 HTTP/MCP/CSV host cases now pass; broader parent workflow remains unfinished.",
+        "source_base": "9678f45041b54895e1a45aac8a564df104b80e18",
+        "producer": "Current reviewed CF invokeRetainedMutationCanonical selects the positive State invokeRetainedReceiptOnly producer. Scenarios require checked disclosure and exact association reader/projector; absent producer, legacy/malformed association, changed hash and unseen receipt refuse. State current secrecy/type/row-lifetime/authority and repeated zero/single membership checks remain; multi-member projection remains withheld.",
+        "behavior": "Only checked scenario IDs refused specifically as expired can forward through callable invokeRetainedMutation. Missing/null/nonfunction producer retains the age refusal with no ordinary fallback. Fresh/malformed/future and checked CRUD routing are unchanged. HTTP closed/bound inputs and final credential liveness precede recovery; signed scenario form_binding remains age-refused. CSV review/consent/selection/current authority and source row order precede calls, raw inputs/IDs stay unchanged, invalid/duplicate/future/malformed rows never invoke recovery.",
+        "validation": "Final owning Interfaces clean emission0. Five affected maintained HTTP/CSV files initially58/59 pass; one new HTTP component fixture lacked its required description and was corrected without changing admission. Only that failed case rerun1/1 passes265.75ms; unchanged58 results from2.944s run reused. Initial emission caught two new nullable actor assertions, corrected before successful build/check. New HTTP and mounted CSV components cover dedicated replay/conflict/not_found passthrough, unavailable ports, raw envelopes/current identity, bound/closed inputs, fresh ordinary routing, signed binding hold and reverse selection/source order. Finite independent source review clear. Owning State/CF association/security/effect negatives and prior native/CRUD validation reused at unchanged scopes, not rerun.",
+        "installed_http_qualification": "Dev exact6b03e626 consumes reviewed main6be21b88/Packages0e90525d in the same genuine captured NativeSavedScenario portable workerd/Identity/two-owner D1 journey. Actual installed assembleWorker HTTP router at25hours reaches the dedicated CF/State producer; final affected1/1 passes with zero skips/cancellations, original19 scalar/array/derive plus24 machine/default outcomes, current authority/hash/results/resources and actual commit/file tripwires retained. Coordinator manual review CLEAR. This closes only the installed plain HTTP transport prerequisite; CSV/browser, multi-member authority, broader source/native query/preclaim and whole-parent qualification remain open. Owning Dev PLAN/DEC retain the exact result; unchanged59/State94/Compiler results reused.",
+        "limits": "Packages adapter and finite owning Dev installed plain HTTP/native CSV/combined20 host qualifications only. Common fixture and three new CSV route cases are now qualified at this finite scope. Broader browser/durable profiles, multi-member Identity, source/disclosure/query/preclaim, expired signed-form restoration and complete REPLAY-IP07/DEL-C02/48/333 acceptance remain open. Preserve every precise recipient-specific human hold.",
+        "installed_csv_qualification": "Dev exactcf72fb9a mounts defining Interfaces handleCsvRequest through the actual installed HTTP bundle/main/assembly, sharing baked catalog, canonical owner invoker, Identity/CSRF/current membership and trusted clock. The same genuinely captured NativeSavedScenario portable workerd/Identity/two-owner D1 journey passes1/1 in73.88s, zero skips/cancellations, preserving all43 prior outcomes. Exact values\\n\"\" binds own values:null; original main review changes no table, fresh commit records one exact receipt/hash/result:null/revision/fence/log, and25-hour saved CSV replays with outer committed/nested replayed/null, live session/current principal/team and no commits/files/resource changes. Unseen receipts, consent/CSRF/foreign/revoked authority and raw-response association disclosure controls remain asserted. Manual source review CLEAR; loader18/18 and affected bundle1/1 pass. Packages exacta77b948b resolves the reviewed common fixture admission and is integrated preserving all three Dev CSV cases. Packages owning17/17 passed. Dev exacta928ca73 safely consumes reviewed mainda5c032e and records the SAME combined20 host cases passing once in2.98s against unchanged cf72 producer: missing join/joined method/path refusal, checked catalog/canonical commit+replay and session/CSRF admission all execute. No actual failures or source correction required; native/loader/bundle evidence is reused unchanged. Coordinator reviews the finite result record; no broader acceptance. Owning unchanged59/State94/Compiler/static-native results reused. No browser/general source/multi-member/query/preclaim/full-parent qualification or hold release."
       }
     },
     "PARSER-DP01": {
@@ -2141,7 +2156,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -2662,7 +2677,7 @@
       "contract": "Genuine exhaustive Match selected arm stages ordinary attempts write, then later requirement may fail. Original scenarios are preserved. Domain record/version/history/pending outbox remain unchanged on failure; existing State rejection receipt intentionally commits exactly one global revision. Failure replay adds nothing. Paired successful invocation commits one write/history/version, exact success replay adds nothing.",
       "verification": "Released existing Compiler CLI compiled actual fixture0, no rebuild. Private frozen HEAD CF TypeScript emission0, only changed existing consumer case1/1 (56.30ms, total118.51ms). Initial assertion incorrectly expected no global revision for receipted business rejection; test-only expectation corrected under invocation/invoke.ts and existing t32b-wire receipt contract, then only changed case rerun. Root read generated switch/set/require code and exact source/test diff; no repeat unchanged State/Compiler outcomes.",
       "runtime": "Canonical State memory under Node/native generated JavaScript, not nativeD1/durable/installed",
-      "limits": "Closes only this missing emitted Match\u2192effect\u2192later-failure memory consumer gate. Compiler once-subject/branch/effect-order results reused, broader roadmap/three original handlers/all-host outcomes remain owning gates. Original48 count unchanged and native preparation HOLD retained.",
+      "limits": "Closes only this missing emitted Match→effect→later-failure memory consumer gate. Compiler once-subject/branch/effect-order results reused, broader roadmap/three original handlers/all-host outcomes remain owning gates. Original48 count unchanged and native preparation HOLD retained.",
       "model": "gpt-6.1-sol medium for finite existing consumer/fixture mechanics after contract release; root direct source review",
       "sources_outputs_handles_released": true,
       "private_output_cleanup": "Completed: root removed only released own private snapshot and duplicate artifact after tracked source/compact outcome commit; shared caches/foreign outputs preserved.",
@@ -2761,8 +2776,8 @@
     "foreign_browser_measurement": {
       "owner": "Roadmap/Coordinator",
       "stage": "Original55 accepted conditional measurement/no-pilot; Roadmap29/63, separate from root20/48",
-      "profile": "Installed Chrome unified-headless10 native-visible/HX clients;2s poll;20.176s steady;50 canonical mutation-start\u2192render samples",
-      "result": "p95=1659ms\u22643000; maxHTTPpageReads/client/s=0.496\u22641; each10reads; no SQL count/headed ten-window claim",
+      "profile": "Installed Chrome unified-headless10 native-visible/HX clients;2s poll;20.176s steady;50 canonical mutation-start→render samples",
+      "result": "p95=1659ms≤3000; maxHTTPpageReads/client/s=0.496≤1; each10reads; no SQL count/headed ten-window claim",
       "cleanup": "One owned Chrome process cleaned; no visibility/focus override; no additional verification packet"
     },
     "foreign_bounded_await_disposition": {
@@ -3003,7 +3018,7 @@
       "counts_unchanged": true,
       "evidence": "/private/tmp/canlang-repair-go-20261007/owner-storage-implementation/{emit,test}.log",
       "commit": "b67e2fa122824f64f20c9712715eca62905b0ce0",
-      "runtime_scope_facts": "ArtifactModel parent/scope declarations and validated containment define model root; CanonicalOperationDescriptor has no operation-wide storage scope selector. Exact current W02 fixture Container team root/Entry child supports a finite concrete verified team-only paired normal/trusted route before first State read. No null\u2192app fallback; generic app/mixed-scope/page/MCP selector remains an explicit unresolved consumer contract.",
+      "runtime_scope_facts": "ArtifactModel parent/scope declarations and validated containment define model root; CanonicalOperationDescriptor has no operation-wide storage scope selector. Exact current W02 fixture Container team root/Entry child supports a finite concrete verified team-only paired normal/trusted route before first State read. No null→app fallback; generic app/mixed-scope/page/MCP selector remains an explicit unresolved consumer contract.",
       "next_host_owner": "Roadmap accepted finite declared-team-root normal/trusted pilot and owns Worker/assembly/private routing; source/storage producers fully clear. Actual normal/trusted qualification remains pending."
     },
     "supplied_enum_metadata": {
@@ -3061,7 +3076,7 @@
       "verification": "Private State emit0 and changed explicit enum admission case1/1 reused. Owning Compiler enum_default_shapes passed1/1 across nine actual canonical calls after selective actual State/Cloudflare output publication. Nullable enum, ordinary enum array and nullable enum-array omissions, declaration-ordered saved defaults and explicit overrides exercised. Root direct branch/consumer review; no new emit, test or reviewer.",
       "counts_unchanged": true,
       "sources_outputs_handles_released": true,
-      "observer_lease": "Roadmap exact acknowledgment received for3719\u20133765 only; root changed one branch condition, preserved live3030/private-source/Worker leases.",
+      "observer_lease": "Roadmap exact acknowledgment received for3719–3765 only; root changed one branch condition, preserved live3030/private-source/Worker leases.",
       "observer_contract": "Explicit enum valueType flows through existing encodeValue; legacy unclaimed string membership branch unchanged. No second codec or additional slot/default/ref/hash/replay policy.",
       "limits": "Selected generated canonical Memory computed-default profiles only. Legacy absent-claim behavior unchanged; nested arrays, nullable elements, aliases, broader read/ref/replay/D1/installed/application and root48 acceptance remain separate.",
       "output_handoff": "Roadmap exact acknowledgment: selectively published released State registry+owner-router through actual TypeScript createProgram.emit,8JS/maps/declaration/maps diagnostics0. Root observerone-line freeze/sourceclear submitted to same owning CF emitter; actual new generated consumer/output acknowledgment remains pending.",
@@ -3305,7 +3320,7 @@
     "replay_entry_source_current_blocker": {
       "status": "Current defining security prerequisite confirmed; no transport age lift performed",
       "model": "gpt-6.1-sol medium: finite known gate correction and actual consumer-source check",
-      "evidence": "State invoke.ts202\u2013212 returns saved outcome.result before current read authorization; CF invokeMutationCanonical/assembly unchanged; HTTP operations serializes and CSV embeds saved result. Existing revoked CSV removes membership at identity admission, not surviving membership with revoked read grants or saved secret projection.",
+      "evidence": "State invoke.ts202–212 returns saved outcome.result before current read authorization; CF invokeMutationCanonical/assembly unchanged; HTTP operations serializes and CSV embeds saved result. Existing revoked CSV removes membership at identity admission, not surviving membership with revoked read grants or saved secret projection.",
       "required_next": "Defining TECH-S02 current-access projection/withholding release and actual consumer negative control, then original shape-only Interfaces age-gate fix.",
       "writes_checks": "None; no new proof file/review layer or fixture. Existing SEC-06 security-joins source finding remains actual.",
       "owner_handoff": "Concrete exact prerequisite handed to same Coordinator/Roadmap; source/test/output leases returned clear.",
@@ -3315,7 +3330,7 @@
       "status": "Roadmap released original SEQ041 design captured; design acceptance belongs owning Coordinator",
       "scope": "Chat token allowance and Knowledge two unfinished questions per account within actual selected app/team State owner; separate unit/release/late-usage/debt/provider limits retained.",
       "advice": "One consolidated JEV record, three equivalent independently worded choices same_owner .99/1/1 probability and .98/1/1 confidence. Advice only; no new tests or audit layer.",
-      "limits": "No source implementation/runtime acceptance/global pool/provider money cap, positive hooks, held11/22 or native release; tasks42\u201343 remain open.",
+      "limits": "No source implementation/runtime acceptance/global pool/provider money cap, positive hooks, held11/22 or native release; tasks42–43 remain open.",
       "counts_unchanged": true,
       "commit": "4139a89866d3504d9ab9ce9bf5deccea0bb2a6e3"
     },
@@ -3682,17 +3697,17 @@
     "protected_view_actions_producer": {
       "state": "Released protected action/status/default producer and genuine draft source migration captured; split actualconsumer pending",
       "verification": "Final same actualinstalledpreparer/seal/UIcase1/1(.69s),focusedClippy0(2.93s),rustfmt0; previouschangedstatus/default1/1(4.75s) reused",
-      "draft": "Localdraftf48de2b,CanBook498\u2192488lines/513bytes exactbody/table/workflow preserved",
+      "draft": "Localdraftf48de2b,CanBook498→488lines/513bytes exactbody/table/workflow preserved",
       "limits": "No fullCanBook/52/by-foravailability/held11 or completecheckpoint acceptance"
     },
     "split_current_query_ui": {
       "state": "Released current-query split renderer captured; actualCompiler/CanBook/browser qualification still pending",
-      "verification": "Owning UI selectiveemit0; installed Interfacescontext\u2192publiclist/table14renders passed; upstream12context/Compileractioncase reused",
+      "verification": "Owning UI selectiveemit0; installed Interfacescontext→publiclist/table14renders passed; upstream12context/Compileractioncase reused",
       "limits": "One projectedselectedbody/no rawlookup/firstrow; mobile sharedDOM only, viewport/keyboardspace/focuscontainment unqualified; parent/cursor/full52/held11 open"
     },
     "compiled_current_query_split": {
       "state": "Released compiled split producer/nativeconsumer captured at exact scoped admission",
-      "verification": "ActualCLI/artifact\u2192installedInterfacesparser\u2192releasedUI1/1(.38s),focusedClippy0(3.22s),fmt0; UI14/Interfaces12 reused",
+      "verification": "ActualCLI/artifact→installedInterfacesparser→releasedUI1/1(.38s),focusedClippy0(3.22s),fmt0; UI14/Interfaces12 reused",
       "limits": "Selectedfreshrows only/absentunknowncurrentabsent no detailforms; NodeMemory not browser/StateD1/fullCanBook/count/checkpoint credit"
     },
     "viewer_pagination_direction": {
@@ -3736,7 +3751,7 @@
     },
     "canrent_nullable_receipt_source": {
       "status": "Two released source lines directly reviewed and locally committed; parent pointer captured",
-      "validation": "Same24-source check complete=true,omitted0; CanRent142\u2192141,total437\u2192436,E3008six\u2192five,CanBook0. No upstream recheck.",
+      "validation": "Same24-source check complete=true,omitted0; CanRent142→141,total437→436,E3008six→five,CanBook0. No upstream recheck.",
       "limits": "One source refusal removed only. No full52/roadmap/root48 completion credit."
     },
     "nominal_field_and_completion_header_typing": {
@@ -3807,17 +3822,17 @@
         "CanMaintain.can",
         "CanSuccess.can"
       ],
-      "validation": "Owning changed 24-source check complete=true, omitted=0; total 280\u2192239 after Event, then 239\u2192235 after four receipt fixes. Event 46\u21925; four E3008 receipt errors removed. Unchanged results reused.",
+      "validation": "Owning changed 24-source check complete=true, omitted=0; total 280→239 after Event, then 239→235 after four receipt fixes. Event 46→5; four E3008 receipt errors removed. Unchanged results reused.",
       "limits": "No full workflow/runtime acceptance or task-count advancement; callable/enum identity collisions remain. Living filetree complete checkpoint unchanged."
     },
     "original52_member_guarded_capture": {
       "draft_commit": "06b23b5d1c21b9902bde6ebc5ad7c9903955811a",
-      "validation": "One owning changed 24-source check complete, omitted=0; Member25\u219216, graph235\u2192226. No broad acceptance.",
-      "limits": "Concurrent compiler changes affect other providers; Event5\u219212 is open regression risk, next changed check collects exact diagnostics. Public operation IDs preserved; full counts unchanged."
+      "validation": "One owning changed 24-source check complete, omitted=0; Member25→16, graph235→226. No broad acceptance.",
+      "limits": "Concurrent compiler changes affect other providers; Event5→12 is open regression risk, next changed check collects exact diagnostics. Public operation IDs preserved; full counts unchanged."
     },
     "original52_member_checked_inputs": {
       "draft_commit": "83f6e7811e3637f0d58cf3eaf6a07abbcaa8d85a",
-      "validation": "Owning one changed-source closure complete=true omitted=0; Member16\u21923 graph226\u2192218 Book0.",
+      "validation": "Owning one changed-source closure complete=true omitted=0; Member16→3 graph226→218 Book0.",
       "limits": "Three public revoke enum collisions remain; Event seven nullable destination enum-superset errors routed compiler. Concurrent provider diagnostic increases retained, no full acceptance or count advance."
     },
     "original52_delivery_read_consumer": {
@@ -3827,17 +3842,17 @@
     },
     "original52_customer_actor_guard": {
       "draft_commit": "fb7decbb6b18c54aa81b5095fb12503ccf05cf16",
-      "validation": "One changed24-sourcecheck complete=true omitted=0 Customer10\u21929,total218\u2192217.",
+      "validation": "One changed24-sourcecheck complete=true omitted=0 Customer10→9,total218→217.",
       "limits": "Nine opaque change-event revision producer gaps remain. No whole workflow/count advancement."
     },
     "original52_report_stock_source": {
       "draft_commit": "f2bb0395c8da13faceb14587dd5f3090b119c6b7",
-      "validation": "One changed-source check complete omitted=0; Report15\u21920 graph217\u2192202 Book0.",
+      "validation": "One changed-source check complete omitted=0; Report15→0 graph217→202 Book0.",
       "limits": "Stock still4; dotted location.name treated literal field E2013 by compiler; required scalar sorting intent retained, no acceptance claim. Full programme counts unchanged."
     },
     "original52_five_provider_guards": {
       "draft_commit": "530b69291028c5121d9d248f907bcd7a4c6a21cd",
-      "validation": "One changed-source check complete=true omitted=0 graph202\u2192190 Refer11\u21925 Affiliate5\u21924 CRM3\u21922 Desk7\u21926 Stock4\u21921.",
+      "validation": "One changed-source check complete=true omitted=0 graph202→190 Refer11→5 Affiliate5→4 CRM3→2 Desk7→6 Stock4→1.",
       "limits": "Stock dotted-order compiler gap remains; no full task/count acceptance."
     },
     "parallel_package_residual_dispatch": {
@@ -3860,7 +3875,7 @@
     },
     "original52_safe_six_provider_batch": {
       "draft_commit": "c5f48ba5d473e2973ee517a51d47bd62cfee3b3d",
-      "validation": "One changed-source complete=true omitted=0 graph190\u2192182 Contract3\u21920 Success3\u21921 Expense5\u21924 Purchase8\u21927 Field14\u219213.",
+      "validation": "One changed-source complete=true omitted=0 graph190→182 Contract3→0 Success3→1 Expense5→4 Purchase8→7 Field14→13.",
       "limits": "Stock original order restored under authority design, its source design issue remains; nested UI propagation and public identities held with owners. Full task counts unchanged."
     },
     "presentation_viewer_read_join": {
@@ -4169,7 +4184,15 @@
       "verification": "Owning current Cloudflare dependency graph22/22 exits0, zero cached,11.025s to refresh installed producer outputs. Actual Node24 emitted dispatch-composition4 and R01 validate-before-retry15 checks pass19/19, zero failures/skips,175.19ms. These selected suites preserve valid retry, malformed descriptor reasons, dropped delivery refusal, duplicate-name order, defaults and serializability controls. git diff --check passes. No runtime/Work/CI source changes or new tests.",
       "intake": "Clean ff-only exact coordinator d8d3cf87 preserves newer source and accepted Packages d559. Existing accumulated registry covers10855/10855 paths with zero missing and complete82493427 checkpoint unadvanced.",
       "status": "Finite common assertion correction implemented and affected checks passed; coherent local unfinished workflow unit awaits coordinator manual review/release. No push or automated-review wait.",
-      "limits": "Selected19 qualify these common fixtures only. Dev actual complete async driver and original/native/whole workflow acceptance remain separate. All precise preparation/publication/payload/security holds retained."
+      "limits": "Selected19 qualify these common fixtures only. Dev actual complete async driver and original/native/whole workflow acceptance remain separate. All precise preparation/publication/payload/security holds retained.",
+      "http_operation_route": {
+        "source_base": "6be21b880c9f246f8b861eb2f4441770b1960b0c",
+        "implementation": "Load installed assembleWorker and exact ops.mjs call-spy module through the existing native Node ESM loader pattern; keep Interfaces handlers/form-binding registry in their shared graph. Replace invalid source digest, empty module inventory and fictional entry URL with the actual explicitly hand-written OPS_SOURCE module, its SHA-256 and entry URL. appDefinition owns Shop identity and shares the exact unchanged members policy with canApp. Production metadata guards are unchanged.",
+        "file_profile": "Consume the accepted 2026-10-08 owning Values closed {id} File profile in the rich positive input. Empty object ID and primitive string ID both refuse with exact /doc binding_mismatch fields and HTTP/MCP message parity; no model writes. All other framing, receipt, replay, CSRF/session, bound-kind, CRUD-handler tripwire and fragment assertions remain.",
+        "verification": "After native-loader/metadata corrections15/17 pass; two stale File assumptions corrected and targeted2/2 pass, unchanged15 reused. Root types exposed an exact-optional fields representation error, corrected. Because current invoke/bound-dispatch source differed from previous emitted boundary, refresh owning CF dependency graph22/22 successful, zero cached9.311s. Final current emitted route suite17/17 passes with zero skips/cancellations1.781s test time2.54s total; root tsconfig.check exits0 and git diff --check passes. Finite independent source review found no remaining problem. No production behavior changes or broad native rerun.",
+        "status": "Implemented, owning17/17 passed and coordinator finite source review CLEAR; exacta77b948b integrated preserving Devcf72fb9a producer/native and three CSV cases. Dev exacta928ca73 now records combined20/20 once2.98s passing with no source correction. Common host prerequisite resolved at this finite scope; parent workflow unfinished.",
+        "limits": "Packages17 qualify its common fixture; Dev20 qualify the combined installed host cases, with unchanged native1/1 final73.88s, loader18/18 and selected bundle1/1 reused. No broader browser/general authority/source/query/preclaim/full-parent or48/333 acceptance; all precise human holds and no-publication instructions remain."
+      }
     }
   },
   "live_finite_packets": [],
@@ -4475,7 +4498,7 @@
         "scope": "comparison-only draftIdentity holds current context/schema/revision/op/reference IDs/editable set across expected-version changes; exact binding identity and signed token still fence version",
         "behavior": "replace authority epoch with fresh nonce/proof/CSRF/version; carry only compatible dirty editable values/focus; no hidden/files, old pending state/feedback or outcome transfer; different IDs/schema/context refuse transfer",
         "validation": "Contracts/UI/Interfaces emit0 and browserasset0; affected proof identity case1/1 and versionrefresh/negative DOM2/2 once; unchanged protection/lifecycle results reused",
-        "native_witness": "Original stale409\u2192v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
+        "native_witness": "Original stale409→v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
       },
       "actual_consumer": {
         "validation": "Genuine forms/update source compile0; sole affected protected case1/1 (~7.7s) after861edef5; earlier unbound/readonly/MCP outcomes reused without reruns. Root direct source/test review.",
@@ -5060,7 +5083,7 @@
       "native_http_consumer": {
         "state": "implemented and affected checks passed",
         "behavior": "Operation-only urlencoded reader refuses duplicate controls and mixed JSON/bracket inputs. Owning derived declarations allow exact native names, UI-owned typed projection handles create/update/scenario, and delete preserves exact record id/version strings. Unknown/mode controls, schema/protected-ref/CSRF denials precede invocation; JSON behavior unchanged.",
-        "validation": "Interfaces emit and46existing affected HTTP/presentation cases pass zero skips. Actual .can compilation\u2192UI delete rendering\u2192native successful controls\u2192HTTP\u2192real Cloudflare invoker\u2192State Memory archives once, replays exact rendered nonce without revision/history changes and refuses stale409, duplicate/unknown mode/missing/malformed version/CSRF with no effects.",
+        "validation": "Interfaces emit and46existing affected HTTP/presentation cases pass zero skips. Actual .can compilation→UI delete rendering→native successful controls→HTTP→real Cloudflare invoker→State Memory archives once, replays exact rendered nonce without revision/history changes and refuses stale409, duplicate/unknown mode/missing/malformed version/CSRF with no effects.",
         "limit": "Office full browser consumer remains Dev-owned. Boolean presence join now qualifies scalar checked/unchecked/unrendered partial native controls separately below; existing boolean-array widget capability unchanged. Expired signed binding restoration still blocked on Dev forwarding. No full parent/current-head acceptance.",
         "boolean_presence_join": {
           "state": "implemented and affected local checks passed",
@@ -5077,7 +5100,7 @@
         "draft_retention": {
           "state": "implemented and affected local checks passed after coordinator manual review",
           "correction": "Snapshot independently valid declaration-owned native drafts before full typed projection. Redisplay may recover signed bound refs only through current proof verification; unavailable proof never supplies protected refs for a projection failure. Full strict projection remains the sole mutation input, invalid fields omit and no failed projection invokes mutation.",
-          "validation": "Interfaces emit and12affected cases pass. Actual UI native controls\u2192HTTP\u2192HTML four ordinary/protectedupdate\u00d7malformedarray/bool cases retain exact texttrue, chosen-owner/9 and g1/7,400HTML closed validation,false metadata and zero invoker calls. Tamperedproof has no protectedupdate shell; existing native/CSRF/session/binding/prototype controls pass.",
+          "validation": "Interfaces emit and12affected cases pass. Actual UI native controls→HTTP→HTML four ordinary/protectedupdate×malformedarray/bool cases retain exact texttrue, chosen-owner/9 and g1/7,400HTML closed validation,false metadata and zero invoker calls. Tamperedproof has no protectedupdate shell; existing native/CSRF/session/binding/prototype controls pass.",
           "limit": "Projection-failure redisplay scope only; full Office browser/host/parent qualification remains open. Local coordinator integration only."
         }
       }
