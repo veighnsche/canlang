@@ -977,15 +977,26 @@ fn t06_if_branch_admits() {
 }
 
 /// (T06) `by=r(actor)` tests the caller: the body is admitted (no
-/// `E3003`), while the `by=` subject itself still needs a proof it
-/// cannot supply (`E3001`) and the call form stays redundant
-/// (`E4020` is the pre-existing effects-pass rule, out of T06 scope).
+/// `E3003`). Nullable user subjects type-check, while this actor call
+/// form remains redundant (`E4020`).
 #[test]
 fn t06_role_call_on_caller_admits_body() {
     let catalog = fixture();
     let src = "app T\nGiven\n role r\n M { t:text }\n policy M read=members\nWhen\n scenario s() by=r(actor)\n  do\n   let v = actor.email_verified\nThen\n";
     let diags = check(src, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E3001", "E4020"], "{diags:?}");
+    assert_eq!(codes(&diags), vec!["E4020"], "{diags:?}");
+}
+
+#[test]
+fn role_subject_admission_does_not_widen_to_other_nullable_or_array_types() {
+    let catalog = fixture();
+    for ty in ["member?", "user[]", "text"] {
+        let src = format!(
+            "app T\nGiven\n role r\n M {{person:{ty}}}\n policy M read=r(row.person)\nWhen\nThen\n"
+        );
+        let diags = check(&src, Some(&catalog));
+        assert_eq!(codes(&diags), vec!["E3001"], "{ty}: {diags:?}");
+    }
 }
 
 /// (T06) `by=r or q` admits: either arm proves an authenticated

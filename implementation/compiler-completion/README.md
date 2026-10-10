@@ -2858,3 +2858,39 @@ finite independent activation review CLEAR. Unchanged whole/editor/owner results
 are reused. Bound child result consumption, original pure/source/row policy,
 File assignment lifetime, committed event source and precise holds remain;
 this finite declared cohort does not close58/67 or the original application.
+
+**Checked row-subject policy transport (unfinished native consumer),
+2026-10-10.** Exact released State945 admits canonical roleSubject person
+{model,field} from owning singular stored user/user? declarations. Compiler
+emits it only for a whole direct checked row-field role predicate, preserving
+exact model/module/field/type and unique read-rule identity. Nullable user calls
+now type-check, evaluate once and return false for absence without actor fallback.
+Member/nested/filter/compound predicates retain their actual callable but no
+row descriptor; redundant actor calls still refuse E4020. Other nullable/array
+subject types still refuse E3001.
+
+Affected409 pass: B4 284, codegen121, read metadata1, genuine source-State
+row consumer1 and required updated-State public1/private-parent1. The real CLI
+artifact and assembled appDefinition supply generated policy metadata to State's
+canonical descriptor loader/buildPolicyTable. Actual Identity coherent snapshots
+and Memory query consumers preserve title-only projection, correct distinct row
+subjects, null false even for auditor caller, current revocation, owning
+field/secret refusals and unchanged rows/history/revision. The generated nullable
+callable separately witnesses once-only null/undefined false behavior. Initial
+fixture assumptions were corrected to actual diagnostics, emitted nullable
+normalization and appDefinition ownership. Fresh State emission, strict
+all-target Clippy/format0 and finite source review pass; unchanged whole/editor
+and State253 results are reused.
+
+**SKIP native row-subject activation — Dev current authority prerequisite.**
+Actual invoke.ts readSelectorFacts989 still requires one string actor predicate;
+its mirrored roleSubject.person accepts string only. The actual generated
+hasRole(c,role,row.person) callable reaches Cloudflare stdlib's State effects
+helper, which refuses every defined subject. Dev owns exact metadata and genuine
+native/current coherent Identity adoption, with any defining State prerequisite
+assigned specifically. Preserve original callables and do not substitute actor
+roles. Typed File now has reviewed Files producera5c4be7d in LOCALb7537ccf;
+State active-frame/final-write/post-write association and Dev actual execution
+consumers must release before Compiler checked File/Set source. Original pure
+cohort, consumed child result, committed events and precise BDD3/Task22 holds
+remain; completion stays58/67 with nine overlapping references.
