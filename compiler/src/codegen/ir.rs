@@ -1376,6 +1376,460 @@ pub struct CheckedCommittedSources {
     pub(crate) handlers: Vec<CheckedCommittedHandler>,
     // Source-cohort schema absence, independent of committed handler/event authority.
     empty_value_inventory: Option<CheckedEmptyValueInventory>,
+    standard_value_inventory: Option<CheckedStandardValueInventory>,
+}
+
+/// Selected schema roots are source evidence, not native event authority.
+#[derive(Debug, Clone)]
+struct CheckedStandardValueInventory {
+    catalog_version: String,
+    census: StandardValueCensus,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct StandardValueModule {
+    id: ModuleId,
+    name: String,
+    kind: ModuleKind,
+    file: SourceId,
+    span: Span,
+    imports: Vec<StandardValueImport>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct StandardValueImport {
+    provider: String,
+    provider_span: Span,
+    members: Vec<(String, String, Span)>,
+    from: Option<String>,
+    span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct StandardValueSelection {
+    item: Option<SymbolId>,
+    module: ModuleId,
+    position: String,
+    identity: String,
+    binding: Option<String>,
+    span: Span,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+struct StandardValueCensus {
+    modules: Vec<StandardValueModule>,
+    selections: Vec<StandardValueSelection>,
+    declarations: Vec<EmptyValueItem>,
+    constraints: HashMap<SymbolId, CheckedValueConstraints>,
+    roots: Vec<(String, Span)>,
+}
+
+impl StandardValueCensus {
+    fn operation(
+        &mut self,
+        capability: &str,
+        op: &'static crate::analysis::catalog::StdOperation,
+        span: Span,
+    ) -> Option<()> {
+        let selected = crate::analysis::catalog::std_operation(capability, op.name)?;
+        if !std::ptr::eq(selected, op) {
+            return None;
+        }
+        self.roots
+            .extend(op.inputs.iter().map(|(_, ty)| ((*ty).to_string(), span)));
+        self.roots.push((op.result.to_string(), span));
+        self.roots.push(("DeliveryError".to_string(), span));
+        Some(())
+    }
+
+    fn declared(&mut self, item: &IrItem, ty: &ResolvedType, path: &str) -> Option<()> {
+        match ty {
+            ResolvedType::StdDelivery { capability, op } => {
+                self.operation(capability, op, item.span)?;
+                self.selections.push(StandardValueSelection {
+                    item: Some(item.id),
+                    module: item.module,
+                    position: format!("{}:{path}", item.canonical),
+                    identity: format!("{capability}.{}", op.name),
+                    binding: None,
+                    span: item.span,
+                });
+            }
+            ResolvedType::Nullable(inner) => self.declared(item, inner, &format!("{path}?"))?,
+            ResolvedType::Array { element, .. } => {
+                self.declared(item, element, &format!("{path}[]"))?
+            }
+            ResolvedType::Object(fields) => {
+                for (name, ty) in fields {
+                    self.declared(item, ty, &format!("{path}.{name}"))?;
+                }
+            }
+            _ => {}
+        }
+        Some(())
+    }
+
+    fn progressed(&mut self, ir: &IrProgram, item: &IrItem, source: &str) -> Option<()> {
+        let module = ir.modules.get(item.module.0 as usize)?;
+        if module.id != item.module {
+            return None;
+        }
+        let authored = source.strip_prefix(&format!("{}.", module.name))?;
+        let segments: Vec<_> = authored.split('.').collect();
+        if segments.len() != 3 || segments[2] != "progressed" {
+            return None;
+        }
+        let authored_alias = segments[0];
+        let matches: Vec<_> = module
+            .imports
+            .iter()
+            .flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter(move |(_, alias, _)| alias == authored_alias)
+                    .map(move |member| (import, member))
+            })
+            .collect();
+        if matches.len() != 1 {
+            return None;
+        }
+        let (import, (name, alias, _)) = matches[0];
+        if import.provider != "std" {
+            return None;
+        }
+        let capability = std_capability(name)?;
+        // Same original-operation allowlist as checked on=...progressed;
+        // cancellation/reconciliation observations are not progress triggers.
+        if !matches!(
+            (capability.name, segments[1]),
+            ("std.TextGenerationV1", "generate") | ("std.ImagesV1", "submit")
+        ) {
+            return None;
+        }
+        let op = crate::analysis::catalog::std_operation(capability.name, segments[1])?;
+        if source != format!("{}.{}.{}.progressed", module.name, alias, op.name) {
+            return None;
+        }
+        self.operation(capability.name, op, item.span)?;
+        self.selections.push(StandardValueSelection {
+            item: Some(item.id),
+            module: item.module,
+            position: format!("{}:progressed", item.canonical),
+            identity: source.to_string(),
+            binding: Some(format!("{}.{}", module.name, alias)),
+            span: item.span,
+        });
+        Some(())
+    }
+
+    fn statements(&mut self, ir: &IrProgram, item: &IrItem, statements: &[IrStmt]) -> Option<()> {
+        for statement in statements {
+            match statement {
+                IrStmt::Send {
+                    operation,
+                    deployment_binding,
+                    span,
+                    ..
+                } if operation.starts_with("std.") => {
+                    let (capability, name) = operation.rsplit_once('.')?;
+                    let op = crate::analysis::catalog::std_operation(capability, name)?;
+                    let module = ir.modules.get(item.module.0 as usize)?;
+                    if module.id != item.module {
+                        return None;
+                    }
+                    let binding = deployment_binding.as_ref()?;
+                    let alias = binding.strip_prefix(&format!("{}.", module.name))?;
+                    let matches: Vec<_> = module
+                        .imports
+                        .iter()
+                        .flat_map(|import| {
+                            import
+                                .members
+                                .iter()
+                                .filter(move |(_, authored, _)| authored == alias)
+                                .map(move |member| (import, member))
+                        })
+                        .collect();
+                    if matches.len() != 1 {
+                        return None;
+                    }
+                    let (import, (imported, _, _)) = matches[0];
+                    if import.provider != "std"
+                        || import.from.is_none()
+                        || std_capability(imported)?.name != capability
+                    {
+                        return None;
+                    }
+                    self.operation(capability, op, *span)?;
+                    self.selections.push(StandardValueSelection {
+                        item: Some(item.id),
+                        module: item.module,
+                        position: format!("{}:send", item.canonical),
+                        identity: operation.clone(),
+                        binding: Some(binding.clone()),
+                        span: *span,
+                    });
+                }
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    self.statements(ir, item, then_branch)?;
+                    self.statements(ir, item, else_branch)?;
+                }
+                IrStmt::Match { arms, .. } => {
+                    for arm in arms {
+                        self.statements(ir, item, &arm.body)?;
+                    }
+                }
+                IrStmt::For { body, .. } => self.statements(ir, item, body)?,
+                _ => {}
+            }
+        }
+        Some(())
+    }
+
+    fn declaration(item: &IrItem) -> EmptyValueItem {
+        let mut row = EmptyValueItem {
+            id: item.id,
+            canonical: item.canonical.clone(),
+            name: item.name.clone(),
+            module: item.module,
+            span: item.span,
+            exported: item.exported,
+            kind: std::mem::discriminant(&item.kind),
+            links: Vec::new(),
+            types: Vec::new(),
+            owner: None,
+            required_array: false,
+            flags: Vec::new(),
+            names: Vec::new(),
+        };
+        fn declared(row: &mut EmptyValueItem, ty: &IrType) {
+            // Preserve both declared presence and whether analysis supplied it.
+            row.flags.push(matches!(ty, IrType::Known(_)));
+            if let IrType::Known(ty) = ty {
+                row.types.push(ty.clone());
+            }
+        }
+        match &item.kind {
+            IrItemKind::Model {
+                fields,
+                owner,
+                crud,
+                ..
+            } => {
+                row.links = fields.clone();
+                row.names.push(fields.len().to_string());
+                row.flags.push(crud.is_some());
+                row.links.extend(crud);
+                row.owner = Some(*owner);
+            }
+            IrItemKind::Contract { fields, .. }
+            | IrItemKind::Event { fields }
+            | IrItemKind::Preferences { fields, .. } => row.links = fields.clone(),
+            IrItemKind::Judgment {
+                result_fields,
+                version,
+                source_language,
+                ..
+            } => {
+                row.links = result_fields.clone();
+                row.names = vec![source_language.clone(), version.to_string()];
+            }
+            IrItemKind::Capability {
+                ops,
+                events,
+                version,
+            } => {
+                row.links = ops.clone();
+                row.names.push(ops.len().to_string());
+                row.links.extend(events);
+                row.names.extend(version.map(|version| version.to_string()));
+            }
+            IrItemKind::CapabilityOp { params, result }
+            | IrItemKind::DeriveFn { params, result, .. } => {
+                row.links = params.clone();
+                declared(&mut row, result);
+            }
+            IrItemKind::Message { params, .. } => row.links = params.clone(),
+            IrItemKind::Fixture { target, .. } => match target {
+                FixtureTarget::Model(model) => {
+                    row.names.push("model".to_string());
+                    row.links.push(*model);
+                }
+                FixtureTarget::Operation(operation) => {
+                    row.names.push("operation".to_string());
+                    row.flags.push(operation.is_some());
+                    row.links.extend(operation);
+                }
+                FixtureTarget::User => row.names.push("user".to_string()),
+                FixtureTarget::File => row.names.push("file".to_string()),
+                FixtureTarget::Unknown => row.names.push("unknown".to_string()),
+            },
+            IrItemKind::Scenario { params, result, .. } => {
+                row.links = params.clone();
+                row.flags.push(result.is_some());
+                row.types.extend(result.clone());
+            }
+            IrItemKind::Field {
+                owner,
+                ty,
+                required_array,
+                ..
+            } => {
+                row.links.push(*owner);
+                row.required_array = *required_array;
+                declared(&mut row, ty);
+            }
+            IrItemKind::Param {
+                owner, index, ty, ..
+            } => {
+                row.links.push(*owner);
+                row.names.push(index.to_string());
+                declared(&mut row, ty);
+            }
+            IrItemKind::DeriveField { model, ty, .. } => {
+                row.links.push(*model);
+                declared(&mut row, ty);
+            }
+            IrItemKind::Crud {
+                model,
+                create,
+                update,
+                delete,
+                ..
+            } => {
+                row.links.push(*model);
+                row.flags = vec![*create, *update, *delete];
+            }
+            IrItemKind::CrudOp { model, fields, .. } => {
+                row.links.push(*model);
+                row.names = fields.clone();
+            }
+            IrItemKind::JudgmentGenerated(generated) => match generated {
+                IrJudgmentGenerated::Contract { fields } => {
+                    row.names.push("contract".to_string());
+                    row.links = fields.clone();
+                }
+                IrJudgmentGenerated::Field {
+                    owner,
+                    ty,
+                    required_array,
+                } => {
+                    row.names.push("field".to_string());
+                    row.links.push(*owner);
+                    row.required_array = *required_array;
+                    declared(&mut row, ty);
+                }
+                IrJudgmentGenerated::Param { owner, index, ty } => {
+                    row.names = vec!["param".to_string(), index.to_string()];
+                    row.links.push(*owner);
+                    declared(&mut row, ty);
+                }
+                IrJudgmentGenerated::CapabilityOp { params, result }
+                | IrJudgmentGenerated::Specification { params, result } => {
+                    row.names.push(
+                        if matches!(generated, IrJudgmentGenerated::CapabilityOp { .. }) {
+                            "operation"
+                        } else {
+                            "specification"
+                        }
+                        .to_string(),
+                    );
+                    row.links = params.clone();
+                    declared(&mut row, result);
+                }
+                IrJudgmentGenerated::Unsupported => row.names.push("unsupported".to_string()),
+            },
+            _ => {}
+        }
+        row
+    }
+
+    fn collect(ir: &IrProgram) -> Option<Self> {
+        let mut census = Self {
+            declarations: ir.items.iter().map(Self::declaration).collect(),
+            constraints: ir.value_constraints.clone(),
+            ..Self::default()
+        };
+        for module in &ir.modules {
+            census.modules.push(StandardValueModule {
+                id: module.id,
+                name: module.name.clone(),
+                kind: module.kind,
+                file: module.file,
+                span: module.span,
+                imports: module
+                    .imports
+                    .iter()
+                    .map(|import| StandardValueImport {
+                        provider: import.provider.clone(),
+                        provider_span: import.provider_span,
+                        members: import.members.clone(),
+                        from: import.from.clone(),
+                        span: import.span,
+                    })
+                    .collect(),
+            });
+            for import in &module.imports {
+                if import.provider == "std" {
+                    for (name, alias, span) in &import.members {
+                        if let Some(schema) = crate::analysis::catalog::nominal_schema(name) {
+                            census.roots.push((schema.name.to_string(), *span));
+                            census.selections.push(StandardValueSelection {
+                                item: None,
+                                module: module.id,
+                                position: "import".to_string(),
+                                identity: name.clone(),
+                                binding: Some(alias.clone()),
+                                span: *span,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        for item in &ir.items {
+            match &item.kind {
+                IrItemKind::Scenario {
+                    result,
+                    guards,
+                    effects,
+                    event_source,
+                    ..
+                } => {
+                    if let Some(IrEventSource::DeliveryProgressed(source)) = event_source {
+                        census.progressed(ir, item, source)?;
+                    }
+                    if let Some(ty) = result {
+                        census.declared(item, ty, "result")?;
+                    }
+                    census.statements(ir, item, guards)?;
+                    census.statements(ir, item, effects)?;
+                }
+                IrItemKind::Field { ty, .. }
+                | IrItemKind::Param { ty, .. }
+                | IrItemKind::DeriveField { ty, .. }
+                | IrItemKind::CapabilityOp { result: ty, .. }
+                | IrItemKind::DeriveFn { result: ty, .. }
+                | IrItemKind::JudgmentGenerated(
+                    IrJudgmentGenerated::Field { ty, .. }
+                    | IrJudgmentGenerated::Param { ty, .. }
+                    | IrJudgmentGenerated::CapabilityOp { result: ty, .. }
+                    | IrJudgmentGenerated::Specification { result: ty, .. },
+                ) => {
+                    if let IrType::Known(ty) = ty {
+                        census.declared(item, ty, "declaration")?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Some(census)
+    }
 }
 
 /// Private evidence for the bounded no-import File-model source cohort. The
@@ -1573,6 +2027,36 @@ impl CheckedEmptyValueInventory {
 }
 
 impl CheckedCommittedSources {
+    pub(crate) fn has_standard_value_inventory_fact(&self) -> bool {
+        self.standard_value_inventory.is_some()
+    }
+
+    pub(crate) fn requires_standard_value_inventory(&self, ir: &IrProgram) -> bool {
+        StandardValueCensus::collect(ir).is_some_and(|census| !census.roots.is_empty())
+    }
+
+    pub(crate) fn standard_value_inventory_roots<'a>(
+        &'a self,
+        ir: &IrProgram,
+        db: &SourceDb,
+    ) -> Option<&'a [(String, Span)]> {
+        let fact = self.standard_value_inventory.as_ref()?;
+        if self.sources.is_empty()
+            || ir.catalog_version != fact.catalog_version
+            || !self.sources.iter().all(|(id, path, hash)| {
+                db.get(*id).is_some_and(|source| {
+                    source.path == *path
+                        && source.sha256 == *hash
+                        && sha256_hex(source.text.as_bytes()) == *hash
+                })
+            })
+            || StandardValueCensus::collect(ir)? != fact.census
+        {
+            return None;
+        }
+        Some(&fact.census.roots)
+    }
+
     pub(crate) fn has_empty_value_inventory_fact(&self) -> bool {
         self.empty_value_inventory.is_some()
     }
@@ -2385,6 +2869,110 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// The original executable SEND census is independent of the effect list
+    /// being lowered. Reuse the checked target/import join, never re-resolve.
+    fn standard_value_sends_match(&self, census: &StandardValueCensus) -> bool {
+        fn scenarios<'a>(node: &'a SyntaxNode, span: Span, found: &mut Vec<&'a SyntaxNode>) {
+            if node.kind == SyntaxKind::Scenario
+                && node
+                    .children
+                    .iter()
+                    .any(|child| child.kind == SyntaxKind::Name && child.span == span)
+            {
+                found.push(node);
+                return;
+            }
+            for child in &node.children {
+                scenarios(child, span, found);
+            }
+        }
+        fn sends<'a>(node: &'a SyntaxNode, found: &mut Vec<&'a SyntaxNode>) {
+            if node.kind == SyntaxKind::Send {
+                found.push(node);
+                return;
+            }
+            for child in &node.children {
+                sends(child, found);
+            }
+        }
+        let mut original = Vec::new();
+        for symbol in &self.program.symbols {
+            if !matches!(symbol.kind, SymbolKind::Scenario { .. }) {
+                continue;
+            }
+            let Some((_, tree)) = self.trees.iter().find(|(id, _)| *id == symbol.span.file) else {
+                return false;
+            };
+            let mut owning = Vec::new();
+            scenarios(tree, symbol.span, &mut owning);
+            if owning.len() != 1 {
+                return false;
+            }
+            let mut authored = Vec::new();
+            for block in &owning[0].children {
+                if block.kind == SyntaxKind::DoBlock {
+                    sends(block, &mut authored);
+                }
+            }
+            for send in authored {
+                let Some(target) = kids(send)
+                    .into_iter()
+                    .find(|child| is_expression(child.kind))
+                else {
+                    return false;
+                };
+                let mut head = target;
+                while head.kind == SyntaxKind::Member {
+                    let Some(base) = kids(head)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))
+                    else {
+                        return false;
+                    };
+                    head = base;
+                }
+                if !matches!(self.program.types.target_bindings.get(&NodeKey::of(head)),
+                    Some(crate::analysis::resolve::Binding::External { provider, .. }) if provider == "std")
+                {
+                    // Local/provider-unknown sends retain their existing decoder;
+                    // they cannot select an owning standard schema here.
+                    continue;
+                }
+                let selected = self
+                    .program
+                    .types
+                    .node_types
+                    .get(&NodeKey::of(target))
+                    .and_then(|ty| match ty {
+                        ResolvedType::Operation(id) => Some(self.canonical(*id)),
+                        _ => None,
+                    });
+                let Ok((operation, binding)) =
+                    self.send_target_provenance(&Scope::module(symbol.module), target, selected)
+                else {
+                    return false;
+                };
+                if operation.starts_with("std.") {
+                    original.push(StandardValueSelection {
+                        item: Some(symbol.id),
+                        module: symbol.module,
+                        position: format!("{}:send", symbol.canonical),
+                        identity: operation,
+                        binding,
+                        span: send.span,
+                    });
+                }
+            }
+        }
+        let lowered: Vec<_> = census
+            .selections
+            .iter()
+            .filter(|selection| selection.position.ends_with(":send"))
+            .cloned()
+            .collect();
+        original == lowered
+    }
+
     /// Build the program: modules, rule maps, items, suites.
     fn build_program(&mut self) -> (IrProgram, Vec<Diagnostic>) {
         self.check_standard_completion_census();
@@ -2411,6 +2999,7 @@ impl<'a> Cx<'a> {
         let referenced_builtins = self.build_referenced_builtins();
         let committed_sources = CheckedCommittedSources {
             empty_value_inventory: None,
+            standard_value_inventory: None,
             sources: self
                 .program
                 .checked_files()
@@ -2488,6 +3077,20 @@ impl<'a> Cx<'a> {
         // Establish absence from the owning original CST, never from a raw or
         // partial IR. Imported/catalog and declared structural closures remain
         // owned by the existing nonempty collector.
+        if self.diags.is_empty()
+            && self
+                .catalog
+                .is_some_and(|catalog| self.program.catalog_version == catalog.version())
+            && let Some(census) = StandardValueCensus::collect(&program)
+            && self.standard_value_sends_match(&census)
+            && !census.roots.is_empty()
+        {
+            program.committed_sources.standard_value_inventory =
+                Some(CheckedStandardValueInventory {
+                    catalog_version: program.catalog_version.clone(),
+                    census,
+                });
+        }
         fn empty_schema_source(node: &SyntaxNode) -> bool {
             !matches!(
                 node.kind,
