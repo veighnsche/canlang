@@ -109,6 +109,7 @@ function journeyBindings(overrides: Partial<FileJourneyBindings> = {}): FileJour
     authorizeAttach: () => ({ status: 'authorized', ref: 'file-1' }),
     recordAttachment: () => ({ status: 'attached', ref: 'file-1' }),
     readBytes: () => new Uint8Array([1, 2, 3, 4]),
+    readCurrentBytes: () => null,
     observeFile: () => null,
     revalidateFile: () => false,
     ...overrides,
@@ -204,6 +205,7 @@ test('kernel methods are async even over sync L4 functions', async () => {
   assert.ok((journey.readBytes('file-1', RECEIVER) as unknown) instanceof Promise);
   assert.ok(journey.observeFile('file-1', RECEIVER, RETENTION) instanceof Promise);
   assert.ok(journey.revalidateFile({}, RECEIVER, RETENTION) instanceof Promise);
+  assert.ok(journey.readCurrentBytes('file-1', RECEIVER, RETENTION) instanceof Promise);
 });
 
 /* ------------------------------------------------------------------ */
@@ -274,17 +276,29 @@ test('journey kernel passes fail-closed nulls through without substituting bytes
   assert.equal(await kernel.readBytes('file-9', RECEIVER), null);
   assert.equal(await kernel.observeFile('file-9', RECEIVER, RETENTION), null);
   assert.equal(await kernel.revalidateFile({}, RECEIVER, RETENTION), false);
+  assert.equal(await kernel.readCurrentBytes('file-9', RECEIVER, RETENTION), null);
 });
 
 for (const mode of ['sync', 'async'] as const) {
-  test(`journey ${mode} file observation methods preserve arguments, binding receiver and opaque outcomes`, async () => {
+  test(`journey ${mode} file observation and current byte methods preserve arguments, binding receiver and outcomes`, async () => {
     // An adapter-only sentinel: the cast supplies no genuine Files provenance.
     const sentinel = Object.freeze({ transportSentinel: true }) as unknown as FinalizedFileObservation;
     const saved = Object.freeze({ transportSavedSentinel: true });
     let observation: FinalizedFileObservation | null = sentinel;
     let revalidation = true;
+    const returnedBytes = new Uint8Array([1, 2, 3, 4]);
+    let currentBytes: Uint8Array | null = returnedBytes;
     const calls: string[] = [];
     const bindings = journeyBindings({
+      readBytes() { return assert.fail('current byte read must never fall back to legacy readBytes'); },
+      readCurrentBytes(ref, caller, retention) {
+        assert.equal(this, bindings);
+        assert.equal(ref, 'file-1');
+        assert.equal(caller, RECEIVER);
+        assert.equal(retention, RETENTION);
+        calls.push('bytes');
+        return mode === 'async' ? Promise.resolve(currentBytes) : currentBytes;
+      },
       observeFile(ref, caller, retention) {
         assert.equal(this, bindings);
         assert.equal(ref, 'file-1');
@@ -305,17 +319,26 @@ for (const mode of ['sync', 'async'] as const) {
     const kernel = createFileJourneyKernel(bindings);
     assert.equal(await kernel.observeFile('file-1', RECEIVER, RETENTION), sentinel);
     assert.equal(await kernel.revalidateFile(saved, RECEIVER, RETENTION), true);
+    assert.equal(await kernel.readCurrentBytes('file-1', RECEIVER, RETENTION), returnedBytes);
     observation = null;
     revalidation = false;
+    currentBytes = null;
     assert.equal(await kernel.observeFile('file-1', RECEIVER, RETENTION), null);
     assert.equal(await kernel.revalidateFile(saved, RECEIVER, RETENTION), false);
-    assert.deepEqual(calls, ['observe', 'revalidate', 'observe', 'revalidate']);
+    assert.equal(await kernel.readCurrentBytes('file-1', RECEIVER, RETENTION), null);
+    assert.deepEqual(calls, ['observe', 'revalidate', 'bytes', 'observe', 'revalidate', 'bytes']);
   });
 
-  test(`journey file observation methods preserve ${mode === 'sync' ? 'thrown' : 'rejected'} error identity as Promise rejection`, async () => {
+  test(`journey file observation and current byte methods preserve ${mode === 'sync' ? 'thrown' : 'rejected'} error identity as Promise rejection`, async () => {
     const observeError = new Error(`${mode} observe failure`);
     const revalidateError = new Error(`${mode} revalidate failure`);
+    const bytesError = new Error(`${mode} current bytes failure`);
     const kernel = createFileJourneyKernel(journeyBindings({
+      readBytes() { return assert.fail('current byte read must never fall back to legacy readBytes'); },
+      readCurrentBytes() {
+        if (mode === 'async') return Promise.reject(bytesError);
+        throw bytesError;
+      },
       observeFile() {
         if (mode === 'async') return Promise.reject(observeError);
         throw observeError;
@@ -331,11 +354,14 @@ for (const mode of ['sync', 'async'] as const) {
     const revalidation = kernel.revalidateFile({}, RECEIVER, RETENTION);
     assert.ok(revalidation instanceof Promise);
     await assert.rejects(revalidation, error => error === revalidateError);
+    const bytes = kernel.readCurrentBytes('file-1', RECEIVER, RETENTION);
+    assert.ok(bytes instanceof Promise);
+    await assert.rejects(bytes, error => error === bytesError);
   });
 }
 
 test('journey kernel throws naming each unbound journey seam', () => {
-  for (const seam of ['readProvenance', 'authorizeAttach', 'recordAttachment', 'readBytes', 'observeFile', 'revalidateFile'] as const) {
+  for (const seam of ['readProvenance', 'authorizeAttach', 'recordAttachment', 'readBytes', 'observeFile', 'revalidateFile', 'readCurrentBytes'] as const) {
     const missing: Record<string, unknown> = { ...journeyBindings() };
     delete missing[seam];
     assert.throws(() => createFileJourneyKernel(missing), new RegExp(`'${seam}' is not bound`), seam);
