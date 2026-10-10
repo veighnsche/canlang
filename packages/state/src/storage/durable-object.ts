@@ -75,6 +75,7 @@ import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from '
 import type { StoragePort } from './port.js';
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
+  ALTER_OUTBOX_COMMITTED_REVISION,
   FENCE_ROW_ID,
   SCHEMA_STATEMENTS,
   isDuplicateColumnError,
@@ -85,13 +86,13 @@ export async function ensureSchema(storage: DurableObjectStorage): Promise<void>
   for (const statement of SCHEMA_STATEMENTS) {
     storage.sql.exec(statement);
   }
-  // B3: backfill the outbox contract column on pre-B3 databases; fresh
-  // databases (and re-runs) already have it, so duplicate-column is fine.
-  try {
-    storage.sql.exec(ALTER_OUTBOX_HANDLER_CONTRACT);
-  } catch (error) {
-    if (!isDuplicateColumnError(error)) {
-      throw error;
+  // Add missing columns without reconstructing legacy publication facts.
+  // A legacy original revision remains NULL; only new fenced inserts fill it.
+  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION]) {
+    try {
+      storage.sql.exec(alteration);
+    } catch (error) {
+      if (!isDuplicateColumnError(error)) throw error;
     }
   }
 }
@@ -344,8 +345,8 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
     statements.push({
       sql:
         'INSERT INTO outbox(intent_id, operation, operation_id, target, arguments, ' +
-          'occurrence_index, dispatch_guard, handler_contract, status, created_at) ' +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+          'occurrence_index, dispatch_guard, handler_contract, status, created_at, committed_revision) ' +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
       bindings: [
         intent.intentId,
         intent.operation as string,
@@ -356,6 +357,7 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
         intent.dispatchGuard ?? null,
         intent.handlerContract ?? null,
         at,
+        next,
       ],
     });
   }
@@ -815,7 +817,7 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
     async outboxGet(intentId: string): Promise<RetainedOutboxIntent | null> {
       const rows = storage.sql
         .exec<RetainedOutboxRow>(
-          `SELECT ${OUTBOX_COLUMNS}, status FROM outbox WHERE intent_id = ?`, intentId,
+          `SELECT ${OUTBOX_COLUMNS}, status, committed_revision, created_at FROM outbox WHERE intent_id = ?`, intentId,
         )
         .toArray();
       const row = rows[0] ?? null;

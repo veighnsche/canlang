@@ -1043,9 +1043,11 @@
           "prerequisite": "Dev alone owns actual installed physical preclaim adoption with source-issued original committed intent/verified frozen lexical bindings, actual owner/admission/current authority; Compiler owns checked original guard/source/lowering closure. Existing outboxGet carries no original commitstamp and provider arguments are not lexical bindings; do not fabricate either. Durable saved membership/pure-owner admission remain separate original-workflow prerequisites. Other precise human holds persist.",
           "accepted": false,
           "original_commit_producer_prerequisite": {
-            "state": "blocked_on_owning_additive_contract",
-            "owner": "Packages retained original commit provenance contract; Capability State atomic persistence; Dev native adoption",
-            "evidence": "Actual State D1/DO original outbox INSERT uses original receipt createdAt/commit clock, memory retains createdAt. No original committed revision column; retained getter/codecs expose neither. Persist actual expectedRevision+1 only in original successful fenced batch with original at; legacy absence must remain absent. No stamp from later stage/current clock/provider payload. Exact contract requested from Packages."
+            "state": "implemented_unfinished_native_validation",
+            "owner": "Capability State persistence; Dev genuine native adoption; Compiler frozen lexical/admission source",
+            "api": "RetainedOutboxIntent.originalCommit?: {revision:Revision,createdAt:number}; exact reviewed Contracts06 intaken14acca65. Work committedAtMs must be mapped from this actual createdAt, never currenttime.",
+            "implementation": "Memory and D1/DO persist actual winning next revision with original outbox creation at in original fenced insert. Nullable additive committed_revision migration never backfills legacy. Retained getter exposes complete actual pair, unchanged by ack/skip/reopen; absent legacy remains absent. Pending projection/order/intent/status unchanged, no authority minted.",
+            "validation": "State clean emission passes. Focused25 Memory/D1/DO provenance/legacy/rollback cases running; silent native harness needs scoped startup diagnosis. No native outcomes or preclaim acceptance claimed yet."
           }
         },
         "saved_coherent_membership_consumer": {
