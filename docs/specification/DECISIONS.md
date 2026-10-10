@@ -5566,3 +5566,14 @@ Use released Values normalization with actual same-load model names. Actual CLI/
 installed consumer4/4 and independent finite review pass; nullable/ordered arrays
 and wire/native version behavior remain owning codec semantics. Same-load loader
 and original native query/result provenance qualification remain separate.
+
+
+## 2026-10-10 — serialize qualified decision source facts (unfinished runtime transport)
+
+Convert only the real qualified source/IR consumer output to the existing
+version1 site vocabulary. Preserve exact canonical identities, sources, offsets,
+stages/positions, argument order, slots, defaults and frames; use bounded fallible
+existing type IDs, including user and Team. Literal default module metadata must
+join the original checked module even without a nested call. Owning6/6 validates
+actual JSON and skew refusals. This is internal structural transport, without
+artifact registration, runtime private issuance, effect admission or authority.

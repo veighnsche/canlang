@@ -821,3 +821,307 @@ impl SemanticJoin<'_> {
 fn known_type_equal(a: &IrType, b: &IrType) -> bool {
     matches!((a,b),(IrType::Known(a),IrType::Known(b)) if a==b)
 }
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionSource {
+    pub path: String,
+    pub sha256: String,
+    pub module: String,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionNode {
+    pub start: u32,
+    pub end: u32,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum SerialDecisionPosition {
+    Guard { index: usize },
+    Body { index: usize },
+    Then { index: usize },
+    Else { index: usize },
+    Loop { index: usize },
+    Match { arm: usize, statement: usize },
+}
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum SerialDecisionTarget {
+    Builtin { id: String, overload: usize },
+    Derive { name: String },
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionArgument {
+    pub node: SerialDecisionNode,
+    #[serde(rename = "type")]
+    pub type_id: String,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionDefault {
+    pub parameter: String,
+    pub source: SerialDecisionSource,
+    pub node: SerialDecisionNode,
+    #[serde(rename = "type")]
+    pub type_id: String,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionFrame {
+    pub source: SerialDecisionSource,
+    pub node: SerialDecisionNode,
+    pub derive: String,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionCall {
+    pub source: SerialDecisionSource,
+    pub node: SerialDecisionNode,
+    pub target: SerialDecisionTarget,
+    pub arguments: Vec<SerialDecisionArgument>,
+    pub slots: Vec<Option<usize>>,
+    pub defaults: Vec<SerialDecisionDefault>,
+    pub chain: Vec<SerialDecisionFrame>,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionSite {
+    pub version: u8,
+    pub source: SerialDecisionSource,
+    pub owner: String,
+    pub node: SerialDecisionNode,
+    pub statement: SerialDecisionNode,
+    pub stage: String,
+    pub position: Vec<SerialDecisionPosition>,
+    pub calls: Vec<SerialDecisionCall>,
+}
+
+/// Optional private transport only. No artifact registration or execution capability.
+pub fn serialize_decision_sources(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Option<Vec<SerialDecisionSite>> {
+    let sites = collect_decision_sources(program, ir, owner, db, catalog)?;
+    let canonical = |id: crate::analysis::resolve::SymbolId| -> Option<String> {
+        let item = ir.items.get(id.0 as usize)?;
+        let symbol = program.symbols.get(id.0 as usize)?;
+        if item.id != id
+            || symbol.id != id
+            || item.canonical != symbol.canonical
+            || item.module != symbol.module
+            || item.canonical.is_empty()
+        {
+            return None;
+        }
+        Some(item.canonical.clone())
+    };
+    let mut output = Vec::new();
+    let mut count = 0usize;
+    let mut values = 0usize;
+    for site in sites {
+        let mut calls = Vec::new();
+        for call in site.calls {
+            count += 1;
+            values = values.checked_add(
+                call.arguments.len()
+                    + call.slots.len()
+                    + call.defaults.len()
+                    + call.chain.len()
+                    + 1,
+            )?;
+            if count > 200 || values > 20000 {
+                return None;
+            }
+            let target = match call.target {
+                CheckedDecisionCallTarget::Builtin { id, overload } => {
+                    SerialDecisionTarget::Builtin { id, overload }
+                }
+                CheckedDecisionCallTarget::DeriveFn(id) => SerialDecisionTarget::Derive {
+                    name: canonical(id)?,
+                },
+            };
+            let mut arguments = Vec::new();
+            for (node, ty) in call.arguments {
+                arguments.push(SerialDecisionArgument {
+                    node: serial_node(node),
+                    type_id: serial_type(&ty, program, ir, 0)?,
+                });
+            }
+            let mut defaults = Vec::new();
+            for (id, node) in call.defaults {
+                let item = ir.items.get(id.0 as usize)?;
+                let IrItemKind::Param {
+                    default_node: Some(actual),
+                    ty: IrType::Known(ty),
+                    ..
+                } = &item.kind
+                else {
+                    return None;
+                };
+                if *actual != node {
+                    return None;
+                }
+                let module = ir.modules.get(item.module.0 as usize)?;
+                let checked_module = program.modules.get(item.module.0 as usize)?;
+                let file = db.get(module.file)?;
+                if module.id != item.module
+                    || checked_module.id != item.module
+                    || module.name != checked_module.name
+                    || module.file != checked_module.file
+                    || module.span != checked_module.span
+                    || module.file != node.file
+                    || node.start < module.span.start
+                    || node.end > module.span.end
+                    || node.start >= node.end
+                    || node.end as usize > file.text.len()
+                {
+                    return None;
+                }
+                defaults.push(SerialDecisionDefault {
+                    parameter: canonical(id)?,
+                    source: SerialDecisionSource {
+                        path: file.path.clone(),
+                        sha256: file.sha256.clone(),
+                        module: module.name.clone(),
+                    },
+                    node: serial_node(node),
+                    type_id: serial_type(ty, program, ir, 0)?,
+                });
+            }
+            let mut chain = Vec::new();
+            for frame in call.chain {
+                chain.push(SerialDecisionFrame {
+                    source: serial_source(frame.source),
+                    node: serial_node(frame.node),
+                    derive: canonical(frame.derive)?,
+                });
+            }
+            calls.push(SerialDecisionCall {
+                source: serial_source(call.source),
+                node: serial_node(call.node),
+                target,
+                arguments,
+                slots: call.slots,
+                defaults,
+                chain,
+            });
+        }
+        let position = site
+            .position
+            .into_iter()
+            .map(|p| match p {
+                Position::Guard(index) => SerialDecisionPosition::Guard { index },
+                Position::Body(index) => SerialDecisionPosition::Body { index },
+                Position::Then(index) => SerialDecisionPosition::Then { index },
+                Position::Else(index) => SerialDecisionPosition::Else { index },
+                Position::Loop(index) => SerialDecisionPosition::Loop { index },
+                Position::Match { arm, statement } => {
+                    SerialDecisionPosition::Match { arm, statement }
+                }
+            })
+            .collect();
+        output.push(SerialDecisionSite {
+            version: 1,
+            source: serial_source(site.source),
+            owner: canonical(site.owner)?,
+            node: serial_node(site.node),
+            statement: serial_node(site.statement),
+            stage: match site.stage {
+                Stage::LeadingRequire => "leading-require",
+                Stage::BodyRequire => "body-require",
+                Stage::SendDispatch => "send-dispatch",
+            }
+            .into(),
+            position,
+            calls,
+        });
+    }
+    Some(output)
+}
+fn serial_node(node: NodeKey) -> SerialDecisionNode {
+    SerialDecisionNode {
+        start: node.start,
+        end: node.end,
+    }
+}
+fn serial_source(
+    source: crate::analysis::scenario_disclosure::DisclosureSource,
+) -> SerialDecisionSource {
+    SerialDecisionSource {
+        path: source.path,
+        sha256: source.sha256,
+        module: source.module,
+    }
+}
+fn serial_type(
+    ty: &ResolvedType,
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    depth: usize,
+) -> Option<String> {
+    if depth > 64 {
+        return None;
+    }
+    let nominal = |id: crate::analysis::resolve::SymbolId| {
+        let item = ir.items.get(id.0 as usize)?;
+        let symbol = program.symbols.get(id.0 as usize)?;
+        if item.id != id
+            || symbol.id != id
+            || item.module != symbol.module
+            || item.canonical != symbol.canonical
+        {
+            return None;
+        }
+        Some(item)
+    };
+    Some(match ty {
+        ResolvedType::Scalar(s) => s.as_str().into(),
+        ResolvedType::Team => "Team".into(),
+        ResolvedType::Null => "null".into(),
+        ResolvedType::Nullable(inner) => {
+            format!("{}?", serial_type(inner, program, ir, depth + 1)?)
+        }
+        ResolvedType::Array { element, .. } => {
+            format!("{}[]", serial_type(element, program, ir, depth + 1)?)
+        }
+        ResolvedType::Record { symbol, .. } => {
+            let item = nominal(*symbol)?;
+            if !matches!(
+                item.kind,
+                IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Event { .. }
+            ) {
+                return None;
+            }
+            item.canonical.clone()
+        }
+        ResolvedType::Enum {
+            owner: Some(id),
+            cases,
+        } => {
+            let item = nominal(*id)?;
+            let IrItemKind::Field {
+                ty:
+                    IrType::Known(ResolvedType::Enum {
+                        owner: Some(actual),
+                        cases: expected,
+                    }),
+                ..
+            } = &item.kind
+            else {
+                return None;
+            };
+            if actual != id || expected != cases || cases.is_empty() {
+                return None;
+            }
+            item.canonical.clone()
+        }
+        ResolvedType::Enum { owner: None, cases }
+            if !cases.is_empty()
+                && cases.len() <= 200
+                && cases.iter().all(|case| {
+                    !case.is_empty() && !case.chars().any(|c| matches!(c, ',' | '(' | ')'))
+                }) =>
+        {
+            format!("enum({})", cases.join(","))
+        }
+        _ => return None,
+    })
+}
