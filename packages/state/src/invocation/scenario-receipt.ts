@@ -190,6 +190,8 @@ export interface ScenarioReceiptCallSite {
   readonly resultType: CanTypeId | null;
 }
 export interface ScenarioReceiptCallFrame {
+  /** Exact invoking root or active child; private native lifetimes key on it. */
+  readonly parent: AdmittedCall;
   readonly call: AdmittedCall;
   readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>;
   /** Genuine native guards join the same outer commit, even for void callees. */
@@ -206,7 +208,7 @@ export interface ScenarioReceiptCallProducer {
   readonly app: string;
   readonly registry: OperationRegistry;
   readonly sites: readonly ScenarioReceiptCallSite[];
-  readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => ClosedInputs | Promise<ClosedInputs>;
+  readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>, parent: AdmittedCall) => ClosedInputs | Promise<ClosedInputs>;
   readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
 }
 interface BoundCalls {
@@ -342,7 +344,7 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
       }, current),
     });
     if (site.kind === 'invocation' && Object.keys(dataCopy(input.inputs)).length !== 0) return invalid('invocation calls require empty authored inputs and complete frozen arguments.');
-    const prepared = site.kind === 'invocation' ? {} : dataCopy(await bound.producer.prepare(def, input.inputs));
+    const prepared = site.kind === 'invocation' ? {} : dataCopy(await bound.producer.prepare(def, input.inputs, call));
     ownerHealthy(owner);
     if (owner.executingCall !== current) return invalid('call preparation crossed a child lifetime.');
     if (typeof prepared !== 'object' || prepared === null || Array.isArray(prepared)) return invalid('canonical authored input object required.');
@@ -399,7 +401,7 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
       } catch (error) { owner!.capture.poisoned = true; throw error; }
     };
     if (def.kind === 'scenario') capture(current, store);
-    const raw = def.kind === 'scenario' ? await bound.producer.execute(Object.freeze({ call: current, session, guard }))
+    const raw = def.kind === 'scenario' ? await bound.producer.execute(Object.freeze({ parent: call, call: current, session, guard }))
       : await stageGeneratedCrudOwnerCall({ table: owner.options.table, store }, session as OwnerMutationSession, current,
         def.kind === 'create' ? `${owner.call.context.operationId}/call/${owner.callCount}` as RecordId : undefined);
     healthy();
