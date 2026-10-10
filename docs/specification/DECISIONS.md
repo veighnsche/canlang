@@ -7266,3 +7266,25 @@ Only Invoice pin203 changes here; all52/full assertions remain. Full table
 qualification awaits the separate Leave/Purchase pin correction. Current new
 production whole/lint remains pending, Purchase source rename is unassigned and
 exported Rent remains excluded.58/67/nine open and precise holds unchanged.
+
+
+### 2026-10-10 — preserve checked selector channels (unfinished native join)
+
+Checked lexical fixture-backed request model observations retain the same
+fixture identity as neutral names. Private table evidence binds exact node,
+module, operation and full selector correspondence; IR rechecks source headers.
+Generated tables emit dense optional selectorChannels input/request/caller;
+legacy handbuilt None omits it. Input retains the full path, wire request strips
+its prefix in the owning consumer, and as remains caller. Malformed alignment
+refuses E6008 before table closure lowering. Wire/scalar/row-only observations
+still refuse E5002. No authority/disclosure/input-policy change.
+
+Owning150 distinct outcomes pass (codegen121/B4 examples29); corrected mechanical
+emitter API/diagnostic-code failures are superseded. Finite independent review
+is CLEAR. Real CLI→installed Testkit→invocation-port witness is added but UNTESTED
+pending exact ecc consumer intake/build; it explicitly claims no State execution.
+Dev94e materializer and actual generated native joint qualification remain.
+Source-only original25 drops56→46 by10 Leave/Purchase E5002, then assigned Invoice
+46→35; no artifact. Observed corpus Leave79→74/Purchase143→138, retaining all52
+full assertions; joined full-table and changed whole/lint remain pending.
+Original58/67/nine references and precise BDD3/S9-Q07/Task22 holds remain.

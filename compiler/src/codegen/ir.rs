@@ -1867,6 +1867,8 @@ pub struct IrTable {
     pub inputs: TypedExpr,
     /// Selector path metadata in source order.
     pub selectors: Vec<String>,
+    /// Source-checked channels, aligned with selectors; absent only on legacy IR.
+    pub selector_channels: Option<Vec<crate::analysis::examples::SelectorChannel>>,
     /// Observation callbacks in source order.
     pub observations: Vec<TypedExpr>,
     /// Selected rows in source order.
@@ -12411,6 +12413,15 @@ impl<'a> Cx<'a> {
         table: &crate::analysis::examples::BehaviorTable,
         operation: SymbolId,
     ) -> Option<(IrTable, Vec<SymbolId>)> {
+        let Some(selector_channels) = table.selector_channels().map(|channels| channels.to_vec())
+        else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "example selector channels disagree with checked source ownership".to_string(),
+                table.span,
+            ));
+            return None;
+        };
         let node = self.node(&table.node).cloned()?;
         let module = self
             .program
@@ -12462,6 +12473,19 @@ impl<'a> Cx<'a> {
             .collect();
         let (header, data_rows) = rows.split_first()?;
         let (header_inputs, header_obs) = split_row(self.db, header);
+        if table.inputs
+            != header_inputs
+                .iter()
+                .map(|cell| self.text(cell.span).trim().to_string())
+                .collect::<Vec<_>>()
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "example selector channels disagree with source header".to_string(),
+                table.span,
+            ));
+            return None;
+        }
         let mut observations = Vec::new();
         let mut refs: Vec<SymbolId> = table.seeds.clone();
         refs.extend(binding_fixtures.iter().copied());
@@ -12546,6 +12570,7 @@ impl<'a> Cx<'a> {
                 dependencies,
                 inputs,
                 selectors: table.inputs.clone(),
+                selector_channels: Some(selector_channels),
                 observations,
                 rows: ir_rows,
                 span: Span::new(table.node.file, table.node.start, table.node.end),

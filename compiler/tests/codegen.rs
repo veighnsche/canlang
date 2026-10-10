@@ -693,6 +693,10 @@ fn golden_teamtasks_structure() {
         "selectors"
     );
     assert!(
+        suite.contains("selectorChannels:[\"caller\",\"input\",\"request\"]"),
+        "checked caller, changes, and wire-envelope channels:\n{suite}"
+    );
+    assert!(
         suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],\"en\",[[\"n\",\"int\",\"int\"]]))"),
         "checked localized observation preserves the descriptor signature:\n{suite}"
     );
@@ -3186,6 +3190,7 @@ fn construct_tables() {
                 widget.clone(),
             ),
             selectors: vec!["as".to_string(), "check.enabled".to_string()],
+            selector_channels: None,
             observations: vec![typed(
                 IrExpr::Member {
                     base: Box::new(typed(IrExpr::Name("s_check".to_string()), widget.clone())),
@@ -3214,6 +3219,20 @@ fn construct_tables() {
         js.contains("{dependencies:[],values:async(c,s)=>([true]),error:\"forbidden\"}"),
         "error row:\n{js}"
     );
+    use canlang_compiler::analysis::examples::SelectorChannel;
+    let mut malformed = suite.clone();
+    for channels in [
+        vec![SelectorChannel::Caller],
+        vec![SelectorChannel::Input, SelectorChannel::Input],
+        vec![SelectorChannel::Caller, SelectorChannel::Request],
+    ] {
+        malformed.tables[0].selector_channels = Some(channels);
+        let (_, diagnostics, _) = bdd::emit_suite(&ir, &malformed);
+        assert!(
+            diagnostics.iter().any(|d| d.code == "E6008"),
+            "malformed channel metadata declines: {diagnostics:?}"
+        );
+    }
 }
 
 /// Sequences: call/binding/assertion steps with canonical type ids.
