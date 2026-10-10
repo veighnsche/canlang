@@ -2047,7 +2047,7 @@
     {
       "family": "FILES",
       "kind": "correctness",
-      "readiness": "blocked-real-durable-blob-metadata-intent-ownership-release",
+      "readiness": "implementing-owning-durable-publication-and-upload-contract",
       "audit_finding_ids": [
         "LF02",
         "LF03",
@@ -2057,7 +2057,7 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Release real durable append/count/blob atomic or recoverable contract and chunk retry identity; finalization phase owner and immutable exact size/digest agreement. TestOnly aliases are not durability. Provider copy-returning storage and mounted upload consumer required."
+        "Packages owns defining Files/Interfaces append retry and finalization phases; actual selected SQLite transaction is available. Necessary narrow Interfaces forwarding/route and Files bridge/host hunks released by coordinator. Exact abstract three-request retry consultation specifically held by auto-review pending human approval. Native/mounted/provider deployment qualification needs its actual host owner; FS separate-store concurrency/power-loss not implied by serial reopen tests."
       ],
       "intended_deleted_mechanisms": [
         "None. Replace blind append/count and untracked multistore finalization only after selected storage mechanism release; retain signature allowlist/readable prefix checks and bounded transfer."
@@ -2070,7 +2070,7 @@
       "decisive_actual_caller_recipe": "Actual upload HTTP PUT→durable blob+metadata→finalized receiving file→canonical mutation replay; independently persisted stores, restart, multiple owner clients.",
       "positive_acceptance_recipe": "Exact declared bytes/count/digest and MIME prefix/length guard; retry same mutation recovers same finalized ref; no resurrection of tombstoned ref.",
       "negative_acceptance_recipe": "Declared1 append A then crash-before-count, retry A cannot finalize AA as size1; reply-loss partial PUT cannot blindly append duplicate chunk; crash at each final-write/staging-remove/file-row/intent-row phase reconciles or refuses before immutable acceptance.",
-      "execution_authorized": false,
+      "execution_authorized": true,
       "canonical_task_references": [
         {
           "id": "finished-product:FP.FILES-DURABLE",
@@ -2132,7 +2132,7 @@
         "packages/interfaces/src/uploads/routes.ts"
       ],
       "new_files_proposal_only": [],
-      "status": "blocked",
+      "status": "implementing",
       "depends_on_packets": [],
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
@@ -2143,12 +2143,12 @@
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
-        "state": "proposed; no live lease or acknowledgment claimed",
+        "state": "coordinator released exact Files sources, bridge/SQLite forwarding and Interfaces ports/kernel/routes plus existing upload tests; no competing writer on those hunks",
         "defining_owners": [
           "files",
           "interfaces"
         ],
-        "release": "Obtain exact-file writer release and source-current handoff before edits; compiler remains foreign-owned."
+        "release": "Existing TECH-F01 self-owned implementation, including coordinator-released retention.ts and existing retention.test.ts cleanup hunks. Coordinate only additional actual shared overlap."
       },
       "acceptance_limits": [
         "No runtime acceptance from this planning packet. Source helper, registered Rust and historical fixtures do not certify actual installed/durable/browser consumers.",
