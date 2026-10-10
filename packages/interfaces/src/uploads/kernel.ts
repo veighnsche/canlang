@@ -2,8 +2,8 @@
  * J6 real file-kernel binding: adapt injected L4 entry points to the
  * `FileKernel` port (plus the finalized-file journey extension).
  *
- * `@canlang/files` ships no built surface, so this module cannot import
- * it — not even as types. The bindings below are structural: the L7
+ * Shared types come from Contracts; Files owns the producer and its
+ * private observation identity. The bindings below are structural: the L7
  * worker assembly (deploy join) supplies the real L4 functions
  * (`createUploadIntent`, `appendUploadContent`, `completeUploadContent`,
  * `finalizeUpload` over live deps) already bound to their deps, and this
@@ -19,14 +19,16 @@
  *
  * The journey extension (`FileJourneyKernel`) carries the post-finalize
  * steps — provenance read, attach pre-check, lane-3 attachment
- * recording, finalized-byte reads — over the same binding table so one
- * bound kernel serves the whole
+ * recording, finalized-byte reads and retained observation/revalidation —
+ * over the same binding table so one bound kernel serves the whole
  * intent -> bytes -> finalize -> provenance -> attach/read path.
  * Attachment authority stays with lane 3 (`recordAttachment` is its
  * join seam); this adapter only threads the call.
  */
 import type {
+  FileRetentionPolicy,
   FinalizedFile,
+  FinalizedFileObservation,
   UploadIntentRequest,
 } from '@canlang/contracts';
 import type {
@@ -92,8 +94,8 @@ export type KernelRecordAttachmentOutcome =
 
 /**
  * Injected L4 entry-point table for the full journey: the `FileKernel`
- * core plus provenance/attach/read (`readFinalizedFile`,
- * `authorizeAttach`, `recordAttachment`, `readFinalizedBytes`).
+ * core plus provenance/attach/read and retained observation/revalidation.
+ * Each seam calls the defining producer over its owning stores and policy.
  */
 export interface FileJourneyBindings extends FilesKernelBindings {
   readonly readProvenance: (
@@ -113,6 +115,16 @@ export interface FileJourneyBindings extends FilesKernelBindings {
     ref: string,
     caller: UploadReceiver,
   ) => Uint8Array | null | Promise<Uint8Array | null>;
+  readonly observeFile: (
+    ref: string,
+    caller: UploadReceiver,
+    retention: FileRetentionPolicy,
+  ) => FinalizedFileObservation | null | Promise<FinalizedFileObservation | null>;
+  readonly revalidateFile: (
+    saved: unknown,
+    caller: UploadReceiver,
+    retention: FileRetentionPolicy,
+  ) => boolean | Promise<boolean>;
 }
 
 /** `FileKernel` plus the post-finalize journey steps. */
@@ -129,6 +141,10 @@ export interface FileJourneyKernel extends FileKernel {
   ): Promise<KernelRecordAttachmentOutcome>;
   /** Finalized bytes, or null for every denial (fail closed). */
   readBytes(ref: string, caller: UploadReceiver): Promise<Uint8Array | null>;
+  /** Owning live observation identity, or null; facts grant no row authority. */
+  observeFile(ref: string, caller: UploadReceiver, retention: FileRetentionPolicy): Promise<FinalizedFileObservation | null>;
+  /** Owning physical-file check with the current receiver and receiving policy. */
+  revalidateFile(saved: unknown, caller: UploadReceiver, retention: FileRetentionPolicy): Promise<boolean>;
 }
 
 const CORE_SEAMS = ['createIntent', 'append', 'complete', 'finalize'] as const;
@@ -137,6 +153,8 @@ const JOURNEY_SEAMS = [
   'authorizeAttach',
   'recordAttachment',
   'readBytes',
+  'observeFile',
+  'revalidateFile',
 ] as const;
 
 function asTable(value: unknown): Record<string, unknown> {
@@ -217,5 +235,7 @@ export function createFileJourneyKernel(bindings: unknown): FileJourneyKernel {
     recordAttachment: async (ref, recordRef, caller) =>
       bindings.recordAttachment(ref, recordRef, caller),
     readBytes: async (ref, caller) => bindings.readBytes(ref, caller),
+    observeFile: async (ref, caller, retention) => bindings.observeFile(ref, caller, retention),
+    revalidateFile: async (saved, caller, retention) => bindings.revalidateFile(saved, caller, retention),
   };
 }
