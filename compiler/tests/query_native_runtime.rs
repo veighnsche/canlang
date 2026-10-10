@@ -36,13 +36,14 @@ package workbench
   scenario parent(location:Location,targets:Scope.targets,accept:bool) -> int by=members
    do
     call context {targets,location} as facts
+    require count(facts)==2
     require accept
-    return 1
+    return count(facts)
  Then
 "#;
 
 #[test]
-fn original_native_query_reads_and_unused_private_child_preserve_lifetimes() {
+fn original_native_query_reads_and_consumed_private_child_preserve_lifetimes() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let original = include_str!("../../draft/CanWorkbench.can");
     let retained: Vec<_> = SOURCE
@@ -125,6 +126,9 @@ for(const [op,requireVersion] of [[context,false],[parent,true]]){
 }
 const js=artifact.modules.map(module=>module.js).join('\n');
 for(const helper of ['executeScenarioReceiptQuery','observeScenarioReceiptQueryDependency','bindScenarioReceiptQueryResult','invokeScenarioReceiptCall'])assert.ok(js.includes(helper),helper);
+const childBinding=js.match(/const ([^\s=]+)\s*=\s*await invokeScenarioReceiptCall\(c,/);
+assert.ok(childBinding,'parent binds the genuine canonical child result');
+assert.equal(js.split(`count(${childBinding[1]})`).length-1,2,'authored guard and return both consume the actual emitted child binding');
 // Transparent observations call only the installed canonical public facades.
 // They supply no context, plan, candidate, session or definition of their own.
 const seamUrl=pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href;
@@ -133,7 +137,7 @@ writeFileSync(shim,`
 export * from ${JSON.stringify(seamUrl)};
 import {executeScenarioReceiptQuery as query,invokeScenarioReceiptCall as call} from ${JSON.stringify(seamUrl)};
 export async function executeScenarioReceiptQuery(...args){globalThis.nativeQueryTrace.push({kind:'query',queryId:args[1]});return await query(...args);}
-export async function invokeScenarioReceiptCall(...args){globalThis.nativeQueryTrace.push({kind:'call',site:args[1],target:args[2],keys:Object.keys(args[3])});return await call(...args);}
+export async function invokeScenarioReceiptCall(...args){globalThis.nativeQueryTrace.push({kind:'call',site:args[1],target:args[2],keys:Object.keys(args[3])});const result=await call(...args);globalThis.nativeChildCounts.push(result.length);return result;}
 `);
 const asm=await assembleModules({artifact,sourcePath:resolve(base,'query-native.can')},{
  workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(shim).href,
@@ -172,7 +176,7 @@ const durable=async()=>({revision:await store.readRevision(),commits:batches.len
  receipts:await Promise.all(requests.map(req=>receiptFor(req))),outbox:probe.outboxAll(),
  schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
 const domain=async()=>{const {rows,history,outbox,schedules}=await durable();return {rows,history,outbox,schedules};};
-globalThis.nativeQueryTrace=[];
+globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
 async function read(inputs,who=identity){
  const before=await durable();globalThis.nativeQueryTrace=[];
  const outcome=await invoker.invokeRead({operation:'workbench.context',inputs},who);
@@ -187,15 +191,20 @@ const parentInputs={location:ref(location),targets:[...selected].reverse().map(r
 const success=request('workbench.parent',parentInputs),beforeParent=await durable();
 globalThis.nativeQueryTrace=[];
 const result=await committed(success);
-assert.equal(result.result,'1');assert.deepEqual(result.records,[]);
+assert.equal(result.result,'2');assert.deepEqual(result.records,[]);
+assert.deepEqual(globalThis.nativeChildCounts,[2],'actual child facade completes with the array consumed by the parent');
 assert.equal(await store.readRevision(),beforeParent.revision+1);assert.equal(batches.length,beforeParent.commits+1);
-const receipt=await receiptFor(success);assert.equal(receipt.outcome.result,'1');
+const receipt=await receiptFor(success);assert.equal(receipt.outcome.result,'2');
 const association=readScenarioReceiptAssociation(receipt);assert.ok(association,'State-owned parent capture');
 assert.deepEqual(association.plan,parent.result.disclosure);
+assert.equal(association.resultType,parent.result.type);
+const selectedReturn=association.plan.returns.find(returned=>returned.id===association.returnId);
+assert.ok(selectedReturn,'State retains the exact selected parent return authority');
 assert.equal(association.calls.length,1);const child=association.calls[0];
 assert.equal(child.caller,'workbench.parent');assert.equal(child.target,'workbench.context');
 assert.deepEqual(JSON.parse(child.targetInterface),loaded.registry.get('workbench.context').descriptor);
-assert.deepEqual(child.result,facts,'unused opaque child result retained privately');
+assert.deepEqual(child.result,facts,'consumed opaque child result retained privately');
+assert.equal(receipt.outcome.result,String(child.result.length),'saved parent count belongs to its actual retained child result');
 assert.deepEqual(child.scenario.plan,plan);assert.equal(child.scenario.resultType,'workbench.Fact[]');
 assert.equal(child.scenario.returnId,plan.returns[0].id);
 assert.deepEqual(child.references.map(ref=>`${ref.model}:${ref.row.id}`).sort(),
@@ -214,14 +223,15 @@ assert.deepEqual(globalThis.nativeQueryTrace,[{kind:'call',site:child.site,targe
 assert.equal(JSON.stringify(result).includes('scenario-result/v1'),false,'private receipt stays off public response');
 assert.deepEqual(await domain(),{rows:beforeParent.rows,history:beforeParent.history,outbox:beforeParent.outbox,schedules:beforeParent.schedules});
 assert.equal(batches.at(-1).receipt.identity.operation,'workbench.parent','child shares the one parent commit');
-const stable=await durable();globalThis.nativeQueryTrace=[];
+const stable=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
 const replay=await invoker.invokeMutation(success,identity);
 assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
-assert.equal(replay.result.result,'1');assert.deepEqual(replay.result.records,[]);
+assert.equal(replay.result.result,'2');assert.deepEqual(replay.result.records,[]);
 assert.deepEqual(await durable(),stable);assert.deepEqual(globalThis.nativeQueryTrace,[],'replay executes neither parent call nor child query');
-assert.deepEqual(await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:'1',records:[]});
-async function rejectedParent(inputs,code,executed,who=identity){
- const req=request('workbench.parent',inputs),before=await durable();globalThis.nativeQueryTrace=[];
+assert.deepEqual(globalThis.nativeChildCounts,[],'retained parent count needs no new child result');
+assert.deepEqual(await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:'2',records:[]});
+async function rejectedParent(inputs,code,executed,who=identity,completedCount){
+ const req=request('workbench.parent',inputs),before=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
  const outcome=await invoker.invokeMutation(req,who);assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,code);
  assert.deepEqual(await domain(),{rows:before.rows,history:before.history,outbox:before.outbox,schedules:before.schedules},'refusal rolls back every domain effect');
  const rejected=await receiptFor(req,who);
@@ -229,12 +239,17 @@ async function rejectedParent(inputs,code,executed,who=identity){
   assert.equal(readScenarioReceiptAssociation(rejected),null);assert.equal(await store.readRevision(),before.revision+1);assert.equal(batches.length,before.commits+1);
   assert.equal(globalThis.nativeQueryTrace.filter(event=>event.kind==='query').length,1);
  }else{assert.equal(rejected,null);assert.equal(await store.readRevision(),before.revision);assert.equal(batches.length,before.commits);assert.deepEqual(globalThis.nativeQueryTrace,[]);}
+ if(completedCount!==undefined)assert.deepEqual(globalThis.nativeChildCounts,[completedCount],'parent refuses after the genuine child completes');
  assert.deepEqual(await Promise.all(requests.slice(0,-1).map(req=>receiptFor(req))),before.receipts.slice(0,-1),'other receipts remain unchanged');
- const saved=await durable();globalThis.nativeQueryTrace=[];
+ const saved=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
  const repeated=await invoker.invokeMutation(req,who);assert.ok('error'in repeated);assert.equal(repeated.error.code,code);
  assert.deepEqual(await durable(),saved);assert.deepEqual(globalThis.nativeQueryTrace,[],'failed replay has no effects or child execution');
+ assert.deepEqual(globalThis.nativeChildCounts,[]);
 }
-await rejectedParent({...parentInputs,accept:false},'rule_failed',true);
+await rejectedParent({...parentInputs,accept:false},'rule_failed',true,identity,2);
+// One target is valid for the original child (1 == 1), but its actual bound
+// result fails the parent's authored two-fact guard after child execution.
+await rejectedParent({...parentInputs,targets:[ref(one)]},'rule_failed',true,identity,1);
 await rejectedParent({...parentInputs,targets:[ref(one),ref(one)]},'rule_failed',true);
 await rejectedParent({...parentInputs,location:ref(otherLocation)},'rule_failed',true);
 await rejectedParent({...parentInputs,targets:[]},'validation',false);
@@ -260,7 +275,7 @@ assert.equal(revokedReplay.result.status,'replayed');assert.equal(revokedReplay.
 const retainedReplay=await invoker.invokeRetainedMutation(success,identity);assert.ok('error'in retainedReplay,JSON.stringify(retainedReplay));assert.equal(retainedReplay.error.code,'forbidden');
 assert.deepEqual(await durable(),beforeRevokedReplay);assert.deepEqual(globalThis.nativeQueryTrace,[]);
 assert.deepEqual(await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:null,records:[]});
-console.log('native original query: public ordered read, private unused child, real receipt replay, rollback, bounds, references and live authority passed');
+console.log('native original query: public ordered read, private child count guard/return, real receipt replay, rollback, bounds, references and live authority passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(
