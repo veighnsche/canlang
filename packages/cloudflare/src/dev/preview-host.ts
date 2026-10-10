@@ -232,6 +232,11 @@ export async function seedLocalPreviewActors(db: D1Database): Promise<LocalPrevi
     ]) };
 }
 
+/** Each actual local preview receives a private generated-form binding key. */
+export function localPreviewWorkerVars(): Readonly<Record<string, unknown>> {
+  return { CAN_FORM_BINDING_KEY: randomBytes(32).toString("base64url") };
+}
+
 /** Host hook injected into the session owner; no caller can supply `active:true`. */
 export function createInstalledLocalPreviewBuilder() {
   return createLocalPreviewBuilder({
@@ -243,6 +248,6 @@ export function createInstalledLocalPreviewBuilder() {
     confirmRunningActivation: localPreviewActivationVerdict,
     produceBundle: produceInstalledPortableBundle,
     seedLocalActors: seedLocalPreviewActors,
-    workerVarsForOrigin: () => ({ CAN_FORM_BINDING_KEY: randomBytes(32).toString("base64url") }),
+    workerVarsForOrigin: localPreviewWorkerVars,
   });
 }

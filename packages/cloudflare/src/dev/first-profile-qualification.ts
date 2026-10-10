@@ -10,7 +10,7 @@ import { compileCapturedSingleFile } from './compiler-check.js';
 import { loadInstalledExampleTestkit, runCompiledExamples } from './example-runner.js';
 import { createLocalPreviewBuilder, type LocalPreviewWithActors } from './preview-builder.js';
 import { localPreviewActivationVerdict, preflightLocalPreviewActivation, produceInstalledPortableBundle,
-  seedLocalPreviewActors } from './preview-host.js';
+  seedLocalPreviewActors, localPreviewWorkerVars } from './preview-host.js';
 import { loadInstalledChromium, prepareLocalPreviewCapture } from './preview-inputs.js';
 import { qualifyFirstProfileBrowser, type FirstProfileBrowserInput } from './first-profile-browser.js';
 import { FIRST_PROFILE } from './construct-help.js';
@@ -89,6 +89,7 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
   const build = createLocalPreviewBuilder({ resources: { d1: { binding: 'DB', availability: 'real_local' },
     identity: { backingBinding: 'DB', availability: 'real_local' } }, activationVerdict: preflightLocalPreviewActivation,
     produceBundle: produceInstalledPortableBundle, seedLocalActors: seedLocalPreviewActors,
+    workerVarsForOrigin: localPreviewWorkerVars,
     confirmRunningActivation: async (artifact, source, db, id, owner, identityDb) => {
       check(); assert.ok(owner && identityDb); owners.set(owner, db); identities = identityDb;
       const verdict = await localPreviewActivationVerdict(artifact, source, db, id, owner, identityDb);
