@@ -1,10 +1,11 @@
+import type { OwnedChromium } from "@canlang/contracts/browser/chromium";
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { deriveCsrfToken, SESSION_COOKIE_NAME } from '@canlang/identity';
 import type { LocalPreviewWithActors } from './preview-builder.js';
 
-type Browser = Awaited<ReturnType<typeof import('@canlang/testkit/browser/chromium')['acquireChromium']>>['browser'];
+type Browser = OwnedChromium['browser'];
 type Context = Awaited<ReturnType<Browser['newContext']>>;
 type Page = Awaited<ReturnType<Context['newPage']>>;
 type Locator = ReturnType<Page['locator']>;

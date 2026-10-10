@@ -35,6 +35,14 @@ Node-only leaf declares optional `@playwright/test` 1.63.0 and is absent from
 the root entry. It neither downloads browsers nor imports into the portable
 Worker runtime.
 
+Node consumers that already depend on Contracts use
+`ChromiumProducer` and `OwnedChromium` from the type-only
+`@canlang/contracts/browser/chromium` leaf. Testkit re-exports the same types;
+`OwnedChromium.browser` is the genuine Playwright `Browser`. Contracts declares
+that driver's types as an optional peer, without requiring the driver for its
+ordinary root. Cloudflare can describe the application-installed producer
+through this port without adding a reverse dependency on Testkit.
+
 `chromiumAvailability()` returns `available: true` with the actual
 `identity.driverEntryPath` and `identity.executablePath`, or `available: false`
 with `driver-not-installed` or `executable-not-installed`. Broken installed

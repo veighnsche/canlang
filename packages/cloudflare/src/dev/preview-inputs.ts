@@ -1,4 +1,5 @@
 /** Installed, file-level inputs for the portable local preview producer. */
+import type { ChromiumProducer } from "@canlang/contracts/browser/chromium";
 import { accessSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { constants } from "node:fs";
 import { createRequire } from "node:module";
@@ -262,7 +263,7 @@ async function pinBrowserCode(key: string, root: string, paths: readonly NamedIn
 /** Optional qualification-only producer; never linked into the portable Worker. */
 export async function loadInstalledChromium(applicationRoot: string): Promise<{
   entryPath: string;
-  producer: typeof import("@canlang/testkit/browser/chromium");
+  producer: ChromiumProducer;
   driver: ReturnType<typeof browserDriverInputs>;
 } | null> {
   const rootEntry = resolveOwned("@canlang/testkit", applicationRoot);
@@ -278,7 +279,7 @@ export async function loadInstalledChromium(applicationRoot: string): Promise<{
   if (driver !== null) await pinBrowserCode(`driver:${driver.entryPath}`, applicationRoot, driver.inputs);
   // A content-qualified URL prevents unrelated earlier imports from supplying this leaf.
   const leaf = browserCodePins.get(`producer:${entryPath}`)!.find(input => input.name === "browser:producer")!;
-  const producer = await import(`${pathToFileURL(entryPath).href}?can_browser=${leaf.sha256}`) as typeof import("@canlang/testkit/browser/chromium");
+  const producer = await import(`${pathToFileURL(entryPath).href}?can_browser=${leaf.sha256}`) as ChromiumProducer;
   for (const name of ["chromiumAvailability", "acquireChromium"] as const) {
     const property = Object.getOwnPropertyDescriptor(producer, name);
     if (typeof property?.value !== "function") throw new Error("preview inputs: broken installed browser producer");
