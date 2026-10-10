@@ -127,7 +127,9 @@ Then
     let IrExpr::Query(projection) = &value.expr else {
         panic!()
     };
-    assert!(projection.source.is_some());
+    let projection_fact = projection.source.as_ref().unwrap();
+    let row_projection = projection_fact.projection.as_ref().unwrap();
+    assert_eq!(row_projection.fields.len(), 4);
     let projected = projection.select.as_ref().unwrap();
     let IrExpr::Object(fields) = &projected.expr else {
         panic!("{projected:?}")
@@ -137,6 +139,55 @@ Then
         ResolvedType::Record { stored: true, .. }
     ));
     assert!(matches!(&fields[1].1.expr, IrExpr::Member {field,..} if field=="version"));
+    // Attribution must join the real lowered object, never merely travel with
+    // a checked-query-shaped value. Each altered owning/source fact refuses.
+    for mode in 0..9 {
+        use canlang_compiler::analysis::types::CheckedQueryProjectionMapping as Mapping;
+        let (mut altered, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{mode}: {diagnostics:?}");
+        let proof = altered
+            .types
+            .checked_queries
+            .get_mut(&projection_fact.node)
+            .unwrap()
+            .projection
+            .as_mut()
+            .unwrap();
+        match mode {
+            0 => proof.contract = proof.model,
+            1 => proof.model = proof.contract,
+            2 => proof.alias = fact.clauses[0].node,
+            3 => proof.fields[0].node = proof.fields[1].node,
+            4 => proof.fields[1].mapping = Mapping::StoredReference,
+            5 => {
+                proof.fields[2].mapping = Mapping::DirectField {
+                    field: proof.fields[3].field,
+                }
+            }
+            6 => proof.fields.swap(2, 3),
+            7 => {
+                proof.fields.pop();
+            }
+            8 => proof.fields[0].ty = ResolvedType::Scalar(Scalar::Bool),
+            _ => unreachable!(),
+        }
+        let (altered, diagnostics) = ir::build(&altered, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{mode}: {diagnostics:?}");
+        let IrItemKind::Scenario { effects, .. } = &altered.items[context.id.0 as usize].kind
+        else {
+            panic!()
+        };
+        let IrStmt::Return {
+            value: Some(value), ..
+        } = &effects[2]
+        else {
+            panic!()
+        };
+        assert!(
+            matches!(value.expr, IrExpr::Unsupported { .. }),
+            "{mode}: {value:?}"
+        );
+    }
     let emitted = js::emit_program_with_native_source_receipts(&lowered, true, &db);
     assert!(
         emitted
