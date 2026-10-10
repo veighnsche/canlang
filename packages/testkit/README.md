@@ -58,3 +58,13 @@ An aborted signal closes an acquired browser. Cancellation during launch
 waits for the bounded Playwright launch to settle and closes before rejecting;
 the locked driver has no launch signal port. Only its declared Chromium
 executable is used, with no system-browser fallback.
+
+Compiled behavior tables may carry `selectorChannels`, a dense array aligned
+with `selectors`: `input` applies the full path to operation inputs, `request`
+applies a `request.*` path to wire-envelope overrides, and `caller` belongs to
+`as`. Compiler supplies this checked distinction; a lexical input named
+`request` remains an ordinary input, including a whole value supplied by a row
+cell. The loader copies the routing metadata before asynchronous closures run,
+rejects malformed or inconsistent channels, and forwards the checked channels
+to `prepareRowCells` for input-only fixture materialization. Older tables that
+omit the metadata retain their existing `request.*` wire-envelope behavior.
