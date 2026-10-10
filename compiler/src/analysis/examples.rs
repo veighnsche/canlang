@@ -87,6 +87,33 @@ pub struct FixtureRecipe {
     pub seeds: Vec<SymbolId>,
 }
 
+/// Runtime input channel selected by checked lexical ownership.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectorChannel {
+    Input,
+    Request,
+    Caller,
+}
+
+impl SelectorChannel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Input => "input",
+            Self::Request => "request",
+            Self::Caller => "caller",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CheckedSelectorChannels {
+    node: NodeKey,
+    module: ModuleId,
+    operation: Option<SymbolId>,
+    selectors: Vec<String>,
+    channels: Vec<SelectorChannel>,
+}
+
 /// One table-form `examples` block: the codegen behavior-table input.
 #[derive(Debug, Clone)]
 pub struct BehaviorTable {
@@ -106,10 +133,25 @@ pub struct BehaviorTable {
     pub seeds: Vec<SymbolId>,
     /// Input header selector spellings in column order.
     pub inputs: Vec<String>,
+    /// Source-checked channel ownership, not editable public channel claims.
+    checked_selector_channels: Option<CheckedSelectorChannels>,
     /// Observation header spellings in column order.
     pub observations: Vec<String>,
     /// Data row count (excluding the header).
     pub rows: usize,
+}
+
+impl BehaviorTable {
+    /// Dense channels for the original checked table owner and selectors.
+    pub fn selector_channels(&self) -> Option<&[SelectorChannel]> {
+        let checked = self.checked_selector_channels.as_ref()?;
+        (checked.node == self.node
+            && checked.module == self.module
+            && checked.operation == self.operation
+            && checked.selectors == self.inputs
+            && checked.channels.len() == self.inputs.len())
+        .then_some(checked.channels.as_slice())
+    }
 }
 
 /// One sequence-form `examples`/`do` block.
@@ -741,7 +783,7 @@ impl<'a> Checker<'a> {
             input_sels.push(sel);
         }
         for expected in &header_expected {
-            self.check_observation_root(text, ctx, expected);
+            self.check_observation_root(text, module, ctx, &bound, expected);
         }
         self.check_overlap(&input_sels);
         self.check_table_coverage(text, ctx, owner, node, &bound, &input_sels);
@@ -777,6 +819,30 @@ impl<'a> Checker<'a> {
             OpCtx::Scenario { id, .. } => (Some(*id), None),
             OpCtx::Crud { model, op } => (self.crud_op_symbol(module, *model, *op), Some(*op)),
         };
+        let inputs: Vec<String> = header_inputs
+            .iter()
+            .map(|n| tight_slice(text, n).to_string())
+            .collect();
+        let checked_selector_channels = input_sels
+            .iter()
+            .map(|selector| {
+                selector
+                    .overlap
+                    .as_ref()
+                    .map(|overlap| match overlap.channel {
+                        OverlapChannel::Caller => SelectorChannel::Caller,
+                        OverlapChannel::Request => SelectorChannel::Request,
+                        OverlapChannel::State | OverlapChannel::Changes => SelectorChannel::Input,
+                    })
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(|channels| CheckedSelectorChannels {
+                node: NodeKey::of(node),
+                module,
+                operation,
+                selectors: inputs.clone(),
+                channels,
+            });
         self.out.tables.push(BehaviorTable {
             node: NodeKey::of(node),
             span: tight_span(text, node),
@@ -785,10 +851,8 @@ impl<'a> Checker<'a> {
             crud_op,
             bindings: bound.keys().cloned().collect(),
             seeds,
-            inputs: header_inputs
-                .iter()
-                .map(|n| tight_slice(text, n).to_string())
-                .collect(),
+            inputs,
+            checked_selector_channels,
             observations: header_expected
                 .iter()
                 .map(|n| tight_slice(text, n).to_string())
@@ -1412,7 +1476,14 @@ impl<'a> Checker<'a> {
 
     /// Check one observation (expected-side) header root (`E5002`).
     /// Observations are otherwise runner-typed expressions.
-    fn check_observation_root(&mut self, text: &str, ctx: &OpCtx, expected: &SyntaxNode) {
+    fn check_observation_root(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        ctx: &OpCtx,
+        bound: &HashMap<String, &SyntaxNode>,
+        expected: &SyntaxNode,
+    ) {
         if expected.kind == SyntaxKind::ExpectedError {
             return;
         }
@@ -1422,6 +1493,11 @@ impl<'a> Checker<'a> {
         };
         let Some(root) = path.first() else { return };
         let span = tight_span(text, expected);
+        // A real lexical model/fixture binding owns this spelling before the
+        // unbound wire-envelope channel, just as for an ordinary neutral name.
+        if root == "request" && self.request_observation_fixture(text, module, ctx, bound) {
+            return;
+        }
         match root.as_str() {
             "changes" | "request" => {
                 self.diags.push(Diagnostic::error(
@@ -1455,6 +1531,51 @@ impl<'a> Checker<'a> {
             }
             _ => {}
         }
+    }
+
+    fn request_observation_fixture(
+        &self,
+        text: &str,
+        module: ModuleId,
+        ctx: &OpCtx,
+        bound: &HashMap<String, &SyntaxNode>,
+    ) -> bool {
+        if let OpCtx::Scenario { params, .. } = ctx
+            && let Some(param) = params
+                .iter()
+                .find(|param| self.tables.symbols[param.0 as usize].name == "request")
+        {
+            let Some(ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }) = self.types.symbol_types.get(param)
+            else {
+                return false;
+            };
+            let fixture = bound
+                .get("request")
+                .and_then(|value| binding_fixture(self.tables, module, text, value));
+            return fixture.is_some_and(|fixture| {
+                matches!(self.tables.symbols[fixture.0 as usize].kind,
+                SymbolKind::Fixture { target: FixtureTarget::Model(owner) } if owner == *model)
+            });
+        }
+        // A common input or generated create field still shadows a fixture
+        // with the same spelling; it does not become observable state.
+        if bound.contains_key("request")
+            || matches!(ctx, OpCtx::Crud { model, op: CrudOp::Create }
+                if self.model_field_named(*model, "request").is_some())
+        {
+            return false;
+        }
+        test_symbol(self.tables, module, "request").is_some_and(|fixture| {
+            matches!(
+                self.tables.symbols[fixture.0 as usize].kind,
+                SymbolKind::Fixture {
+                    target: FixtureTarget::Model(_)
+                }
+            )
+        })
     }
 
     /// Check input-header selectors for duplicate/overlapping initial
