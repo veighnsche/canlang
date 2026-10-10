@@ -7481,3 +7481,20 @@ parameter/reference sites next; exported Rent remains excluded. Local only.
 ### 2026-10-10 — manual local integration of 4810e4bd
 
 Finite manual review CLEAR. The actual CLI stdout artifact runs unchanged through installed Testkit and the default native D1/Identity consumer for both authored dotted and whole-root model inputs; retain the separate corrected genuine wire invocation-port witness. Reuse focused2/2 in3.35s, frozen whole1429 across138 targets with zero failure/ignored/filtered/bodySKIP and real required engines/native/permission bodies, strict Clippy0 in57.26s/fmt/diff0 and genuine uncached graph26/26. The Compiler witness exercises the canonical receipt/history path but does not independently assert its stored ledger; the separately integrated Devb31 workflow retains its own complete resource/receipt/history scope. Current original33/noartifact, full58/67/nine open, native hook/completion producer-consumer joins and every recipient-specific hold remain. All52 actual corpus rows pass at this frozen source tuple; future Purchase source changes require their affected checks, not repetition of unchanged suites. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — preserve Purchase received state (unfinished composition)
+
+Assigned draft265b837 renames only private receive date parameter to received_on,
+its replay RHS, explicit Receipt received=received_on assignment, actual example
+binding and calendar input. Stored received cases/fields/table/order/labels and
+complete guards/locks/evaluation order/authority remain. Finite review CLEAR.
+Actual same CLI original25/catalog33→32 removes only one Purchase E3001 state/date
+capture, adds none, complete/omitted0/all25 current hashes/no artifact in1.564s.
+Isolated138→137 in0.071s; only Purchase corpus pin/comment changes. All52/full
+assertions and51 other expectations retained; owning table1/1 passes39.32s with36
+unrelated tests unselected. fmt/diff0; reuse unchanged production whole1429/138
+and strict57.26s. Safe FF481→reviewed containing4a6 consumes Workdc7/File679/
+selected Devb31 without source overlap or discarded edits. Private completion
+carrier and original typed hook context remain unfinished executable joins.
+58/67/nine and precise holds remain; exported Rent excluded. Local only.
