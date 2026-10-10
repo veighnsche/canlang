@@ -6416,3 +6416,15 @@ The existing real Files/Interfaces assembly fixture must supply required observe
 
 Root typecheck passes. Initial affected journeys reveal missing-offset refusal and consequent incomplete-transfer failure; correct those actual request/binding inputs, preserving the original digest-conflict request. Final root typecheck and both existing journeys pass, with19 unrelated cases filtered and finite source reviewCLEAR. Reuse unchanged owning forwarding/Files and installed results. This qualifies the common fixture gate using its explicit memory test stores, without native File/current-authority/replay/durable or whole-parent acceptance.
 
+
+Compiler assignment-only File source, 2026-10-10 (unfinished native host join):
+admit only explicit direct required defaultless root File input into its owning
+singular File/file? field. Preserve original TypedFileJourney awaited Set then
+accept guard. Dedicated source proof joins actual owning schema and input with
+verified original value/parameter declaration bytes; mutable agreeing proof/IR
+cannot substitute another valid File input. Genuine finalized observation,
+physical lifetime and final postwrite association remain Files/State-owned;
+no general File scalar/read/result/child/copy/loop admission follows. Affected316,
+strict all-target lint/format0 and finite review CLEAR qualify compiler source
+publication. Dev actual native binding/staging/retained replay and unchanged D1
+journey remain required;58/67 and precise BDD3/Task22 holds stay unchanged.

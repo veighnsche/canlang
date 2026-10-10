@@ -1328,3 +1328,333 @@ fn supplied_reference_array_loop_retains_empty_nonempty_and_exact_ir_corresponde
         );
     }
 }
+
+#[test]
+fn original_file_attachment_has_assignment_only_proof_and_native_void_disclosure() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    use canlang_compiler::analysis::{ResolvedType, Scalar};
+    use canlang_compiler::codegen::{
+        ir::{IrExpr, IrItemKind, IrStmt, IrType},
+        js,
+    };
+    let source = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
+    let (db, program, lowered) = checked_with_ir(&[("typed-file-journey.can", source)]);
+    let closure = complete(&program, "TypedFileJourney.attach");
+    origins(&db, closure);
+    assert_eq!(closure.effects.len(), 1);
+    assert_eq!(closure.returns.len(), 1);
+    let DisclosureEffectKind::Set {
+        fields,
+        file_inputs,
+        ..
+    } = &closure.effects[0].kind
+    else {
+        panic!("original attachment Set");
+    };
+    assert_eq!(fields.len(), 1);
+    assert_eq!(file_inputs.len(), 1);
+    let input = &file_inputs[0];
+    assert_eq!(input.field, fields[0]);
+    assert_eq!(
+        program.symbols[input.field.0 as usize].canonical,
+        "TypedFileJourney.Entry.attachment"
+    );
+    assert_eq!(
+        program.symbols[input.parameter.0 as usize].canonical,
+        "TypedFileJourney.attach.attachment"
+    );
+    assert_eq!(
+        &source[input.value.start as usize..input.value.end as usize],
+        "attachment"
+    );
+    assert_eq!(
+        program.types.symbol_types.get(&input.parameter),
+        Some(&ResolvedType::Scalar(Scalar::File))
+    );
+    assert!(
+        closure.returns[0]
+            .dependencies
+            .iter()
+            .all(|dependency| dependency.type_id != "file"),
+        "assignment proof does not manufacture finalized File observations"
+    );
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "TypedFileJourney.attach")
+        .unwrap()
+        .id;
+    let IrItemKind::Scenario {
+        effects, result, ..
+    } = &lowered.items[owner.0 as usize].kind
+    else {
+        panic!("actual attachment scenario");
+    };
+    assert!(result.is_none());
+    assert!(matches!(
+        effects.as_slice(),
+        [IrStmt::Set { .. }, IrStmt::Require { .. }]
+    ));
+    let emit = |ir: &ir::IrProgram| js::emit_program_with_native_source_receipts(ir, true, &db);
+    let native = emit(&lowered);
+    let operation = native
+        .operations
+        .iter()
+        .find(|operation| operation.name == "TypedFileJourney.attach")
+        .unwrap();
+    assert_eq!(operation.result.as_deref(), Some("void"));
+    assert!(operation.disclosure.is_some());
+    assert!(
+        native.entry.js.contains("await set("),
+        "original owning Set is awaited"
+    );
+
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("typed-file-journey", "1.0", 1);
+    result.complete = true;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    // Full emission consumes this exact checked source cohort, not a substitute
+    // File observation or a separately constructed runtime context.
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(input.value.file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (fresh, diagnostics) = check_program(&db, program.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &fresh,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "TypedFileJourney.attach")
+        .unwrap();
+    assert_eq!(operation["result"]["type"], "void");
+    assert!(operation["result"].get("disclosure").is_some());
+
+    for corruption in 0..10 {
+        let mut changed = lowered.clone();
+        match corruption {
+            0..=3 => {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!("actual scenario");
+                };
+                let IrStmt::Set { changes, .. } = &mut effects[0] else {
+                    panic!("actual Set");
+                };
+                let IrExpr::Object(entries) = &mut changes.expr else {
+                    panic!("authored assignment");
+                };
+                match corruption {
+                    0 => entries[0].1.expr = IrExpr::Name("accept".into()),
+                    1 => entries[0].1.ty = ResolvedType::Scalar(Scalar::Bool),
+                    2 => entries[0].1.span.start += 1,
+                    3 => entries[0].0 = "label".into(),
+                    _ => unreachable!(),
+                }
+            }
+            4..=6 => {
+                let IrItemKind::Field {
+                    ty,
+                    owner: field_owner,
+                    ..
+                } = &mut changed.items[input.field.0 as usize].kind
+                else {
+                    panic!("owning attachment field");
+                };
+                match corruption {
+                    4 => {
+                        *ty = IrType::Known(ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+                            Scalar::Text,
+                        ))))
+                    }
+                    5 => *field_owner = owner,
+                    6 => changed.items[input.field.0 as usize].name = "label".into(),
+                    _ => unreachable!(),
+                }
+            }
+            _ => {
+                let ScenarioDisclosure::Complete(closure) =
+                    changed.scenario_disclosures.get_mut(&owner).unwrap()
+                else {
+                    panic!("private checked closure");
+                };
+                let DisclosureEffectKind::Set { file_inputs, .. } = &mut closure.effects[0].kind
+                else {
+                    panic!("private assignment proof");
+                };
+                match corruption {
+                    7 => file_inputs[0].parameter = owner,
+                    8 => file_inputs[0].field = owner,
+                    9 => file_inputs[0].value.start += 1,
+                    _ => unreachable!(),
+                }
+            }
+        }
+        assert!(
+            emit(&changed)
+                .operations
+                .iter()
+                .find(|operation| operation.name == "TypedFileJourney.attach")
+                .unwrap()
+                .disclosure
+                .is_none(),
+            "File source/IR input or schema skew {corruption} must refuse native publication"
+        );
+    }
+}
+
+#[test]
+fn file_assignment_refuses_nonoriginal_and_unsupported_file_profiles() {
+    let original = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
+    let body = "   set entry {attachment=attachment}\n   require accept";
+    let mut cases = vec![
+        original.replace(body, "   let copied=attachment\n   set entry {attachment=copied}\n   require accept"),
+        original.replace("Given\n", "Given\n derive identity(value:file):file=value\n")
+            .replace("attachment=attachment", "attachment=identity(attachment)"),
+        original.replace("attachment:file,accept", "attachment:file?,accept"),
+        original.replace(body, "   set entry {attachment=attachment}\n   let observed=entry.attachment\n   require accept"),
+        original.replace(") by=owner\n  do", ") -> file by=owner\n  do")
+            .replace(body, "   set entry {attachment=attachment}\n   require accept\n   return attachment"),
+        original.replace(body, "   let files=[attachment]\n   set entry {attachment=attachment}\n   require accept"),
+        original.replace("attachment:file,accept", "attachment:file,attachments:file[],accept")
+            .replace(body, "   for supplied in attachments limit=3\n    set entry {attachment=supplied}\n   require accept"),
+    ];
+    cases.push(original.replace("When\n", "When\n scenario child(attachment:file) by=owner\n  do require true\n")
+        .replace(body, "   set entry {attachment=attachment}\n   call child {attachment}\n   require accept"));
+    for source in cases {
+        let mut db = SourceDb::new();
+        let file = db.add("file-profile-refusal.can".into(), source.clone());
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(
+            diagnostics.is_empty(),
+            "valid unsupported source {source}\n{diagnostics:?}"
+        );
+        assert!(
+            matches!(
+                fact(&program, "TypedFileJourney.attach"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "unsupported File closure must decline: {source}"
+        );
+    }
+}
+
+#[test]
+fn file_assignment_paired_proof_and_value_corruption_still_requires_original_source_binding() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    use canlang_compiler::codegen::{
+        ir::{IrExpr, IrItemKind, IrStmt},
+        js,
+    };
+    let source = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can")
+        .replace(
+            "attachment:file,accept",
+            "attachment:file,second:file,accept",
+        );
+    let (db, program, lowered) = checked_with_ir(&[("file-paired-binding.can", &source)]);
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "TypedFileJourney.attach")
+        .unwrap()
+        .id;
+    let second = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "TypedFileJourney.attach.second")
+        .unwrap()
+        .id;
+    let disclosed = |ir: &ir::IrProgram, db: &SourceDb| {
+        js::emit_program_with_native_source_receipts(ir, true, db)
+            .operations
+            .iter()
+            .find(|operation| operation.name == "TypedFileJourney.attach")
+            .unwrap()
+            .disclosure
+            .is_some()
+    };
+    assert!(
+        disclosed(&lowered, &db),
+        "original required File assignment qualifies"
+    );
+
+    let mut changed = lowered.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+        panic!("original attachment scenario");
+    };
+    let IrStmt::Set { changes, .. } = &mut effects[0] else {
+        panic!("original Set");
+    };
+    let IrExpr::Object(entries) = &mut changes.expr else {
+        panic!("original inputs");
+    };
+    let original_span = entries[0].1.span;
+    entries[0].1.expr = IrExpr::Name("second".into());
+    let ScenarioDisclosure::Complete(closure) =
+        changed.scenario_disclosures.get_mut(&owner).unwrap()
+    else {
+        panic!("immutable checked closure");
+    };
+    let DisclosureEffectKind::Set { file_inputs, .. } = &mut closure.effects[0].kind else {
+        panic!("original File assignment proof");
+    };
+    assert_eq!(file_inputs.len(), 1);
+    let original_value = file_inputs[0].value;
+    file_inputs[0].parameter = second;
+    assert_eq!(file_inputs[0].value, original_value);
+    assert_eq!(
+        (
+            original_value.file,
+            original_value.start,
+            original_value.end
+        ),
+        (original_span.file, original_span.start, original_span.end)
+    );
+    assert!(
+        !disclosed(&changed, &db),
+        "agreeing forged File value and parameter cannot replace the original source binding"
+    );
+
+    assert!(
+        !disclosed(&lowered, &SourceDb::new()),
+        "missing original source bytes refuse native publication"
+    );
+    let mut changed_db = SourceDb::new();
+    changed_db.add(
+        "file-paired-binding.can".into(),
+        source.replace("attachment=attachment", "attachment=second"),
+    );
+    assert!(
+        !disclosed(&lowered, &changed_db),
+        "changed source bytes cannot qualify the previous checked assignment"
+    );
+}
