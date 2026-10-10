@@ -828,26 +828,34 @@ export function buildMcpBundle(_repoRoot?: string): string {
         throw err;
       }
     }
-    rmSync(workDir, { force: true, recursive: true });
-    const detail = err instanceof Error ? err.message : String(err);
-    if (detail.includes("ENOENT")) {
+    try {
+      rmSync(workDir, { force: true, recursive: true });
+    } finally {
+      const detail = err instanceof Error ? err.message : String(err);
+      if (detail.includes("ENOENT")) {
+        throw new Error(
+          "deploy bundle: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
+            "install bun (https://bun.sh) or deploy via `bun run`",
+        );
+      }
       throw new Error(
-        "deploy bundle: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
-          "install bun (https://bun.sh) or deploy via `bun run`",
-      );
-    }
-    throw new Error(
-      `deploy bundle: MCP bundle build failed (\`bun build\` on the generated entry); ` +
+        `deploy bundle: MCP bundle build failed (\`bun build\` on the generated entry); ` +
         `the MCP SDK must resolve (run \`bun install\`) and both producer dists must be built. ` +
         `Underlying error: ${detail}`,
-    );
+      );
+    }
   }
   let contents: string;
   try {
     contents = readFileSync(outFile, "utf8");
-  } finally {
-    rmSync(workDir, { force: true, recursive: true });
+  } catch (err) {
+    try {
+      rmSync(workDir, { force: true, recursive: true });
+    } finally {
+      throw err;
+    }
   }
+  rmSync(workDir, { force: true, recursive: true });
   for (const marker of MCP_BUNDLE_MARKERS) {
     if (!contents.includes(marker)) {
       throw new Error(
@@ -906,25 +914,33 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
         throw err;
       }
     }
-    rmSync(workDir, { force: true, recursive: true });
-    const detail = err instanceof Error ? err.message : String(err);
-    if (detail.includes("ENOENT")) {
+    try {
+      rmSync(workDir, { force: true, recursive: true });
+    } finally {
+      const detail = err instanceof Error ? err.message : String(err);
+      if (detail.includes("ENOENT")) {
+        throw new Error(
+          "deploy bundle: `bun` is not on PATH, needed to bundle the HTTP operations chain; " +
+            "install bun (https://bun.sh) or deploy via `bun run`",
+        );
+      }
       throw new Error(
-        "deploy bundle: `bun` is not on PATH, needed to bundle the HTTP operations chain; " +
-          "install bun (https://bun.sh) or deploy via `bun run`",
+        `deploy bundle: HTTP bundle build failed (\`bun build\` on the generated entry); ` +
+        `the interfaces dist must be built. Underlying error: ${detail}`,
       );
     }
-    throw new Error(
-      `deploy bundle: HTTP bundle build failed (\`bun build\` on the generated entry); ` +
-        `the interfaces dist must be built. Underlying error: ${detail}`,
-    );
   }
   let contents: string;
   try {
     contents = readFileSync(outFile, "utf8");
-  } finally {
-    rmSync(workDir, { force: true, recursive: true });
+  } catch (err) {
+    try {
+      rmSync(workDir, { force: true, recursive: true });
+    } finally {
+      throw err;
+    }
   }
+  rmSync(workDir, { force: true, recursive: true });
   for (const marker of HTTP_BUNDLE_MARKERS) {
     if (!contents.includes(marker)) {
       throw new Error(
