@@ -463,3 +463,32 @@ console.log('OUT-R01: public emitter distinct imports, reserved lambdas, temp co
     );
     eprint!("{}", String::from_utf8_lossy(&executed.stdout));
 }
+
+#[test]
+fn async_dispatch_guard_refuses_cli_publication_without_its_runtime_join() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("async-dispatch.can");
+    std::fs::write(&source, "app AsyncDispatch\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\n derive eligible(value:int):bool = value>0\nWhen\n scenario dispatch(value:int) by=members\n  do send LLM.cancel {revision=1,source=\"fixed\"} when=eligible(value) as stop\nThen\n").unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(source)
+        .output()
+        .unwrap();
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(!output.status.success(), "{result}");
+    assert!(result.get("modules").is_none(), "{result}");
+    assert!(
+        result["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008"
+                && diagnostic["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("send dispatch guard")
+                        && message.contains("owning live dispatch observer"))),
+        "{result}"
+    );
+}
