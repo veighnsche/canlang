@@ -21,6 +21,7 @@ import { generatedCrudExecute } from '../dist/src/mutation/crud.js';
 import { buildModelTableFromCanonical } from '../dist/src/mutation/models.js';
 import { buildPolicyTable } from '../dist/src/policy/grants.js';
 import { StateError } from '../dist/src/errors.js';
+import { bindDeclaredFileReferenceProfile, fileReferenceOccurrences } from '../dist/src/ports/file-reference-profile.js';
 import { FIXED_NOW, makeEnvelope, makeIdentity, uuidv7 } from '../dist/test/invocation/fixtures.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -261,5 +262,117 @@ test('real required File array source reaches winning State CRUD and current SQL
     assert.deepEqual(await store.load(MODEL, arrayRow.id), arrayRow);
   } finally {
     physical?.close(); rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+// Internal typed traversal component only. Source generation establishes the
+// actual declaration types here; origin, census admission and native hosting
+// qualification belong to their owning consumers.
+test('original source declaration types bind complete canonical nested File profiles without invented model fields', {
+  skip: 'Compiler-owned E6008 prerequisite: genuine §13 field-schema lowering for FileProfile.Packet|FileProfile.Empty at Bundle.choice is pending.',
+}, () => {
+  const scratch = mkdtempSync(join(root, 'compiler/target/file-declared-profile-'));
+  try {
+    const input = join(scratch, 'Profiles.can');
+    writeFileSync(input, `app FileProfile
+Given
+ Record {attachments:file[]! min=1 max=2,label:text trim min=1 max=5}
+ policy Record read=members
+ contract Packet {attachments:file[]! min=1 max=3,optional:file?,related:Record?,label:text trim max=5,state:enum(open,closed)}
+ contract Empty {note:text}
+ contract Bundle {choice:Packet|Empty,extras:file[],optional:file[]?}
+When
+ scenario inspect(payload:Bundle) read=true -> Bundle by=members
+  do return payload
+ scenario inspectNullable(payload:Bundle?) read=true -> Bundle? by=members
+  do return payload
+ scenario bounded(values:Record.attachments) read=true -> file[] by=members
+  do return values
+Then
+`);
+    const compileEnv = { ...process.env }; delete compileEnv.CAN_CATALOG;
+    const compiled = spawnSync(resolve(process.argv[2] ?? join(root, 'compiler/target/debug/can')),
+      ['compile', '--format=json', '--catalog', join(root, 'packages/values/dist/catalog.json'), input],
+      { encoding: 'utf8', env: compileEnv });
+    assert.equal(compiled.status, 0, compiled.error?.message ?? compiled.stderr + compiled.stdout);
+    const artifact = JSON.parse(compiled.stdout);
+    const loaded = loadArtifactDescriptors(artifact, { by: 'members' });
+    const bound = { artifactModels: new Map(artifact.models.map(model => [model.name, model])),
+      canonicalModels: loaded.models, valueSchema: loaded.valueSchema, valueTypes: loaded.valueTypes };
+    const original = loaded.registry.get('FileProfile.inspect').descriptor;
+    const declaration = original.inputs.find(input => input.name === 'payload');
+    assert.equal(declaration.valueType, 'FileProfile.Bundle');
+    assert.equal(original.result.type, declaration.valueType);
+    const profile = bindDeclaredFileReferenceProfile(bound, declaration.valueType, declaration);
+    const resultProfile = bindDeclaredFileReferenceProfile(bound, original.result.type);
+    assert.equal(profile.fileBearing, true);
+    const wire = { choice: { type: 'FileProfile.Packet', value: {
+      attachments: [{ id: 'alpha' }, { id: 'alpha' }], optional: { id: 'beta' },
+      related: { id: 'record', version: '1' }, label: 'label', state: 'open',
+    } }, extras: [{ id: 'gamma' }], optional: null };
+    const expected = [
+      { ref: 'alpha', path: ['choice', 'value', 'attachments', 0] },
+      { ref: 'alpha', path: ['choice', 'value', 'attachments', 1] },
+      { ref: 'beta', path: ['choice', 'value', 'optional'] },
+      { ref: 'gamma', path: ['extras', 0] },
+    ];
+    assert.deepEqual(fileReferenceOccurrences(profile, wire), expected);
+    assert.deepEqual(fileReferenceOccurrences(resultProfile, wire), expected);
+    const optional = loaded.registry.get('FileProfile.inspectNullable').descriptor.inputs[0];
+    const nullableProfile = bindDeclaredFileReferenceProfile(bound, optional.valueType, optional);
+    assert.deepEqual(fileReferenceOccurrences(nullableProfile, null), []);
+    assert.deepEqual(fileReferenceOccurrences(nullableProfile, wire), expected);
+    assert.deepEqual(fileReferenceOccurrences(profile, { choice: { type: 'FileProfile.Empty', value: { note: 'none' } },
+      extras: [], optional: [{ id: 'delta' }] }), [{ ref: 'delta', path: ['optional', 0] }]);
+    for (const mutate of [
+      copy => { copy.choice.value.attachments = []; },
+      copy => { copy.choice.value.attachments[0].url = 'https://invalid.test'; },
+      copy => { copy.choice.value.optional = { id: 7 }; },
+      copy => { copy.choice.value.label = ' label '; },
+      copy => { copy.choice.value.label = 'overbound'; },
+      copy => { copy.choice.value.state = 'missing'; },
+      copy => { copy.choice.value.related.version = '01'; },
+      copy => { copy.choice.type = 'FileProfile.Missing'; },
+      copy => { copy.choice.authority = true; },
+      copy => { delete copy.extras; },
+      copy => { copy.optional = [null]; },
+    ]) {
+      const malformed = structuredClone(wire); mutate(malformed);
+      assert.throws(() => fileReferenceOccurrences(profile, malformed), error => error instanceof StateError);
+    }
+    assert.throws(() => fileReferenceOccurrences({ ...profile }, wire), error => error instanceof StateError);
+    for (const type of ['FileProfile.Missing', 'file []', 'text|FileProfile.Packet']) {
+      assert.throws(() => bindDeclaredFileReferenceProfile(bound, type), error => error instanceof StateError);
+    }
+    const bounded = loaded.registry.get('FileProfile.bounded').descriptor.inputs.find(input => input.name === 'values');
+    assert.equal(bounded.min, 1); assert.equal(bounded.max, 2);
+    assert.equal(bounded.valueType, 'file[]');
+    const boundedProfile = bindDeclaredFileReferenceProfile(bound, bounded.valueType, bounded);
+    const required = loaded.models.find(model => model.name === 'FileProfile.Record').fields.attachments;
+    assert.equal(required.valueType, 'file[]!'); assert.deepEqual(required.array, { required: true });
+    const requiredProfile = bindDeclaredFileReferenceProfile(bound, required.valueType, required);
+    for (const profile of [boundedProfile, requiredProfile]) {
+      assert.deepEqual(fileReferenceOccurrences(profile, [{ id: 'alpha' }]), [{ ref: 'alpha', path: [0] }]);
+      for (const wire of [[], Array(3).fill({ id: 'alpha' }), undefined, null]) {
+        assert.throws(() => fileReferenceOccurrences(profile, wire), error => error instanceof StateError);
+      }
+    }
+    const label = loaded.models.find(model => model.name === 'FileProfile.Record').fields.label;
+    const text = bindDeclaredFileReferenceProfile(bound, label.valueType, label);
+    assert.equal(text.fileBearing, false);
+    assert.deepEqual(fileReferenceOccurrences(text, 'label'), []);
+    for (const value of [' label ', '', 'longer']) {
+      assert.throws(() => fileReferenceOccurrences(text, value), error => error instanceof StateError);
+    }
+    for (const constraint of [{ ...bounded, valueType: 'file[]!' }, { ...bounded, min: -1 },
+      { ...bounded, max: undefined }, { ...bounded, trim: true }]) {
+      assert.throws(() => bindDeclaredFileReferenceProfile(bound, bounded.valueType, constraint), error => error instanceof StateError);
+    }
+    const skewed = structuredClone(loaded.valueTypes);
+    skewed.contracts = skewed.contracts.filter(contract => contract.name !== 'FileProfile.Packet');
+    assert.throws(() => bindDeclaredFileReferenceProfile({ ...bound, valueTypes: skewed }, declaration.valueType),
+      error => error instanceof StateError);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 });
