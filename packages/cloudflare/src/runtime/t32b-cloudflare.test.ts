@@ -2156,7 +2156,7 @@ describe("R01 validate-before-retry (dropped delivery envelopes prove pre-strip)
     );
     assert.equal(rejection.name, "IncompatibleArtifactError");
     assert.equal(rejection.reason, "malformed_descriptor");
-    assert.match(rejection.message, /array markers carry a boolean required/);
+    assert.match(rejection.message, /array marker requires an own boolean required/);
   });
 
   it("(c) delivery input with a malformed array marker rejects (no laundering)", async () => {

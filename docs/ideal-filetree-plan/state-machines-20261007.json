@@ -1,27 +1,28 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "d8d3cf87119384eaf8fb5ac1695a48ef828e143f",
-  "base": "33264a65b6119f5f494845c3bca0fb29a9263522",
+  "integrated_source_pin": "fbec14516c4cdbc213a05db4f9a973aca883d2e6",
+  "base": "70952efe1f11bcde2d8b7a2bcb37c49b80f21d3e",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1680,
-    "net_path_deltas": 10825,
-    "history_touched_paths": 11369,
+    "commit_count_since_checkpoint": 1693,
+    "net_path_deltas": 10829,
+    "history_touched_paths": 11373,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9322,
-    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL d8d3cf87119384eaf8fb5ac1695a48ef828e143f onto committed State reference-array and membership source 33264a65b6119f5f494845c3bca0fb29a9263522; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Incoming packages/state and packages/work labels normalize to canonical state/work owners without an ownership transfer. The new State reference-array consumer test remains inherited-unallocated pending exact duty/target review. Reuse Compiler840ba9c7729fd727c0d66c08c886868483647381 original29-file closure check (complete=true, omitted0,149 diagnostics, zero Workbench/CanDo), nominal model-reference producer/installed4/4, async guard refusal CLI/binding3/3 and unchanged codegen121, and owning decision serialization6/6 at their finite source/transport scopes. State/Work reference-array and membership component outcomes remain finite; Dev private element/frame and real lazy stage/dispatch captures are unfinished. No native StateRead, source when/default/pure activation or original workflow acceptance follows. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
+    "inherited_paths_without_prior_target_allocation": 9326,
+    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL fbec14516c4cdbc213a05db4f9a973aca883d2e6 onto committed Work guard-phase source 70952efe1f11bcde2d8b7a2bcb37c49b80f21d3e; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. New Work guard-phase test and three dispatch-preclaim consultation request JSON files remain inherited-unallocated pending exact duty/target review. Requests are saved; responses are absent while automatic egress approval review is pending, so no completed consultation or accepted advice follows. Reuse Compiler normal-stack disclosure library154/decision6, exact52-file corpus owning analysis37/37 (4181 findings), and the single real decision JSON to installed State checker join6/6 with exact user/Team spelling only at their finite scopes. Packages changes affect only two Cloudflare shared assertions; owning19/19 is reused at that scope. Root-recorded affected Work guard-phase/async-fence23/23 (66.69ms) and actual State/Work membership27/27 (126.47ms) are reused at their component scope; native admission before the physical claim remains unqualified. Existing State membership/query/reference-array and Work results retain their recorded scope; Dev private source/frame/stage captures and bounded decision context remain necessary. Native StateRead, source when/default/pure activation and complete original workflow/source/target acceptance remain open. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z 8249342707d3280e88e39e8c911b7e457828f31f (actual final staged merge tree before bookkeeping self-update)",
-    "git log --full-history -m --format= --name-only --no-renames -z 8249342707d3280e88e39e8c911b7e457828f31f..33264a65b6119f5f494845c3bca0fb29a9263522 and 8249342707d3280e88e39e8c911b7e457828f31f..d8d3cf87119384eaf8fb5ac1695a48ef828e143f; union both parent history path sets",
-    "git rev-list --count 33264a65b6119f5f494845c3bca0fb29a9263522 d8d3cf87119384eaf8fb5ac1695a48ef828e143f ^8249342707d3280e88e39e8c911b7e457828f31f (reachable union, no duplicate commits)",
-    "Both rename endpoints excluded from history-only. Highest existing per-path review scope and defining owner/allocations retained from both exact parent registries; incoming packages/state and packages/work labels are canonical owner aliases. Similarity renames confer no semantic successor authority. Existing target allocations, feature paths, retirement authority and complete checkpoint are retained. Bookkeeping resolution does not recursively register a new review.",
+    "git log --full-history -m --format= --name-only --no-renames -z 8249342707d3280e88e39e8c911b7e457828f31f..70952efe1f11bcde2d8b7a2bcb37c49b80f21d3e and 8249342707d3280e88e39e8c911b7e457828f31f..fbec14516c4cdbc213a05db4f9a973aca883d2e6; union both parent history path sets",
+    "git rev-list --count 70952efe1f11bcde2d8b7a2bcb37c49b80f21d3e fbec14516c4cdbc213a05db4f9a973aca883d2e6 ^8249342707d3280e88e39e8c911b7e457828f31f (reachable union, no duplicate commits)",
+    "Both rename endpoints excluded from history-only. Highest existing per-path review scope and defining owner/allocations retained from both exact parent registries; package namespace aliases retain physical package ownership. Similarity renames confer no semantic successor authority. Existing target allocations, feature paths, retirement authority and complete checkpoint are retained. Bookkeeping resolution does not recursively register a new review.",
     "Original-query source checkpoint roles: packages/contracts/src/state.ts owns additive query/result ports with its prior allocation retained; packages/state/src/invocation/scenario-query-plan.ts owns checked plan resolution against owning declarations; packages/state/test/invocation/scenario-owner-query.test.ts owns same-owner query/result behavior cases; packages/state/test/query/observed.test.ts owns observed query authority/fence cases. New paths retain inherited-unallocated scope, with current authority/source/native acceptance unproved.",
     "Active-membership source roles: packages/state/src/invocation/scenario-membership-plan.ts owns declaration-owned membership plan resolution; packages/state/src/invocation/dispatch-membership.ts owns State active-membership dispatch admission; packages/state/test/invocation/scenario-owner-membership.test.ts and packages/work/src/dispatch/membership-guard.test.ts own their finite membership behavior checks. These four new paths remain inherited-unallocated; their recorded finite results do not establish full workflow or exact target acceptance.",
-    "State reference-array consumer source/test remains finite owner scope: elementwise current-row/version admission, ordered repeated PendingRefs and InvocationRef encoding reuse owning generic descriptors. Newly added consumer test remains inherited-unallocated; actual native private element/frame/source workflow qualification stays open."
+    "State reference-array consumer source/test remains finite owner scope: elementwise current-row/version admission, ordered repeated PendingRefs and InvocationRef encoding reuse owning generic descriptors. Newly added consumer test remains inherited-unallocated; actual native private element/frame/source workflow qualification stays open.",
+    "Work guard-phase.test.ts and the three dispatch-preclaim-request JSON files are registered inherited-unallocated. Requests alone do not establish a completed JEV consultation; responses remain absent pending automatic egress approval review."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
   "review_scopes": {
@@ -21844,6 +21845,24 @@
     [
       "A",
       "implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-proposed-binding-shell-full.can",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/dispatch-preclaim-request-1.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/dispatch-preclaim-request-2.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/dispatch-preclaim-request-3.json",
       "implementation",
       "inherited-unallocated"
     ],
@@ -64301,6 +64320,12 @@
       "inherited-unallocated"
     ],
     [
+      "A",
+      "packages/work/src/dispatch/guard-phase.test.ts",
+      "work",
+      "inherited-unallocated"
+    ],
+    [
       "M",
       "packages/work/src/dispatch/index.ts",
       "work",
@@ -67590,7 +67615,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9322,
+    "count": 9326,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67604,5 +67629,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL d8d3cf87119384eaf8fb5ac1695a48ef828e143f onto committed State reference-array and membership source 33264a65b6119f5f494845c3bca0fb29a9263522; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Incoming packages/state and packages/work labels normalize to canonical state/work owners without an ownership transfer. The new State reference-array consumer test remains inherited-unallocated pending exact duty/target review. Reuse Compiler840ba9c7729fd727c0d66c08c886868483647381 original29-file closure check (complete=true, omitted0,149 diagnostics, zero Workbench/CanDo), nominal model-reference producer/installed4/4, async guard refusal CLI/binding3/3 and unchanged codegen121, and owning decision serialization6/6 at their finite source/transport scopes. State/Work reference-array and membership component outcomes remain finite; Dev private element/frame and real lazy stage/dispatch captures are unfinished. No native StateRead, source when/default/pure activation or original workflow acceptance follows. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
+  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL fbec14516c4cdbc213a05db4f9a973aca883d2e6 onto committed Work guard-phase source 70952efe1f11bcde2d8b7a2bcb37c49b80f21d3e; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. New Work guard-phase test and three dispatch-preclaim consultation request JSON files remain inherited-unallocated pending exact duty/target review. Requests are saved; responses are absent while automatic egress approval review is pending, so no completed consultation or accepted advice follows. Reuse Compiler normal-stack disclosure library154/decision6, exact52-file corpus owning analysis37/37 (4181 findings), and the single real decision JSON to installed State checker join6/6 with exact user/Team spelling only at their finite scopes. Packages changes affect only two Cloudflare shared assertions; owning19/19 is reused at that scope. Root-recorded affected Work guard-phase/async-fence23/23 (66.69ms) and actual State/Work membership27/27 (126.47ms) are reused at their component scope; native admission before the physical claim remains unqualified. Existing State membership/query/reference-array and Work results retain their recorded scope; Dev private source/frame/stage captures and bounded decision context remain necessary. Native StateRead, source when/default/pure activation and complete original workflow/source/target acceptance remain open. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
 }
