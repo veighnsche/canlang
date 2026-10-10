@@ -913,6 +913,11 @@ export type CanonicalInputDef =
       readonly model: ModelName;
       readonly versioned: boolean;
       readonly required: boolean;
+      /** Checked container metadata; reference identity remains element-owned. */
+      readonly array?: { readonly required: boolean };
+      readonly nullable?: boolean;
+      readonly min?: number;
+      readonly max?: number;
       readonly default?: CanonicalFieldDefault;
     }
   | {
@@ -924,6 +929,9 @@ export type CanonicalInputDef =
       readonly valueType?: CanTypeId;
       readonly required: boolean;
       readonly enumValues?: ReadonlyArray<string>;
+      /** Authored array lengths, associated with the checked input array marker. */
+      readonly min?: number;
+      readonly max?: number;
       readonly default?: CanonicalFieldDefault;
     }
   | {
@@ -933,6 +941,8 @@ export type CanonicalInputDef =
       readonly valueType: CanTypeId;
       readonly computedDefault?: true;
       readonly required: boolean;
+      readonly min?: number;
+      readonly max?: number;
       readonly default?: CanonicalFieldDefault;
     }
   | {
@@ -940,6 +950,8 @@ export type CanonicalInputDef =
       readonly kind: 'delivery';
       readonly delivery: CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor;
       readonly required: boolean;
+      readonly min?: number;
+      readonly max?: number;
       readonly default?: CanonicalFieldDefault;
     };
 
