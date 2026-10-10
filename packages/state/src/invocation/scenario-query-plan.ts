@@ -97,6 +97,7 @@ export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[
     for (const value of list(query.dependencies)) {
       const dep = object(value, ['id', 'source', 'role', 'field', 'type']);
       const id = text(dep.id); local.push(id); source(dep.source); fieldName(dep.field); checkedType(dep.type, true);
+      if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(String(dep.field))) fail('declared metadata-named query fields require a separate owning path join.');
       if (dep.role !== 'data' && dep.role !== 'control') fail('closed query dependency role required.');
       const encoded = stableStringify(dep);
       if (dependencyIds.has(id) && dependencyIds.get(id) !== encoded) fail('query dependency identity drifts.');
@@ -113,7 +114,7 @@ export function checkQueryProjection(returned: Record<string, unknown>, queries:
   returned = copy(returned) as Record<string, unknown>;
   const influences = list(returned.influences);
   if (!Object.hasOwn(returned, 'projection')) {
-    if (influences.length !== 0) fail('query and absence influences require their defining projection.');
+    if (influences.length !== 0) fail('query/absence return influence is unsupported; defining provenance/current-authority join required.');
     return;
   }
   const projection = object(copy(returned.projection), ['kind', 'queryId', 'source', 'fields']);

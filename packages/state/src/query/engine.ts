@@ -1246,13 +1246,14 @@ export async function queryRecords(
 export async function queryRecordsObserved(
   input: Omit<ViewerRecordsInput, 'predicate'>,
   predicate: ObservedQueryPredicate,
+  requiredFields: readonly string[] = [],
 ): Promise<ObservedQueryResult> {
   if (input.authority !== 'viewer' || typeof predicate !== 'function' ||
       (input as ViewerRecordsInput).predicate !== undefined) {
     throw new StateError('validation', 'Observed queries require a current viewer query and a trusted host predicate.');
   }
   const observation: QueryObservation = { predicate, candidates: [], indices: new Map() };
-  const set = await runAuthorizedQuery(input, undefined, false, undefined, undefined, observation);
+  const set = await runAuthorizedQuery(input, requiredFields, false, undefined, undefined, observation);
   return {
     records: set.rows.map(toProjectedRecord), revision: set.revision,
     candidates: observation.candidates,

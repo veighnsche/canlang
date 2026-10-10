@@ -14,7 +14,7 @@ import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import type { PolicyTable } from '../policy/grants.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
-import { queryRecordsObserved, queryRecords, projectSavedRecordForViewer } from '../query/engine.js';
+import { queryRecordsObserved, projectSavedRecordForViewer } from '../query/engine.js';
 import type { ResolvedIdentity } from '@canlang/contracts';
 import { admitOwnerStageCall, type AdmittedCall } from './admission.js';
 import { assertScenarioReceiptExecution, scenarioReceiptMemberships, type ExecutionEffects } from './invoke.js';
@@ -610,9 +610,11 @@ function queryAssociations(state: Capture, returned: ScenarioResultDisclosurePla
   if (returned.projection === undefined) return {};
   const query = state.queries.find(value => value.plan.id === returned.projection!.queryId)!;
   const secrets = state.bound.models.get(query.plan.model)!.secrets;
-  return { queries: [{ queryId: query.plan.id, revision: query.call.revision,
+  const observations = { queries: [{ queryId: query.plan.id, revision: query.call.revision,
     candidates: query.candidates.map(candidate => ({ row: candidate.row, record: candidate.record, matched: candidate.matched,
       secretFields: [...secrets], dependencies: [...candidate.dependencies] })), selectedIndices: [...query.selectedIndices] }] };
+  checkSavedQueries(state.bound.plan, returned, observations.queries, state.queryResult, state.bound.valueSchema);
+  return observations;
 }
 
 interface Capture {
@@ -1151,6 +1153,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       const base = { model: plan.model, modelDescriptor: queryModelDescriptor(state.bound, plan), authority: 'viewer' as const,
         policy: producer.policy, context, memberships, store: adapter, archived: plan.archived,
         ...(plan.order.length === 0 ? {} : { order: plan.order }), ...(plan.limit === null ? {} : { limit: plan.limit }) };
+      const requiredFields = [...new Set(plan.dependencies.filter(dep => dep.role === 'control').map(dep => dep.field))];
       const observed = await queryRecordsObserved(base, async (record, row) => {
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
@@ -1165,7 +1168,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
           if (plan.dependencies.some(dep => dep.role === 'control' && !candidate.dependencies.has(dep.id))) return invalid('query predicate omitted its checked control observation.');
           candidate.matched = accepted; return accepted;
         } finally { execution.activeSlot = null; }
-      });
+      }, requiredFields);
       if (observed.candidates.length !== execution.candidates.length || observed.candidates.some((candidate, index) =>
         candidate.row !== execution.candidates[index]!.row || candidate.matched !== execution.candidates[index]!.matched)) return invalid('actual query engine lost original candidate correspondence.');
       execution.selectedIndices = Object.freeze([...observed.selectedIndices]); execution.complete = true;
@@ -1175,7 +1178,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       owner.callGuards.push(Object.freeze({ name: `query:${call.def.name}:${plan.id}`, evaluate: async () => {
         if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
         const guardInput = { ...base }; delete guardInput.limit;
-        const current = await queryRecords(guardInput);
+        const current = await queryRecordsObserved(guardInput, () => true, requiredFields);
         const original = observed.candidates.map(candidate => candidate.record).sort((a, b) =>
           current.records.findIndex(row => row.id === a.id) - current.records.findIndex(row => row.id === b.id));
         if (stableStringify(current.records) !== stableStringify(original)) throw new StateError('forbidden', 'Original query domain or field authority changed before commit.');
@@ -1490,7 +1493,7 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
   const plan = checkScenarioResultDisclosurePlan(value['plan']); const resultType = disclosureType(value['resultType'], plan);
   const returned = plan.returns.find(entry => entry.id === value['returnId']);
   if (returned === undefined) return invalid('unknown selected return path.');
-  if (returned.projection === undefined) scalarWire(resultType, receipt.outcome.result);
+  if (returned.projection === undefined) { scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result); }
   else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
   const observations = list(value['observations']);
   for (const entry of observations) {
@@ -1609,6 +1612,22 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
         originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field))] });
     };
+    const queryAuthority = async (bound: BoundPlan, saved: { readonly plan: ScenarioResultDisclosurePlan;
+      readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] }) => {
+      const returned = saved.plan.returns.find(entry => entry.id === saved.returnId);
+      if (returned?.projection === undefined) return true;
+      const plan = bound.plan.queries?.find(query => query.id === returned.projection!.queryId);
+      const observed = saved.queries?.find(query => query.queryId === plan?.id);
+      if (plan === undefined || observed === undefined) return false;
+      try {
+        await queryRecordsObserved({ model: plan.model, modelDescriptor: queryModelDescriptor(bound, plan), authority: 'viewer',
+          policy: input.policy, context: { actorUserId, teamId }, memberships,
+          store: { ...input.store, readRevision: () => input.store.readRevision(), query: async () => observed.candidates.map(candidate => candidate.row) },
+          archived: plan.archived, ...(plan.order.length === 0 ? {} : { order: plan.order }) }, () => true,
+        [...new Set(plan.dependencies.filter(dep => dep.role === 'control').map(dep => dep.field))]);
+        return true;
+      } catch (error) { if (error instanceof StateError) return false; throw error; }
+    };
     let dependenciesReadable = true;
     for (const saved of association.calls ?? []) {
       const caller = input.registry.get(saved.caller), target = input.registry.get(saved.target);
@@ -1627,7 +1646,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         dependenciesReadable = false; continue;
       }
       const returned = child.plan.returns.find(entry => entry.id === child.returnId)!;
-      if (!await savedQueriesReadable(current, child, saved.result, (model, row, secrets, blocked) =>
+      if (!await queryAuthority(current, child) || !await savedQueriesReadable(current, child, saved.result, (model, row, secrets, blocked) =>
         savedProjection(model, row, secrets, blocked, current.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
       for (const observed of child.observations) {
         const dependency = returned.dependencies.find(dep => dep.id === observed.dependencyId)!;
@@ -1645,7 +1664,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       }
     }
     const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
-    if (stableStringify(currentBound.plan) !== stableStringify(association.plan) ||
+    if (!await queryAuthority(currentBound, association) ||
         !await savedQueriesReadable(currentBound, association, receipt.outcome.status === 'committed' ? receipt.outcome.result : null, (model, row, secrets, blocked) =>
           savedProjection(model, row, secrets, blocked, currentBound.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
     for (const observation of association.observations) {
