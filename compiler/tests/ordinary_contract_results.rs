@@ -247,3 +247,62 @@ fn unsupported_contract_closures_remain_unpublished_without_new_diagnostics() {
     );
     assert!(refusal.get("modules").is_none());
 }
+
+#[test]
+fn ordinary_contract_modifiers_publish_exact_owning_schema_bounds() {
+    let scratch = tempfile::tempdir().unwrap();
+    let source = r#"app NominalBounds
+Given
+ Source {title:text trim min=1}
+ contract Fact {version:int min=1 max=9223372036854775807,title:Source.title max=2000,description:text? max=8000,amount:decimal min=1.25 max=2.5,titles:text[] min=1 max=10}
+When
+ scenario result() read=true -> Fact by=members
+  do return Fact {version=1,title="title",description=null,amount=1.5,titles=["title"]}
+Then
+"#;
+    let artifact = compile(source, scratch.path(), "nominal-bounds");
+    let fields = &artifact["valueTypes"]["contracts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|contract| contract["name"] == "NominalBounds.Fact")
+        .unwrap()["fields"];
+    assert_eq!(
+        fields,
+        &json!([
+            {"name":"version","type":"int","min":"1","max":"9223372036854775807"},
+            {"name":"title","type":"text","trim":true,"min":1,"max":2000},
+            {"name":"description","type":"text?","max":8000},
+            {"name":"amount","type":"decimal","min":"1.25","max":"2.5"},
+            {"name":"titles","type":"text[]","min":1,"max":10}
+        ])
+    );
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    for (name, invalid) in [
+        ("computed", source.replace("max=2000", "max=1000+1000")),
+        (
+            "unsafe-length",
+            source.replace("max=2000", "max=9007199254740992"),
+        ),
+    ] {
+        let input = scratch.path().join(format!("{name}.can"));
+        std::fs::write(&input, invalid).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .output()
+            .unwrap();
+        let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(!output.status.success(), "{name}: {refusal}");
+        assert!(refusal.get("modules").is_none());
+        assert!(
+            refusal["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008"),
+            "{name}: {refusal}"
+        );
+    }
+}
