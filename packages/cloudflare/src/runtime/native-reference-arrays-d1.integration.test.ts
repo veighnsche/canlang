@@ -7,9 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
+import type { CompileArtifact, MutationEnvelope, ResolvedIdentity, ScenarioReceiptAssociation } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { hashInputs } from '@canlang/state/invocation/replay';
+import { readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import {
   FIXED_NOW, asId, asModel, asOperation, asOperationId, createMemoryIdentityStore,
   makeIdentity, seedMember, uuidv7,
@@ -65,7 +66,7 @@ function unchangedExcept(before: Tables, after: Tables, allowed: readonly string
   }
 }
 
-test('captured native reference arrays preserve D1 stages, actual qualified replay and unclaimed refusal',
+test('captured native reference arrays preserve D1 stages, genuine void replay and owning refusals',
   { timeout: 120000 }, async () => {
     const dir = await mkdtemp(join(tmpdir(), 'can-native-ref-arrays-'));
     let worker: Miniflare | undefined;
@@ -88,7 +89,19 @@ test('captured native reference arrays preserve D1 stages, actual qualified repl
       assert.equal(artifact.pages.length, 0);
       const step = artifact.operations?.find(operation => operation.name === `${APP}.step`);
       assert.ok(step); assert.equal(step.kind, 'scenario');
-      assert.deepEqual(step.result, { type: 'void' }, 'ordinary native body has no disclosure/marker plan');
+      assert.ok(step.result); assert.equal(step.result.type, 'void');
+      const disclosure = step.result.disclosure;
+      assert.ok(disclosure, 'actual checked array loop carries its Compiler-issued disclosure');
+      assert.equal(disclosure.version, 1); assert.equal(disclosure.returns.length, 2);
+      const emptyPath = disclosure.returns.find(path => path.dependencies.length === 0);
+      const populatedPath = disclosure.returns.find(path => path.dependencies.length === 1);
+      assert.ok(emptyPath); assert.ok(populatedPath); assert.notEqual(emptyPath.id, populatedPath.id);
+      const dependency = populatedPath.dependencies[0]!;
+      assert.equal(dependency.model, MODEL); assert.equal(dependency.field, 'value');
+      assert.equal(dependency.type, 'int'); assert.equal(dependency.role, 'data');
+      for (const path of disclosure.returns) {
+        assert.deepEqual(path.influences, []); assert.deepEqual(path.intrinsics ?? [], []);
+      }
       assert.equal(step.inputs.fields.length, 1);
       const input = step.inputs.fields[0]!;
       assert.equal(input.name, 'items'); assert.equal(input.required, false);
@@ -153,7 +166,7 @@ test('captured native reference arrays preserve D1 stages, actual qualified repl
       const before = await snapshot(database), revision = await store.readRevision();
       for (const table of ['outbox', 'schedules', 'unique_claims']) assert.deepEqual(before[table], []);
       const aHistory = await store.historyFor(MODEL, asId(a.id)), bHistory = await store.historyFor(MODEL, asId(b.id));
-      committed(await invoker.invokeMutation(request, identity));
+      const stepResult = committed(await invoker.invokeMutation(request, identity));
       assert.deepEqual(request.inputs, originalInputs, 'submitted versions remain the original three slots');
       const currentA = await store.load(MODEL, asId(a.id)), currentB = await store.load(MODEL, asId(b.id));
       assert.ok(currentA); assert.ok(currentB);
@@ -177,35 +190,80 @@ test('captured native reference arrays preserve D1 stages, actual qualified repl
       assert.deepEqual([...physical.outcome.recordVersions].sort((a, b) => a.id.localeCompare(b.id)),
         [{ model: MODEL, id: a.id, version: 2 }, { model: MODEL, id: b.id, version: 2 }]
           .sort((a, b) => a.id.localeCompare(b.id)));
-      assert.equal(Object.hasOwn(physical.outcome, 'scenario'), false, 'no retained capture qualification');
+      const association = readScenarioReceiptAssociation(physical);
+      assert.ok(association, 'the actual State framework retains the generated loop association');
+      assert.deepEqual(association.plan, disclosure); assert.equal(association.resultType, 'void');
+      assert.equal(association.returnId, populatedPath.id);
+      assert.deepEqual(association.observations.map(value => value.dependencyId),
+        [dependency.id, dependency.id, dependency.id]);
+      assert.deepEqual(association.observations.map(value => value.model), [MODEL, MODEL, MODEL]);
+      assert.deepEqual(association.observations.map(value => value.row.id), [a.id, b.id, a.id]);
+      assert.deepEqual(association.observations.map(value => value.row.data.value), ['0', '0', '1']);
+      assert.deepEqual(association.observations.map(value => value.row.version), [1, 1, 2]);
+      assert.equal(association.changed.length, 2);
+      for (const row of [currentA, currentB]) {
+        const changed: ScenarioReceiptAssociation['changed'][number] | undefined =
+          association.changed.find(value => value.row.id === row.id);
+        assert.ok(changed); assert.equal(changed.model, MODEL); assert.deepEqual(changed.row, row);
+        assert.deepEqual(changed.fieldTypes, { value: 'int' });
+        assert.deepEqual(changed.secretFields, []); assert.deepEqual(changed.withheldFields, []);
+      }
+      assert.deepEqual(stepResult.records?.map(projection).sort((a, b) => a.id.localeCompare(b.id)),
+        [{ id: a.id, version: 2, data: { value: '2' } }, { id: b.id, version: 2, data: { value: '1' } }]
+          .sort((a, b) => a.id.localeCompare(b.id)));
       const after = await snapshot(database);
       unchangedExcept(before, after, ['records', 'history', 'receipts', 'fence', 'fence_log', 'sqlite_sequence']);
       assert.equal(after.receipts!.length, before.receipts!.length + 1);
       assert.equal(after.fence_log!.length, before.fence_log!.length + 1);
       assert.equal(after.history!.length, before.history!.length + 3);
       assert.equal(after.records!.length, before.records!.length);
-      const refuseUnclaimedReplay = async (savedRequest: MutationEnvelope, savedTables: Tables) => {
-        const replay = await invoker.invokeMutation(savedRequest, identity);
-        assert.ok('error' in replay, JSON.stringify(replay));
-        assert.equal(replay.error.code, 'validation');
-        assert.equal(replay.error.message, 'Saved scenario has no supported execution association.');
-        assert.deepEqual(await snapshot(database), savedTables, 'unclaimed replay refuses without rows, history, receipts or effects');
+      const replayVoid = async (savedRequest: MutationEnvelope, savedResult: ReturnType<typeof committed>, savedTables: Tables) => {
+        const savedInputs = structuredClone(savedRequest.inputs);
+        const savedReceipt = await store.readReceipt(receiptIdentity(savedRequest));
+        assert.ok(savedReceipt); assert.ok(readScenarioReceiptAssociation(savedReceipt));
+        assert.equal(savedReceipt.inputHash, await hashInputs(savedInputs));
+        const replay = committed(await invoker.invokeMutation(savedRequest, identity), 'replayed');
+        assert.deepEqual(replay.records, savedResult.records);
+        assert.deepEqual(savedRequest.inputs, savedInputs);
+        assert.deepEqual(await snapshot(database), savedTables, 'genuine void replay adds no rows, history, receipts or effects');
+        assert.deepEqual(await store.readReceipt(receiptIdentity(savedRequest)), savedReceipt);
       };
-      // The actual Compiler has not released array/loop capture. Preserve the
-      // source association requirement; this is no native replay acceptance.
-      await refuseUnclaimedReplay(request, after);
+      await replayVoid(request, stepResult, after);
+      assert.deepEqual(request.inputs, originalInputs);
       assert.deepEqual(await store.readReceipt(receiptIdentity(request)), physical);
 
       for (const inputs of [{ items: [] }, {}]) {
         const empty = envelope('step', inputs), prior = await snapshot(database), priorRevision = await store.readRevision();
-        committed(await invoker.invokeMutation(empty, identity));
+        const emptyResult = committed(await invoker.invokeMutation(empty, identity));
+        assert.deepEqual(emptyResult.records, []);
+        const emptyReceipt = await store.readReceipt(receiptIdentity(empty)); assert.ok(emptyReceipt);
+        const emptyAssociation = readScenarioReceiptAssociation(emptyReceipt); assert.ok(emptyAssociation);
+        assert.deepEqual(emptyAssociation.plan, disclosure); assert.equal(emptyAssociation.returnId, emptyPath.id);
+        assert.deepEqual(emptyAssociation.observations, []); assert.deepEqual(emptyAssociation.changed, []);
+        assert.equal(emptyReceipt.inputHash, await hashInputs(inputs));
         assert.equal(await store.readRevision(), priorRevision + 1);
         const next = await snapshot(database);
         unchangedExcept(prior, next, ['receipts', 'fence', 'fence_log']);
         assert.equal(next.receipts!.length, prior.receipts!.length + 1);
-        await refuseUnclaimedReplay(empty, next);
+        await replayVoid(empty, emptyResult, next);
       }
       const freshA = { id: a.id, version: '2' }, freshB = { id: b.id, version: '2' };
+      const limited = envelope('step', { items: [freshA, freshB, freshA, freshB] });
+      const limitBefore = await snapshot(database), limitRevision = await store.readRevision();
+      const limitOutcome = await invoker.invokeMutation(limited, identity);
+      assert.ok('error' in limitOutcome, JSON.stringify(limitOutcome));
+      assert.equal(limitOutcome.error.code, 'rule_failed');
+      const limitReceipt = await store.readReceipt(receiptIdentity(limited)); assert.ok(limitReceipt);
+      assert.equal(limitReceipt.outcome.status, 'rejected');
+      assert.equal(readScenarioReceiptAssociation(limitReceipt), null, 'the bound refuses before capture selection or writes');
+      assert.equal(limitReceipt.inputHash, await hashInputs(limited.inputs));
+      assert.equal(limitReceipt.committedRevision, limitRevision + 1);
+      const limitAfter = await snapshot(database);
+      unchangedExcept(limitBefore, limitAfter, ['receipts', 'fence', 'fence_log']);
+      assert.equal(limitAfter.receipts!.length, limitBefore.receipts!.length + 1);
+      assert.equal(limitAfter.fence_log!.length, limitBefore.fence_log!.length + 1);
+      assert.equal(await store.readRevision(), limitRevision + 1);
+      assert.deepEqual(await identitySnapshot(), originalIdentity);
       const qualified = artifact.operations?.find(operation => operation.name === `${APP}.captured`);
       assert.ok(qualified?.result?.disclosure, 'unused array inputs have a genuine Compiler-issued scalar plan');
       assert.equal(qualified.result.type, 'int');

@@ -5746,13 +5746,13 @@ Dev confirms an additional native frozen-lexical carrier prerequisite. Canonical
 
 Intake exact coordinator-reviewed LOCALd04a6fc9dfbf455d732560f29e44d59c0ed5081c onto locald564def6. Work70952efe is manually CLEAR only as the unfinished closed-guard-evidence component; Devb6e5af39 actual async driver is also released only at its claim-first component scope. Reuse owning Work23/23, affected State/Work27/27 and coordinator-reported Dev78 checks; existing native Email/D1/DO7 and noEmit/boundary evidence remain their recorded scopes. No repeat build/test or source activation. Physical claim still precedes the guard: State/Work original-stage eligibility/checkpoint/evidence-to-single-commit join remains required, separately from Compiler/Dev source-issued lexical/origin carrier. Three valid prepared JEV requests have no responses; exact human approval or waiver remains pending. Mandatory actual staged-tree/both-parent reconciliation since complete824934 records1699commits,10829net deltas,11373historicalpaths,513history-only,9326pending allocations with no new paths. Preserve owners/scopes/allocations/retirements and79features/30targetleaves; complete checkpoint remains unadvanced. LOCAL commits only.
 
-### Compiler emitter borrowing, 2026-10-10 — implemented, final qualification pending
+### Compiler emitter borrowing, 2026-10-10 — implemented and qualified
 
 Use borrowed iteration for read-only whole-program emitter passes. The actual
 scenario3000 native crash trace identifies unnecessary recursive IR clones in
 identity emission; borrowing preserves expression/output order and source gates
-without changing stack limits. Codegen121 passes; owning flat/native and current
-whole qualification remain required.
+without changing stack limits. Codegen121 and flat/native6 pass; current96fa whole133targets1381 passes with
+zero failed/ignored/filtered/skipped bodies and strict all-target lint/format0.
 
 
 ### Query decision correspondence, 2026-10-10 — implemented, runtime activation withheld
@@ -5790,3 +5790,62 @@ Mandatory actual staged-tree/both-parent reconciliation for exactLOCAL5fa76b2 on
 **Prerequisite precision.** This exact literal3/unconditional-update/implicit-void For fixture needs no new State loop receipt port; reviewed Compiler14 owns its checked source/IR association and Dev the original native consumer. General loop-dependent outputs/conditional/nested/query completion remain defining State/Contracts/Compiler/Dev dependencies. Canonical authored sends already bind run and origin to actual admitted item.operationId; only generic staging can carry a distinct origin. Native frozen lexical guard transport and State/Work physical preclaim commit remain unfinished independently. The three prepared JEV requests still have no responses; exact egress approval or waiver is pending, not inferred.
 
 **Verification.** State clean emission passes. Affected direct/history/removal/machine/owner/call/default checks90/90 pass (275.76ms combined initial run); four local D1/DO tests initially hit sandbox loopback EPERM, then4/4 pass with authorized local listeners (2597.82ms). Total94affected outcomes, zero skips. Ordered A/B/A, mixed new/cancelled rows, hard-removal reserved versions, one final write/net uniques, later-failure rollback, child/root attribution, immutable receipt effects and reopen/replay are covered. Unchanged Work23/StateWork27/Compiler6 are reused; owner-reported Dev79/79 belongs to its unchanged pre-history tuple, not this new State consumer qualification. Dev318f8efd on reviewed LOCAL189e09bb preserves the original consumer assertion and new genuine association/replay/empty/limit controls; its current D1 run fails before replay pending this State producer. No source acceptance, push or complete checkpoint advance follows from this local unit.
+
+
+### 2026-10-10 — capture a bounded admitted reference-array loop (unfinished native qualification)
+
+Use the existing source-derived dependency/return transport for the exact direct
+admitted model-array, positive literal-bound and unconditional current-item Set
+profile. Preserve order and repetitions; record private empty/nonempty selection
+after the existing once-only fetch and pre-body bound check, and observe the
+actual current stage at each original field read. Join exact For/parameter/model/
+domain/limit/item/ordered-body source facts before native emission. Bound actual
+repeated observations and executions at200, decline unsupported per-element
+choices/query/helper/version/nested/computed profiles, and retain prior controls.
+No public array/index authority carrier is needed for this finite source. Owning
+301 checks and actual native Memory pass. Exact14b whole133targets1386 passes
+with zero failed/ignored/filtered/skipped bodies and strictalltarget lint/format0;
+coordinator source review integrates LOCAL64. Dev owning D1 qualification remains
+before final native acceptance. Broader loop workflows stay open.
+
+
+The actual D1 consumer subsequently exposes a defining history-contract mismatch:
+receipt-aware owner finalization records A0→2/B0→1 while its existing fixture
+asserts three stage entries A0→1/A1→2/B0→1. Final values and Compiler/native
+Memory ordered observations are qualified; D1 replay is not reached. State owns
+history resolution and Dev preserves its consumer assertion. This observation
+is a dependency, not a decision to change history or evidence of D1 acceptance.
+
+
+### 2026-10-10 — release rejected Jev response streams (unfinished live qualification)
+
+Cancel the actual rejected HTTP response body without acquiring a reader, parsing
+provider text or forwarding it. Preserve the existing safe 4xx provider-rejection
+and 5xx transport-error classifications. Own cancellation rejection locally and
+do not wait for an uncooperative cancellation promise to settle before reporting
+the original HTTP failure. This fixes local transport cleanup only; live branch
+qualification and the exact external disclosure holds remain unchanged.
+Actual injected429/503 streams cover successful, rejected and pending cleanup
+without reads or reader acquisition, plus absent bodies. Transport/ranker12/12,
+clean CF emission, root noEmit and package boundaries pass; unchanged runtime
+results are reused at their recorded scopes.
+
+
+### 2026-10-10 — retain ordered history during bounded loop qualification (unfinished)
+
+Consume the exact reviewed Compiler bounded-reference-loop producer through the
+existing immutable source/artifact and real generated D1 invoker. Derive the
+empty/nonempty return and dependency IDs from its actual plan; retain original
+ordered observation, current-stage, one-commit, receipt/hash, full-table and
+Identity assertions. No private plan is fabricated and no public ABI is added.
+
+The first actual run fails at original A0→1 then1→2 history: State's owner-session
+finalization emits only net A0→2, despite the existing ordered-history contract
+in DESIGN.md503. State owns that correction. Preserve the required history gate
+and distinguish implemented later replay/refusal assertions from reached checks.
+Local native/CF builds, root noEmit and package boundaries pass; native D1 replay
+is not qualified. General loop outputs, query/preclaim and G2/G3 remain open.
+
+### 2026-10-10 — intake bounded loop producer with ordered owner history (unfinished qualification)
+
+Intake exact coordinator-reviewed LOCAL189e09bb7d9cf400b31b5a573584a2feb7f3a7ed onto State72a4ce23, preserving ordered history and all owner/source holds. Reuse owning Compiler14 bounded unconditional parameter-array full133targets1386/native Memory order/replay and Dev transport12 at their exact scopes. The incoming Dev318 D1 run before State72 reached A2/B1/one root revision but failed the original three-history assertion; its new association/replay/empty/limit checks were unreached. State72 now supplies the governing ordered-history fix, clean emission and94 affected outcomes, unchanged by this intake; Dev alone owns the genuine original D1 consumer qualification. Mandatory actual staged-tree/both-parent full-history reconciliation since complete824934 records1722commits/10832net deltas/11376historicalpaths/513history-only/9329pending allocations, with zero new paths. Owners/maxscopes/allocations/retirements and79featurepaths/30targetleaves remain preserved; checkpoint824 stays unadvanced. One direct registry consistency check passes. No product checks repeated. General loop/query/native physical preclaim, source lexical issuance, saved membership and the pending exact JEV approval remain separate prerequisites. LOCAL commits only.

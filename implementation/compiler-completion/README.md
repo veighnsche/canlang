@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1356 qualifies exact6530 source; later query/schema source has focused qualification only. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Current whole1386 qualifies exact14b source with required real engines/native/permission bodies and zero skips; strict all-target lint/format and finite coordinator review pass. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -740,7 +740,7 @@ compiler leaves:
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
-| Capability Task39 protected call | Reviewed State3e9/LOCAL146cc8bf supplies same-owner mutation admission/execution. Compiler prepares bounded static unused-call disclosure and exact source/target/input/result correspondence. Dev owns the actual source-bound native facade/site carrier; State e73 parent lifetime and Dev e090 facade are released at LOCAL6b5a04a6, while the verified native producer binding remains required. Original Workbench context read/query Fact[], dynamic result binding and authored CRUD normalization remain defining owner joins. Calls still refuse E6008; no nested invocation, receipt or commit substitutes. Separate BDD3/Task22 holds remain. |
+| Capability Task39 protected call | Finite static unused scalar/void CALL is source-current Compiler qualified and Dev native D1/HTTP/MCP qualified at its recorded scope; exact reviewed binding/facade/State parent lifetime are released. Direct admitted reference-array/literal-bound/unconditional Set loop now has source-current Compiler/native Memory qualification; Dev owns its existing changed D1 consumer. Original Workbench context read/query Fact[], dynamic/as/default/composite/CRUD and current-membership captures remain defining State/Dev joins. Unsupported profiles retain E6008/absent receipt plans; no nested invocation/receipt/commit substitutes. Separate BDD3/Task22 holds remain. |
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium and2a5d2c72 temporary-profile/wait units are consumed. Actual local native forms/browser2/2 and corrected readonly polling1/1 pass; selected Images source profile still requires its artifact. Dev owns the selected-profile prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
@@ -2549,9 +2549,69 @@ disclosure18/18 pass; unchanged affected codegen121 and query8 are reused. Stric
 all-target Clippy/format0 and finite source review clear. No StateRead/async/native
 activation or original-reference completion follows; final whole checks run next.
 
-SKIP general array/loop receipt activation: Dev's reported NativeRefArrays source
-is not yet released, and existing static dependency presence cannot prove ordered
-reference-array domains, zero iterations or conditionally skipped per-element
-reads. State/Contracts must release actual domain/order/duplicate/zero/conditional
-coverage and Dev genuine capture lifetime. Existing row markers already support
-repeated observations; do not invent index markers or relabel query recipes.
+Exact Dev2a1a07a1 NativeRefArrays source/private indexed input lifetime is now
+released at LOCAL5fa76b27. The next ready compiler slice is the actual immutable
+admitted Item[] domain, limit3 and unconditional Int Set with implicit void.
+Existing markers already support repeated current-stage observations; join the
+actual For source/IR and empty/nonempty paths without index authority or public
+ABI additions. SKIP general computed/query/nullable/nested/conditional loops
+until complete defining coverage; this remains a dependency, not a human hold.
+
+
+**Current-source whole qualification, 2026-10-10.** Exact compiler
+**96fa42834dc0c5d12724b1c877f639a35b379439** passes **1,381 tests across133
+targets**, zero failures/ignored/filtered/body skips, with Node24.19, required
+real completion engines and genuine native/permission bodies. Actual released
+a22241b7 dependency graph22/22 builds uncached. Strict all-target Clippy and
+formatting pass. The three failures at07996dbf are corrected and their original
+meaningful controls remain. Coordinator manual review integrates those compiler
+units at LOCALd0828a56. This qualifies the current compiler scope; original
+58/67, broader owner joins and precise BDD3/Task22 human holds remain open.
+
+
+**Bounded admitted reference-array loop (unfinished final native qualification),
+2026-10-10.** Exact reviewed LOCAL5fa/Dev2a source and private indexed input
+lifetime are consumed at23d9, preserving both histories; actual graph22/22
+builds uncached. The real step(Item[]) limit3 unconditional current-item Set
+now retains checked For/parameter/model/domain/literal/item/ordered-body facts
+and empty/nonempty private return paths. Existing native row markers repeat at
+the actual current stage; domain fetch/order/duplicates and pre-body bound check
+are unchanged. Repeated observations/executions retain200 limits. Library157,
+codegen121 and final native4/disclosure19 pass, total301; finite source review
+clear. Actual public native Memory A/B/A captures0/0/1, versions1/1/2, final
+A2/B1 atversion2, one commit and no-effect replay. Empty/omitted, genuine
+nonmember/stale/malformed/overlimit refusals, nine IRskews and source budget/general
+profile controls pass. Initial new test setups reused a different catalog owner
+and incorrectly assumed cross-team isolation from policy=members; use the exact
+cohort and actual same-team nonmember control, preserving production gates.
+Strict all-target Clippy/format pass; current-source whole follows the coherent
+unit. Dev alone qualifies
+its changed D1 consumer. General query/computed/nullable/nested/conditional loops,
+original Workbench, broader references and precise human holds remain open.
+
+
+**Bounded-loop current-source qualification, 2026-10-10.** Exact
+**14b07710e1bde23336142b8b9e6a1b65ec9da652** passes **1,386 tests across133
+targets**, zero failed/ignored/filtered/skipped bodies, Node24.19 with required
+real completion engines and native/permission execution. Strict all-target
+Clippy/format0 and actual reviewed5fa graph22/22 uncached pass. Coordinator
+analyzer and separate codegen/native source reviews integrate the coherent unit
+and prior result896 at LOCAL64e64099; safe post-run FF changes only integration
+records, so exact production results are reused. Dev alone qualifies the existing
+changed D1 consumer. Original Workbench/current-membership/query/schema/context
+joins, T11/application/browser contracts and precise BDD3/Task22 holds remain;
+completion stays58/67. No general loop/read/native policy acceptance is inferred.
+
+
+**SKIP D1 history/replay acceptance — defining history prerequisite, 2026-10-10.**
+Dev's actual14b D1 consumer reaches correct final A2/B1 but reports two net
+history entries A0→2/B0→1 instead of the retained three-stage assertion
+A0→1/A1→2/B0→1; execution stops before replay assertions. Compiler disclosure
+selects Cloudflare runScenarioExecution receiptAware/useOwnerSession, which uses
+State beginScenarioReceiptMutation→beginOwnerMutation.finalize. State owns the
+exact history contract/producer resolution; Dev preserves its existing assertion
+and qualifies that consumer after the released resolution. The compiler whole
+1386/native Memory current-row/order/replay results remain qualified at their
+scope and do not certify three history rows or D1 replay. No compiler bypass,
+shared mutation repair, weakened assertion or new human hold is authorized here.
+Other ready Compiler work is exhausted until the recorded defining releases.

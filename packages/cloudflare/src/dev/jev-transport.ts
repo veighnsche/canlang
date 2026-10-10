@@ -52,6 +52,9 @@ export class JevHttpTransport implements JevChoiceTransport {
       signal,
     });
     if (!response.ok) {
+      // Cancel without consuming provider prose. The original HTTP failure
+      // must also settle if an injected body rejects or stalls its cleanup.
+      try { void response.body?.cancel().catch(() => undefined); } catch { /* Preserve HTTP classification. */ }
       if (response.status >= 400 && response.status < 500) throw new JevProviderRejected(response.status);
       throw new Error(`Jev HTTP ${response.status}`);
     }

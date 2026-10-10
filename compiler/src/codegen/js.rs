@@ -5119,6 +5119,14 @@ impl<'a> Emitter<'a> {
                         format!("{pad}check({rows}.length<={bound_text},\"limit\");"),
                         *span,
                     ));
+                    if self.receipt_decision(*span) {
+                        let empty = self.receipt_choice(*span, "else");
+                        let nonempty = self.receipt_choice(*span, "then");
+                        lines.push((
+                            format!("{pad}if({rows}.length===0){{{empty}}}else{{{nonempty}}}"),
+                            *span,
+                        ));
+                    }
                     rows
                 } else {
                     awaited
