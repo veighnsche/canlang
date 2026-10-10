@@ -112,7 +112,16 @@ pub fn emit_suite(
         .map(|f| format!("[{}]:{}", js_string(&f.name), binding_ident("f", &f.name)))
         .collect();
     let mut examples = Vec::new();
+    let mut table_diags = Vec::new();
     for table in &tables {
+        if !table_channels_are_aligned(table) {
+            table_diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower example table: selector channels are not aligned with checked selectors".to_string(),
+                table.span,
+            ));
+            continue;
+        }
         examples.push(lower_table(&mut emitter, table));
     }
     for sequence in &suite.sequences {
@@ -145,6 +154,7 @@ pub fn emit_suite(
     }
     out.append(&body);
     let (mut diags, builtins, _, _) = emitter.finish();
+    diags.extend(table_diags);
     let fixtures = fixtures.iter().map(|f| f.canonical.clone()).collect();
     let path = format!("tests/{}.mjs", binding_ident("t", &suite.scope));
     let module = match out.try_finish(path.clone()) {
@@ -516,7 +526,37 @@ fn lower_recipe(emitter: &mut Emitter<'_>, fixture: &IrFixture) -> String {
 
 /// Lower one behavior table: common dependencies and inputs, selectors,
 /// observations, and rows with either expected values or an exact error.
+fn table_channels_are_aligned(table: &IrTable) -> bool {
+    use crate::analysis::examples::SelectorChannel;
+    let Some(channels) = &table.selector_channels else {
+        return true;
+    };
+    channels.len() == table.selectors.len()
+        && channels
+            .iter()
+            .zip(&table.selectors)
+            .all(|(channel, selector)| match channel {
+                SelectorChannel::Caller => selector == "as",
+                SelectorChannel::Request => {
+                    selector.starts_with("request.") && selector.len() > "request.".len()
+                }
+                SelectorChannel::Input => selector != "as",
+            })
+}
+
 fn lower_table(emitter: &mut Emitter<'_>, table: &IrTable) -> String {
+    let channels = if let Some(channels) = &table.selector_channels {
+        format!(
+            ",selectorChannels:[{}]",
+            channels
+                .iter()
+                .map(|channel| js_string(channel.as_str()))
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    } else {
+        String::new()
+    };
     let deps = names_list(&table.dependencies);
     let inputs = emitter.lower_expr(&table.inputs);
     let selectors = table
@@ -538,7 +578,7 @@ fn lower_table(emitter: &mut Emitter<'_>, table: &IrTable) -> String {
         .collect::<Vec<_>>()
         .join(",");
     format!(
-        "{{operation:{},dependencies:[{deps}],inputs:async(c,s)=>({inputs}),selectors:[{selectors}],observations:[{observations}],rows:[{rows}]}}",
+        "{{operation:{},dependencies:[{deps}],inputs:async(c,s)=>({inputs}),selectors:[{selectors}]{channels},observations:[{observations}],rows:[{rows}]}}",
         js_string(&table.operation)
     )
 }

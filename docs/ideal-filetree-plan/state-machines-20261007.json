@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "1c4eadf1f4e920859553cd637dba3362b27e68cb",
+  "integrated_source_pin": "8b0768ee6502f8e3eacd6540d9709027fc2e5c68",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2004,
+    "commit_count_since_checkpoint": 2013,
     "net_path_deltas": 10883,
     "history_touched_paths": 11427,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9380,
-    "scope": "Worker local intake of exact coordinator-reviewed 1c4eadf1f4e920859553cd637dba3362b27e68cb onto coherent unfinished Work issuer dc7e6ce1d95eba9fc507b158c473d896b66e8684; actual staged merge tree and both complete parent histories since 8249342707d3280e88e39e8c911b7e457828f31f: 2004 commits, 10883 net deltas, 11427 historical paths, 513 history-only paths, 9380 pending allocations and 2 new Work source/test paths. Preserve every prior allocation tuple, owner, strongest scope, retirement and original task gate; 79 feature paths/30 target leaves and precise holds unchanged. Complete checkpoint remains unadvanced; finite implementation/tests are not full workflow acceptance."
+    "scope": "Worker local intake of exact coordinator-reviewed 8b0768ee6502f8e3eacd6540d9709027fc2e5c68 onto f2fc9dd329251af87b4afa8832b31bbd109ed683, preserving unfinished Work issuer dc7e6ce1 and reviewed679cb253 common retirement contract. Actual staged tree and both complete parent histories since 8249342707d3280e88e39e8c911b7e457828f31f: 2013 commits, 10883 net deltas, 11427 historical paths, 513 history-only and 9380 pending allocations. Every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and precise holds retained; complete checkpoint unadvanced. Types and finite Work acceptance do not establish State retirement/native/provider workflow acceptance."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -67948,5 +67948,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Worker local intake of exact coordinator-reviewed 1c4eadf1f4e920859553cd637dba3362b27e68cb onto coherent unfinished Work issuer dc7e6ce1d95eba9fc507b158c473d896b66e8684; actual staged merge tree and both complete parent histories since 8249342707d3280e88e39e8c911b7e457828f31f: 2004 commits, 10883 net deltas, 11427 historical paths, 513 history-only paths, 9380 pending allocations and 2 new Work source/test paths. Preserve every prior allocation tuple, owner, strongest scope, retirement and original task gate; 79 feature paths/30 target leaves and precise holds unchanged. Complete checkpoint remains unadvanced; finite implementation/tests are not full workflow acceptance."
+  "current_maintenance_summary": "Worker local intake of exact coordinator-reviewed 8b0768ee6502f8e3eacd6540d9709027fc2e5c68 onto f2fc9dd329251af87b4afa8832b31bbd109ed683, preserving unfinished Work issuer dc7e6ce1 and reviewed679cb253 common retirement contract. Actual staged tree and both complete parent histories since 8249342707d3280e88e39e8c911b7e457828f31f: 2013 commits, 10883 net deltas, 11427 historical paths, 513 history-only and 9380 pending allocations. Every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and precise holds retained; complete checkpoint unadvanced. Types and finite Work acceptance do not establish State retirement/native/provider workflow acceptance."
 }

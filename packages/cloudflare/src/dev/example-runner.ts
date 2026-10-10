@@ -94,6 +94,7 @@ export interface ExampleRuntimeHooks {
     readonly baselineInputs: unknown;
     readonly inputs: unknown;
     readonly selectors: readonly string[];
+    readonly selectorChannels?: readonly ("input" | "request" | "caller")[];
     readonly cells: readonly unknown[];
   }) => Promise<{ readonly fixtures: ReadonlyMap<string, unknown>; readonly inputs: unknown }>;
   /** Invoke the compiled operation through canonical admission. */
@@ -590,13 +591,14 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
       references.set(scope, objectBindings);
       return { materialized, values };
     },
-    async prepareRowCells({ scope, fixtures, baselineInputs, inputs, selectors, cells }) {
+    async prepareRowCells({ scope, fixtures, baselineInputs, inputs, selectors, selectorChannels, cells }) {
       const rowBindings = rows.get(scope);
       const objectBindings = references.get(scope);
       if (rowBindings === undefined || objectBindings === undefined ||
           !isRecord(baselineInputs) || !isRecord(inputs)) return { fixtures, inputs };
       const overrides = new Map<string, Record<string, unknown>>();
       for (const [index, selector] of selectors.entries()) {
+        if (selectorChannels !== undefined && selectorChannels[index] !== "input") continue;
         const parts = selector.split(".");
         if (parts.length !== 2) continue;
         const [root, fieldName] = parts as [string, string];

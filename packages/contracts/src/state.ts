@@ -1,5 +1,7 @@
 import type { CanTypeId, WireValue } from './values.js';
-import type { RetainedFinalizedFile } from './files.js';
+import type { ArtifactModel } from './artifact.js';
+import type { FinalizedFileIdentity, FinalizedFileReceiver, FinalizedFileRef,
+  FileRetentionPolicy, RetainedFinalizedFile } from './files.js';
 
 /**
  * Lane 03 producer contract: authoritative state boundary (types only).
@@ -656,6 +658,136 @@ export interface InstalledSnapshot {
   readonly digest: string;
   readonly installedRevision: Revision;
   readonly installedAt: number;
+}
+
+/** Persisted host assignments, not paths, JS handles or request claims.
+ * Exactly one authoritative State store admits references to this physical
+ * Files receiver/store. State owner and physical receiver owner are distinct.
+ * Both stores must retain their identities across reopen; repinning refuses. */
+export interface FileRetirementAuthority {
+  readonly app: string;
+  readonly stateOwner: string;
+  readonly stateStoreId: string;
+  readonly fileStoreId: string;
+  readonly receiver: Readonly<Omit<FinalizedFileReceiver, 'principal'>>;
+}
+
+/** Installed declaration identity; owner is the snapshot owner, not a team ID.
+ * Digest correspondence alone does not authenticate a checked declaration set. */
+export interface FileReferenceInventoryIdentity {
+  readonly owner: string;
+  readonly snapshotId: string;
+  readonly digest: string;
+}
+
+/** Complete same-load declarations, detached and persisted after validation.
+ * Explicit empty arrays/valueTypes are valid; omitted evidence is not empty.
+ * Storage derives every File occurrence, including nested/collection/optional/
+ * nullable and archived values, from this inventory, never a caller ref list. */
+export interface FileReferenceInventory extends FileReferenceInventoryIdentity {
+  readonly canonicalModels: ReadonlyArray<CanonicalModelDescriptor>;
+  readonly artifactModels: ReadonlyArray<ArtifactModel>;
+  readonly valueTypes: CanonicalValueTypes;
+}
+
+export interface InstalledFileReferenceInventory {
+  readonly authority: FileRetirementAuthority;
+  readonly snapshot: InstalledSnapshot;
+  readonly inventory: FileReferenceInventory;
+}
+
+/** First trusted assignment only. Persist assignment, complete declarations
+ * and the matching fresh snapshot in one expected-revision transaction. An
+ * existing pointer must match; changing a snapshot uses checked migration.
+ * Validate every existing live row; unknown legacy declarations refuse.
+ * A fresh pointer's installedRevision is the actual installation revision;
+ * preserve an existing matching pointer's original installation revision/time. */
+export interface InstallFileReferenceInventory {
+  readonly expectedRevision: Revision;
+  readonly authority: FileRetirementAuthority;
+  readonly snapshot: InstalledSnapshot;
+  readonly inventory: FileReferenceInventory;
+}
+
+/** Trusted host requests retirement, but supplies no census or issuance proof.
+ * Storage derives the complete census at expectedRevision and checks the exact
+ * installed inventory. Incomplete bounds or mixed migration declarations refuse.
+ * Orphaning requires no committed references; expiry uses the existing policy.
+ * Positive safe-integer maxRows/maxReferences bound the complete census;
+ * exhaustion refuses without publishing retirement, never truncates evidence.
+ * atMs is the owning clock, not caller wire time. Captured policy is separate
+ * from immutable physical identity and cannot renew original finalization. */
+export interface RetireFinalizedFile {
+  readonly expectedRevision: Revision;
+  readonly inventory: FileReferenceInventoryIdentity;
+  readonly file: FinalizedFileIdentity;
+  readonly disposition: 'orphaned' | 'expired';
+  readonly retention: FileRetentionPolicy;
+  readonly atMs: number;
+  readonly maxRows: number;
+  readonly maxReferences: number;
+}
+
+/** Permanent persisted facts, not a bearer grant or a publicly minted issuer.
+ * Only an authoritative lookup through the exact trusted owner storage port
+ * establishes durable issuance after reopen. The original identity/evidence
+ * survive retry; no lease, expiry, replacement decision or reactivation exists.
+ * Files checks its persisted assignment/immutable metadata on every retry and
+ * verifies bytes when present. Absent bytes succeed only with its matching
+ * permanent terminal decision/tombstone, including the original retirementId;
+ * absence alone is no proof of completed cleanup. Copying this DTO grants nothing. */
+export interface FinalizedFileRetirement {
+  readonly retirementId: string;
+  readonly authority: FileRetirementAuthority;
+  readonly file: FinalizedFileIdentity;
+  readonly snapshot: InstalledSnapshot;
+  readonly censusRevision: Revision;
+  readonly retiredRevision: Revision;
+  readonly retiredAtMs: number;
+  readonly disposition: 'orphaned' | 'expired';
+  readonly retention: FileRetentionPolicy;
+}
+
+/** Publish derives references from these exact target declarations, including
+ * previously staged rows. Persist/check target inventory correspondence for the
+ * migration before changing live values; omission through a legacy port refuses. */
+export interface FileReferencePublishMigrationChunk extends PublishMigrationChunk {
+  readonly fileReferenceInventory: FileReferenceInventory;
+}
+
+/** Activation checks exact published target declarations and every live value
+ * they can reinterpret. A removal retains permanent authority/retirements and
+ * cannot silently leave uncovered live rows. No idempotent pointer shortcut may
+ * skip declaration/retirement correspondence. */
+export type FileReferenceFlipInstalledSnapshot = FlipInstalledSnapshot & (
+  | { readonly snapshot: InstalledSnapshot; readonly fileReferenceInventory: FileReferenceInventory }
+  | { readonly snapshot: null; readonly fileReferenceInventory: null }
+);
+
+/** Required checked extension; generic StoragePort supplies no retirement
+ * capability. These methods do not implement it. A bound adapter enforces
+ * backend-derived reference admission in commit, migration publish and schema
+ * activation under their SAME atomic revision fence, even when called through
+ * a legacy StoragePort reference. Missing evidence refuses, never bypasses.
+ * A concurrent writer either invalidates the census or loses to permanent
+ * retirement without effects. References cannot be introduced after retirement.
+ * Read/install returns detached facts; a structural port/record cast is no grant.
+ * Multiple State stores sharing bytes remain unsupported without common atomic
+ * admission. Each instance is permanently bound to exactly one authority;
+ * every method validates that assignment, so ref-only lookup cannot cross stores.
+ * Physical deletion is Files-owned after genuine issuer lookup. */
+export interface FileReferenceStoragePort extends StoragePort {
+  /** Trusted binding; install persists it once, and later calls must match the
+   * reopened persisted assignment. This property's shape grants no authority. */
+  readonly fileRetirementAuthority: FileRetirementAuthority;
+  installFileReferenceInventory(input: InstallFileReferenceInventory): Promise<CommitResult>;
+  readFileReferenceInventory(owner: string): Promise<InstalledFileReferenceInventory | null>;
+  retireFinalizedFile(input: RetireFinalizedFile): Promise<FinalizedFileRetirement>;
+  /** Reads the original permanent decision through this persisted owner binding.
+   * Unknown identity returns null; altered/foreign authority refuses. */
+  readFinalizedFileRetirement(ref: FinalizedFileRef): Promise<FinalizedFileRetirement | null>;
+  publishMigrationChunk(input: FileReferencePublishMigrationChunk): Promise<CommitResult>;
+  flipInstalledSnapshot(input: FileReferenceFlipInstalledSnapshot): Promise<FlipResult>;
 }
 
 /**
