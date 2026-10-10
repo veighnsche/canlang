@@ -2047,7 +2047,7 @@
     {
       "family": "FILES",
       "kind": "correctness",
-      "readiness": "implementing-owning-durable-publication-and-upload-contract",
+      "readiness": "implemented-owning-durable-publication-and-offset-contract-native-consumer-pending",
       "audit_finding_ids": [
         "LF02",
         "LF03",
@@ -2057,7 +2057,7 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Packages owns defining Files/Interfaces append retry and finalization phases; actual selected SQLite transaction is available. Necessary narrow Interfaces forwarding/route and Files bridge/host hunks released by coordinator. Exact abstract three-request retry consultation specifically held by auto-review pending human approval. Native/mounted/provider deployment qualification needs its actual host owner; FS separate-store concurrency/power-loss not implied by serial reopen tests."
+        "Packages defining SQLite atomic append/range identity, recoverable serial finalization phases and Interfaces required-offset transport implemented/owning-tested. Dev owns actual bound-images fourth offset and typed-file HTTP headers plus native qualification; actual deployment/provider owner owns live R2/mounted and concurrent external-store/power-loss requirements. Exact retry consultation trio completed once after specific human approval; unrelated holds persist."
       ],
       "intended_deleted_mechanisms": [
         "None. Replace blind append/count and untracked multistore finalization only after selected storage mechanism release; retain signature allowlist/readable prefix checks and bounded transfer."

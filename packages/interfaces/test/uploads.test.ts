@@ -96,7 +96,7 @@ function sessionPut(
   return testRequest(path, {
     method: 'PUT',
     cookie: t.identity.cookie,
-    headers: { 'x-csrf-token': t.csrf, ...init.headers },
+    headers: { 'x-csrf-token': t.csrf, 'upload-offset': '0', ...init.headers },
     ...(init.body === undefined ? {} : { body: init.body }),
     ...(init.duplex === undefined ? {} : { duplex: init.duplex }),
   });
@@ -319,7 +319,7 @@ test('auth: PUT content with bad CSRF is 403 and never touches the kernel', asyn
     testRequest('/files/content/intent-1', {
       method: 'PUT',
       cookie: t.identity.cookie,
-      headers: { 'x-csrf-token': 'wrong-token' },
+      headers: { 'x-csrf-token': 'wrong-token', 'upload-offset': '-1' },
       body: 'ab',
     }),
   );
@@ -568,6 +568,93 @@ test('content partial answers complete:false and stays open', async () => {
   );
 });
 
+test('content refuses missing or noncanonical offsets before the ceiling or body is read', async () => {
+  const t = await setup();
+  let ceilingReads = 0;
+  t.deps.kernel.maxBytes = () => { ceilingReads++; return 1024; };
+  for (const offset of [null, '', '-1', '+1', '01', '1.0', '1e2', '1 0', '0, 0', '9007199254740992']) {
+    const request = sessionPut(t, '/files/content/intent-1', { body: 'ab', headers: { 'content-length': '2048' } });
+    if (offset === null) request.headers.delete('upload-offset');
+    else request.headers.set('upload-offset', offset);
+    const response = await handleUploadRequest(t.deps, request);
+    assert.equal(response.status, 400, String(offset));
+    assert.equal((await errorOf(response)).code, 'validation', String(offset));
+    assert.equal(request.bodyUsed, false, String(offset));
+  }
+  assert.equal(ceilingReads, 0);
+  assert.equal(t.kernel.calls.length, 0);
+});
+
+test('content captures the offset before ceiling awaits and forwards actual binary bytes', async () => {
+  const bytes = new Uint8Array([0, 255]);
+  const t = await setup({
+    append: (intentId, caller, chunk, expectedOffset) => {
+      assert.equal(intentId, 'intent-1');
+      assert.ok(caller.principal.length > 0);
+      assert.deepEqual(chunk, bytes);
+      assert.equal(expectedOffset, 2);
+      return { status: 'appended', receivedBytes: 4 };
+    },
+    complete: () => ({ status: 'failed', reason: 'partial' }),
+  });
+  const request = sessionPut(t, '/files/content/intent-1', { body: bytes, headers: { 'upload-offset': '2' } });
+  t.deps.kernel.maxBytes = async () => { request.headers.set('upload-offset', '9'); return 1024; };
+  const response = await handleUploadRequest(t.deps, request);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { received_bytes: 4, complete: false });
+  assert.equal(callDetail(t, 0).detail['expectedOffset'], 2);
+  assert.equal((callDetail(t, 0).detail['caller'] as { principal: string }).principal, t.identity.userId);
+});
+
+test('content forwards the maximum safe offset without inferring the current count', async () => {
+  const t = await setup({
+    append: (_intent, _caller, chunk, offset) => {
+      assert.equal(offset, Number.MAX_SAFE_INTEGER);
+      assert.equal(chunk.length, 0);
+      return { status: 'failed', reason: 'conflict' };
+    },
+  });
+  const response = await handleUploadRequest(t.deps, sessionPut(t, '/files/content/intent-1', {
+    body: '', headers: { 'upload-offset': '9007199254740991' },
+  }));
+  assert.equal(response.status, 409);
+  assert.equal((await errorOf(response)).code, 'conflict');
+  assert.deepEqual(t.kernel.calls.map(call => call.method), ['append']);
+});
+
+test('content repeats a range acknowledgement while reporting current validated completion', async () => {
+  // Script the owning kernel's acknowledgements; this tests transport, not range admission.
+  const offsets: number[] = [];
+  const chunks: Uint8Array[] = [];
+  const acknowledgements = [2, 4, 2];
+  let completionCalls = 0;
+  const t = await setup({
+    append: (_intent, _caller, chunk, offset) => {
+      offsets.push(offset);
+      chunks.push(chunk);
+      return { status: 'appended', receivedBytes: acknowledgements[offsets.length - 1]! };
+    },
+    complete: () => ++completionCalls === 1
+      ? { status: 'failed', reason: 'partial' }
+      : { status: 'completed', check: ACCEPTED_CHECK },
+  });
+  const expected = [
+    { received_bytes: 2, complete: false },
+    { received_bytes: 4, complete: true, check: ACCEPTED_CHECK },
+    { received_bytes: 2, complete: true, check: ACCEPTED_CHECK },
+  ];
+  for (const [index, offset] of [0, 2, 0].entries()) {
+    const response = await handleUploadRequest(t.deps, sessionPut(t, '/files/content/intent-1', {
+      body: 'ab', headers: { 'upload-offset': String(offset) },
+    }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), expected[index]);
+  }
+  assert.deepEqual(offsets, [0, 2, 0]);
+  assert(chunks.every(chunk => new TextDecoder().decode(chunk) === 'ab'));
+  assert.deepEqual(t.kernel.calls.map(call => call.method), ['append', 'complete', 'append', 'complete', 'append', 'complete']);
+});
+
 test('content full journey appends then completes with the check', async () => {
   const t = await setup({
     append: () => ({ status: 'appended', receivedBytes: 4 }),
@@ -579,6 +666,7 @@ test('content full journey appends then completes with the check', async () => {
       method: 'PUT',
       headers: {
         'content-type': 'application/octet-stream',
+        'upload-offset': '0',
         authorization: `Bearer ${t.grant}`,
       },
       body: 'abcd',
@@ -635,6 +723,7 @@ test('content maps append failures', async () => {
     { outcome: { status: 'failed', reason: 'closed' }, status: 422, code: 'rule_failed' },
     { outcome: { status: 'failed', reason: 'expired' }, status: 404, code: 'not_found' },
     { outcome: { status: 'failed', reason: 'oversized' }, status: 429, code: 'limit' },
+    { outcome: { status: 'failed', reason: 'conflict' }, status: 409, code: 'conflict' },
   ];
   for (const c of cases) {
     const t = await setup({ append: () => c.outcome });
