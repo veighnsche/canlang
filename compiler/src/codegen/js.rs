@@ -232,9 +232,11 @@ pub struct JsNominalLeaf {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct JsValueConstraints {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub min: Option<i64>,
+    pub min: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max: Option<i64>,
+    pub max: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trim: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
     #[serde(rename = "distinctBy", skip_serializing_if = "Option::is_none")]
@@ -246,8 +248,9 @@ pub struct JsValueConstraints {
 impl From<&crate::analysis::resolve::CheckedValueConstraints> for JsValueConstraints {
     fn from(value: &crate::analysis::resolve::CheckedValueConstraints) -> Self {
         Self {
-            min: value.min,
-            max: value.max,
+            min: value.min.map(serde_json::Value::from),
+            max: value.max.map(serde_json::Value::from),
+            trim: None,
             format: value.format.clone(),
             distinct_by: value.distinct_by.clone(),
             excluded_ids: value.excluded_ids.clone(),
@@ -1993,13 +1996,32 @@ impl<'a> Emitter<'a> {
                 } => {
                     !cases.is_empty()
                         && ir.items.get(owner.0 as usize).is_some_and(|item| {
-                            item.id == *owner && matches!(item.kind, IrItemKind::Field { .. })
+                            item.id == *owner
+                                && matches!(
+                                    item.kind,
+                                    IrItemKind::Field { .. }
+                                        | IrItemKind::JudgmentGenerated(
+                                            IrJudgmentGenerated::Field { .. }
+                                        )
+                                )
                         })
                 }
                 _ => false,
             }
         }
-        let mut ordinary_contracts = Vec::new();
+        let mut ordinary_contracts: Vec<_> = self
+            .ir
+            .items
+            .iter()
+            .filter_map(|item| {
+                matches!(
+                    item.kind,
+                    IrItemKind::Judgment { .. }
+                        | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { .. })
+                )
+                .then_some(item.id)
+            })
+            .collect();
         loop {
             let before = ordinary_contracts.len();
             for item in &self.ir.items {
@@ -2042,9 +2064,7 @@ impl<'a> Emitter<'a> {
             let fields = match &item.kind {
                 IrItemKind::Judgment { result_fields, .. } => result_fields,
                 IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { fields }) => fields,
-                IrItemKind::Contract { fields, .. }
-                    if has_judgment || ordinary_contracts.contains(&item.id) =>
-                {
+                IrItemKind::Contract { fields, .. } if ordinary_contracts.contains(&item.id) => {
                     fields
                 }
                 _ => continue,
@@ -2092,11 +2112,7 @@ impl<'a> Emitter<'a> {
                 leaves.push(JsNominalLeaf {
                     name: field.name.clone(),
                     declared,
-                    constraints: self
-                        .ir
-                        .value_constraints
-                        .get(&field.id)
-                        .map_or_else(JsValueConstraints::default, JsValueConstraints::from),
+                    constraints: self.nominal_field_constraints(&field, ty),
                 });
                 let mut base = ty;
                 while let ResolvedType::Nullable(inner)
@@ -2123,6 +2139,67 @@ impl<'a> Emitter<'a> {
             .map(|(name, cases)| JsNamedEnum { name, cases })
             .collect();
         Some(inventory)
+    }
+
+    /// Ordinary fields use their owning checked modifiers, including exact
+    /// scalar wire bounds. Generated aliases retain their checked constraints.
+    fn nominal_field_constraints(
+        &mut self,
+        field: &IrItem,
+        ty: &ResolvedType,
+    ) -> JsValueConstraints {
+        let mut constraints = self
+            .ir
+            .value_constraints
+            .get(&field.id)
+            .map_or_else(JsValueConstraints::default, JsValueConstraints::from);
+        let IrItemKind::Field { modifiers, .. } = &field.kind else {
+            return constraints;
+        };
+        if modifiers.trim {
+            constraints.trim = Some(true);
+        }
+        // Reused generated aliases already have receiving bounds intersected
+        // by the checker. Authored modifiers must not weaken that result.
+        if self.ir.value_constraints.contains_key(&field.id) {
+            return constraints;
+        }
+        let mut base = ty;
+        while let ResolvedType::Nullable(inner) = base {
+            base = inner;
+        }
+        let length = matches!(base, ResolvedType::Array { .. })
+            || matches!(base, ResolvedType::Scalar(scalar) if scalar.is_string_like());
+        for (key, expression) in [("min", &modifiers.min), ("max", &modifiers.max)] {
+            let Some(expression) = expression else {
+                continue;
+            };
+            let value = if length {
+                match expression.expr {
+                    IrExpr::Int(value) if (0..=9_007_199_254_740_991).contains(&value) => {
+                        Some(serde_json::Value::from(value as u64))
+                    }
+                    _ => None,
+                }
+            } else {
+                wire_literal(expression).map(|value| {
+                    serde_json::to_value(value).expect("owning wire literal serializes")
+                })
+            };
+            if let Some(value) = value {
+                match key {
+                    "min" => constraints.min = Some(value),
+                    _ => constraints.max = Some(value),
+                }
+            } else {
+                self.unsupported(
+                    "nominal value field bound",
+                    "checked bound has no exact owning schema representation",
+                    expression.span,
+                );
+            }
+        }
+        constraints
     }
 
     /// Nominal claims resolve only through the emitted checked inventory.
