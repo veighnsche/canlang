@@ -7,7 +7,8 @@ use canlang_compiler::{
         resolve::SymbolId,
     },
     codegen::{
-        ir::{self, IrItemKind, IrProgram},
+        ir::{self, IrExpr, IrItemKind, IrProgram, IrStmt, TypedExpr},
+        js,
         model_policy_profile::local_hook_supported,
     },
     source::{SourceDb, Span},
@@ -15,6 +16,262 @@ use canlang_compiler::{
 
 fn hook(source: &str, clean: bool) -> (IrProgram, SymbolId) {
     hook_with_expected_diagnostic(source, clean, None)
+}
+
+const CONTEXT_SOURCE: &str = r#"app HookContextProfile
+Given
+ Entry {title:text}
+ Audit {explicit_author:user,explicit_at:datetime,team_id:text,team_timezone:timezone,operation_id:text,operation_source:text,actor_email:email,actor_verified:bool}
+ policy Entry read=members
+ policy Audit read=members
+When
+ crud Entry by=members fields=title
+ scenario capture on=Entry.update
+  do
+   create Audit {explicit_author=actor,explicit_at=now,team_id=team.id,team_timezone=team.timezone,operation_id=operation.id,operation_source=operation.source,actor_email=actor.email,actor_verified=actor.email_verified} as audit
+Then
+"#;
+
+/// Check the complete source unit and its real emitted policy claim together.
+/// The original classification helpers retain their existing assertions.
+fn contextual_hook(source: &str, admitted: bool) -> (IrProgram, SymbolId) {
+    let mut db = SourceDb::new();
+    let file = db.add("model-hook-context.can".into(), source.into());
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(
+        diagnostics.is_empty(),
+        "checked contextual source: {diagnostics:?}"
+    );
+    let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    let output = js::emit_program_with_native_source_receipts(&program, false, &db);
+    if admitted {
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(
+            output.model_policies.is_some(),
+            "complete owning policy claim is published"
+        );
+    } else {
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic.message.contains("hook contextual binding")),
+            "unsupported complete graph retains the context refusal: {diagnostics:?}"
+        );
+        assert!(
+            output.model_policies.is_none(),
+            "unsupported complete graph publishes no partial policy claim"
+        );
+        assert!(!output.entry.js.contains("modelPolicyBindings:"));
+    }
+    let scenario = program
+        .items
+        .iter()
+        .find(|item| matches!(item.kind, IrItemKind::Scenario { hook: Some(_), .. }))
+        .unwrap()
+        .id;
+    assert_eq!(local_hook_supported(&program, scenario), admitted);
+    (program, scenario)
+}
+
+fn expression_path(expr: &TypedExpr) -> Vec<&str> {
+    match &expr.expr {
+        IrExpr::Name(name) => vec![name],
+        IrExpr::Member { base, field } => {
+            let mut path = expression_path(base);
+            path.push(field);
+            path
+        }
+        other => panic!("expected exact checked path, got {other:?}"),
+    }
+}
+
+#[test]
+fn checked_authenticated_hook_context_stages_exact_native_scalar_values() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar};
+    for operation in ["create", "update"] {
+        let source = CONTEXT_SOURCE.replace("on=Entry.update", &format!("on=Entry.{operation}"));
+        let (program, scenario) = contextual_hook(&source, true);
+        let IrItemKind::Scenario { effects, .. } = &program.item(scenario).kind else {
+            unreachable!()
+        };
+        let IrStmt::Create { model, input, .. } = &effects[0] else {
+            panic!("actual staged create: {effects:?}")
+        };
+        assert_eq!(model, "HookContextProfile.Audit");
+        let IrExpr::Object(entries) = &input.expr else {
+            panic!("named staged values: {input:?}")
+        };
+        let expected = [
+            ("explicit_author", Scalar::User, vec!["c", "actor"]),
+            ("explicit_at", Scalar::Datetime, vec!["c", "now"]),
+            ("team_id", Scalar::Text, vec!["c", "team", "id"]),
+            (
+                "team_timezone",
+                Scalar::Timezone,
+                vec!["c", "team", "timezone"],
+            ),
+            ("operation_id", Scalar::Text, vec!["c", "operation", "id"]),
+            (
+                "operation_source",
+                Scalar::Text,
+                vec!["c", "operation", "source"],
+            ),
+            (
+                "actor_email",
+                Scalar::Email,
+                vec!["c", "actorFacts", "email"],
+            ),
+            (
+                "actor_verified",
+                Scalar::Bool,
+                vec!["c", "actorFacts", "email_verified"],
+            ),
+        ];
+        assert_eq!(entries.len(), expected.len());
+        for ((name, value), (expected_name, scalar, path)) in entries.iter().zip(expected) {
+            assert_eq!(name, expected_name);
+            assert_eq!(value.ty, ResolvedType::Scalar(scalar));
+            assert_eq!(expression_path(value), path);
+        }
+    }
+}
+
+#[test]
+fn checked_hook_context_spellings_reject_authored_shadows_and_preserve_context_types() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar};
+    use std::process::Command;
+    let source = r#"app HookLexicalProfile
+Given
+ Entry {title:text}
+ Audit {actor_value:text,now_value:text,team_value:text,operation_value:text}
+ policy Entry read=members
+ policy Audit read=members
+When
+ crud Entry by=members fields=title
+ scenario capture on=Entry.update
+  do
+   let actor="lexical actor"
+   let now="lexical now"
+   let team="lexical team"
+   let operation="lexical operation"
+   create Audit {actor_value=actor,now_value=now,team_value=team,operation_value=operation} as audit
+Then
+"#;
+    let mut db = SourceDb::new();
+    let file = db.add("model-hook-shadow.can".into(), source.into());
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    let shadows: Vec<_> = diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "E2012")
+        .collect();
+    assert_eq!(
+        shadows.len(),
+        4,
+        "all active contexts reject shadows: {diagnostics:?}"
+    );
+    for (name, expected) in [
+        ("actor", ResolvedType::Scalar(Scalar::User)),
+        ("now", ResolvedType::Scalar(Scalar::Datetime)),
+        ("team", ResolvedType::Team),
+        ("operation", ResolvedType::OperationContext),
+    ] {
+        assert!(
+            shadows
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains(&format!(
+                    "'{name}' hides the active contextual fact '{name}'"
+                )))
+        );
+        let needle = format!("{name}_value={name}");
+        let start = source.find(&needle).unwrap() + format!("{name}_value=").len();
+        let end = start + name.len();
+        assert!(
+            checked
+                .types
+                .node_types
+                .iter()
+                .any(|(key, ty)| key.file == file
+                    && key.start as usize <= start
+                    && key.end as usize >= end
+                    && source[key.start as usize..key.end as usize].trim() == name
+                    && ty == &expected),
+            "rejected let leaves the actual checked {name} context type intact"
+        );
+    }
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("model-hook-shadow.can");
+    std::fs::write(&input, source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(path)
+        .arg(input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(!output.status.success(), "{result}");
+    assert_eq!(
+        result["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|diagnostic| diagnostic["code"] == "E2012")
+            .count(),
+        4,
+        "{result}"
+    );
+    assert!(
+        result.get("modules").is_none(),
+        "invalid source publishes no native modules or policy claim: {result}"
+    );
+}
+
+#[test]
+fn unsupported_hook_graphs_with_context_retain_refusal_and_no_policy_claim() {
+    let delete = CONTEXT_SOURCE.replace("on=Entry.update", "on=Entry.delete");
+    let create_line = delete
+        .lines()
+        .find(|line| line.trim_start().starts_with("create Audit"))
+        .unwrap();
+    let delete = delete.replace(create_line, "   let caller=actor\n   let clock=now");
+    for source in [
+        CONTEXT_SOURCE.replace(
+            "  do\n",
+            "  do\n   let unsupported=trim(event.after.title)\n",
+        ),
+        CONTEXT_SOURCE.replace("  do\n", "  do\n   let unsupported=count(Entry)\n"),
+        CONTEXT_SOURCE.replace(
+            " policy Entry read=members",
+            " policy Entry read=members\n invariant Entry: trim(row.title)!=\"\"",
+        ),
+        delete,
+    ] {
+        contextual_hook(&source, false);
+    }
 }
 
 fn hook_with_expected_diagnostic(

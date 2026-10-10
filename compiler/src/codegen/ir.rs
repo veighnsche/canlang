@@ -649,6 +649,28 @@ pub fn build(
     if let Err(diagnostic) = program.validate_cohort(db, catalog) {
         return (empty_program(&program.catalog_version), vec![diagnostic]);
     }
+    if program.effects.scenarios.values().any(|scenario| {
+        matches!(
+            &scenario.on,
+            Some(crate::analysis::effects::HandlerSource::Hook { .. })
+        )
+    }) {
+        // Decode a genuine source candidate before asking the existing whole
+        // owner-policy classifier whether every native callback can be bound.
+        // Unsupported/partial plans are rebuilt in refusal mode; no candidate
+        // contextual expression leaks into legacy two-argument hooks.
+        let mut candidate = Cx::new(program, db, catalog);
+        candidate.native_hook_context = true;
+        let (ir, diagnostics) = candidate.build_program();
+        let entry = super::js::pick_entrypoint(&ir)
+            .map(|id| ir.module(id).name.as_str())
+            .unwrap_or("index");
+        if super::model_policies::collect_local_policies(&ir, &super::js::module_path(entry))
+            .is_some_and(|policies| !policies.hook_bindings.is_empty())
+        {
+            return (ir, diagnostics);
+        }
+    }
     let mut cx = Cx::new(program, db, catalog);
     cx.build_program()
 }
@@ -833,6 +855,9 @@ struct Cx<'a> {
     preference_validators: HashMap<ModuleId, String>,
     /// Collected while decoding one page's bound tabs.
     page_preference_fields: Vec<IrPreferenceField>,
+    /// Private candidate permission; build returns this decoding only after the
+    /// complete existing owner-policy plan qualifies native callback binding.
+    native_hook_context: bool,
     diags: Vec<Diagnostic>,
 }
 
@@ -872,6 +897,7 @@ impl<'a> Cx<'a> {
             page_fns: HashSet::new(),
             preference_validators: HashMap::new(),
             page_preference_fields: Vec::new(),
+            native_hook_context: false,
             diags: Vec::new(),
         }
     }
@@ -2877,8 +2903,8 @@ struct Scope {
     /// scope ends field placement unless nested under another owner).
     in_field_owner: bool,
     /// Whether decoding sits inside a pre-commit hook body (T31 Rule A).
-    /// Hooks do not receive the ambient operation context (`c`), and
-    /// contextual values need an owning hook contract before lowering.
+    /// Contextual values lower only in the private native candidate pass,
+    /// which is returned after the complete owner-policy profile qualifies.
     in_hook: bool,
 }
 
@@ -3510,6 +3536,15 @@ impl<'a> Cx<'a> {
         {
             return IrExpr::Name(name);
         }
+        // Checked lexical shadows remain values. Spelling alone must never
+        // turn an authored hook local into a native contextual root.
+        if scope.in_hook
+            && matches!(name.as_str(), "actor" | "now" | "team" | "operation")
+            && self.program.types.bound_names.contains(&key)
+            && !self.program.types.contextual_references.contains_key(&key)
+        {
+            return IrExpr::Name(name);
+        }
         if is_enum_ty(ty) && self.program.types.bound_names.contains(&key) {
             return IrExpr::Name(name);
         }
@@ -3541,12 +3576,12 @@ impl<'a> Cx<'a> {
             "c" | "row" | "event" | "result" | "parent" | "preferences" | "s" | "b" => {
                 return IrExpr::Name(name.to_string());
             }
-            // The hook carrier does not implement the checked native
-            // actor/now/team/operation types. Refuse these reads until
-            // an owning contract supplies them; never emit unbound names
-            // or reinterpret raw carrier strings/numbers as native values.
-            "actor" | "now" | "team" | "operation" if scope.in_hook => {
-                let why = "no owning hook context contract supplies the checked value";
+            // Only a complete native owner-policy plan can return contextual
+            // hook decoding. The refusal rebuild preserves exact source spans.
+            "actor" | "now" | "team" | "operation"
+                if scope.in_hook && !self.native_hook_context =>
+            {
+                let why = "no complete native owner-policy plan binds the hook context";
                 self.diags.push(Diagnostic::error(
                     "E6008",
                     format!("cannot lower hook contextual binding `{name}`: {why}"),
@@ -3874,7 +3909,7 @@ impl<'a> Cx<'a> {
                 // their native identity shape and checker restrictions.
                 // Group decoding preserves the same contextual IR root;
                 // its synthetic `c` has Unknown type, unlike a typed local.
-                if !scope.in_hook
+                if (!scope.in_hook || self.native_hook_context)
                     && fields.len() == 1
                     && matches!(
                         (fields[0].as_str(), ty),
@@ -3888,6 +3923,11 @@ impl<'a> Cx<'a> {
                                 && matches!(base.ty, ResolvedType::Unknown))
                 {
                     expr.expr = member_of("c", "actorFacts", &ResolvedType::Unknown, base.span);
+                    if scope.in_hook {
+                        // This private facts container is not the native User
+                        // value whose checked read selected the projection.
+                        expr.ty = ResolvedType::Unknown;
+                    }
                 }
                 for (field, field_span) in fields.iter().rev().zip(field_spans.iter().rev()) {
                     let inferred = self.member_ty(&expr.ty, field);
