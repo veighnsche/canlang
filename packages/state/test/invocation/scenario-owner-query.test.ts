@@ -66,11 +66,20 @@ function artifact(child = false): ArtifactDescriptorSlice {
       result: { type: 'Fact[]' as CanTypeId, disclosure: disclosure() } }] : [])],
   };
 }
-async function world(options: { child?: boolean; empty?: boolean } = {}) {
+async function world(options: { child?: boolean; empty?: boolean; lazy?: boolean } = {}) {
   const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
   const member = await seedMember(memberships, { isOwner: false });
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
-  const slice = artifact(options.child), loaded = loadArtifactDescriptors(slice, { by: 'members' });
+  const slice = artifact(options.child);
+  if (options.lazy) {
+    const operation = slice.operations!.find(item => item.name === ROOT)!;
+    const plan = operation.result!.disclosure!;
+    const queryPlan = plan.queries![0]!;
+    operation.result = { ...operation.result!, disclosure: { ...plan, queries: [{ ...queryPlan,
+      dependencies: [...queryPlan.dependencies, { id: 'approved-control', source: source(), role: 'control', field: 'approved', type: 'bool' as CanTypeId }],
+    }] } };
+  }
+  const loaded = loadArtifactDescriptors(slice, { by: 'members' });
   const parent = loaded.registry.get(ROOT); assert.ok(parent && isGeneratedOperationDef(parent));
   const read = loaded.registry.get(READ);
   if (options.child) assert.ok(read && isGeneratedOperationDef(read));
@@ -102,9 +111,9 @@ function wire(rows: Query['rows']) {
 async function query(call: AdmittedCall, w: World, seen: string[] = []) {
   return executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot, record }) => {
     seen.push(record.id);
+    const done = record.data['done'];
     observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'done-control' });
-    observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'key-order' });
-    return record.data['done'] === true;
+    return done === true;
   } });
 }
 function select(call: AdmittedCall, w: World, result: Query, value = wire(result.rows), slots = result.rows.map(row => row.slot)) {
@@ -135,7 +144,7 @@ for (const vacant of [false, true]) test(`actual ordered query retains ${vacant 
     assert.equal(saved[0]!.candidates.find(item => item.row.id === 'task-b')!.matched, false);
     for (const candidate of saved[0]!.candidates) {
       assert.ok(candidate.dependencies.includes('done-control'));
-      assert.ok(candidate.dependencies.includes('key-order'));
+      assert.equal(candidate.dependencies.includes('key-order'), candidate.matched);
     }
   }
   const before = await domain(w), retained = receipt;
@@ -145,6 +154,70 @@ for (const vacant of [false, true]) test(`actual ordered query retains ${vacant 
   assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, receipt.outcome.result);
   const hidden = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['key', 'approved'] }] }]);
   assert.deepEqual(await projectScenarioReceipt({ ...w, receipt, policy: hidden }), { result: null, records: [] });
+});
+
+for (const mode of ['and', 'or', 'empty'] as const) test(`lazy ${mode} query closes actual reads, preserves ordered data and replays under current grants`, async () => {
+  const w = await world({ lazy: true, empty: mode === 'empty' }); let receipt: Receipt | undefined, reads = 0;
+  const input = { ...w, execute: async (call: AdmittedCall) => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    const result = await executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: ({ slot, record }) => {
+      // Enumerating the native shape must not evaluate source getters.
+      assert.ok(Object.isFrozen(record.data)); assert.ok(Object.keys(record.data).includes('approved'));
+      const read = (field: 'done' | 'approved') => {
+        reads++; const value = record.data[field];
+        observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: `${field}-control` });
+        return value === true;
+      };
+      // Repeat one genuine source site: each read needs its own marker.
+      const done = read('done'); assert.equal(read('done'), done);
+      return mode === 'and' ? done && read('approved') : done || read('approved');
+    } });
+    const value = select(call, w, result);
+    assert.deepEqual(result.rows.map(row => row.record.id), mode === 'or' ? ['task-a', 'task-c'] : []);
+    const final = await session.finalize(); return { ...final, outbox: final.outbox ?? [], result: value };
+  }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
+  assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
+  const observed = readScenarioReceiptAssociation(receipt)!.queries![0]!;
+  assert.equal(observed.candidates.length, mode === 'empty' ? 0 : 3);
+  for (const candidate of observed.candidates) {
+    assert.ok(candidate.dependencies.includes('done-control'));
+    assert.equal(candidate.dependencies.includes('approved-control'), mode === 'and' ? candidate.row.data['done'] === true : candidate.row.data['done'] === false);
+    assert.equal(candidate.dependencies.includes('key-order'), candidate.matched);
+    assert.equal(candidate.dependencies.includes('key-data'), candidate.matched);
+    assert.ok(Object.getOwnPropertyDescriptor(candidate.record.data, 'done')?.value !== undefined);
+  }
+  assert.equal(reads, mode === 'empty' ? 0 : mode === 'and' ? 8 : 7);
+  assert.equal((await invoke(input)).status, 'replayed'); assert.equal(reads, mode === 'empty' ? 0 : mode === 'and' ? 8 : 7);
+  assert.ok(receipt.outcome.status === 'committed');
+  assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, receipt.outcome.result);
+  // Static potential-field authority is still required even if a branch skipped it.
+  const hidden = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['key', 'done'] }] }]);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt, policy: hidden }), { result: null, records: [] });
+  await w.memberships.removeMembership(w.member.membership.membership_id);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+});
+
+for (const mode of ['next-slot', 'closed-predicate', 'unchecked-field', 'second-read-before-marker'] as const)
+test(`${mode} predicate getter refuses and poisons the owner even when caught`, async () => {
+  const w = await world(), before = await domain(w); let retained: Record<string, unknown> | undefined;
+  await assert.rejects(invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    const run = executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: ({ slot, record }) => {
+      if (mode === 'next-slot' && retained) assert.throws(() => retained!['done'], stateError);
+      retained ??= record.data;
+      if (mode === 'unchecked-field') assert.throws(() => record.data['approved'], stateError);
+      const done = record.data['done'];
+      if (mode === 'second-read-before-marker') assert.throws(() => record.data['done'], stateError);
+      observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'done-control' });
+      return done === true;
+    } });
+    if (mode === 'closed-predicate') {
+      const result = await run; select(call, w, result);
+      assert.throws(() => retained!['done'], stateError);
+    } else await assert.rejects(run, stateError);
+    await assert.rejects(session.finalize(), stateError); return empty();
+  } }), stateError);
+  assert.deepEqual(await domain(w), before);
 });
 
 for (const mode of ['copy-slot', 'foreign-slot', 'count', 'order', 'reference', 'reference-version', 'version', 'scalar', 'copy-query'] as const)
@@ -236,9 +309,9 @@ for (const mode of ['copy-call', 'foreign-store', 'concurrent'] as const)
         let entered!: () => void, release!: () => void;
         const ready = new Promise<void>(resolve => { entered = resolve; });
         const gate = new Promise<void>(resolve => { release = resolve; });
-        const first = executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot }) => {
+        const first = executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot, record }) => {
+          void record.data['done'];
           observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'done-control' });
-          observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'key-order' });
           entered(); await gate; return true;
         } });
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -306,17 +379,22 @@ test('genuine same-owner read child returns its checked query closure and refuse
   }
 });
 
-for (const mode of ['missing-control', 'wrong-dependency', 'copied-predicate-slot'] as const)
+for (const mode of ['missing-control', 'wrong-dependency', 'copied-predicate-slot', 'marker-without-read', 'repeat-missing-marker', 'field-skew', 'copied-call', 'foreign-store'] as const)
   test(`${mode} cannot certify predicate control even if its refusal is caught`, async () => {
     const w = await world(), before = await domain(w);
     await assert.rejects(invoke({ ...w, execute: async call => {
       const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
       await session.stage({ op: 'update', model: MODEL, id: w.rows[0]!.id, data: { approved: true } }, cause);
-      await assert.rejects(executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot }) => {
-        observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'key-order' });
-        if (mode !== 'missing-control') assert.throws(() => observeScenarioReceiptQueryDependency(call, w.store, {
+      await assert.rejects(executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot, record }) => {
+        if (mode !== 'marker-without-read') void record.data['done'];
+        if (mode === 'repeat-missing-marker') {
+          observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'done-control' });
+          void record.data['done'];
+        }
+        if (mode !== 'missing-control' && mode !== 'repeat-missing-marker') assert.throws(() => observeScenarioReceiptQueryDependency(
+          mode === 'copied-call' ? { ...call } : call, mode === 'foreign-store' ? { ...w.store } : w.store, {
           slot: mode === 'copied-predicate-slot' ? { ...slot } : slot,
-          dependencyId: mode === 'wrong-dependency' ? 'undeclared-control' : 'done-control',
+          dependencyId: mode === 'wrong-dependency' ? 'undeclared-control' : mode === 'field-skew' ? 'key-order' : 'done-control',
         }), stateError);
         return true;
       } }), stateError);
@@ -416,9 +494,9 @@ test('original seven-field Fact profile binds genuine child query slots, bounds 
       execute: async frame => {
         const result = await executeScenarioReceiptQuery(frame.call, store, { queryId: 'original-tasks', predicate: async ({ slot, record }) => {
           predicates++;
+          const location = record.data['location'];
           observeScenarioReceiptQueryDependency(frame.call, store, { slot, dependencyId: 'location-control' });
-          observeScenarioReceiptQueryDependency(frame.call, store, { slot, dependencyId: 'title-order' });
-          const location = record.data['location']; assert.ok(location && typeof location === 'object' && 'id' in location);
+          assert.ok(location && typeof location === 'object' && 'id' in location);
           return location.id === 'location-selected';
         } });
         const value: Record<string, unknown>[] = result.rows.map(({ record }) => ({ task: { id: record.id, version: String(record.version) },
@@ -466,7 +544,7 @@ test('original seven-field Fact profile binds genuine child query slots, bounds 
       assert.deepEqual(child.result, expected); assert.equal(child.scenario!.queries![0]!.candidates.length, 3);
       for (const candidate of child.scenario!.queries![0]!.candidates) {
         assert.ok(candidate.dependencies.includes('location-control'));
-        assert.ok(candidate.dependencies.includes('title-order'));
+        assert.equal(candidate.dependencies.includes('title-order'), candidate.matched);
       }
       assert.equal(child.scenario!.queries![0]!.candidates.find(candidate => candidate.row.id === 'original-false')!.matched, false);
       const finalRow = await store.load(taskModel, first.id); assert.ok(finalRow); assert.equal(finalRow.data['title'], 'Final');
