@@ -15,6 +15,7 @@ import {
   readSequenceSteps,
   runSequenceSteps,
   type ExampleHooks,
+  type SelectorChannel,
   type SequenceStep,
   type StashedRow,
 } from "./steps.js";
@@ -69,6 +70,53 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function readSelectors(value: unknown, where: string): readonly string[] {
+  if (!Array.isArray(value)) throw new Error(`${where}: selectors are not strings`);
+  const selectors: string[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const entry = Object.getOwnPropertyDescriptor(value, index);
+    if (entry === undefined || !("value" in entry) || typeof entry.value !== "string") {
+      throw new Error(`${where}: selectors are not dense own strings`);
+    }
+    selectors.push(entry.value);
+  }
+  return Object.freeze(selectors);
+}
+
+function readSelectorChannels(
+  record: Record<string, unknown>,
+  selectors: readonly string[],
+  where: string,
+): readonly SelectorChannel[] | undefined {
+  if (!("selectorChannels" in record)) return undefined;
+  const descriptor = Object.getOwnPropertyDescriptor(record, "selectorChannels");
+  if (descriptor === undefined || !("value" in descriptor) || !Array.isArray(descriptor.value)) {
+    throw new Error(`${where}: selectorChannels must be an own array`);
+  }
+  const raw: unknown[] = descriptor.value;
+  if (raw.length !== selectors.length) {
+    throw new Error(`${where}: selectorChannels must match selector arity`);
+  }
+  const channels: SelectorChannel[] = [];
+  for (const [index, selector] of selectors.entries()) {
+    const entry = Object.getOwnPropertyDescriptor(raw, index);
+    const channel: unknown = entry !== undefined && "value" in entry ? entry.value : undefined;
+    if (channel !== "input" && channel !== "request" && channel !== "caller") {
+      throw new Error(`${where}: selectorChannels entry ${index} is not a known own channel`);
+    }
+    if ((selector === "as") !== (channel === "caller") ||
+        (channel === "request" && !selector.startsWith("request."))) {
+      throw new Error(`${where}: selectorChannels entry ${index} is inconsistent with selector ${JSON.stringify(selector)}`);
+    }
+    channels.push(channel);
+  }
+  if (channels.includes("request") && selectors.some((selector, index) =>
+    channels[index] === "input" && (selector === "request" || selector.startsWith("request.")))) {
+    throw new Error(`${where}: selectorChannels mixes a lexical request input with the wire request envelope`);
+  }
+  return Object.freeze(channels);
+}
+
 /**
  * Applies one row's input cells to the evaluated table inputs along the
  * header selector paths (`selectors[i]` is the dotted source spelling of
@@ -84,6 +132,7 @@ function applyInputCells(
   inputs: unknown,
   selectors: readonly string[],
   cells: readonly unknown[],
+  selectorChannels?: readonly SelectorChannel[],
 ): { inputs: unknown; request?: unknown } {
   if (cells.length !== selectors.length) {
     throw new Error(
@@ -93,10 +142,15 @@ function applyInputCells(
   let applied: unknown = inputs;
   let request: unknown;
   for (const [index, selector] of selectors.entries()) {
-    if (selector === "as") {
+    // Older emitted suites intentionally keep the previous wire-root convention.
+    // Checked metadata always decides the channel without consulting input shape.
+    const channel = selectorChannels === undefined
+      ? selector === "as" ? "caller" : selector.startsWith("request.") ? "request" : "input"
+      : selectorChannels[index];
+    if (channel === "caller") {
       continue;
     }
-    if (selector.startsWith("request.")) {
+    if (channel === "request") {
       request = setPath(request ?? {}, selector.slice("request.".length), cells[index] as unknown, where, true);
       continue;
     }
@@ -349,11 +403,9 @@ export async function loadExampleSuite(
     if (typeof inputsFn !== "function") {
       fail(moduleUrl, `example at index ${exampleIndex} has inputs that are not a function`);
     }
-    const selectorsRaw: unknown = record["selectors"] ?? [];
-    if (!Array.isArray(selectorsRaw) || selectorsRaw.some((s) => typeof s !== "string")) {
-      fail(moduleUrl, `example at index ${exampleIndex} has selectors that are not strings`);
-    }
-    const selectors = selectorsRaw as string[];
+    const where = `example at index ${exampleIndex}`;
+    const selectors = readSelectors(record["selectors"] ?? [], where);
+    const selectorChannels = readSelectorChannels(record, selectors, where);
     const observationsRaw: unknown = record["observations"] ?? [];
     if (!Array.isArray(observationsRaw) || observationsRaw.some((o) => typeof o !== "function")) {
       fail(moduleUrl, `example at index ${exampleIndex} has observations that are not functions`);
@@ -365,7 +417,7 @@ export async function loadExampleSuite(
         await mapTableRow(
           bindings, suite, adjacency, values, callerRecipes, exampleIndex, rowIndex, position,
           operation, inputsFn as (...args: readonly unknown[]) => unknown,
-          selectors, observations, mapped, invoke, observeScope, prepare, hooks.prepareRowCells,
+          selectors, selectorChannels, observations, mapped, invoke, observeScope, prepare, hooks.prepareRowCells,
         ),
       );
       rowIndex += 1;
@@ -423,6 +475,7 @@ async function mapTableRow(
   operation: string,
   inputsFn: (...args: readonly unknown[]) => unknown,
   selectors: readonly string[],
+  selectorChannels: readonly SelectorChannel[] | undefined,
   observations: ReadonlyArray<(...args: readonly unknown[]) => unknown>,
   mapped: EmittedRow,
   invoke: ExampleHooks["invokeCall"],
@@ -468,11 +521,12 @@ async function mapTableRow(
       if (!Array.isArray(cellsRaw)) {
         throw new Error(`${where}: values must evaluate to an array`);
       }
-      const applied = applyInputCells(where, baseline, selectors, cellsRaw);
+      const applied = applyInputCells(where, baseline, selectors, cellsRaw, selectorChannels);
       const prepared = prepareRowCells === undefined
         ? { fixtures: provisioned, inputs: applied.inputs }
         : await prepareRowCells({ scope, fixtures: provisioned, baselineInputs: baseline,
-          inputs: applied.inputs, selectors, cells: cellsRaw });
+          inputs: applied.inputs, selectors, cells: cellsRaw,
+          ...(selectorChannels === undefined ? {} : { selectorChannels }) });
       if (!(prepared.fixtures instanceof Map) || order.some(name => !prepared.fixtures.has(name))) {
         throw new Error(`${where}: row cell materializer did not return every required fixture`);
       }
