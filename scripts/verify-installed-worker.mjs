@@ -55,7 +55,7 @@ async function verifyConsumer(checkout) {
     ownerModule(specifier);
   }
   const distributions = {};
-  for (const name of ['contracts', 'ui', 'identity', 'stdlib', 'state', 'values']) {
+  for (const name of ['contracts', 'ui', 'identity', 'stdlib', 'state', 'work', 'values']) {
     distributions[name] = (await import(ownerModule(`@canlang/${name}/distribution`))).distribution;
     installedFile(distributions[name].modules);
   }
@@ -140,6 +140,26 @@ async function verifyConsumer(checkout) {
   assert.ok(first.modules['runtime/invoke.js'].includes('../vendor/work/receipt/index.js'));
   assert.ok(!first.modules['runtime/invoke.js'].includes('@canlang/work/receipt'));
   api.assertLinksResolve(first.modules); api.assertWorkerdLoadable(first.modules);
+
+  const committedKey = 'vendor/work/kernel/committed-model-source.js';
+  const committedFile = installedFile(new URL('kernel/committed-model-source.js', distributions.work.modules));
+  const publicWork = await import(ownerModule('@canlang/work'));
+  const committedProducer = await import(pathToFileURL(committedFile));
+  assert.equal(typeof committedProducer.createCommittedModelSourceStager, 'function');
+  assert.equal(publicWork.createCommittedModelSourceStager, committedProducer.createCommittedModelSourceStager);
+  assert.ok(first.modules[committedKey].includes('../../state/index.js'));
+  assert.ok(!first.modules[committedKey].includes('@canlang/state'));
+  assert.equal(first.modules['vendor/work/index.js'], undefined, 'the Node-capable public barrel must not enter the Worker graph');
+  assert.deepEqual(Object.keys(first.modules).filter(key => key.endsWith('/mutation/source-finalization.js')), ['vendor/state/mutation/source-finalization.js']);
+  for (const key of ['vendor/state/index.js', 'vendor/state/mutation/source-finalization.js']) {
+    const missing = { ...first.modules }; delete missing[key];
+    assert.throws(() => api.assertLinksResolve(missing), /no such staged module/, `missing canonical source-stage ${key}`);
+  }
+  const savedCommitted = readFileSync(committedFile);
+  try {
+    writeFileSync(committedFile, 'export function {\n');
+    assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }), /committed-model-source\.js/, 'corrupt genuine stager must fail the existing loadability guard');
+  } finally { writeFileSync(committedFile, savedCommitted); }
 
   const filesClosure = ['vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/files/')).sort(), [...filesClosure].sort());
@@ -228,6 +248,7 @@ async function verifyConsumer(checkout) {
     '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports']
     .map(specifier => [specifier, fileURLToPath(ownerModule(specifier))]);
   producerFiles.push(['acorn ESM', acornFile]);
+  producerFiles.push(['Work committed-model source', committedFile]);
   for (const [specifier, file] of producerFiles) {
     const saved = readFileSync(file);
     try {
@@ -274,12 +295,25 @@ async function verifyConsumer(checkout) {
     'import { sha256Hex, checkContent } from "./vendor/files/upload/index.js";',
     'import { readFinalizedFileObservation } from "./vendor/files/finalize/index.js";',
     `import { parse, version } from ${JSON.stringify('./' + acornKey)};`,
+    `import { createCommittedModelSourceStager } from ${JSON.stringify('./' + committedKey)};`,
+    'import * as sourceState from "./vendor/state/index.js";',
+    'import * as mutationState from "./vendor/state/mutation/index.js";',
+    'import { createMemoryStorage } from "./vendor/state/storage/memory.js";',
     'glue.initSync({ module: compiled });',
     'const backend = wasmBackend(glue);',
     `const ast = parse(${JSON.stringify(parserSource)}, { ecmaVersion: 'latest', sourceType: 'module' });`,
     'let malformedRejected = false; try { parse("export const =", { ecmaVersion: "latest", sourceType: "module" }); } catch (error) { malformedRejected = error instanceof SyntaxError; }',
     'const acorn = { version, declaration: ast.body[0].type, escapedKey: ast.body[0].declaration.declarations[0].init.properties[0].key.value, trailing: ast.body[1].type, malformedRejected };',
-    'export default { fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), acorn, files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}) } }); } };',
+    'async function probeCommittedSource() {',
+    '  const store = createMemoryStorage(); const table = sourceState.buildModelTable([{ model: "Probe.Item", fields: {}, refs: [], uniqueKeys: [], deleteMode: "remove", hooks: [], invariants: [], locks: [] }]);',
+    '  const context = { kind: "user", app: "portable-source", actor: { userId: "portable-user" }, team: { teamId: "portable-owner", timezone: "UTC" }, operation: "Probe.change", operationId: "018cc251-f400-7000-8000-000000000001", source: "portable-probe", now: 1700000000000 };',
+    '  let liveToken, selectors = 0; const stager = createCommittedModelSourceStager({ routesForChange: (_change, ctx) => { selectors++; return { scope: { app: ctx.app, owner: ctx.team.teamId, ownerPackage: "Probe" }, handlers: [] }; }, occurrenceIds: { nextOccurrenceId: () => { throw new Error("empty route must not allocate"); } }, bounds: { maxSources: 1, maxHandlers: 1, maxMembers: 1, chunkSize: 1 } });',
+    '  const session = await mutationState.beginOwnerMutation({ table, store, context, bounds: { maxRows: 4, maxWork: 100 }, stageSources: async token => { liveToken = token; sourceState.readOwnerMutationSourceStage(token); return stager(token); } });',
+    '  await session.stage({ op: "create", model: "Probe.Item", id: "portable-row", data: {} }, { cause: "scenario" }); const output = await session.finalize();',
+    '  let closedRejected = false, rawRejected = false; try { await stager(liveToken); } catch (error) { closedRejected = error instanceof sourceState.StateError && error.code === "validation"; } try { sourceState.readOwnerMutationSourceStage({}); } catch (error) { rawRejected = error instanceof sourceState.StateError && error.code === "validation"; }',
+    '  return { sameReader: sourceState.readOwnerMutationSourceStage === mutationState.readOwnerMutationSourceStage, sameBegin: sourceState.beginOwnerMutation === mutationState.beginOwnerMutation, selectors, writes: output.writes.length, businessWrites: sourceState.ownerMutationBusinessWrites(output).length, closedRejected, rawRejected, unchangedRevision: await store.readRevision() };',
+    '}',
+    'export default { async fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), acorn, committedSource: await probeCommittedSource(), files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}) } }); } };',
   ].join('\n');
   const wasmWorker = await startLocalDev({
     workerName: 'installed-wasm-regression', compatibilityDate: '2026-07-15',
@@ -292,7 +326,7 @@ async function verifyConsumer(checkout) {
     wasmWorkerResult = await response.json();
     assert.deepEqual(wasmWorkerResult, { compiled: true, abi: REQUIRED_ABI_VERSION, sum: '3', acorn: {
       version: '8.18.0', declaration: 'ExportNamedDeclaration', escapedKey: 'policy', trailing: 'ThrowStatement', malformedRejected: true,
-    }, files: {
+    }, committedSource: { sameReader: true, sameBegin: true, selectors: 1, writes: 1, businessWrites: 1, closedRejected: true, rawRejected: true, unchangedRevision: 0 }, files: {
       slicedDigest: `sha256:${digest(new Uint8Array([0x00, 0xff, 0x80, 0x01]))}`,
       pdf: { claimedType: 'text/plain', detectedType: 'application/pdf', sizeBytes: 5, verdict: 'accepted' },
       invalidText: { claimedType: 'text/plain', detectedType: null, sizeBytes: 2, verdict: 'rejected' },
@@ -325,6 +359,7 @@ async function verifyConsumer(checkout) {
     }
   }
   const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 4, stateImports: 'actual scenario-file-assignment finalizer and ports edges', portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' }, acorn: { key: acornKey, publicEntry: acornManifest.module, missingProducers: 1, portableWorkerd: wasmWorkerResult.acorn, authority: 'Parser staging and execution only; Dev owns source verification and current G1' } };
+  evidence.committedSource = { key: committedKey, canonicalState: 'vendor/state/mutation/source-finalization.js', missingProducers: 1, corruptProducer: 'existing loadability guard refused malformed genuine bytes', workerd: wasmWorkerResult.committedSource, authority: 'Portable defining producer and private State identity only; Dev owns checked source adoption and complete native workflow' };
   writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 }
