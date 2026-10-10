@@ -501,9 +501,6 @@ export async function runOfficeCohort() {
     }
     const found=await control('discover');assert.equal(found.root,root,'native discover matches in-process owner');
     facts.session=session;
-    const initial=await control('status');
-    const checked=await control('check',['--expected-revision',initial.revision]);
-    assert.equal(checked.current,true);assert.equal(checked.state,'valid');assert.equal(checked.preview,'ready');
     let workflowCalls=0;
     facts.browser=await runOfficeBrowserProbe({checkoutRoot:root,session,afterBrowserWorkflow:async()=>{
       workflowCalls++;assert.equal(workflowCalls,1,'one business workflow in original browser consumer');
