@@ -62,6 +62,76 @@ fn collect_std_nominal_contracts(
     }
 }
 
+/// Canonical Values spelling keeps catalog wrappers and nominal identity.
+fn std_value_type_id(declared: &str) -> Option<String> {
+    if let Some(inner) = declared.strip_suffix('?') {
+        return std_value_type_id(inner).map(|ty| format!("{ty}?"));
+    }
+    if let Some(inner) = declared.strip_suffix("[]!") {
+        return std_value_type_id(inner).map(|ty| format!("{ty}[]!"));
+    }
+    if let Some(inner) = declared.strip_suffix("[]") {
+        return std_value_type_id(inner).map(|ty| format!("{ty}[]"));
+    }
+    match declared {
+        "CanDuration" => Some("duration".to_string()),
+        "DatetimeValue" => Some("datetime".to_string()),
+        _ if std_schema_type(declared).is_some() || nominal_schema(declared).is_some() => {
+            Some(declared.to_string())
+        }
+        _ => None,
+    }
+}
+
+fn std_value_base(mut declared: &str) -> &str {
+    loop {
+        let inner = declared
+            .strip_suffix('?')
+            .or_else(|| declared.strip_suffix("[]!"))
+            .or_else(|| declared.strip_suffix("[]"));
+        match inner {
+            Some(inner) => declared = inner,
+            None => return declared,
+        }
+    }
+}
+
+/// A partial nominal closure cannot supply native completion admission.
+fn collect_std_value_contracts(
+    declared: &str,
+    seen: &mut BTreeSet<String>,
+    contracts: &mut Vec<JsNominalResult>,
+) -> Option<()> {
+    let canonical = std_value_type_id(declared)?;
+    let base = std_value_base(&canonical);
+    if std_schema_type(base).is_some() {
+        return Some(());
+    }
+    let schema = nominal_schema(base)?;
+    if !seen.insert(schema.name.to_string()) {
+        return Some(());
+    }
+    let fields = schema
+        .fields
+        .iter()
+        .map(|(name, declared)| {
+            Some(JsNominalLeaf {
+                name: (*name).to_string(),
+                declared: std_value_type_id(declared)?,
+                constraints: JsValueConstraints::default(),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    contracts.push(JsNominalResult {
+        name: schema.name.to_string(),
+        fields,
+    });
+    for (_, declared) in schema.fields {
+        collect_std_value_contracts(declared, seen, contracts)?;
+    }
+    Some(())
+}
+
 fn invocation_base(ty: &ResolvedType) -> bool {
     match ty {
         ResolvedType::Invocation { .. } => true,
@@ -293,6 +363,18 @@ pub struct JsValueTypes {
     pub enums: Vec<JsNamedEnum>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<JsValueAlias>,
+}
+
+/// Private loader configuration, derived once from the complete checked census.
+#[derive(Debug, Clone, Serialize)]
+struct JsStandardCompletion {
+    source: String,
+    event: String,
+    binding: String,
+    from: String,
+    #[serde(rename = "resultType")]
+    result_type: Option<String>,
+    handlers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1431,6 +1513,7 @@ fn emit_program_with_sources(
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.committed_changes = emitter.collect_committed_changes(db);
+    emitter.standard_completions = emitter.collect_standard_completions(db);
     emitter.validate_model_field_bounds();
     let entry_id = pick_entrypoint(ir);
     let entry_name = entry_id
@@ -2005,6 +2088,7 @@ pub struct Emitter<'a> {
     ir: &'a IrProgram,
     value_types: Option<JsValueTypes>,
     committed_changes: Option<Vec<JsCommittedChange>>,
+    standard_completions: Option<Vec<JsStandardCompletion>>,
     by_canonical: HashMap<String, usize>,
     stdlib: BTreeSet<String>,
     ui: BTreeSet<String>,
@@ -2077,6 +2161,7 @@ impl<'a> Emitter<'a> {
             ir,
             value_types,
             committed_changes: None,
+            standard_completions: None,
             by_canonical,
             stdlib: BTreeSet::new(),
             ui: BTreeSet::new(),
@@ -2232,7 +2317,10 @@ impl<'a> Emitter<'a> {
                 break;
             }
         }
-        if !has_judgment && ordinary_contracts.is_empty() {
+        if !has_judgment
+            && ordinary_contracts.is_empty()
+            && self.ir.standard_completion_sources.handlers.is_empty()
+        {
             return None;
         }
         let mut inventory = JsValueTypes::default();
@@ -2325,6 +2413,50 @@ impl<'a> Emitter<'a> {
             .into_iter()
             .map(|(name, cases)| JsNamedEnum { name, cases })
             .collect();
+        let mut published: BTreeSet<_> = inventory
+            .contracts
+            .iter()
+            .map(|contract| contract.name.clone())
+            .collect();
+        for fact in &self.ir.standard_completion_sources.handlers {
+            let completion = &fact.completion;
+            let Some(op) = std_capability(&completion.capability).and_then(|capability| {
+                capability
+                    .operations
+                    .iter()
+                    .find(|op| op.name == completion.op && op.result == completion.result_type)
+            }) else {
+                self.unsupported(
+                    "standard completion value schema",
+                    "selected owning operation/result is absent",
+                    fact.span,
+                );
+                continue;
+            };
+            let mut seen = BTreeSet::new();
+            let mut contracts = Vec::new();
+            let complete = op
+                .inputs
+                .iter()
+                .map(|(_, declared)| *declared)
+                .chain([op.result, "DeliveryError"])
+                .all(|declared| {
+                    collect_std_value_contracts(declared, &mut seen, &mut contracts).is_some()
+                });
+            if !complete {
+                self.unsupported(
+                    "standard completion value schema",
+                    "owning input/result/error has an unresolved nominal closure",
+                    fact.span,
+                );
+                continue;
+            }
+            for contract in contracts {
+                if published.insert(contract.name.clone()) {
+                    inventory.contracts.push(contract);
+                }
+            }
+        }
         Some(inventory)
     }
 
@@ -6802,6 +6934,12 @@ impl<'a> Emitter<'a> {
         if let Some(changes) = &self.committed_changes {
             members.push(format!("committedChanges:{}", descriptor_json(changes)));
         }
+        if let Some(completions) = &self.standard_completions {
+            members.push(format!(
+                "standardCompletions:{}",
+                descriptor_json(completions)
+            ));
+        }
         // T34-F6: fanout cohort descriptors alongside operations. The
         // member is omitted when empty, so sources without a checked
         // `each=` cohort emit byte-identical output.
@@ -7012,11 +7150,16 @@ impl<'a> Emitter<'a> {
             // per identity so the existing owning input gate can admit it.
             for item in &self.ir.items {
                 let IrItemKind::Scenario {
-                    event_source: Some(source @ IrEventSource::DeliveryProgressed(identity)),
+                    event_source: Some(source),
                     ..
                 } = &item.kind
                 else {
                     continue;
+                };
+                let (identity, input_count) = match source {
+                    IrEventSource::DeliveryProgressed(identity) => (identity, 1),
+                    IrEventSource::StandardCompleted { source, .. } => (source, 4),
+                    _ => continue,
                 };
                 if published.contains(identity) {
                     continue;
@@ -7027,6 +7170,7 @@ impl<'a> Emitter<'a> {
                 let Some(inputs) = invocation
                     .inputs
                     .iter()
+                    .take(input_count)
                     .map(|field| {
                         field.value_type.as_deref().map(|type_id| {
                             format!(
@@ -7066,29 +7210,32 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            // Reach only schemas owned by checked imported capabilities.
-            // Keep source contracts first and never overwrite their identity.
+            // A checked completion publishes the same selected closure as its
+            // installed value inventory. Legacy imports retain their catalog
+            // records when no completion source owns this correspondence.
             let mut schemas = Vec::new();
-            for module in &self.ir.modules {
-                for import in &module.imports {
-                    if import.provider != "std" {
-                        continue;
-                    }
-                    for (name, _, _) in &import.members {
-                        if let Some(capability) = std_capability(name) {
-                            for op in capability.operations {
-                                for (_, declared) in op.inputs {
+            if self.ir.standard_completion_sources.handlers.is_empty() {
+                for module in &self.ir.modules {
+                    for import in &module.imports {
+                        if import.provider != "std" {
+                            continue;
+                        }
+                        for (name, _, _) in &import.members {
+                            if let Some(capability) = std_capability(name) {
+                                for op in capability.operations {
+                                    for (_, declared) in op.inputs {
+                                        collect_std_nominal_contracts(
+                                            declared,
+                                            &mut published,
+                                            &mut schemas,
+                                        );
+                                    }
                                     collect_std_nominal_contracts(
-                                        declared,
+                                        op.result,
                                         &mut published,
                                         &mut schemas,
                                     );
                                 }
-                                collect_std_nominal_contracts(
-                                    op.result,
-                                    &mut published,
-                                    &mut schemas,
-                                );
                             }
                         }
                     }
@@ -7850,6 +7997,7 @@ impl<'a> Emitter<'a> {
                         let identity = match event {
                             IrEventSource::Declared(identity)
                             | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
+                            IrEventSource::StandardCompleted { source, .. } => Some(source.clone()),
                             IrEventSource::Committed { model, change } => self
                                 .ir
                                 .items
@@ -8451,7 +8599,200 @@ impl<'a> Emitter<'a> {
         Some(changes)
     }
 
-    /// Private trusted admission uses the existing flat operation profile.
+    fn collect_standard_completions(
+        &mut self,
+        db: Option<&crate::source::SourceDb>,
+    ) -> Option<Vec<JsStandardCompletion>> {
+        let facts = &self.ir.standard_completion_sources;
+        let current: Vec<_> = self
+            .ir
+            .items
+            .iter()
+            .filter(|item| {
+                matches!(
+                    item.kind,
+                    IrItemKind::Scenario {
+                        event_source: Some(IrEventSource::StandardCompleted { .. }),
+                        ..
+                    }
+                )
+            })
+            .collect();
+        if facts.handlers.is_empty() && current.is_empty() {
+            return None;
+        }
+        let claimed_ids: std::collections::HashSet<_> =
+            facts.handlers.iter().map(|fact| fact.id).collect();
+        let valid = db.is_some_and(|db| {
+            !facts.sources.is_empty()
+                && facts.sources.iter().all(|(id, path, hash)| {
+                    db.get(*id)
+                        .is_some_and(|source| source.path == *path && source.sha256 == *hash)
+                })
+        }) && current.len() == facts.handlers.len()
+            && claimed_ids.len() == facts.handlers.len()
+            && current.iter().all(|item| claimed_ids.contains(&item.id))
+            && facts.handlers.iter().all(|fact| {
+                let completion = &fact.completion;
+                let Some(item) = self.ir.items.get(fact.id.0 as usize) else {
+                    return false;
+                };
+                let IrItemKind::Scenario {
+                    params,
+                    event_source:
+                        Some(
+                            source @ IrEventSource::StandardCompleted {
+                                source: event,
+                                canonical_operation,
+                                result_type,
+                                binding,
+                                from,
+                            },
+                        ),
+                    cohort,
+                    ..
+                } = &item.kind
+                else {
+                    return false;
+                };
+                let Some(module) = self.ir.modules.get(fact.module.0 as usize) else {
+                    return false;
+                };
+                let imports: Vec<_> = module
+                    .imports
+                    .iter()
+                    .flat_map(|import| {
+                        import
+                            .members
+                            .iter()
+                            .filter(|(_, alias, _)| *alias == completion.alias)
+                            .map(move |member| (import, member))
+                    })
+                    .collect();
+                item.id == fact.id
+                    && current
+                        .iter()
+                        .filter(|current| current.id == fact.id)
+                        .count()
+                        == 1
+                    && fact.node.file == item.span.file
+                    && fact.node.start <= item.span.start
+                    && fact.node.end >= item.span.end
+                    && fact.on.file == fact.node.file
+                    && fact.on.start >= fact.node.start
+                    && fact.on.end <= fact.node.end
+                    && fact.on.start < fact.on.end
+                    && item.module == fact.module
+                    && item.canonical == fact.canonical
+                    && item.span == fact.span
+                    && params.is_empty()
+                    && module.id == fact.module
+                    && completion.module == fact.module
+                    && event == &completion.source
+                    && canonical_operation == &completion.canonical_operation
+                    && result_type == &completion.result_type
+                    && completion.binding.as_ref() == Some(binding)
+                    && completion.from.as_ref() == Some(from)
+                    && binding == &format!("{}.{}", module.name, completion.alias)
+                    && imports.len() == 1
+                    && imports[0].0.provider == "std"
+                    && imports[0].0.span == completion.import_span
+                    && imports[0].0.from.as_ref() == Some(from)
+                    && format!("std.{}", imports[0].1.0) == completion.capability
+                    && std_capability(&completion.capability).is_some_and(|capability| {
+                        capability.operations.iter().any(|op| {
+                            op.name == completion.op
+                                && op.result == *result_type
+                                && format!("{}.{}", capability.name, op.name)
+                                    == *canonical_operation
+                        })
+                    })
+                    && cohort == &fact.cohort
+                    && cohort.as_ref().map(|cohort| {
+                        self.ir
+                            .items
+                            .get(cohort.model.0 as usize)
+                            .filter(|item| {
+                                item.id == cohort.model
+                                    && matches!(item.kind, IrItemKind::Model { .. })
+                            })
+                            .map(|item| item.canonical.as_str())
+                    }) == fact.cohort_model.as_deref().map(Some)
+                    && self.private_event_invocation(item, source).is_some()
+            });
+        if !valid {
+            let span = facts
+                .handlers
+                .first()
+                .map(|fact| fact.span)
+                .or_else(|| current.first().map(|item| item.span))
+                .unwrap_or(Span::new(crate::source::SourceId(0), 0, 0));
+            self.diags.push(Diagnostic::error("E6008",
+                "cannot publish standardCompletions: checked source, complete handler inventory, import route or private schema does not match".to_string(), span));
+            return None;
+        }
+        let mut completions: Vec<JsStandardCompletion> = Vec::new();
+        for fact in &facts.handlers {
+            let completion = &fact.completion;
+            if let Some(entry) = completions
+                .iter_mut()
+                .find(|entry| entry.event == completion.source)
+            {
+                entry.handlers.push(fact.canonical.clone());
+            } else {
+                completions.push(JsStandardCompletion {
+                    source: completion.canonical_operation.clone(),
+                    event: completion.source.clone(),
+                    binding: completion
+                        .binding
+                        .clone()
+                        .expect("validated bound completion"),
+                    from: completion.from.clone().expect("validated completion route"),
+                    result_type: Some(completion.result_type.clone()),
+                    handlers: vec![fact.canonical.clone()],
+                });
+            }
+        }
+        Some(completions)
+    }
+
+    /// Completion fields are all required, including nullable result/error.
+    /// Native structural values retain their owning nominal identity.
+    fn standard_completion_input(&self, name: &str, declared: &str) -> Option<JsOperationField> {
+        let value_type = std_value_type_id(declared)?;
+        let outer = value_type.strip_suffix('?').unwrap_or(&value_type);
+        let base = std_value_base(outer);
+        let is_array = outer.ends_with("[]") || outer.ends_with("[]!");
+        let field = if nominal_schema(base).is_some() {
+            self.value_types
+                .as_ref()?
+                .contracts
+                .iter()
+                .find(|contract| contract.name == base)?;
+            JsMcpField::Nominal {
+                name: base.to_string(),
+            }
+        } else {
+            self.mcp_field_for_type(&IrType::Known(std_schema_type(&value_type)?), false)?
+                .0
+        };
+        Some(JsOperationField {
+            min: None,
+            max: None,
+            name: name.to_string(),
+            field,
+            value_type: Some(value_type.clone()),
+            required: true,
+            nullable: value_type.ends_with('?'),
+            array_required: is_array.then_some(outer.ends_with("[]!")),
+            computed_default: false,
+            default: None,
+            description: None,
+            choices: None,
+        })
+    }
+
+    /// Private trusted admission uses the existing operation profile.
     /// The runtime admits these event fields, then binds the admitted values
     /// into the handler's `{event}` envelope. Observed stored ref versions
     /// remain payload metadata; this descriptor enrolls current references.
@@ -8483,6 +8824,30 @@ impl<'a> Emitter<'a> {
                 vec![scalar_input("delivery_id", JsMcpField::String, "text")]
             }
             IrEventSource::Declared(_) => Vec::new(),
+            IrEventSource::StandardCompleted { result_type, .. } => {
+                let result = if result_type.ends_with('?') {
+                    result_type.clone()
+                } else {
+                    format!("{result_type}?")
+                };
+                vec![
+                    scalar_input("delivery_id", JsMcpField::String, "text"),
+                    scalar_input(
+                        "status",
+                        JsMcpField::Enum {
+                            values: vec![
+                                "succeeded".into(),
+                                "failed".into(),
+                                "unknown".into(),
+                                "skipped".into(),
+                            ],
+                        },
+                        "enum(succeeded,failed,unknown,skipped)",
+                    ),
+                    self.standard_completion_input("result", &result)?,
+                    self.standard_completion_input("error", "DeliveryError?")?,
+                ]
+            }
         };
         let fields = match event {
             IrEventSource::Declared(identity) => {
@@ -9743,6 +10108,13 @@ impl<'a> Emitter<'a> {
                 &format!("operations:{},", operations_json(operations)),
             );
         }
+        if self.standard_completions.is_some() {
+            out.push(
+                entry_span,
+                Some("canApp".to_string()),
+                "standardCompletions:appDefinition.standardCompletions,",
+            );
+        }
         self.emit_rule_map(out, "read", entry_span);
         self.emit_rule_map(out, "invariants", entry_span);
         self.emit_locks_map(out, entry_span);
@@ -10666,6 +11038,64 @@ mod string_tests {
         assert_eq!(
             js_string("'\"\\/é😀\u{7f}\u{2028}\u{2029}"),
             "\"'\\\"\\\\/é😀\u{7f}\u{2028}\u{2029}\"",
+        );
+    }
+}
+
+#[cfg(test)]
+mod completion_census_tests {
+    use super::emit_program_with_native_source_receipts;
+    use crate::{
+        analysis::{
+            catalog::{CatalogRequest, load_catalog},
+            check_program,
+        },
+        codegen::ir,
+        source::{SourceDb, Span},
+    };
+
+    #[test]
+    fn duplicate_completion_fact_cannot_replace_an_original_handler() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let mut db = SourceDb::new();
+        let file = db.add("completion-census.can".into(), "app Census\nuse std {EmailV1 as Mail} from=deployment.mail\nGiven\nWhen\n scenario observed_a on=Mail.send.completed\n  do let status=event.status\n scenario observed_b on=Mail.send.completed\n  do let status=event.status\nThen\n".into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (mut ir, _) = ir::build(&checked, &db, catalog.as_ref());
+        assert_eq!(ir.standard_completion_sources.handlers.len(), 2);
+        let original = emit_program_with_native_source_receipts(&ir, false, &db);
+        assert!(
+            original.diagnostics.is_empty(),
+            "{:?}",
+            original.diagnostics
+        );
+        assert!(original.entry.js.contains("standardCompletions:"));
+        // Equal lengths still conceal an omitted source handler without a bijection.
+        ir.standard_completion_sources.handlers[1] =
+            ir.standard_completion_sources.handlers[0].clone();
+        let output = emit_program_with_native_source_receipts(&ir, false, &db);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic.message.contains("standardCompletions")),
+            "{:?}",
+            output.diagnostics
+        );
+        assert!(
+            !output.entry.js.contains("standardCompletions:"),
+            "duplicate substitution cannot publish a partial census"
         );
     }
 }

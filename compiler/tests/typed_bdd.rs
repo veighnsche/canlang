@@ -12,6 +12,7 @@ fn ir() -> IrProgram {
         value_constraints: Default::default(),
         scenario_disclosures: Default::default(),
         committed_sources: Default::default(),
+        standard_completion_sources: Default::default(),
         referenced_builtins: vec![],
         read_rules: vec![],
         invariants: vec![],

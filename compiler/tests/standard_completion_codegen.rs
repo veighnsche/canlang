@@ -1,0 +1,264 @@
+//! Private completion projection, separate from terminal-source runtime authority.
+use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use canlang_compiler::analysis::check_program;
+use canlang_compiler::codegen::ir::{self, IrEventSource, IrItemKind, IrProgram};
+use canlang_compiler::codegen::js;
+use canlang_compiler::source::{SourceDb, Span};
+use std::path::Path;
+
+const SOURCE: &str = r#"app CompletionProjection
+use std {EmailV1 as Secondary} from=deployment.secondary
+use std {EmailV1 as Primary} from=deployment.primary
+use std {PaymentsV1 as Cash} from=deployment.cash
+use std {TextGenerationV1 as LLM} from=deployment.llm
+use std {ImagesV1 as Images} from=deployment.images
+Given
+ Entry {seen:text}
+When
+ scenario primary_first on=Primary.send.completed
+  do let status=event.status
+ scenario secondary on=Secondary.send.completed
+  do let status=event.status
+ scenario primary_cohort on=Primary.send.completed each=Entry as entry
+  do let status=event.status
+ scenario primary_last on=Primary.send.completed
+  do let status=event.status
+ scenario cash on=Cash.cancel.completed
+  do let result=event.result
+ scenario text_result on=LLM.generate.completed
+  do let result=event.result
+ scenario image_result on=Images.submit.completed
+  do let result=event.result
+Then
+"#;
+
+fn build(source: &str) -> (SourceDb, IrProgram) {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let mut db = SourceDb::new();
+    let id = db.add("completion-projection.can".into(), source.into());
+    let catalog_path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics): (Option<Catalog>, _) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    if source.contains(".completed") {
+        assert!(
+            !diagnostics.is_empty(),
+            "terminal publication remains refused"
+        );
+    }
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("handler triggers")),
+        "{diagnostics:?}"
+    );
+    (db, ir)
+}
+
+#[cfg(unix)]
+#[test]
+fn standard_completion_projection_keeps_routes_census_and_complete_native_value_schemas() {
+    use std::process::Command;
+    let (db, ir) = build(SOURCE);
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    // Original emitted modules and the genuine installed stdlib, without patches.
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    for module in std::iter::once(&output.entry).chain(&output.packages) {
+        let path = scratch.path().join(&module.path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, &module.js).unwrap();
+    }
+    std::fs::write(
+        scratch.path().join("value-types.json"),
+        serde_json::to_vec(output.value_types.as_ref().unwrap()).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        scratch.path().join("callables.json"),
+        serde_json::to_vec(
+            &output
+                .callables
+                .iter()
+                .map(|callable| {
+                    serde_json::json!({
+                        "id":callable.id,"kind":callable.kind.as_str(),"member":callable.member,
+                    })
+                })
+                .collect::<Vec<_>>(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("projection.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const {appDefinition:definition,canApp}=await import(pathToFileURL(process.argv[3]).href);
+const registry=canApp();
+assert.equal(registry.standardCompletions,definition.standardCompletions,'one original census reference');
+assert.deepEqual(definition.standardCompletions,[
+ {source:'std.EmailV1.send',event:'CompletionProjection.Primary.send.completed',binding:'CompletionProjection.Primary',from:'deployment.primary',resultType:'EmailAccepted',handlers:['CompletionProjection.primary_first','CompletionProjection.primary_cohort','CompletionProjection.primary_last']},
+ {source:'std.EmailV1.send',event:'CompletionProjection.Secondary.send.completed',binding:'CompletionProjection.Secondary',from:'deployment.secondary',resultType:'EmailAccepted',handlers:['CompletionProjection.secondary']},
+ {source:'std.PaymentsV1.cancel',event:'CompletionProjection.Cash.cancel.completed',binding:'CompletionProjection.Cash',from:'deployment.cash',resultType:'PaymentState',handlers:['CompletionProjection.cash']},
+ {source:'std.TextGenerationV1.generate',event:'CompletionProjection.LLM.generate.completed',binding:'CompletionProjection.LLM',from:'deployment.llm',resultType:'TextRun',handlers:['CompletionProjection.text_result']},
+ {source:'std.ImagesV1.submit',event:'CompletionProjection.Images.submit.completed',binding:'CompletionProjection.Images',from:'deployment.images',resultType:'ImageRun',handlers:['CompletionProjection.image_result']},
+]);
+const valueTypes=JSON.parse(readFileSync(new URL('./value-types.json',import.meta.url),'utf8'));
+const callables=JSON.parse(readFileSync(new URL('./callables.json',import.meta.url),'utf8'));
+const {normalizeValueTypes,normalizeSchema}=await import('@canlang/values');
+const {valueSchema}=normalizeValueTypes(valueTypes,['CompletionProjection.Entry']);
+const declarations={contracts:definition.contracts,enums:definition.enums,...(definition.aliases===undefined?{}:{aliases:definition.aliases})};
+const definitionSchema=normalizeSchema(declarations);
+assert.deepEqual(definitionSchema,valueSchema,'emitted declaration and installed value inventory have one complete schema');
+const operations={};
+for(const completion of definition.standardCompletions) {
+ assert.deepEqual(Object.keys(completion),['source','event','binding','from','resultType','handlers']);
+ const binding=definition.bindings[completion.binding];
+ assert.equal(binding.from,completion.from);
+ const method=completion.source.slice(binding.capability.length+1);
+ const source=definition.capabilities[binding.capability].operations[method];
+ assert.equal(source.result.type,completion.resultType);
+ operations[completion.source]={inputs:source.inputs};
+ const event=definition.events[completion.event];
+ assert.deepEqual(Object.keys(event.inputs),['delivery_id','status','result','error']);
+ assert.equal(event.inputs.result.type,`${completion.resultType}?`);
+ assert.equal(event.inputs.error.type,'DeliveryError?');
+ operations[completion.event]={inputs:event.inputs};
+ for(const id of completion.handlers) {
+  const handler=definition.operations[id];
+  assert.equal(handler.event,completion.event);
+  const fields=handler.invocation.inputs.fields;
+  assert.deepEqual(fields.slice(0,4).map(field=>field.name),['delivery_id','status','result','error']);
+  assert(fields.slice(0,4).every(field=>field.required===true));
+  assert.deepEqual(fields[1].field,{kind:'enum',values:['succeeded','failed','unknown','skipped']});
+  assert.deepEqual(fields[2].field,{kind:'nominal',name:completion.resultType});
+  assert.equal(fields[2].valueType,`${completion.resultType}?`);
+  assert.equal(fields[2].nullable,true);
+  assert.deepEqual(fields[3].field,{kind:'nominal',name:'DeliveryError'});
+  assert.equal(fields[3].valueType,'DeliveryError?');
+  assert.equal(fields[3].nullable,true);
+  const callable=callables.find(ref=>ref.id===id);
+  assert.equal(callable.kind,'handler');
+  let fn=registry;for(const part of callable.member)fn=fn[part];assert.equal(typeof fn,'function');
+ }
+}
+normalizeSchema({...declarations,operations});
+assert.deepEqual(definition.cohorts['CompletionProjection.primary_cohort'],{kind:'model',model:'CompletionProjection.Entry',bind:'entry'});
+const leaf=(record,name)=>valueTypes.contracts.find(contract=>contract.name===record).fields.find(field=>field.name===name).type;
+assert.equal(leaf('ImageRun','outputs'),'GeneratedImage[]');
+assert.equal(leaf('GeneratedImage','image'),'file');
+assert.equal(leaf('ImageRequest','workflow'),'WorkflowDefinition');
+assert.equal(leaf('WorkflowDefinition','prompt'),'WorkflowInput');
+assert.equal(leaf('TextRequest','messages'),'TextMessage[]');
+assert.equal(leaf('TextRequest','max_duration'),'duration');
+assert.equal(leaf('ImageRequest','max_duration'),'duration');
+assert.equal(leaf('DeliveryError','code'),'text');
+console.log('Unchanged emitted private completion census, original registry reference, exact routes/callables/cohort and installed Values closure passed; terminal publication remains refused');
+"#).unwrap();
+    let run = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(scratch.path().join(&output.entry.path))
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&run.stdout));
+}
+
+#[test]
+fn standard_completion_projection_refuses_partial_skewed_raw_or_unknown_sources() {
+    let (db, original) = build(SOURCE);
+    for change in 0..5 {
+        let mut ir = original.clone();
+        let handler = ir
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "CompletionProjection.primary_first")
+            .unwrap();
+        let IrItemKind::Scenario { event_source, .. } = &mut handler.kind else {
+            unreachable!()
+        };
+        match change {
+            0 => *event_source = None,
+            1 => {
+                let Some(IrEventSource::StandardCompleted { result_type, .. }) = event_source
+                else {
+                    unreachable!()
+                };
+                *result_type = "IncomingEmail".into();
+            }
+            2 => {
+                let Some(IrEventSource::StandardCompleted { from, .. }) = event_source else {
+                    unreachable!()
+                };
+                *from = "deployment.copied".into();
+            }
+            3 => ir.modules[0].imports[1].from = Some("deployment.copied".into()),
+            4 => ir.standard_completion_sources = Default::default(),
+            _ => unreachable!(),
+        }
+        let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic.message.contains("standardCompletions")),
+            "change{change}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            !output.entry.js.contains("standardCompletions:"),
+            "change{change} cannot publish a partial census"
+        );
+    }
+    let raw = js::emit_program(&original);
+    assert!(
+        raw.diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("standardCompletions"))
+    );
+    assert!(!raw.entry.js.contains("standardCompletions:"));
+    let (db, ir) = build(
+        "app MissingClosure\nuse std {ImagesV1 as Images} from=deployment.images\nGiven\nWhen\n scenario inspected on=Images.inspect.completed\n  do let result=event.result\nThen\n",
+    );
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("unresolved nominal closure")),
+        "{:?}",
+        output.diagnostics
+    );
+    assert!(!output.entry.js.contains("standardCompletions:"));
+    let (db, ir) =
+        build("app Ordinary\nGiven\nWhen\n scenario ready() by=members\n  do let value=1\nThen\n");
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(!output.entry.js.contains("standardCompletions"));
+}
