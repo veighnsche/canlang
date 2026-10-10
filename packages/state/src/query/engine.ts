@@ -93,6 +93,28 @@ export interface ViewerRecordsInput extends BaseQueryInput {
   readonly predicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
 }
 
+/** Internal owner-stage observation; this is not a public read capability. */
+export interface ObservedQueryCandidate {
+  readonly row: StoredRow;
+  readonly record: ProjectedRecord;
+  readonly matched: boolean;
+}
+
+export interface ObservedQueryResult extends AuthorizedRecordsResult {
+  readonly candidates: readonly ObservedQueryCandidate[];
+  readonly selectedIndices: readonly number[];
+}
+
+type ObservedQueryPredicate = (
+  projected: Readonly<ProjectedRecord>, original: StoredRow,
+) => boolean | Promise<boolean>;
+
+interface QueryObservation {
+  readonly predicate: ObservedQueryPredicate;
+  readonly candidates: ObservedQueryCandidate[];
+  readonly indices: Map<StoredRow, number>;
+}
+
 /** Finite viewer collection mode; the host admits a supplied parent first. */
 export interface ViewerPageSelection {
   readonly where?: QueryPredicate;
@@ -883,6 +905,7 @@ async function runAuthorizedQuery(
   eventual = false,
   predicate?: ViewerRecordsInput['predicate'],
   page?: { readonly parent?: RecordParent; readonly revision?: Revision },
+  observation?: QueryObservation,
 ): Promise<AuthorizedSet> {
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
@@ -1034,19 +1057,32 @@ async function runAuthorizedQuery(
         continue;
       }
       const projected = projectRow(row, matching, secrets);
+      const candidateIndex = observation?.candidates.length;
+      const candidate = observation === undefined ? undefined : {
+        row, record: cleanCopy(projected) as ProjectedRecord, matched: false,
+      };
+      if (candidate !== undefined) observation!.candidates.push(candidate);
       if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
         continue;
       }
-      if (predicate !== undefined) {
+      if (predicate !== undefined || observation !== undefined) {
         // Copy metadata (including parent) and nested projected data again:
         // callback mutation must never alter the matched or output rows.
-        const accepted = await predicate(cleanCopy(projected) as ProjectedRecord);
+        const detached = cleanCopy(projected) as ProjectedRecord;
+        const accepted = observation === undefined
+          ? await predicate!(detached)
+          : await observation.predicate(detached, row);
         if (typeof accepted !== 'boolean') {
           throw new StateError('validation', 'Generated-source query predicate must return a boolean.');
         }
         if (!accepted) continue;
       }
-      matched.push({ ...row, data: projected.data });
+      const selected = { ...row, data: projected.data };
+      matched.push(selected);
+      if (candidate !== undefined) {
+        candidate.matched = true;
+        observation!.indices.set(selected, candidateIndex!);
+      }
     }
   }
 
@@ -1199,6 +1235,30 @@ export async function queryRecords(
     return { rows: set.rows, revision: set.revision };
   }
   return { records: set.rows.map(toProjectedRecord), revision: set.revision };
+}
+
+/**
+ * Trusted internal finite-domain route. The caller supplies the complete
+ * bounded store domain and owns lifetime and final authority revalidation.
+ * Original rows are the actual scan objects; indices correlate the one
+ * predicate execution with the engine's final order, including empty sets.
+ */
+export async function queryRecordsObserved(
+  input: Omit<ViewerRecordsInput, 'predicate'>,
+  predicate: ObservedQueryPredicate,
+  requiredFields: readonly string[] = [],
+): Promise<ObservedQueryResult> {
+  if (input.authority !== 'viewer' || typeof predicate !== 'function' ||
+      (input as ViewerRecordsInput).predicate !== undefined) {
+    throw new StateError('validation', 'Observed queries require a current viewer query and a trusted host predicate.');
+  }
+  const observation: QueryObservation = { predicate, candidates: [], indices: new Map() };
+  const set = await runAuthorizedQuery(input, requiredFields, false, undefined, undefined, observation);
+  return {
+    records: set.rows.map(toProjectedRecord), revision: set.revision,
+    candidates: observation.candidates,
+    selectedIndices: set.rows.map(row => observation.indices.get(row)!),
+  };
 }
 
 /** Validate the aggregate request shape (field presence, known op). */
