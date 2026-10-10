@@ -96,7 +96,9 @@ const descriptor=artifact.callables.find(item=>item.id==='TypedGenerationProgres
 const module=await import(pathToFileURL(resolve(base,descriptor.module)));let callable=module.canApp();for(const part of descriptor.member)callable=callable[part];
 assert.deepEqual(module.appDefinition.bindings['TypedGenerationProgress.LLM'],{capability:'std.TextGenerationV1',from:'deployment.llm'});
 const contracts=module.appDefinition.contracts;
-assert.deepEqual(Object.keys(contracts),['TextRequest','TextMessage','TextRun']);
+assert.deepEqual(Object.keys(contracts),['TextMessage','TextRequest','TextRun','DeliveryError']);
+assert.deepEqual(artifact.valueTypes.contracts.map(contract=>contract.name),Object.keys(contracts));
+assert.deepEqual(values.normalizeValueTypes(artifact.valueTypes).valueSchema,values.normalizeSchema({contracts}));
 assert.deepEqual(Object.keys(contracts.TextRequest.fields),['source','revision','profile','policy_revision','messages','max_input_tokens','max_output_tokens','max_duration']);
 assert.equal(contracts.TextRequest.fields.max_duration.type,'duration');
 assert.deepEqual(contracts.TextMessage,{fields:{role:{type:'enum(system,user,assistant)'},content:{type:'text'},attachments:{type:'file[]'}}});
