@@ -22,7 +22,7 @@ function recipe(offset = 10): ScenarioReceiptMembershipSite {
   return { version: 1, source: source(), owner: ROOT, node: { start: offset, end: offset + 20 },
     statement: { start: offset - 1, end: offset + 21 }, stage: 'send-dispatch', position: [{ kind: 'body', index: offset }], calls: [{
       source: source(), node: { start: offset + 1, end: offset + 19 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
-      arguments: [{ node: { start: offset + 2, end: offset + 3 }, type: 'user' }, { node: { start: offset + 4, end: offset + 5 }, type: 'team' }],
+      arguments: [{ node: { start: offset + 2, end: offset + 3 }, type: 'user' }, { node: { start: offset + 4, end: offset + 5 }, type: 'Team' }],
       slots: [0, 1], defaults: [], chain: [],
     }] };
 }
@@ -134,6 +134,25 @@ test('one source handle repeats with fresh evaluated persons/rows and no global 
     return true;
   });
   assert.equal((await a.run()).status, 'claimed'); assert.equal(w.captures, 3); assert.equal(w.reads, 6);
+});
+
+test('a SEND source occurrence cannot acquire a second predicate, including with changed position metadata', async () => {
+  const w = await world(), predicate = 'Membership.anotherSend', sameSite = recipe();
+  const original = structuredClone(sameSite);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.def, { ...w.ports, predicate, sites: [sameSite] }),
+    /source occurrence already bound/);
+  const movedPosition: ScenarioReceiptMembershipSite = { ...sameSite, position: [{ kind: 'body', index: 99 }] };
+  const changed = structuredClone(movedPosition);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.def, { ...w.ports, predicate, sites: [movedPosition] }),
+    /source occurrence already bound/);
+  assert.deepEqual(sameSite, original); assert.deepEqual(movedPosition, changed);
+  // Failed overlap checks must not reserve the attempted predicate. A real
+  // different node under that same new predicate still binds and evaluates.
+  const sibling = bindScenarioDispatchMembershipProducer(w.def, { ...w.ports, predicate, sites: [recipe(50)] });
+  const a = attempt(w, execution => w.evaluate(sibling.open(execution), execution, 'subject', sibling.sites[0]!));
+  a.input.guard = { predicate };
+  assert.equal((await a.run()).status, 'claimed'); assert.equal(a.claims, 1);
+  assert.equal(w.captures, 1); assert.equal(w.reads, 2);
 });
 
 test('two guarded SEND predicates in one genuine owner keep their own current execution and capture ports', async () => {

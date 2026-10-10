@@ -142,7 +142,7 @@ export function checkScenarioReceiptMembershipSites(value: unknown): readonly Sc
       if (kind === 'builtin' && target.id === 'active_member' && (target.overload !== 0 || slots.length !== 2 || args.length !== 2 ||
           slots[0] === null || slots[1] === null ||
           (args[slots[0] as number] as Record<string, unknown>).type !== 'user' ||
-          (args[slots[1] as number] as Record<string, unknown>).type !== 'team')) fail('active_member requires its owning user/team overload and actual canonical slots.');
+          (args[slots[1] as number] as Record<string, unknown>).type !== 'Team')) fail('active_member requires its owning user/team overload and actual canonical slots.');
     }
   }
   return deepFreeze(sites as unknown as ScenarioReceiptMembershipSite[]);

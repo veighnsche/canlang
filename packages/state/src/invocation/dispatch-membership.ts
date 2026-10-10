@@ -25,7 +25,7 @@ export interface ScenarioDispatchMembershipPorts<E extends object> {
     readonly checkpoint: { readonly revision: number; readonly owner: string } | undefined;
   };
   readonly registerRevalidation: (execution: E, revalidate: () => boolean | Promise<boolean>) => void;
-  /** Fresh source-owner Identity from the actual won-claim fence. An actor-null
+  /** Fresh source-owner Identity from this dispatch's fence before claim. An actor-null
    * service owner is sufficient for this membership tuple, never evidence of
    * an authenticated retained business caller. */
   readonly admit: (execution: E) => ResolvedIdentity | Promise<ResolvedIdentity>;
@@ -55,7 +55,8 @@ interface Ledger {
   teamSnapshot: string | null;
   readonly observations: Observation[];
 }
-const boundDefinitions = new WeakMap<GeneratedOperationDef, Set<string>>();
+interface Bindings { readonly predicates: Set<string>; readonly occurrences: Set<string> }
+const boundDefinitions = new WeakMap<GeneratedOperationDef, Bindings>();
 const executions = new WeakMap<object, Ledger>();
 const fail = (message: string): never => { throw new StateError('validation', `Dispatch membership: ${message}`); };
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -82,13 +83,20 @@ export function bindScenarioDispatchMembershipProducer<E extends object>(def: Ge
   const ownedSource = Object.freeze({ path: text(source.path), sha256: text(source.sha256), module: text(source.module) });
   assertScenarioReceiptMembershipSource(def, ownedSource);
   text(ports.app); const predicate = text(ports.predicate);
-  const predicates = boundDefinitions.get(def) ?? new Set<string>();
-  if (predicates.has(predicate) || predicates.size >= 200) return fail('one bounded owning binding per dispatch predicate required.');
+  const bindings = boundDefinitions.get(def) ?? { predicates: new Set<string>(), occurrences: new Set<string>() };
+  if (bindings.predicates.has(predicate) || bindings.predicates.size >= 200) return fail('one bounded owning binding per dispatch predicate required.');
   if ([ports.readExecution, ports.registerRevalidation, ports.admit, ports.capture, ports.store?.readRevision,
     ports.memberships?.findMembership].some(value => typeof value !== 'function')) return fail('literal execution/admission/reader ports required.');
   const plans = checkScenarioReceiptMembershipSites(ports.sites);
   if (plans.some(site => site.owner !== def.name || stableStringify(site.source) !== stableStringify(ownedSource) ||
       site.stage !== 'send-dispatch')) return fail('exact owning send-dispatch source required.');
+  // A guard's byte interval in its exact owner/source is its occurrence.
+  // Changing predicate aliases, call metadata or authored position cannot
+  // grant the same physical SEND guard to a second binding.
+  const occurrences = plans.map(site => stableStringify({ source: site.source, owner: site.owner, node: site.node }));
+  if (new Set(occurrences).size !== occurrences.length || occurrences.some(site => bindings.occurrences.has(site))) {
+    return fail('dispatch source occurrence already bound.');
+  }
   const issued = new WeakMap<ScenarioDispatchMembershipHandle, { site: ScenarioReceiptMembershipSite; callIndex: number }>();
   const sites: ScenarioDispatchMembershipHandle[] = [];
   for (const site of plans) site.calls.forEach((call, callIndex) => {
@@ -99,7 +107,9 @@ export function bindScenarioDispatchMembershipProducer<E extends object>(def: Ge
   // Retain literal ports; mutating the caller's binding object cannot replace them.
   const { store, memberships, readExecution, registerRevalidation, admit, capture } = ports;
   const owner = Object.freeze({});
-  predicates.add(predicate); boundDefinitions.set(def, predicates);
+  bindings.predicates.add(predicate);
+  for (const occurrence of occurrences) bindings.occurrences.add(occurrence);
+  boundDefinitions.set(def, bindings);
   return Object.freeze({ sites: Object.freeze(sites), open(execution: E): ScenarioDispatchMembershipExecution {
     // Work authenticates this handle. A copy cannot identify any live execution.
     const context = readExecution(execution);

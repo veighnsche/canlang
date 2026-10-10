@@ -32,7 +32,7 @@ function recipe(owner = ROOT, stage: ScenarioReceiptMembershipSite['stage'] = 'b
     statement: { start: offset - 1, end: offset + 21 }, stage, position: [{ kind: 'body', index: offset }], calls: [{
       source: source(), node: { start: offset + 1, end: offset + 19 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
       arguments: [{ node: { start: offset + 2, end: offset + 3 }, type: 'user' },
-        { node: { start: offset + 4, end: offset + 5 }, type: 'team' }], slots: [0, 1], defaults: [], chain: [],
+        { node: { start: offset + 4, end: offset + 5 }, type: 'Team' }], slots: [0, 1], defaults: [], chain: [],
     }] };
 }
 function artifact(query = false): ArtifactDescriptorSlice {
@@ -334,7 +334,7 @@ test('recipe checker preserves exact transitive source/default/type vocabulary, 
   const helperSource = { path: 'helper.can', sha256: 'b'.repeat(64), module: 'helper.mjs' };
   const transitive: ScenarioReceiptMembershipSite = { ...site, calls: [{ source: source(), node: { start: 10, end: 12 },
     target: { kind: 'derive', name: 'Membership.helper' }, arguments: [{ node: { start: 10, end: 11 }, type: 'user' }], slots: [0, null],
-    defaults: [{ parameter: 'Membership.helper.team', source: helperSource, node: { start: 100, end: 104 }, type: 'team' }], chain: [],
+    defaults: [{ parameter: 'Membership.helper.team', source: helperSource, node: { start: 100, end: 104 }, type: 'Team' }], chain: [],
   }, { ...site.calls[0]!, source: helperSource, node: { start: 110, end: 120 },
     chain: [{ source: source(), node: { start: 10, end: 12 }, derive: 'Membership.helper' }] }] };
   const checked = checkScenarioReceiptMembershipSites([transitive]);
@@ -342,7 +342,8 @@ test('recipe checker preserves exact transitive source/default/type vocabulary, 
   for (const malformed of [ { ...site, extra: true }, { ...site, version: 2 }, { ...site, owner: '' },
     { ...site, calls: [{ ...site.calls[0], slots: [0, 0] }] },
     { ...site, calls: [{ ...site.calls[0], arguments: [{ node: { start: 11, end: 12 }, type: 'user?' }, site.calls[0]!.arguments[1]] }] },
-    { ...site, calls: [{ ...site.calls[0], defaults: [{ parameter: 'x', source: source(), node: { start: 1, end: 2 }, type: 'team' }] }] },
+    { ...site, calls: [{ ...site.calls[0], arguments: [site.calls[0]!.arguments[0], { ...site.calls[0]!.arguments[1], type: 'team' }] }] },
+    { ...site, calls: [{ ...site.calls[0], defaults: [{ parameter: 'x', source: source(), node: { start: 1, end: 2 }, type: 'Team' }] }] },
     { ...site, calls: [{ ...site.calls[0], chain: Array.from({ length: 17 }, (_, index) => ({ source: source(), node: { start: index, end: index + 1 }, derive: `Helper.${index}` })) }] },
   ]) assert.throws(() => checkScenarioReceiptMembershipSites([malformed]), isStateError);
 });
