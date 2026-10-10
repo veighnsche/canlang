@@ -29,7 +29,53 @@ pub(super) struct ReceiptSource {
 pub(super) struct ReceiptDisclosurePlan {
     pub version: u8,
     pub source: ReceiptSource,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptQuery {
+    pub id: String,
+    pub source: ReceiptSource,
+    pub model: String,
+    pub order: Vec<ReceiptQueryOrder>,
+    pub limit: Option<u16>,
+    pub archived: String,
+    pub dependencies: Vec<ReceiptQueryDependency>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptQueryOrder {
+    pub field: String,
+    pub direction: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptQueryDependency {
+    pub id: String,
+    pub source: ReceiptSource,
+    pub role: ReceiptRole,
+    pub field: String,
+    #[serde(rename = "type")]
+    pub type_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptQueryProjection {
+    pub kind: String,
+    #[serde(rename = "queryId")]
+    pub query_id: String,
+    pub source: ReceiptSource,
+    pub fields: Vec<ReceiptQueryProjectionField>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptQueryProjectionField {
+    pub name: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -40,12 +86,16 @@ pub(super) struct ReceiptReturn {
     pub dependencies: Vec<ReceiptDependency>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub intrinsics: Vec<ReceiptIntrinsic>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub projection: Option<ReceiptQueryProjection>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptInfluence {
     pub id: String,
     pub kind: String,
+    #[serde(rename = "queryId", skip_serializing_if = "Option::is_none")]
+    pub query_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -191,6 +241,7 @@ pub(super) fn collect_native_scenario_receipt(
         plan: ReceiptDisclosurePlan {
             version: 1,
             source,
+            queries: Vec::new(),
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
@@ -264,6 +315,7 @@ pub(super) fn collect_native_scenario_receipt(
             influences: Vec::new(),
             dependencies: Vec::new(),
             intrinsics: Vec::new(),
+            projection: None,
         };
         for decision in &returned.decisions {
             let mut site = checked_site(decision.node, &decision.calls)?;

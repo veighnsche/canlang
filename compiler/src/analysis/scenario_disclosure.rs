@@ -7,7 +7,10 @@ use std::collections::{HashMap, HashSet};
 use super::catalog::{nominal_schema, std_capability, std_operation};
 use super::effects::{Effect, EffectTables, EffectTarget, EffectVerb};
 use super::resolve::{Binding, ContextVar, ResolveTables, ScopedName, SymbolKind, TypeRef};
-use super::types::SelectedCallTarget;
+use super::types::{
+    CheckedQueryClauseKind, CheckedQueryProjectionField, CheckedQueryProjectionMapping,
+    SelectedCallTarget,
+};
 use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable};
 use crate::source::{SourceDb, SourceId, sha256_hex};
 use crate::syntax::{SyntaxKind, SyntaxNode};
@@ -26,7 +29,7 @@ pub enum DependencyRole {
 }
 
 /// Exact read occurrence, including the invocation chain for repeated derives.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DisclosureDependency {
     pub id: String,
     pub source: DisclosureSource,
@@ -77,12 +80,55 @@ pub enum InfluenceKind {
     AbsentReference,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DisclosureInfluence {
     pub id: String,
     pub source: DisclosureSource,
     pub node: NodeKey,
     pub kind: InfluenceKind,
+    /// Exact owning scan occurrence; absent-reference influences have no query.
+    pub query_id: Option<String>,
+}
+
+/// Closed source producer for a viewer model scan and its nominal projection.
+/// This remains available when unrelated authorization/native admission declines.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureQuery {
+    pub id: String,
+    pub source: DisclosureSource,
+    pub node: NodeKey,
+    pub domain: NodeKey,
+    pub model: SymbolId,
+    pub model_name: String,
+    pub alias: NodeKey,
+    pub predicate: NodeKey,
+    pub inputs: Vec<(NodeKey, SymbolId)>,
+    pub dependencies: Vec<DisclosureDependency>,
+    pub order: Vec<DisclosureQueryOrder>,
+    pub limit: Option<u16>,
+    pub archived: bool,
+    pub cardinality_guard: NodeKey,
+    pub return_node: NodeKey,
+    pub projection: DisclosureQueryProjection,
+    pub influences: Vec<DisclosureInfluence>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureQueryOrder {
+    pub field: SymbolId,
+    pub field_name: String,
+    pub descending: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureQueryProjection {
+    /// The actual local select query, not the model-domain scan.
+    pub node: NodeKey,
+    pub source: DisclosureSource,
+    pub contract: SymbolId,
+    pub model: SymbolId,
+    pub alias: NodeKey,
+    pub fields: Vec<CheckedQueryProjectionField>,
 }
 
 /// Emitter recipe: observe this decision once at its existing evaluation site.
@@ -161,6 +207,8 @@ pub struct CheckedScenarioSource {
     pub calls: Vec<CheckedScenarioSourceCall>,
     /// Optional bounded source inventory, never permission or effect admission.
     pub decision_sites: Option<Vec<CheckedDecisionSite>>,
+    /// Complete bounded query lineage only; absence is not an empty proof.
+    pub queries: Option<Vec<DisclosureQuery>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -974,6 +1022,486 @@ impl<'a> Closure<'a> {
             result,
             calls,
             decision_sites: self.checked_decision_sites(scenario),
+            queries: self.checked_query_sources(scenario),
+        })
+    }
+
+    /// The currently released query ABI supports a genuine viewer scan and
+    /// exact reference/version/scalar contract projection. The finite profile
+    /// here is the authored Workbench lineage: admitted target membership,
+    /// direct location equality, cardinality guard, then nominal select. It
+    /// neither certifies preceding guards nor upgrades native admission.
+    fn checked_query_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<DisclosureQuery>> {
+        let authored = self.nodes.get(&scenario.node)?;
+        let mut pending = vec![*authored];
+        let mut query_nodes = Vec::new();
+        let mut visits = 0usize;
+        while let Some(node) = pending.pop() {
+            visits += 1;
+            if visits > 16384 {
+                return None;
+            }
+            if node.kind == SyntaxKind::Query {
+                query_nodes.push(NodeKey::of(node));
+            }
+            pending.extend(node.children.iter());
+        }
+        if query_nodes.is_empty() {
+            return Some(Vec::new());
+        }
+        if !scenario.read
+            || scenario.on.is_some()
+            || query_nodes.len() != 2
+            || scenario.effects.len() != 3
+        {
+            return None;
+        }
+        let [binding, guard, returned] = scenario.effects.as_slice() else {
+            return None;
+        };
+        if binding.verb != EffectVerb::Let
+            || guard.verb != EffectVerb::Require
+            || returned.verb != EffectVerb::Return
+            || scenario.effects.iter().any(|effect| {
+                !effect.then_effects.is_empty()
+                    || !effect.else_effects.is_empty()
+                    || !effect.match_arms.is_empty()
+            })
+        {
+            return None;
+        }
+        let scan_key = binding.value?;
+        let select_key = returned.value?;
+        let scan = self.types.checked_queries.get(&scan_key)?;
+        let select = self.types.checked_queries.get(&select_key)?;
+        if scan.node != scan_key
+            || select.node != select_key
+            || !query_nodes.contains(&scan_key)
+            || !query_nodes.contains(&select_key)
+            || scan.projection.is_some()
+            || scan.clauses.len() != 2
+            || select.clauses.len() != 2
+        {
+            return None;
+        }
+        let [scan_alias, predicate_clause] = scan.clauses.as_slice() else {
+            return None;
+        };
+        let [select_alias, select_clause] = select.clauses.as_slice() else {
+            return None;
+        };
+        if !matches!(scan_alias.kind, CheckedQueryClauseKind::As { .. })
+            || predicate_clause.kind != CheckedQueryClauseKind::Where
+            || predicate_clause.expressions.len() != 1
+            || !matches!(select_alias.kind, CheckedQueryClauseKind::As { .. })
+            || select_clause.kind != CheckedQueryClauseKind::Select
+            || select_clause.expressions.len() != 1
+        {
+            return None;
+        }
+        let Some(Binding::Symbol(model)) = self.query_binding(scan.domain) else {
+            return None;
+        };
+        let model = *model;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        if !matches!(owner.kind, SymbolKind::Model { .. }) {
+            return None;
+        }
+        let record_ty = ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        };
+        if !matches!(&scan.domain_type, ResolvedType::Array { element, ordered: true, nonempty: false } if **element == record_ty)
+            || self.types.node_types.get(&scan.domain) != Some(&scan.domain_type)
+            || !matches!(&scan.result, ResolvedType::Array { element, ordered: true, .. } if **element == record_ty)
+            || select.domain_type != scan.result
+            || !matches!(self.query_binding(select.domain), Some(Binding::Let {node}) if *node == binding.node)
+        {
+            return None;
+        }
+        let predicate = predicate_clause.expressions[0];
+        let conjunction = self.query_binary(predicate, "and")?;
+        let membership = self.query_binary(conjunction.0, "in")?;
+        if !self.query_row(membership.0, scan_alias.node, model) {
+            return None;
+        }
+        let targets = self.query_parameter(scenario, membership.1)?;
+        if !matches!(self.types.symbol_types.get(&targets), Some(ResolvedType::Array {element,..}) if **element == record_ty)
+        {
+            return None;
+        }
+        let equality = self.query_binary(conjunction.1, "==")?;
+        let location = self.query_parameter(scenario, equality.1)?;
+        // The predicate must compare a direct owning record reference field
+        // with an admitted nonnullable reference of that same model.
+        let field = self.query_member(equality.0, scan_alias.node, model)?;
+        let field_ty = self.types.symbol_types.get(&field)?;
+        let ResolvedType::Record {
+            symbol: location_model,
+            stored: true,
+        } = self.types.symbol_types.get(&location)?
+        else {
+            return None;
+        };
+        let location_ty = ResolvedType::Record {
+            symbol: *location_model,
+            stored: true,
+        };
+        if field_ty != &location_ty
+            && !matches!(field_ty, ResolvedType::Nullable(inner) if **inner == location_ty)
+        {
+            return None;
+        }
+        let cond = guard.cond?;
+        let counts = self.query_binary(cond, "==")?;
+        let visible_argument = self.query_count(counts.0)?;
+        let targets_argument = self.query_count(counts.1)?;
+        if !matches!(self.query_binding(visible_argument), Some(Binding::Let {node}) if *node == binding.node)
+            || self.query_parameter(scenario, targets_argument) != Some(targets)
+            || self.types.node_types.get(&visible_argument) != Some(&scan.result)
+        {
+            return None;
+        }
+        let projection = select.projection.as_deref()?;
+        if projection.model != model
+            || projection.alias != select_alias.node
+            || select_clause.expressions[0] != projection.node
+            || !matches!(self.types.symbol_results.get(&scenario.scenario)?.as_ref()?,
+                ResolvedType::Array {element, nonempty: false, ..}
+                if matches!(element.as_ref(), ResolvedType::Record {symbol,..} if *symbol == projection.contract))
+            || !matches!(&select.result, ResolvedType::Array {element, ordered: true, ..}
+                if **element == ResolvedType::Record {symbol: projection.contract, stored: false})
+        {
+            return None;
+        }
+        let contract = self.resolve.symbols.get(projection.contract.0 as usize)?;
+        let SymbolKind::Contract { fields } = &contract.kind else {
+            return None;
+        };
+        if fields.len() != projection.fields.len() || fields.len() > 200 {
+            return None;
+        }
+        let id = self.opaque("query", scan_key, "").ok()?;
+        let mut dependencies = vec![self.query_dependency(
+            equality.0,
+            scenario.module,
+            model,
+            field,
+            DependencyRole::Control,
+            &id,
+        )?];
+        let mut references = 0;
+        let mut versions = 0;
+        let mut seen = HashSet::new();
+        for projected in &projection.fields {
+            if !fields.contains(&projected.field)
+                || !seen.insert(projected.field)
+                || !matches!(self.resolve.symbols.get(projected.field.0 as usize)?.kind,
+                    SymbolKind::Field {owner,..} if owner == projection.contract)
+                || self.types.node_types.get(&projected.node) != Some(&projected.ty)
+            {
+                return None;
+            }
+            match projected.mapping {
+                CheckedQueryProjectionMapping::StoredReference => {
+                    if projected.ty != record_ty
+                        || !self.query_row(projected.node, select_alias.node, model)
+                    {
+                        return None;
+                    }
+                    references += 1;
+                }
+                CheckedQueryProjectionMapping::Version => {
+                    if projected.ty != ResolvedType::Scalar(Scalar::Int)
+                        || !self.query_version(projected.node, select_alias.node, model)
+                    {
+                        return None;
+                    }
+                    versions += 1;
+                }
+                CheckedQueryProjectionMapping::DirectField { field } => {
+                    if self.query_member(projected.node, select_alias.node, model) != Some(field)
+                        || self.types.symbol_types.get(&field) != Some(&projected.ty)
+                    {
+                        return None;
+                    }
+                    dependencies.push(self.query_dependency(
+                        projected.node,
+                        scenario.module,
+                        model,
+                        field,
+                        DependencyRole::Data,
+                        &id,
+                    )?);
+                }
+            }
+        }
+        if references != 1 || versions != 1 || dependencies.len() > 200 {
+            return None;
+        }
+        let source = self.source(scenario.module, scan_key).ok()?;
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", scan_key, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node: scan_key,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(vec![DisclosureQuery {
+            id,
+            source,
+            node: scan_key,
+            domain: scan.domain,
+            model,
+            model_name: owner.canonical.clone(),
+            alias: scan_alias.node,
+            predicate,
+            inputs: vec![
+                (membership.1, targets),
+                (equality.1, location),
+                (targets_argument, targets),
+            ],
+            dependencies,
+            order: Vec::new(),
+            limit: None,
+            archived: false,
+            cardinality_guard: guard.node,
+            return_node: returned.node,
+            projection: DisclosureQueryProjection {
+                node: select_key,
+                source: self.source(scenario.module, select_key).ok()?,
+                contract: projection.contract,
+                model,
+                alias: projection.alias,
+                fields: projection.fields.clone(),
+            },
+            influences,
+        }])
+    }
+
+    fn query_group(&self, mut key: NodeKey) -> Option<NodeKey> {
+        for _ in 0..64 {
+            let node = self.nodes.get(&key)?;
+            if node.kind != SyntaxKind::Group {
+                return Some(key);
+            }
+            let mut children = node.children.iter().filter(|child| expression(child.kind));
+            key = NodeKey::of(children.next()?);
+            if children.next().is_some() {
+                return None;
+            }
+        }
+        None
+    }
+
+    fn query_binding(&self, key: NodeKey) -> Option<&Binding> {
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if !matches!(
+            node.kind,
+            SyntaxKind::NameRef | SyntaxKind::Path | SyntaxKind::Name
+        ) {
+            return None;
+        }
+        self.resolve.node_binding.get(&key).or_else(|| {
+            node.children
+                .iter()
+                .find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child)))
+        })
+    }
+
+    fn query_parameter(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        key: NodeKey,
+    ) -> Option<SymbolId> {
+        let Some(Binding::Symbol(parameter)) = self.query_binding(key) else {
+            return None;
+        };
+        scenario
+            .params
+            .iter()
+            .find(|param| param.param == *parameter && param.default.is_none())?;
+        Some(*parameter)
+    }
+
+    fn query_row(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> bool {
+        let Some(grouped) = self.query_group(key) else {
+            return false;
+        };
+        matches!(self.query_binding(grouped), Some(Binding::QueryAlias {node}) if *node == alias)
+            && self.types.node_types.get(&grouped)
+                == Some(&ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })
+    }
+
+    fn query_binary(&self, key: NodeKey, operator: &str) -> Option<(NodeKey, NodeKey)> {
+        let node = self.nodes.get(&self.query_group(key)?)?;
+        if node.kind != SyntaxKind::Binary {
+            return None;
+        }
+        let mut children = node.children.iter().filter(|child| expression(child.kind));
+        let left = NodeKey::of(children.next()?);
+        let right = NodeKey::of(children.next()?);
+        if children.next().is_some()
+            || !node.children.iter().any(|child| {
+                matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct)
+                    && self.db.get(child.span.file).and_then(|source| {
+                        source
+                            .text
+                            .get(child.span.start as usize..child.span.end as usize)
+                    }) == Some(operator)
+            })
+        {
+            return None;
+        }
+        Some((left, right))
+    }
+
+    fn query_member_name(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> Option<&str> {
+        let node = self.nodes.get(&self.query_group(key)?)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let base = node.children.iter().find(|child| expression(child.kind))?;
+        if !self.query_row(NodeKey::of(base), alias, model) {
+            return None;
+        }
+        let name = node
+            .children
+            .iter()
+            .rev()
+            .find(|child| child.kind == SyntaxKind::Name)?;
+        self.db
+            .get(name.span.file)?
+            .text
+            .get(name.span.start as usize..name.span.end as usize)
+    }
+
+    fn query_member(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> Option<SymbolId> {
+        let name = self.query_member_name(key, alias, model)?;
+        let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(model.0 as usize)?.kind
+        else {
+            return None;
+        };
+        fields.iter().copied().find(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|symbol| {
+                    symbol.name == name
+                        && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == model)
+                })
+        })
+    }
+
+    fn query_version(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> bool {
+        self.query_member_name(key, alias, model) == Some("version")
+    }
+
+    fn query_count(&self, key: NodeKey) -> Option<NodeKey> {
+        let selected = self.types.selected_calls.get(&self.query_group(key)?)?;
+        if !matches!(&selected.target, SelectedCallTarget::Builtin {id,..} if id == "count")
+            || selected.arguments.len() != 1
+            || selected.slots.as_slice() != [Some(0)]
+        {
+            return None;
+        }
+        Some(selected.arguments[0])
+    }
+
+    fn query_dependency(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+        model: SymbolId,
+        field: SymbolId,
+        role: DependencyRole,
+        query: &str,
+    ) -> Option<DisclosureDependency> {
+        // Group lowering erases wrappers. Retain the actual protected member
+        // occurrence so capture cannot miss a grouped predicate/projection read.
+        let node = self.query_group(node)?;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let declaration = self.resolve.symbols.get(field.0 as usize)?;
+        if !matches!(declaration.kind, SymbolKind::Field {owner,..} if owner == model)
+            || [
+                "id",
+                "version",
+                "created",
+                "updated",
+                "createdBy",
+                "updatedBy",
+                "archivedAt",
+                "parent",
+            ]
+            .contains(&declaration.name.as_str())
+        {
+            return None;
+        }
+        let ty = self.types.symbol_types.get(&field)?;
+        let type_id = match ty {
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } => self
+                .resolve
+                .symbols
+                .get(symbol.0 as usize)?
+                .canonical
+                .clone(),
+            ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }) =>
+            {
+                let ResolvedType::Record { symbol, .. } = inner.as_ref() else {
+                    return None;
+                };
+                format!(
+                    "{}?",
+                    self.resolve.symbols.get(symbol.0 as usize)?.canonical
+                )
+            }
+            _ => self.field_type_id(node, field, ty).ok()?,
+        };
+        Some(DisclosureDependency {
+            id: self
+                .opaque(
+                    if role == DependencyRole::Data {
+                        "query-data"
+                    } else {
+                        "query-control"
+                    },
+                    node,
+                    query,
+                )
+                .ok()?,
+            source: self.source(module, node).ok()?,
+            node,
+            calls: Vec::new(),
+            role,
+            model,
+            field,
+            model_name: owner.canonical.clone(),
+            field_name: declaration.name.clone(),
+            ty: ty.clone(),
+            type_id,
         })
     }
 
@@ -1290,6 +1818,7 @@ impl<'a> Closure<'a> {
                         source: source.clone(),
                         node,
                         kind: *kind,
+                        query_id: None,
                     });
                 }
             }
@@ -3586,6 +4115,125 @@ mod tests {
             .get(&scenario.id)
             .unwrap()
             .clone()
+    }
+
+    fn checked_query_source(source: &str) -> ScenarioDisclosure {
+        let mut db = SourceDb::new();
+        let file = db.add("query-source.can".into(), source.into());
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) =
+            super::super::catalog::load_catalog(&super::super::catalog::CatalogRequest {
+                flag: Some(&path),
+                env: None,
+                cwd: path.parent().unwrap(),
+                primary: crate::source::Span::new(file, 0, 0),
+            });
+        assert!(diagnostics.is_empty(), "catalog: {diagnostics:?}");
+        let (program, diagnostics) = super::super::check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "source admission: {diagnostics:?}");
+        let scenario = program
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == "Bounds.probe")
+            .unwrap();
+        program
+            .scenario_disclosures()
+            .get(&scenario.id)
+            .unwrap()
+            .clone()
+    }
+
+    fn query_source_fixture() -> String {
+        // A finite collector fixture, not an accepted replacement for the
+        // original Workbench authorization/composition workflow.
+        let original = include_str!("../../../draft/CanWorkbench.can");
+        let body = original
+            .lines()
+            .skip_while(|line| !line.trim_start().starts_with("let visible="))
+            .take(3)
+            .map(|line| format!("{}\n", line.trim_start()))
+            .collect::<String>();
+        let body = body
+            .lines()
+            .map(|line| format!("   {line}\n"))
+            .collect::<String>();
+        format!(
+            "app Bounds\nGiven\n Location {{name:text}}\n Task {{location:Location?,title:text,description:text?,due:datetime?,priority:enum(low,normal,high)=normal,done:bool=false}}\n contract Scope {{targets:Task[]! min=1 max=10}}\n contract Fact {{task:Task,version:int min=1,title:Task.title max=2000,description:Task.description max=8000,due:Task.due,priority:Task.priority,done:bool}}\n policy Task read=members\n policy Location read=members\nWhen\n scenario probe(location:Location,targets:Scope.targets) read=true -> Fact[] by=members\n  do\n{body}Then\n"
+        )
+    }
+
+    #[test]
+    fn query_source_retains_original_body_without_native_admission() {
+        let disclosure = checked_query_source(&query_source_fixture());
+        assert!(matches!(disclosure, ScenarioDisclosure::Declined(_)));
+        let source = disclosure.source_facts().expect("checked source");
+        let queries = source.queries.as_ref().expect("closed original body");
+        assert_eq!(queries.len(), 1);
+        let query = &queries[0];
+        assert_eq!(query.model_name, "Bounds.Task");
+        assert_eq!(query.dependencies.len(), 6);
+        assert_eq!(query.dependencies[0].field_name, "location");
+        assert_eq!(query.dependencies[0].type_id, "Bounds.Location?");
+        assert_eq!(query.dependencies[0].role, DependencyRole::Control);
+        assert_eq!(query.dependencies[4].field_name, "priority");
+        assert_eq!(query.dependencies[4].type_id, "Bounds.Task.priority");
+        assert!(
+            query.dependencies[1..]
+                .iter()
+                .all(|dep| dep.role == DependencyRole::Data)
+        );
+        assert_eq!(query.inputs.len(), 3);
+        assert_eq!(query.inputs[0].1, query.inputs[2].1);
+        assert_eq!(query.projection.fields.len(), 7);
+        assert!(matches!(
+            query.projection.fields[0].mapping,
+            CheckedQueryProjectionMapping::StoredReference
+        ));
+        assert!(matches!(
+            query.projection.fields[1].mapping,
+            CheckedQueryProjectionMapping::Version
+        ));
+        assert_eq!(query.influences.len(), 4);
+        assert!(
+            query
+                .influences
+                .iter()
+                .all(|fact| fact.query_id.as_ref() == Some(&query.id))
+        );
+        assert!(query.order.is_empty());
+        assert_eq!(query.limit, None);
+        assert!(!query.archived);
+        let again = checked_query_source(&query_source_fixture());
+        assert_eq!(
+            again.source_facts().unwrap().queries.as_ref().unwrap(),
+            queries
+        );
+    }
+
+    #[test]
+    fn query_source_refuses_incomplete_domain_cardinality_and_projection_lineage() {
+        let original = query_source_fixture();
+        for changed in [
+            original.replace("task in targets and ", ""),
+            original.replace(
+                "count(visible)==count(targets)",
+                "count(visible)>=count(targets)",
+            ),
+            original.replace("Task as task where", "Task archived=include as task where"),
+            original.replace("visible as task select", "targets as task select"),
+            original.replace("version=task.version", "version=1"),
+            original.replace("title=task.title", "title=\"copied\""),
+            original.replace("task.location==location", "task.location!=location"),
+        ] {
+            let disclosure = checked_query_source(&changed);
+            assert!(
+                disclosure.source_facts().unwrap().queries.is_none(),
+                "incomplete producer accepted: {changed}"
+            );
+        }
     }
 
     #[test]
