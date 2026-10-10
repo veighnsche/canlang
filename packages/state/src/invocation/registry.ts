@@ -467,6 +467,51 @@ function checkTypeArray(type: CanTypeId | undefined, array: boolean, what: strin
   }
 }
 
+/** Stored model refs resolve only in this load, with source-exact container markers. */
+function checkStoredModelValueType(field: Record<string, unknown>, what: string, modelNames: ReadonlySet<string>,
+  valueSchema?: NormalizedSchema, target?: string): CanTypeId {
+  const arrayMember = Object.getOwnPropertyDescriptor(field, 'array');
+  if (arrayMember === undefined && 'array' in field || arrayMember !== undefined && !('value' in arrayMember)) {
+    fail('malformed_descriptor', `Invalid ${what}: stored reference array must be own data.`);
+  }
+  let requiredArray = false;
+  if (arrayMember !== undefined) {
+    const marker = arrayMember.value;
+    if (!isRecord(marker) || ![Object.prototype, null].includes(Object.getPrototypeOf(marker)) || Reflect.ownKeys(marker).length !== 1) {
+      fail('malformed_descriptor', `Invalid ${what}: stored reference array requires a closed boolean marker.`);
+    }
+    const required = Object.getOwnPropertyDescriptor(marker, 'required');
+    if (required === undefined || !('value' in required) || !required.enumerable || typeof required.value !== 'boolean') {
+      fail('malformed_descriptor', `Invalid ${what}: stored reference array requires an own boolean required marker.`);
+    }
+    requiredArray = required.value;
+  }
+  const nullableMember = Object.getOwnPropertyDescriptor(field, 'nullable');
+  if (nullableMember === undefined && 'nullable' in field || nullableMember !== undefined &&
+      (!('value' in nullableMember) || typeof nullableMember.value !== 'boolean')) {
+    fail('malformed_descriptor', `Invalid ${what}: stored reference nullable must be an own boolean.`);
+  }
+  const nullable = nullableMember?.value === true;
+  const claimed = Object.getOwnPropertyDescriptor(field, 'valueType');
+  if (claimed === undefined && 'valueType' in field || claimed !== undefined && !('value' in claimed)) {
+    fail('malformed_descriptor', `Invalid ${what}: stored reference valueType must be own data.`);
+  }
+  const type: unknown = claimed === undefined && target !== undefined
+    ? `${target}${arrayMember === undefined ? '' : requiredArray ? '[]!' : '[]'}${nullable ? '?' : ''}` : claimed?.value;
+  let parsed: ReturnType<typeof parseTypeId>;
+  try {
+    if (typeof type !== 'string') throw new Error();
+    parsed = parseTypeId(type);
+    if (parsed.base.kind !== 'nominal' || printTypeId(parsed) !== type ||
+        parsed.array !== (arrayMember !== undefined) || parsed.requiredArray !== requiredArray || parsed.nullable !== nullable ||
+        target !== undefined && parsed.base.path !== target) throw new Error();
+  } catch { fail('malformed_descriptor', `Invalid ${what}: stored model valueType must exactly match its ref target and array/nullable markers.`); }
+  if (parsed.base.kind !== 'nominal' || !modelNames.has(parsed.base.path) || checkedNominal(type, valueSchema)) {
+    fail('dangling_reference', `Invalid ${what}: stored reference target requires one same-load model and no value declaration overlap.`);
+  }
+  return type as CanTypeId;
+}
+
 /** Exact scalar names at the canonical boundary; never inferred from JS carriers. */
 function scalarTypeForKind(kind: unknown): string | undefined {
   switch (kind) {
@@ -485,7 +530,20 @@ function scalarTypeForKind(kind: unknown): string | undefined {
 }
 
 /** Collapsed string tags require own claims; operation inputs also collapse checked date source. */
-function artifactValueType(field: Record<string, unknown>, what: string, operationInput = false, valueSchema?: NormalizedSchema): CanTypeId | undefined {
+function artifactValueType(field: Record<string, unknown>, what: string, operationInput = false, valueSchema?: NormalizedSchema,
+  modelNames?: ReadonlySet<string>): CanTypeId | undefined {
+  const storedTag = Object.getOwnPropertyDescriptor(field, 'field');
+  if (!operationInput && storedTag !== undefined && 'value' in storedTag && isRecord(storedTag.value)) {
+    const tag = Object.getOwnPropertyDescriptors(storedTag.value);
+    if (tag['kind'] !== undefined && 'value' in tag['kind'] && tag['kind'].value === 'ref') {
+      if (![Object.prototype, null].includes(Object.getPrototypeOf(storedTag.value)) || Reflect.ownKeys(storedTag.value).length !== 2 ||
+          tag['model'] === undefined || !('value' in tag['model']) || typeof tag['model'].value !== 'string' ||
+          !tag['kind'].enumerable || !tag['model'].enumerable || modelNames === undefined) {
+        fail('malformed_descriptor', `Invalid ${what}: stored ref tag requires closed own kind/model data and same-load models.`);
+      }
+      return checkStoredModelValueType(field, what, modelNames, valueSchema, tag['model'].value);
+    }
+  }
   const nominalTag = field['field'];
   if (Object.hasOwn(field, 'field') && isRecord(nominalTag) && Object.hasOwn(nominalTag, 'kind') && nominalTag['kind'] === 'nominal') {
     if (!Object.hasOwn(nominalTag, 'name') || !checkedNominal(nominalTag['name'], valueSchema)) {
@@ -882,7 +940,7 @@ function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId |
   } catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
 }
 
-function checkCanonicalModel(value: unknown, valueSchema?: NormalizedSchema): CanonicalModelDescriptor {
+function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, valueSchema?: NormalizedSchema): CanonicalModelDescriptor {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail('malformed_descriptor', 'Invalid model descriptor: models need non-empty names.');
   }
@@ -926,7 +984,16 @@ function checkCanonicalModel(value: unknown, valueSchema?: NormalizedSchema): Ca
         fail('malformed_descriptor', `Invalid ${what}: machine requires a singular omitted-only literal initial default.`);
       }
     }
-    const valueType = checkValueType(fieldValue, what, valueSchema);
+    const typeMember = Object.getOwnPropertyDescriptor(fieldValue, 'valueType');
+    let modelReference = false;
+    if (typeMember !== undefined && 'value' in typeMember && typeof typeMember.value === 'string') {
+      try {
+        const parsed = parseTypeId(typeMember.value);
+        modelReference = parsed.base.kind === 'nominal' && modelNames.has(parsed.base.path);
+      } catch { /* The owning checker below reports malformed type claims. */ }
+    }
+    const valueType = modelReference ? checkStoredModelValueType(fieldValue, what, modelNames, valueSchema)
+      : checkValueType(fieldValue, what, valueSchema);
     checkFieldConstraints(fieldValue, valueType, what, valueSchema);
     checkNominalArray(valueType, array, what, valueSchema);
     fields[fieldName] = {
@@ -1081,13 +1148,18 @@ function loadCheckedDescriptorSet(
   const models: CanonicalModelDescriptor[] = [];
   const modelNames = new Set<string>();
   for (const model of set['models'] as unknown[]) {
-    const checked = checkCanonicalModel(model, valueSchema);
-    const name = checked.name as string;
+    const nameMember = isRecord(model) ? Object.getOwnPropertyDescriptor(model, 'name') : undefined;
+    if (nameMember === undefined || !('value' in nameMember) || typeof nameMember.value !== 'string' || nameMember.value === '') {
+      fail('malformed_descriptor', 'Invalid model descriptor: models need own non-empty names.');
+    }
+    const name = nameMember.value;
     if (modelNames.has(name)) {
       fail('duplicate_name', `Duplicate model descriptor: ${JSON.stringify(name)}.`);
     }
     modelNames.add(name);
-    models.push(checked);
+  }
+  for (const model of set['models'] as unknown[]) {
+    models.push(checkCanonicalModel(model, modelNames, valueSchema));
   }
   const registry = new Map<string, InterimOperationDef | GeneratedOperationDef>();
   const seenOps = new Set<string>();
@@ -1399,7 +1471,7 @@ export function artifactToDescriptorSet(
         }
       }
       const tag: unknown = field.field;
-      const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema);
+      const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema, modelNames);
       checkFieldConstraints(field as unknown as Record<string, unknown>, valueType, what, valueSchema);
       fields[field.name] = {
         ...(valueType !== undefined ? { valueType } : {}),

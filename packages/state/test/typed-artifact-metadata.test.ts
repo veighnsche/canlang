@@ -92,6 +92,55 @@ test('canonical loading checks its own finite scalar profile without inferring d
   assert.equal(Object.hasOwn(loadExecutionDescriptorSet(changed, opts).models[0]!.fields.count!, 'valueType'), false);
 });
 
+test('stored model reference fields retain exact same-load types, array bounds and nullable markers in the owning table', async () => {
+  const target = 'Example.Target' as ModelName;
+  for (const array of [false, true]) for (const nullable of [false, true]) {
+    for (const requiredArray of array && !nullable ? [false, true] : [false]) {
+      const type = `${target}${array ? requiredArray ? '[]!' : '[]' : ''}${nullable ? '?' : ''}`;
+      const field = { name: 'linked', field: { kind: 'ref', model: target }, valueType: type,
+        required: !nullable, serverOnly: false, ...(nullable ? { nullable: true } : {}),
+        ...(array ? { array: { required: requiredArray }, min: 1, max: 2 } : {}) };
+      const raw = { ...artifact(), models: [
+        { name: model, deleteMode: 'archive', fields: [field] },
+        { name: target, deleteMode: 'archive', fields: [] },
+      ] } as ArtifactDescriptorSlice;
+      const loaded = loadArtifactDescriptors(raw, opts);
+      const converted = artifactToDescriptorSet(raw);
+      const direct = loadExecutionDescriptorSet(converted.set, opts);
+      assert.deepEqual(direct.models, loaded.models);
+      assert.equal(loaded.models[0]!.fields.linked!.valueType, type);
+      const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs,
+        nullableFields: loaded.nullableFields, containment: loaded.containment });
+      assert.equal(table.get(model)!.fields.linked!.valueType, type);
+      if (nullable) assert.equal(table.get(model)!.fields.linked!.nullable, true);
+      if (array) {
+        assert.deepEqual(table.get(model)!.fields.linked!.array, { required: requiredArray });
+        assert.equal(table.get(model)!.fields.linked!.min, 1);
+        assert.equal(table.get(model)!.fields.linked!.max, 2);
+        for (const wire of [[], [{ id: 'one' }, { id: 'two' }, { id: 'three' }]]) {
+          const { store } = createTestMemoryStorage();
+          await assert.rejects(runMutationWrites({ table, store, context: pipelineContext({ operation: 'Example.Job.create' }),
+            writes: [{ op: 'create', model, id: asId('new-linked'), data: { linked: wire } }] }), /Invalid field/);
+        }
+      }
+      for (const replacement of [
+        { ...field, valueType: `${target}[][]` },
+        { ...field, valueType: `${target}${array ? requiredArray ? '[]' : '[]!' : '[]'}${nullable ? '?' : ''}` },
+        { ...field, field: { kind: 'ref', model } },
+        { ...field, field: { kind: 'ref', model: 'Example.Unknown' }, valueType: `Example.Unknown${array ? requiredArray ? '[]!' : '[]' : ''}${nullable ? '?' : ''}` },
+        { ...field, nullable: !nullable },
+        ...(array ? [{ ...field, array: { required: requiredArray, max: 2 } }] : []),
+      ]) assert.throws(() => loadArtifactDescriptors({ ...raw, models: [
+        { ...raw.models![0]!, fields: [replacement] }, raw.models![1]!,
+      ] } as ArtifactDescriptorSlice, opts), (error: unknown) => error instanceof IncompatibleArtifactError);
+    }
+  }
+  const set = intake();
+  assert.throws(() => loadExecutionDescriptorSet({ ...set, models: [{ ...set.models[0]!, fields: {
+    linked: { required: true, serverOnly: false, valueType: 'Example.Unknown' },
+  } }] }, opts), (error: unknown) => error instanceof IncompatibleArtifactError);
+});
+
 test('declared typed and void results are copied and frozen in both loading paths', () => {
   for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'text', 'text?', 'text[]', 'text[]?', 'bool', 'bool?', 'bool[]', 'bool[]?', 'decimal', 'decimal?', 'decimal[]', 'decimal[]?', 'money', 'money?', 'money[]', 'money[]?', 'date', 'date?', 'date[]', 'date[]?', 'duration', 'duration?', 'duration[]', 'duration[]?', 'user', 'user?', 'user[]', 'user[]?', 'void']) {
     const result = { type };

@@ -14,10 +14,10 @@ import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, Canonica
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import { buildPolicyTable, type PolicyTable } from '../policy/grants.js';
+import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
-import { checkedMembershipFact, checkedAuthoritySnapshot } from '../policy/membership-facts.js';
-import { queryRecordsObserved, projectSavedRecordForViewer } from '../query/engine.js';
+import { checkedMembershipFact, checkedAuthoritySnapshot, observeRowGrantAuthority } from '../policy/membership-facts.js';
+import { queryRecordsObserved, projectSavedRecordForViewer, projectCurrentRecordForViewerPolicy } from '../query/engine.js';
 import { MAX_MEMBERSHIP_SNAPSHOT_USERS, type Membership, type MembershipSnapshot, type ResolvedIdentity } from '@canlang/contracts';
 import { admitOwnerStageCall, type AdmittedCall } from './admission.js';
 import { assertScenarioReceiptExecution, scenarioReceiptMemberships, type ExecutionEffects } from './invoke.js';
@@ -36,6 +36,7 @@ import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite
 export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, scenarioFileWireRefs } from './scenario-file-assignment.js';
 import { storedNominalType, storedNominalField, storedNominalWire, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
+import { storedReferenceField, storedReferenceWire, type StoredReferenceFieldProfile } from './scenario-stored-reference.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -115,6 +116,17 @@ function savedDependencyWire(type: CanTypeId, wire: unknown): void {
   try { scalarType(type); }
   catch { savedNominalWire(type, wire); return; }
   scalarWire(type, wire);
+}
+function dependencyObservedWire(dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number], row: StoredRow): unknown {
+  // Only a nominal, singular parent dependency reads containment metadata.
+  // The privately bound profile still proves the actual declaration later.
+  const type = parseTypeId(dependency.type);
+  if (dependency.field === 'parent' && type.base.kind === 'nominal' && !type.array && !type.nullable) {
+    const parent = object(row.parent, ['model', 'id']);
+    if (parent['model'] !== type.base.path) return invalid('saved parent differs from its declared containment.');
+    return { id: text(parent['id']) };
+  }
+  return getDataPath(row.data, dependency.field);
 }
 function scalarWire(type: CanTypeId, value: unknown): void {
   if (type === 'void') { if (value !== null) invalid('void receipt result must be null.'); return; }
@@ -202,6 +214,8 @@ interface BoundPlan {
   readonly canonicalModels: readonly CanonicalModelDescriptor[];
   readonly nominalDependencies: ReadonlyMap<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
     readonly profile: StoredNominalFieldProfile }>;
+  readonly referenceDependencies: ReadonlyMap<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+    readonly profile: StoredReferenceFieldProfile }>;
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
@@ -690,11 +704,16 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const canonicalModels = Object.freeze(defaults.canonicalModels.map(model => deepFreeze(dataCopy(model))));
   const nominalDependencies = new Map<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
     readonly profile: StoredNominalFieldProfile }>();
+  const referenceDependencies = new Map<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+    readonly profile: StoredReferenceFieldProfile }>();
   for (const returned of plan.returns) for (const dep of returned.dependencies) {
     let scalar = true;
     try { scalarType(dep.type); } catch { scalar = false; }
     if (scalar) {
       if (inventory.get(dep.model)?.fields.get(dep.field) !== dep.type) return invalid('dependency disagrees with declared model field/type inventory.');
+    } else if (dep.field === 'parent' || artifactModels.get(dep.model)?.fields.some(field => field.name === dep.field && field.field.kind === 'ref')) {
+      if (!referenceDependencies.has(dep.id)) referenceDependencies.set(dep.id, Object.freeze({ dependency: dep,
+        profile: storedReferenceField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type) }));
     } else if (!nominalDependencies.has(dep.id)) {
       const profile = storedNominalField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type);
       nominalDependencies.set(dep.id, Object.freeze({ dependency: dep, profile }));
@@ -710,7 +729,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   boundPlans.set(def, { plan, type, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
-    artifactModels, canonicalModels, nominalDependencies,
+    artifactModels, canonicalModels, nominalDependencies, referenceDependencies,
     valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
 }
 
@@ -789,6 +808,34 @@ function versionedReferenceInput(def: GeneratedOperationDef, dependency: Scenari
 }
 
 type IntrinsicObservation = NonNullable<ScenarioReceiptAssociation['intrinsics']>[number];
+
+/** Installed current viewer policy for checked stored reference influence.
+ * Source field capture confers no authority over any referenced record. */
+export interface ScenarioReceiptReferenceProducer {
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly app: string;
+  readonly policy: PolicyTable;
+}
+const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptReferenceProducer>();
+export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef, producer: ScenarioReceiptReferenceProducer): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined || bound.referenceDependencies.size === 0 || invokedPlans.has(def) || referenceProducers.has(def)) {
+    return invalid('reference producer requires one checked source binding before execution.');
+  }
+  object(producer, ['source', 'app', 'policy']); origin(producer.source); text(producer.app);
+  if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) {
+    return invalid('reference producer differs from its checked source/policy.');
+  }
+  const policy = buildPolicyTable([...Map.prototype.entries.call(producer.policy)].map(([model, value]) => {
+    const copied = dataCopy(value);
+    if (copied.model !== model) return invalid('reference policy model differs from its owning key.');
+    return copied;
+  }), bound.canonicalModels);
+  if ([...bound.referenceDependencies.values()].some(value => !policy.has(value.dependency.model))) {
+    return invalid('reference source model requires its actual viewer policy.');
+  }
+  referenceProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy }));
+}
 
 /** Loader-only policy wiring, bound to the same checked source and app. */
 export interface ScenarioReceiptQueryProducer {
@@ -1596,6 +1643,113 @@ export function bindScenarioReceiptQueryResult(call: AdmittedCall, store: Storag
   }
 }
 
+function sourceReferenceProjection(profile: StoredReferenceFieldProfile, record: ProjectedRecord | null): unknown {
+  if (record === null) return undefined;
+  if (profile.kind === 'parent') return record.parent?.model === profile.target ? { id: record.parent.id } : undefined;
+  const field = Object.getOwnPropertyDescriptor(record.data, profile.field);
+  return field !== undefined && 'value' in field && field.enumerable ? field.value : undefined;
+}
+function wholeReferenceGrant(policy: NonNullable<ReturnType<PolicyTable['get']>>, allowed: readonly boolean[],
+  row: StoredRow, profile: StoredReferenceFieldProfile): boolean {
+  // Parent is existing unprojected containment metadata on a visible row.
+  // Stored reference fields need their whole field, never an id-only subgrant.
+  return policy.grants.some((grant, index) => allowed[index] === true &&
+    (grant.when === undefined || evalPredicateForRow(grant.when, row)) &&
+    (profile.kind === 'parent' || grant.fields.includes(profile.field)));
+}
+
+/** Current origin authority is observed before native promotion. The exact
+ * facts survive child awaits and join Invoke's mandatory private guard ledger;
+ * target admission remains independent and no target row is loaded here. */
+async function observeReferenceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
+  state: Capture, dependencyId: string, row: StoredRow, profile: StoredReferenceFieldProfile, model: ModelName): Promise<() => Promise<void>> {
+  const producer = referenceProducers.get(call.def as GeneratedOperationDef);
+  if (producer === undefined || producer.app !== call.context.app || owner.session === null ||
+      stableStringify(producer.source) !== stableStringify(state.bound.plan.source)) return invalid('matching installed reference source policy required.');
+  const policy = producer.policy.get(model);
+  if (policy === undefined || owner.callGuards.length >= MAX_ITEMS) return invalid('source reference policy or guard budget is unavailable.');
+  const stage = owner.stage, reader = scenarioReceiptMemberships(owner.call, store);
+  const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+  let capturing = true;
+  const healthy = () => {
+    if (!capturing) return;
+    capture(call, store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 1 || state.returnId !== null) {
+      return invalid('source reference authority crossed its original call or owner stage.');
+    }
+  };
+  const facts = new Map<string, Membership | null>();
+  const factKey = (team: string, user: string) => stableStringify([team, user]);
+  const recordFact = (team: string, user: string, value: unknown): Membership | null => {
+    if (team !== teamId) return invalid('source reference authority crossed its actual Team.');
+    const fact = checkedMembershipFact(value, team, user), key = factKey(team, user);
+    if (facts.has(key) && stableStringify(facts.get(key)) !== stableStringify(fact)) {
+      throw new StateError('forbidden', 'Source reference Identity facts changed.');
+    }
+    if (!facts.has(key) && facts.size >= MAX_MEMBERSHIP_SNAPSHOT_USERS) return invalid('source reference subject budget exceeded.');
+    facts.set(key, fact); return fact;
+  };
+  const snapshot = Object.getOwnPropertyDescriptor(reader, 'findMembershipsSnapshot');
+  const memberships: MembershipReader = {
+    findMembership: async (team, user) => {
+      healthy(); const value = await reader.findMembership(team, user); healthy(); return recordFact(team, user, value);
+    },
+    ...(snapshot !== undefined && 'value' in snapshot && typeof snapshot.value === 'function' ? {
+      findMembershipsSnapshot: async (team: string, users: readonly string[]): Promise<MembershipSnapshot> => {
+        healthy(); const value = await snapshot.value.call(reader, team, users); healthy();
+        const checked = checkedAuthoritySnapshot(value, team, users);
+        for (const user of users) recordFact(team, user, checked.get(factKey(team, user)));
+        return value;
+      },
+    } : {}),
+  };
+  const member = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+  healthy();
+  const context: ByContext = { actorUserId, teamId, membership: member, memberships };
+  const originalWire = storedReferenceWire(profile, row);
+  const authority = await observeRowGrantAuthority(context, async observed => {
+    const value = await projectCurrentRecordForViewerPolicy({ policy, context: observed, row }); healthy();
+    return { record: value.record, whole: wholeReferenceGrant(policy, value.allowed, row, profile) };
+  });
+  healthy();
+  const projected = sourceReferenceProjection(profile, authority.value.record);
+  if (!authority.value.whole || projected === undefined || stableStringify(projected) !== stableStringify(originalWire)) {
+    throw new StateError('forbidden', 'Current source reference field authority is unavailable.');
+  }
+  await authority.revalidate(); healthy();
+  if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source reference authority moved beyond its admitted revision.');
+  healthy(); capturing = false;
+  const observedFacts = new Map(facts);
+  const fixedContext: ByContext = { actorUserId, teamId, membership: member, memberships: {
+    findMembership: async (team, user) => {
+      const key = factKey(team, user);
+      if (!observedFacts.has(key)) throw new StateError('forbidden', 'Source reference grant requested an unobserved subject.');
+      return observedFacts.get(key)!;
+    },
+  } };
+  owner.callGuards.push(Object.freeze({ name: `reference:${call.def.name}:${dependencyId}:${stage}:${owner.callGuards.length}`, evaluate: async () => {
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source reference checkpoint moved before commit.');
+    const write = owner.finalized?.writes.find(candidate => candidate.model === model &&
+      (candidate.kind === 'insert' ? candidate.row.id : candidate.id) === row.id);
+    const current = write === undefined ? await store.load(model, row.id) : write.kind === 'remove' ? null : write.row;
+    if (current === null || current.archivedAt !== null || current.version < row.version || current.created !== row.created ||
+        current.createdBy !== row.createdBy || stableStringify(current.parent ?? null) !== stableStringify(row.parent ?? null)) {
+      throw new StateError('forbidden', 'Source reference row lifetime changed before commit.');
+    }
+    const currentWire = storedReferenceWire(profile, current);
+    const value = await projectCurrentRecordForViewerPolicy({ policy, context: fixedContext, row: current });
+    const projected = sourceReferenceProjection(profile, value.record);
+    if (!wholeReferenceGrant(policy, value.allowed, current, profile) || projected === undefined ||
+        stableStringify(projected) !== stableStringify(currentWire)) {
+      throw new StateError('forbidden', 'Source reference field authority changed before commit.');
+    }
+    await authority.revalidate();
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source reference authority recheck moved beyond the original fence.');
+    return true;
+  } }));
+  return authority.revalidate;
+}
+
 /** Native host supplies its actual protected binding. For a receipt owner
  * session it must preserve the exact issued row, including its stage. Copies,
  * host overlays and final-row coincidence cannot establish intermediate proof.
@@ -1625,7 +1779,9 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
     if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
     const row = checkedRow(observed.row);
     const nominal = state.bound.nominalDependencies.get(dependency.id);
-    if (nominal === undefined) scalarWire(dependency.type, getDataPath(row.data, dependency.field));
+    const reference = state.bound.referenceDependencies.get(dependency.id);
+    if (reference !== undefined) storedReferenceWire(reference.profile, row);
+    else if (nominal === undefined) scalarWire(dependency.type, getDataPath(row.data, dependency.field));
     else storedNominalWire(nominal.profile, getDataPath(row.data, dependency.field));
     if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
     if (owner !== undefined) {
@@ -1637,12 +1793,23 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
       owner.busy = true;
     }
     state.pending += 1; acquired = true;
+    let referenceRevalidate: (() => Promise<void>) | undefined;
+    if (reference !== undefined) {
+      if (owner === undefined) return invalid('source reference capture requires its actual current-stage owner session.');
+      referenceRevalidate = await observeReferenceAuthority(call, store, owner, state, dependency.id, row, reference.profile, observed.model);
+    }
     const current = await store.load(observed.model, row.id);
     capture(call, store);
     const revision = await store.readRevision();
     capture(call, store);
     if (state.returnId !== null) return invalid('observation must complete before return selection.');
     if (revision !== call.revision) throw new StateError('conflict', 'Scenario observation moved beyond its admitted revision.');
+    if (referenceRevalidate !== undefined) {
+      await referenceRevalidate(); capture(call, store);
+      ownerHealthy(owner!);
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source reference final observation moved beyond its admitted revision.');
+      capture(call, store); ownerHealthy(owner!);
+    }
     const secrets = state.bound.models.get(observed.model)!.secrets;
     if (secrets.length > MAX_ITEMS) return invalid('original secrecy inventory exceeds its finite budget.');
     state.observations.push({ dependencyId: dependency.id, model: observed.model, row,
@@ -1874,7 +2041,7 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
     const observation = object(entry, ['dependencyId', 'model', 'row', 'secretFields']);
     const dependency = returned.dependencies.find(dep => dep.id === observation['dependencyId']);
     if (dependency === undefined || dependency.model !== observation['model']) return invalid('foreign saved dependency.');
-    const row = checkedRow(observation['row']); savedDependencyWire(dependency.type, getDataPath(row.data, dependency.field)); paths(observation['secretFields']);
+    const row = checkedRow(observation['row']); savedDependencyWire(dependency.type, dependencyObservedWire(dependency, row)); paths(observation['secretFields']);
   }
   if (returned.dependencies.some(dep => !observations.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) return invalid('missing saved dependency.');
   const intrinsics = list(Object.hasOwn(value, 'intrinsics') ? value['intrinsics'] : []);
@@ -2080,7 +2247,12 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     ? memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
   const live = await membership(); const membershipSnapshot = stableStringify(dataCopy(live));
   const withheld = { result: null, records: [] } as const;
-  const project = async (member: Awaited<ReturnType<typeof membership>>) => {
+  const referenceInfluence = currentBound.referenceDependencies.size !== 0 ||
+    association.calls?.some(saved => {
+      const target = input.registry.get(saved.target);
+      return target !== undefined && (boundPlans.get(target as GeneratedOperationDef)?.referenceDependencies.size ?? 0) !== 0;
+    }) === true;
+  const projectOnce = async (member: Awaited<ReturnType<typeof membership>>) => {
     const context = { actorUserId, teamId, membership: member, memberships };
     if (!await evaluateBy(def.by, context)) return withheld;
     const currentSavedRow = async (model: ModelName, saved: StoredRow) => {
@@ -2092,7 +2264,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       return current;
     };
     const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = [], fileFields: readonly string[] = [],
-      nominal?: { readonly field: string; readonly profile: StoredNominalFieldProfile }) => {
+      nominal?: { readonly field: string; readonly profile: StoredNominalFieldProfile },
+      reference?: { readonly field: string; readonly profile: StoredReferenceFieldProfile }) => {
       const current = await currentSavedRow(model, saved); const inventory = currentBound.models.get(model);
       if (current === null || inventory === undefined) return null;
       if (nominal !== undefined) {
@@ -2103,12 +2276,29 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           storedNominalWire(nominal.profile, field.value);
         } catch { return null; }
       }
+      if (reference !== undefined) {
+        let currentWire: unknown;
+        try { storedReferenceWire(reference.profile, saved); currentWire = storedReferenceWire(reference.profile, current); }
+        catch { return null; }
+        const policy = input.policy.get(model);
+        if (policy === undefined) return null;
+        const authority = await projectCurrentRecordForViewerPolicy({ policy, context, row: current });
+        const projected = sourceReferenceProjection(reference.profile, authority.record);
+        if (!wholeReferenceGrant(policy, authority.allowed, current, reference.profile) || projected === undefined ||
+            stableStringify(projected) !== stableStringify(currentWire)) return null;
+      }
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
-        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field) && !fileFields.includes(field) && field !== nominal?.field)] });
+        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field) && !fileFields.includes(field) && field !== nominal?.field && field !== reference?.field)] });
     };
     const dependencyProjection = async (bound: BoundPlan,
       dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number],
       observation: ScenarioReceiptAssociation['observations'][number]) => {
+      const reference = bound.referenceDependencies.get(dependency.id);
+      if (reference !== undefined) {
+        if (stableStringify(reference.dependency) !== stableStringify(dependency)) return null;
+        return savedProjection(observation.model, observation.row, observation.secretFields, [], [], [], undefined,
+          { field: dependency.field, profile: reference.profile });
+      }
       const nominal = bound.nominalDependencies.get(dependency.id);
       if (nominal === undefined) {
         const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
@@ -2120,6 +2310,18 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       // disclosure or dereference grant from an owning stored contract.
       return savedProjection(observation.model, observation.row, observation.secretFields, [], [], [],
         { field: dependency.field, profile: nominal.profile });
+    };
+    const dependencyReadable = (bound: BoundPlan,
+      dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number],
+      observation: ScenarioReceiptAssociation['observations'][number], projection: ProjectedRecord | null): boolean => {
+      if (projection === null) return false;
+      const reference = bound.referenceDependencies.get(dependency.id);
+      if (reference !== undefined) {
+        const wire = sourceReferenceProjection(reference.profile, projection);
+        return wire !== undefined && stableStringify(wire) === stableStringify(storedReferenceWire(reference.profile, observation.row));
+      }
+      return Object.hasOwn(projection.data, dependency.field) &&
+        stableStringify(projection.data[dependency.field]) === stableStringify(observation.row.data[dependency.field]);
     };
     const queryAuthority = async (bound: BoundPlan, saved: { readonly plan: ScenarioResultDisclosurePlan;
       readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] }) => {
@@ -2166,9 +2368,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       for (const observed of child.observations) {
         const dependency = returned.dependencies.find(dep => dep.id === observed.dependencyId)!;
         const projection = await dependencyProjection(current, dependency, observed);
-        if (projection === null ||
-            !Object.hasOwn(projection.data, dependency.field) ||
-            stableStringify(projection.data[dependency.field]) !== stableStringify(observed.row.data[dependency.field])) dependenciesReadable = false;
+        if (!dependencyReadable(current, dependency, observed, projection)) dependenciesReadable = false;
       }
       for (const observed of child.intrinsics ?? []) {
         const dependency = returned.intrinsics!.find(dep => dep.id === observed.dependencyId)!;
@@ -2185,9 +2385,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     for (const observation of association.observations) {
       const dependency = returned.dependencies.find(dep => dep.id === observation.dependencyId)!;
       const projection = await dependencyProjection(currentBound, dependency, observation);
-      if (projection === null ||
-          !Object.hasOwn(projection.data, dependency.field) ||
-          stableStringify(projection.data[dependency.field]) !== stableStringify(observation.row.data[dependency.field])) dependenciesReadable = false;
+      if (!dependencyReadable(currentBound, dependency, observation, projection)) dependenciesReadable = false;
     }
     for (const observation of association.intrinsics ?? []) {
       const dependency = returned.intrinsics!.find(dep => dep.id === observation.dependencyId)!;
@@ -2214,6 +2412,15 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     }
     return { result: dependenciesReadable && association.resultType === currentBound.type && receipt.outcome.status === 'committed'
       ? dataCopy(receipt.outcome.result) : null, records };
+  };
+  const project = async (member: Awaited<ReturnType<typeof membership>>) => {
+    try { return await projectOnce(member); }
+    catch (error) {
+      // A current row grant can lose its complete Identity facts during an
+      // awaited row projection. No partial retained influence escapes it.
+      if (referenceInfluence && error instanceof StateError && error.code === 'forbidden') return withheld;
+      throw error;
+    }
   };
   const first = await project(live);
   if (authorityFacts.size > 1) {
