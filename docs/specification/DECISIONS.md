@@ -6498,3 +6498,22 @@ Eight new combinations reproduce six masked primary failures and two already-vis
 ### 2026-10-10 — manual local integration of 23ff6d80
 
 Manually review exact existing MCP/HTTP cleanup failure precedence: process and missing-Bun mappings survive secondary removal failure, output-read thrown identity survives, cleanup-only failure remains observable and removal is attempted once. Reuse owning24 lifecycle cases and direct Cloudflare emission; process/marker/budget behavior is unchanged. Removal failure may leave scratch present; this does not claim deletion or broader resource/native acceptance. Packages continues priority genuine Acorn and Files ports import closure. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Compiler bound child predicates, 2026-10-10 (unfinished original workflow):
+use a separate contract-array proof for synchronous any/all, preserving model-
+query attribution. Join actual CallAs occurrence/Complete child and its owning
+projection; admit only direct projected scalar/ref/version leaves and literals.
+Values owns per-element ordered lazy choices, with no invented parent scalar
+observation or row grant. Fresh typed source/IR correspondence includes static
+child calls and the optional proof. Box checked query source to keep IR size
+bounded. Genuine native predicate/ref/version/failure/rollback/replay/revocation
+passes with affected619, strict lint/format0 and finite review CLEAR; original
+Step.input count needs canonical Input stored observation,
+contained operands need current-stage Dev hydration, and old/fresh two-domain
+closure remains Compiler-owned after those releases. State File lifetime at
+LOCALa8de5109 releases the next assignment-only File source unit; broader original
+workflow/58 of67 and precise BDD3/Task22 holds remain open.
+
+### 2026-10-10 — manual local integration of be6934a4
+
+Review exact complete bound-child any/all projection attribution, selected slots/alias/type and fresh source-to-IR static Call correspondence. Preserve separate model/query authority and Values ordered short-circuit behavior without per-element parent observations. Reuse owning619 affected outcomes, genuine native reference/version/CRUD failure/rollback/replay/current-role controls and strict all-target lint/format. Stored Step.input nominal authority remains State-owned and contained reference hydration Dev-owned; original old/fresh predicate and File/source join remain Compiler consumers. No whole58/67 acceptance, arbitrary child reuse or change to BDD3/Task22 holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

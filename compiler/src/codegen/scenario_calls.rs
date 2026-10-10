@@ -671,8 +671,8 @@ pub(super) fn complete_read_query_child<'a>(
     let (IrExpr::Query(scan), IrExpr::Query(select)) = (&scan.expr, &selected.expr) else {
         return None;
     };
-    let scan_source = scan.source.as_ref()?;
-    let select_source = select.source.as_ref()?;
+    let scan_source = scan.source.as_deref()?;
+    let select_source = select.source.as_deref()?;
     let projection = select_source.projection.as_deref()?;
     let contract = ir.items.get(query.projection.contract.0 as usize)?;
     if checked.scenario != child.id
@@ -707,6 +707,7 @@ pub(super) fn complete_read_query_child<'a>(
         || scan.select.is_some()
         || scan.where_async
         || scan.collection_call.is_some()
+        || scan.contract_collection_call.is_some()
         || select.parent.is_some()
         || select.where_pred.is_some()
         || select.where_async
@@ -714,6 +715,7 @@ pub(super) fn complete_read_query_child<'a>(
         || select.limit.is_some()
         || select.archived.is_some()
         || select.collection_call.is_some()
+        || select.contract_collection_call.is_some()
         || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(name) if name == &query.model_name)
         || !matches!(&select.domain, super::ir::IrQueryDomain::Value { .. })
         || query.cardinality_guard.file != guard.file
