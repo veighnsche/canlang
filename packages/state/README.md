@@ -25,6 +25,27 @@ are imported here by relative source path until lane 07 assembles the workspace 
 `contracts` index. Engine-local descriptor/codec shims needed before lanes 01/02 land
 are marked interim and replaced at those joins — never a second catalog.
 
+`createFileReferenceConsumer` is the owning current File read and retention-fact
+consumer. Bind it to the trusted app/team/owner store, the same loaded canonical
+and artifact models, loaded `valueTypes` when present, current operation registry,
+policies and Identity reader, with finite `maxRows` and `maxReferences` bounds.
+`observeReferences(ref)` enumerates all committed direct and embedded File slots,
+including archived retained rows and duplicate nested array positions. Each fact
+retains its owning model, row/version, top field and relative wire `path`; the
+legacy `index` is the top array position. Malformed wires, incomplete declarations,
+overflow or a changed State revision refuse completeness. The observation and its
+`revalidate()` grant no read permission and provide no cross-store deletion lock.
+
+`read({model, recordId, field, ref}, authenticatedCaller, consume)` requires the
+exact current whole-field grant (including its row predicate), owning model and
+parent reads, current row lifetime, complete wire and coherent Identity facts.
+It checks those same bindings and the original State revision before and after
+one physical byte callback, then returns detached bytes or null. The host closes
+`consume` over Files' genuine current policy/lifetime/digest-verified reader and
+original physical receiver; the current authorized reader is a separate identity.
+Host credential provenance, native download wiring and serialization through
+retention deletion remain owning host/Files integration requirements.
+
 ## Build and test
 
 ```sh

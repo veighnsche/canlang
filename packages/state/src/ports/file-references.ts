@@ -1,18 +1,18 @@
 /** Current committed File relationships, independent of Files' attachment marker.
  * A relationship is retention evidence; only a current whole-field State grant
  * authorizes the wrapped read. Physical byte validity remains Files-owned. */
-import type { ArtifactModel, CanonicalModelDescriptor, FinalizedFileReceiver,
+import type { ArtifactModel, CanonicalModelDescriptor, CanonicalValueTypes, FinalizedFileReceiver,
   ModelName, RecordId, RecordVersion, Revision, StoragePort, StoredRow } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
-import { parseTypeId } from '@canlang/values';
+import { normalizeValueTypes } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
-import { copyScenarioFileData, scenarioFileField, scenarioFileWireRefs,
-  type ScenarioFileFieldProfile } from '../invocation/scenario-file-assignment.js';
+import { copyScenarioFileData } from '../invocation/scenario-file-assignment.js';
+import { bindFileReferenceProfile, fileReferenceOccurrences, type FileReferenceProfile } from './file-reference-profile.js';
 import { isGeneratedOperationDef, type GeneratedOperationDef, type OperationRegistry } from '../invocation/registry.js';
 import { openFenceScope } from '../invocation/admission.js';
 import { stableStringify } from '../invocation/replay.js';
-import { isEqualOrUnder, type PolicyTable, type ByContext } from '../policy/grants.js';
+import { evalPredicateForRow, isEqualOrUnder, type PolicyTable, type ByContext } from '../policy/grants.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import { projectCurrentRecordForViewerPolicy } from '../query/engine.js';
@@ -24,6 +24,8 @@ export interface CommittedFileReference {
   readonly field: string;
   /** Arrays retain every authored position, including duplicate references. */
   readonly index: number | null;
+  /** Relative canonical wire path preserves nested fields and array positions. */
+  readonly path: readonly (string | number)[];
   readonly ref: string;
   readonly archived: boolean;
 }
@@ -65,6 +67,8 @@ export interface FileReferenceConsumerInput {
   readonly memberships: MembershipReader;
   readonly canonicalModels: readonly CanonicalModelDescriptor[];
   readonly artifactModels: readonly ArtifactModel[];
+  /** The same loaded declaration inventory, including nested contract fields. */
+  readonly valueTypes?: CanonicalValueTypes;
   readonly registry: OperationRegistry;
   readonly maxRows: number;
   readonly maxReferences: number;
@@ -90,7 +94,7 @@ function row(value: StoredRow): StoredRow {
   return deepFreeze(saved);
 }
 interface ModelFiles {
-  readonly fields: ReadonlyMap<string, ScenarioFileFieldProfile>;
+  readonly fields: ReadonlyMap<string, FileReferenceProfile>;
   readonly artifact: ArtifactModel;
 }
 
@@ -115,32 +119,33 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
     artifactModels.set(artifact.name as ModelName, artifact);
   }
   const models = new Map<ModelName, ModelFiles>();
-  let unsupportedComposite = false;
+  const valueTypes = input.valueTypes === undefined ? undefined :
+    deepFreeze(copyScenarioFileData(input.valueTypes) as CanonicalValueTypes);
+  let valueSchema: ReturnType<typeof normalizeValueTypes>['valueSchema'] | undefined;
+  try { valueSchema = valueTypes === undefined ? undefined :
+    normalizeValueTypes(valueTypes, canonicalModels.map(model => model.name)).valueSchema; }
+  catch { return invalid('complete same-load value declarations required.'); }
   const declared = new Set<ModelName>();
   for (const canonical of canonicalModels) {
     const artifact = artifactModels.get(canonical.name);
     if (artifact === undefined || declared.has(canonical.name)) return invalid('complete unique same-load owning models required.');
     if (artifact.fields.length !== Object.keys(canonical.fields).length) return invalid('complete owning field correspondence required.');
     declared.add(canonical.name);
-    const fields = new Map<string, ScenarioFileFieldProfile>();
-    for (const [name, field] of Object.entries(canonical.fields)) {
+    const fields = new Map<string, FileReferenceProfile>();
+    for (const name of Object.keys(canonical.fields)) {
       const authored = artifact.fields.filter(candidate => candidate.name === name);
       if (authored.length !== 1) return invalid('complete owning field correspondence required.');
-      const source = authored[0]!;
-      if (source.default?.kind === 'derived' && field.default?.kind === 'derived') continue;
-      // Without a complete nominal schema, an embedded File cannot be ruled
-      // out. Such an inventory must refuse rather than report zero references.
-      if (source.field.kind === 'nominal' || source.field.kind === 'other') unsupportedComposite = true;
-      const file = field.valueType !== undefined && parseTypeId(field.valueType).base.kind === 'file';
-      if (source.field.kind !== 'file' && !file) continue;
-      fields.set(name, scenarioFileField({ artifactModels, canonicalModels }, canonical.name, name));
+      const profile = bindFileReferenceProfile({ artifactModels, canonicalModels,
+        ...(valueSchema === undefined ? {} : { valueSchema }) }, canonical.name, name);
+      if (profile.fileBearing) fields.set(name, profile);
     }
     models.set(canonical.name, { fields, artifact });
   }
-  const inventory = stableStringify({ canonicalModels, artifacts });
+  const inventory = stableStringify({ canonicalModels, artifacts, valueTypes: valueTypes ?? null });
   const checkInventory = () => {
     if (inventory !== stableStringify({ canonicalModels: copyScenarioFileData(input.canonicalModels),
-      artifacts: copyScenarioFileData(input.artifactModels) })) return invalid('owning declarations changed; rebind the installed consumer.');
+      artifacts: copyScenarioFileData(input.artifactModels),
+      valueTypes: input.valueTypes === undefined ? null : copyScenarioFileData(input.valueTypes) })) return invalid('owning declarations changed; rebind the installed consumer.');
   };
   const assertRevision = async (revision: Revision) => {
     if (await store.readRevision() !== revision) throw new StateError('conflict', 'File reference State checkpoint changed.');
@@ -154,7 +159,6 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
   return {
     observeReferences: async ref => {
       fileRef(ref); checkInventory();
-      if (unsupportedComposite) return invalid('complete nominal File reference inventory requires its owning schema producer.');
       const revision = await store.readRevision(), fence = openFenceScope(revision, scope.owner);
       const references: CommittedFileReference[] = [];
       let count = 0, referenceCount = 0;
@@ -175,11 +179,12 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
               if (descriptor.required) return invalid('required committed File slot is missing.');
               continue;
             }
-            const refs = scenarioFileWireRefs(profile, saved.data[field]);
-            referenceCount += refs.length; if (referenceCount > maxReferences) return busy();
-            refs.forEach((candidate, index) => {
-              if (candidate === ref) references.push(deepFreeze({ model, recordId: saved.id, rowVersion: saved.version,
-                field, index: profile.array ? index : null, ref, archived: saved.archivedAt !== null }));
+            const occurrences = fileReferenceOccurrences(profile, saved.data[field]);
+            referenceCount += occurrences.length; if (referenceCount > maxReferences) return busy();
+            occurrences.forEach(occurrence => {
+              if (occurrence.ref === ref) references.push(deepFreeze({ model, recordId: saved.id, rowVersion: saved.version,
+                field, index: profile.array && typeof occurrence.path[0] === 'number' ? occurrence.path[0] : null,
+                path: occurrence.path, ref, archived: saved.archivedAt !== null }));
             });
           }
         }
@@ -204,7 +209,7 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
       const original = row(loaded);
       if (original.id !== locator.recordId || original.archivedAt !== null || !Object.hasOwn(original.data, locator.field)) return null;
       const wire = original.data[locator.field];
-      if (!scenarioFileWireRefs(profile, wire).includes(locator.ref)) return null;
+      if (!fileReferenceOccurrences(profile, wire).some(occurrence => occurrence.ref === locator.ref)) return null;
       const parents: { model: ModelName; row: StoredRow; def: GeneratedOperationDef }[] = [];
       let selected = original, selectedDefinition = definition;
       const visited = new Set<ModelName>([locator.model]);
@@ -235,7 +240,8 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
           isEqualOrUnder(secret, locator.field) || isEqualOrUnder(locator.field, secret)) || !await evaluateBy(def.by, current)) return false;
         const projected = await projectCurrentRecordForViewerPolicy({ policy, context: current, row: original });
         return projected.record !== null && projected.allowed.some((allowed, index) =>
-          allowed && policy.grants[index]!.fields.includes(locator.field)) &&
+          allowed && policy.grants[index]!.fields.includes(locator.field) &&
+          (policy.grants[index]!.when === undefined || evalPredicateForRow(policy.grants[index]!.when!, original))) &&
           stableStringify(projected.record.data[locator.field]) === stableStringify(wire);
       });
       if (!authority.value) return null;
