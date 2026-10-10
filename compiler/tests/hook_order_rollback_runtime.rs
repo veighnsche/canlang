@@ -14,6 +14,16 @@ fn authored_hook_crud_rolls_back_late_guard_and_replays_rejection() {
     run_native_hook_case("rollback");
 }
 
+#[test]
+fn authored_hook_crud_preserves_typed_invocation_context_and_defaults() {
+    run_native_hook_case("contextual");
+}
+
+#[test]
+fn authored_hook_crud_preserves_core_typed_context_and_defaults() {
+    run_native_hook_case("contextual_core");
+}
+
 fn run_native_hook_case(case: &str) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
@@ -26,6 +36,28 @@ fn run_native_hook_case(case: &str) {
             "require event.after.state==\"proposed\"",
             "require event.after.state==\"proposed\"\n   require event.after.id!=\"\"\n   require event.after.version==2",
         );
+    let source = if matches!(case, "contextual" | "contextual_core") {
+        source
+            .replace(
+                "Audit {note:text,author:user server=actor,at:datetime server=now}",
+                "Audit {note:text,author:user server=actor,at:datetime server=now,explicit_author:user,explicit_at:datetime,team_id:text,team_timezone:timezone,operation_id:text,operation_source:text,actor_email:email,actor_verified:bool}",
+            )
+            .replace(
+                "create Audit {note=event.after.state} as audit",
+                "create Audit {note=event.after.state,explicit_author=actor,explicit_at=now,team_id=team.id,team_timezone=team.timezone,operation_id=operation.id,operation_source=operation.source,actor_email=actor.email,actor_verified=actor.email_verified} as audit",
+            )
+    } else {
+        source
+    };
+    let source = if case == "contextual_core" {
+        source
+            .replace(",team_timezone:timezone", "")
+            .replace(",actor_email:email", "")
+            .replace(",team_timezone=team.timezone", "")
+            .replace(",actor_email=actor.email", "")
+    } else {
+        source
+    };
     std::fs::write(&input, source).unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
@@ -171,7 +203,22 @@ assert.equal(batches.length,positiveBatchCount+1);
 assert.equal(final.entry.id,id);assert.equal(final.entry.version,2);
 assert.deepEqual(final.entry.data,{state:'second',accept:true});
 assert.equal(final.audit.id,stagedId);assert.equal(final.audit.version,1);assert.equal(final.audit.parent,null);
+if(['contextual','contextual_core'].includes(process.argv[3])){
+ assert.deepEqual(final.audit.data,{
+  note:'first',author:{id:identity.actor.user_id},at:new Date(FIXED_NOW).toISOString(),
+  explicit_author:{id:identity.actor.user_id},explicit_at:new Date(FIXED_NOW).toISOString(),
+  team_id:identity.team.team_id,
+  operation_id:successRequest.operation_id,operation_source:'worker',
+  actor_verified:identity.actor.email_verified,
+  ...(process.argv[3]==='contextual'?{team_timezone:identity.team.timezone,actor_email:identity.actor.email}:{}),
+ });
+ assert.deepEqual(final.audit.data.explicit_author,final.audit.data.author,
+  'typed actor and omitted State server=actor agree within the same live invocation');
+ assert.equal(final.audit.data.explicit_at,final.audit.data.at,
+  'typed Datetime now and omitted State server=now agree within the same live invocation');
+}else{
 assert.deepEqual(final.audit.data,{note:'first',author:{id:identity.actor.user_id},at:new Date(FIXED_NOW).toISOString()});
+}
 for(const row of [final.entry,final.audit]){
  assert.equal(row.created,FIXED_NOW);assert.equal(row.updated,FIXED_NOW);
  assert.equal(row.createdBy,identity.actor.user_id);assert.equal(row.updatedBy,identity.actor.user_id);

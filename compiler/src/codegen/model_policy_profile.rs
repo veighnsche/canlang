@@ -67,7 +67,7 @@ impl HookProfile<'_> {
 
     fn leaf(&self, ty: &ResolvedType) -> bool {
         match ty {
-            ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool | Scalar::User | Scalar::Datetime) => true,
+            ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool | Scalar::User | Scalar::Datetime | Scalar::Email | Scalar::Timezone) => true,
             ResolvedType::Nullable(inner) => self.leaf(inner),
             ResolvedType::Enum { cases, owner: Some(owner) } => {
                 !cases.is_empty() && self.program.items.get(owner.0 as usize).is_some_and(|item| {

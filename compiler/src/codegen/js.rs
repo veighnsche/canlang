@@ -2587,6 +2587,24 @@ impl<'a> Emitter<'a> {
             {
                 return Some(name);
             }
+            // Exact stringlike context leaves retain their owning Values codec.
+            // Their legacy `string` tag alone would discard format identity.
+            fn context_scalar_type(ty: &ResolvedType) -> Option<String> {
+                match ty {
+                    ResolvedType::Scalar(Scalar::Email) => Some("email".to_string()),
+                    ResolvedType::Scalar(Scalar::Timezone) => Some("timezone".to_string()),
+                    ResolvedType::Nullable(inner) => {
+                        context_scalar_type(inner).map(|name| format!("{name}?"))
+                    }
+                    ResolvedType::Array { element, .. } => {
+                        context_scalar_type(element).map(|name| format!("{name}[]"))
+                    }
+                    _ => None,
+                }
+            }
+            if let Some(name) = context_scalar_type(resolved) {
+                return Some(name);
+            }
         }
         checked_string_value_type(ty).map(str::to_string)
     }
