@@ -615,7 +615,14 @@
           "state": "implemented_finite_owning_tested_no_activation",
           "validation": "Owning5/5; final affected34/34; prior unchanged codegen121/invocation7 reused. Strict all-target Clippy/fmt0. Exact immutable inventory + fresh checked semantic IR comparison refuses values/names/operators/duplicate proof/control/default/callee/source skew.",
           "limits": "Unsupported special expression and create/delete/transition/call/schedule/cancel/emit statement families decline optional recipe. No serial transport/runtime private binding/purity admission.",
-          "next": "Compiler real lazy SEND/frozen lexical producer, State active require/current-membership observer, Dev private stage captures; distinct genuine post-close dispatch required. Current source/native activation withheld."
+          "next": "Compiler real lazy SEND/frozen lexical producer, State active require/current-membership observer, Dev private stage captures; distinct genuine post-close dispatch required. Current source/native activation withheld.",
+          "serialization": {
+            "state": "implemented_owning_tested_runtime_transport_unfinished",
+            "api": "codegen::scenario_decisions::serialize_decision_sources",
+            "behavior": "Typed version1 DTOs from real qualified collector; exact canonical names, source modules, offsets, stage/positions, arguments/slots/defaults/frames; bounded fallible existing user/Team/nominal/wrapper IDs. Literal-default modules join original checked module.",
+            "validation": "decision_source_facts6/6 including actual serial JSON plus owner/hash/type/default and literal-module name/file/span skew refusals. Strict all-target Clippy/format0.",
+            "remaining": "No artifact ABI/emitter private captures/observer issuance/StateRead source admission. Real State/Dev bindings and native workflow remain owner joins."
+          }
         },
         "async_send_guard": {
           "state": "implemented_affected_tested_dispatch_join_unfinished",

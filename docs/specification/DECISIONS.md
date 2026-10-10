@@ -5663,3 +5663,14 @@ State clean emission and35 defining membership plus22 call/24 query Node tests p
 Use a definition-bound State producer with Work's literal live-handle and enrollment ports; open once at actual guard entry and retain that execution privately in the observer closure. Consume each actually evaluated native user/Team pair once before await. Match the exact freshly resolved source-owner Identity Team to the Work checkpoint; an actor-null service owner suffices for this membership tuple and grants no deferred caller identity. Compare both positive and negative observations using privately retained reader/pair/checkpoint after Work closes the handle. Caught malformed inputs, copied source handles, changed Teams, failed readers and pending/concurrent observations refuse before skip or claim; source guards are not replayed.
 
 State/Work clean emissions and25/25 actual MemoryStorage/Work port checks pass with explicitly fixture Identity/native adapters. Reuse unchanged Work20 and State81. Dev's production won-claim admission/native lexical/capture join and Compiler source closure/emission remain necessary; saved-result membership closure and StateRead/pure/default/when activation stay proposed. Component checks do not solve cross-store atomicity or qualify the original application.
+
+
+## 2026-10-10 — serialize qualified decision source facts (unfinished runtime transport)
+
+Convert only the real qualified source/IR consumer output to the existing
+version1 site vocabulary. Preserve exact canonical identities, sources, offsets,
+stages/positions, argument order, slots, defaults and frames; use bounded fallible
+existing type IDs, including user and Team. Literal default module metadata must
+join the original checked module even without a nested call. Owning6/6 validates
+actual JSON and skew refusals. This is internal structural transport, without
+artifact registration, runtime private issuance, effect admission or authority.
