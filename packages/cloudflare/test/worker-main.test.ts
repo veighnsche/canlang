@@ -151,6 +151,61 @@ function fullEnv(): Record<string, unknown> {
 }
 
 describe("deploy worker main", () => {
+  it("loads the deployed CSV export, preserves absent legacy joins and refuses malformed exports", async () => {
+    // Hand-written loader controls only; these responses make no CSV or native business claim.
+    const controls = [
+      { source: undefined, available: false },
+      { source: 'export const legacy = true;', available: false },
+      { source: 'export const handleCsvRequest = 42;', invalid: true },
+      { source: 'export async function handleCsvRequest(deps,request){return new Response(deps.marker+":"+new URL(request.url).pathname);}', available: true },
+    ];
+    for (const control of controls) {
+      const dir = tempDir();
+      const source = ts.transpileModule(readFileSync(new URL('../src/worker/main.ts', import.meta.url), 'utf8'), {
+        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+      }).outputText;
+      writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
+      if (control.source !== undefined) writeFileSync(join(dir, 'http-operations.js'), control.source);
+      const deployed = await import(/* @vite-ignore */ writeModule(dir, 'main.mjs', source)) as typeof import('../src/worker/main.js');
+      const staged = stagedDeployment();
+      staged.artifact.pages = [];
+      const baked = {};
+      let derivedLoads = 0, assembled = false;
+      const fetch = deployed.createMainFetch({
+        loadEntry: async () => createWorkerApp,
+        loadStagedDeployment: async () => staged,
+        loadProductionDeps: async () => productionDeps({}),
+        loadMcpHandlerFactory: async () => undefined,
+        loadHttpOperationsFactory: async () => undefined,
+        loadHttpPageFactory: async () => undefined,
+        loadHttpAuthJoin: async () => undefined,
+        loadDerivedInputs: async () => { derivedLoads++; return baked; },
+        loadAssembleWorker: async () => async (_artifact, _modules, deps) => {
+          assembled = true;
+          expect(deps.http?.createOperationHandler).toBeUndefined();
+          const csv = deps.http?.createCsvHandler;
+          expect(typeof csv).toBe(control.available ? 'function' : 'undefined');
+          expect(deps.http?.derivedInputs).toBe(control.available ? baked : undefined);
+          return { pageCount: 0, opCount: 0,
+            fetch: csv === undefined ? async () => new Response('CSV join absent', { status: 501 })
+              : csv({ marker: 'installed-csv' } as never) };
+        },
+      });
+      const response = await fetch(new Request('http://localhost/api/csv/preview', { method: 'POST' }), fullEnv());
+      if (control.invalid) {
+        expect(response.status).toBe(500);
+        expect(await response.json()).toMatchObject({ code: 'deploy-join-missing',
+          message: expect.stringContaining('handleCsvRequest') });
+        expect(assembled).toBe(false); expect(derivedLoads).toBe(0);
+      } else {
+        expect(assembled).toBe(true);
+        expect(derivedLoads).toBe(control.available ? 1 : 0);
+        expect(response.status).toBe(control.available ? 200 : 501);
+        expect(await response.text()).toBe(control.available ? 'installed-csv:/api/csv/preview' : 'CSV join absent');
+      }
+    }
+  });
+
   it("passes distinct trusted multi-owner bindings to one router and no cohort scope", async () => {
     const dir = tempDir();
     const entryUrl = writeModule(dir, "multi-app.mjs",

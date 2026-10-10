@@ -504,10 +504,12 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
         continue;
       }
       const idError = validateOperationId(selection.operation_id, deps.clock);
-      // Scenarios retain their age gate until their disclosure owner joins
-      // current authority. Checked CRUD delegates retained/unseen age to State.
+      // Expired checked scenarios require the dedicated current-authority
+      // receipt path; checked CRUD retains its existing canonical age join.
+      const retainedScenario = idError?.message === 'Expired operation_id.' && derived.kind === 'scenario' &&
+        typeof deps.invoker.invokeRetainedMutation === 'function';
       if (idError !== null && (validateOperationIdShape(selection.operation_id) !== null ||
-          (derived.kind !== 'create' && derived.kind !== 'update' && derived.kind !== 'delete'))) {
+          (!retainedScenario && derived.kind !== 'create' && derived.kind !== 'update' && derived.kind !== 'delete'))) {
         rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: idError });
         continue;
       }
@@ -516,7 +518,9 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
         operation_id: selection.operation_id,
         inputs: verdict.inputs,
       };
-      const outcome = await deps.invoker.invokeMutation(envelope, identity);
+      const outcome = retainedScenario
+        ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
+        : await deps.invoker.invokeMutation(envelope, identity);
       if ('error' in outcome) {
         rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: outcome.error });
       } else {
