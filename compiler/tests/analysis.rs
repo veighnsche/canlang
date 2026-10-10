@@ -1039,6 +1039,10 @@ fn draft_outcome_table() {
     // Isolated Field lacks the owning Schedule schema: all113 prior findings
     // remain and eight released uses now report E2001 instead of binding the
     // handler. Invoice clears ten; all50 other rows and bodies are unchanged.
+    // Accepted standard .completed envelopes clear only Inbox23/Invoice18/
+    // Mail3 source findings. Unknown terminal-source controls reproduce the
+    // prior counts with the same byte positions; no new finding is hidden.
+    // All52 rows/full assertions and the other49 expectations remain.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1065,13 +1069,13 @@ fn draft_outcome_table() {
         ("draft/CanGallery.can", 22),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
-        ("draft/CanInbox.can", 67),
-        ("draft/CanInvoice.can", 232),
+        ("draft/CanInbox.can", 44),
+        ("draft/CanInvoice.can", 214),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
         ("draft/CanLeave.can", 79),
         ("draft/CanLoyalty.can", 68),
-        ("draft/CanMail.can", 136),
+        ("draft/CanMail.can", 133),
         ("draft/CanMaintain.can", 112),
         ("draft/CanMember.can", 319),
         ("draft/CanOnboard.can", 54),

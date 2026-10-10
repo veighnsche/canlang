@@ -553,6 +553,16 @@ pub struct CheckedContractCollectionCall {
     pub predicate: CheckedCollectionPredicate,
 }
 
+/// Exact standard terminal source accepted by the source checker.
+/// This fact supplies analysis identity and payload, not runtime enrollment.
+#[derive(Debug, Clone)]
+pub struct CheckedStdDeliveryCompletion {
+    pub capability: String,
+    pub op: String,
+    pub source: String,
+    pub payload: ResolvedType,
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
@@ -594,6 +604,8 @@ pub struct TypeTable {
     pub target_bindings: HashMap<NodeKey, Binding>,
     /// Checked owning progress handler identities, consumed without source rebinding.
     pub delivery_progress_handlers: HashMap<NodeKey, String>,
+    /// Checked standard terminal sources; no fabricated declaration symbols.
+    pub std_delivery_completion_handlers: HashMap<NodeKey, CheckedStdDeliveryCompletion>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
     /// Checked production statement-call results (`None` is void). Opaque
@@ -802,6 +814,25 @@ fn completion_status_type() -> ResolvedType {
         cases.retain(|case| case != "pending");
     }
     status
+}
+
+/// Shared closed terminal envelope for body and example analysis.
+/// Void remains null and an already nullable declared result is not wrapped twice.
+pub(crate) fn completion_envelope(result: Option<ResolvedType>) -> ResolvedType {
+    let result = match result {
+        Some(result @ (ResolvedType::Nullable(_) | ResolvedType::Null)) => result,
+        Some(result) => ResolvedType::Nullable(Box::new(result)),
+        None => ResolvedType::Null,
+    };
+    ResolvedType::Object(vec![
+        (
+            "delivery_id".to_string(),
+            ResolvedType::Scalar(Scalar::Text),
+        ),
+        ("status".to_string(), completion_status_type()),
+        ("result".to_string(), result),
+        ("error".to_string(), delivery_error_type()),
+    ])
 }
 
 /// Map one T13c nominal leaf kind to its checkable type (T14d).
@@ -3978,6 +4009,13 @@ impl<'a> Typer<'a> {
         if segments.len() != 3 || segments[2] != "completed" {
             return None;
         }
+        if let Some(completion) = self
+            .types
+            .std_delivery_completion_handlers
+            .get(&NodeKey::of(on))
+        {
+            return Some(completion.payload.clone());
+        }
         let head = self.prod_or_imported(module, segments[0])?;
         let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind else {
             return None;
@@ -3986,28 +4024,9 @@ impl<'a> Typer<'a> {
             .iter()
             .copied()
             .find(|o| self.tables.symbols[o.0 as usize].name == segments[1])?;
-        let result = self
-            .results
-            .get(&op)
-            .cloned()
-            .flatten()
-            .map(|r| {
-                if matches!(r, ResolvedType::Nullable(_)) {
-                    r
-                } else {
-                    ResolvedType::Nullable(Box::new(r))
-                }
-            })
-            .unwrap_or(ResolvedType::Null);
-        Some(ResolvedType::Object(vec![
-            (
-                "delivery_id".to_string(),
-                ResolvedType::Scalar(Scalar::Text),
-            ),
-            ("status".to_string(), completion_status_type()),
-            ("result".to_string(), result),
-            ("error".to_string(), delivery_error_type()),
-        ]))
+        Some(completion_envelope(
+            self.results.get(&op).cloned().flatten(),
+        ))
     }
 
     /// Whether a `by=`/`read=` authorization expression proves an
@@ -4945,6 +4964,24 @@ impl<'a> Typer<'a> {
                 format!("unknown event source '{}'", segments.join(".")),
                 tight_span(cx.text, on),
             ));
+            return None;
+        }
+        let scopes = &self.tables.module_scopes[cx.module.0 as usize];
+        if let Some(ScopedName::External { provider, name }) = scopes.prod.get(segments[0])
+            && provider == "std"
+            && let Some(cap) = std_capability(name)
+            && let Some(op) = cap.operations.iter().find(|op| op.name == segments[1])
+        {
+            let owner = &self.tables.modules[cx.module.0 as usize].name;
+            self.types.std_delivery_completion_handlers.insert(
+                NodeKey::of(on),
+                CheckedStdDeliveryCompletion {
+                    capability: cap.name.to_string(),
+                    op: op.name.to_string(),
+                    source: format!("{owner}.{}", segments.join(".")),
+                    payload: completion_envelope(Some(std_delivery_result_type(op))),
+                },
+            );
             return None;
         }
         match self.prod_or_imported(cx.module, segments[0]) {

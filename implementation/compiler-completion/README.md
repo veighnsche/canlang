@@ -3167,3 +3167,38 @@ Required current whole/lint starts at this coherent boundary including File73;
 broader native File/terminal event/source owners and original89 findings remain.
 No exported Rent rename, Employees purity/Volunteer binding guesses, publication
 or hold change;58/67 unchanged.
+
+### 2026-10-10 — type standard completion sources (unfinished transport)
+
+Frozen b5f331fd/draft5cbdded whole validation now passes1418 over138 actual
+targets, zero failed/ignored/filtered/bodySKIP, Node24.19 with required real
+completion engines and genuine native/permission bodies. Strict all-target
+Clippy0 in39.37s and fmt/diff0 qualify required File73 and release/refund source.
+Subsequent source analysis changes are separately qualified below.
+
+Consume accepted DESIGN §8/Contracts terminal envelopes for exact declared std
+operations through their actual aliases. Checked facts retain canonical
+capability/op and owner-qualified source spelling; body, effects and example
+consumers share terminal status, nullable declared result and closed nullable
+DeliveryError. Preserve local operation SymbolIds, nullable declaration identity,
+lexical precedence, progress, actor/grants and the existing IR/private E6008
+refusal. No terminal routing, provider or native enrollment is invented.
+Final affected analysis37/b4_check284/b4_examples25/delivery_error_shapes5 qualify
+351 distinct outcomes, including the original native receipt consumer. Controls
+cover Email, all four Payments operations, Mailbox reply/reconcile, nested schema
+identity, unsafe dereferences, unknown targets, pending terminal status, lexical
+shadows, example enum/selector expectations and actual CLI publication refusal.
+The final local result control1/1 in0.02s supersedes initial assertion and
+unsupported void-syntax assumptions; unchanged affected results are reused.
+Light example checking does not establish runner representation/completion
+consistency; canonical input admission remains owner-dependent.
+
+Exact original25/catalog89→71 removes only18 Invoice completion findings, with
+no additions, complete/omitted0/all25 hashes current and no artifact. Corpus
+changes only Inbox67→44,Invoice232→214,Mail136→133; all52/full assertions and49
+other expectations remain. Equal-byte unknown source controls reproduce the
+prior counts, retaining every other diagnostic identity. Current source whole/
+lint remains pending at this coherent checkpoint. Payments.changed is a separate
+ready accepted source gap; executable terminal/event transport, other original
+source decisions, nine full references and precise BDD3/Task22 holds remain.
+Purchase rename is unassigned and exported Rent rename stays excluded. Local only.
