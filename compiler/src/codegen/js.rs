@@ -1438,6 +1438,7 @@ fn emit_program_with_sources(
                 NativeQuerySource {
                     query,
                     return_id: return_id.into(),
+                    plan: plan.clone(),
                 },
             );
         }
@@ -1959,6 +1960,7 @@ pub struct Emitter<'a> {
 struct NativeQuerySource {
     query: crate::analysis::scenario_disclosure::DisclosureQuery,
     return_id: String,
+    plan: serde_json::Value,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -3123,6 +3125,28 @@ impl<'a> Emitter<'a> {
         )
     }
 
+    fn admitted_query_source(&self, owner: SymbolId) -> Option<NativeQuerySource> {
+        let source = self.native_query_sources.get(&owner)?;
+        // collect_operations and call correspondence can withdraw a recipe
+        // after source collection. Check the final admitted capture, including
+        // every query field and projection, rather than an occurrence ID alone.
+        let plan = serde_json::to_value(&self.receipt_capture.as_ref()?.plan).ok()?;
+        if plan.get("source") != source.plan.get("source")
+            || plan.get("queries") != source.plan.get("queries")
+        {
+            return None;
+        }
+        let projected = source.plan.get("returns")?.as_array()?.first()?;
+        if !plan.get("returns")?.as_array()?.iter().any(|returned| {
+            ["id", "source", "influences", "projection"]
+                .iter()
+                .all(|key| returned.get(*key) == projected.get(*key))
+        }) {
+            return None;
+        }
+        Some(source.clone())
+    }
+
     fn receipt_return_selection(&mut self, span: Span, implicit: bool) -> Option<String> {
         use crate::analysis::scenario_disclosure::DisclosureChoice;
         let returns: Vec<_> = self
@@ -3936,6 +3960,27 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    fn is_model_reference(&self, ty: &ResolvedType) -> bool {
+        let mut ty = ty;
+        while let ResolvedType::Nullable(inner) = ty {
+            ty = inner;
+        }
+        matches!(ty, ResolvedType::Record { symbol, .. }
+            if matches!(self.ir.items[symbol.0 as usize].kind, IrItemKind::Model { .. }))
+    }
+
+    fn model_reference_comparison(&mut self, nullable: bool, l: &str, r: &str) -> String {
+        self.stdlib.insert("same".to_string());
+        if nullable {
+            // Preserve operand order and evaluate each operand only once.
+            format!(
+                "(($left,$right)=>$left===null||$right===null?$left===$right:same($left,$right))({l},{r})"
+            )
+        } else {
+            format!("same({l},{r})")
+        }
+    }
+
     /// Lower a binary operator by checked operand families.
     fn lower_binary(
         &mut self,
@@ -3975,12 +4020,20 @@ impl<'a> Emitter<'a> {
                 // Call arguments evaluate once in authored left-to-right
                 // order, including awaits. The lambda's parameters cannot
                 // capture either operand and introduce no Promise turn.
-                self.stdlib.insert("equalValue".to_string());
-                let type_id = self.canonical_type_id(element, span);
-                format!(
-                    "(($member,$collection)=>$collection.some($item=>equalValue({},$member,$item)))({l},{r})",
-                    js_string(&type_id)
-                )
+                let comparison =
+                    if self.is_model_reference(element) && self.is_model_reference(&left.ty) {
+                        self.model_reference_comparison(
+                            matches!(element.as_ref(), ResolvedType::Nullable(_))
+                                || matches!(left.ty, ResolvedType::Nullable(_)),
+                            "$member",
+                            "$item",
+                        )
+                    } else {
+                        self.stdlib.insert("equalValue".to_string());
+                        let type_id = self.canonical_type_id(element, span);
+                        format!("equalValue({},$member,$item)", js_string(&type_id))
+                    };
+                format!("(($member,$collection)=>$collection.some($item=>{comparison}))({l},{r})")
             }
             IrBinOp::Eq | IrBinOp::Ne => self.lower_equality(op, left, right, span, l, r),
             IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {
@@ -4022,6 +4075,10 @@ impl<'a> Emitter<'a> {
             && (matches!(left.ty, ResolvedType::Nullable(_))
                 || matches!(right.ty, ResolvedType::Nullable(_)))
         {
+            if self.is_model_reference(&left.ty) && self.is_model_reference(&right.ty) {
+                let comparison = self.model_reference_comparison(true, l, r);
+                return negate_call(negate, &comparison);
+            }
             self.stdlib.insert("equalValue".to_string());
             let ty = if matches!(left.ty, ResolvedType::Nullable(_)) {
                 &left.ty
@@ -4549,6 +4606,13 @@ impl<'a> Emitter<'a> {
         let param = self.bind(param);
         let body = self.lower_expr(projection);
         self.exit_scope();
+        // A constructed contract/object is an expression, not an arrow's
+        // statement block. Keep the same once-only field evaluation order.
+        let body = if body.starts_with('{') {
+            format!("({body})")
+        } else {
+            body
+        };
         let map = format!(".map(({param})=>{body})");
         if awaited {
             format!("({fetched}){map}")
@@ -9830,7 +9894,10 @@ impl<'a> Emitter<'a> {
                     }
                     self.receipt_calls.clear();
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
-                    self.query_capture = self.native_query_sources.get(&item.id).cloned();
+                    // Source inventories remain useful for declined scenarios,
+                    // but only a published, whole-owner receipt can enter the
+                    // private query lifetime. Generic reads have no such frame.
+                    self.query_capture = self.admitted_query_source(item.id);
                     self.receipt_call_sites = self
                         .native_call_sites
                         .get(&item.id)
