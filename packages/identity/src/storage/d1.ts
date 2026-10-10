@@ -3,7 +3,7 @@
  *
  * The first production binding of `IdentityStore` (`../ports.ts`): every
  * account/session/membership/grant fact lives in `identity_*` D1 tables
- * (same database as the state `records` tables, disjoint names). The MCP
+ * (global Identity database; team State may use a separate database). The MCP
  * server resolves grant Bearers through this store on every discovery
  * and every call; the production grant route mints through it.
  *
@@ -19,8 +19,8 @@
  * re-admission races) are check-then-act across calls WITHOUT the
  * lane-03 revision fence (`ports.ts` join J2). The UNIQUE constraints
  * below (email, token hashes, one (team, user) row) make the dangerous
- * collisions fail loud instead of duplicating; the J2 fence join makes
- * the guards atomic. The MCP path this packet serves rechecks current
+ * collisions fail loud instead of duplicating; the proposed J2 fence join
+ * has not made these guards atomic. The MCP path rechecks current
  * facts per call, which is exactly what the unfenced store guarantees.
  *
  * Schema ownership: `ensureIdentitySchema` creates every table/index
@@ -53,6 +53,7 @@ import type {
   TeamInvitationRow,
 } from '../ports.js';
 import { systemClock, toInstant, webRandom } from '../ports.js';
+import { captureMembershipRequest, finishMembershipSnapshot, snapshotData } from '../membership-snapshot.js';
 
 /* ------------------------------------------------------------------ */
 /* Minimal D1 surface. No `@cloudflare/workers-types` import: this     */
@@ -563,6 +564,42 @@ export function createD1IdentityStore(
         .bind(team_id, user_id)
         .first<MembershipRow>();
       return row === null ? null : toMembership(row);
+    },
+    async findMembershipsSnapshot(team_id, user_ids) {
+      // Capture before any I/O. Never chunk this query or call findMembership:
+      // one SELECT is the coherent point, including requested absence facts.
+      const request = captureMembershipRequest(team_id, user_ids);
+      const columns = MEMBERSHIP_COLUMNS.split(', ');
+      const wanted = request.user_ids.map((_, i) => `(${i}, ?)`).join(', ');
+      const result = await db.prepare(
+        `WITH wanted(ordinal, requested_user_id) AS (VALUES ${wanted}) SELECT w.ordinal, w.requested_user_id, ${columns.map(c => `m.${c}`).join(', ')} FROM wanted AS w LEFT JOIN identity_memberships AS m ON m.team_id = ? AND m.user_id = w.requested_user_id ORDER BY w.ordinal`,
+      ).bind(...request.user_ids, request.team_id).all();
+      const rows = snapshotData(result, 'results');
+      if (!Array.isArray(rows) || rows.length !== request.user_ids.length) {
+        throw new Error('identity-d1: incomplete membership snapshot');
+      }
+      const members: (Membership | null)[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = snapshotData(rows, String(i));
+        if (snapshotData(row, 'ordinal') !== i ||
+            snapshotData(row, 'requested_user_id') !== request.user_ids[i]) {
+          throw new Error('identity-d1: skewed membership snapshot');
+        }
+        const facts = Object.fromEntries(columns.map(c => [c, snapshotData(row, c)]));
+        if (facts['membership_id'] === null) {
+          if (columns.some(c => facts[c] !== null)) {
+            throw new Error('identity-d1: corrupt absent membership');
+          }
+          members.push(null);
+        } else {
+          if ((facts['is_owner'] !== 0 && facts['is_owner'] !== 1) ||
+              columns.some(c => c !== 'is_owner' && typeof facts[c] !== 'string')) {
+            throw new Error('identity-d1: corrupt membership snapshot');
+          }
+          members.push(toMembership(facts as unknown as MembershipRow));
+        }
+      }
+      return finishMembershipSnapshot(request, members);
     },
     async findMembershipById(membership_id) {
       const row = await db

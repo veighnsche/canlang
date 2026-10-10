@@ -87,6 +87,29 @@ export interface Membership {
   readonly updated_at: InstantString;
 }
 
+/** One team parameter plus at most 99 user parameters fits D1's 100-bind limit. */
+export const MAX_MEMBERSHIP_SNAPSHOT_USERS = 99;
+
+/**
+ * One coherent Identity observation for 1–99 requested user positions in one
+ * team. Entries preserve request order and duplicates; null means absent,
+ * while removed memberships retain their complete facts. Producers detach and
+ * freeze every entry, membership and role grant before returning.
+ *
+ * This is a statement-time observation, not a revision, admission token or
+ * promise of authority at return time. Consumers must use the same observation
+ * for all membership facts in a conjunction and preserve their owning State
+ * row/revision, caller/subject, policy order and lifetime checks. It provides
+ * no atomicity for later multi-step mutations or cross-database joins.
+ */
+export interface MembershipSnapshot {
+  readonly team_id: TeamId;
+  readonly entries: readonly {
+    readonly user_id: UserId;
+    readonly membership: Membership | null;
+  }[];
+}
+
 /**
  * Team context. Default teams support adds owner-managed membership,
  * expiring verified-email invitations, roles, team selection, and a team
