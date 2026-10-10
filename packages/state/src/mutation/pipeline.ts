@@ -34,6 +34,7 @@ import type {
 } from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
+import { stageOwnerMutationSources, retainOwnerMutationBusinessWrites, type OwnerMutationFinalChange, type OwnerMutationSourceStager } from './source-finalization.js';
 import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
 import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';
 import { STAGING_MAX_ID_LENGTH } from '../effects/staging.js';
@@ -141,6 +142,8 @@ export type OwnerMutationQuery = QuerySpec & { readonly limit: number; readonly 
 export interface OwnerMutationInput extends Omit<MutationWritesInput, 'writes'> {
   readonly bounds: { readonly maxWork: number; readonly maxRows: number };
   readonly policies?: CheckedOwnerModelPolicies;
+  /** Installed source-neutral consumer of this actual final-net owner stage. */
+  readonly stageSources?: OwnerMutationSourceStager;
 }
 
 export interface OwnerMutationStageOptions {
@@ -174,6 +177,11 @@ export interface OwnerMutationSession {
 
 /** A single owner-local execution; its caller still owns admission and commit. */
 export async function beginOwnerMutation(input: OwnerMutationInput): Promise<OwnerMutationSession> {
+  const source = Object.getOwnPropertyDescriptor(input, 'stageSources');
+  if (Object.hasOwn(input, 'stageSources') && (source === undefined || !('value' in source) || !source.enumerable || typeof source.value !== 'function') ||
+      !Object.hasOwn(input, 'stageSources') && 'stageSources' in input) {
+    throw new StateError('validation', 'Owner mutation source staging requires an own installed function.');
+  }
   for (const bound of [input.bounds.maxWork, input.bounds.maxRows]) {
     if (!Number.isSafeInteger(bound) || bound < 1 || bound >= Number.MAX_SAFE_INTEGER) {
       throw new StateError('validation', 'Owner mutation bounds must be positive safe integers.');
@@ -1879,7 +1887,25 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
       }
     }
-    return {
+    let business: readonly DomainWrite[] | undefined;
+    if (owner?.stageSources !== undefined) {
+      if (revision === undefined) throw new StateError('validation', 'Source finalization requires its original owner revision.');
+      const finalChanges = changes.flatMap((change): OwnerMutationFinalChange[] => {
+        if (change.before === null && change.after === null) return [];
+        const version = change.after?.version ?? change.before!.version + 1;
+        if (!Number.isSafeInteger(version) || version < 1) throw new StateError('validation', 'Source finalization version is exhausted.');
+        const kind = change.before === null ? 'created' : change.after === null ||
+          change.before.archivedAt === null && change.after.archivedAt !== null ? 'deleted' : 'updated';
+        return [{ model: change.model, recordId: change.id, version: version as RecordVersion, kind }];
+      });
+      business = Object.freeze([...outWrites]);
+      const sources = await stageOwnerMutationSources({ stager: owner.stageSources, context, revision,
+        maxRows: owner.bounds.maxRows, changes: finalChanges, entry: policyViews.entry, final: policyViews.final,
+        actor, frameworkLoad: (model, id) => store.load(model, id), businessModels: new Set(table.keys()),
+        healthy, poison: () => { poisoned = true; }, checkRevision, consumeWork });
+      outWrites.push(...sources);
+    }
+    const result: MutationWritesResult = {
       writes: outWrites,
       history: outHistory,
       uniqueClaims: outClaims,
@@ -1887,6 +1913,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       resolvedDefaults,
       schedules: outSchedules,
     };
+    if (business !== undefined) retainOwnerMutationBusinessWrites(result, business);
+    return result;
   };
 
   const publicView = (side: OwnerMutationReadView): OwnerMutationReadView => Object.freeze({
