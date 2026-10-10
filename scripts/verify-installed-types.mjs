@@ -65,7 +65,7 @@ async function consumerCheck(checkout) {
     if (owner && !specifier.startsWith('.') && !specifier.startsWith('node:') && !builtinModules.includes(specifier)) {
       const dep = packageName(specifier), manifest = owner[1].manifest;
       // Node/Worker declarations are explicit consumer tooling, never producer source aliases.
-      if (dep !== owner[0] && !manifest.dependencies?.[dep] && !manifest.peerDependencies?.[dep] && !['@cloudflare/workers-types', '@types/node'].includes(dep)) undeclared.push({ owner: owner[0], from: relative(consumer, containingFile), specifier });
+      if (dep !== owner[0] && !manifest.dependencies?.[dep] && !manifest.peerDependencies?.[dep] && !manifest.optionalDependencies?.[dep] && !['@cloudflare/workers-types', '@types/node'].includes(dep)) undeclared.push({ owner: owner[0], from: relative(consumer, containingFile), specifier });
     }
     return resolved;
   });
