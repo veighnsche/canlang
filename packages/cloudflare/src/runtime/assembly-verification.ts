@@ -20,6 +20,11 @@ interface AssemblyCapability {
 
 const capabilities = new WeakMap<AssembledModules, AssemblyCapability>();
 
+/** Internal issuer presence only; it neither registers nor grants a capability. */
+export function hasAssemblerModuleCapability(asm: AssembledModules): boolean {
+  return capabilities.has(asm);
+}
+
 /**
  * Internal trusted-host registration. The Node assembler supplies filesystem
  * verification; the generated portable host supplies its captured literal

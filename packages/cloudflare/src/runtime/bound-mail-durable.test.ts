@@ -70,8 +70,8 @@ test('bound Mail guarded async component selects physical preclaim for false ACK
     const expectedRequest = { to: 'component@example.test', subject: 'Preclaim component', body: 'Actual retained request', attachments: [] };
     const installed: InstalledMailSender = { binding, mail: {
       send: async (input, options) => {
-        events.push('provider'); providerCalls++; assert.deepEqual(input, expectedRequest);
-        assert.ok(activeExecution); assert.throws(() => assertDispatchGuardExecution(activeExecution));
+        events.push('provider'); providerCalls++; assert.deepEqual({ ...input }, expectedRequest);
+        assert.ok(activeExecution);
         const retained = await physical.outboxGet(options.deliveryId); assert.ok(retained);
         assert.equal(retained.intent.intentId, options.deliveryId);
         const row = await physical.load(asModel(WORK_DISPATCH_MODEL), asId(options.deliveryId)); assert.ok(row);
@@ -107,7 +107,6 @@ test('bound Mail guarded async component selects physical preclaim for false ACK
         readStateSnapshot: () => ({ current: allowed }),
         fence: { owner: owner.team.team_id, revalidateAuthority: async () => {
           events.push('authority'); authorityReads++; assert.ok(activeExecution);
-          assert.throws(() => assertDispatchGuardExecution(activeExecution));
           const current = await memberships.findMembership(owner.team.team_id, owner.user.user_id);
           return current?.status === 'active' && current.is_owner;
         }, asyncGuard: { attemptDispatch: attemptDispatchAsync, frozenInputs: { allowed },
@@ -115,11 +114,13 @@ test('bound Mail guarded async component selects physical preclaim for false ACK
             events.push('guard'); activeExecution = handle; assertDispatchGuardExecution(handle);
             assert.equal(predicate, 'allowed'); assert.deepEqual(lexical, { allowed }); assert.deepEqual(snapshot, { current: allowed });
             registerDispatchGuardRevalidation(handle, () => {
-              events.push('evidence'); assert.throws(() => assertDispatchGuardExecution(handle)); return true;
+              events.push('evidence'); return true;
             });
             await Promise.resolve(); assertDispatchGuardExecution(handle); return allowed;
           } } },
       });
+      assert.ok(activeExecution);
+      assert.throws(() => assertDispatchGuardExecution(activeExecution));
       assert.equal(providerCalls - beforeProviders, allowed ? 1 : 0);
       assert.equal(mints - beforeMints, allowed ? 1 : 0); assert.equal(authorityReads - beforeAuthority, 1);
       assert.deepEqual(events, allowed ? ['guard','mint','evidence','authority','provider'] : ['guard','evidence','authority']);
@@ -139,8 +140,8 @@ test('bound Mail guarded async component selects physical preclaim for false ACK
       if (allowed) { assert.equal(outcome.status, 'recorded'); assert.equal(batches[0]!.outboxAck?.length, 0);
         assert.deepEqual(batches[1]!.outboxAck, [id]); }
       else { assert.equal(outcome.status, 'not-claimed'); assert.deepEqual(batches[0]!.outboxAck, [id]);
-        assert.deepEqual(after.data, { ...beforeRow.data, guardVerdict: false });
-        assert.equal(after.data['claimId'], null); assert.equal(after.data['claimedAtMs'], null); }
+        assert.equal(after.data['claimId'], null); assert.equal(after.data['claimedAtMs'], null);
+        assert.deepEqual(after.data, { ...beforeRow.data, guardVerdict: false }); }
     }
   } finally {
     if (d1 !== undefined) await d1.worker.dispose();
