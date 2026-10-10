@@ -47,7 +47,8 @@ use crate::analysis::resolve::{
     ModuleKind, SymbolId, SymbolKind,
 };
 use crate::analysis::types::{
-    CheckedQuery, CheckedQueryClauseKind, ResolvedType, Scalar, SelectedCallTarget,
+    CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionMapping, ResolvedType, Scalar,
+    SelectedCallTarget,
 };
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
@@ -4480,6 +4481,16 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
+        if checked.as_ref().is_some_and(|fact| {
+            fact.projection.is_some()
+                && !self.query_projection_matches(fact, select.as_deref(), select_param.as_deref())
+        }) {
+            return IrExpr::Unsupported {
+                what: "query projection source facts".into(),
+                why: "checked owning fields or row mappings disagree with lowered projection"
+                    .into(),
+            };
+        }
         let _ = ty;
         let domain = match model {
             Some(model) => IrQueryDomain::Model(model),
@@ -4500,6 +4511,129 @@ impl<'a> Cx<'a> {
             select,
             select_param,
         })
+    }
+
+    /// Checked nominal row mappings must match the actual typed select body.
+    /// Merely carrying a projection-shaped fact is not a correspondence proof.
+    fn query_projection_matches(
+        &self,
+        query: &CheckedQuery,
+        projection: Option<&TypedExpr>,
+        parameter: Option<&str>,
+    ) -> bool {
+        let valid = (|| {
+            let proof = query.projection.as_ref()?;
+            let projection = projection?;
+            let parameter = parameter?;
+            let mut active_alias = None;
+            let mut projection_alias = None;
+            for clause in &query.clauses {
+                match &clause.kind {
+                    CheckedQueryClauseKind::As { .. } => active_alias = Some(clause),
+                    CheckedQueryClauseKind::Select => {
+                        if projection_alias.is_some() {
+                            return None;
+                        }
+                        projection_alias = Some(active_alias?);
+                    }
+                    _ => {}
+                }
+            }
+            let alias = projection_alias?;
+            if alias.node != proof.alias
+                || !matches!(&alias.kind, CheckedQueryClauseKind::As {name} if name == parameter)
+                || projection.span != Span::new(proof.node.file, proof.node.start, proof.node.end)
+                || projection.ty
+                    != (ResolvedType::Record {
+                        symbol: proof.contract,
+                        stored: false,
+                    })
+            {
+                return None;
+            }
+            let ResolvedType::Array { element, .. } = &query.domain_type else {
+                return None;
+            };
+            let row_type = ResolvedType::Record {
+                symbol: proof.model,
+                stored: true,
+            };
+            if **element != row_type {
+                return None;
+            }
+            let model = self.program.symbols.get(proof.model.0 as usize)?;
+            if !matches!(model.kind, SymbolKind::Model { .. }) {
+                return None;
+            }
+            let contract = self.program.symbols.get(proof.contract.0 as usize)?;
+            let SymbolKind::Contract { fields: declared } = &contract.kind else {
+                return None;
+            };
+            let IrExpr::Object(entries) = &projection.expr else {
+                return None;
+            };
+            if entries.len() != proof.fields.len()
+                || entries.len() != declared.len()
+                || entries.len() > 200
+            {
+                return None;
+            }
+            let is_row = |value: &TypedExpr| {
+                value.ty == row_type
+                    && matches!(&value.expr, IrExpr::Name(name) if name == parameter)
+            };
+            let mut seen = HashSet::new();
+            for ((name, value), field) in entries.iter().zip(&proof.fields) {
+                let owner = self.program.symbols.get(field.field.0 as usize)?;
+                if !seen.insert(field.field)
+                    || !declared.contains(&field.field)
+                    || owner.name != *name
+                    || !matches!(owner.kind, SymbolKind::Field {owner, ..} if owner == proof.contract)
+                    || value.ty != field.ty
+                    || self.program.types.node_types.get(&field.node) != Some(&field.ty)
+                {
+                    return None;
+                }
+                // Group lowering erases wrappers; shorthand retains its actual
+                // checked key-token anchor rather than an invented expression.
+                let mut node = self.node(&field.node)?;
+                let mut depth = 0;
+                while node.kind == SyntaxKind::Group {
+                    depth += 1;
+                    if depth > 64 {
+                        return None;
+                    }
+                    node = kids(node)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))?;
+                }
+                if node.span != value.span {
+                    return None;
+                }
+                match &field.mapping {
+                    CheckedQueryProjectionMapping::StoredReference if is_row(value) => {}
+                    CheckedQueryProjectionMapping::Version => {
+                        if !matches!(&value.expr, IrExpr::Member {base,field} if field == "version" && is_row(base))
+                            || value.ty != ResolvedType::Scalar(Scalar::Int)
+                        {
+                            return None;
+                        }
+                    }
+                    CheckedQueryProjectionMapping::DirectField { field: source } => {
+                        let source = self.program.symbols.get(source.0 as usize)?;
+                        if !matches!(source.kind, SymbolKind::Field {owner, ..} if owner == proof.model)
+                            || !model.fields_of().contains(&source.id)
+                            || !matches!(&value.expr, IrExpr::Member {base,field} if field == &source.name && is_row(base))
+                        {
+                            return None;
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            Some(())
+        })();
+        valid.is_some()
     }
 
     /// The native mutation query contract orders direct stored fields of
