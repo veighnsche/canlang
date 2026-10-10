@@ -75,7 +75,7 @@ import type {
 } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
-import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
+import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
 import type { FileGuardState, FileGuardRow, FileFrameworkBinding } from './file-retirement.js';
 import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileReferenceStoragePort, FileReferencePublishMigrationChunk, FileReferenceFlipInstalledSnapshot, InstallFileReferenceInventory, InstalledFileReferenceInventory, RetireFinalizedFile, FinalizedFileRetirement, FinalizedFileRef } from '@canlang/contracts';
 import {
@@ -1094,7 +1094,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       return row === null ? null : toMigrationFailure(row);
     },
   };
-  if (binding === undefined) return storage;
+  if (binding === undefined) return registerFileFrameworkStorage(storage, framework);
   // Reads and bookkeeping recheck the assignment and complete persisted framework inventory.
   const checkedStorage = Object.fromEntries(Object.entries(storage).map(([name, method]) => [name,
     async (...args: unknown[]) => {
@@ -1161,5 +1161,5 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     publishMigrationChunk: checkedStorage.publishMigrationChunk,
     flipInstalledSnapshot: checkedStorage.flipInstalledSnapshot,
   };
-  return extension;
+  return registerFileFrameworkStorage(extension, framework);
 }

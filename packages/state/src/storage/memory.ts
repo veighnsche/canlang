@@ -47,7 +47,7 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import { INITIAL_REVISION } from './schema.js';
-import { bindFileFrameworkProducers, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
+import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
   guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow } from './file-retirement.js';
 
@@ -1045,7 +1045,7 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
       return found === null ? null : jsonCopy(found);
     },
   };
-  if (binding === undefined) return store;
+  if (binding === undefined) return registerFileFrameworkStorage(store, framework);
   const extension: FileReferenceStoragePort = {
     ...store,
     fileRetirementAuthority: binding,
@@ -1078,13 +1078,13 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
       return fileGuardCopy(state.fileGuard.retirements.find(fact => fact.file.ref === ref) ?? null);
     },
   };
-  return Object.fromEntries(Object.entries(extension).map(([name, value]) => [name,
+  return registerFileFrameworkStorage(Object.fromEntries(Object.entries(extension).map(([name, value]) => [name,
     typeof value !== 'function' ? value : async (...args: unknown[]) => {
       checkFileBinding(state.fileGuard, binding);
       checkFileFrameworkBinding(state.fileGuard, framework);
       checkFileGuardSnapshots(state.fileGuard, [...state.snapshots.values()]);
       return value(...args);
-    }])) as unknown as FileReferenceStoragePort;
+    }])) as unknown as FileReferenceStoragePort, framework);
 }
 
 /** Fresh isolated TEST-ONLY store; every instance starts at revision 0. */

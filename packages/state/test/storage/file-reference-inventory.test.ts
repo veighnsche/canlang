@@ -32,7 +32,7 @@ function rows() {
 const edited = (row: StoredRow, data: Record<string, unknown>): StoredRow => ({ ...row, data: { ...row.data, ...data } });
 
 describe('State owning File inventory shape (never a File-free proof)', () => {
-  it('covers genuine owning rows with frozen named declarations and opaque retained receipt fields', () => {
+  it('covers genuine owning rows with frozen named declarations and opaque result and closed nullable owning receipt error', () => {
     const { association, receipt, navigation, scan } = rows();
     for (const [model, row] of [[RECEIPT_ASSOCIATION_MODEL, association], [RECEIPT_MODEL, receipt],
       [FANOUT_NAVIGATION_MODEL, navigation], [FANOUT_OWNER_SCAN_MODEL, scan]] as const) validate(model, row);
@@ -49,7 +49,9 @@ describe('State owning File inventory shape (never a File-free proof)', () => {
     }
     const fields = producer.models.find(model => model.model === RECEIPT_MODEL)!.fields;
     assert.deepEqual(fields.result, { kind: 'opaque', role: 'retained-result' });
-    assert.deepEqual(fields.error, { kind: 'opaque', role: 'retained-result' });
+    assert.deepEqual(fields.error, { kind: 'control', value: 'object', nullable: true,
+      fields: { code: { kind: 'control', value: 'string' }, message: { kind: 'control', value: 'string' } } });
+    assert.ok(Object.isFrozen(fields.error) && fields.error.kind === 'control' && fields.error.value === 'object' && Object.isFrozen(fields.error.fields));
     validate(RECEIPT_MODEL, newReceiptRow({ deliveryId: 'failed', revision: 1, status: 'failed',
       result: null, error: { code: 'error', message: 'detail' }, contentRef: 'retained/a',
       resultExpiresAtMs: 200 }, meta));
@@ -64,6 +66,16 @@ describe('State owning File inventory shape (never a File-free proof)', () => {
     assert.throws(() => validate(RECEIPT_MODEL, { ...receipt, id: association.id }));
     assert.throws(() => validate(RECEIPT_MODEL, edited(receipt, { status: 'pending' })));
     assert.throws(() => validate(RECEIPT_MODEL, edited(receipt, { resultExpiresAtMs: -1 })));
+    const failed = newReceiptRow({ deliveryId: 'closed-error', revision: 1, status: 'failed', result: null,
+      error: { code: 'error', message: 'detail' }, contentRef: null, resultExpiresAtMs: null }, meta);
+    for (const error of [ 'text', [], {}, { code: 'error' }, { message: 'detail' },
+      { code: 'error', message: 1 }, { code: 'error', message: { id: 'file-like' } },
+      { code: 'error', message: 'detail', extra: 'field' } ]) assert.throws(() => validate(RECEIPT_MODEL, edited(failed, { error })));
+    let errorReads = 0;
+    const accessor = { code: 'error' };
+    Object.defineProperty(accessor, 'message', { enumerable: true, get() { errorReads++; return 'detail'; } });
+    assert.throws(() => validate(RECEIPT_MODEL, edited(failed, { error: accessor })));
+    assert.equal(errorReads, 0);
     assert.throws(() => validate(RECEIPT_MODEL, { ...receipt, unexpected: true } as StoredRow));
     assert.throws(() => validate(FANOUT_NAVIGATION_MODEL, scan));
     assert.throws(() => validate(FANOUT_NAVIGATION_MODEL, edited(navigation, { cohort: 'other' })));

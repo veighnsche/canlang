@@ -2,7 +2,7 @@
  * original transaction, never this module or a copied fact. */
 import type { FileReferenceInventory, FileRetirementAuthority, FinalizedFileIdentity,
   FinalizedFileRetirement, InstallFileReferenceInventory, InstalledFileReferenceInventory,
-  InstalledSnapshot, ModelName, RetireFinalizedFile, Revision, StoredRow, CanonicalFieldDef, FrameworkFileReferenceProducer, FrameworkFileReferenceModel } from '@canlang/contracts';
+  InstalledSnapshot, ModelName, RetireFinalizedFile, Revision, StoredRow, CanonicalFieldDef, FrameworkFileReferenceProducer, FrameworkFileReferenceModel, StoragePort } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
 import { normalizeValueTypes, parseTypeId, printTypeId } from '@canlang/values';
 import { copyScenarioFileData } from '../invocation/scenario-file-assignment.js';
@@ -97,6 +97,19 @@ interface BoundFrameworkModel {
 }
 export type FileFrameworkBinding = ReadonlyMap<string, BoundFrameworkModel>;
 const EMPTY_FRAMEWORK: FileFrameworkBinding = new Map();
+// This association carries only the actual constructor-captured validators for
+// same-load migration validation. Permanent issuance remains the persisted
+// assignment/census/revision/retirement transaction; this map never proves it.
+const frameworkAdapters = new WeakMap<StoragePort, FileFrameworkBinding>();
+export function registerFileFrameworkStorage<T extends StoragePort>(store: T, framework: FileFrameworkBinding): T {
+  if (frameworkAdapters.has(store)) return refuse('framework adapter binding already registered');
+  frameworkAdapters.set(store, framework);
+  return store;
+}
+export function checkedFileInventoryForStorage(store: StoragePort, input: FileReferenceInventory): FileReferenceInventory {
+  return checkedFileInventory(input, frameworkAdapters.get(store) ?? EMPTY_FRAMEWORK);
+}
+
 /** Only the trusted same-load host passes actual owning exports here. The
  * persisted source tags are compared evidence, never producer authentication. */
 export function bindFileFrameworkProducers(producers: readonly FrameworkFileReferenceProducer[] = []): FileFrameworkBinding {
@@ -131,9 +144,15 @@ function checkFrameworkDeclaration(declaration: FrameworkFileReferenceModel): vo
       keys(value, ['kind', 'role']);
       if (value.role !== 'retained-result' && value.role !== 'deferred-input') return refuse('owning opaque role required');
     } else if (value.kind === 'control') {
-      keys(value, ['kind', 'value', ...(Object.hasOwn(value, 'nullable') ? ['nullable'] : []), ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
-      if (!['string', 'number', 'boolean', 'string-array'].includes(value.value as string) ||
+      keys(value, ['kind', 'value', ...(value.value === 'object' ? ['fields'] : []), ...(Object.hasOwn(value, 'nullable') ? ['nullable'] : []), ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
+      if (!['string', 'number', 'boolean', 'string-array', 'object'].includes(value.value as string) ||
           Object.hasOwn(value, 'nullable') && value.nullable !== true || Object.hasOwn(value, 'optional') && value.optional !== true) return refuse('closed framework control declaration required');
+      if (value.value === 'object') {
+        for (const [name, child] of Object.entries(object(value.fields))) {
+          keys(child, ['kind', 'value']);
+          if (!text(name) || object(child).kind !== 'control' || object(child).value !== 'string') return refuse('closed required owning string controls required');
+        }
+      }
     } else return refuse('classified framework field required');
   }
 }
@@ -233,6 +252,11 @@ function census(state: FileGuardState, rows: readonly FileGuardRow[], maxRows: n
         if (descriptor.kind === 'opaque') continue;
         const value = data[field];
         if (value === null && descriptor.nullable === true) continue;
+        if (descriptor.value === 'object') {
+          keys(value, Object.keys(descriptor.fields));
+          if (Object.values(object(value)).some(member => typeof member !== 'string')) return refuse('closed owning structured controls disagree');
+          continue;
+        }
         if (descriptor.value === 'string-array' ? !Array.isArray(value) || value.some(item => typeof item !== 'string') :
             typeof value !== descriptor.value || descriptor.value === 'number' && !Number.isFinite(value)) return refuse('owning framework control shape disagrees');
       }

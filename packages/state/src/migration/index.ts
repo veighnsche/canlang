@@ -53,7 +53,8 @@ import type {
 } from '@canlang/contracts';
 import type { ClockPort } from '../invocation/context.js';
 import type { ModelTable } from '../mutation/models.js';
-import { StateError } from '../errors.js';
+import { StateError, storageToStateError } from '../errors.js';
+import { checkedFileInventoryForStorage } from '../storage/file-retirement.js';
 import {
   checkActivationInventory,
   flipToInstalled,
@@ -180,6 +181,16 @@ export async function resumeMigration(
   input: ResumeMigrationInput,
 ): Promise<ResumeMigrationResult> {
   const { store, plan } = input;
+  // Capture actual owning correspondence before any resumable phase can write.
+  let fileDeclarations: FileReferenceInventory | undefined;
+  if (input.fileReferenceInventory !== undefined) {
+    try {
+      fileDeclarations = checkedFileInventoryForStorage(store, input.fileReferenceInventory);
+      if (fileDeclarations.owner !== plan.owner || fileDeclarations.snapshotId !== plan.toSnapshotId || fileDeclarations.digest !== plan.toDigest) {
+        throw new StateError('validation', 'Migration File declarations must match the exact target snapshot.');
+      }
+    } catch (error) { throw storageToStateError(error); }
+  }
   const progress = await store.readMigrationProgress(plan.migrationId);
   if (progress === null) {
     return { progress: null, flip: null };
@@ -274,9 +285,9 @@ export async function resumeMigration(
           now,
           actor,
           input.isExpiredRow,
-          input.fileReferenceInventory,
+          fileDeclarations,
         );
-        const flip = await flipToInstalled(store, plan, now, disposition, input.fileReferenceInventory);
+        const flip = await flipToInstalled(store, plan, now, disposition, fileDeclarations);
         const after = await store.readMigrationProgress(plan.migrationId);
         if (after?.phase !== 'active') {
           // Goal-state check (stronger than the flip flag): publish ran and
