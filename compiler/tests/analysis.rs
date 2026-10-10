@@ -1006,6 +1006,12 @@ fn draft_outcome_table() {
     // All 52 files remain checked: 38 decreases, 14 unchanged, total 4192.
     // Task39's checked read-call narrowing removes one Workbench E3003;
     // removing read=true restores that exact finding (75 -> 76). Total 4191.
+    // Current released draft d7d0dc6 and capability fixture identity fix
+    // 7d43c017 remove exactly nine E3015s (Decide2, Enrich3, Inbox1,
+    // Sync2, Workbench1); wrong-operation controls remain in b4_check.
+    // Draft337b373's direct Workbench query removes one unresolved collect
+    // E2001. Old/new source checks under the same checker isolate that
+    // single source change; CanDo remains38. All52 rows total4181.
     // Historical attribution above describes earlier corpus/checker snapshots;
     // these aggregate pins do not establish full draft/runtime qualification.
     let table: &[(&str, usize)] = &[
@@ -1020,11 +1026,11 @@ fn draft_outcome_table() {
         ("draft/CanContract.can", 22),
         ("draft/CanCreative.can", 24),
         ("draft/CanCustomer.can", 58),
-        ("draft/CanDecide.can", 6),
+        ("draft/CanDecide.can", 4),
         ("draft/CanDesk.can", 78),
         ("draft/CanDiscover.can", 60),
         ("draft/CanDo.can", 38),
-        ("draft/CanEnrich.can", 11),
+        ("draft/CanEnrich.can", 8),
         ("draft/CanEvent.can", 203),
         ("draft/CanExpense.can", 92),
         ("draft/CanFeedback.can", 13),
@@ -1032,7 +1038,7 @@ fn draft_outcome_table() {
         ("draft/CanGallery.can", 22),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
-        ("draft/CanInbox.can", 68),
+        ("draft/CanInbox.can", 67),
         ("draft/CanInvoice.can", 249),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
@@ -1052,14 +1058,14 @@ fn draft_outcome_table() {
         ("draft/CanStats.can", 28),
         ("draft/CanStock.can", 39),
         ("draft/CanSuccess.can", 43),
-        ("draft/CanSync.can", 14),
+        ("draft/CanSync.can", 12),
         ("draft/CanTable.can", 31),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
         ("draft/CanVolunteer.can", 46),
         // The checked read-only context call retains proposal.call != null;
         // invocation_references pins its mutation-call invalidation control.
-        ("draft/CanWorkbench.can", 75),
+        ("draft/CanWorkbench.can", 73),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),

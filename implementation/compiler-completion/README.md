@@ -2490,3 +2490,15 @@ smaller helpers; preserve the guard, counters, source admission, left-to-right
 path traversal and exact expression closure depth bound refusal. All existing
 library154 and decision6 cases pass with the default test stack. No stack-size
 bypass or skipped body. Strict all-target Clippy/format0; full checks follow coherent save.
+
+
+**Exact corpus expectation correction (unfinished whole qualification), 2026-10-10.**
+The resumed full run reaches the real52-file table and exposes five stale counts.
+Existing capability fixture identity7d43c017 removes exactly nine E3015 findings
+(Decide2, Enrich3, Inbox1, Sync2, Workbench1); wrong-operation fixture controls
+remain. Draft337b373's direct Workbench query removes one unresolved collect
+E2001. Same-checker old/new source comparisons isolate those changes; CanDo
+remains38. All52 checks and undocumented-code assertions are retained, total
+4191→4181. Owning analysis37/37 passes. Exact released locala22241b7, including
+State332/f3 Team correction, is safely consumed; actual graph22/22 builds uncached.
+The single real serial consumer join and resumed whole qualification follow.
