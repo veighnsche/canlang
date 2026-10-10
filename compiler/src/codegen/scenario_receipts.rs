@@ -516,7 +516,7 @@ pub(super) fn collect_native_scenario_receipt(
                     }
                 }
                 let reference_type = reference_operand_type_id(ir, ty);
-                let transport_type = if let Some(reference_type) = reference_type {
+                if let Some(reference_type) = reference_type {
                     if transition.is_some() || !dependency.calls.is_empty() {
                         return None;
                     }
@@ -595,8 +595,7 @@ pub(super) fn collect_native_scenario_receipt(
                         return None;
                     }
                     dependency.type_id.clone()
-                };
-                transport_type
+                }
             };
             let role = match dependency.role {
                 DependencyRole::Data => ReceiptRole::Data,

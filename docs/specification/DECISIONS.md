@@ -6791,6 +6791,20 @@ returns remain unsupported. No common DTO or public runtime ABI is added.
 Direct source/full native-emission/refusal3/3 passes after correcting lost inner
 parent IR type and full root owner correspondence. State's reviewed exact
 private source-authority binder is consumed; Dev must supply genuine same-load
-native hydration/lifetime and separate current target admission. Broader changed
-compiler validation/strict checks are running; this local unit and58/67 record
-remain unfinished for original application acceptance.
+native hydration/lifetime and separate current target admission. Required current8aa compiler whole1418/139 targets, zero failed/ignored/filtered
+or skipped bodies, passes with actual real engines/native/permission execution.
+Final strict all-target Clippy37.11s/fmt/diff0 follows a nonbehavioral lint cleanup;
+whole behavior results and unchanged editor qualification are reused. This local
+unit and58/67 record remain unfinished for original application acceptance.
+
+
+### 2026-10-10 — original Volunteer source prerequisites preserve accepted semantics
+
+Read-only classification of six representative SEQ-048 analysis failures finds
+owning enum identity/subset mismatch, lexical operation shadowing, a missing
+required Term.hours fixture and authored server-owned CRUD input. Preserve the
+existing accepted rules. Proposed source corrections belong to the existing
+original-composition task and application/source owner; Dev reruns only after
+an exact source release. No Compiler bug, new semantic choice, blanket source
+rewrite or fabricated executable output follows from these examples. Existing
+status records name the concrete corrections and remaining ownership.
