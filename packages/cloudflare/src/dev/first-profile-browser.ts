@@ -102,7 +102,7 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
     const ava = sessions.get('Ava')!, ben = sessions.get('Ben')!;
     const reload = async (session: typeof ava) => {
       check(); const response = await session.page.goto(session.origin, { waitUntil: 'domcontentloaded' }); check();
-      assert.ok(response && response.status() === 200, 'browser member page must serve successfully');
+      assert.ok(response && response.status() === 200, `browser member page must serve successfully (status ${response?.status() ?? 'absent'})`);
       await session.page.locator('form[action*="Supply.create"]').first().waitFor({ state: 'visible' }); check();
     };
     const readonly = async (label: string, action: () => Promise<void>) => {
@@ -112,10 +112,12 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
     const rows = (page: Page) => page.locator('li.list-row');
     // Authored text is one combined paragraph; all supplied/generated names are unique.
     const row = (page: Page, name: string) => rows(page).filter({ hasText: name });
+    // Owning UI isolates interpolated values with FSI/PDI; compare their visible glyphs.
+    const visibleText = (value: string) => value.replace(/[\u2068\u2069]/g, '');
     const overview = async (session: typeof ava, visible: readonly FirstProfileBrowserRow[], all: readonly FirstProfileBrowserRow[]) => {
       const { page } = session;
-      assert.ok(await page.title() === 'Office supplies', 'browser must render the authored page title');
-      assert.ok(await page.locator('section.card > .card-body > h2.card-title').allTextContents()
+      assert.ok(await page.title() === 'Office supplies — HelpOffice', 'browser must render the authored page title and actual app brand');
+      assert.ok(await page.locator('main#can-main > section.card > .card-body > h2.card-title').allTextContents()
         .then(titles => isDeepStrictEqual(titles, ['Add a supply', 'Team supplies'])), 'browser must render both authored card headings');
       assert.ok(await rows(page).count() === visible.length, 'browser list must have its expected visible rows');
       const nameInputs = rows(page).locator('form[action*="Supply.update"] input[name="inputs[changes][name]"]');
@@ -124,7 +126,7 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
       assert.ok(isDeepStrictEqual(names, visible.map(item => item.name).sort()), 'browser list must preserve authored name ordering');
       for (const item of visible) {
         const actual = row(page, item.name); assert.ok(await actual.count() === 1, 'browser authored row name must be present once');
-        const text = (await actual.locator('p').first().innerText()).replace(/\s+/g, ' ').trim();
+        const text = visibleText(await actual.locator('p').first().innerText()).replace(/\s+/g, ' ').trim();
         assert.ok(text === `${item.name} ${item.quantity ?? ''} ${String(item.available)}`.replace(/\s+/g, ' ').trim(),
           'browser row paragraph must render the authored name, nullable quantity and availability');
         const form = actual.locator('form[action*="Supply.update"]').first();
@@ -132,7 +134,7 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
         assert.ok(await form.locator('input[name="inputs[changes][quantity]"]').inputValue() === (item.quantity ?? ''), 'browser edit nullable quantity must reflect the physical row');
         assert.ok(await form.locator('input[name="inputs[changes][available]"]').isChecked() === item.available, 'browser edit availability must reflect the physical row');
       }
-      assert.ok((await page.locator('.stat-value').innerText()).trim() === String(all.length), 'browser authored stat must count all supplies independently of list preference');
+      assert.ok(visibleText(await page.locator('.stat-value').innerText()).trim() === String(all.length), 'browser authored stat must count all supplies independently of list preference');
       assert.ok((await page.locator('.stat-desc').innerText()).trim() === 'Visible supplies', 'browser stat must retain authored description');
       if (all.length === 0) {
         assert.ok(await page.getByText('No supplies', { exact: true }).count() > 0, 'browser must render authored list empty state');
@@ -142,7 +144,9 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
         assert.ok(isDeepStrictEqual(await table.locator('thead th').allTextContents(), ['Name', 'Stock', 'Available']), 'browser table must retain authored columns');
         assert.ok(await table.locator('tbody tr').count() === all.length, 'browser table must remain unfiltered by list preferences');
         for (const item of all) {
-          const cells = await table.locator('tbody tr').filter({ has: page.getByText(item.name, { exact: true }) }).locator('td').allTextContents();
+          const tableRow = table.locator('tbody tr').filter({ hasText: item.name });
+          assert.ok(await tableRow.count() === 1, 'browser table must contain the physical row once');
+          const cells = (await tableRow.locator('td').allTextContents()).map(visibleText);
           assert.ok(isDeepStrictEqual(cells, [item.name, '0', String(item.available)]), 'browser table cells must reflect actual name, default stock and availability');
         }
       }
@@ -180,8 +184,11 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
     };
     await readonly('browser page authority matrix', async () => {
       const cal = sessions.get('Cal')!, dee = sessions.get('Dee')!;
+      phase = 'browser foreign-owner page';
       await reload(cal); await overview(cal, [], []); await noAvaNames(cal.page);
+      phase = 'browser nonmember page refusal';
       await refusedPage(dee.page, dee.origin);
+      phase = 'browser anonymous page refusal';
       check(); const anonymous = await input.browser.newContext(); contexts.add(anonymous);
       anonymous.setDefaultTimeout(10_000); anonymous.setDefaultNavigationTimeout(15_000); check();
       const page = await anonymous.newPage(); check();
@@ -257,11 +264,17 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
       [['can.v1.then.delete'], 'HelpOffice Chromium: generated archives remove initial and created supplies from both members; stat zero and authored list/table empty states render'],
     ];
     return Object.freeze(descriptions.flatMap(([ids, runtimeCheck]) => ids.map(id => Object.freeze({ id, runtimeCheck }))));
-  } catch {
-    check(); throw new Error(`HelpOffice browser qualification failed during ${phase}`);
+  } catch (error) {
+    check();
+    // Only an explicit assertion's first message line is safe to retain.
+    // Generated diffs and browser logs can include Identity or page values.
+    const detail = error instanceof assert.AssertionError && !error.generatedMessage
+      ? error.message.split('\n', 1)[0] : undefined;
+    throw new Error(`HelpOffice browser qualification failed during ${phase}${detail ? `: ${detail}` : ''}`);
   } finally {
     input.signal?.removeEventListener('abort', abort);
     const settled = await Promise.allSettled([...contexts].map(close));
     assert.ok(settled.every(result => result.status === 'fulfilled'), 'HelpOffice browser contexts must close');
+    check();
   }
 }
