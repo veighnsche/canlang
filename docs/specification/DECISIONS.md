@@ -6858,3 +6858,40 @@ The real native compiled authored D1 consumer now passes the same full1/1 case a
 ### 2026-10-10 — manual local intake of exact Dev7bd23ee7/cd2bcdd3
 
 Manual exact census/private-admission, runtime/cohort routing and genuine D1 control reviews are clear for Dev7bd23ee7 plus the six-line named Work factory correction cd2bcdd3. Consume only three exact owning source/test files; do not import source-branch ancestry or active stored-reference edits. Reuse final owner native case1/1 in24634.92ms, zero failures/skips, including every previously unreached delete/readback/deleted-handler/replay/hash assertion, current source/owner checks, actual installed frozen cohort and zero repeated IDs/effects. The genuine source is an explicitly authored CRUD extension of the Compiler fixture, running Node with real D1; imported/declared handlers have inventory coverage only. This accepts the finite native consumer component, never unchanged original Volunteer, portable workerd or Office/full-plan qualification. Preserve main749 State and qualified Compiler source, Packages5d/33/ecc closure, all source/target authority and precise holds. Packages must now qualify the actual current named portable edge and full fixture boundary once. Reconcile living coverage without advancing the complete checkpoint; no remote push or publication.
+
+### 2026-10-10 — preserve original composition workflows in assigned source corrections (unfinished)
+
+Implement only the coordinator-assigned Affiliate/CRM/Desk/Event corrections.
+Reuse CommissionResult's owning enums; compare the partner's exact three
+milestones explicitly so the provider's reversed case cannot qualify a sale.
+Make Deal.owner an ordinary actor-default field while preserving its existing
+creation exclusion, current worker/salesperson eligibility and reassignment
+examples. Supply the genuine required purchased access window with the owning
+site id/timezone, weekdays1..5,09:00..18:00,close_after0 and earlier fold.
+Rename only Desk add_note/Event change_schedule operations and their actual
+forms, preserving stored cases, local bindings, labels, guards, effects and all
+examples. These are source corrections under accepted rules, not new semantics.
+
+Local draft057ce7d/598a6e8/3efd895 are implemented. Final exact Dev ordered25
+ordinary compile/catalog check2.176s clears six representatives with every
+actual source path/hash matching; analysis still exits10 complete=true/omitted0
+with127 findings versus138 and emits no artifact. Native behavior/examples
+remain unqualified. Focused corpus table fails three changed source pins:
+CRM144→146,Desk78→74,Event203→202;49 rows, including Affiliate39, unchanged.
+Imported fixture location/fold names explain CRM's isolated-scope increase.
+The coordinator reviewed the six corrections CLEAR and explicitly authorized
+only these three changed-source snapshots. Preserve all52 rows and existing
+diagnostic/context assertions. CRM adds two test_site uses and one earlier case
+while removing the server-owned owner finding (net+2); both imported names are
+unavailable in the isolated source scope. Final affected table passes1/1 in
+2.70s,36 unrelated tests unselected, superseding the initial stale-pin failure.
+Reuse unchanged production compiler/strict/editor results at their prior scope;
+the changed corpus delta is separately qualified. Next assigned source work is
+Desk reply/Event expired/Member revoke operation shadows and actual consumers.
+Other original diagnostics require exact assignments; Dev owns native original
+consumption.
+Original58/67 and precise BDD3/Task22 holds stay unchanged; no remote publication.
+
+### 2026-10-10 — manual local integration of 23cfd269
+
+Finite owning-source review is clear for draft057ce7d/598a6e8/3efd895: preserve Affiliate nominal enums and explicit three-case subset, CRM genuine nonempty location/timezone business hours and permitted reassignment with creation exclusion, and Desk/Event operation/form disambiguation without changing enum cases, guards, examples or bodies. Exact original ordered25/catalog source check falls from138 to127 complete findings; all six representatives and consumers clear, Volunteer bytes unchanged and no artifact or native acceptance. Only the three changed isolated corpus snapshots are reconciled faithfully; all52 rows/assertions remain and the affected table passes1/1 in2.70s. Reuse unchanged compiler/strict/editor scopes, while original127 diagnostics and native/pure joins remain required. Advance only the clean root draft inspection to the exact reviewed local commit; preserve worker open edits and every precise hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
