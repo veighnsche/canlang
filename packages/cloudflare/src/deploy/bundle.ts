@@ -93,6 +93,7 @@ import { distribution as uiDistribution } from "@canlang/ui/distribution";
 import { distribution as identityDistribution } from "@canlang/identity/distribution";
 import { distribution as stdlibDistribution } from "@canlang/stdlib/distribution";
 import { distribution as stateDistribution } from "@canlang/state/distribution";
+import { distribution as workDistribution } from "@canlang/work/distribution";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { distribution as interfacesDistribution } from "@canlang/interfaces/distribution";
 import { distribution as servicesDistribution } from "@canlang/services/distribution";
@@ -273,11 +274,15 @@ const IDENTITY_VENDOR_ENTRY = "vendor/identity/index.js";
 /** Mirrors `@canlang/contracts` package `main` (`./dist/index.js`). */
 const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
 const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
+const STATE_VENDOR_ENTRY = "vendor/state/index.js";
 /** D3b receipt producers (C's Q2 contract vendor keys). */
 const STATE_RECEIPT_JOIN_VENDOR_ENTRY = "vendor/state/receipt/join.js";
 const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/index.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 const WORK_DISPATCH_SOURCE_SPECIFIER = "@canlang/work/kernel/dispatch-staging";
+const WORK_SOURCE_SPECIFIER = "@canlang/work";
+/** Selected root export; the public barrel also exposes Node-only producers. */
+const WORK_VENDOR_ENTRY = "vendor/work/kernel/committed-model-source.js";
 const WORK_DISPATCH_VENDOR_ENTRY = "vendor/work/kernel/dispatch-staging.js";
 const WORK_SCHEDULE_SOURCE_SPECIFIER = "@canlang/work/kernel/schedule-staging";
 const WORK_SCHEDULE_VENDOR_ENTRY = "vendor/work/kernel/schedule-staging.js";
@@ -550,6 +555,7 @@ function rewriteArtifactImports(js: string, modulePath: string) {
  * Rewritten to module-relative `vendor/` specifiers when staged.
  */
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
+const STATE_SOURCE_SPECIFIER = "@canlang/state";
 const STATE_D1_SOURCE_SPECIFIER = "@canlang/state/storage/d1";
 const STATE_MUTATION_SOURCE_SPECIFIER = "@canlang/state/mutation";
 const STATE_MUTATION_VENDOR_ENTRY = "vendor/state/mutation/index.js";
@@ -569,6 +575,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
+    if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
     if (spec === STATE_MUTATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_MUTATION_VENDOR_ENTRY);
     if (spec === STATE_INVOCATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_INVOCATION_VENDOR_ENTRY);
@@ -581,6 +588,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
+    if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
     if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
@@ -600,12 +608,14 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   // error messages interpolate the const, so they name the bundle path too).
   for (const [source, entry] of [
     [IDENTITY_SOURCE_SPECIFIER, IDENTITY_VENDOR_ENTRY],
+    [STATE_SOURCE_SPECIFIER, STATE_VENDOR_ENTRY],
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
     [STATE_MUTATION_SOURCE_SPECIFIER, STATE_MUTATION_VENDOR_ENTRY],
     [STATE_INVOCATION_SOURCE_SPECIFIER, STATE_INVOCATION_VENDOR_ENTRY],
     [STATE_RECEIPT_JOIN_SOURCE_SPECIFIER, STATE_RECEIPT_JOIN_VENDOR_ENTRY],
     [STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY],
     [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
+    [WORK_SOURCE_SPECIFIER, WORK_VENDOR_ENTRY],
     [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_DISPATCH_VENDOR_ENTRY],
     [WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_SCHEDULE_VENDOR_ENTRY],
     [WORK_OCCURRENCE_SOURCE_SPECIFIER, WORK_OCCURRENCE_VENDOR_ENTRY],
@@ -632,6 +642,7 @@ function stageWorkStagingProducers(): Record<string, string> {
     WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER,
     "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
+  entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "committed-model-source.js"));
   const base = dirname(dirname(entries[0]!));
   const modules: Record<string, string> = {};
   const visit = (file: string): void => {
@@ -699,6 +710,8 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === STDLIB_SPECIFIER) return relativeSpecifier(moduleKey, STDLIB_VENDOR_ENTRY);
     if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
+    if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
+    if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
