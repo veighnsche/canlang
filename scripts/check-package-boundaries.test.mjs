@@ -96,7 +96,7 @@ test('rejects sibling source/output shortcuts and root-tool shortcuts', t => {
   assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 3);
 });
 
-test('allows only the registered Office Supplies reads from actual Cloudflare consumers', t => {
+test('allows only registered canonical fixture reads from exact Cloudflare consumers', t => {
   const consumers = {
     'src/dev/session-service.test.ts': `
       import { readFileSync } from 'node:fs';
@@ -112,12 +112,20 @@ test('allows only the registered Office Supplies reads from actual Cloudflare co
       const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
       readFileSync(join(repo, 'tests/integration/can-dev-server/OfficeSupplies.can'));
     `,
+    'test/committed-model-consumer.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+      readFileSync(join(repo, 'compiler/tests/fixtures/committed_change.can'));
+    `,
   };
   const f = fixture(t, { cloudflareConsumers: consumers });
   const result = f.check();
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
     'packages/cloudflare/src/dev/session-service.test.ts',
+    'packages/cloudflare/test/committed-model-consumer.test.ts',
     'packages/cloudflare/test/compiler-check.integration.test.ts',
   ]);
 });
@@ -132,10 +140,18 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
       readFileSync(join(repo, 'tests/integration/can-dev-server/Another.can'));
     `,
+    'test/committed-model-consumer.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      import '../../a/src/index.js';
+      const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+      readFileSync(join(repo, 'compiler/tests/fixtures/Another.can'));
+    `,
   } });
   const result = f.check();
-  assert.ok(result.errors.some(error => error.code === 'cross-package-path'));
-  assert.ok(result.errors.some(error => error.code === 'cross-package-import'));
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 2);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 2);
   assert.deepEqual(result.registered, []);
 });
 
