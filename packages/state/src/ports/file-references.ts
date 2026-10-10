@@ -1,0 +1,270 @@
+/** Current committed File relationships, independent of Files' attachment marker.
+ * A relationship is retention evidence; only a current whole-field State grant
+ * authorizes the wrapped read. Physical byte validity remains Files-owned. */
+import type { ArtifactModel, CanonicalModelDescriptor, FinalizedFileReceiver,
+  ModelName, RecordId, RecordVersion, Revision, StoragePort, StoredRow } from '@canlang/contracts';
+import { assertSafeBlobKey } from '@canlang/files/ports';
+import { parseTypeId } from '@canlang/values';
+import { StateError } from '../errors.js';
+import { deepFreeze } from '../internal/own-data.js';
+import { copyScenarioFileData, scenarioFileField, scenarioFileWireRefs,
+  type ScenarioFileFieldProfile } from '../invocation/scenario-file-assignment.js';
+import { isGeneratedOperationDef, type GeneratedOperationDef, type OperationRegistry } from '../invocation/registry.js';
+import { openFenceScope } from '../invocation/admission.js';
+import { stableStringify } from '../invocation/replay.js';
+import { isEqualOrUnder, type PolicyTable, type ByContext } from '../policy/grants.js';
+import { observeRowGrantAuthority } from '../policy/membership-facts.js';
+import { evaluateBy, type MembershipReader } from '../policy/roles.js';
+import { projectCurrentRecordForViewerPolicy } from '../query/engine.js';
+
+export interface CommittedFileReference {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly rowVersion: RecordVersion;
+  readonly field: string;
+  /** Arrays retain every authored position, including duplicate references. */
+  readonly index: number | null;
+  readonly ref: string;
+  readonly archived: boolean;
+}
+export interface CurrentFileSlot {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly rowVersion: RecordVersion;
+  readonly field: string;
+  readonly ref: string;
+}
+export interface FileSlotLocator {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly field: string;
+  readonly ref: string;
+}
+export interface CommittedFileReferences {
+  readonly scope: Readonly<Omit<FinalizedFileReceiver, 'principal'>>;
+  readonly complete: true;
+  readonly revision: Revision;
+  readonly references: readonly CommittedFileReference[];
+  /** Checks the ORIGINAL State checkpoint. It is no cross-store lock. */
+  revalidate(): Promise<void>;
+}
+export interface FileReferenceConsumer {
+  /** Complete committed relationships, including archived rows until disposal.
+   * Trusted retention wiring only; this inventory grants no disclosure. */
+  observeReferences(ref: string): Promise<CommittedFileReferences>;
+  /** Run the owning physical reader once within current State authority. Null
+   * hides absent/withheld slots; drift refuses after the awaited read. */
+  read(locator: FileSlotLocator, caller: FinalizedFileReceiver,
+    consume: (slot: Readonly<CurrentFileSlot>) => Uint8Array | null | Promise<Uint8Array | null>): Promise<Uint8Array | null>;
+}
+export interface FileReferenceConsumerInput {
+  /** Trusted host routing to this exact app/team/owner's State store. */
+  readonly scope: Omit<FinalizedFileReceiver, 'principal'>;
+  readonly store: StoragePort;
+  readonly policy: PolicyTable;
+  readonly memberships: MembershipReader;
+  readonly canonicalModels: readonly CanonicalModelDescriptor[];
+  readonly artifactModels: readonly ArtifactModel[];
+  readonly registry: OperationRegistry;
+  readonly maxRows: number;
+  readonly maxReferences: number;
+}
+const invalid = (message: string): never => { throw new StateError('validation', `File references: ${message}`); };
+const busy = (): never => { throw new StateError('busy', 'Complete File reference inventory exceeds its bound.'); };
+function text(value: unknown): value is string { return typeof value === 'string' && value.length > 0; }
+function fileRef(value: unknown): string {
+  if (!text(value)) return invalid('nonempty File reference required.');
+  try { assertSafeBlobKey(value); } catch { return invalid('safe File reference required.'); }
+  return value;
+}
+function row(value: StoredRow): StoredRow {
+  const saved = copyScenarioFileData(value) as StoredRow;
+  if (typeof saved !== 'object' || saved === null || Array.isArray(saved) || !text(saved.id) || !Number.isSafeInteger(saved.version) || saved.version < 1 ||
+      !Number.isFinite(saved.created) || !Number.isFinite(saved.updated) ||
+      !text(saved.createdBy) || !text(saved.updatedBy) ||
+      saved.archivedAt !== null && !Number.isFinite(saved.archivedAt) ||
+      typeof saved.data !== 'object' || saved.data === null || Array.isArray(saved.data) ||
+      saved.parent != null && (!text(saved.parent.model) || !text(saved.parent.id))) {
+    return invalid('actual committed row required.');
+  }
+  return deepFreeze(saved);
+}
+interface ModelFiles {
+  readonly fields: ReadonlyMap<string, ScenarioFileFieldProfile>;
+  readonly artifact: ArtifactModel;
+}
+
+/** Installed State-only consumer. Caller JSON never selects an owner store,
+ * substitutes declarations, supplies grants or mints a retained observation. */
+export function createFileReferenceConsumer(input: FileReferenceConsumerInput): FileReferenceConsumer {
+  const { store, policy, memberships, registry, maxRows, maxReferences } = input;
+  const scope = deepFreeze(copyScenarioFileData(input.scope) as FileReferenceConsumerInput['scope']);
+  if (typeof scope !== 'object' || scope === null || Array.isArray(scope) ||
+      Object.keys(scope).length !== 3 || !text(scope.app) || !text(scope.team) || !text(scope.owner)) {
+    return invalid('exact receiving app/team/owner required.');
+  }
+  for (const bound of [maxRows, maxReferences]) {
+    if (!Number.isSafeInteger(bound) || bound < 1 || bound > 20_000) return invalid('finite positive bounds required.');
+  }
+  const canonicalModels = deepFreeze(copyScenarioFileData(input.canonicalModels) as readonly CanonicalModelDescriptor[]);
+  const artifacts = deepFreeze(copyScenarioFileData(input.artifactModels) as readonly ArtifactModel[]);
+  if (canonicalModels.length !== artifacts.length || artifacts.length > 200) return invalid('complete same-load owning models required.');
+  const artifactModels = new Map<ModelName, ArtifactModel>();
+  for (const artifact of artifacts) {
+    if (!text(artifact.name) || artifactModels.has(artifact.name as ModelName)) return invalid('unique owning models required.');
+    artifactModels.set(artifact.name as ModelName, artifact);
+  }
+  const models = new Map<ModelName, ModelFiles>();
+  let unsupportedComposite = false;
+  const declared = new Set<ModelName>();
+  for (const canonical of canonicalModels) {
+    const artifact = artifactModels.get(canonical.name);
+    if (artifact === undefined || declared.has(canonical.name)) return invalid('complete unique same-load owning models required.');
+    if (artifact.fields.length !== Object.keys(canonical.fields).length) return invalid('complete owning field correspondence required.');
+    declared.add(canonical.name);
+    const fields = new Map<string, ScenarioFileFieldProfile>();
+    for (const [name, field] of Object.entries(canonical.fields)) {
+      const authored = artifact.fields.filter(candidate => candidate.name === name);
+      if (authored.length !== 1) return invalid('complete owning field correspondence required.');
+      const source = authored[0]!;
+      if (source.default?.kind === 'derived' && field.default?.kind === 'derived') continue;
+      // Without a complete nominal schema, an embedded File cannot be ruled
+      // out. Such an inventory must refuse rather than report zero references.
+      if (source.field.kind === 'nominal' || source.field.kind === 'other') unsupportedComposite = true;
+      const file = field.valueType !== undefined && parseTypeId(field.valueType).base.kind === 'file';
+      if (source.field.kind !== 'file' && !file) continue;
+      fields.set(name, scenarioFileField({ artifactModels, canonicalModels }, canonical.name, name));
+    }
+    models.set(canonical.name, { fields, artifact });
+  }
+  const inventory = stableStringify({ canonicalModels, artifacts });
+  const checkInventory = () => {
+    if (inventory !== stableStringify({ canonicalModels: copyScenarioFileData(input.canonicalModels),
+      artifacts: copyScenarioFileData(input.artifactModels) })) return invalid('owning declarations changed; rebind the installed consumer.');
+  };
+  const assertRevision = async (revision: Revision) => {
+    if (await store.readRevision() !== revision) throw new StateError('conflict', 'File reference State checkpoint changed.');
+    checkInventory();
+  };
+  const readDef = (model: ModelName): GeneratedOperationDef | null => {
+    const def = registry.get(`${model}.read`);
+    return def !== undefined && isGeneratedOperationDef(def) && def.name === `${model}.read` &&
+      def.descriptor.name === def.name && def.kind === 'read' && def.descriptor.kind === 'read' ? def : null;
+  };
+  return {
+    observeReferences: async ref => {
+      fileRef(ref); checkInventory();
+      if (unsupportedComposite) return invalid('complete nominal File reference inventory requires its owning schema producer.');
+      const revision = await store.readRevision(), fence = openFenceScope(revision, scope.owner);
+      const references: CommittedFileReference[] = [];
+      let count = 0, referenceCount = 0;
+      for (const [model, definition] of models) {
+        if (definition.fields.size === 0) continue;
+        fence.enroll({ kind: 'query', model, authority: 'owner' });
+        const records = await store.query({ model, authority: 'owner', archived: 'include',
+          order: [{ field: 'id', direction: 'asc' }], limit: maxRows - count + 1 });
+        count += records.length; if (count > maxRows) return busy();
+        const seen = new Set<RecordId>();
+        for (const actual of records) {
+          const saved = row(actual);
+          if (seen.has(saved.id)) return invalid('duplicate committed row identity.');
+          seen.add(saved.id);
+          for (const [field, profile] of definition.fields) {
+            if (!Object.hasOwn(saved.data, field)) {
+              const descriptor = canonicalModels.find(candidate => candidate.name === model)!.fields[field]!;
+              if (descriptor.required) return invalid('required committed File slot is missing.');
+              continue;
+            }
+            const refs = scenarioFileWireRefs(profile, saved.data[field]);
+            referenceCount += refs.length; if (referenceCount > maxReferences) return busy();
+            refs.forEach((candidate, index) => {
+              if (candidate === ref) references.push(deepFreeze({ model, recordId: saved.id, rowVersion: saved.version,
+                field, index: profile.array ? index : null, ref, archived: saved.archivedAt !== null }));
+            });
+          }
+        }
+      }
+      await assertRevision(revision);
+      return Object.freeze({ scope, complete: true, revision, references: Object.freeze(references), revalidate: () => assertRevision(revision) });
+    },
+    read: async (rawLocator, rawCaller, consume) => {
+      const locator = copyScenarioFileData(rawLocator) as FileSlotLocator;
+      const caller = copyScenarioFileData(rawCaller) as FinalizedFileReceiver;
+      if (typeof locator !== 'object' || locator === null || Array.isArray(locator) ||
+          typeof caller !== 'object' || caller === null || Array.isArray(caller) ||
+          Object.keys(locator).length !== 4 || !text(locator.model) || !text(locator.recordId) || !text(locator.field) ||
+          Object.keys(caller).length !== 4 || !text(caller.principal) || caller.app !== scope.app ||
+          caller.team !== scope.team || caller.owner !== scope.owner || typeof consume !== 'function') return null;
+      fileRef(locator.ref); checkInventory();
+      const definition = models.get(locator.model), profile = definition?.fields.get(locator.field), def = readDef(locator.model);
+      if (definition === undefined || profile === undefined || def === null) return null;
+      const revision = await store.readRevision(), fence = openFenceScope(revision, scope.owner);
+      const loaded = await store.load(locator.model, locator.recordId);
+      if (loaded === null) return null;
+      const original = row(loaded);
+      if (original.id !== locator.recordId || original.archivedAt !== null || !Object.hasOwn(original.data, locator.field)) return null;
+      const wire = original.data[locator.field];
+      if (!scenarioFileWireRefs(profile, wire).includes(locator.ref)) return null;
+      const parents: { model: ModelName; row: StoredRow; def: GeneratedOperationDef }[] = [];
+      let selected = original, selectedDefinition = definition;
+      const visited = new Set<ModelName>([locator.model]);
+      while (selectedDefinition.artifact.parent !== undefined || selected.parent != null) {
+        const parent = selected.parent, model = selectedDefinition.artifact.parent as ModelName | undefined;
+        if (model === undefined || parent == null || parent.model !== model || visited.has(model) || parents.length >= 32) return null;
+        const parentDefinition = models.get(model), parentDef = readDef(model);
+        if (parentDefinition === undefined || parentDef === null) return null;
+        const loadedParent = await store.load(model, parent.id);
+        if (loadedParent === null) return null;
+        selected = row(loadedParent); selectedDefinition = parentDefinition;
+        if (selected.id !== parent.id || selected.archivedAt !== null) return null;
+        parents.push({ model, row: selected, def: parentDef }); visited.add(model);
+      }
+      const context: ByContext = { actorUserId: caller.principal === 'public' ? null : caller.principal,
+        teamId: caller.team, membership: caller.principal === 'public' ? null :
+          await memberships.findMembership(caller.team, caller.principal), memberships: memberships };
+      if (context.actorUserId !== null) fence.enroll({ kind: 'membership', teamId: caller.team, userId: context.actorUserId });
+      fence.enroll({ kind: 'record', model: locator.model, id: original.id, version: original.version });
+      const policies = new Map([locator.model, ...parents.map(parent => parent.model)].map(model => [model, policy.get(model)]));
+      const authority = await observeRowGrantAuthority(context, async current => {
+        for (const parent of parents) {
+          if (!await evaluateBy(parent.def.by, current) ||
+              (await projectCurrentRecordForViewerPolicy({ policy: policies.get(parent.model), context: current, row: parent.row })).record === null) return false;
+        }
+        const policy = policies.get(locator.model);
+        if (policy === undefined || policy.secretFields.some(secret =>
+          isEqualOrUnder(secret, locator.field) || isEqualOrUnder(locator.field, secret)) || !await evaluateBy(def.by, current)) return false;
+        const projected = await projectCurrentRecordForViewerPolicy({ policy, context: current, row: original });
+        return projected.record !== null && projected.allowed.some((allowed, index) =>
+          allowed && policy.grants[index]!.fields.includes(locator.field)) &&
+          stableStringify(projected.record.data[locator.field]) === stableStringify(wire);
+      });
+      if (!authority.value) return null;
+      const checkBindings = () => {
+        checkInventory();
+        if ([{ model: locator.model, def }, ...parents].some(entry => readDef(entry.model) !== entry.def) ||
+            [...policies].some(([model, captured]) => policy.get(model) !== captured)) {
+          throw new StateError('forbidden', 'Current File slot operation or policy changed.');
+        }
+      };
+      const revalidate = async () => {
+        checkBindings();
+        for (const entry of [{ model: locator.model, row: original, def }, ...parents]) {
+          const current = await store.load(entry.model, entry.row.id);
+          if (readDef(entry.model) !== entry.def || current === null || stableStringify(row(current)) !== stableStringify(entry.row)) {
+            throw new StateError('forbidden', 'Current File slot or owning row lifetime changed.');
+          }
+        }
+        await authority.revalidate();
+        await assertRevision(revision);
+        checkBindings();
+      };
+      await revalidate();
+      const result = await consume(Object.freeze({ model: locator.model, recordId: original.id,
+        rowVersion: original.version, field: locator.field, ref: locator.ref }));
+      if (result !== null && !(result instanceof Uint8Array)) return invalid('physical reader must return bytes or null.');
+      const bytes = result === null ? null : new Uint8Array(result);
+      await revalidate();
+      return bytes;
+    },
+  };
+}
