@@ -5634,6 +5634,35 @@ pass. Direct parameter modifiers are parser-refused E1200; do not implement an
 inferred legal profile. Shared envelopes/intake belong to Packages; native current
 ref-array ownership remains State/Dev.
 
+### 2026-10-10 — expose completed qualification through explicit construct help (unfinished whole profile)
+
+Explicit `construct.help` consumes the existing daemon-owned completed qualification bundle through the same exact card/profile/index/compiler predicate as diagnostic detail. Refresh actual captured source before and after lookup and withhold working availability for stale, cancelled, pending, historical, malformed or outside-profile evidence. Refuse unknown IDs before starting a job. Keep the captured card immutable and candidate coverage unknown; one card lookup does not establish a complete compiler candidate inventory. No new proof schema, external request or business authority is introduced.
+
+The actual private CLI/Unix component and owning card tests pass28/28, including one-job reuse, source changes before watcher delivery and existing malformed bundle/accessor refusal. Owning CF clean emission and root noEmit pass; reuse the unchanged actual41-card producer/browser result at its recorded tuple. Current consumed ad4 compiler rebuild12.32s and owning graph22/22 plus root noEmit/boundaries13packages/902files/1279expressions/zero violations qualify only that released intake. G2/G3, original native query/reference-array/membership/SEND producer joins, authorized actor/trace/row detail and exact external disclosure holds remain open.
+
+
+## 2026-10-10 — refuse unjoined async dispatch guards before publication (unfinished)
+
+Awaited derived expressions cannot appear in synchronous `when:()=>...` callbacks.
+Refuse E6008/no modules until the real live dispatch observer and frozen lexical
+transport exist; preserve admitted source and ordinary synchronous callback
+behavior. Actual CLI/refusal/executed binding3/3 and codegen121 pass. Do not hoist
+membership reads or accept Promises as booleans. Compiler's eventual lazy capture
+producer and State/Dev dispatch lifetime are prerequisites; no broader hold or
+Task22 lookup release is implied.
+
+
+## 2026-10-10 — join nominal model references to emitted inventory (unfinished native query)
+
+Admit an ordinary contract model leaf only through its exact checked Model
+SymbolId and canonical name in the actual emitted model inventory. Keep nominal
+contract fixed-point closure and existing unsupported wrappers; reference leaves
+do not copy model row schemas or confer existence/version/authority evidence.
+Use released Values normalization with actual same-load model names. Actual CLI/
+installed consumer4/4 and independent finite review pass; nullable/ordered arrays
+and wire/native version behavior remain owning codec semantics. Same-load loader
+and original native query/result provenance qualification remain separate.
+
 
 ### 2026-10-10 — intake released decision and bounded-ref prerequisites (unfinished consumers)
 
@@ -5654,3 +5683,20 @@ State clean emission and final new29/29 pass107.15ms; reuse unchanged existing22
 Consume existing Compiler canonical `Team` in the active_member slot, refusing lowercase `team` without adding a Values primitive or schema. Retain exact owner/source/guard-node identity across all predicate bindings before issuing opaque occurrence handles. Predicate aliases or altered authored position cannot duplicate a physical SEND guard. Failed overlap leaves a legitimate distinct site bindable. Correct current producer comments to require membership observation before claim. State/Work clean emissions and affected35/35 plus27/27 pass; Compiler owns the sole actual DTO→installed checker check. Other unchanged outcomes are reused.
 
 Proposed durable membership disclosure must use existing scenario outcomes/child associations with Compiler-owned return/query/control/lazy closure and a defining membership dependency/observation family. Commit-only callGuards disappear durably and cannot certify saved dependencies. Original multi-subject privacy needs a coherent Identity fence: existing projection deliberately withholds authorityFacts.size>1. This remains a prerequisite, not acceptance through a single-subject fixture or repeated non-atomic reads. State's retention/reader/projection extension is blocked on those exact producer facts.
+State/Work clean emissions and25/25 actual MemoryStorage/Work port checks pass with explicitly fixture Identity/native adapters. Reuse unchanged Work20 and State81. Dev's production won-claim admission/native lexical/capture join and Compiler source closure/emission remain necessary; saved-result membership closure and StateRead/pure/default/when activation stay proposed. Component checks do not solve cross-store atomicity or qualify the original application.
+
+
+## 2026-10-10 — serialize qualified decision source facts (unfinished runtime transport)
+
+Convert only the real qualified source/IR consumer output to the existing
+version1 site vocabulary. Preserve exact canonical identities, sources, offsets,
+stages/positions, argument order, slots, defaults and frames; use bounded fallible
+existing type IDs, including user and Team. Literal default module metadata must
+join the original checked module even without a nested call. Owning6/6 validates
+actual JSON and skew refusals. This is internal structural transport, without
+artifact registration, runtime private issuance, effect admission or authority.
+
+
+### 2026-10-10 — intake checked decision transport (unfinished native consumer)
+
+Exact reviewed LOCALd8d3cf87119384eaf8fb5ac1695a48ef828e143f is intaken onto33264a65. Reuse owning Compiler original29-file complete/omitted0/149diagnostic cohort, same-load nominal4/4, async CLI/binding3/3 plus codegen121 and serialized decision DTO6/6, and Dev actual construct-help caller selection at their finite scopes. No repeated source check or native workflow acceptance. Mandatory actual staged-tree/both-parent reconciliation since complete824934 registers1680commits,10825net deltas,11369historicalpaths,513history-only,9322pending allocations; the ordered reference-array test is registered, both parent scopes/owners/allocations/retirements and79features/30targetleaves remain. Checkpoint unadvanced. Compiler-specific Task22/BDD3 and Packages-specific preparation/publication holds apply only to those recipients; they do not stop State/Work. Genuine missing source/native/storage producers remain implementation prerequisites. LOCAL commits only.

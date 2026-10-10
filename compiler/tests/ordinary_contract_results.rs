@@ -215,13 +215,18 @@ fn unsupported_contract_closures_remain_unpublished_without_new_diagnostics() {
     let source = SOURCE.replace("  contract Flat {different:bool}", "  contract Flat {different:bool}\n  Record {title:text}\n  contract Container {record:Record}\n  contract Wrapper {container:Container}\n  contract Private {email:email}");
     let artifact = compile(&source, scratch.path(), "unsupported");
     let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
-    for unsupported in ["Other.Container", "Other.Wrapper", "Other.Private"] {
+    for supported in ["Other.Container", "Other.Wrapper"] {
         assert!(
-            !contracts
+            contracts
                 .iter()
-                .any(|contract| contract["name"] == unsupported)
+                .any(|contract| contract["name"] == supported)
         );
     }
+    assert!(
+        !contracts
+            .iter()
+            .any(|contract| contract["name"] == "Other.Private")
+    );
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let input = scratch.path().join("unknown.can");
     std::fs::write(
@@ -342,4 +347,115 @@ validateValue(valueSchema,'NominalBounds.Fact',{...valid,amount:'2.5'},'create')
             "{name}: {refusal}"
         );
     }
+}
+
+#[test]
+fn ordinary_contract_model_refs_use_the_actual_same_load_model_inventory() {
+    let scratch = tempfile::tempdir().unwrap();
+    let source = r#"package todo
+ Given
+  export Task {title:text trim min=1}
+  policy Task read=members fields=title
+ When
+ Then
+app ModelContracts
+use todo {Task}
+Given
+ contract Fact {task:Task,optional:Task?,tasks:Task[],version:int,title:Task.title}
+When
+ scenario snapshot(task:Task,optional:Task?,tasks:Task[],version:int,title:text) read=true -> Fact by=members
+  do return Fact {task,optional,tasks,version,title}
+Then
+"#;
+    let artifact = compile(source, scratch.path(), "model-contract");
+    let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
+    let fact = contracts
+        .iter()
+        .find(|contract| contract["name"] == "ModelContracts.Fact")
+        .unwrap();
+    assert_eq!(
+        fact["fields"],
+        json!([
+            {"name":"task","type":"todo.Task"},
+            {"name":"optional","type":"todo.Task?"},
+            {"name":"tasks","type":"todo.Task[]"},
+            {"name":"version","type":"int"},
+            {"name":"title","type":"text","trim":true,"min":1}
+        ])
+    );
+    assert!(
+        !contracts
+            .iter()
+            .any(|contract| contract["name"] == "todo.Task"),
+        "model row schemas are not nominal contracts"
+    );
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "ModelContracts.snapshot")
+        .unwrap();
+    assert_eq!(operation["result"], json!({"type":"ModelContracts.Fact"}));
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let runner = scratch.path().join("model-contract.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(process.argv[2]+'/package.json');
+const {normalizeValueTypes,validateValue,encodeValue,decodeValue}=await import(pathToFileURL(require.resolve('@canlang/values')));
+const artifact=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const models=artifact.models.map(model=>model.name);
+assert.deepEqual(models,['todo.Task']);
+const {valueTypes,valueSchema}=normalizeValueTypes(artifact.valueTypes,models);
+assert.ok(Object.isFrozen(valueTypes.contracts));
+assert.throws(()=>normalizeValueTypes(artifact.valueTypes),error=>error.code==='dangling');
+assert.throws(()=>normalizeValueTypes(artifact.valueTypes,[]),error=>error.code==='dangling');
+assert.throws(()=>normalizeValueTypes(artifact.valueTypes,[...models,'ModelContracts.Fact']),error=>error.code==='duplicate');
+assert.throws(()=>normalizeValueTypes(artifact.valueTypes,[...models,...models]),error=>error.code==='duplicate');
+const dangling=structuredClone(artifact.valueTypes);
+dangling.contracts.find(contract=>contract.name==='ModelContracts.Fact').fields[0].type='todo.Missing';
+assert.throws(()=>normalizeValueTypes(dangling,models),error=>error.code==='dangling');
+const first={id:'019a4500-0000-7000-8000-000000000001',version:'7'};
+const second={id:'019a4500-0000-7000-8000-000000000002',version:'9'};
+const wire={task:first,optional:null,tasks:[second,first],version:'7',title:'  Task  '};
+const native=validateValue(valueSchema,'ModelContracts.Fact',wire,'create');
+assert.equal(native.task.model,'todo.Task');
+assert.equal(native.task.version,7n);
+assert.equal(native.version,7n);
+assert.equal(native.optional,null);
+assert.equal(native.title,'Task');
+assert.deepEqual(native.tasks.map(ref=>[ref.model,ref.id,ref.version]),[['todo.Task',second.id,9n],['todo.Task',first.id,7n]]);
+assert.deepEqual(encodeValue('ModelContracts.Fact',native),{...wire,title:'Task'});
+assert.deepEqual(encodeValue('todo.Task',decodeValue('todo.Task',first)),first);
+const present=validateValue(valueSchema,'ModelContracts.Fact',{...wire,optional:second,tasks:[]},'create');
+assert.equal(present.optional.version,9n);
+assert.deepEqual(present.tasks,[]);
+const {task:omittedTask,...missingTask}=wire;
+assert.throws(()=>validateValue(valueSchema,'ModelContracts.Fact',missingTask,'create'));
+const readRef=validateValue(valueSchema,'ModelContracts.Fact',{...wire,task:{id:first.id}},'create');
+assert.equal(readRef.task.version,undefined);
+const normalizedRef=validateValue(valueSchema,'ModelContracts.Fact',{...wire,task:{...first,version:'07'}},'create');
+assert.equal(normalizedRef.task.version,7n);
+assert.equal(encodeValue('ModelContracts.Fact',normalizedRef).task.version,'7');
+for(const [index,invalid] of [
+ {...wire,unknown:true}, {...wire,task:null}, {...wire,task:{...first,title:'row contents'}},
+ {...wire,task:{...first,version:7}},
+ {...wire,optional:false}, {...wire,tasks:null}, {...wire,tasks:[null]},
+ {...wire,tasks:[{...second,version:'invalid'}]}, {...wire,title:'   '}
+].entries()) assert.throws(()=>validateValue(valueSchema,'ModelContracts.Fact',invalid,'create'),`invalid model contract case ${index}`);
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(scratch.path().join("model-contract.json"))
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
 }

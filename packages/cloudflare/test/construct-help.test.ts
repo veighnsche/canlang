@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { CATALOG } from "@canlang/values";
 import { UI_CATALOG } from "@canlang/ui";
 import {
+  FIRST_PROFILE,
   createConstructHelpIndex,
   joinCompilerConstructCandidates,
   loadConstructHelpIndex,
@@ -105,6 +106,32 @@ describe("captured construct help", () => {
     expect(index.candidates({ ...inventory, complete: false }, proofs).candidateCoverage).toBe("unknown");
     expect(index.candidates({ ...inventory, ids: ["can.v1.context.queue"] }, [proof("can.v1.context.queue", index.revision, index.compilerSha256)])
       .candidateCoverage).toBe("unknown");
+  });
+
+  it("qualifies explicit help only for an exact current included-profile proof", async () => {
+    const index = createConstructHelpIndex(await inputs());
+    const id = "can.v1.policy";
+    const captured = index.get(id)!;
+    const current = proof(id, index.revision, index.compilerSha256);
+    expect(captured.status).toBe("unavailable");
+    expect(index.get(id, FIRST_PROFILE)).toBe(captured);
+    const working = index.get(id, FIRST_PROFILE, current);
+    expect(working).toEqual({ ...captured, status: "working" });
+    expect(Object.isFrozen(working)).toBe(true);
+    expect(index.get(id)).toBe(captured);
+    expect(index.get(id, "local-d1-identity", current)).toBe(captured);
+    for (const unqualified of [
+      { ...current, profile: "local-d1-identity" },
+      { ...current, indexRevision: hash("previous help") },
+      { ...current, compilerSha256: hash("previous compiler") },
+      { ...current, id: "can.v1.invariant" },
+    ]) expect(index.get(id, FIRST_PROFILE, unqualified)).toBe(captured);
+    for (const outside of ["can.v1.import", "can.v1.context.queue"]) {
+      expect(index.get(outside, FIRST_PROFILE, proof(outside, index.revision, index.compilerSha256)))
+        .toBe(index.get(outside));
+      expect(index.get(outside)?.status).not.toBe("working");
+    }
+    expect(index.get("can.v1.not-a-card", FIRST_PROFILE, current)).toBeUndefined();
   });
 
   it("separates exact grammar coverage, explicit profile boundaries and working qualification", async () => {

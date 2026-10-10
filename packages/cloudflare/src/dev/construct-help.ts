@@ -238,7 +238,7 @@ export interface ConstructHelpIndex {
   readonly documentSha256: string;
   readonly compilerSha256: string;
   readonly cards: readonly ConstructHelpCard[];
-  get(id: string): ConstructHelpCard | undefined;
+  get(id: string, profile?: string, proof?: QualifiedConstructProof): ConstructHelpCard | undefined;
   candidates(inventory: CandidateInventory | null, proofs?: readonly QualifiedConstructProof[]): QualifiedCandidateSet;
   exactType(word: string, profile: string, proof?: QualifiedConstructProof): ConstructHelpCard | undefined;
 }
@@ -464,7 +464,11 @@ export function createConstructHelpIndex(input: ConstructHelpInputs): ConstructH
     documentSha256,
     compilerSha256: input.compiler.sha256,
     cards,
-    get(id: string): ConstructHelpCard | undefined { return byId.get(id); },
+    get(id: string, profile?: string, proof?: QualifiedConstructProof): ConstructHelpCard | undefined {
+      const card = byId.get(id);
+      return card && profile !== undefined && qualified(card, proof, revision, profile, input.compiler.sha256)
+        ? Object.freeze({ ...card, status: "working" as const }) : card;
+    },
     candidates(inventory: CandidateInventory | null, proofs: readonly QualifiedConstructProof[] = []): QualifiedCandidateSet {
       if (!inventory || !inventory.slot || !inventory.complete || inventory.indexRevision !== revision ||
           inventory.compilerSha256 !== input.compiler.sha256 || !inventory.profile) {
