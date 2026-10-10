@@ -7233,3 +7233,31 @@ Changed owning Testkit emission0 and the two affected existing suites37/37 pass 
 ### 2026-10-10 — manual local integration of ecc46d57
 
 Finite Testkit selector-channel reader/router and fixture/caller consumer review is CLEAR. Reuse owning tsc0 and37 affected checks covering dense own metadata, arity and contradictions, copied frozen routing across awaits, whole lexical request creation, fixture identity, caller and wire separation, unsafe paths and deliberate legacy behavior when metadata is absent. Exact Compiler emission and Dev materializer/native producer-consumer qualification remain pending; no authority, policy, held preparation or whole-plan acceptance follows. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — map only the released DatetimeValue representation (unfinished)
+
+Consume the exact released Contracts/Values frozen bigint DatetimeValue facade as
+the existing datetime scalar. This narrowly supersedes the earlier opaque leaf
+decision; WorkflowField and unknown named leaves remain opaque. No Object/Opaque
+compatibility or whole-message comparison is introduced. Actual emitted
+IncomingEmail.received input and typed equality pass the installed Cloudflare/
+State Memory consumer1/1 in1.16s: constructor offset normalization, canonical
+millisecond-Z wire, inclusive0001..9999 range, malformed/noncanonical/range/type/
+null refusals and preserved enum/receipt controls. isDatetime remains a shape
+guard, not range/provenance admission. Unknown WorkflowInspection.fields is
+ArrayOpaque and real CLI E6008 publishes no modules; text/duration comparison
+refuses E3002.
+
+Affected355 distinct checks pass; only Inbox43→41 changes in the all52/full-
+assertion corpus,51 other pins retained. Finite independent review is CLEAR.
+Corrected test assumptions use the real CLI publication stage and actual
+input.field.kind rather than an invented valueType. Current changed whole/lint
+and original25 recomputation follow the related checked-selector unit; prior
+frozen1422/138 is historical for this new production change. Whole IncomingEmail
+identity/equality, verified native ingress,58/67/nine references and precise
+BDD3/Task22 holds remain unfinished. Local commits only.
+
+### 2026-10-10 — manual local integration of d26442ca
+
+Finite independent and manual review is CLEAR for exact DatetimeValue scalar-leaf correspondence and the actual generated-source CF/State Memory consumer. Reuse355 distinct affected passing checks and final native1/1 at1.16s; no generic Object/Opaque widening and WorkflowField/std-ingress E6008 refusals remain. Inbox43 to41 corpus is qualified; original25 recomputation and changed whole/lint remain pending with the related checked-selector unit, so historical1422/138 is not current-head acceptance. Full-plan counts and recipient-specific holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
