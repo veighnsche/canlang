@@ -6257,3 +6257,30 @@ Await the actual final revision check before asserting terminal query health and
 ### 2026-10-10 — manual local integration of 1af76e32
 
 Manual review CLEAR for Dev38cfc597 plus final fence correction1af76e32. Genuine admitted public reads privately issue receipt-free helper lifetimes; reuse actual viewer projections, full false/empty observation domains, original selected slots/native references/order and State bound query/return/schema projection. Current authority and revision re-admission remain genuine; private children retain exact State call/store/root fences. Caught failures, pending work, changed results and late markers are terminal; final physical revision await now precedes synchronous terminal health/result checks and finally closure. Reuse owning private48 and legacy public1 results, clean emits/root types/boundary0, and corrected affected public1 passing90.90ms with13 refusal modes plus actual final-fence caught-failure regression. Compiler duplicate return-selection correction and genuine Complete compiled public/private/parent workflows remain pending, separate from typed File retained association, row-selected policy and Office/G1–G3. Full plans and precise holds remain incomplete. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+Compiler intake of reviewed LOCALbb234ad8, 2026-10-10 (unfinished source joins): preserve both committed275b439e ande9a248ba compiler units while consuming exact reviewed Dev948 actual reader, Files/Interfaces4a explicit upload range contract, Packagesf0 State Identity test dependency/lock repair and378 protocol documentation. Reuse all unchanged owning outcomes, including generated public1/1, Dev48, upload168 and boundary0. No independent common repair, remote publication, native read grant, File association fabrication or hold release. Reconcile accumulated staged compiler tree/history preserving all released allocations and unadvanced complete checkpoint.
+
+### 2026-10-10 — prepare protected query child calls without granting partial output (unfinished)
+
+Require a separately Complete acyclic query child and the exact original
+nondefault parent parameters. Preserve authored input order and an unused
+binding; consuming that bound result remains declined until owning provenance
+is implemented. Actual codegen correspondence uses owning model Ref descriptors,
+parent version requirements, read-child version omission and exact finite bounds;
+ordinary reused reference arrays are not nominal value aliases. The immutable
+fresh prepared query recipe alone owns executable/source correspondence.
+
+The current native publication gate withdraws both child and parent recipes;
+genuine full emission reports E6008 for the unsupported call and activates no
+capture helper. Affected320/320 and finite independent review qualify preparation
+only. Setup corrections preserve the actual catalog owner and distinguish
+E3005 cycle rejection from disclosure refusal. Reuse unchanged whole/editor and
+public1/1 results. Actual native publication must retain strict host lifetime and
+select the query return exactly once, then qualify genuine compiled public and
+protected parent execution after reviewed defining Dev/State intake. Full
+references and existing precise holds stay unfinished.
+
+### 2026-10-10 — manual local integration of 59e6733c
+
+Manual source review CLEAR for Compiler59e6733c finite protected query parent preparation. Only direct original nondefault parent references or bounded reference arrays may prepare a separately Complete acyclic query child; preserve authored input/call order, unused binding, actual Ref model/version and matching finite bounds. Consumed results, copied/computed/defaulted operands and general unsupported calls remain refused. Source, indexed IR and actual published disclosure must agree; immutable fresh prepared recipes own executable authority. The native result gate remains CLOSED: actual full emission reports expected E6008 and withdraws parent/child disclosure and helpers. Reuse320 affected checks and strict lint/format;58/67 whole completion unchanged. Reviewed Dev dual host lifetime is in local main6c3d350c. Compiler owns one-selection correction and genuine Complete publication/compiled public-private-parent qualification; typed File, row-selected policy and precise holds remain separate. Preserve all existing decision text; reconcile living ownership/coverage without advancing complete checkpoint. No remote push or publication.
