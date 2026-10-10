@@ -48,7 +48,7 @@ use crate::analysis::resolve::{
 };
 use crate::analysis::types::{
     CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionMapping, ResolvedType, Scalar,
-    SelectedCallTarget,
+    SelectedCall, SelectedCallTarget,
 };
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
@@ -1220,6 +1220,9 @@ pub struct IrQuery {
     /// Actual checked authored query, before lexical clause identities are erased.
     /// Synthetic and example-only queries do not acquire a source proof.
     pub source: Option<CheckedQuery>,
+    /// Exact selected collection call, joined to this query and its external predicate.
+    /// This is source correspondence, not native query admission.
+    pub collection_call: Option<Box<crate::analysis::types::CheckedCollectionCall>>,
     /// Query domain.
     pub domain: IrQueryDomain,
     /// Containment parent value, if any (model domains only).
@@ -3210,6 +3213,7 @@ impl<'a> Cx<'a> {
                     // query contract with no clauses.
                     return IrExpr::Query(IrQuery {
                         source: None,
+                        collection_call: None,
                         domain: IrQueryDomain::Model(self.canonical(id)),
                         parent: None,
                         where_pred: None,
@@ -3449,6 +3453,7 @@ impl<'a> Cx<'a> {
             return TypedExpr::new(
                 IrExpr::Query(IrQuery {
                     source: None,
+                    collection_call: None,
                     domain: IrQueryDomain::Model(self.canonical(child)),
                     parent: Some(Box::new(parent)),
                     where_pred: None,
@@ -3576,6 +3581,140 @@ impl<'a> Cx<'a> {
         self.unsupported_expr("member access", "no base expression", ty.clone(), node.span)
     }
 
+    /// Join the actual selected overload and authored predicate to its lowered
+    /// query. An absent fact leaves ordinary lowering unchanged, without proof.
+    fn join_collection_call(
+        &self,
+        node: &SyntaxNode,
+        id: &str,
+        overload: usize,
+        selected: &SelectedCall,
+        args: &mut [TypedExpr],
+    ) -> bool {
+        let Some(fact) = self
+            .program
+            .types
+            .checked_collection_calls
+            .get(&NodeKey::of(node))
+        else {
+            return true;
+        };
+        let has_predicate = matches!(id, "any" | "all");
+        let arity = if has_predicate { 2 } else { 1 };
+        if fact.node != NodeKey::of(node)
+            || fact.builtin != id
+            || fact.overload != overload
+            || (!has_predicate && !matches!(id, "count" | "first"))
+            || selected.slots.len() != arity
+            || args.len() != arity
+        {
+            return false;
+        }
+        let Some(domain_slot) = selected.slots.first().copied().flatten() else {
+            return false;
+        };
+        let Some(TypedExpr {
+            expr: IrExpr::Query(query),
+            ty,
+            ..
+        }) = args.get(domain_slot)
+        else {
+            return false;
+        };
+        let Some(source) = query.source.as_ref() else {
+            return false;
+        };
+        let Some(alias) = source
+            .clauses
+            .iter()
+            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))
+        else {
+            return false;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return false;
+        };
+        if !self
+            .program
+            .symbols
+            .get(fact.model.0 as usize)
+            .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Model { .. }))
+        {
+            return false;
+        }
+        let row = ResolvedType::Record {
+            symbol: fact.model,
+            stored: true,
+        };
+        let domain_matches = match &query.domain {
+            IrQueryDomain::Model(model) => *model == self.canonical(fact.model),
+            IrQueryDomain::Value { base, alias } => {
+                *alias == *name && query_element_ty(&base.ty) == row
+            }
+        };
+        if source.node != fact.query
+            || alias.node != fact.alias
+            || *ty != source.result
+            || query_element_ty(&source.result) != row
+            || query_element_ty(&source.domain_type) != row
+            || !domain_matches
+        {
+            return false;
+        }
+        if has_predicate {
+            let Some(predicate) = fact.predicate.as_ref() else {
+                return false;
+            };
+            let Some(slot) = selected.slots.get(1).copied().flatten() else {
+                return false;
+            };
+            let Some(TypedExpr {
+                expr: IrExpr::Lambda { param, body },
+                ty,
+                ..
+            }) = args.get(slot)
+            else {
+                return false;
+            };
+            let Some(mut predicate_node) = self.node(&predicate.node) else {
+                return false;
+            };
+            for depth in 0..=64 {
+                if predicate_node.kind != SyntaxKind::Group {
+                    break;
+                }
+                if depth == 64 {
+                    return false;
+                }
+                let Some(inner) = kids(predicate_node)
+                    .into_iter()
+                    .find(|child| is_expression(child.kind))
+                else {
+                    return false;
+                };
+                predicate_node = inner;
+            }
+            let boolean = ResolvedType::Scalar(Scalar::Bool);
+            if selected.arguments.get(slot) != Some(&predicate.node)
+                || self.program.types.node_types.get(&predicate.node) != Some(&boolean)
+                || predicate.ty != boolean
+                || *ty != boolean
+                || body.ty != boolean
+                || body.span != predicate_node.span
+                || param != name
+            {
+                return false;
+            }
+        } else if fact.predicate.is_some() {
+            return false;
+        }
+        let IrExpr::Query(query) = &mut args[domain_slot].expr else {
+            return false;
+        };
+        query.collection_call = Some(Box::new(fact.clone()));
+        true
+    }
+
     /// Decode a delivery observation: `record.field.props...` with
     /// compiler-resolved provenance plus the static prop list.
     fn decode_delivery_read(
@@ -3669,7 +3808,7 @@ impl<'a> Cx<'a> {
         {
             return bad_binding();
         }
-        match selected.target {
+        match selected.target.clone() {
             SelectedCallTarget::Builtin { id, overload } => {
                 let Some(entry) = self.catalog.and_then(|catalog| catalog.lookup(&id)) else {
                     return bad_binding();
@@ -3712,7 +3851,7 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 });
                 self.g13_seen.insert(id.clone());
-                let args = selected
+                let mut args: Vec<TypedExpr> = selected
                     .arguments
                     .iter()
                     .enumerate()
@@ -3795,6 +3934,14 @@ impl<'a> Cx<'a> {
                         self.decode_anchored(scope, key, "call argument")
                     })
                     .collect();
+                if !self.join_collection_call(node, &id, overload, &selected, &mut args) {
+                    return IrExpr::Unsupported {
+                        what: "collection call source facts".into(),
+                        why:
+                            "checked query, alias or external predicate disagrees with lowered call"
+                                .into(),
+                    };
+                }
                 Self::selected_call_expr(
                     IrCallTarget::Builtin { id, awaited },
                     args,
@@ -4501,6 +4648,7 @@ impl<'a> Cx<'a> {
         };
         IrExpr::Query(IrQuery {
             source: checked,
+            collection_call: None,
             domain,
             parent,
             where_pred,

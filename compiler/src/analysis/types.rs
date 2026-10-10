@@ -513,9 +513,30 @@ pub enum CheckedQueryClauseKind {
     Select,
 }
 
+/// Actual selected collection builtin and its checked external predicate.
+/// This retains authored source positions; it grants no native query execution.
+#[derive(Debug, Clone)]
+pub struct CheckedCollectionCall {
+    pub node: NodeKey,
+    pub builtin: String,
+    pub overload: usize,
+    pub query: NodeKey,
+    pub alias: NodeKey,
+    pub model: SymbolId,
+    pub predicate: Option<CheckedCollectionPredicate>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedCollectionPredicate {
+    pub node: NodeKey,
+    pub ty: ResolvedType,
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Selected query-domain collection calls; separate from authored Where clauses.
+    pub checked_collection_calls: HashMap<NodeKey, CheckedCollectionCall>,
     /// Successful query typing, preserving domain and authored clause identities.
     pub checked_queries: HashMap<NodeKey, CheckedQuery>,
     /// Checked local view host models, without executable symbols.
@@ -15540,6 +15561,9 @@ impl<'a> Typer<'a> {
     /// Scenarios/capability operations/CRUD operations are invoked
     /// with `call` statements, never expression calls (`E3005`).
     fn type_call(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
+        self.types
+            .checked_collection_calls
+            .remove(&NodeKey::of(node));
         let parts = kids(node);
         let callee = parts.iter().find(|n| is_expression(n.kind)).copied();
         let Some(callee) = callee else {
@@ -15704,6 +15728,7 @@ impl<'a> Typer<'a> {
         id: &str,
         args: &[CallArg],
     ) -> ResolvedType {
+        let diagnostic_start = self.diags.len();
         let catalog = match self.catalog {
             Some(catalog) => catalog,
             None => return ResolvedType::Error,
@@ -15815,7 +15840,7 @@ impl<'a> Typer<'a> {
                 );
                 let ordered_args: Vec<_> = slots.iter().map(|&slot| args[slot].clone()).collect();
                 let ordered_types: Vec<_> = slots.iter().map(|&slot| typed[slot].clone()).collect();
-                return self.finish_builtin_call(
+                let result = self.finish_builtin_call(
                     cx,
                     &overloads[index],
                     id,
@@ -15823,6 +15848,18 @@ impl<'a> Typer<'a> {
                     &ordered_types,
                     result,
                 );
+                if !result.is_error()
+                    && !self.diags[diagnostic_start..]
+                        .iter()
+                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+                    && let Some(fact) =
+                        self.checked_collection_call(node, &overloads[index], &ordered_args)
+                {
+                    self.types
+                        .checked_collection_calls
+                        .insert(NodeKey::of(node), fact);
+                }
+                return result;
             }
             // Failure precedence: precise literal shape (`E3001`) >
             // precise case expectation (`E3005`) > generic mismatch
@@ -15851,6 +15888,128 @@ impl<'a> Typer<'a> {
             }
         }
         ResolvedType::Error
+    }
+
+    fn checked_collection_call(
+        &self,
+        node: &SyntaxNode,
+        overload: &SigOverload,
+        ordered_args: &[CallArg],
+    ) -> Option<CheckedCollectionCall> {
+        let selected = self.types.selected_calls.get(&NodeKey::of(node))?;
+        let SelectedCallTarget::Builtin {
+            id,
+            overload: index,
+        } = &selected.target
+        else {
+            return None;
+        };
+        let has_predicate = matches!(id.as_str(), "any" | "all");
+        if !has_predicate && !matches!(id.as_str(), "count" | "first") {
+            return None;
+        }
+        if overload.params.len() != if has_predicate { 2 } else { 1 }
+            || ordered_args.len() != overload.params.len()
+            || selected.slots.len() != ordered_args.len()
+        {
+            return None;
+        }
+        let domain = overload.params.first()?;
+        if domain.name != "domain"
+            || !matches!(
+                domain.ty,
+                SigType::Collection(_)
+                    | SigType::OrderedCollection(_)
+                    | SigType::NonemptyCollection(_)
+            )
+        {
+            return None;
+        }
+        if has_predicate {
+            let predicate = overload.params.get(1)?;
+            if predicate.name != "predicate"
+                || predicate.ty != SigType::Named("bool".into())
+                || domain.alias.is_none()
+                || predicate.in_scope != domain.alias
+            {
+                return None;
+            }
+        }
+        for (slot, argument) in selected.slots.iter().zip(ordered_args) {
+            if selected.arguments.get((*slot)?) != Some(&NodeKey::of(argument.value)) {
+                return None;
+            }
+        }
+        let mut query_node = ordered_args.first()?.value;
+        let mut depth = 0usize;
+        while query_node.kind == SyntaxKind::Group {
+            depth += 1;
+            if depth > 64 {
+                return None;
+            }
+            query_node = kids(query_node)
+                .into_iter()
+                .find(|child| is_expression(child.kind))?;
+        }
+        if query_node.kind != SyntaxKind::Query {
+            return None;
+        }
+        let query = self.types.checked_queries.get(&NodeKey::of(query_node))?;
+        let ResolvedType::Array { element, .. } = &query.result else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        if !matches!(
+            self.tables.symbols.get(model.0 as usize)?.kind,
+            SymbolKind::Model { .. }
+        ) {
+            return None;
+        }
+        // The resolver exports the first actual top-level As declaration to
+        // later arguments. No spelling-based search through unrelated aliases.
+        let alias = query
+            .clauses
+            .iter()
+            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))?
+            .node;
+        if self.aliases.get(&alias) != Some(element.as_ref())
+            || self
+                .types
+                .node_types
+                .get(&NodeKey::of(ordered_args[0].value))
+                != Some(&query.result)
+        {
+            return None;
+        }
+        let predicate = if has_predicate {
+            let argument = ordered_args.get(1)?;
+            let key = NodeKey::of(argument.value);
+            let ty = self.types.node_types.get(&key)?;
+            if ty != &ResolvedType::Scalar(Scalar::Bool) {
+                return None;
+            }
+            Some(CheckedCollectionPredicate {
+                node: key,
+                ty: ty.clone(),
+            })
+        } else {
+            None
+        };
+        Some(CheckedCollectionCall {
+            node: NodeKey::of(node),
+            builtin: id.clone(),
+            overload: *index,
+            query: query.node,
+            alias,
+            model: *model,
+            predicate,
+        })
     }
 
     /// Count of `nonempty`/`ordered` collection markers in one
