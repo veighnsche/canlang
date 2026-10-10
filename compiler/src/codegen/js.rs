@@ -2274,7 +2274,8 @@ impl<'a> Emitter<'a> {
                     | Scalar::Date
                     | Scalar::Datetime
                     | Scalar::Duration
-                    | Scalar::User,
+                    | Scalar::User
+                    | Scalar::File,
                 ) => checked_value_profile(ty).is_some(),
                 // Declaration identity distinguishes a contract from a model;
                 // reused named-contract field types also carry `stored:true`.
@@ -2284,6 +2285,19 @@ impl<'a> Emitter<'a> {
                             item.id == *symbol
                                 && matches!(item.kind, IrItemKind::Model { .. })
                                 && model_names.contains(&item.canonical)
+                        })
+                }
+                // Values owns tagged nominal unions. Admit only complete
+                // ordinary contract arms; stored-model unions retain their
+                // separate, unsupported field profile.
+                ResolvedType::Union(arms) => {
+                    arms.len() >= 2
+                        && arms.iter().all(|symbol| {
+                            contracts.contains(symbol)
+                                && ir.items.get(symbol.0 as usize).is_some_and(|item| {
+                                    item.id == *symbol
+                                        && matches!(item.kind, IrItemKind::Contract { .. })
+                                })
                         })
                 }
                 ResolvedType::Enum {
