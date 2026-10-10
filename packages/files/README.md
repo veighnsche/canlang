@@ -35,6 +35,7 @@ const route = routeHost(origin, { name: 'host', fileTransferVersions: [1] });
 Key exports by module:
 
 - `src/upload/index.ts`: `createUploadIntent`, `appendUploadContent`,
+  `appendUploadContentAtOffset`,
   `completeUploadContent`, `DEFAULT_FILE_POLICY`, `detectContentType`,
   `checkContent`, `sha256Hex`, `stagingKeyForIntent`
 - `src/upload/fs-blob-store.ts`: `createFsBlobStore`
@@ -44,10 +45,10 @@ Key exports by module:
 - `src/provenance/index.ts`: `bindRequestProvenance`,
   `validateEventProvenance`, `freezeFinalized`, `isSameReceiver`,
   `requestProvenanceMatches`
-- `src/retention/index.ts`: `runRetention`, `describeForReceipt`
+- `src/retention/index.ts`: `runRetention`, `runRetentionBatch`, `describeForReceipt`
 - `src/bridge.ts`: `createBridgeOrigin`, `intentsUrlFor`,
   `advertiseFileTransfer`, `routeHost`, `handleCreateIntent`,
-  `handleAppend`, `handleComplete`, `handleFinalize`,
+  `handleAppend`, `handleAppendAtOffset`, `handleComplete`, `handleFinalize`,
   `FILE_TRANSFER_META_KEY`
 - `src/ports.ts`: `assertSafeBlobKey` plus the `TestOnly*` doubles
   (`TestOnlyManualClock`, `TestOnlyMemoryBlobStore`,
@@ -56,6 +57,49 @@ Key exports by module:
   `TestOnlyFixedPrincipal`)
 - `src/catalog.ts`: `filesCatalog`, `FILES_CATALOG_VERSION`
 - `src/scenarios.ts`: `FILES_SCENARIO_TABLES` (pinned empty, by design)
+- `src/host/sqlite.ts`: `createSqliteFileStore`, `createSqliteFileBindings`
+  (explicit Node host; metadata and bytes share one transaction)
+
+Upload HTTP PUT requests require a canonical nonnegative decimal
+`upload-offset` header identifying the first byte of the submitted range.
+The SQLite binding's `append(intentId, caller, bytes, expectedOffset)`
+requires the same explicit offset. Matching retained ranges acknowledge
+their end without appending; identical bytes at the next offset append
+normally. Gaps, partial overlaps and changed retained bytes conflict.
+`received_bytes` acknowledges this range's end; `complete` and `check`
+describe the current validated transfer. An unchanged completed upload
+can recover a lost reply. Finalized, rejected and expired intents never
+reopen. The metadata-free `appendUploadContent` and `handleAppend` remain
+legacy entry points without retry safety.
+
+Finalization saves its publication reference/time before final bytes,
+verifies exact bytes/count/digest and prior immutable metadata, then saves
+the finalized intent before removing staging. SQLite commits the journey
+mutation atomically. Separate FS bytes and persisted metadata can recover
+interrupted serial publication; their ports require host serialization for
+concurrent writers and do not imply multi-store or power-loss guarantees.
+Retention cleans unpublished terminal bytes while published files keep
+their own policy and immutable tombstones.
+
+The SQLite binding exposes `runRetentionBatch(config, {limit, cursor})`.
+The explicit limit is an integer from 1 through 1000 shared by intent and
+file traversal. `processed` counts every visited row, including ineligible
+and terminal records. Storage uses ordered keysets and SQL limits; it never
+loads a full collection or an extra lookahead row. Pending-intent cleanup
+may need one file lookup to protect published bytes. `metadataReads` counts
+traversed rows plus these point lookups, including absent results, and is
+bounded by twice the limit. Byte-size checks and idempotent deletion
+operations are separately bounded per visited row.
+
+Save `next` only after a successful call. The SQLite binding commits
+metadata and bytes together; retry an interrupted call with its prior
+cursor. A full page can require a final empty probe. When `next` is null,
+that sweep is complete; start a later sweep with a null/omitted cursor to
+revisit newly due rows and insertions before the previous cursor. The clock
+is fresh per batch. This is a traversal position rather than a frozen
+snapshot, authority or disposal deadline. `runRetention` retains its
+legacy unbounded full-list behavior. Shared attachment lifetime, download
+authority and provider/native qualification remain separate.
 
 ## Scripts
 

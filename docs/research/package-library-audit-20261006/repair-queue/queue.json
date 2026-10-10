@@ -2047,7 +2047,7 @@
     {
       "family": "FILES",
       "kind": "correctness",
-      "readiness": "implementing-owning-durable-publication-and-upload-contract",
+      "readiness": "implemented-owning-durable-publication-and-offset-contract-native-consumer-pending",
       "audit_finding_ids": [
         "LF02",
         "LF03",
@@ -2057,7 +2057,7 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Packages owns defining Files/Interfaces append retry and finalization phases; actual selected SQLite transaction is available. Necessary narrow Interfaces forwarding/route and Files bridge/host hunks released by coordinator. Exact abstract three-request retry consultation specifically held by auto-review pending human approval. Native/mounted/provider deployment qualification needs its actual host owner; FS separate-store concurrency/power-loss not implied by serial reopen tests."
+        "Packages defining SQLite atomic append/range identity, recoverable serial finalization phases and Interfaces required-offset transport implemented/owning-tested. Dev owns actual bound-images fourth offset and typed-file HTTP headers plus native qualification; actual deployment/provider owner owns live R2/mounted and concurrent external-store/power-loss requirements. Exact retry consultation trio completed once after specific human approval; unrelated holds persist."
       ],
       "intended_deleted_mechanisms": [
         "None. Replace blind append/count and untracked multistore finalization only after selected storage mechanism release; retain signature allowlist/readable prefix checks and bounded transfer."
@@ -2177,7 +2177,7 @@
     {
       "family": "FILES / SOURCE INGRESS",
       "kind": "qualification",
-      "readiness": "blocked-current-record-field-lifetime-and-provider-namespace-contract-release",
+      "readiness": "partial-bounded-retention-implemented-authority-provider-joins-blocked",
       "audit_finding_ids": [
         "LF01",
         "LF04",
@@ -2194,7 +2194,7 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Current operation/field availability + generated canonical descriptor join; shared attachment/read/download owners and resumable retention driver; authenticated provider namespace/occurrence age/replay/effect correlation released by FP.SOURCE-MAPPINGS. Existing security review pending."
+        "Bounded keyset metadata retention and real SQLite transactional continuation implemented/owning-tested with explicit combined traversal cap and bounded auxiliary lookups. Current operation/field descriptor availability, shared attachment/read/download lifetime and authenticated provider namespace/occurrence age/replay/effect correlation remain unreleased owner joins. Existing security and human holds unchanged; no full-packet acceptance."
       ],
       "intended_deleted_mechanisms": [
         "None. Retain explicit file doubles/public storage seams and signature catalog; new download/retention/backend source names must be proposed only after owner release."
@@ -2207,7 +2207,7 @@
       "decisive_actual_caller_recipe": "Mounted upload intent→current writable slot; finalized attachment→canonical record/field authority/read/download; durable retention and verified provider receiving-file ingress.",
       "positive_acceptance_recipe": "Current same-owner readable attachment works; bounded retention respects every shared reference; receipt availability and original finalized identity truthful; verified fresh provider event finalizes once.",
       "negative_acceptance_recipe": "Unavailable operation/field, deleted/missing bytes, expired retention, foreign record and replayed provider event refuse; delete-before-stateput restart cannot leave live attachment authority; multiple attachment references cannot be overwritten as a single sole blocker.",
-      "execution_authorized": false,
+      "execution_authorized": true,
       "canonical_task_references": [
         {
           "id": "finished-product:FP.FILES-DURABLE",
@@ -2305,7 +2305,7 @@
         "packages/interfaces/src/ingress/mapping.ts"
       ],
       "new_files_proposal_only": [],
-      "status": "blocked",
+      "status": "implementing",
       "depends_on_packets": [],
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
@@ -2316,13 +2316,13 @@
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
-        "state": "proposed; no live lease or acknowledgment claimed",
+        "state": "coordinator released finite bounded-retention component, with no competing writer on these exact files",
         "defining_owners": [
           "cloudflare",
           "files",
           "interfaces"
         ],
-        "release": "Obtain exact-file writer release and source-current handoff before edits; compiler remains foreign-owned."
+        "release": "Ports.ts,retention/index.ts,host/sqlite.ts and existing retention.test.ts plus directly related README/DECISIONS/existing queue-state only. Cloudflare/native source and other shared lifetime/provider/source contract files remain owning prerequisites."
       },
       "acceptance_limits": [
         "No runtime acceptance from this planning packet. Source helper, registered Rust and historical fixtures do not certify actual installed/durable/browser consumers.",

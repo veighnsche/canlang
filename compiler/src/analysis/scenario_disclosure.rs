@@ -113,6 +113,19 @@ pub struct DisclosureQuery {
     pub influences: Vec<DisclosureInfluence>,
 }
 
+impl DisclosureQuery {
+    /// The checked projection return identity shared by admission and transport.
+    pub fn return_id(&self) -> String {
+        sha256_hex(
+            format!(
+                "query-return:{}:{}:{}",
+                self.id, self.return_node.start, self.return_node.end
+            )
+            .as_bytes(),
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DisclosureQueryOrder {
     pub field: SymbolId,
@@ -380,6 +393,9 @@ pub fn analyze_scenario_disclosure(
             let result = (|| {
                 if scenario.on.is_some() {
                     return Err(cx.fail(scenario.node, "trusted handler"));
+                }
+                if let Some(plan) = cx.complete_query(scenario)? {
+                    return Ok(plan);
                 }
                 let signature = types
                     .symbol_results
@@ -1023,6 +1039,281 @@ impl<'a> Closure<'a> {
             calls,
             decision_sites: self.checked_decision_sites(scenario),
             queries: self.checked_query_sources(scenario),
+        })
+    }
+
+    /// Prove the finite whole read declaration separately from its source inventory.
+    /// Query candidates remain in the query inventory, never scalar observations.
+    fn complete_query(
+        &mut self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Result<Option<CheckedScenarioDisclosure>, DisclosureDecline> {
+        let Some(queries) = self.checked_query_sources(scenario) else {
+            return Ok(None);
+        };
+        let [query] = queries.as_slice() else {
+            return Ok(None);
+        };
+        let fail = || self.fail(scenario.node, "incomplete finite query declaration");
+        if !scenario.read
+            || scenario.on.is_some()
+            || scenario.scope_authority
+            || scenario.cohort.is_some()
+            || scenario.params.len() != 2
+            || scenario.params.iter().any(|param| param.default.is_some())
+            || self.checked_source_facts(scenario).is_none()
+        {
+            return Err(fail());
+        }
+        let targets = query.inputs[0].1;
+        let location = query.inputs[1].1;
+        if targets == location
+            || query.inputs[2].1 != targets
+            || !scenario
+                .params
+                .iter()
+                .all(|param| param.param == targets || param.param == location)
+        {
+            return Err(fail());
+        }
+        let record = ResolvedType::Record {
+            symbol: query.model,
+            stored: true,
+        };
+        let Some(ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        }) = self.types.symbol_types.get(&targets)
+        else {
+            return Err(fail());
+        };
+        if **element != record {
+            return Err(fail());
+        }
+        // Parameters retain ordinary array omission semantics; the field-only
+        // `!` is not borrowed. Exact positive finite bounds still refuse empty
+        // inputs through their owning admission contract.
+        let alias = self.query_parameter_bounds(targets).ok_or_else(|| {
+            self.fail(
+                scenario.node,
+                "query parameter needs owning positive finite bounds",
+            )
+        })?;
+        if !matches!(self.types.symbol_types.get(&location),
+            Some(ResolvedType::Record {symbol, stored: true})
+            if matches!(self.resolve.symbols.get(symbol.0 as usize).map(|s| &s.kind), Some(SymbolKind::Model {..})))
+            || !matches!(self.types.symbol_results.get(&scenario.scenario),
+                Some(Some(ResolvedType::Array {element, ordered: true, nonempty: false}))
+                if matches!(element.as_ref(), ResolvedType::Record {symbol, ..} if *symbol == query.projection.contract)
+                    && matches!(self.resolve.symbols.get(query.projection.contract.0 as usize).map(|s| &s.kind), Some(SymbolKind::Contract {..})))
+        {
+            return Err(fail());
+        }
+        for param in &scenario.params {
+            let node = self.nodes.get(&param.type_node).ok_or_else(fail)?;
+            if node.kind != SyntaxKind::NamedType {
+                return Err(self.fail(
+                    param.type_node,
+                    "query parameter needs exact owning named type",
+                ));
+            }
+            let mut paths = node
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Path);
+            let path = paths.next().ok_or_else(fail)?;
+            if paths.next().is_some() {
+                return Err(fail());
+            }
+            let declaration = self.resolve.node_typeref.get(&NodeKey::of(path));
+            let owns_type = if param.param == targets {
+                matches!(declaration, Some(TypeRef::Symbol(id)) if *id == alias)
+                    || matches!(declaration, Some(TypeRef::FieldChain {fields, ..}) if fields.last() == Some(&alias))
+            } else {
+                matches!((declaration, self.types.symbol_types.get(&location)),
+                    (Some(TypeRef::Symbol(id)), Some(ResolvedType::Record {symbol, stored: true})) if id == symbol)
+            };
+            if !owns_type {
+                return Err(self.fail(param.type_node, "query parameter named type correspondence"));
+            }
+        }
+        let env = scenario
+            .params
+            .iter()
+            .map(|param| (Local::Symbol(param.param), ValuePath::default()))
+            .collect();
+        let by = scenario.by.ok_or_else(fail)?;
+        let authorization = self.authorization_expr(by, scenario.module, &env, &[])?;
+        if authorization.iter().any(|path| {
+            !path.reads.is_empty() || !path.intrinsics.is_empty() || !path.decisions.is_empty()
+        }) {
+            return Err(self.fail(by, "query authorization needs a closed role gate"));
+        }
+        for guard in &scenario.guards {
+            let cond = guard
+                .cond
+                .ok_or_else(|| self.fail(guard.node, "missing query header guard"))?;
+            if guard.verb != EffectVerb::Require
+                || !guard.then_effects.is_empty()
+                || !guard.else_effects.is_empty()
+                || !guard.match_arms.is_empty()
+                || !self.frozen_query_count_guard(scenario, cond, targets)
+            {
+                return Err(self.fail(
+                    cond,
+                    "query header needs original admitted count and literal comparison",
+                ));
+            }
+        }
+        Ok(Some(CheckedScenarioDisclosure {
+            source_facts: None,
+            scenario: scenario.scenario,
+            node: scenario.node,
+            source: self.source(scenario.module, scenario.node)?,
+            returns: vec![DisclosureReturn {
+                id: query.return_id(),
+                source: query.source.clone(),
+                node: query.return_node,
+                decisions: Vec::new(),
+                dependencies: Vec::new(),
+                intrinsics: Vec::new(),
+                influences: query.influences.clone(),
+            }],
+            effects: Vec::new(),
+        }))
+    }
+
+    /// Match the checked field-reuse layers used by parameter lowering. Ordinary
+    /// authored arrays keep bounds on their declarations, not value_constraints.
+    fn query_parameter_bounds(&self, parameter: SymbolId) -> Option<SymbolId> {
+        let alias = *self.types.field_reuse_sources.get(&parameter)?;
+        let Some(ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        }) = self.types.symbol_types.get(&parameter)
+        else {
+            return None;
+        };
+        let mut current = alias;
+        let mut seen = HashSet::new();
+        let mut chain = Vec::new();
+        loop {
+            if !seen.insert(current) || chain.len() >= 128 {
+                return None;
+            }
+            let SymbolKind::Field { owner, .. } =
+                self.resolve.symbols.get(current.0 as usize)?.kind
+            else {
+                return None;
+            };
+            if !matches!(self.resolve.symbols.get(owner.0 as usize)?.kind,
+                SymbolKind::Contract {ref fields} if fields.contains(&current))
+                || !matches!(self.types.symbol_types.get(&current),
+                    Some(ResolvedType::Array {element: source, ordered: true, ..}) if source == element)
+            {
+                return None;
+            }
+            let field = self
+                .effects
+                .records
+                .get(&owner)?
+                .fields
+                .iter()
+                .find(|field| field.field == current)?;
+            chain.push(field);
+            let Some(next) = self.types.field_reuse_sources.get(&current) else {
+                break;
+            };
+            current = *next;
+        }
+        let mut min = None;
+        let mut max = None;
+        for field in chain.into_iter().rev() {
+            for modifier in &field.modifiers {
+                let minimum = match modifier.name.as_str() {
+                    "min" => true,
+                    "max" => false,
+                    _ => continue,
+                };
+                let key = self.query_group(modifier.value?)?;
+                if self.nodes.get(&key)?.kind != SyntaxKind::Literal
+                    || self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Int))
+                {
+                    return None;
+                }
+                let value = self
+                    .db
+                    .get(key.file)?
+                    .text
+                    .get(key.start as usize..key.end as usize)?
+                    .trim()
+                    .parse::<u64>()
+                    .ok()?;
+                let slot = if minimum { &mut min } else { &mut max };
+                // Receiving bounds must narrow the exact inherited literal range.
+                if slot.is_some_and(|prior| {
+                    if minimum {
+                        value < prior
+                    } else {
+                        value > prior
+                    }
+                }) {
+                    return None;
+                }
+                *slot = Some(value);
+            }
+        }
+        matches!((min, max), (Some(min), Some(max)) if min >= 1 && min <= max && max <= 200)
+            .then_some(alias)
+    }
+
+    fn frozen_query_count_guard(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        key: NodeKey,
+        targets: SymbolId,
+    ) -> bool {
+        if self
+            .types
+            .node_types
+            .get(&self.query_group(key).unwrap_or(key))
+            != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return false;
+        }
+        ["==", "!=", ">", ">=", "<", "<="].iter().any(|operator| {
+            let Some((left, right)) = self.query_binary(key, operator) else {
+                return false;
+            };
+            [(left, right), (right, left)]
+                .iter()
+                .any(|(count, literal)| {
+                    let Some(argument) = self.query_count(*count) else {
+                        return false;
+                    };
+                    let Some(literal) = self.query_group(*literal) else {
+                        return false;
+                    };
+                    self.query_parameter(scenario, argument) == Some(targets)
+                        && self.types.node_types.get(&argument)
+                            == self.types.symbol_types.get(&targets)
+                        && self
+                            .nodes
+                            .get(&literal)
+                            .is_some_and(|node| node.kind == SyntaxKind::Literal)
+                        && self.types.node_types.get(&literal)
+                            == Some(&ResolvedType::Scalar(Scalar::Int))
+                        && self
+                            .db
+                            .get(literal.file)
+                            .and_then(|file| {
+                                file.text.get(literal.start as usize..literal.end as usize)
+                            })
+                            .and_then(|text| text.trim().parse::<u16>().ok())
+                            .is_some_and(|value| value <= 200)
+                })
         })
     }
 
@@ -1947,6 +2238,10 @@ impl<'a> Closure<'a> {
                         .cloned()
                         .map(|value| vec![value])
                         .ok_or_else(|| self.fail(key, "unaccounted send binding")),
+                    Some(Binding::CallAs { .. }) => Err(self.fail(
+                        key,
+                        "bound child result consumption needs its owning provenance",
+                    )),
                     Some(Binding::Predicate) => {
                         if self.authorization {
                             Ok(vec![ValuePath::default()])
@@ -2676,6 +2971,12 @@ impl<'a> Closure<'a> {
             Some(Binding::Let { node }) => Local::Let(*node),
             Some(Binding::ForItem { node }) => Local::For(*node),
             Some(Binding::SendAs { node }) => Local::Send(*node),
+            Some(Binding::CallAs { .. }) => {
+                return Err(self.fail(
+                    key,
+                    "bound child result consumption needs its owning provenance",
+                ));
+            }
             None if self.types.resolved_cases.contains(&key) => {
                 return Ok(vec![ValuePath::default()]);
             }
@@ -3090,8 +3391,8 @@ impl<'a> Closure<'a> {
         Ok((paths, effect.binding.as_ref().map(|_| delivery)))
     }
 
-    /// Preparation for the State-owned child lifetime. No result binding or
-    /// protected/reference/composite input provenance is claimed by this slice.
+    /// Preparation for the State-owned child lifetime. Bound query results may
+    /// remain unused; consuming them still requires a separate provenance proof.
     fn static_call(
         &mut self,
         effect: &Effect,
@@ -3099,7 +3400,7 @@ impl<'a> Closure<'a> {
         env: &Env,
         calls: &[NodeKey],
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
-        if effect.binding.is_some() || !calls.is_empty() {
+        if !calls.is_empty() {
             return Err(self.fail(
                 effect.node,
                 "bound or nested operand call outside source profile",
@@ -3120,7 +3421,10 @@ impl<'a> Closure<'a> {
             .get(operation)
             .ok_or_else(|| self.fail(effect.node, "call target is not a mutation scenario"))?
             .clone();
-        if child.read || child.on.is_some() {
+        if child.read && child.on.is_none() {
+            return self.query_child_call(effect, module, &child, *operation);
+        }
+        if effect.binding.is_some() || child.on.is_some() {
             return Err(self.fail(
                 effect.node,
                 "read or trusted child call outside source profile",
@@ -3202,6 +3506,124 @@ impl<'a> Closure<'a> {
             },
         )?;
         Ok(paths)
+    }
+
+    /// Only original caller parameters can prepare this finite read child.
+    /// Candidate dependencies belong to the child's query lifetime, never an
+    /// invented scalar observation on the parent call or its unused binding.
+    fn query_child_call(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        child: &super::effects::ScenarioData,
+        operation: SymbolId,
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if !self.complete_children.contains(&operation) || self.complete_query(child)?.is_none() {
+            return Err(self.fail(
+                effect.node,
+                "read child needs complete acyclic finite query closure",
+            ));
+        }
+        if self.types.effect_call_results.get(&effect.node)
+            != self.types.symbol_results.get(&operation)
+            || effect.args.len() != child.params.len()
+        {
+            return Err(self.fail(effect.node, "read child result or input signature mismatch"));
+        }
+        let mut keys = Vec::new();
+        let mut parent_owner = None;
+        for argument in &effect.args {
+            let parameter = child
+                .params
+                .iter()
+                .find(|parameter| {
+                    self.resolve
+                        .symbols
+                        .get(parameter.param.0 as usize)
+                        .is_some_and(|symbol| symbol.name == argument.key)
+                })
+                .ok_or_else(|| self.fail(argument.key_node, "unowned query child input"))?;
+            if keys.contains(&argument.key) || parameter.default.is_some() {
+                return Err(self.fail(
+                    argument.key_node,
+                    "query child needs explicit unique inputs",
+                ));
+            }
+            let key = argument.value.unwrap_or(argument.key_node);
+            let Some(Binding::Symbol(input)) = self.query_binding(key) else {
+                return Err(self.fail(key, "query child needs original caller parameter operand"));
+            };
+            let input = *input;
+            let Some(SymbolKind::Param { owner, .. }) = self
+                .resolve
+                .symbols
+                .get(input.0 as usize)
+                .map(|symbol| &symbol.kind)
+            else {
+                return Err(self.fail(
+                    key,
+                    "query child rejects copied or computed reference operands",
+                ));
+            };
+            let owner = *owner;
+            let parent =
+                self.effects.scenarios.get(&owner).ok_or_else(|| {
+                    self.fail(key, "query child input lacks owning parent scenario")
+                })?;
+            if parent.read
+                || parent.on.is_some()
+                || parent.cohort.is_some()
+                || parent.scope_authority
+                || parent.module != module
+                || effect.node.file != parent.node.file
+                || effect.node.start < parent.node.start
+                || effect.node.end > parent.node.end
+                || parent_owner.is_some_and(|previous| previous != owner)
+                || !parent
+                    .params
+                    .iter()
+                    .any(|param| param.param == input && param.default.is_none())
+            {
+                return Err(self.fail(
+                    key,
+                    "query child input needs same original nondefault parent",
+                ));
+            }
+            let expected = self
+                .types
+                .symbol_types
+                .get(&parameter.param)
+                .ok_or_else(|| self.fail(key, "missing query child input type"))?;
+            if self.types.node_types.get(&key) != Some(expected)
+                || self.types.symbol_types.get(&input) != Some(expected)
+            {
+                return Err(self.fail(key, "query child input needs exact owning checked type"));
+            }
+            match expected {
+                ResolvedType::Record { stored: true, .. } => {}
+                ResolvedType::Array { .. }
+                    if self.query_parameter_bounds(input).is_some()
+                        && self.query_parameter_bounds(input)
+                            == self.query_parameter_bounds(parameter.param) => {}
+                _ => {
+                    return Err(self.fail(
+                        key,
+                        "query child input lacks exact protected reference or array owner",
+                    ));
+                }
+            }
+            parent_owner = Some(owner);
+            keys.push(argument.key.clone());
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::Call {
+                operation,
+                input_keys: keys,
+            },
+        )?;
+        Ok(vec![ValuePath::default()])
     }
 
     fn transition(
@@ -4166,13 +4588,21 @@ mod tests {
     }
 
     #[test]
-    fn query_source_retains_original_body_without_native_admission() {
+    fn finite_query_closure_retains_original_body_without_native_publication() {
         let disclosure = checked_query_source(&query_source_fixture());
-        assert!(matches!(disclosure, ScenarioDisclosure::Declined(_)));
+        let ScenarioDisclosure::Complete(plan) = &disclosure else {
+            panic!("finite checked query closure declined: {disclosure:?}");
+        };
         let source = disclosure.source_facts().expect("checked source");
         let queries = source.queries.as_ref().expect("closed original body");
         assert_eq!(queries.len(), 1);
         let query = &queries[0];
+        assert_eq!(plan.returns.len(), 1);
+        assert_eq!(plan.returns[0].id, query.return_id());
+        assert_eq!(plan.returns[0].node, query.return_node);
+        assert_eq!(plan.returns[0].influences, query.influences);
+        assert!(plan.returns[0].dependencies.is_empty());
+        assert!(plan.returns[0].intrinsics.is_empty());
         assert_eq!(query.model_name, "Bounds.Task");
         assert_eq!(query.dependencies.len(), 6);
         assert_eq!(query.dependencies[0].field_name, "location");
@@ -4211,6 +4641,91 @@ mod tests {
             again.source_facts().unwrap().queries.as_ref().unwrap(),
             queries
         );
+    }
+
+    #[test]
+    fn finite_query_header_proves_original_frozen_array_and_refuses_other_controls() {
+        let original = query_source_fixture();
+        for guard in [
+            "count(targets)>0",
+            "0<count(targets)",
+            "count(targets)>=1",
+            "count(targets)==2",
+        ] {
+            let source = original.replace("  do\n", &format!("  require {guard}\n  do\n"));
+            assert!(
+                matches!(
+                    checked_query_source(&source),
+                    ScenarioDisclosure::Complete(_)
+                ),
+                "{guard}"
+            );
+        }
+        for guard in [
+            "count(Task)>0",
+            "count(targets)>count(targets)",
+            "location.name!=\"\"",
+            "any(Task as task,task.done)",
+        ] {
+            let source = original.replace("  do\n", &format!("  require {guard}\n  do\n"));
+            assert!(
+                matches!(
+                    checked_query_source(&source),
+                    ScenarioDisclosure::Declined(_)
+                ),
+                "{guard}"
+            );
+        }
+        for source in [
+            original.replace("min=1 max=10", "max=10"),
+            original.replace("min=1 max=10", "min=1 max=201"),
+            original.replace(
+                "targets:Scope.targets",
+                "targets:Scope.targets,unused:int=0",
+            ),
+            original.replace("targets:Scope.targets", "targets:Task[]"),
+            original.replace("  do\n", "  do\n   require true\n"),
+        ] {
+            assert!(
+                matches!(
+                    checked_query_source(&source),
+                    ScenarioDisclosure::Declined(_)
+                ),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn finite_query_uses_owning_reused_array_bounds_without_required_presence() {
+        let original = query_source_fixture();
+        let source = original.replace(
+            "contract Scope {targets:Task[]! min=1 max=10}",
+            "contract Base {targets:Task[]! min=0 max=20}\n contract Scope {targets:Base.targets min=1 max=10}",
+        );
+        let disclosure = checked_query_source(&source);
+        assert!(
+            matches!(disclosure, ScenarioDisclosure::Complete(_)),
+            "{disclosure:?}"
+        );
+        let parameters = &disclosure.source_facts().unwrap().parameters;
+        assert!(matches!(
+            parameters[1].ty,
+            ResolvedType::Array {
+                nonempty: false,
+                ..
+            }
+        ));
+        for changed in [
+            source.replace(" min=1 max=10", ""),
+            source.replace("min=1 max=10", "min=1 max=201"),
+            source.replace("  do\n", "  require count(targets)>201\n  do\n"),
+        ] {
+            assert!(matches!(
+                checked_query_source(&changed),
+                ScenarioDisclosure::Declined(_)
+            ));
+        }
     }
 
     #[test]

@@ -973,7 +973,7 @@
     },
     "TECH-F01": {
       "planning_status": "implementing",
-      "state": "Independently accepted joined completion/finalization size correction at98c1e811/d450130f; broader lifecycle open",
+      "state": "Finalization publication/reopen/retention and explicit offset append producer/Interfaces consumer implemented and directly tested; mounted native/provider/full packet qualification remains open",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -1027,11 +1027,11 @@
       },
       "commit": "d450130f",
       "remaining_prerequisite": {
-        "prerequisite": "Packages finalization publication/reopen/retention repair implemented with direct affected checks; offset retry consultation specifically held awaiting exact human approval. Packages owns append/Interfaces consumer implementation after choice; actual mounted/native/provider qualification remains owning host dependency.",
-        "owner": "Packages defining Files/Interfaces contract; human exact three-request approval; Dev actual native consumer"
+        "prerequisite": "Dev actual bound-images binding4th offset and native typed-file HTTP upload-offset consumer update/qualification; Packages defining producer/consumer and direct owning checks are implemented. Further provider/mounted/concurrent external-store/power-loss requirements require actual owning host, not TestOnly substitution.",
+        "owner": "Dev actual native Files consumer; actual deployment/provider host owner"
       },
       "append_retry_consultation": {
-        "status": "held: automatic approval review rejected export of summarized internal upload/storage facts; exact three requests awaiting human approval; not sent",
+        "status": "completed once with exact human approval; range_identity selected as implementation advice, not acceptance",
         "endpoint": "https://api.typesafe.ai/v1/systemone",
         "requests": [
           {
@@ -1140,8 +1140,82 @@
             }
           }
         ],
-        "responses": [],
-        "scope": "Necessary defining append retry choice only; does not authorize other held payloads or certify production hosts."
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "retry_contract": {
+                "type": "choice",
+                "choice": "range_identity",
+                "confidence": 0.8,
+                "probabilities": {
+                  "range_identity": 0.87,
+                  "nonce_ledger": 0.13,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1079,
+              "output_tokens": 44
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "retry_contract": {
+                "type": "choice",
+                "choice": "range_identity",
+                "confidence": 0.76,
+                "probabilities": {
+                  "range_identity": 0.84,
+                  "nonce_ledger": 0.16,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1082,
+              "output_tokens": 44
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "retry_contract": {
+                "type": "choice",
+                "choice": "range_identity",
+                "confidence": 0.66,
+                "probabilities": {
+                  "range_identity": 0.77,
+                  "nonce_ledger": 0.23,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1081,
+              "output_tokens": 44
+            }
+          }
+        ],
+        "scope": "Necessary defining append retry choice only; does not authorize other held payloads or certify production hosts.",
+        "authorization": "Human explicitly approved these three exact TECH-F01 requests and destination; unrelated held payloads remain held.",
+        "decision": {
+          "choice": "range_identity",
+          "probabilities": [
+            0.87,
+            0.84,
+            0.77
+          ],
+          "confidence": [
+            0.8,
+            0.76,
+            0.66
+          ],
+          "disagreement": "None; nonce ledger remains viable if preserving original request boundaries is separately required. Exact byte ranges satisfy the current outcomes without retained per-request metadata.",
+          "rationale": "Owning intent+explicit offset+actual length+exact retained bytes defines idempotent transfer. ACK is range end; current validated completion is separate. SQLite check/write is one real transaction; no guessed offsets, nonce ledger, partial-overlap healing or byte/digest healing."
+        }
       },
       "finalization_recovery": {
         "state": "implemented and directly tested; parent TECH-F01 unfinished",
@@ -1158,13 +1232,30 @@
             "/private/tmp/can-packages-file-finalization-retention-tests.log"
           ]
         },
-        "remaining": "Retry Choice trio remains specifically held awaiting exact human approval; no requests sent. Actual mounted new transport/native/provider qualification remains owning-host work; serial FS protocol does not establish concurrent external-store serialization or power-loss/R2 acceptance.",
+        "remaining": "Offset defining implementation and owning checks now complete; Dev actual native consumer intake/qualification remains pending. Serial FS protocol does not establish concurrent external-store serialization or power-loss/R2 acceptance.",
         "review": "Finite source review returned immutable timestamp/claim replay gap; corrected and actual persisted regression passes. Exact retention/timestamp extension review CLEAR; no other concrete defect. No whole packet/source-host acceptance."
+      },
+      "append_retry_implementation": {
+        "state": "implemented and owning-tested; actual native consumer update is Dev-owned and pending",
+        "contract": "New appendUploadContentAtOffset and handleAppendAtOffset retain legacy metadata-free API explicitly without retry credit. Selected SQLite append and Interfaces FileKernel/FilesKernelBindings require fourth expectedOffset. HTTP requires canonical safe nonnegative upload-offset captured after actual auth/proof before awaits. Match complete retained range exactly for zero-write range-end ACK; only append at current count. Gap, straddle, unsafe numeric and changed bytes conflict; preserve foreign/terminal/expiry/policy/drift refusal. Idempotent completed response rechecks exact actual bytes/count/original digest/type without writes/healing. Finalized/rejected stay terminal before expiry sweep, preserving saved finalized identity after TTL. Provider output passes verified suffix start.",
+        "validation": {
+          "build": "Clean owning Files and Interfaces emissions pass with Node24.19/Bun1.4.2.",
+          "cases": "168 distinct affected cases pass: Files88, provider26 including actual local-server output transfer, Interfaces54. New invalid publication-time8 cases refuse before mint/writes. Separate actual SQLite connections/reopen and thrown transaction interruption tested; no process-kill/power-loss/concurrent external FS proof. Prior unchanged retention15 reused. Closed-state completion fixture uses terminal rejected because completed content now has explicit idempotent exact-content checks.",
+          "logs": [
+            "/private/tmp/can-packages-file-offset-build.log",
+            "/private/tmp/can-packages-file-offset-interfaces-build.log",
+            "/private/tmp/can-packages-file-offset-tests.log",
+            "/private/tmp/can-packages-file-offset-provider-tests.log",
+            "/private/tmp/can-packages-file-offset-interfaces-tests.log"
+          ]
+        },
+        "review": "Finite independent Files range/completion source and Interfaces transport/adapter/helper review CLEAR. Scripted route outcomes are not durable/native workflow acceptance.",
+        "remaining": "Dev consumes defining required offset0 in bound-images-durable actual binding test and explicit headers in typed-file native HTTP fixture, then publishes its actual qualification. Generic concurrent separate-provider serialization, power-loss and live R2 remain outside serial FS protocol. All precise native preparation/timezone holds persist."
       }
     },
     "TECH-F02": {
-      "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "planning_status": "implementing",
+      "state": "Bounded keyset retention producer and actual SQLite transactional batch consumer implemented and directly tested; remaining descriptor/shared lifetime/download/provider joins blocked",
       "files": [
         "packages/files/src/upload/index.ts",
         "packages/files/src/finalize/index.ts",
@@ -1177,8 +1268,15 @@
         "packages/interfaces/src/ingress/mapping.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Persisted terminal tombstone retry cleanup has landed. Remaining descriptor availability, attachment/download lifetime, resumable retention beyond full listAll and authenticated provider/source occurrence/age/replay/effect association.",
-        "owner": "Files/Interfaces/Cloudflare; actual descriptor/provider/source producers"
+        "prerequisite": "Terminal tombstone retry cleanup and genuine bounded/resumable SQLite metadata retention now implemented. Remaining current descriptor availability, shared attachment/download lifetime and authenticated provider/source occurrence/age/replay/effect association; actual native/provider/installed driver acceptance is separate.",
+        "owner": "Interfaces/Cloudflare actual descriptor, shared attachment lifetime/download and authenticated provider/source owners; actual native/deployment host owners"
+      },
+      "bounded_retention_implementation": {
+        "source_base": "Exact reviewed LOCALbb234ad81d2f06f3be2ce55932b53b01f438e8e7; coordinator separately released ports.ts,retention/index.ts,host/sqlite.ts and existing retention.test.ts plus directly related docs/records.",
+        "contract": "PagedIntentStorePort/PagedFinalizedStorePort.listAfter uses immutable safe-id ascending exclusive keysets and actual bounded queries, never listAll slicing. runRetentionBatch plus actual SQLite binding uses one explicit1–1000combined traversal/processing limit across intents and files. Every visited row counts. Pending cleanup requires at most one auxiliary finalized-row lookup per intent to protect published bytes; metadataReads counts traversed rows+point lookup units including absence, <=2*limit. Byte-size checks and idempotent deletes remain separately bounded per visited record. No claim that all metadata reads <= traversal limit.",
+        "continuation": "Only return a cursor after successful cleanup. Actual selected SQLite transaction rolls metadata+bytes back on failure; external FS serial cleanup retains terminal-before-delete and retries oldcursor. Exact full pages may need an emptyprobe; nextnull completes sweep, later nullrestart revisits newlydue and earlierinserted rows. Current clock perbatch, no frozen cohort/time, cross-store concurrency or exact disposaldeadline. Legacy full-list API unchanged and uncredited for bounded traversal.",
+        "verification": "Files owning clean emission0. Initial20affected checks pass119.89ms including unchanged15. Concrete source review exposed auxiliary read claim; correct accounting/docs and add genuine publishedpending protection/count control, then clean emission0 and2affected accounting checks pass (prior19unchanged reused):21distinct direct outcomes,0fail/skip/cancel. Actual SQLmalformed untouchedtail proves cappedquery/no lookahead; reopen,combinedbudget,earlierinsertion/freshdue,SQLite rollback,retryoldcursor,serialFScleanup and invalidlimits/cursors qualify. One affected package-boundary check13packages/914files/1307runtime-context/0violations; unchanged dependency/import result reused after accounting-only edit. Diffcheck0. Unchanged Files/Interfaces168 and prior finalization99 scopes reused.",
+        "status": "Coherent local component implemented/tested for coordinator manual review; full TECH-F02 and original lifetime/source/native packet remain unfinished. No new bookkeeping files or remote push; precise human holds retained."
       }
     },
     "TECH-SV01": {
@@ -5446,7 +5544,19 @@
         "validation": "Cloudflare owning emit passes. Actual local Mac Worker/Chromium readonly polling case passes1/1 with3unselected,10.879s; initial sandbox localhostEPERM did not qualify behavior, identical escalated retry passes.",
         "limit": "Exact native case only; broader browser pilot source/profile and mounted workflow gates remain with their owners. Native preparation/release activation HOLD retained."
       },
-      "writer_fixtures": "Exact owning ab63/7086 writer/digest inputs consumed; all3fixtureproducers truthful, complete32affected outcomes qualified by28unchanged+4correctedpositives. Existing fail-closed metadata/containment/resource/no-partial assertions preserved; no digest duplicate or foreign native fixture implementation."
+      "writer_fixtures": "Exact owning ab63/7086 writer/digest inputs consumed; all3fixtureproducers truthful, complete32affected outcomes qualified by28unchanged+4correctedpositives. Existing fail-closed metadata/containment/resource/no-partial assertions preserved; no digest duplicate or foreign native fixture implementation.",
+      "state_identity_test_dependency": {
+        "source_base": "Exact reviewed LOCALd7c35523e9c72eebd9f757951d893e6ede7426be intaken by fast-forward, preserving local commits and the two metadata edits.",
+        "implementation": "State declares @canlang/identity:workspace:* in devDependencies and matching authoritative Bun workspace lock metadata. Preserve the genuine Identity/testing snapshot producer in scenario-receipt.test.ts and the unchanged owning dependency guard; no production dependency or fabricated fixture.",
+        "verification": "Offline frozen lockfile-only install with ignored scripts passes on Bun1.4.2. One actual current-source package boundary check passes:13packages,914JS/TS files,1303runtime/context expressions,0violations. Earlier concrete undeclared edge is resolved. Unchanged Dev generic runtime1/1,canonical/frame48/48,owning emissions/root noEmit and prior checks reused; no broad build/test rerun.",
+        "status": "Implemented and affected direct checks passed; coherent local dependency unit for coordinator manual review and integration. No push,publication or whole-workflow acceptance; precise holds unchanged."
+      },
+      "work_identity_test_dependency": {
+        "source_base": "Exact reviewed LOCAL9fb2c0aa027c6326371d00a57b7eb781387f561f fast-forward intaken while preserving two nonoverlapping dependency metadata edits and all local commits.",
+        "implementation": "Work declares @canlang/identity:workspace:* as devDependency and matching authoritative Bun workspace lock metadata, for Capability-owned genuine b3-mirror-conformance subject association/receipt load tests. No production dependency, sibling-dist import, fabricated snapshot or guard change.",
+        "verification": "Offline frozen install with ignored scripts passes on Bun1.4.2; genuine declared Work workspace symlink resolves to this worktree Identity package. Node24 bare @canlang/identity/testing import resolves the actual createMemoryIdentityStore producer and findMembershipsSnapshot method. Source-current boundary after reviewed carrier intake passes13packages/914JS-TS/1308runtime-context/0violations. No owning behavior build/test rerun; Capability owns its unreleased changed Work consumer and runtime qualification.",
+        "status": "Finite common prerequisite implemented and directly checked for coordinator manual integration. Feature acceptance remains with Capability/Dev; native/timezone/publication and other exact holds preserved. No push."
+      }
     },
     "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
     "canonical_delete_form": {

@@ -121,7 +121,7 @@ test('core kernel passes every outcome through verbatim', async () => {
     binding: BINDING,
   });
   assert.deepEqual(created, { status: 'granted', grant: GRANT, intentId: 'intent-1' });
-  const appended: KernelAppendOutcome = await kernel.append('intent-1', RECEIVER, new Uint8Array(4));
+  const appended: KernelAppendOutcome = await kernel.append('intent-1', RECEIVER, new Uint8Array(4), 0);
   assert.deepEqual(appended, { status: 'appended', receivedBytes: 4 });
   const completed: KernelCompleteOutcome = await kernel.complete('intent-1', RECEIVER);
   assert.deepEqual(completed, { status: 'completed', check: CHECK });
@@ -152,7 +152,7 @@ test('core kernel accepts async L4 entry points', async () => {
     grant: GRANT,
     intentId: 'intent-1',
   });
-  assert.deepEqual(await kernel.append('intent-1', RECEIVER, new Uint8Array(1)), {
+  assert.deepEqual(await kernel.append('intent-1', RECEIVER, new Uint8Array(1), 0), {
     status: 'failed',
     reason: 'closed',
   });
@@ -166,10 +166,28 @@ test('core kernel accepts async L4 entry points', async () => {
   );
 });
 
+test('core kernel forwards the exact range offset and bytes without interpreting conflicts', async () => {
+  const bytes = new Uint8Array([0, 255, 3]);
+  const conflict: KernelAppendOutcome = { status: 'failed', reason: 'conflict' };
+  let calls = 0;
+  const kernel = createFileKernel(coreBindings({
+    append: (intentId, caller, chunk, expectedOffset) => {
+      calls++;
+      assert.equal(intentId, 'intent-1');
+      assert.equal(caller, RECEIVER);
+      assert.equal(chunk, bytes);
+      assert.equal(expectedOffset, 17);
+      return conflict;
+    },
+  }));
+  assert.equal(await kernel.append('intent-1', RECEIVER, bytes, 17), conflict);
+  assert.equal(calls, 1);
+});
+
 test('kernel methods are async even over sync L4 functions', async () => {
   const kernel = createFileKernel(coreBindings());
   assert.ok((kernel.createIntent({ request: REQUEST, receiver: RECEIVER, binding: BINDING }) as unknown) instanceof Promise);
-  assert.ok((kernel.append('intent-1', RECEIVER, new Uint8Array(0)) as unknown) instanceof Promise);
+  assert.ok((kernel.append('intent-1', RECEIVER, new Uint8Array(0), 0) as unknown) instanceof Promise);
   assert.ok((kernel.complete('intent-1', RECEIVER) as unknown) instanceof Promise);
   assert.ok(
     (kernel.finalize({ intentId: 'i', retryId: 'r', bytesDigest: 'd', caller: RECEIVER }) as unknown) instanceof Promise,

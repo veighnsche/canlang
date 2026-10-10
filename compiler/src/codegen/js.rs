@@ -1386,8 +1386,18 @@ pub(super) fn emit_program_with_query_sources(
     native_receipts: bool,
     db: &crate::source::SourceDb,
     queries: &std::collections::BTreeMap<String, serde_json::Value>,
+    query_receipts: &std::collections::BTreeMap<
+        String,
+        super::scenario_receipts::NativeScenarioReceipt,
+    >,
 ) -> JsOutput {
-    emit_program_with_sources(ir, native_receipts, Some(db), Some(queries))
+    emit_program_with_sources(
+        ir,
+        native_receipts,
+        Some(db),
+        Some(queries),
+        Some(query_receipts),
+    )
 }
 
 fn emit_program_with_receipt_sources(
@@ -1395,7 +1405,7 @@ fn emit_program_with_receipt_sources(
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
 ) -> JsOutput {
-    emit_program_with_sources(ir, native_receipts, db, None)
+    emit_program_with_sources(ir, native_receipts, db, None, None)
 }
 
 fn emit_program_with_sources(
@@ -1403,6 +1413,9 @@ fn emit_program_with_sources(
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
     queries: Option<&std::collections::BTreeMap<String, serde_json::Value>>,
+    query_receipts: Option<
+        &std::collections::BTreeMap<String, super::scenario_receipts::NativeScenarioReceipt>,
+    >,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.validate_model_field_bounds();
@@ -1453,6 +1466,13 @@ fn emit_program_with_sources(
                 &module_path(&entry_name),
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
+            }
+        }
+        if let Some(query_receipts) = query_receipts {
+            for item in &ir.items {
+                if let Some(recipe) = query_receipts.get(&item.canonical) {
+                    emitter.native_receipts.insert(item.id, recipe.clone());
+                }
             }
         }
     }
@@ -4983,21 +5003,36 @@ impl<'a> Emitter<'a> {
                 // occurrence joined to the native owner-transaction producer.
                 if self.receipt_capture.is_some()
                     && self.hook.is_none()
-                    && binding.is_none()
                     && let IrEffectCallTarget::Operation { operation, .. } = target
                 {
-                    let mut matches = self.receipt_call_sites.iter().filter(|site| {
-                        site.span == *span
-                            && site.operation == *operation
-                            && match (&site.result, result) {
-                                (super::scenario_calls::CallResultFact::Void, None) => true,
-                                (
-                                    super::scenario_calls::CallResultFact::Scalar(expected),
-                                    Some(actual),
-                                ) => expected == actual,
-                                _ => false,
-                            }
-                    });
+                    let mut matches =
+                        self.receipt_call_sites.iter().filter(|site| {
+                            site.span == *span
+                                && site.operation == *operation
+                                && site.binding == *binding
+                                && match (&site.result, result) {
+                                    (super::scenario_calls::CallResultFact::Void, None) => {
+                                        binding.is_none()
+                                    }
+                                    (
+                                        super::scenario_calls::CallResultFact::Scalar(expected),
+                                        Some(actual),
+                                    ) => binding.is_none() && expected == actual,
+                                    (
+                                        super::scenario_calls::CallResultFact::Opaque(expected),
+                                        Some(actual),
+                                    ) => expected == actual
+                                        && self.ir.items.get(operation.0 as usize).is_some_and(
+                                            |child| {
+                                                super::scenario_calls::complete_read_query_child(
+                                                    self.ir, child,
+                                                )
+                                                .is_some()
+                                            },
+                                        ),
+                                    _ => false,
+                                }
+                        });
                     let site = matches.next().cloned();
                     if matches.next().is_none()
                         && let Some(site) = site

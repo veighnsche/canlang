@@ -16,6 +16,7 @@
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {
+    "@canlang/identity": "workspace:*",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "miniflare": "4.20260730.0",

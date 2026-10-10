@@ -151,12 +151,29 @@ pub fn emit(
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
     let mut query_sources = std::collections::BTreeMap::new();
+    let mut query_receipts = std::collections::BTreeMap::new();
     if sources.options.native_scenario_receipts {
         // Query source correspondence is independent of permission/capture
         // admission. Unsupported scenarios keep their disclosure refusal.
         if let Some(entry) = js::pick_entrypoint(&ir) {
             let entry_module = js::module_path(&ir.module(entry).name);
             for item in &ir.items {
+                if let Some(recipe) = scenario_queries::collect_complete_query_receipt(
+                    program,
+                    &ir,
+                    item,
+                    sources.db,
+                    sources.catalog,
+                    &entry_module,
+                ) {
+                    query_sources.insert(
+                        item.canonical.clone(),
+                        serde_json::to_value(&recipe.plan)
+                            .expect("checked query recipe JSON invariant"),
+                    );
+                    query_receipts.insert(item.canonical.clone(), recipe);
+                    continue;
+                }
                 if let Some(plan) = scenario_queries::serialize_query_sources(
                     program,
                     &ir,
@@ -175,6 +192,7 @@ pub fn emit(
         sources.options.native_scenario_receipts,
         sources.db,
         &query_sources,
+        &query_receipts,
     );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {

@@ -103,7 +103,8 @@
     "base_commit": "7b73fc32",
     "state": "unfinished_nongrant_query_activation_and_model_predicates_affected_qualified_nominal_result_owner_blocked",
     "outcome": "Declined source inventory no longer activates private query helpers; final whole-owner admitted receipt source/query/projection correspondence is required. Object-select map arrows retain expression-valued construction. Stored-model membership and nullable equality use existing original-view same reference facade, null bypass and once left-to-right operands; scalar/contract structural comparison retained. Affected140/140 pass: codegen121, checked_query_facts8, enum_default_runtime1, actual native_scenario_receipts4, ordinary_contract_results4, query_source_producer2. Strict all-target Clippy/format0 and finite independent source review CLEAR. Actual public generic read fixture retains exact three original body statements; genuine Memory CRUD/null/true-false membership executes, then mandatory ordered seven-field nominal Fact[] result fails validation22 violations (0/1); preserve positive and no skips.",
-    "remaining": "Dev owning generic public-read nominal contract/array native-to-wire codec and current reference authorization; original clean source/pure membership/private child Fact[]/checked Complete joins remain independent. Whole1390 historical72f51295 and unchanged editor results reused. No original58/67 closure or broadened hold."
+    "remaining": "Dev owning generic public-read nominal contract/array native-to-wire codec and current reference authorization; original clean source/pure membership/private child Fact[]/checked Complete joins remain independent. Whole1390 historical72f51295 and unchanged editor results reused. No original58/67 closure or broadened hold.",
+    "reviewed_owner_intake": "Reviewed LOCALc1bbffe8137d786547a7088a140655daa047ed09 (Dev763330ec native nominal codec/private read child49 owning outcomes, State49e/3e coherent saved authority76, State351/919 original outbox provenance, Filesdf1 source) intaken onto4fdb151f. Preserve exact histories/allocations/checkpoint and reuse owner results. Dev owns the single actual unchanged generated public Fact[] consumer; its prior0/1 is historical until qualified. Next Compiler source query Complete/native parent CALL/protected inputs/bound-result join now has finite Dev target ABI; original pure/subject policy contracts and precise holds remain."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -635,7 +636,7 @@
         "remaining": "Async membership predicate sequential runtime and bounded decision-context/source contract; original cohort, State/Dev query/policy/result join."
       },
       "receipt_carrier": {
-        "state": "unfinished_checked_query_sources_nongrant_activation_corrected_nominal_read_codec_blocked",
+        "state": "unfinished_whole_bounded_query_analysis_tested_native_publication_pending_defining_dispatch",
         "api": "codegen::scenario_queries::serialize_query_sources; native compile canScenarioQuerySources() fresh own-data map",
         "behavior": "Genuine checked model scan/local select/count guard, exact input/alias/model/contract identities, six potential owning field dependencies (location control; title/description/due/priority/done data), seven Fact reference/original-version/data mappings and all four query influences. Exact default order[]/limit null/archive exclude. Immutable source facts plus fresh guard/body/parameter/typed IR join reject source and executable skew. Native opt-in source inventory stays nongrant; private execute/read/result/select sites require exact final admitted whole-owner receipt source/query/projection correspondence. Generic lazy reads remain on their ordinary runtime path. Metadata does not populate operation.disclosure or upgrade Declined.",
         "validation": "Current library159/159, codegen121/121, checked_query_facts8/8, decision7/7, invocation7/7, disclosure19/19, actual native4/4 and new transport skew1/1 pass:326 outcomes. Strict all-target Clippy/fmt0 and finite source review clear. Released State b1a65359 on reviewed LOCAL9e71bea7 clears the named-enum parser prerequisite. Actual owning build6/6 succeeds; only previously failing emitted-query installed-consumer case reruns once and passes1/1 (0.70s), preserving canonical Task.priority, owning schema and eight corruption refusals. Current affected total327 passes. Other unchanged results reused. No body skips. Earlier focused filter selected only2 library queries and is not counted as other target execution. Required current-source whole at72f51295 passes1390/134, zero failed/ignored/filtered/SKIP, Node24.19 with required genuine completion/native/permission bodies; strictlint/fmt and editor results reused unchanged.",
@@ -647,13 +648,24 @@
           },
           {
             "prerequisite": "Original read/private query execution lifetime and nominal Fact[] child/result admission",
-            "owner": "State read/private owner session contract; Dev public read/private child adapters; Compiler complete checked closure after defining release",
-            "evidence": "Collector read=true only. Public runReadScenarioSeam uses AdmittedReadScenarioCall without private receipt frame; State QueryExecution requires ReceiptOwnerSession stage; native child assertNativeScenarioTarget permits scalar/void only. Source inventory grants none of these lifetimes."
+            "owner": "Compiler complete whole checked query/nominal result and acyclic parent call/protected-input/bound-result producer; Dev actual generated/private qualification; original pure admission remains separate",
+            "evidence": "Collector read=true only. Public runReadScenarioSeam uses AdmittedReadScenarioCall without private receipt frame; State QueryExecution requires ReceiptOwnerSession stage; native child assertNativeScenarioTarget permits scalar/void only. Source inventory grants none of these lifetimes.",
+            "release": "Dev763330ec releases finite complete private query-read contract[]/protected-input target through existing State parent lifetime; original source producer/admission still unfinished"
           },
           {
-            "prerequisite": "Generic public-read nominal Fact[] native-to-wire result codec with owning model-reference/current authorization and declared scalar field conversion",
-            "owner": "Dev public read codec; Compiler consumes exact released implementation",
-            "evidence": "Actual compiler/tests/query_source_read_runtime.rs CLI/installed modules/Memory read reaches runtime/invoke.ts3633-3636 generic fallback and scenarioResult3619 without nested native reference conversion; mandatory exact seven-field ordered Fact[] fails validation22 violations. Original null and false/true membership controls execute; source/model/nominal schema and positive assertion preserved. No private receipt frame or reference fabrication."
+            "prerequisite": "Same compiled read helper public/private dispatch and current owning read lifetime",
+            "owner": "Dev native helper/read producer; Capability exact bound query projection/Values result validation; Compiler publication after released contracts",
+            "evidence": "Current private frame checked(c) rejects public runReadScenarioSeam context. Do not infer carrier flags or borrow ReceiptOwnerSession. Exact boundPlans/GeneratedOperationDef owning projection must preserve nominal current authority."
+          },
+          {
+            "prerequisite": "Actual ordinary-array child target admission",
+            "owner": "Dev native target validator",
+            "evidence": "Compiler array metadata intentionally required=false/array.required=false with owning min1/max10; private caller supplies every checked authored input. Existing assertNativeScenarioTarget requires required=true. Preserve actual descriptor and bounds; no field-only ! borrowing."
+          },
+          {
+            "prerequisite": "Row-selected subject-policy descriptor/evaluator",
+            "owner": "Capability State producer, Dev native transcription, Compiler checked owning source transport after exact shape",
+            "evidence": "Supported policy read=auditor(row.person) cannot fit fixed ByPredicate.roleSubject.person:string or row-independent by caches. Preserve genuine owning StoredRow user/model/team/source/current role and coherent snapshot; no subject-to-actor replacement or guessed metadata."
           }
         ],
         "remaining": "Original Workbench full source/context/approval/protected proposal/rollback/native result workflow remain unfinished. No new API grant, widened human hold or58/67 closure.",
@@ -678,9 +690,19 @@
             "evidence": "Generated signatures executeScenarioReceiptQuery(c,queryId,async row=>predicate), sync observeScenarioReceiptQueryDependency(c,model,row,field,depId), sync bindScenarioReceiptQueryResult(c,returnId,selected,facts) then selectReturn. Metadata-only consumer does not qualify live binding or generic fallback.",
             "state": "finite_source_release_resolved_original_read_private_admission_unfinished",
             "release": "Reviewed LOCAL62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2; Statee22f8f4a owning37; Dev5d8d8ee3 owning14; exact source intake with unchanged Compiler1390/134 scope reused."
+          },
+          {
+            "prerequisite": "Generic public-read nominal Fact[] native-to-wire result codec with owning model-reference/current authorization and declared scalar field conversion",
+            "owner": "Dev public read codec; Compiler consumes exact released implementation",
+            "evidence": "Unchanged compiler/tests/query_source_read_runtime.rs actual CLI/modules/Memory consumer1/1 PASS0.76s at Dev94894c17/reviewed c1; exact7-field ordered Fact[], real original references/versions, true/false/null membership/location, duplicate/bounds/outsider/revocation and no receipt/history/revision changes. Canonical/frame48/48 reused; receipt-free public scope only.",
+            "state": "resolved_actual_generated_public_consumer",
+            "release": "Dev763330ec codec; Dev94894c17 actual reader/consumer outcome, integrated reviewed LOCALd3963cb2"
           }
         ],
-        "nongrant_correction": "Affected140/140 and strict Clippy/format0; finite source review CLEAR. New actual generic read0/1 reaches owning nominal result codec. Entire workflow unfinished; unchanged whole1390 is historical72f51295."
+        "nongrant_correction": "Affected140/140 and strict Clippy/format0/source review CLEAR. Dev763 nominal codec now qualifies unchanged actual generated public query1/1 and canonical/frame48; prior213 validation22 failure is historical. No duplicate consumer run. Historical whole1390 belongs to72f51295.",
+        "whole_query_analysis": "Compiler275b439e: exact original scan/count/select body; independent whole declaration, closed role authorization, owning named inputs, checked reused positive literal min/max <=200 without field-only required borrowing, finite original frozen-array count headers and nominal result proof. Exact shared return ID and all4 query influences. Affected303/303 (library161/codegen121/sourceproducer2/disclosure19), strict all-target Clippy/fmt0 and finite closure/corrected-bound reviews CLEAR. Publication remains closed.",
+        "complete_receipt_producer": "Original immutable Complete + fresh lowering + indexed supplied IR, exact whole source/return/all4 influences/nominal projection; typed recipe plumbed in actual emitter before still-closed result gate. Source map reuses plan. Detached-owner source/IR skew defect corrected. Actual installed State schema consumer and skew refusals pass; affected129/129 (codegen121/native4/sourceproducer4), final corrected producer4/4, strict all-targetClippy/fmt0 and independent correction review CLEAR. Native private query publication/parent consumer remains blocked on exact Dev/Capability contracts.",
+        "query_parent_preparation": "Unfinished: original direct nondefault protected reference/array parent inputs, exact independently Complete acyclic query child, authored order/unused binding and actual Ref descriptor/bounds correspondence. Bound result use/copied/computed/default/general children remain refused. Immutable prepared query recipe owns executable correspondence; structural helper grants nothing. Actual full emit proves both Complete/source IDs but both disclosures/helpers withdrawn, expected E6008 under closed gate; cycle actual E3005 distinguished. Affected320/320 (library161/codegen121/references7/native4/sourceproducer4/disclosure23); finite independent review CLEAR. Actual compiled public/private consumer and exactly-once query return selection after reviewed Dev/State intake remain required. No whole qualification or58/67 closure."
       }
     },
     "capability_fixture_attribution": {
@@ -724,5 +746,10 @@
     "prerequisite": "Genuine Contracts/Work CommittedChangeEvent issuance, original mutation/allroute atomic source enrollment and explicit Dev checked source/native payload ABI",
     "owner": "State/Work original mutation source; Dev native event payload/source transport; Compiler IR/emission only after exact released contracts",
     "evidence": "Original CanVolunteer.can46-51 retained. Effects HandlerSource::Committed preserves model/action; IR6065-6108 has no Committed event source variant. Declared event private input derivation cannot supply committed model event fields. Actual CommittedChangeEvent recordId/owner/version/occurrenceId requires explicit event.id mapping; State model change facts and existing schedule occurrence routes do not define native payload authority. No guessed fields, DeclaredEvent fabrication, schedule wrapper or source rewrite."
+  },
+  "typed_file_association_prerequisite": {
+    "state": "blocked_defining_finalized_file_lifetime_and_retained_execution_association",
+    "owner": "Capability/State retained File assignment/association; Files finalized provenance; Dev actual native input/assignment/consumer; Compiler checked source/Set emission after released contract",
+    "evidence": "Original TypedFileJourney attach sets actual file then require accept; Dev fresh native-opt-in artifact has void/no disclosure and unchanged saved replay refuses unsupported association. State scenario-receipt.ts1294 explicitly rejects nonempty fileAssignments. No fabricated Complete, scalar substitution, empty assignment, weaker replay or new human hold."
   }
 }
