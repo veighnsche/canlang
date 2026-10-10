@@ -235,6 +235,7 @@ fn empty_artifact(db: &SourceDb) -> CompileArtifact {
         models: Vec::new(),
         value_types: None,
         model_policies: None,
+        committed_changes: None,
         pages: Vec::new(),
         migrations: Vec::new(),
         requires: Vec::new(),
