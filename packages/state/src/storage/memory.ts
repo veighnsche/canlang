@@ -89,7 +89,7 @@ interface MemoryState {
   // mirroring the SQL `status` column; ack flips it to 'dispatched'.
   outbox: Map<
     string,
-    { readonly intent: unknown; readonly createdAt: number; readonly status: OutboxStatus }
+    { readonly intent: unknown; readonly createdAt: number; readonly committedRevision: number; readonly status: OutboxStatus }
   >;
   schedules: Map<string, { readonly at: number; readonly event: string; readonly payload: unknown }>;
   uniqueClaims: Map<string, string>;
@@ -651,7 +651,7 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
             `outbox intent ${intent.intentId} already exists`,
           );
         }
-        outboxState.set(intent.intentId, { intent, createdAt: at, status: 'pending' });
+        outboxState.set(intent.intentId, { intent, createdAt: at, committedRevision: next, status: 'pending' });
       }
       // S6: acks apply AFTER inserts in the same atomic commit, so acking an
       // id staged in this SAME batch marks it dispatched. Idempotent no-op on
@@ -723,7 +723,8 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
       const found = state.outbox.get(intentId);
       return found === undefined
         ? null
-        : { intent: jsonCopy(found.intent as OutboxIntent), status: found.status };
+        : { intent: jsonCopy(found.intent as OutboxIntent), status: found.status,
+          originalCommit: { revision: found.committedRevision as Revision, createdAt: found.createdAt } };
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {
