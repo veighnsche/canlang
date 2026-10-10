@@ -5500,3 +5500,10 @@ The shared staff/can_work migration is blocked on Compiler checked decision-cont
 ### 2026-10-10 — preserve CanDo nullable preference evaluation (unfinished workflow)
 
 Local draftd7d0dc686a24e9882d132f8ddb88e7e40d48d31f keeps `row.location==null` first and narrows actor only before the existing can_work call: `row.location==null or (actor!=null and can_work(actor,row.location))`. This preserves the anonymous null-location case and current membership/employment/location requirements for a selected location. No helper hoisting or classification change. A fresh exact released Compiler build passes9.48s; one real20-file CanDo import check passes its attributable correction (1.29s, complete=true, omitted=0, exit10,132 diagnostics, zero CanDo). Employees8/9 StateRead-in-pure E3010 and original runtime/source-policy prerequisites remain open; no whole application acceptance.
+
+
+### 2026-10-10 — await membership evidence at the actual dispatch guard (unfinished join)
+
+Use additive Work `attemptDispatchAsync` with the existing refusal/availability/guard/authority/claim ordering. Issue an opaque private execution during actual guard evaluation; freeze its lexical inputs, current snapshot, intent and checkpoint. Live observers enroll bounded evidence comparisons; close the execution before awaiting them, then consider skip, current authority and claim. A changed positive or negative observation refuses before a terminal skip or provider claim; source expressions do not execute again. Retain the synchronous kernel and its current callers.
+
+Work clean emission and directly affected async/fence19/19 pass223.14ms. This qualifies the Work component only. State must consume the same live handle with genuine current Team/Identity reader and Compiler v1 sites, and Dev must transport original frozen lexical values and bind real native evaluations/current dispatch admission. Current source gates and precise holds remain; the separate active admitted REQUIRE observer cannot authorize a later SEND.
