@@ -709,11 +709,14 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   const validQualification = (bundle: SessionConstructQualification | null,
     request: SessionConstructQualificationRequest): boolean => {
     try {
-    const ownData = (value: unknown, names: readonly string[]): boolean => typeof value === "object" && value !== null &&
+    const ownData = (value: unknown, required: readonly string[], optional: readonly string[] = []): boolean => typeof value === "object" && value !== null &&
       [Object.prototype, null].includes(Object.getPrototypeOf(value)) && Reflect.ownKeys(value).every(key =>
-        typeof key === "string" && names.includes(key) && Object.getOwnPropertyDescriptor(value,key)?.enumerable === true &&
-        "value" in Object.getOwnPropertyDescriptor(value,key)!);
-    const dense = (value: unknown, limit: number): value is readonly unknown[] => Array.isArray(value) && Object.isFrozen(value) &&
+        typeof key === "string" && (required.includes(key) || optional.includes(key)) && Object.getOwnPropertyDescriptor(value,key)?.enumerable === true &&
+        "value" in Object.getOwnPropertyDescriptor(value,key)!) && required.every(key => {
+          const descriptor = Object.getOwnPropertyDescriptor(value,key);
+          return descriptor?.enumerable === true && "value" in descriptor;
+        });
+    const dense = (value: unknown, limit: number): value is readonly unknown[] => Array.isArray(value) && Object.getPrototypeOf(value) === Array.prototype && Object.isFrozen(value) &&
       value.length <= limit && Reflect.ownKeys(value).length === value.length + 1 &&
       Array.from({length:value.length},(_,i)=>Object.getOwnPropertyDescriptor(value,String(i))).every(member=>
         member !== undefined && member.enumerable === true && "value" in member);
@@ -726,15 +729,18 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         bundle.messageKinds.length > 64 || new Set(bundle.messageKinds).size !== bundle.messageKinds.length ||
         bundle.messageKinds.some(kind => typeof kind !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(kind)) ||
         !dense(bundle.proofs,278) ||
-        bundle.proofs.some(proof => !ownData(proof,["id","profile","indexRevision","compilerSha256","compilerCheck","runtimeCheck","exampleCheck"]) || !Object.isFrozen(proof)) ||
+        bundle.proofs.some(proof => !ownData(proof,["id","profile","indexRevision","compilerSha256","compilerCheck","runtimeCheck"],["exampleCheck"]) || !Object.isFrozen(proof)) ||
         new Set(bundle.proofs.map(proof => proof?.id)).size !== bundle.proofs.length ||
-        bundle.proofs.some(proof =>
+        bundle.proofs.some(proof => {
+          const exampleCheck = Object.getOwnPropertyDescriptor(proof,"exampleCheck")?.value;
+          return (
           typeof proof.id !== "string" || !/^can\.v1\.[a-z0-9_.-]{1,100}$/.test(proof.id) ||
           proof.profile !== FIRST_PROFILE || proof.indexRevision !== request.indexRevision ||
           proof.compilerSha256 !== request.compilerSha256 ||
           typeof proof.compilerCheck !== "string" || !proof.compilerCheck ||
           typeof proof.runtimeCheck !== "string" || !proof.runtimeCheck ||
-          (proof.exampleCheck !== undefined && proof.exampleCheck !== null && typeof proof.exampleCheck !== "string"))) return false;
+          (exampleCheck !== undefined && exampleCheck !== null && typeof exampleCheck !== "string"));
+        })) return false;
       return true;
     } catch { return false; }
   };
@@ -779,7 +785,12 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         if (signal.aborted) return;
         await core.refresh().catch(() => undefined);
         if (signal.aborted || !(await captureIsCurrent(capture)) || signal.aborted || !qualificationCurrent(capture)) return;
-        if (qualificationJobs.get(key) === job && validQualification(bundle, request)) job.bundle = bundle;
+        if (qualificationJobs.get(key) === job && validQualification(bundle, request)) {
+          // Keep one immutable cached view. An omitted optional property must
+          // stay absent in meaning even if Object.prototype supplies a getter.
+          job.bundle = Object.freeze({ ...bundle!, proofs: Object.freeze(bundle!.proofs.map(proof =>
+            Object.freeze({ ...proof, exampleCheck: Object.getOwnPropertyDescriptor(proof,"exampleCheck")?.value }))) });
+        }
       } catch { /* Failed qualification remains deterministic unqualified help. */ }
       finally { clearTimeout(deadline); job.complete = true; pendingQualifications.delete(pending); }
     });
