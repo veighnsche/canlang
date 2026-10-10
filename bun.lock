@@ -81,6 +81,7 @@
         "@canlang/contracts": "workspace:*",
         "@canlang/services": "workspace:*",
         "@canlang/values": "workspace:*",
+        "@noble/hashes": "2.4.0",
       },
       "devDependencies": {
         "@types/node": "^24.0.0",

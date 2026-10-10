@@ -2316,13 +2316,13 @@
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
-        "state": "Coordinator released finite bounded-retention and defining Contracts/Files typedFile observation carrier/API; no competing writer on the exact source/test hunks",
+        "state": "Coordinator released bounded retention, defining Files observation and portable upload/common finalizer closure; exact implemented source/test hunks have no competing writer",
         "defining_owners": [
           "cloudflare",
           "files",
           "interfaces"
         ],
-        "release": "Existing retention component plus Contracts files.ts/state.ts, Files finalize/index.ts,ports.ts,provenance/index.ts,host/sqlite.ts and existing finalize/contract-shapes tests with directly related docs/records. State/Dev/Compiler defining consumers and other shared lifetime/provider/source files remain owning prerequisites."
+        "release": "Existing retention component plus Contracts files.ts/state.ts, Files finalize/index.ts,ports.ts,provenance/index.ts,host/sqlite.ts and existing finalize/contract-shapes tests with directly related docs/records. State/Dev/Compiler defining consumers and other shared lifetime/provider/source files remain owning prerequisites. Exact later portable upload/index.ts+validation.test.ts, Files manifest/lock, common deploy/bundle.ts+existing deploy-bundle.test.ts+installed Worker verifier released and tested; full State/Dev/Compiler consumers remain separate. Interfaces observeFile/revalidateFile forwarding awaits coordinator exact kernel/test lease."
       },
       "acceptance_limits": [
         "No runtime acceptance from this planning packet. Source helper, registered Rust and historical fixtures do not certify actual installed/durable/browser consumers.",
