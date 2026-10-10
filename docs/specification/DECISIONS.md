@@ -6295,3 +6295,23 @@ Owning Node24 Work clean emission passes1.48s and entire directly affected kerne
 Work’s defining subject observation tests consume the actual Identity Memory snapshot producer. Add @canlang/identity:workspace:* only to Work devDependencies and matching authoritative workspace lock metadata. Preserve the actual public testing import, State/Work producer chain and unchanged dependency guard; no substitute snapshots or sibling-dist access. Reviewed LOCAL9fb2c0aa intake preserves the two edits and all local commits.
 
 Offline frozen install with ignored scripts passes on Bun1.4.2. The declared Work workspace link points to this worktree’s owning Identity package; Node24 resolves its actual bare testing entry, createMemoryIdentityStore and findMembershipsSnapshot. Current-source boundary passes13packages/914JS-TS/1308runtime-context/0violations. Capability owns its new b3 consumer source and behavior qualification; these checks release only the common dependency prerequisite. No broad rerun, push or change to precise human holds.
+
+### 2026-10-10 — prepare protected query child calls without granting partial output (unfinished)
+
+Require a separately Complete acyclic query child and the exact original
+nondefault parent parameters. Preserve authored input order and an unused
+binding; consuming that bound result remains declined until owning provenance
+is implemented. Actual codegen correspondence uses owning model Ref descriptors,
+parent version requirements, read-child version omission and exact finite bounds;
+ordinary reused reference arrays are not nominal value aliases. The immutable
+fresh prepared query recipe alone owns executable/source correspondence.
+
+The current native publication gate withdraws both child and parent recipes;
+genuine full emission reports E6008 for the unsupported call and activates no
+capture helper. Affected320/320 and finite independent review qualify preparation
+only. Setup corrections preserve the actual catalog owner and distinguish
+E3005 cycle rejection from disclosure refusal. Reuse unchanged whole/editor and
+public1/1 results. Actual native publication must retain strict host lifetime and
+select the query return exactly once, then qualify genuine compiled public and
+protected parent execution after reviewed defining Dev/State intake. Full
+references and existing precise holds stay unfinished.
