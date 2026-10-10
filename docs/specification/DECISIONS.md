@@ -7593,3 +7593,20 @@ the common loader with the current producer. Published unfinished State485
 retirement source remains unconsumed here; Capability owns required framework
 metadata adaptation and its new guards/issuer/DO qualification. Full physical
 Files/Dev joins and every precise native/backend/security/publication hold remain.
+
+### 2026-10-10 — describe closed receipt-error controls (unfinished State join)
+
+Extend the shared framework field vocabulary only for closed flat required
+string controls, matching State's actual nullable ReceiptError code/message.
+Outer omission/nullability retains its declared semantics; extra/nested/opaque
+JSON does not gain an exemption. Work's existing closed validator handles the
+shape after bounded own-data detachment; all nine actual Work inventories stay
+unchanged. State owns its receipt descriptor and runtime qualification. Opaque
+receipt results still require checked source/type/current-authority joins.
+
+Owning Contracts and Work emissions pass. In-memory public type controls use
+the actual ReceiptError membership and reject missing/extra/nonstring/nested
+object/opaque fields; finite source review CLEAR. Reuse unchanged Work runtime
+checks, with no new State runtime acceptance inferred. Permanent issuer and
+all-writer barriers, physical Files deletion/reopen and Dev routing remain
+unfinished; exact holds and parent completion statuses are preserved.

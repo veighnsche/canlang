@@ -117,6 +117,10 @@ Hosts must bind the actual same-load producer and compare its inventory with
 persisted declarations, rejecting domain/framework collisions; source tags
 and copied descriptors are correspondence facts only. This producer implements
 no State retirement guard, physical deletion or authority-bearing payload read.
+The shared vocabulary also supports closed flat string-field controls, such
+as State's receipt error. Work's nine field inventories stay unchanged; its
+validator checks a declared structured control with the same closed own-data
+rules after detachment. State owns its receipt descriptor and qualification.
 
 ## Source layout
 

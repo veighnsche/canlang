@@ -29,3 +29,7 @@ outside persisted JSON and checks their source/shape correspondence. Copied
 tags or validators do not establish authority. Unknown/colliding models and
 opaque retained results/deferred inputs without checked declarations refuse
 census/admission. A successful shape read does not establish File absence.
+Structured controls can declare a closed flat map of required string fields,
+including State's actual nullable `ReceiptError` with only `code` and `message`.
+This adds no arbitrary JSON or opaque-payload exemption; the owning producer
+checks its actual declaration and closed nested data.
