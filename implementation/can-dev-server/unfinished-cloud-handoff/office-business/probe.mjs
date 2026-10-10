@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdir, writeFile, realpath } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, realpath, cp, rm, lstat, symlink } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -415,8 +418,149 @@ finally {
 return facts;
 }
 
+/** One real in-process owner, native CLI consumers, and the original Office workflows.
+ * The browser's exported consumer must be available before this route can run.
+ */
+export async function runOfficeCohort() {
+  const installed=await realpath(installedRoot);
+  const root=join(installed,'test-results/can-dev-server/office-cohort-root');
+  const runtime=join(await realpath(tmpdir()),`cv-${process.getuid()}`);
+  const descriptorPath=join(runtime,sha(root).slice(0,24),'descriptor.json');
+  const local=path=>import(pathToFileURL(join(installed,'packages/cloudflare/dist',path)).href);
+  const execute=promisify(execFile);
+  const facts={schema:'office-cohort-local.v1',outcome:'incomplete',ownership:'in_process_session_with_native_controls',
+    remaining:['T11 eligible live witness and exact external packet authorization','Office A1–A6/G2 qualification','G3 fresh trials']};
+  let owner;
+  const builds=new Map();
+  try {
+    const existing=await lstat(descriptorPath).then(()=>true,error=>{if(error.code==='ENOENT')return false;throw error;});
+    assert.equal(existing,false,'private cohort root has an existing owner descriptor; refuse replacement');
+    const browserPath=join(installed,'implementation/can-dev-server/unfinished-cloud-handoff/office-browser.mjs');
+    const {runOfficeBrowserProbe}=await import(pathToFileURL(browserPath).href);
+    assert.equal(typeof runOfficeBrowserProbe,'function','actual existing browser consumer export');
+    await rm(root,{recursive:true,force:true});
+    await mkdir(root,{recursive:true,mode:0o700});
+    for(const path of ['package.json','compiler/Cargo.toml','compiler/Cargo.lock',
+      'compiler/src','compiler/target/debug/can','docs/specification/GRAMMAR.md',
+      'docs/specification/CONSTRUCT-HELP.md','docs/specification/DESIGN.md',
+      'design/UI-COMPONENTS.md','packages/ui/src/catalog.ts','packages/values/src/catalog.ts',
+      'tests/integration/can-dev-server/OfficeSupplies.can']) {
+      const target=join(root,path);await mkdir(dirname(target),{recursive:true});
+      await cp(join(installed,path),target,{recursive:true,preserveTimestamps:true});
+    }
+    await symlink(join(installed,'node_modules'),join(root,'node_modules'));
+    const sourcePath=join(root,'tests/integration/can-dev-server/OfficeSupplies.can');
+    const sourceSha=sha(await readFile(sourcePath));
+    assert.equal(sourceSha,sha(await readFile(join(installed,'tests/integration/can-dev-server/OfficeSupplies.can'))),'unchanged original Office source copy');
+    const {prepareLocalPreviewCapture}=await local('dev/preview-inputs.js');
+    const {captureIsCurrent}=await local('dev/source-capture.js');
+    const {startDevSessionService}=await local('dev/session-service.js');
+    const {createLocalPreviewBuilder}=await local('dev/preview-builder.js');
+    const {preflightLocalPreviewActivation,localPreviewActivationVerdict,produceInstalledPortableBundle,
+      seedLocalPreviewActors,localPreviewWorkerVars}=await local('dev/preview-host.js');
+    const captureRequest=prepareLocalPreviewCapture({checkoutRoot:root,appPath:sourcePath,
+      compilerPath:join(root,'compiler/target/debug/can'),catalogPath:join(installed,'packages/values/dist/catalog.json'),
+      helpIndexPath:join(root,'docs/specification/CONSTRUCT-HELP.md')});
+    owner=await startDevSessionService({selectedApp:'OfficeSupplies',capture:captureRequest,
+      previewBuilder:async(artifact,capture,artifactBytes)=>{
+        let identityDb;
+        const ownerDbs=new Map(),ownerLabels=new Map();
+        const build=createLocalPreviewBuilder({
+          resources:{d1:{binding:'DB',availability:'real_local'},identity:{backingBinding:'DB',availability:'real_local'}},
+          activationVerdict:preflightLocalPreviewActivation,
+          confirmRunningActivation:async(artifact,capture,ownerDb,id,selectedOwner,identities)=>{
+            identityDb=identities;ownerDbs.set(selectedOwner,ownerDb);
+            return localPreviewActivationVerdict(artifact,capture,ownerDb,id,selectedOwner,identities);
+          },
+          produceBundle:produceInstalledPortableBundle,
+          seedLocalActors:async handle=>{
+            const seed=await seedLocalPreviewActors(handle);
+            for(const row of seed.owners)ownerLabels.set(row.owner,row.binding==='STATE_CEDAR_DB'?'Cedar':'Oak');
+            return seed;
+          },workerVarsForOrigin:localPreviewWorkerVars,
+        });
+        const preview=await build(artifact,capture,artifactBytes);
+        const record={artifact,capture,artifactBytes,preview,identityDb,ownerDbs,ownerLabels};
+        builds.set(preview.id,record);
+        return {...preview,async dispose(){try{await preview.dispose();}finally{builds.delete(preview.id);}}};
+      }});
+    assert.equal(owner.identity.root,root,'exact in-process private owner root');
+    assert.equal(owner.descriptorPath,descriptorPath,'same native discovery descriptor');
+    const session=owner.identity.sessionId;
+    async function control(command,flags=[]) {
+      let stdout;
+      try {({stdout}=await execute(join(root,'compiler/target/debug/can'),
+        ['dev',command,'--root',root,'--session',session,'--app','OfficeSupplies','--profile','local-d1-identity',...flags],
+        {cwd:root,env:{...process.env,CAN_DEV_BIN:join(installed,'packages/cloudflare/dist/dev/control-cli.js')},timeout:90000,maxBuffer:512*1024}));}
+      catch(error){if(typeof error.stdout!=='string'||!error.stdout.trim())throw error;stdout=error.stdout;}
+      assert.equal(stdout.trimEnd().split('\n').length,1,'one native JSON control envelope');
+      const envelope=JSON.parse(stdout);
+      assert.equal(envelope.ok,true,`${command}: ${envelope.code??'control failed'}`);
+      assert.equal(envelope.session,session,'exact native selected private session');
+      return envelope.result;
+    }
+    const found=await control('discover');assert.equal(found.root,root,'native discover matches in-process owner');
+    facts.session=session;
+    const initial=await control('status');
+    const checked=await control('check',['--expected-revision',initial.revision]);
+    assert.equal(checked.current,true);assert.equal(checked.state,'valid');assert.equal(checked.preview,'ready');
+    let workflowCalls=0;
+    facts.browser=await runOfficeBrowserProbe({checkoutRoot:root,session,afterBrowserWorkflow:async()=>{
+      workflowCalls++;assert.equal(workflowCalls,1,'one business workflow in original browser consumer');
+      const before=await control('status');
+      assert.equal(before.preview,'ready');assert.equal(before.stale,false);assert.equal(before.dirty,false);
+      assert.equal(before.revision,before.serving_revision);assert.equal(before.revision,before.build_revision);
+      const current=builds.get(before.serving_build);assert.ok(current,'actual stock observed current build');
+      assert.equal(current.capture.sourceSha256,sourceSha,'unchanged Office source for joined business');
+      assert.equal(current.capture.sourceRevision,before.source_revision,'exact native source revision');
+      assert.equal(await captureIsCurrent(current.capture),true,'exact current full cohort capture');
+      const tuple={revision:before.revision,sourceRevision:current.capture.sourceRevision,epochMaterial:current.capture.epochMaterial,
+        servingBuild:before.serving_build,artifactSha256:sha(current.artifactBytes),sourceSha256:sourceSha};
+      facts.business=await runOfficeBusinessProbe({checkoutRoot:root,...current,
+        runExamples:async({capture,artifact,artifactBytes,preview})=>{
+          assert.equal(capture,current.capture);assert.equal(artifact,current.artifact);
+          assert.equal(artifactBytes,current.artifactBytes);assert.equal(preview,current.preview);
+          const result=await control('example.run',['--expected-revision',tuple.revision]);
+          assert.equal(result.revision,tuple.revision);assert.equal(result.source_revision,tuple.sourceRevision);
+          assert.equal(result.artifact_digest,tuple.artifactSha256);assert.equal(result.serving_build,tuple.servingBuild);
+          return result;
+        }});
+      assert.equal(facts.business.outcome,'passed',facts.business.error?.message??'joined business workflow failed');
+      assert.equal(facts.business.examples.length,2,'both complete isolated example runs');
+      const after=await control('status');
+      for(const field of ['revision','source_revision','serving_build','serving_revision','build_revision'])
+        assert.equal(after[field],before[field],`joined ${field} stays current`);
+      assert.equal(after.stale,false);assert.equal(after.dirty,false);
+      assert.equal(builds.get(tuple.servingBuild),current,'same actual owned preview record');
+      assert.equal(current.capture.epochMaterial,tuple.epochMaterial);
+      assert.equal(sha(current.artifactBytes),tuple.artifactSha256);
+      assert.equal(await captureIsCurrent(current.capture),true,'complete cohort inputs remain current');
+      facts.tuple=tuple;
+    }});
+    assert.equal(workflowCalls,1,'original browser consumer awaited joined business workflow');
+    assert.equal(facts.browser.result??facts.browser.outcome,'passed','original browser workflow passed');
+    assert.equal(sha(await readFile(sourcePath)),sourceSha,'Office source restored after complete consumer');
+    facts.outcome='passed';
+  } catch(error) {
+    facts.outcome='failed';facts.error={name:error?.name??'Error',code:error?.code??null,
+      message:String(error?.message??error).split('\n',1)[0].slice(0,400)};
+  } finally {
+    if(owner!==undefined) {
+      try {
+        await owner.stop();
+        const present=await lstat(owner.descriptorPath).then(()=>true,error=>{if(error.code==='ENOENT')return false;throw error;});
+        assert.equal(present,false,'exact owned cohort descriptor removed after awaited stop');
+        assert.equal(builds.size,0,'all actual owned preview builds disposed');
+        facts.stop={stopped:true,descriptorRemoved:true};
+      } catch(error) {facts.outcome='failed';facts.stop={stopped:false,error:String(error?.message??error).split('\n',1)[0].slice(0,250)};}
+    }
+  }
+  return facts;
+}
+
 if(process.argv[1] && pathToFileURL(resolve(process.argv[1])).href===import.meta.url) {
-  const facts=await runOfficeBusinessProbe();
+  const cohort=process.argv.includes('--cohort');
+  const facts=await (cohort ? runOfficeCohort() : runOfficeBusinessProbe());
   const output=join(installedRoot,'test-results/can-dev-server/office-business-result.json');
   await mkdir(dirname(output), { recursive:true });
   await writeFile(output, JSON.stringify(facts,null,2)+'\n', {mode:0o600});
