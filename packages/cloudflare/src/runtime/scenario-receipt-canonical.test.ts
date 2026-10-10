@@ -1448,6 +1448,205 @@ ${mode === 'projection-unread' ? 'const visible="original visible";' : 'const vi
   ${mode === 'changed-result' ? 'if(facts[0])facts[0].visible="substituted";' : ''}
   return facts;`;
 }
+
+/** Handauthored Task39 read-child component. Every declaration channel is
+ * paired by the real loader; this does not qualify Compiler CALL lowering. */
+function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): void {
+  const origin = { path: source, sha256: sha, module: modulePath };
+  const parentResult = artifact.operations![0]!.result!;
+  queryDeclaration(artifact);
+  const queryResult = artifact.operations![0]!.result!;
+  const queryPlan = queryResult.disclosure!;
+  const child = 'Shop.readFacts';
+  const inputs = [
+    { name: 'record', field: { kind: 'ref' as const, model, requireVersion: true }, required: true },
+    { name: 'targets', field: { kind: 'ref' as const, model, requireVersion: true }, required: true,
+      array: { required: false }, min: 0, max: 3 },
+  ];
+  const other = 'Shop.Other' as ModelName;
+  artifact.operations![0]!.inputs.fields = [...inputs, ...(mode === 'wrong-model' ? [
+    { name: 'other', field: { kind: 'ref' as const, model: other, requireVersion: true }, required: true },
+  ] : [])];
+  artifact.operations![0]!.result = parentResult;
+  artifact.operations!.push({ name: child, kind: 'read', description: '', inputs: { fields: inputs },
+    result: { ...queryResult, disclosure: { ...queryPlan, queries: queryPlan.queries!.map(query => ({ ...query,
+      order: [{ field: 'visible', direction: 'asc' as const }],
+    })) } } });
+  artifact.callables.push({ id: child, kind: 'operation', module: modulePath,
+    export: 'readFacts', member: ['Shop','readFacts'], inputStyle: 'parameters' });
+  if (mode === 'wrong-model') artifact.models!.push({ ...artifact.models![0]!, name: other });
+  const declarations = {
+    [operation]: { inputs: { record: { type: model }, targets: { type: model, array: true, min: 0, max: 3 },
+      ...(mode === 'wrong-model' ? { other: { type: other } } : {}) }, result: { type: 'text' },
+      callSites: [{ id: 'root-read', source: origin, kind: 'operation', targets: [child], resultType: 'Shop.Fact[]' }] },
+    [child]: { read: true, handler: child, by: 'members',
+      inputs: { record: { type: model }, targets: { type: model, array: true, min: 0, max: 3 } },
+      result: { type: 'Shop.Fact', array: true }, callSites: [] },
+  };
+  const callInputs = mode === 'copied-reference' ? '{record:{...input.record},targets:input.targets}'
+    : mode === 'wrong-model' ? '{record:input.other,targets:input.targets}'
+    : mode === 'malformed-array' ? '{record:input.record,targets:input.record}'
+    : mode === 'array-bound' ? '{record:input.record,targets:[...input.targets,input.record]}'
+    : '{record:input.record,targets:input.targets}';
+  const fields = { visible: { type: 'text' }, private: { type: 'text' }, token: { type: 'secret', init: 'random_secret' } };
+  const models = Object.fromEntries([model, ...(mode === 'wrong-model' ? [other] : [])].map(name => [name, {
+    fields, readGrants: [{ rule: `${name}.read.1`, by: ['members'], fields: ['visible','private'] }],
+  }]));
+  const policy = { operations: { [operation]: { by: ['members'] }, [child]: { by: ['members'] } },
+    models: Object.fromEntries(Object.keys(models).map(name => [name, { read: [`${name}.read.1`] }])) };
+  artifact.modules[0]!.js = `import {set,observeScenarioReceiptDependency,selectScenarioReceiptReturn,
+    invokeScenarioReceiptCall,executeScenarioReceiptQuery,observeScenarioReceiptQueryDependency,
+    bindScenarioReceiptQueryResult} from '@canlang/stdlib';
+    let executions=0,handlerProbe,parentContext,childContext,inputSnapshot,returnedFacts;
+    export const executionCount=()=>executions;
+    export const setHandlerProbe=probe=>{handlerProbe=probe;};
+    export const inspectChild=()=>({inputSnapshot,returnedFacts});
+    export const lateParentCall=()=>invokeScenarioReceiptCall(parentContext,'root-read','Shop.readFacts',{});
+    export const lateChildQuery=()=>executeScenarioReceiptQuery(childContext,'rows',()=>true);
+    const policy=${JSON.stringify(policy)};
+    export const appDefinition={id:${JSON.stringify(app)},policy,models:${JSON.stringify(models)},operations:${JSON.stringify(declarations)}};
+    export function canApp(){return {policy,operations:${JSON.stringify(artifact.operations)},
+      read:{${Object.keys(models).map(name => `${JSON.stringify(`${name}.read.1`)}:()=>true`).join(',')}},Shop:{
+      saved:async(c,input)=>{executions++;parentContext=c;
+        const original=input.record.visible;
+        await observeScenarioReceiptDependency(c,'Shop.Record',input.record,'visible','visible-value');
+        await set(c,input.record,{visible:'parent middle'});
+        ${mode === 'valid' ? `const facts=await invokeScenarioReceiptCall(c,'root-read','Shop.readFacts',${callInputs});
+          returnedFacts=facts.map(fact=>({task:fact.task,version:fact.version,visible:fact.visible}));`
+          : `try{await invokeScenarioReceiptCall(c,'root-read','Shop.readFacts',${callInputs});}catch{}`}
+        selectScenarioReceiptReturn(c,'selected');return original;
+      },readFacts:async(c,input)=>{executions++;childContext=c;
+        inputSnapshot={record:{id:input.record.id,version:input.record.version},
+          targets:input.targets.map(row=>({id:row.id,version:row.version})),
+          frozen:Object.isFrozen(input.targets),repeated:input.targets[0]===input.targets[2]};
+        ${mode === 'read-write' ? "try{await set(c,input.record,{private:'discard child write'});}catch{}" : ''}
+        ${queryHandler()}
+      }}};}`;
+}
+
+it('checked read child admits ordered repeated protected references at the parent stage and retains one nominal query receipt', async () => {
+  const w = await world(false,true,undefined,artifact=>referenceReadChildFixture(artifact),false);
+  const second = await seedRow(w.store,model,{id:'rec-2',data:{visible:'second visible',private:'second private',token:'second secret'}});
+  const excluded = await seedRow(w.store,model,{id:'rec-3',data:{visible:'excluded',private:'false private',token:'false secret'}});
+  const ref = (row: typeof w.row) => ({id:row.id,version:String(row.version)});
+  const envelope = {...w.envelope,inputs:{record:ref(w.row),targets:[ref(w.row),ref(second),ref(w.row)]}};
+  const before = await w.snapshot();
+  const beforeHistories = await Promise.all(before.rows.map(row=>w.store.historyFor(model,row.id)));
+  const batches: Parameters<StoragePort['commit']>[0][] = [];
+  const store: StoragePort = {...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const fresh = await w.invoker(store).invokeMutation(envelope,w.identity);
+  assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+  assert.equal(fresh.result.result,'original visible'); assert.equal(batches.length,1);
+  const batch = batches[0]!, current = await w.store.load(model,w.row.id); assert.ok(current);
+  assert.equal(current.version,w.row.version+1); assert.equal(current.data['visible'],'parent middle');
+  assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1);
+  assert.deepEqual(batch.history[0],{model,recordId:w.row.id,version:current.version,operation,
+    operationId:envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',
+    before:w.row.data,after:current.data});
+  for(const effects of [batch.outbox,batch.schedules,batch.uniqueClaims,batch.uniqueReleases]) assert.deepEqual(effects,[]);
+  const physical = await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
+  assert.equal(physical.outcome.status,'committed');
+  if(physical.outcome.status!=='committed') throw new Error('expected one committed read-child parent receipt');
+  assert.deepEqual(physical.outcome.recordVersions,[{model,id:current.id,version:current.version}]);
+  assert.deepEqual(batch.receipt,physical); assert.deepEqual(physical.resolvedDefaults,{});
+  const association = readScenarioReceiptAssociation(physical); assert.ok(association);
+  assert.deepEqual(association.plan,plan()); assert.equal(association.returnId,'selected');
+  assert.equal(association.calls?.length,1); const call=association.calls![0]!;
+  assert.equal(call.site,'root-read'); assert.equal(call.caller,operation); assert.equal(call.target,'Shop.readFacts');
+  assert.deepEqual(call.references.map(value=>[value.model,value.row.id,value.row.version]),
+    [[model,w.row.id,current.version],[model,w.row.id,current.version],[model,second.id,second.version],[model,w.row.id,current.version]]);
+  const facts = [current,second].map(row=>({task:ref(row),version:String(row.version),visible:row.data['visible']}));
+  assert.deepEqual(call.result,facts); assert.equal(call.scenario?.resultType,'Shop.Fact[]');
+  assert.deepEqual(call.scenario?.plan,w.artifact.operations![1]!.result!.disclosure);
+  assert.equal(call.scenario?.returnId,'selected'); assert.deepEqual(call.scenario?.observations,[]);
+  assert.equal(call.scenario?.queries?.length,1); const query=call.scenario!.queries![0]!;
+  assert.equal(query.candidates.length,3);
+  assert.deepEqual(query.selectedIndices.map(index=>query.candidates[index]!.record.id),[w.row.id,second.id]);
+  for(const row of [current,second,excluded]) {
+    const candidate=query.candidates.find(value=>value.record.id===row.id); assert.ok(candidate);
+    assert.equal(candidate.record.version,row.version); assert.equal(candidate.record.data['visible'],row.data['visible']);
+    assert.equal(Object.hasOwn(candidate.record.data,'token'),false);
+    assert.equal(candidate.matched,row!==excluded);
+    assert.deepEqual(candidate.dependencies,row===excluded?['visible-control']:['visible-control','visible-data']);
+  }
+  assert.deepEqual(association.changed.map(value=>value.row.id),[w.row.id]);
+  assert.deepEqual(association.observations.map(value=>[value.dependencyId,value.row.id,value.row.version]),
+    [['visible-value',w.row.id,w.row.version]]);
+  const namespace = await import(w.asm.moduleUrls[modulePath]!);
+  assert.deepEqual(namespace.inspectChild().inputSnapshot,{record:{id:w.row.id,version:BigInt(current.version)},
+    targets:[current,second,current].map(row=>({id:row.id,version:BigInt(row.version)})),frozen:true,repeated:true});
+  assert.deepEqual(namespace.inspectChild().returnedFacts,[current,second].map(row=>({
+    task:{kind:'ref',model,id:row.id,version:BigInt(row.version)},version:BigInt(row.version),visible:row.data['visible'],
+  })),'child nominal references decode as Values refs, with no owner-row data');
+  const after = await w.snapshot();
+  assert.equal(after.revision,before.revision+1); assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+  assert.deepEqual(after.rows,before.rows.map(row=>row.id===w.row.id?current:row));
+  const histories = await Promise.all(after.rows.map(row=>w.store.historyFor(model,row.id)));
+  assert.deepEqual(histories,beforeHistories.map((history,index)=>before.rows[index]!.id===w.row.id?[...history,...batch.history]:history));
+  const retained = {snapshot:after,physical};
+  await assert.rejects(namespace.lateParentCall(),/closed|active|frame/i);
+  await assert.rejects(namespace.lateChildQuery(),/closed|active|frame/i);
+  for(const dedicated of [false,true]) {
+    const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
+      :await w.invoker().invokeMutation(envelope,w.identity);
+    assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+    assert.equal(replay.result.result,'original visible'); assert.equal(JSON.stringify(replay).includes('targetInterface'),false);
+    assert.deepEqual({snapshot:await w.snapshot(),physical:await w.store.readReceipt(w.receiptIdentity)},retained);
+    assert.deepEqual(await Promise.all(after.rows.map(row=>w.store.historyFor(model,row.id))),histories);
+  }
+  await w.identities.removeMembership(w.membership.membership_id);
+  const revoked=await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity);
+  assert.ok('error' in revoked,JSON.stringify(revoked)); assert.equal(revoked.error.code,'forbidden');
+  assert.deepEqual({snapshot:await w.snapshot(),physical:await w.store.readReceipt(w.receiptIdentity)},retained);
+  assert.deepEqual(w.counters(),{commits:0,files:0,executions:2});
+});
+
+it('caught protected read child input and write refusals roll back the actual parent stage and close its lifetime', async () => {
+  for(const mode of ['copied-reference','wrong-model','malformed-array','array-bound','read-write']) {
+    const w=await world(false,true,undefined,artifact=>referenceReadChildFixture(artifact,mode),false);
+    const second=await seedRow(w.store,model,{id:'rec-2',data:{visible:'second visible',private:'second private',token:'second secret'}});
+    const other=mode==='wrong-model'?await seedRow(w.store,'Shop.Other' as ModelName,
+      {data:{visible:'other visible',private:'other private',token:'other secret'}}):undefined;
+    const originalOther=other===undefined?undefined:await w.store.load('Shop.Other' as ModelName,other.id);
+    const ref=(row:typeof w.row)=>({id:row.id,version:String(row.version)});
+    const envelope={...w.envelope,inputs:{record:ref(w.row),targets:[ref(w.row),ref(second),ref(w.row)],
+      ...(other===undefined?{}:{other:ref(other)})}};
+    const before=await w.snapshot(), histories=await Promise.all(before.rows.map(row=>w.store.historyFor(model,row.id)));
+    const producerBytes=JSON.stringify({sources:w.artifact.sources,modules:w.artifact.modules});
+    const batches:Parameters<StoragePort['commit']>[0][]=[];
+    const store:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+    const refused=await w.invoker(store).invokeMutation(envelope,w.identity);
+    assert.ok('error' in refused,`${mode}: ${JSON.stringify(refused)}`); assert.equal(refused.error.code,'validation');
+    if(mode==='read-write') assert.match(refused.error.message,/read child cannot stage effects/);
+    const after=await w.snapshot(); assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+    assert.deepEqual(await Promise.all(after.rows.map(row=>w.store.historyFor(model,row.id))),histories);
+    assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+    if(other!==undefined) assert.deepEqual(await w.store.load('Shop.Other' as ModelName,other.id),originalOther);
+    assert.equal(batches.length,1); assert.equal(after.revision,before.revision+1);
+    for(const effects of [batches[0]!.writes,batches[0]!.history,batches[0]!.outbox,batches[0]!.schedules,
+      batches[0]!.uniqueClaims,batches[0]!.uniqueReleases]) assert.deepEqual(effects,[],mode);
+    const receipt=await w.store.readReceipt(w.receiptIdentity); assert.ok(receipt);
+    assert.equal(receipt.outcome.status,'rejected');
+    if(receipt.outcome.status!=='rejected') throw new Error('expected caught read-child rejection');
+    assert.equal(receipt.outcome.code,'validation'); assert.equal(receipt.outcome.message,refused.error.message);
+    assert.equal(readScenarioReceiptAssociation(receipt),null);
+    assert.equal(await loadCanonicalDescriptors(w.asm,w.artifact),w.loaded,'the original verified source remains current');
+    assert.equal(JSON.stringify({sources:w.artifact.sources,modules:w.artifact.modules}),producerBytes);
+    const namespace=await import(w.asm.moduleUrls[modulePath]!);
+    // A failed frame rethrows its first terminal refusal before checking its
+    // closed lifetime; closing cannot replace or recover that original error.
+    const terminalFailure=(error:unknown)=>error instanceof Error && 'code' in error &&
+      error.code==='validation' && error.message===refused.error.message;
+    await assert.rejects(namespace.lateParentCall(),terminalFailure);
+    // The child's own query succeeded before its effect refusal. Its separate
+    // healthy host frame therefore reaches State's finalized-owner check.
+    if(mode==='read-write') await assert.rejects(namespace.lateChildQuery(),(error:unknown)=>
+      error instanceof Error && 'code' in error && error.code==='validation' &&
+      error.message==='Saved scenario: owner session is closed, finalized or poisoned.');
+    assert.deepEqual(await w.snapshot(),after);
+    assert.deepEqual(w.counters(),{commits:0,files:0,executions:mode==='read-write'?2:1});
+  }
+});
 for (const kind of ['populated', 'filtered', 'vacant']) it(`native query adapter retains ${kind} candidates and exact nominal replay`, async () => {
   const vacant = kind !== 'populated';
   const w = await world(false, true, queryHandler(), queryDeclaration, false);
