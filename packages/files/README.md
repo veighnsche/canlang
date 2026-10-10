@@ -78,6 +78,27 @@ the finalized intent before removing staging. SQLite commits the journey
 mutation atomically. Separate FS bytes and persisted metadata can recover
 interrupted serial publication; their ports require host serialization for
 concurrent writers and do not imply multi-store or power-loss guarantees.
+
+The SQLite store now retains a stable `fileStoreId`. Trusted deployment
+composition can bind its original `FileReferenceStoragePort` through
+`createSqliteFileBindings`'s `fileRetirement: { storage, retention }` option.
+The first exact State/store/receiver assignment persists permanently; reopen
+must use the same assignment. `deleteRetiredFile(ref)` reads the original
+permanent State decision through the captured lookup, then checks the physical
+metadata, bytes, current policy/clock and original policy/disposition. One real
+SQLite transaction saves that whole decision and matching terminal tombstone
+with byte deletion. Missing bytes succeed only with the same original journal
+and terminal metadata. Changed facts, missing issuance or repinning refuse.
+
+Once assigned, finalized byte deletion/overwrite/append and terminal or
+attachment-time regressions through the public ports refuse; public transactions
+grant no cleanup permission. Legacy full/batch retention also refuses on that
+profile, including after reopen without issuer configuration. Staging and
+unpublished final-byte cleanup retain their separate existing semantics.
+Controlled lookup tests qualify these Files mechanics only. The actual State
+issuer, complete framework/declaration/admission guards and Dev all-writer/owner
+reopen binding remain prerequisites for a supported shared-retirement profile.
+No DTO, callback, live observation or structural port cast establishes issuance.
 Retention cleans unpublished terminal bytes while published files keep
 their own policy and immutable tombstones.
 

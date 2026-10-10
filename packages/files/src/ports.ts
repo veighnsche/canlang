@@ -30,6 +30,7 @@
  */
 import type {
   FileProvenance,
+  FinalizedFileRetirement,
   FinalizedFile,
   FinalizedFileRef,
   StoredObjectState,
@@ -110,6 +111,13 @@ export interface StoredFileRecord {
   attachedRecord: string | null;
   /** First attachment observed by the owning clock; absent legacy marks prove no timing. */
   attachedAtMs?: number;
+}
+
+/** Original permanent State decision and the exact physical terminal row.
+ * Persist together with byte deletion; this JSON record is not an issuer. */
+export interface FinalizedFileDeletionRecord {
+  readonly retirement: FinalizedFileRetirement;
+  readonly tombstone: StoredFileRecord;
 }
 
 /** Minimal wall-clock seam. The file kernel never reads time implicitly. */
