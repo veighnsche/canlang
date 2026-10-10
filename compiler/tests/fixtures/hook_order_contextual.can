@@ -1,0 +1,20 @@
+app HookOrder
+Given
+ Entry {state:text,accept:bool}
+ Audit {note:text,author:user server=actor,at:datetime server=now,explicit_author:user,explicit_at:datetime,team_id:text,team_timezone:timezone,operation_id:text,operation_source:text,actor_email:email,actor_verified:bool}
+ policy Entry read=members fields=state,accept
+ policy Audit read=members fields=note
+When
+ crud Entry by=members fields=state,accept
+ scenario adjustEntry on=Entry.update
+  do
+   require event.after.state=="proposed"
+   require event.after.id!=""
+   require event.after.version==2
+   set event.after {state="first"}
+   create Audit {note=event.after.state,explicit_author=actor,explicit_at=now,team_id=team.id,team_timezone=team.timezone,operation_id=operation.id,operation_source=operation.source,actor_email=actor.email,actor_verified=actor.email_verified} as audit
+   require event.after.state=="first"
+   set event.after {state="second"}
+   require event.after.state=="second"
+   require event.after.accept
+Then

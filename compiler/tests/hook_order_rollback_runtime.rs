@@ -37,15 +37,9 @@ fn run_native_hook_case(case: &str) {
             "require event.after.state==\"proposed\"\n   require event.after.id!=\"\"\n   require event.after.version==2",
         );
     let source = if matches!(case, "contextual" | "contextual_core") {
-        source
-            .replace(
-                "Audit {note:text,author:user server=actor,at:datetime server=now}",
-                "Audit {note:text,author:user server=actor,at:datetime server=now,explicit_author:user,explicit_at:datetime,team_id:text,team_timezone:timezone,operation_id:text,operation_source:text,actor_email:email,actor_verified:bool}",
-            )
-            .replace(
-                "create Audit {note=event.after.state} as audit",
-                "create Audit {note=event.after.state,explicit_author=actor,explicit_at=now,team_id=team.id,team_timezone=team.timezone,operation_id=operation.id,operation_source=operation.source,actor_email=actor.email,actor_verified=actor.email_verified} as audit",
-            )
+        // One owning authored source is shared with the portable native host.
+        // Its bytes are identical to the original full contextual case.
+        include_str!("fixtures/hook_order_contextual.can").to_string()
     } else {
         source
     };

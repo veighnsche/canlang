@@ -19,7 +19,7 @@ fn compile(dir: &Path, source: &str) -> (std::process::Output, serde_json::Value
 }
 
 #[test]
-fn hooks_preserve_candidate_events_and_refuse_unsupported_context() {
+fn hooks_preserve_candidate_events_and_admit_only_complete_native_context() {
     let scratch = tempfile::tempdir().unwrap();
     let supported = "app Hooks\nGiven\n M { title:text }\nWhen\n scenario adjust on=M.create\n  do\n   let title=event.after.title\n   require title==\"candidate\"\n   set event.after {title=\"adjusted\"}\n scenario context() by=members\n  do\n   let a=actor\n   let n=now\n   let t=team.id\n   let o=operation.id\nThen\n";
     let (output, result) = compile(scratch.path(), supported);
@@ -40,9 +40,29 @@ fn hooks_preserve_candidate_events_and_refuse_unsupported_context() {
         assert!(emitted.contains(&format!("c.{field}")), "{emitted}");
     }
 
-    for expression in ["actor", "now", "team.id", "operation.id"] {
+    for expression in ["now", "team.id", "operation.id"] {
         let source = format!(
             "app Hooks\nGiven\n M {{ title:text }}\nWhen\n scenario h on=M.create\n  do\n   let value={expression}\nThen\n"
+        );
+        let (output, result) = compile(scratch.path(), &source);
+        assert!(output.status.success(), "{expression}: {result}");
+        let emitted = result["modules"][0]["js"].as_str().unwrap();
+        assert!(emitted.contains(&format!("c.{expression}")), "{emitted}");
+        assert_eq!(result["modelPolicies"][0]["hooks"][0]["id"], "Hooks.h");
+        assert_eq!(result["callables"][0]["member"][2], "run");
+        assert!(emitted.contains("$hookCtx,c)"), "{emitted}");
+    }
+
+    // A missing actor grant and an unsupported whole callback never acquire
+    // contextual native authority. Preserve the original source-token refusal.
+    for (expression, fields) in [
+        ("actor", "title:text"),
+        ("now", "title:text,opaque:json"),
+        ("team.id", "title:text,opaque:json"),
+        ("operation.id", "title:text,opaque:json"),
+    ] {
+        let source = format!(
+            "app Hooks\nGiven\n M {{ {fields} }}\nWhen\n scenario h on=M.create\n  do\n   let value={expression}\nThen\n"
         );
         let (output, result) = compile(scratch.path(), &source);
         assert!(!output.status.success(), "{expression}: {result}");
@@ -218,17 +238,24 @@ fn precommit_actor_proof_uses_only_the_exact_authenticated_crud_grant() {
         "   let initiating_actor=actor\n   create Attribution",
     );
     let (output, result) = compile(scratch.path(), &native);
-    assert!(!output.status.success(), "{result}");
+    assert!(output.status.success(), "{result}");
+    let emitted = result["modules"][0]["js"].as_str().unwrap();
+    assert!(emitted.contains("= c.actor;"), "{emitted}");
     assert!(
-        result["diagnostics"]
+        emitted.contains("$hookCtx.stage({op:\"create\",model:\"Hooks.Attribution\""),
+        "{emitted}"
+    );
+    assert_eq!(
+        result["modelPolicies"][0]["hooks"][0]["id"],
+        "Hooks.changed"
+    );
+    assert!(
+        result["callables"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"
-                && diagnostic["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("hook contextual binding `actor`")),
-        "native hook context remains gated: {result}"
+            .any(|callable| callable["id"] == "Hooks.changed"
+                && callable["member"] == serde_json::json!(["hooks", "Hooks.M.update", "run"])),
+        "original authenticated callback must retain its native binding: {result}"
     );
 }
