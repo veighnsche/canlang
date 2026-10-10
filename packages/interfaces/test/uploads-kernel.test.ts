@@ -31,6 +31,7 @@ import {
   type FileJourneyBindings,
   type FilesKernelBindings,
   type KernelAttachOutcome,
+  type KernelCurrentFileSnapshot,
   type KernelRecordAttachmentOutcome,
 } from '../src/uploads/kernel.js';
 
@@ -110,6 +111,7 @@ function journeyBindings(overrides: Partial<FileJourneyBindings> = {}): FileJour
     recordAttachment: () => ({ status: 'attached', ref: 'file-1' }),
     readBytes: () => new Uint8Array([1, 2, 3, 4]),
     readCurrentBytes: () => null,
+    readCurrentSnapshot: () => null,
     observeFile: () => null,
     revalidateFile: () => false,
     ...overrides,
@@ -206,6 +208,7 @@ test('kernel methods are async even over sync L4 functions', async () => {
   assert.ok(journey.observeFile('file-1', RECEIVER, RETENTION) instanceof Promise);
   assert.ok(journey.revalidateFile({}, RECEIVER, RETENTION) instanceof Promise);
   assert.ok(journey.readCurrentBytes('file-1', RECEIVER, RETENTION) instanceof Promise);
+  assert.ok(journey.readCurrentSnapshot('file-1', RECEIVER, RETENTION) instanceof Promise);
 });
 
 /* ------------------------------------------------------------------ */
@@ -277,6 +280,7 @@ test('journey kernel passes fail-closed nulls through without substituting bytes
   assert.equal(await kernel.observeFile('file-9', RECEIVER, RETENTION), null);
   assert.equal(await kernel.revalidateFile({}, RECEIVER, RETENTION), false);
   assert.equal(await kernel.readCurrentBytes('file-9', RECEIVER, RETENTION), null);
+  assert.equal(await kernel.readCurrentSnapshot('file-9', RECEIVER, RETENTION), null);
 });
 
 for (const mode of ['sync', 'async'] as const) {
@@ -288,9 +292,20 @@ for (const mode of ['sync', 'async'] as const) {
     let revalidation = true;
     const returnedBytes = new Uint8Array([1, 2, 3, 4]);
     let currentBytes: Uint8Array | null = returnedBytes;
+    const returnedSnapshot = Object.freeze({ facts: Object.freeze({ transportFactsSentinel: true }), bytes: returnedBytes }) as unknown as KernelCurrentFileSnapshot;
+    let currentSnapshot: KernelCurrentFileSnapshot | null = returnedSnapshot;
     const calls: string[] = [];
     const bindings = journeyBindings({
       readBytes() { return assert.fail('current byte read must never fall back to legacy readBytes'); },
+      readProvenance() { return assert.fail('current snapshot must never combine a separate provenance read'); },
+      readCurrentSnapshot(ref, caller, retention) {
+        assert.equal(this, bindings);
+        assert.equal(ref, 'file-1');
+        assert.equal(caller, RECEIVER);
+        assert.equal(retention, RETENTION);
+        calls.push('snapshot');
+        return mode === 'async' ? Promise.resolve(currentSnapshot) : currentSnapshot;
+      },
       readCurrentBytes(ref, caller, retention) {
         assert.equal(this, bindings);
         assert.equal(ref, 'file-1');
@@ -320,21 +335,30 @@ for (const mode of ['sync', 'async'] as const) {
     assert.equal(await kernel.observeFile('file-1', RECEIVER, RETENTION), sentinel);
     assert.equal(await kernel.revalidateFile(saved, RECEIVER, RETENTION), true);
     assert.equal(await kernel.readCurrentBytes('file-1', RECEIVER, RETENTION), returnedBytes);
+    assert.equal(await kernel.readCurrentSnapshot('file-1', RECEIVER, RETENTION), returnedSnapshot);
     observation = null;
     revalidation = false;
     currentBytes = null;
+    currentSnapshot = null;
     assert.equal(await kernel.observeFile('file-1', RECEIVER, RETENTION), null);
     assert.equal(await kernel.revalidateFile(saved, RECEIVER, RETENTION), false);
     assert.equal(await kernel.readCurrentBytes('file-1', RECEIVER, RETENTION), null);
-    assert.deepEqual(calls, ['observe', 'revalidate', 'bytes', 'observe', 'revalidate', 'bytes']);
+    assert.equal(await kernel.readCurrentSnapshot('file-1', RECEIVER, RETENTION), null);
+    assert.deepEqual(calls, ['observe', 'revalidate', 'bytes', 'snapshot', 'observe', 'revalidate', 'bytes', 'snapshot']);
   });
 
   test(`journey file observation and current byte methods preserve ${mode === 'sync' ? 'thrown' : 'rejected'} error identity as Promise rejection`, async () => {
     const observeError = new Error(`${mode} observe failure`);
     const revalidateError = new Error(`${mode} revalidate failure`);
     const bytesError = new Error(`${mode} current bytes failure`);
+    const snapshotError = new Error(`${mode} current snapshot failure`);
     const kernel = createFileJourneyKernel(journeyBindings({
       readBytes() { return assert.fail('current byte read must never fall back to legacy readBytes'); },
+      readProvenance() { return assert.fail('current snapshot must never combine a separate provenance read'); },
+      readCurrentSnapshot() {
+        if (mode === 'async') return Promise.reject(snapshotError);
+        throw snapshotError;
+      },
       readCurrentBytes() {
         if (mode === 'async') return Promise.reject(bytesError);
         throw bytesError;
@@ -357,11 +381,14 @@ for (const mode of ['sync', 'async'] as const) {
     const bytes = kernel.readCurrentBytes('file-1', RECEIVER, RETENTION);
     assert.ok(bytes instanceof Promise);
     await assert.rejects(bytes, error => error === bytesError);
+    const snapshot = kernel.readCurrentSnapshot('file-1', RECEIVER, RETENTION);
+    assert.ok(snapshot instanceof Promise);
+    await assert.rejects(snapshot, error => error === snapshotError);
   });
 }
 
 test('journey kernel throws naming each unbound journey seam', () => {
-  for (const seam of ['readProvenance', 'authorizeAttach', 'recordAttachment', 'readBytes', 'observeFile', 'revalidateFile', 'readCurrentBytes'] as const) {
+  for (const seam of ['readProvenance', 'authorizeAttach', 'recordAttachment', 'readBytes', 'observeFile', 'revalidateFile', 'readCurrentBytes', 'readCurrentSnapshot'] as const) {
     const missing: Record<string, unknown> = { ...journeyBindings() };
     delete missing[seam];
     assert.throws(() => createFileJourneyKernel(missing), new RegExp(`'${seam}' is not bound`), seam);
