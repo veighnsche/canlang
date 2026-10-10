@@ -3037,9 +3037,9 @@ ignored, filtered or skipped bodies, actual Node24/real engines/native/permissio
 execution. Final strict all-target Clippy passes37.11s after correcting one mechanical
 let-and-return issue; format/diff0. Whole behavior results are unchanged by that
 lint cleanup and reused. Unchanged editor results are
-reused. Prior1415 source results are historical for this producer. Dev still owns genuine
-same-load hydration/private binder/current target admission; no executable
-runtime consumer or original149-diagnostic Workbench acceptance is claimed.
+reused. Prior1415 source results are historical for this producer. The later reviewed f87 release qualifies Dev523 genuine same-load hydration/private
+binder/current target finite native consumer. Its owner result is reused;
+original149-diagnostic Workbench acceptance remains separate.
 Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.
 
 **Original Volunteer source corrections, 2026-10-10 — unfinished composition.**
@@ -3091,3 +3091,29 @@ coordinator must release its containing integration carrier before safe intake.
 No local reset/merge or unrelated branch intake follows.
 Employees pure authority claims and Volunteer tab bindings are outside this
 lease; Dev owns original native qualification.58/67 and precise holds persist.
+
+### 2026-10-10 — preserve Invoice reconciliation cases (unfinished composition)
+
+Assigned local drafta8f1151 renames only the nonexported reconcile handler to
+observe_payment on=ReconcileDue. Keep PaymentRequest.kind enum cases, provider
+Payments.reconcile, original guards/evaluation order/permissions/examples and
+scheduling intact; no actual scenario caller/form consumer exists. Accepted
+lexical-first resolution clears the seven predicted enum-shadow findings. Exact
+original25/catalog compile is complete/omitted0 with all25 paths/hashes matching:
+118→111, Invoice48→41; the separate Payments.reconcile.completed E3010 remains.
+No artifact or original native qualification. Update only isolated Invoice249→242
+in the existing corpus table; all52 rows/full assertions and51 unchanged rows
+remain. Affected table1/1 passes2.11s,36 unrelated tests unselected, superseding
+the stale-pin failure. Reuse unchanged compiler1418/139 and strict/editor results.
+
+Containing fca/f87 intake resolves the old a9 ancestry blocker. Reviewed Dev
+committed-source and Dev523 stored-reference/current-target native consumers
+close their finite dependencies; broader original Workbench/Volunteer and nine
+references remain open. State11fe current File authority and Interfacesaba
+current byte forwarding are coordinator-released defining producers; genuine
+protected native File consumption remains Dev-owned. The safe construct-help
+context remains blocked: unknown UI enters generic catalog analysis without
+source-attested checked type/evidence; collection shape alone does not prove
+complete safe alternatives. No flags/IDs/provider promotion. Next exact source
+assignments, Employees pure authority, Volunteer tab bindings and BDD3/Task22
+holds retain their owners;58/67 unchanged. Local only, no publication.
