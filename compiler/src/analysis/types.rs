@@ -493,6 +493,9 @@ pub struct TypeTable {
     pub delivery_progress_handlers: HashMap<NodeKey, String>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
+    /// Checked production statement-call results (`None` is void). Opaque
+    /// heterogeneous results remain opaque rather than acquiring a schema.
+    pub effect_call_results: HashMap<NodeKey, Option<ResolvedType>>,
     /// Explicit anonymous descriptor bindings, in authored evaluation order.
     pub(crate) anonymous_messages: HashMap<NodeKey, CheckedAnonymousMessage>,
     /// Immutable local references to an authored inline descriptor, checked
@@ -1185,9 +1188,20 @@ impl<'a> Typer<'a> {
                     out.drop_roots.push(decl);
                 }
             }
+            SyntaxKind::Call => {
+                let read_only = kids(stmt)
+                    .into_iter()
+                    .find(|node| is_expression(node.kind))
+                    .and_then(|node| self.types.node_types.get(&NodeKey::of(node)))
+                    .is_some_and(
+                        |ty| matches!(ty, ResolvedType::Operation(id) if self.callee_is_read(*id)),
+                    );
+                if !read_only {
+                    out.drop_all_paths = true;
+                }
+            }
             SyntaxKind::Create
             | SyntaxKind::Delete
-            | SyntaxKind::Call
             | SyntaxKind::Send
             | SyntaxKind::Emit
             | SyntaxKind::Schedule
@@ -1941,6 +1955,12 @@ impl<'a> Typer<'a> {
                     self.walk_object_values(cx, object);
                 }
             }
+        }
+        if let Some(result) = self.calls.get(&NodeKey::of(node)) {
+            self.types.effect_call_results.insert(
+                NodeKey::of(node),
+                (result != &ResolvedType::Error).then(|| result.clone()),
+            );
         }
     }
 

@@ -105,10 +105,10 @@
     "targets": 129
   },
   "latest_component": {
-    "base_commit": "e4777be789352893478a011d06d4031cd89dc8ff",
-    "state": "t04_selected_user_compiler_prerequisite_qualified_runtime_join_unfinished",
-    "outcome": "Complete 41-card Office fixture adds actual selected person update row. Owning construct_help6/6 passes on Node24.19; unchanged production/full1349/native3/3/machine4/4 results reused at their recorded source scope.",
-    "remaining": "Dev actual Identity/member example journey/current-profile capture and original Text Send; Packages shared bundle prerequisite. Broader nine refs and precise holds unchanged."
+    "base_commit": "acc5fe0b4413b6d844a62330abfea18e23f9ed7b",
+    "state": "task39_checked_call_producer_qualified_executable_join_unfinished",
+    "outcome": "Owning invocation5/5, existing checked call controls8/8, prior unchanged emitter121/121 reused; strict all-target lint/format0. Actual operand/declaration IDs/ordered typed inputs/result binding preserved; checked static read calls preserve narrowing, mutation calls still invalidate. Publication remains canonical E6008.",
+    "remaining": "Capability/State same-session target admission + Dev source-bound private facade and bounded result/dependency correspondence. Original Text Send and broader nine refs/precise holds remain."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Production compiler/default/Send/Set/intrinsic units retain whole qualification at12a3209b/ec3c2f50:129targets1349/0/0/0, Node24.19/requiredrealengines, actual native3/3 and original machine4/4. Subsequent fixture/test-only T04 selected-person update passes owning6/6 on Node24.19, preserving all41 declarations and prior rows; unchanged results reused. Dev owns actual Identity/member/current-profile capture and original Text Send; Packages owns shared bundle prerequisite. Broader58/67 nine refs and precise BDD3/Task22/other-recipient holds unchanged. Local coordinator integration only.",
+  "current_source_work": "Task39 checked call producer is implemented/tested but executable join unfinished: actual Invocation/Action operands separate from owning target IDs, ordered typed inputs/as/result/void/opaque retained; static read-call narrowing corrected. Owning5/5 + existing call controls8/8, emitter121/121 unchanged after read-narrow correction, strict all-target lint/fmt0. State owns same-session target admission; Dev exact native facade/result-dependency closure. Publication remains E6008, no nested invocation/receipt/commit. Historical full1349/native3/3/machine4/4 and unchanged fixture6/6 reused at recorded scopes, no current-head whole/native call qualification. Released Dev172340d1/1cb0c527 selected Identity/reviewer/outsider/rename actual1/1 and finite26 core proofs reused; UI/T11/application/fullprofile open. Broader58/67 nine refs and BDD3/Task22/other-recipient holds intact. Local/manual integration only.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -455,10 +455,10 @@
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
     "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
     "remaining_dependencies": "Dev SAME original Text Send workflow and T04 actual runtime/example/provider results; wider nine owner-dependent refs and exact human holds. No broad application/task completion inferred.",
-    "subsequent_focused_qualification": "Fixture/test-only selected person change passes construct_help6/6 on Node24.19. Production compiler/runtime source unchanged; full1349/native3/3 and machine4/4 results reused, not a new full-head run."
+    "subsequent_focused_qualification": "Task39 changed call-fact/narrowing producer passes invocation5/5, existing call controls8/8, strict all-target lint/format0. Prior unchanged emitter121/121 reused after isolated read-narrowing correction. No current-head full1349 or native call result claimed."
   },
   "construct_help_first_profile": {
-    "state": "compiler_half_qualified_runtime_and_provider_owner_dependency",
+    "state": "compiler_prerequisite_and_selected_native_core_qualified_full_profile_open",
     "profile": "office-supplies-local-v1",
     "cards": 41,
     "target": "compiler/tests/construct_help.rs",
@@ -471,7 +471,13 @@
       "row": "person,\"Reviewed paper\",6 -> \"Reviewed paper\",6",
       "qualification": "Actual emitted functions retain exact person recipe dependency, canonical HelpOffice.reviewer role, caller object and both changed-field expectations; owning6/6 on Node24.19. Compiler output only; actual Identity/member execution stays Dev-owned.",
       "preserved": "All41 declarations; existing other update, forbidden outsider and other rename rows.",
-      "remaining": "Dev current-profile capture/actual Identity/member journey; Packages shared bundle prerequisite. No BDD3 hold release or broader reference credit."
+      "remaining": "Released actual Dev172340d1/1cb0c527 consumer qualifies selected Identity/member and physical rename scope. Full UI/T11/application/profile and precise holds remain separate."
+    },
+    "runtime_consumer": {
+      "reviewed_source": "172340d1",
+      "recorded_intake": "1cb0c5279af5f623723955b9112443964ddc5ece",
+      "result": "SAME41 native/private-session1/1 in43.733s; exact unchanged fe00b29e fixture/all3 update/rename rows. Actual selected person Identity/reviewer, outsider forbidden/sideEffectsAbsent; source-bound physical rename receipt/history/fence/replay/isolation. Finite26 core proof/cache/unknown candidateCoverage/empty messageKinds/external0.",
+      "qualification": "Owning Dev release reused; no compiler/native rerun. UI/T11/application/other nine refs and precise holds remain; not whole41 working-card acceptance."
     }
   },
   "scenario_parameter_defaults": {
@@ -510,5 +516,15 @@
     "guard_correction": "All three intrinsic kinds control successful effects before/after Require. Focused six-path source1/1, actual CLIguard1/1, lint/fmt0; exact reviewed Dev3f0077 observer consumed at12a3209b.",
     "native_target": "3/3 at12a3209b/ec3c2f50 Node24.19 zero skips: two compile-output checks and SAME real Memory/native receipt workflow. Genuine operation-id/input/original reference-version capture, post-Set original metadata after later value/version changes, ordinary/dedicated16minute no-effect recovery, archive/currentgrant controls.",
     "whole_result": "129targets1349/0/0/0 at12a3209b/ec3c2f50, zero body skips"
+  },
+  "task39_checked_calls": {
+    "state": "checked_producer_qualified_executable_consumer_blocked_unfinished",
+    "source": "compiler/src/analysis/types.rs; compiler/src/analysis/effects.rs; compiler/src/codegen/ir.rs; compiler/src/codegen/js.rs",
+    "target": "compiler/tests/invocation_references.rs",
+    "result": "5/5 Node24 actual installed catalog/CLI; call controls8/8; emitter121/121 prior unchanged after isolated read-narrow correction; strict all-target lint/format0.",
+    "behavior": "Actual dynamic operands separated from declaring SymbolIds; owning parameter/model/result schemas retained by index, authored input order/typed shorthand/source anchors, as bindings and value/void/opaque result facts. Exact read-scenario static calls preserve member-path narrowing; mutating/dynamic/unknown calls invalidate.",
+    "blocked_on": "Capability/State admission+execution in existing owner session/outer fence and Dev exact source-bound private native facade with once-evaluated operands/inputs and bounded awaited result/dependency closure.",
+    "refusal": "Actual CLI refuses canonical calls E6008 with no modules/no E6006 gap. Structural InvocationRef packaging/direct handlers/child context/nested invocation,receipt,commit are not substitutes.",
+    "qualification": "Compiler facts only. No Task39 native acceptance, current-head full-suite acceptance, broader task credit or BDD3/Task22 hold lift."
   }
 }
