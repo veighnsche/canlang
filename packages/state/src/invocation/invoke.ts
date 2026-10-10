@@ -75,7 +75,7 @@ import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
 import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
-import { closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects, revalidateScenarioReceiptCalls } from './scenario-receipt.js';
+import { beginScenarioReceiptExecution, closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects, revalidateScenarioReceiptCalls } from './scenario-receipt.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
@@ -251,8 +251,8 @@ export interface ExecutionEffects {
   uniqueReleases: UniqueRelease[];
   resolvedDefaults: Record<string, unknown>;
   result: unknown;
-  /** Canonical native host carrier. Claimed scalar scenario receipts support
-   * only the actual empty array until the defining File/lifetime join exists. */
+  /** Exact final owning fields; genuine File facts are captured privately
+   * during execution and cannot be supplied by this executor carrier. */
   fileAssignments?: readonly unknown[];
   generatedCrud?: GeneratedCrudReceiptAssociation;
   /**
@@ -519,6 +519,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
           inputs: call.inputs, inputsSnapshot: claimed ? snapshotExecutionInputs(call.inputs) : structuredClone(call.inputs),
           recordRefs: call.recordRefs, recordRefsSnapshot: claimed ? snapshotExecutionInputs(call.recordRefs) : structuredClone(call.recordRefs),
           inputHash: call.inputHash });
+        beginScenarioReceiptExecution(call, input.store);
         raw = await input.execute(call);
         if (isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined) {
           assertScenarioReceiptExecution(call, input.store);
