@@ -68,11 +68,15 @@ function artifact(child = false): ArtifactDescriptorSlice {
       result: { type: 'Fact[]' as CanTypeId, disclosure: disclosure() } }] : [])],
   };
 }
-async function world(options: { child?: boolean; empty?: boolean; lazy?: boolean } = {}) {
+async function world(options: { child?: boolean; empty?: boolean; lazy?: boolean; constrainedRead?: boolean } = {}) {
   const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
   const member = await seedMember(memberships, { isOwner: false });
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
   const slice = artifact(options.child);
+  if (options.constrainedRead) {
+    const key = slice.valueTypes!.contracts![0]!.fields.find(field => field.name === 'key')!;
+    Object.assign(key, { trim: true, max: 1 });
+  }
   if (options.lazy) {
     const operation = slice.operations!.find(item => item.name === ROOT)!;
     const plan = operation.result!.disclosure!;
@@ -607,35 +611,41 @@ test('owning loader refuses a metadata-named direct query dependency before empt
 });
 
 
-test('fresh viewer projection preserves selected versions and fields without a receipt frame', async () => {
-  const w = await world();
+test('fresh bound read validates complete owning wire without a receipt frame', async () => {
+  const w = await world({ child: true, constrainedRead: true });
+  assert.ok(w.read && isGeneratedOperationDef(w.read));
+  const read = w.read;
   const { records } = await queryRecords({ store: w.store, memberships: w.memberships, policy: w.policy,
     model: MODEL, authority: 'viewer', context: { actorUserId: w.member.user.user_id, teamId: w.member.team.team_id },
     order: [{ field: 'key', direction: 'asc' }], limit: 10 });
-  const plan = disclosure(), query = plan.queries[0]!, projection = plan.returns[0]!.projection;
   const before = await domain(w);
   const selected = records.filter(record => record.data['done'] === true);
-  const projected = projectReadScenarioQueryResult(projection, query, selected);
+  const project = (rows: typeof selected) => projectReadScenarioQueryResult(read, 'tasks', 'facts-return', rows);
+  const projected = project(selected);
   assert.deepEqual(projected, selected.map(record => ({ task: { id: record.id, version: String(record.version) },
     version: String(record.version), key: record.data['key'] })));
-  assert.deepEqual(projectReadScenarioQueryResult(projection, query, []), []);
+  assert.deepEqual(project([]), []);
   assert.deepEqual(await domain(w), before);
-  assert.throws(() => projectReadScenarioQueryResult({ ...projection, queryId: 'foreign' }, query, selected), stateError);
-  assert.throws(() => projectReadScenarioQueryResult({ ...projection, fields: [...projection.fields,
-    { name: 'missing', kind: 'field', field: 'missing' }] }, query, selected), stateError);
-  assert.throws(() => projectReadScenarioQueryResult(projection, { ...query, limit: 1 }, selected), stateError);
-  assert.throws(() => projectReadScenarioQueryResult(projection, { ...query, limit: 201 }, []), stateError);
-  assert.throws(() => projectReadScenarioQueryResult(projection, query, [selected[0]!, selected[0]!]), stateError);
-  for (const version of [0, -1, 1.5, '1']) {
-    assert.throws(() => projectReadScenarioQueryResult(projection, query,
-      [{ ...selected[0]!, version } as unknown as typeof selected[number]]), stateError);
+  assert.throws(() => projectReadScenarioQueryResult({ ...read }, 'tasks', 'facts-return', selected), stateError);
+  assert.throws(() => projectReadScenarioQueryResult(w.parent, 'tasks', 'facts-return', selected), stateError);
+  assert.throws(() => projectReadScenarioQueryResult(read, 'foreign', 'facts-return', selected), stateError);
+  assert.throws(() => projectReadScenarioQueryResult(read, 'tasks', 'foreign', selected), stateError);
+  const unboundSlice = artifact(true);
+  unboundSlice.operations![1]!.result = { type: 'Fact[]' as CanTypeId };
+  const unbound = loadArtifactDescriptors(unboundSlice, { by: 'members' }).registry.get(READ)!;
+  assert.ok(isGeneratedOperationDef(unbound));
+  assert.throws(() => projectReadScenarioQueryResult(unbound, 'tasks', 'facts-return', selected), stateError);
+  assert.throws(() => project([selected[0]!, selected[0]!]), stateError);
+  assert.throws(() => project(Array.from({ length: 201 }, () => selected[0]!)), stateError);
+  for (const version of [undefined, 0, -1, 1.5, '1']) {
+    assert.throws(() => project([{ ...selected[0]!, version } as unknown as typeof selected[number]]), stateError);
   }
-  for (const data of [{ done: true }, { key: 7 }]) {
-    assert.throws(() => projectReadScenarioQueryResult(projection, query, [{ ...selected[0]!, data }]), stateError);
+  for (const data of [{ done: true }, { key: 7 }, { key: 'long' }, { key: ' a ' }]) {
+    assert.throws(() => project([{ ...selected[0]!, data }]), stateError);
   }
   let reads = 0;
   const data = Object.defineProperty({}, 'key', { enumerable: true, get() { reads++; return 'a'; } });
-  assert.throws(() => projectReadScenarioQueryResult(projection, query, [{ ...selected[0]!, data }]), stateError);
+  assert.throws(() => project([{ ...selected[0]!, data }]), stateError);
   assert.equal(reads, 0);
   const output = projected as Array<{ key: string }>;
   output[0]!.key = 'changed output';
