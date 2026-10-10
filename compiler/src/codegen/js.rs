@@ -9025,7 +9025,10 @@ impl<'a> Emitter<'a> {
                                     max: None,
                                     name: field_item.name.clone(),
                                     field,
-                                    value_type: self.operation_input_value_type(ty),
+                                    value_type: required_file_array_value_type(
+                                        self.operation_input_value_type(ty),
+                                        *required_array,
+                                    ),
                                     required,
                                     nullable,
                                     array_required,
@@ -9431,7 +9434,7 @@ impl<'a> Emitter<'a> {
         JsModelField {
             name: field_item.name.clone(),
             field,
-            value_type: self.model_value_type(ty),
+            value_type: required_file_array_value_type(self.model_value_type(ty), required_array),
             required,
             nullable,
             trim: modifiers.trim.then_some(true),
@@ -10507,6 +10510,21 @@ fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<Cow<'static,
         return Some(Cow::Borrowed("void"));
     };
     checked_value_profile(result).map(Cow::Borrowed)
+}
+
+/// The released File consumer carries field-only omission in its array type ID.
+/// Ordinary value/return types and other element profiles retain their spelling.
+fn required_file_array_value_type(
+    value_type: Option<String>,
+    required_array: bool,
+) -> Option<String> {
+    value_type.map(|value_type| {
+        if required_array && value_type == "file[]" {
+            "file[]!".to_string()
+        } else {
+            value_type
+        }
+    })
 }
 
 /// Operation enum claims name the ordered checked cases and their supported
