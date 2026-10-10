@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, MutationEnvelope, OutboxIntent, ProviderBinding } from '@canlang/contracts';
+import type { CommitBatch, CompileArtifact, MutationEnvelope, OutboxIntent, ProviderBinding, StoragePort } from '@canlang/contracts';
 import type { InstalledMailSender } from '@canlang/services';
 import { EmailV1Adapter } from '@canlang/services/mail/adapter';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
@@ -15,13 +15,17 @@ import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { WORK_DISPATCH_MODEL } from '@canlang/work/kernel/tables';
-import { attemptDispatch } from '@canlang/work/dispatch';
+import { attemptDispatch, attemptDispatchAsync, assertDispatchGuardExecution, registerDispatchGuardRevalidation,
+  type DispatchGuardExecution } from '@canlang/work/dispatch';
 import { deriveOutboxId } from '@canlang/work/intent';
 import { classifyFailure } from '@canlang/work/receipt';
 import { planRecoveryScan } from '@canlang/work/recovery';
 import { createBoundMailAdapter } from '@canlang/cloudflare/runtime/bound-mail';
 import { createBoundMailDispatcher } from '@canlang/cloudflare/runtime/bound-dispatch';
 import type { FenceAttemptDispatchFn } from './invoke.js';
+import { createWorkerDispatchJoinPort, createWorkerDispatchRegistry, loadDispatchSystemProducers,
+  stageDispatchBatch, withDispatchJoinPort } from './invoke.js';
+import { assembleDispatchCommands } from '../worker/assembly.js';
 
 const APP = 'TypedDurableSend', MODEL = asModel(`${APP}.Entry`);
 const fixturePath = resolve('packages/cloudflare/test/fixtures/typed-durable-send.json');
@@ -42,6 +46,107 @@ async function openD1(persistDir: string) {
     return { worker, store: createD1Storage(database) };
   } catch (error) { await worker.dispose(); throw error; }
 }
+
+test('bound Mail guarded async component selects physical preclaim for false ACK and true provider delivery', async () => {
+  // The binding comes from the unchanged compiled fixture. Guard/operator and
+  // installed MailSender ports are component fixtures, not native source proof.
+  const dir = await mkdtemp(join(tmpdir(), 'can-bound-mail-preclaim-'));
+  let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+  try {
+    const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
+      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui'),
+    });
+    const definition = (await import(asm.entryUrl)).appDefinition as unknown;
+    const memberships = createMemoryIdentityStore(), owner = await seedMember(memberships, { isOwner: true });
+    d1 = await openD1(join(dir, 'd1'));
+    const physical = d1.store, batches: CommitBatch[] = [];
+    const observed: StoragePort = { ...physical, commit: async batch => {
+      batches.push(structuredClone(batch)); return physical.commit(batch);
+    } };
+    const binding: ProviderBinding = { deployment: 'deployment.mail', capability: 'std.EmailV1', capabilityVersion: 1, account: 'component-local-mail' };
+    const events: string[] = []; let activeExecution: DispatchGuardExecution | undefined;
+    let providerCalls = 0, mints = 0, authorityReads = 0;
+    const expectedRequest = { to: 'component@example.test', subject: 'Preclaim component', body: 'Actual retained request', attachments: [] };
+    const installed: InstalledMailSender = { binding, mail: {
+      send: async (input, options) => {
+        events.push('provider'); providerCalls++; assert.deepEqual(input, expectedRequest);
+        assert.ok(activeExecution); assert.throws(() => assertDispatchGuardExecution(activeExecution));
+        const retained = await physical.outboxGet(options.deliveryId); assert.ok(retained);
+        assert.equal(retained.intent.intentId, options.deliveryId);
+        const row = await physical.load(asModel(WORK_DISPATCH_MODEL), asId(options.deliveryId)); assert.ok(row);
+        assert.equal(row.data['state'], 'claimed'); assert.equal(row.data['attempts'], 0);
+        return { delivery_id: options.deliveryId, status: 'succeeded', result: { reference: 'component-accepted' }, error: null };
+      },
+      reconcile: async () => { throw new Error('fresh preclaim component cannot reconcile'); },
+    } };
+    const adapter = createBoundMailAdapter({ appDefinition: definition, binding,
+      resolveInstalledMailSender: deployment => { assert.equal(deployment, binding.deployment); return installed; } });
+    const dispatcher = await createBoundMailDispatcher({ store: observed, adapter, workCommands: WORK_SYSTEM_COMMANDS,
+      stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand });
+    const producers = await loadDispatchSystemProducers();
+    const registry = await createWorkerDispatchRegistry(assembleDispatchCommands({ l3Commands: producers.l3Commands,
+      workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS }));
+    const joined = withDispatchJoinPort(physical, await createWorkerDispatchJoinPort(physical));
+    for (const allowed of [false, true]) {
+      const id = `bound-mail-preclaim-${allowed}`;
+      await stageDispatchBatch({ registry, store: joined, actor: owner.user.user_id, operation: 'component.stage', now: FIXED_NOW,
+        runKey: operationId(), intents: [{ intentId: id, operation: `${APP}.deliver`, originOperationId: operationId(),
+          source: 'std.EmailV1.send', occurrenceIndex: 0, originOccurrence: null, guard: 'allowed', guardVerdict: true,
+          request: { binding: `${APP}.Mail`, from: binding.deployment, arguments: expectedRequest } }] });
+      const beforeRevision = await physical.readRevision();
+      const original = await physical.outboxGet(id); assert.ok(original?.originalCommit);
+      const beforeRow = await physical.load(asModel(WORK_DISPATCH_MODEL), asId(id)); assert.ok(beforeRow);
+      const beforeHistory = await physical.historyFor(asModel(WORK_DISPATCH_MODEL), asId(id));
+      batches.length = 0; events.length = 0;
+      const beforeProviders = providerCalls, beforeMints = mints, beforeAuthority = authorityReads;
+      const outcome = await dispatcher.drive({ intentId: id, actor: owner.user.user_id, operation: 'component.drive',
+        nowMs: () => FIXED_NOW + 1000, nextClaimId: () => { events.push('mint'); mints++; return `claim-${id}`; },
+        maxClaimAgeMs: 60_000, claimOperationId: operationId(), recordOperationId: operationId(), classifyFailure,
+        evaluateGuard: () => { throw new Error('bound async input cannot select legacy postclaim evaluation'); },
+        readStateSnapshot: () => ({ current: allowed }),
+        fence: { owner: owner.team.team_id, revalidateAuthority: async () => {
+          events.push('authority'); authorityReads++; assert.ok(activeExecution);
+          assert.throws(() => assertDispatchGuardExecution(activeExecution));
+          const current = await memberships.findMembership(owner.team.team_id, owner.user.user_id);
+          return current?.status === 'active' && current.is_owner;
+        }, asyncGuard: { attemptDispatch: attemptDispatchAsync, frozenInputs: { allowed },
+          evaluateGuard: async (predicate, lexical, snapshot, handle) => {
+            events.push('guard'); activeExecution = handle; assertDispatchGuardExecution(handle);
+            assert.equal(predicate, 'allowed'); assert.deepEqual(lexical, { allowed }); assert.deepEqual(snapshot, { current: allowed });
+            registerDispatchGuardRevalidation(handle, () => {
+              events.push('evidence'); assert.throws(() => assertDispatchGuardExecution(handle)); return true;
+            });
+            await Promise.resolve(); assertDispatchGuardExecution(handle); return allowed;
+          } } },
+      });
+      assert.equal(providerCalls - beforeProviders, allowed ? 1 : 0);
+      assert.equal(mints - beforeMints, allowed ? 1 : 0); assert.equal(authorityReads - beforeAuthority, 1);
+      assert.deepEqual(events, allowed ? ['guard','mint','evidence','authority','provider'] : ['guard','evidence','authority']);
+      assert.equal(batches.length, allowed ? 2 : 1);
+      assert.equal(await physical.readRevision(), beforeRevision + batches.length);
+      assert.deepEqual(await physical.historyFor(asModel(WORK_DISPATCH_MODEL), asId(id)), beforeHistory);
+      const after = await physical.load(asModel(WORK_DISPATCH_MODEL), asId(id)); assert.ok(after);
+      assert.equal(after.data['attempts'], allowed ? 1 : 0); assert.equal(after.data['state'], allowed ? 'delivered' : 'pending');
+      assert.deepEqual((await physical.outboxGet(id))?.originalCommit, original.originalCommit);
+      assert.deepEqual((await physical.outboxGet(id))?.intent, original.intent);
+      assert.deepEqual(await physical.outboxPending(), []);
+      for (const batch of batches) {
+        assert.equal(batch.receipt, null); assert.deepEqual(batch.history, []); assert.deepEqual(batch.outbox, []);
+        assert.deepEqual(batch.schedules, []); assert.deepEqual(batch.uniqueClaims, []); assert.deepEqual(batch.uniqueReleases, []);
+        assert.equal(batch.writes.length, 1); assert.equal(batch.writes[0]!.model, WORK_DISPATCH_MODEL);
+      }
+      if (allowed) { assert.equal(outcome.status, 'recorded'); assert.equal(batches[0]!.outboxAck?.length, 0);
+        assert.deepEqual(batches[1]!.outboxAck, [id]); }
+      else { assert.equal(outcome.status, 'not-claimed'); assert.deepEqual(batches[0]!.outboxAck, [id]);
+        assert.deepEqual(after.data, { ...beforeRow.data, guardVerdict: false });
+        assert.equal(after.data['claimId'], null); assert.equal(after.data['claimedAtMs'], null); }
+    }
+  } finally {
+    if (d1 !== undefined) await d1.worker.dispose();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
 
 test('actual installed Email dispatch preserves durable identity and reconciles uncertainty through localhost', async () => {
   // This server is the only provider endpoint: no external email or paid calls.

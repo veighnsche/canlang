@@ -34,6 +34,7 @@ import type {
   RecordVersion,
   Revision,
   StoragePort,
+  ClaimId,
 } from "@canlang/contracts";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { FenceConflictError, StorageConstraintError } from "@canlang/state/storage/port";
@@ -42,6 +43,7 @@ import {
   createWorkerDispatchJoinPort,
   createWorkerDispatchRegistry,
   driveDispatchIntent,
+  driveDispatchIntentWithPreclaim,
   loadDispatchSystemProducers,
   readDispatchExecutionRow,
   runRecoverySweep,
@@ -75,6 +77,8 @@ interface WorkProducers {
   readonly WORK_DISPATCH_MODEL: string;
   readonly planRecoveryScan: DispatchRecoveryPlanner;
   readonly classifyFailure: DispatchFailureClassifier;
+  readonly createWorkDispatchClaimCommand: typeof import('@canlang/work/kernel/commands').createWorkDispatchClaimCommand;
+  readonly guards: typeof import('@canlang/work/dispatch');
 }
 
 function workSpecifier(path: string): string {
@@ -89,6 +93,7 @@ async function loadWorkProducers(): Promise<WorkProducers> {
   const tables = await import(workSpecifier("kernel/tables.ts"));
   const recovery = await import(workSpecifier("recovery/index.ts"));
   const receipt = await import(workSpecifier("receipt/index.ts"));
+  const guards = await import(workSpecifier("dispatch/index.ts")) as typeof import('@canlang/work/dispatch');
   if (!Array.isArray(commands["WORK_SYSTEM_COMMANDS"])) {
     throw new Error("t24b durable: work commands.ts lacks WORK_SYSTEM_COMMANDS.");
   }
@@ -101,6 +106,8 @@ async function loadWorkProducers(): Promise<WorkProducers> {
     WORK_DISPATCH_MODEL: tables["WORK_DISPATCH_MODEL"],
     planRecoveryScan: recovery["planRecoveryScan"],
     classifyFailure: receipt["classifyFailure"],
+    createWorkDispatchClaimCommand: commands['createWorkDispatchClaimCommand'],
+    guards,
   };
   return cachedWork;
 }
@@ -123,6 +130,25 @@ async function workerStack(store: StoragePort): Promise<WorkerStack> {
   const registry = await createWorkerDispatchRegistry(composed);
   const joinPort = await createWorkerDispatchJoinPort(store);
   return { registry, joinPort, joined: withDispatchJoinPort(store, joinPort), work };
+}
+
+// Declaration-labelled dispatch component: real Work/State staging and physical
+// storage, without a Compiler/source-lexical qualification claim.
+async function preclaimRegistry(stack: WorkerStack, available = true) {
+  const producers = await loadDispatchSystemProducers();
+  return (guard: import('@canlang/work/kernel/commands').DispatchClaimGuard, allocator: () => ClaimId) =>
+    producers.createSystemRegistry(assembleDispatchCommands({
+      l3Commands: producers.l3Commands,
+      workCommands: stack.work.WORK_SYSTEM_COMMANDS.map(command => command.name === 'work.dispatch.claim'
+        ? stack.work.createWorkDispatchClaimCommand(() => available, guard, allocator) : command),
+      stageCommands: stack.work.WORK_DISPATCH_STAGE_COMMANDS,
+    }));
+}
+
+async function dispatchSnapshot(store: StoragePort, model: ModelName, id: string) {
+  return { revision: await store.readRevision(), row: await store.load(model, id as RecordId),
+    outbox: await store.outboxGet(id), pending: await store.outboxPending(),
+    history: await store.historyFor(model, id as RecordId) };
 }
 
 /* -- Substrate handles: real local D1 + real workerd DO SQLite. -- */
@@ -371,6 +397,162 @@ function durableSuite(
   }>,
 ): void {
   describe(`T24b dispatch execution durable (${name})`, () => {
+    it('preclaim consumes original committed provenance and closes awaited guard evidence before true claim or false ACK', async () => {
+      for (const verdict of [true, false]) {
+        const { store, secondHandle, reset } = await handles(); await reset();
+        const stack = await workerStack(store), model = stack.work.WORK_DISPATCH_MODEL as ModelName;
+        const guards: typeof import('@canlang/work/dispatch') = stack.work.guards;
+        const id = `preclaim-${verdict}`;
+        await stageDispatchBatch({ registry: stack.registry, store: stack.joined, actor: ACTOR, now: NOW,
+          operation: 'test.join', runKey: `preclaim-stage-${verdict}`,
+          intents: [stageInput({ intentId: id, guard: 'lexicalAllowed', guardVerdict: true })] });
+        const retained = await store.outboxGet(id); assert.ok(retained?.originalCommit);
+        // An independent genuine stage moves the current revision without
+        // changing the primary intent's original commit stamp.
+        await stageDispatchBatch({ registry: stack.registry, store: stack.joined, actor: ACTOR, now: NOW + 1,
+          operation: 'test.join', runKey: `preclaim-other-${verdict}`,
+          intents: [stageInput({ intentId: `other-${id}` })] });
+        const before = await dispatchSnapshot(secondHandle(), model, id);
+        const events: string[] = []; let execution: import('@canlang/work/dispatch').DispatchGuardExecution | undefined;
+        let mints = 0, providers = 0, snapshots = 0;
+        const base = driveOpts(stack, await pendingIntent(stack, id), async () => {
+          events.push('provider'); providers++; assert.ok(execution);
+          assert.throws(() => guards.assertDispatchGuardExecution(execution));
+          return { kind: 'delivered', result: null };
+        }, () => retained.originalCommit!.createdAt + 1000);
+        const { registry: _registry, ...opts } = base; void _registry;
+        const result = await driveDispatchIntentWithPreclaim({ ...opts,
+          nextClaimId: () => { events.push('mint'); mints++; return `actual-preclaim-${id}`; },
+          evaluateGuard: () => { throw new Error('legacy postclaim guard must not run'); },
+          readStateSnapshot: () => { snapshots++; return { allowed: verdict }; },
+          fence: { owner: 'durable-component-owner', revalidateAuthority: async () => {
+            events.push('authority'); assert.ok(execution);
+            assert.throws(() => guards.assertDispatchGuardExecution(execution)); return true;
+          }, asyncGuard: { attemptDispatch: guards.attemptDispatchAsync, frozenInputs: { allowed: verdict, lexical: 'original' },
+            evaluateGuard: async (predicate, lexical, snapshot, handle) => {
+              execution = handle; events.push('guard'); guards.assertDispatchGuardExecution(handle);
+              assert.equal(predicate, 'lexicalAllowed'); assert.deepEqual(lexical, { allowed: verdict, lexical: 'original' });
+              assert.deepEqual(snapshot, { allowed: verdict }); assert.notDeepEqual(lexical, opts.intent.arguments);
+              const observed = guards.readDispatchGuardExecution(handle);
+              assert.equal(observed.checkpoint?.revision, before.revision);
+              assert.ok('commit' in observed.intent);
+              assert.deepEqual(observed.intent.commit, { revision: retained.originalCommit!.revision,
+                committedAtMs: retained.originalCommit!.createdAt });
+              assert.notEqual(observed.intent.commit.revision, observed.checkpoint?.revision);
+              guards.registerDispatchGuardRevalidation(handle, async () => {
+                events.push('evidence'); assert.throws(() => guards.assertDispatchGuardExecution(handle)); return true;
+              });
+              await Promise.resolve(); guards.assertDispatchGuardExecution(handle); return verdict;
+            } } },
+        }, await preclaimRegistry(stack));
+        const after = await dispatchSnapshot(secondHandle(), model, id);
+        assert.equal(snapshots, 1); assert.equal(mints, verdict ? 1 : 0); assert.equal(providers, verdict ? 1 : 0);
+        assert.deepEqual(events, verdict ? ['guard','mint','evidence','authority','provider'] : ['guard','evidence','authority']);
+        assert.equal(after.revision, before.revision + (verdict ? 2 : 1));
+        assert.deepEqual(after.history, before.history);
+        assert.deepEqual(after.outbox?.originalCommit, before.outbox?.originalCommit);
+        assert.deepEqual(after.outbox?.intent, before.outbox?.intent);
+        assert.deepEqual(after.pending, before.pending.filter(intent => intent.intentId !== id));
+        assert.ok(after.row); const data = readDispatchExecutionRow(after.row);
+        assert.equal(data.attempts, verdict ? 1 : 0); assert.equal(data.state, verdict ? 'delivered' : 'pending');
+        if (verdict) assert.equal(result.status, 'recorded');
+        else { assert.equal(result.status, 'not-claimed'); assert.equal(data.guardVerdict, false);
+          assert.equal(data.claimId, null); assert.equal(data.claimedAtMs, null);
+          assert.deepEqual(after.row.data, { ...before.row!.data, guardVerdict: false });
+          assert.equal(after.row.version, before.row!.version + 1);
+          assert.equal(after.row.created, before.row!.created);
+          assert.deepEqual(after.row.parent, before.row!.parent);
+          assert.equal(after.row.archivedAt, before.row!.archivedAt); }
+      }
+    });
+
+    it('preclaim refuses changed positive or negative evidence, current authority and physical revision before durable claim', async () => {
+      for (const mode of ['positive-evidence','negative-evidence','authority','revision'] as const) {
+        const { store, secondHandle, reset } = await handles(); await reset();
+        const stack = await workerStack(store), model = stack.work.WORK_DISPATCH_MODEL as ModelName;
+        const guards: typeof import('@canlang/work/dispatch') = stack.work.guards;
+        const id = `preclaim-refuse-${mode}`;
+        await stageDispatchBatch({ registry: stack.registry, store: stack.joined, actor: ACTOR, now: NOW,
+          operation: 'test.join', runKey: `stage-${id}`,
+          intents: [stageInput({ intentId: id, guard: 'allowed', guardVerdict: true })] });
+        const before = await dispatchSnapshot(secondHandle(), model, id); let mints = 0, providers = 0, evaluations = 0;
+        const { registry: _registry, ...opts } = driveOpts(stack, await pendingIntent(stack, id), async () => {
+          providers++; return { kind: 'delivered', result: null };
+        }); void _registry;
+        const pending = driveDispatchIntentWithPreclaim({ ...opts,
+          nextClaimId: () => { mints++; return `claim-${id}`; },
+          evaluateGuard: () => { throw new Error('postclaim evaluator must not run'); },
+          readStateSnapshot: () => ({ current: true }),
+          fence: { owner: 'durable-component-owner', revalidateAuthority: async () => mode !== 'authority',
+            asyncGuard: { attemptDispatch: guards.attemptDispatchAsync, frozenInputs: { allowed: true },
+              evaluateGuard: async (_predicate, _lexical, _snapshot, handle) => {
+                evaluations++; guards.assertDispatchGuardExecution(handle);
+                guards.registerDispatchGuardRevalidation(handle, async () =>
+                  mode !== 'positive-evidence' && mode !== 'negative-evidence');
+                if (mode === 'revision') await stageDispatchBatch({ registry: stack.registry, store: stack.joined,
+                  actor: ACTOR, now: NOW, operation: 'test.join', runKey: `intervene-${id}`,
+                  intents: [stageInput({ intentId: `other-${id}` })] });
+                await Promise.resolve(); return mode !== 'negative-evidence';
+              } } },
+        }, await preclaimRegistry(stack));
+        await captureFailure(pending);
+        const after = await dispatchSnapshot(secondHandle(), model, id);
+        assert.equal(evaluations, 1); assert.ok(mints <= 1); assert.equal(providers, 0);
+        if (mode === 'negative-evidence') assert.equal(mints, 0);
+        assert.deepEqual(after.row, before.row); assert.deepEqual(after.outbox, before.outbox);
+        assert.deepEqual(after.history, before.history);
+        assert.equal(after.revision, before.revision + (mode === 'revision' ? 1 : 0));
+        assert.deepEqual(after.pending.filter(intent => intent.intentId === id), before.pending);
+      }
+    });
+
+    it('preclaim leaves real ineligible intents unevaluated and does not allocate a claim', async () => {
+      for (const mode of ['already-false','unavailable','held'] as const) {
+        const { store, secondHandle, reset } = await handles(); await reset();
+        const stack = await workerStack(store), model = stack.work.WORK_DISPATCH_MODEL as ModelName;
+        const id = `preclaim-ineligible-${mode}`;
+        await stageDispatchBatch({ registry: stack.registry, store: stack.joined, actor: ACTOR, now: NOW,
+          operation: 'test.join', runKey: `stage-${id}`,
+          intents: [stageInput({ intentId: id, guard: 'allowed', guardVerdict: true })] });
+        const intent = await pendingIntent(stack, id);
+        if (mode === 'already-false') {
+          const { registry: _firstRegistry, ...firstOpts } = driveOpts(stack, intent,
+            async () => { throw new Error('false setup cannot reach provider'); }); void _firstRegistry;
+          const skipped = await driveDispatchIntentWithPreclaim({ ...firstOpts,
+            nextClaimId: () => { throw new Error('false setup cannot allocate'); },
+            evaluateGuard: () => { throw new Error('false setup cannot use postclaim evaluator'); },
+            readStateSnapshot: () => ({ allowed: false }),
+            fence: { owner: 'durable-component-owner', revalidateAuthority: () => true,
+              asyncGuard: { attemptDispatch: stack.work.guards.attemptDispatchAsync,
+                frozenInputs: { allowed: false }, evaluateGuard: () => false } },
+          }, await preclaimRegistry(stack));
+          assert.equal(skipped.status, 'not-claimed');
+          const falseRow = await store.load(model, id as RecordId); assert.ok(falseRow);
+          assert.equal(readDispatchExecutionRow(falseRow).guardVerdict, false);
+          assert.deepEqual(await store.outboxPending(), []);
+        }
+        if (mode === 'held') await stack.registry.run('work.dispatch.claim', { intentId: id,
+          claimId: 'existing-real-claim', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE },
+          { actor: ACTOR, now: NOW, operation: 'test.claim', operationId: `hold-${id}` }, { store: stack.joined });
+        const before = await dispatchSnapshot(secondHandle(), model, id);
+        const { registry: _registry, ...opts } = driveOpts(stack, intent, async () => { throw new Error('ineligible provider'); }); void _registry;
+        const outcome = await driveDispatchIntentWithPreclaim({ ...opts,
+          nextClaimId: () => { throw new Error('ineligible allocator'); },
+          evaluateGuard: () => { throw new Error('ineligible legacy guard'); },
+          readStateSnapshot: () => { throw new Error('ineligible snapshot'); },
+          fence: { owner: 'durable-component-owner', revalidateAuthority: () => { throw new Error('ineligible authority'); },
+            asyncGuard: { attemptDispatch: stack.work.guards.attemptDispatchAsync, frozenInputs: {},
+              evaluateGuard: () => { throw new Error('ineligible guard'); } } },
+        }, await preclaimRegistry(stack, mode !== 'unavailable'));
+        assert.equal(outcome.status, 'not-claimed');
+        const after = await dispatchSnapshot(secondHandle(), model, id);
+        // The genuine receipt-free System registry still commits its empty
+        // eligibility result under one fence; no dispatch effects are staged.
+        assert.equal(after.revision, before.revision + 1);
+        assert.deepEqual({ ...after, revision: before.revision }, before);
+      }
+    });
+
     it("commits stage -> claim -> record in exact fence steps with cross-handle read-back", async () => {
       const { store, secondHandle, reset } = await handles();
       await reset();
