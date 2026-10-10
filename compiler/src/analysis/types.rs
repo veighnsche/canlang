@@ -456,9 +456,40 @@ pub enum CheckedChoiceValue {
     Field(String),
 }
 
+/// Authored query positions retained by the actual type checker. These facts
+/// describe checked source; they do not attest native query execution.
+#[derive(Debug, Clone)]
+pub struct CheckedQuery {
+    pub node: NodeKey,
+    pub domain: NodeKey,
+    pub domain_type: ResolvedType,
+    pub result: ResolvedType,
+    pub clauses: Vec<CheckedQueryClause>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedQueryClause {
+    /// The actual clause node is also the declaration identity of an `as` alias.
+    pub node: NodeKey,
+    pub kind: CheckedQueryClauseKind,
+    pub expressions: Vec<NodeKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CheckedQueryClauseKind {
+    As { name: String },
+    Where,
+    Order,
+    Limit,
+    Archived,
+    Select,
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Successful query typing, preserving domain and authored clause identities.
+    pub checked_queries: HashMap<NodeKey, CheckedQuery>,
     /// Checked local view host models, without executable symbols.
     pub view_models: HashMap<NodeKey, SymbolId>,
     /// Successfully checked same-module show targets.
@@ -11921,6 +11952,14 @@ impl<'a> Typer<'a> {
                 },
                 FixtureTarget::User => ResolvedType::Scalar(Scalar::User),
                 FixtureTarget::File => ResolvedType::Scalar(Scalar::File),
+                FixtureTarget::Operation(Some(op))
+                    if matches!(
+                        self.tables.symbols[op.0 as usize].kind,
+                        SymbolKind::CapabilityOp { .. }
+                    ) =>
+                {
+                    ResolvedType::Delivery { op: *op }
+                }
                 FixtureTarget::Operation(_) => ResolvedType::Opaque("operation fixture"),
                 FixtureTarget::Unknown => ResolvedType::Error,
             },
@@ -14904,6 +14943,9 @@ impl<'a> Typer<'a> {
     /// `select` projects. `as` aliases record the domain element for
     /// following clauses; the result element feeds `RowQuery` rows.
     fn type_query(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
+        let query_key = NodeKey::of(node);
+        self.types.checked_queries.remove(&query_key);
+        let diagnostic_start = self.diags.len();
         let parts = kids(node);
         let base = parts.iter().find(|n| is_expression(n.kind)).copied();
         let Some(base) = base else {
@@ -15005,6 +15047,8 @@ impl<'a> Typer<'a> {
         // them, while outer facts flow inward through the
         // enclosing environment exactly as the contract allows.
         let mut clause_env = cx.narrow.clone();
+        let mut checked_clauses = Vec::new();
+        let mut complete_clauses = !has_error(node);
         for part in parts {
             if part.kind != SyntaxKind::QueryClause || has_error(part) {
                 continue;
@@ -15013,6 +15057,33 @@ impl<'a> Typer<'a> {
                 .iter()
                 .find_map(|n| name_text(n, cx.text))
                 .unwrap_or("");
+            let kind = match head {
+                "as" => kids(part)
+                    .get(1)
+                    .and_then(|name| name_text(name, cx.text))
+                    .map(|name| CheckedQueryClauseKind::As {
+                        name: name.to_owned(),
+                    }),
+                "where" => Some(CheckedQueryClauseKind::Where),
+                "order" => Some(CheckedQueryClauseKind::Order),
+                "limit" => Some(CheckedQueryClauseKind::Limit),
+                "archived" => Some(CheckedQueryClauseKind::Archived),
+                "select" => Some(CheckedQueryClauseKind::Select),
+                _ => None,
+            };
+            if let Some(kind) = kind {
+                checked_clauses.push(CheckedQueryClause {
+                    node: NodeKey::of(part),
+                    kind,
+                    expressions: kids(part)
+                        .into_iter()
+                        .filter(|child| is_expression(child.kind))
+                        .map(NodeKey::of)
+                        .collect(),
+                });
+            } else {
+                complete_clauses = false;
+            }
             match head {
                 "as" => {
                     self.aliases.insert(NodeKey::of(part), element.clone());
@@ -15117,6 +15188,56 @@ impl<'a> Typer<'a> {
                 _ => ResolvedType::Error,
             },
         );
+        fn resolved(ty: &ResolvedType) -> bool {
+            let mut pending = vec![(ty, 0usize)];
+            let mut steps = 0usize;
+            while let Some((ty, depth)) = pending.pop() {
+                steps += 1;
+                if steps > 4096 || depth > 64 {
+                    return false;
+                }
+                match ty {
+                    ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+                        return false;
+                    }
+                    ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
+                        pending.push((element, depth + 1))
+                    }
+                    ResolvedType::Object(fields) => {
+                        pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)))
+                    }
+                    _ => {}
+                }
+                if pending.len() > 4096 {
+                    return false;
+                }
+            }
+            true
+        }
+        if complete_clauses
+            && resolved(&base_ty)
+            && resolved(&result)
+            && checked_clauses.iter().all(|clause| {
+                clause
+                    .expressions
+                    .iter()
+                    .all(|expression| self.types.node_types.get(expression).is_some_and(resolved))
+            })
+            && !self.diags[diagnostic_start..]
+                .iter()
+                .any(|diag| diag.severity == crate::diagnostic::Severity::Error)
+        {
+            self.types.checked_queries.insert(
+                query_key,
+                CheckedQuery {
+                    node: query_key,
+                    domain: NodeKey::of(base),
+                    domain_type: base_ty,
+                    result: result.clone(),
+                    clauses: checked_clauses,
+                },
+            );
+        }
         result
     }
 

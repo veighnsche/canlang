@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T02:05:27.494418+00:00",
+  "updated_utc": "2026-10-10T02:34:28.072605+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -449,14 +449,14 @@
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
-    "current_head_is_qualified": true,
+    "current_head_is_qualified": false,
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
     "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
-    "remaining_dependencies": "Dev genuine CLI/native child consumer qualification remains required before finite execution acceptance. Original Workbench/read/query Fact[], protected dynamic/as/CRUD normalization/default/framework/composite remain separate State/Dev/Compiler source joins. T11 accepted source-evidence contract and Dev exact branch qualification remain unavailable; broader owning application/format profiles and precise human holds remain.",
+    "remaining_dependencies": "Original Workbench read/query Fact[], protected dynamic/as/CRUD/default/framework/composite source/schema/State/Dev joins, T11 evidence contract and exact human holds remain. New source facts are nongrant structural correspondence; changed-source whole qualification follows the next coherent compiler units.",
     "subsequent_focused_qualification": "Clean fast-forward to reviewed LOCAL2ee246ab adds owner Dev qualification sources but leaves compiler/tests/receipt runtime core unchanged. Fresh actual graph26/26 zero cached builds on Node24; owning actual CLI/emitter/imported-module1/1 passes with current outputs. Unchanged whole1356 and other five cases reused.",
-    "scope": "Current full compiler qualification at exact6530a74e activation/child-Send collector source with reviewed Dev31159eb9 binder and Statee73/Deve090 runtime inputs. Clean fast-forward to reviewed LOCAL2ee246ab preserves compiler/tests and receipt runtime core; reuse unchanged whole results. No genuine native child execution or whole application/reference acceptance follows."
+    "scope": "Historical whole1356 at exact6530a74e; current additive checked query/source producer has affected149/149 and strict all-target Clippy/fmt0 only. Native static execution at reviewed LOCALdf394 is consumed; no original Workbench or wider-reference acceptance."
   },
   "construct_help_first_profile": {
     "state": "compiler_prerequisite_and_selected_native_core_qualified_full_profile_open",
@@ -531,12 +531,12 @@
     "whole_result": "129targets1349/0/0/0 at12a3209b/ec3c2f50, zero body skips"
   },
   "task39_checked_calls": {
-    "state": "finite_native_cli_implemented_current_whole_qualified_native_consumer_pending",
+    "state": "finite_static_native_executed_original_query_source_producer_unfinished",
     "source": "compiler/src/analysis/types.rs; compiler/src/analysis/effects.rs; compiler/src/codegen/ir.rs; compiler/src/codegen/js.rs; compiler/src/analysis/scenario_disclosure.rs; compiler/src/codegen/scenario_calls.rs; compiler/src/codegen/scenario_receipts.rs",
     "target": "compiler/tests/invocation_references.rs",
     "result": "5/5 Node24 actual installed catalog/CLI; call controls8/8; emitter121/121 prior unchanged after isolated read-narrow correction; strict all-target lint/format0.",
     "behavior": "Actual dynamic operands separated from declaring SymbolIds; owning parameter/model/result schemas retained by index, authored input order/typed shorthand/source anchors, as bindings and value/void/opaque result facts. Exact read-scenario static calls preserve member-path narrowing; mutating/dynamic/unknown calls invalidate.",
-    "blocked_on": "Dev genuine CLI/native child consumer qualification remains required before finite execution acceptance. Original Workbench/read/query Fact[], protected dynamic/as/CRUD normalization/default/framework/composite remain separate State/Dev/Compiler source joins. T11 accepted source-evidence contract and Dev exact branch qualification remain unavailable; broader owning application/format profiles and precise human holds remain.",
+    "blocked_on": "Original Workbench clean29-file import+composition cohort, Capability direct-query source correction, checked capability-delivery fixture attribution, owning Fact.task Values/Contracts schema handoff, complete staff/can_work source closure, State viewer-query selection/order/cardinality/result attestation and genuine Dev read/as child execution. Protected dynamic phase, T11 and precise holds remain separate.",
     "refusal": "Default nonnative CLI and unsupported native call profiles retain canonical E6008/no modules. Only complete exact source-aware static mutation no-as/discarded scalar-or-void profile with required builtin child inputs publishes through --native-scenario-receipts. No direct-handler/fake-frame substitute.",
     "qualification": "Exact6530a74e full129targets1356/0failed/0ignored/0filtered, required real completion engines/native/permission bodies zero skips, strict all-target lint/fmt0. Manually reviewed LOCAL2ee246ab preserves compiler/receipt core; fresh graph26/26 and owning real CLI/module1/1 pass. No genuine native child execution, original Task39 or wider reference acceptance/hold lift.",
     "related_argument_correction": "Existing check_action_call consumes explicit value or typed shorthand key_node for additional declaration targets. heterogeneous_action_call1/1 passes original literal, shorthand/explicit-binding exact diagnostic span parity and compatible positives. No executable call or held policy claim.",
@@ -594,6 +594,20 @@
         "whole": "129targets1356/0failed/0ignored/0filtered, real required engines/native/permission bodies, zero body skips. Reviewed-main fresh graph26/26 zero cached + actual owning CLI/module1/1 pass; unchanged full results reused."
       },
       "reviewed_main": "2ee246ab07dbed47919e0d510d725e91b3ee0fce"
+    },
+    "native_consumer": "Consumed coordinator-reviewed LOCALdf394abbaa7ab60a79079e667e8d3889f9546e73: actual NativeStaticCalls.can CLI\u2192portable global D1\u2192ordinary Identity/member HTTP and granted MCP1/1 in22.00s, actual scalar/void physical child associations, one root receipt/fence and no-effect replay, nonmember/Public403, currency/correspondence/awaited cleanup. Reuse owning evidence in implementation/can-dev-server/PLAN.md; no original Workbench credit.",
+    "source_query_producer": {
+      "state": "implemented_affected_tested_unfinished_runtime_join",
+      "source": "TypeTable.checked_queries; ScenarioDisclosure.source_facts(); IrQuery.source; collect_scenario_source_calls",
+      "behavior": "Exact checked query domain/types/ordered clause and alias NodeKeys survive to IR with source validation. Clean typed scenario signatures and static read/ref/composite/as calls survive disclosure Declined; exact authored-order source/IR call bijection retains canonical owning declaration, actual input spans/types and result binding. No emitted-interface schema correspondence claim or native admission from structural facts. Existing Complete/native restrictions retained.",
+      "validation": "checked_query_facts3/3, invocation7/7, scenario_disclosure18/18, codegen121/121 =149passed,0failed,0ignored; strict all-target Clippy/fmt0. Missing/skewed/duplicate/input-order/as/query-clause and reordered actual-call controls refuse.",
+      "original_source": "Unchanged21-file imports-only probe135 diagnostics, including undefined collect and opaque delivery fixture. Complete real imports+app-uses closure29files has no missing/ambiguous owner; not yet rechecked after owning source/fixture corrections. Direct controls do not qualify original source."
+    },
+    "capability_fixture_attribution": {
+      "state": "implemented_tested_unfinished_original_cohort",
+      "behavior": "Exact FixtureTarget::Operation(Some(op)) with actual CapabilityOp symbol retains Delivery{op}; scenario/CRUD/bare/unknown/external operation fixtures keep existing opaque/refusal behavior. Existing request/envelope checks retained. Result/error payload schema certification is not added.",
+      "validation": "Owning b4_check283/283,0failed,0ignored; strict all-target Clippy/fmt0. New1 control covers checked target identity, owning nullable delivery assignment, different-operation refusal, malformed request/status, opaque targets and forged handles.",
+      "remaining": "Consume exact reviewed Capability direct-query source/gitlink, then original29-file check. Query/schema/runtime joins remain."
     }
   }
 }
