@@ -833,8 +833,28 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
   });
 
   it("stages the genuine public Work receipt and relative observation closure", async () => {
+    const runtimeFile = resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build");
+    const runtimeSource = readFileSync(runtimeFile, "utf8");
+    const originalFactoryImports = scanModuleImports(runtimeSource, "runtime/invoke.js")
+      .filter(record => record.specifier === "@canlang/work");
+    expect(originalFactoryImports).toHaveLength(1);
+    expect(originalFactoryImports[0]!.kind).toBe("evaluation-static");
+    expect(runtimeSource.slice(originalFactoryImports[0]!.statement.start, originalFactoryImports[0]!.statement.end))
+      .toMatch(/^import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*["']@canlang\/work["']/);
+    const originalSourceStage = runtimeSource.match(/^async function canonicalCommittedSourceStage\b[\s\S]*?^}/m)?.[0] ?? "";
+    expect(originalSourceStage).toMatch(/loadProducerModule\(["']@canlang\/state\/mutation["'],\s*["']committed model source lifetime["']\)/);
+    expect(originalSourceStage).toMatch(/requireProducerFn\(state,\s*["']readOwnerMutationSourceStage["'],\s*["']committed model source lifetime["']\)/);
     const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
     const invoke = bundle.modules["runtime/invoke.js"] ?? "";
+    const stagedFactoryImports = scanModuleImports(invoke, "runtime/invoke.js")
+      .filter(record => record.specifier === "../vendor/work/kernel/committed-model-source.js");
+    expect(stagedFactoryImports).toHaveLength(1);
+    expect(stagedFactoryImports[0]!.kind).toBe("evaluation-static");
+    expect(invoke.slice(stagedFactoryImports[0]!.statement.start, stagedFactoryImports[0]!.statement.end))
+      .toMatch(/^import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*["']\.\.\/vendor\/work\/kernel\/committed-model-source\.js["']/);
+    const stagedSourceStage = invoke.match(/^async function canonicalCommittedSourceStage\b[\s\S]*?^}/m)?.[0] ?? "";
+    expect(stagedSourceStage).toMatch(/loadProducerModule\(["']\.\.\/vendor\/state\/mutation\/index\.js["'],\s*["']committed model source lifetime["']\)/);
+    expect(stagedSourceStage).toMatch(/requireProducerFn\(state,\s*["']readOwnerMutationSourceStage["'],\s*["']committed model source lifetime["']\)/);
     expect(invoke).toContain("../vendor/state/receipt/join.js");
     expect(invoke).toContain("../vendor/state/receipt/index.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/join.js");
@@ -905,6 +925,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
   it("refuses each missing genuine Work receipt closure entry", () => {
     const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
     for (const key of [
+      "vendor/work/kernel/committed-model-source.js",
       "vendor/work/receipt/index.js",
       "vendor/work/observation/observation.js",
       "vendor/work/observation/association.js",
