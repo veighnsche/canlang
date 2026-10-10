@@ -97,8 +97,8 @@ export interface UploadIntentRecord {
 
 /**
  * Stored finalized-file row. `file` is frozen at finalization and never
- * mutated; only `state` / `attachedRecord` advance under retention and the
- * lane-3 attachment join.
+ * mutated; lifecycle/attachment metadata advances under retention and the
+ * lane-3 join. The first owning-clock attachment time is preserved on retries.
  */
 export interface StoredFileRecord {
   readonly file: FinalizedFile;
@@ -108,6 +108,8 @@ export interface StoredFileRecord {
   state: StoredObjectState;
   /** Lane-3 record reference once an attachment is recorded, else null. */
   attachedRecord: string | null;
+  /** First attachment observed by the owning clock; absent legacy marks prove no timing. */
+  attachedAtMs?: number;
 }
 
 /** Minimal wall-clock seam. The file kernel never reads time implicitly. */
