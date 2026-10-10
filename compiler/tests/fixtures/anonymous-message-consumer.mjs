@@ -109,6 +109,16 @@ package Wording source="fr"
    stat 1 description=(("{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}(mode=selectedMode(),n=9)))
    details (("{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}(mode=selectedMode(),n=7)))
     text "Inferred named enum body"
+   button target="/" caption="Button"
+   button target="/captions" caption=staticCaption
+   button target="/captions?x=<x>&y=1" caption=capture(seed="<Named>")
+   button target="/" caption="{n} links"@{nl="{n} koppelingen"}(n=8)
+   button target="/" caption=boundCaption(seed="BoundLink")
+  page /button-order title="Destination order"
+   button target=team.id caption=capture(seed=team.id)
+   button caption=capture(seed=team.id) target=team.id
+   button target=team.id caption=capture(seed=team.id)
+    require false
 `;
 const file = resolve(scratch, 'AnonymousMessages.can');
 writeFileSync(file, source);
@@ -141,9 +151,39 @@ const captionHtml=await captionPage.render(captionContext,await captionPage.admi
 for(const caption of ['1 kaarten','2 details nl','3 scheidingen','Page:Page','Producer:Producer','Défaut:Défaut','4 groepen','5 tabbladen','Anonymous body','Details body','Named body','Producer body','Default producer body','Static producer body','Fieldset body','Tab body']) {
   assert.ok(captionHtml.includes(caption),`actual UI renders bound caption ${caption}`);
 }
-assert.equal(captionHtml.match(/Statisch bijschrift/g)?.length,6,'zero-parameter bare/grouped captions render through all five actual UI factories and a valid producer');
+assert.equal(captionHtml.match(/Statisch bijschrift/g)?.length,7,'zero-parameter bare/grouped captions render through all five actual UI factories and a valid producer');
 for(const body of ['Static card body','Static details body','Static fieldset body','Static tab body']) assert.ok(captionHtml.includes(body),body);
 for(const caption of ['Eén:6','Eén:7','Eén:9','Named enum body','Inferred named enum body']) assert.ok(captionHtml.includes(caption),caption);
+assert.ok(captionHtml.includes('<a class="btn" href="/">Button</a>'));
+assert.ok(captionHtml.includes('<a class="btn" href="/captions">Statisch bijschrift</a>'));
+assert.ok(captionHtml.includes('href="/captions?x=&lt;x&gt;&amp;y=1"'));
+assert.ok(captionHtml.includes('&lt;Named&gt;:&lt;Named&gt;</a>'));
+assert.ok(captionHtml.includes('8 koppelingen</a>'));
+assert.ok(captionHtml.includes('BoundLink:BoundLink</a>'));
+const orderRef=JSON.parse(compiled.stdout).pages.find(page=>page.path==='/button-order');
+const orderPage=(await import(assembled.moduleUrls[orderRef.module]))[orderRef.export];
+const destinationReads=[];
+const destinationValues=['/captions?first=<a>&second=1','First caption','Second caption','/captions'];
+const orderContext={...captionContext,team:{timezone:'Europe/Brussels',get id(){
+  const index=destinationReads.length;destinationReads.push(index);
+  assert.ok(index<destinationValues.length,'gated destination expressions must not evaluate');
+  return destinationValues[index];
+}}};
+const orderHtml=await orderPage.render(orderContext,await orderPage.admit(orderContext));
+assert.deepEqual(destinationReads,[0,1,2,3],'destination and bound caption evaluate once in authored property order');
+assert.ok(orderHtml.includes('href="/captions?first=&lt;a&gt;&amp;second=1">First caption:First caption</a>'));
+assert.ok(orderHtml.includes('href="/captions">Second caption:Second caption</a>'));
+assert.equal((orderHtml.match(/class="btn"/g)??[]).length,2,'unavailable destination omits its whole factory call');
+const destinationFailure=new Error('first destination operand');
+let failedDestinationReads=0;
+const failingOrderContext={...captionContext,team:{timezone:'Europe/Brussels',get id(){
+  failedDestinationReads++;throw destinationFailure;
+}}};
+await assert.rejects(orderPage.render(failingOrderContext,await orderPage.admit(failingOrderContext)),
+  error=>error===destinationFailure);
+assert.equal(failedDestinationReads,1,'first destination failure skips its caption and later controls');
+
+
 const memberContext={memberships:['members']};
 const values = {
   location:'Brussels', resource:'Meeting room',
@@ -223,5 +263,6 @@ const brokenCounts={get extra(){trace.push('extra');throw failed},get word(){tra
 await assert.rejects(registry['Wording.aliased']({formatting:{appDefault:'nl'},team:null,...memberContext},{value:brokenCounts}),error=>error===failed);
 assert.deepEqual(trace,['extra'],'alias creation preserves first-failure identity and skips later operands');
 await assert.rejects(registry['Wording.aliased']({formatting:{appDefault:'nl'},team:null,...memberContext},{value:{extra:'ok',word:'tasks',n:'invalid'}}),'alias formatter still validates native values at the sink');
+console.log('destination buttons: original CLI artifact renders native localized captions, escaping, once-only authored property order and gated nonevaluation');
 console.log('anonymous descriptor: native bilingual date/time, plural schema, source language, null locale, explicit binding and evaluation order passed');
 console.log('alias consumer and ownerless Values formatter exercised; canonical ownerless UI formatter remains blocked by exact observed admission refusal');
