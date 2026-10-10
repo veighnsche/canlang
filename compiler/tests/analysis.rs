@@ -1020,6 +1020,11 @@ fn draft_outcome_table() {
     // Desk note and Event change operation renames remove four and one
     // lexical-shadow findings respectively. The actual 25-file composition
     // clears all six corrections but retains 127 other analysis findings.
+    // Reviewed drafte11d492 renames Desk reply, Event expired and Member
+    // revoke operations plus their actual consumers. The stored enum cases
+    // retain their owning types: two, four and three findings disappear.
+    // All 49 other rows remain unchanged; the actual original composition
+    // still has 118 findings and emits no artifact.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1035,11 +1040,11 @@ fn draft_outcome_table() {
         // event.id text; the unchanged source still has 49 other findings.
         ("draft/CanCustomer.can", 49),
         ("draft/CanDecide.can", 4),
-        ("draft/CanDesk.can", 74),
+        ("draft/CanDesk.can", 72),
         ("draft/CanDiscover.can", 60),
         ("draft/CanDo.can", 38),
         ("draft/CanEnrich.can", 8),
-        ("draft/CanEvent.can", 202),
+        ("draft/CanEvent.can", 198),
         ("draft/CanExpense.can", 92),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
@@ -1054,7 +1059,7 @@ fn draft_outcome_table() {
         ("draft/CanLoyalty.can", 68),
         ("draft/CanMail.can", 136),
         ("draft/CanMaintain.can", 112),
-        ("draft/CanMember.can", 322),
+        ("draft/CanMember.can", 319),
         ("draft/CanOnboard.can", 54),
         ("draft/CanPropose.can", 127),
         ("draft/CanPurchase.can", 143),

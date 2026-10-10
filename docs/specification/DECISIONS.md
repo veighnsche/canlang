@@ -6895,3 +6895,25 @@ Original58/67 and precise BDD3/Task22 holds stay unchanged; no remote publicatio
 ### 2026-10-10 — manual local integration of 23cfd269
 
 Finite owning-source review is clear for draft057ce7d/598a6e8/3efd895: preserve Affiliate nominal enums and explicit three-case subset, CRM genuine nonempty location/timezone business hours and permitted reassignment with creation exclusion, and Desk/Event operation/form disambiguation without changing enum cases, guards, examples or bodies. Exact original ordered25/catalog source check falls from138 to127 complete findings; all six representatives and consumers clear, Volunteer bytes unchanged and no artifact or native acceptance. Only the three changed isolated corpus snapshots are reconciled faithfully; all52 rows/assertions remain and the affected table passes1/1 in2.70s. Reuse unchanged compiler/strict/editor scopes, while original127 diagnostics and native/pure joins remain required. Advance only the clean root draft inspection to the exact reviewed local commit; preserve worker open edits and every precise hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — remove the next assigned operation shadows (unfinished composition)
+
+Rename only Desk.reply_customer, Events.expire_hold and Member.revoke_membership
+plus the two actual forms. Preserve original bodies, current permissions,
+labels, effects, examples and stored reply/expired/revoke enum cases. This is
+lexical-first source repair under accepted rules, with no new language design.
+Local draftc626387/e11d492 exact same Dev25 ordinary compile2.244s clears the nine
+related findings, all25 paths/hashes match and Desk/Event/Member each0. Other118
+findings still refuse artifact emission/native original qualification. Affected
+corpus initial failure reflects only Desk74→72/Event202→198/Member322→319
+snapshots. Coordinator finite source review is CLEAR and explicitly authorizes
+only those new snapshots; all52 rows/full assertions and49 unchanged rows remain.
+Final affected table1/1 passes3.32s,36 unrelated tests unselected, superseding
+that failure. Reuse prior23cfd269 and unchanged compiler/strict/editor scopes.
+Released a9f87793 diverges from own source checkpoint (1 local/11 carrier);
+await its containing coordinator carrier for safe intake without reset/merge. No Employees purity or guessed Volunteer
+bindings, broad source rewrite/common gate repair, publication or hold change.
+
+### 2026-10-10 — manual local integration of 56646192
+
+Finite exact source/consumer review is clear for local draftc626387/e11d492. Rename only Member revoke_membership and actual form, Desk reply_customer and actual form, and Event expire_hold retaining on=HoldDue; all bodies, guards, permissions, examples, enum cases and actual source/event producers remain unchanged, with no stale external consumer found. Exact original25/catalog source check falls127 to118 complete findings and those three source files have zero findings; no artifact or native original application acceptance. Correct only the three changed isolated corpus snapshots, preserving all52 rows and49 unchanged rows; affected table1/1 passes3.32s with format/diff0. Reuse unchanged compiler/strict/editor scopes, preserve precise BDD3/Task22 and other worker holds. This carrier contains the worker source commits for safe local merge intake without reset, rebase or remote publication. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
