@@ -436,6 +436,31 @@ export interface ArtifactCohortDescriptor {
 }
 
 /**
+ * One checked committed-model trigger, published identically in the artifact
+ * and emitted appDefinition.committedChanges. Identities come from checked
+ * declarations, including imported symbols; handlers contains every matching
+ * ordinary/cohort handler in declaration order, never a selected subset.
+ *
+ * Handler identities resolve through ArtifactCallable module/export/member.
+ * Their private input admission lives in emitted appDefinition.operations
+ * (not CompileArtifact.operations), with optional cohorts in the existing
+ * appDefinition.cohorts map. The private required text id maps immutable
+ * CommittedChangeEvent.recordId to event.id, including after deletion; required
+ * int version uses the existing typed descriptor and canonical wire conversion.
+ * Existing artifact sources/modules bind this metadata to its checked source.
+ * Runtime app/owner/principal/operation association stays in InvocationContext.
+ */
+export interface ArtifactCommittedChangeDescriptor {
+  /** Canonical trigger identity, e.g. volunteer.Opportunity.updated. */
+  source: string;
+  /** Canonical declaring model, e.g. volunteer.Opportunity. */
+  model: string;
+  change: 'create' | 'update' | 'delete';
+  /** Complete canonical matching handler identities in declaration order. */
+  handlers: string[];
+}
+
+/**
  * Separately emitted test artifact for inline behavior examples.
  * Production modules never import from test artifacts; the test runner
  * provisions fixtures and invokes compiled operations through production
@@ -482,6 +507,8 @@ export interface CompileArtifact {
   /** Checked source-ordered metadata; native callbacks live separately in each emitted
    * module's canApp().modelPolicyBindings, never in this JSON claim. Omission is legacy. */
   modelPolicies?: CanonicalOwnerModelPolicies[];
+  /** Checked complete committed-model routes; omission carries no trigger claim. */
+  committedChanges?: ArtifactCommittedChangeDescriptor[];
   /** Checked source nominal definitions used by field/input/result claims. */
   valueTypes?: CanonicalValueTypes;
   /** Page descriptors in source order. */

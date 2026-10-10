@@ -6513,3 +6513,9 @@ preserve both assertions and consume the exact owner repair. Coordinator
 acceptance and original member/pure/dynamic workflow remain unfinished. Continue
 the agreed committed-model source producer after this coherent local unit;
 BDD3/Task22 holds and58/67 remain unchanged.
+
+### 2026-10-10 — shared checked committed-model descriptor (producer unfinished)
+
+Match the exact Compiler proposal relayed by the coordinator: ArtifactCommittedChangeDescriptor carries canonical source/model, create/update/delete classification and every checked matching ordinary/cohort handler in declaration order. CompileArtifact.committedChanges is additive and optional; emitted appDefinition publishes identical rows. Reuse existing checked source/module and callable correspondence, private appDefinition.operations invocation descriptors and cohort map. CompileArtifact.operations stays user-invocable. Private immutable recordId binds required text id to event.id even after deletion; version uses existing required int/canonical wire. Original dynamic authority remains trusted InvocationContext, with no new origin or static owner claim.
+
+The shared type is implemented with owning Contracts emission0 and finite source review CLEAR. Existing barrel exports suffice; no runtime, schema or State/Work write is included. This is an unfinished contract checkpoint awaiting defining producer agreement/manual integration. Compiler owns declaration-derived complete publication/private admission; Capability owns accepted final-net same-fence sources/all routes/frozen cuts/receipts/rollback/replay; Dev owns actual native mapping/current owner. No implementation support or full workflow is advertised by the type alone; precise holds and complete checkpoint remain unchanged.
