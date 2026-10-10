@@ -15,6 +15,7 @@ When
   examples update record=editable
    as,changes.name,changes.quantity -> record.name,record.quantity
    other,"A4 paper",8 -> "A4 paper",8
+   person,"Reviewed paper",6 -> "Reviewed paper",6
    outsider,"Private change",9 -> error(forbidden)
  scenario rename(supply:Supply,name:text) by=members
   do
