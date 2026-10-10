@@ -7455,3 +7455,29 @@ arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
 ### 2026-10-10 — manual local integration of a7610b95
 
 Finite manual source review CLEAR. Resolve the same enabled owning CRUD grant before the precommit hook, retain authenticated actor proof only in that checked hook scope, and preserve public, foreign, disabled, unknown and committed-handler nullable/refusal behavior. Reuse owning analysis/hook controls and the exact complete25/catalog source delta35→33 with no new diagnostics or emitted original artifacts. Native actor/now/team/operation lowering remains E6008 until Compiler and Dev connect the genuine private invocation context; current whole/strict validation and original applications remain unfinished. Genuine generated selector/native qualification is independently integrated at a26623d9, not evidence for native hooks. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — qualify the current compiler and native selectors (unfinished plan)
+
+Original CLI stdout bytes now pass the installed Testkit and default Cloudflare
+D1/Identity adapter: both authored dotted and whole request input rows execute,
+with no patched modules, metadata, hooks or dispatch port. The separate port
+witness uses the actual declared request.task.version wire input and retains
+full business paths/caller separation. Focused2/2 pass3.35s; finite read-only
+review is CLEAR. Consumed reviewed ecc/94 via5b; genuine owner graph26/26 emits
+uncached in1m58.98s.
+
+Frozen a761 plus this related witness/draft8a2 whole passes1429 across138 targets,
+zero failed/ignored/filtered/bodySKIP, required completion engines and genuine
+native/permission bodies. Strict all-target Clippy0 in57.26s and fmt/diff0. All52
+full corpus assertions pass, including Inbox41/Invoice203/Leave74/Purchase138/
+Maintain110. Reuse unchanged outcomes; prior1422 is historical for these edits.
+Actual original25 remains33/no artifact. This fixture does not grant original
+application or full S9Q07 acceptance.58/67/nine and precise BDD3/Task22/T11 holds
+remain; Work issuer/private nested completion and genuine typed hook context
+joins retain their owners. Coordinator assigns only the five private Purchase
+parameter/reference sites next; exported Rent remains excluded. Local only.
+
+### 2026-10-10 — manual local integration of 4810e4bd
+
+Finite manual review CLEAR. The actual CLI stdout artifact runs unchanged through installed Testkit and the default native D1/Identity consumer for both authored dotted and whole-root model inputs; retain the separate corrected genuine wire invocation-port witness. Reuse focused2/2 in3.35s, frozen whole1429 across138 targets with zero failure/ignored/filtered/bodySKIP and real required engines/native/permission bodies, strict Clippy0 in57.26s/fmt/diff0 and genuine uncached graph26/26. The Compiler witness exercises the canonical receipt/history path but does not independently assert its stored ledger; the separately integrated Devb31 workflow retains its own complete resource/receipt/history scope. Current original33/noartifact, full58/67/nine open, native hook/completion producer-consumer joins and every recipient-specific hold remain. All52 actual corpus rows pass at this frozen source tuple; future Purchase source changes require their affected checks, not repetition of unchanged suites. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
