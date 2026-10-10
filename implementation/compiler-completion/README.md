@@ -3523,3 +3523,8 @@ Skip blocked rejection qualification until exact owner repair; continue ready
 producer work. Target strict lint0 (3.34s), prior unchanged all-target44.21s
 reused, fmt/diff0. No current whole, actor/now or terminal E6008 release, broader
 reference/58-of67/nine/precise-hold change. Local only.
+
+
+### 2026-10-11 — lower checked native hook context (unfinished scalar join)
+
+Checked native contextual hook producer keeps exact private original resolver ContextVar/NodeKey identities and no inference rerun; fresh candidate IR is returned only for a complete owner-policy plan with actual hook bindings, otherwise E6008 refusals are rebuilt. Actor/User, now/Datetime, team.id/Timezone and operation.id/source plus actorFacts reads keep exact types. Model Email/Timezone valueType metadata retains owning codecs without widening scenario results/public input profiles. Owning codegen121/profile9/rule6/CLI-model4=140 pass; actual core context1/1 (0.93s) qualifies explicit User/Datetime/team.id/operation/actor_verified, State server omissions/default agreement, ordered guards/history/one receipt/fence and no-execution replay. Original native success/rejection pair2/2 now passes after exact reviewed88c9a640 Devf57 intake; owner build22/22 (0cached,15.222s). Full Email/Timezone native source/assertions are retained but fail at actual State registry.ts427 metadata whitelist before hooks (0passed1failed0.69s); Packages owns exact registry/model/Interfaces metadata joins. Strict all-target Clippy0 (53.60s), fmt/diff0. Current whole remains unqualified; next ready File zero-contract complete-schema producer is assigned. Terminal E6008, original Maintain unsupported full profile,58/67/nine and BDD3/S9Q07/Task22/T11 holds remain. Local only.
