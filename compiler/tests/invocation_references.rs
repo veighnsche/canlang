@@ -628,6 +628,60 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
         )
         .unwrap();
     }
+    // Send remains supported for its standalone native receipt, but the
+    // finite nested-call consumer cannot admit a framework-sending child.
+    let framework_source = "app CallFramework\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\nWhen\n scenario child() by=members\n  do send LLM.cancel {revision=1,source=\"fixed\"} as stop\n scenario parent() by=members\n  do call child {}\nThen\n";
+    let mut framework_db = SourceDb::new();
+    let framework_file = framework_db.add("call-framework.can".into(), framework_source.into());
+    let (checked, diagnostics) = check_program(&framework_db, &[framework_file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (framework_ir, diagnostics) = ir::build(&checked, &framework_db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let framework =
+        js::emit_program_with_native_source_receipts(&framework_ir, true, &framework_db);
+    for (name, admitted) in [
+        ("CallFramework.child", true),
+        ("CallFramework.parent", false),
+    ] {
+        let owner = framework_ir
+            .items
+            .iter()
+            .find(|item| item.canonical == name)
+            .unwrap();
+        assert_eq!(
+            collect_static_scenario_calls(
+                &framework_ir,
+                owner,
+                &framework.operations,
+                &framework_db,
+                &framework.entry.path
+            )
+            .is_some(),
+            admitted,
+            "standalone versus nested Send profile: {name}"
+        );
+        assert_eq!(
+            framework
+                .operations
+                .iter()
+                .find(|op| op.name == name)
+                .unwrap()
+                .disclosure
+                .is_some(),
+            admitted,
+            "Send source preparation: {name}"
+        );
+    }
+    assert!(framework.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "E6008"
+            && diagnostic
+                .message
+                .contains("canonical cross-operation invocation")
+    }));
+    std::fs::write(module_dir.path().join("framework.mjs"), &framework.entry.js).unwrap();
+    for package in &framework.packages {
+        std::fs::write(module_dir.path().join(&package.path), &package.js).unwrap();
+    }
     let runner = r#"import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {registerHooks} from 'node:module';
@@ -680,6 +734,12 @@ for(const edges of [16,17]){
   assert.equal(body.includes('invokeScenarioReceiptCall'),false,'over-depth root retains refusal body');
  }
 }
+const framework=await import('./framework.mjs');
+assert.equal(Object.hasOwn(framework.appDefinition.operations['CallFramework.parent'],'callSites'),false,'framework child cannot publish a parent call site');
+assert.equal(framework.canApp()['CallFramework.parent'].toString().includes('invokeScenarioReceiptCall'),false,'framework child parent retains refusal body');
+const frameworkOperations=framework.canApp().operations;
+assert.equal(frameworkOperations.find(op=>op.name==='CallFramework.parent').result?.disclosure,undefined);
+assert.ok(frameworkOperations.find(op=>op.name==='CallFramework.child').result.disclosure,'standalone Send receipt is preserved');
 // Refused call handlers are deliberately never invoked.
 "#;
     std::fs::write(module_dir.path().join("inspect.mjs"), runner).unwrap();
