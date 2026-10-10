@@ -56,7 +56,7 @@ import {
   TestOnlyMemoryIntentStore,
 } from "@canlang/files/ports";
 import {
-  appendUploadContent,
+  appendUploadContentAtOffset,
   completeUploadContent,
   createUploadIntent,
   DEFAULT_FILE_POLICY,
@@ -66,9 +66,11 @@ import {
 import {
   authorizeAttach,
   finalizeUpload,
+  observeFinalizedFile,
   readFinalizedBytes,
   readFinalizedFile,
   recordAttachment,
+  revalidateRetainedFinalizedFile,
   type FinalizeDeps,
 } from "@canlang/files/finalize";
 
@@ -774,7 +776,8 @@ describe("real finalized-file journey (files -> uploads -> worker seams)", () =>
     const bindings: FileJourneyBindings = {
       maxBytes: DEFAULT_FILE_POLICY.maxBytes,
       createIntent: (input) => createUploadIntent(upload, input),
-      append: (intentId, caller, chunk) => appendUploadContent(upload, intentId, caller, chunk),
+      append: (intentId, caller, chunk, expectedOffset) =>
+        appendUploadContentAtOffset(upload, intentId, caller, chunk, expectedOffset),
       complete: (intentId, caller) => completeUploadContent(upload, intentId, caller),
       finalize: (input) => finalizeUpload(finalize, input),
       readProvenance: (ref, caller) => readFinalizedFile(finalize, ref, caller),
@@ -782,6 +785,10 @@ describe("real finalized-file journey (files -> uploads -> worker seams)", () =>
       recordAttachment: (ref, recordRef, caller) =>
         recordAttachment(finalize, ref, recordRef, caller),
       readBytes: (ref, caller) => readFinalizedBytes(finalize, ref, caller),
+      observeFile: (ref, caller, retention) =>
+        observeFinalizedFile(finalize, ref, caller, { policy: upload.policy, retention }),
+      revalidateFile: (saved, caller, retention) =>
+        revalidateRetainedFinalizedFile(finalize, saved, caller, { policy: upload.policy, retention }),
     };
     const kernel = createFileJourneyKernel(bindings);
     return { t, deps: { ...t.deps, kernel }, kernel, csrf };
@@ -833,7 +840,7 @@ describe("real finalized-file journey (files -> uploads -> worker seams)", () =>
       testRequest(`/files/content/${grant.intent_id}`, {
         method: "PUT",
         cookie: ctx.t.identity.cookie,
-        headers: { "content-type": "application/octet-stream", "x-csrf-token": ctx.csrf },
+        headers: { "content-type": "application/octet-stream", "x-csrf-token": ctx.csrf, "upload-offset": "0" },
         body: PDF,
       }),
     );
@@ -926,7 +933,7 @@ describe("real finalized-file journey (files -> uploads -> worker seams)", () =>
       testRequest(`/files/content/${grant.intent_id}`, {
         method: "PUT",
         cookie: ctx.t.identity.cookie,
-        headers: { "content-type": "application/octet-stream", "x-csrf-token": ctx.csrf },
+        headers: { "content-type": "application/octet-stream", "x-csrf-token": ctx.csrf, "upload-offset": "0" },
         body: PDF,
       }),
     );
