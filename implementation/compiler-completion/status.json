@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T02:34:28.072605+00:00",
+  "updated_utc": "2026-10-10T03:36:04.330661+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -320,7 +320,7 @@
     "consumer": "compiler/tests/fixtures/localized-format-consumer.mjs --label-parameter",
     "first_failure": "Same affected case0/1 (0.58s): two E3016 diagnostics anchored at text types of valid label parameters.",
     "repair": "resolve_param_defaults recognizes label metadata only when followed by =, preserving earlier seed default binding. check_param_defaults uses the existing field_parts.label owner; no parser or formatter facade change.",
-    "verified": "Same affected case1/1 (0.68s), production CLI/installed catalog → actual loadArtifactFile/assembleModules → unchanged generated derives/installed formatter. Explicit expression context formatting.appDefault=en, team=null. Dependent default yields {text:Ready|Ready|T,locale:en}; explicit binding yields {text:S|Bound|T,locale:en}.",
+    "verified": "Same affected case1/1 (0.68s), production CLI/installed catalog \u2192 actual loadArtifactFile/assembleModules \u2192 unchanged generated derives/installed formatter. Explicit expression context formatting.appDefault=en, team=null. Dependent default yields {text:Ready|Ready|T,locale:en}; explicit binding yields {text:S|Bound|T,locale:en}.",
     "refusal": "Same source retains actual tail label=caption metadata. Replacing its static caption message with a parameterized message preserves exact E3016: label cannot reference 'caption'; parameterized messages need call syntax, with no modules.",
     "reused": "Existing selected-call/localized-format/branch matrices and outcomes reused unchanged. Earlier branch source still uses word; its prior contextual-name issue is qualified here.",
     "qualification": "No task-count/full S9-Q01, carrier/public human sink, State/native authority, parser or facade claim.",
@@ -333,7 +333,7 @@
     "direct_case": "compiler/tests/query_order.rs::production_model_query_order_preserves_direct_alias_fields_and_refuses_expressions",
     "prepatch": "Actual genuine fixture compilation produced two E6008 expression-query-order diagnostics and no modules for entry.count and -entry.count.",
     "repair": "Minimal ir.rs decoder admits only the checked current model alias/direct stored field satisfying the existing Cloudflare native scalar-order contract, optionally unary descending. Existing IrOrder and native selector string emission reused; this case qualifies int ordering.",
-    "verified": "Same production CLI/installed Values catalog case1/1 (0.40s). Actual ascending/descending authored callables emit count/-count exactly. Same-source arithmetic entry.count+1 and correctly typed foreign root entryRecord:Entry order=entryRecord.count each refuse exact E6008 cannot lower expression query order: no §13 lowering exists, with no modules.",
+    "verified": "Same production CLI/installed Values catalog case1/1 (0.40s). Actual ascending/descending authored callables emit count/-count exactly. Same-source arithmetic entry.count+1 and correctly typed foreign root entryRecord:Entry order=entryRecord.count each refuse exact E6008 cannot lower expression query order: no \u00a713 lowering exists, with no modules.",
     "reused": "Original matched/all-false, revoke, provisional-read and rollback outcomes reused at recorded scope; no broad or unchanged matrix repeated.",
     "qualification": "Finite direct int-field source/artifact/authorized D1 order slice only. Full S9-Q02/Q08 and metadata/computed ordering remain open. Counters58/67 with9open unchanged.",
     "ownership": "Compiler ir.rs/query_order.rs/own notes frozen for capture; Work owns Cloudflare invoke.ts and genuine fixture/native consumer capture; coordinator owns DECISIONS/coverage/index.",
@@ -536,7 +536,7 @@
     "target": "compiler/tests/invocation_references.rs",
     "result": "5/5 Node24 actual installed catalog/CLI; call controls8/8; emitter121/121 prior unchanged after isolated read-narrow correction; strict all-target lint/format0.",
     "behavior": "Actual dynamic operands separated from declaring SymbolIds; owning parameter/model/result schemas retained by index, authored input order/typed shorthand/source anchors, as bindings and value/void/opaque result facts. Exact read-scenario static calls preserve member-path narrowing; mutating/dynamic/unknown calls invalidate.",
-    "blocked_on": "Original Workbench clean29-file import+composition cohort, Capability direct-query source correction, checked capability-delivery fixture attribution, owning Fact.task Values/Contracts schema handoff, complete staff/can_work source closure, State viewer-query selection/order/cardinality/result attestation and genuine Dev read/as child execution. Protected dynamic phase, T11 and precise holds remain separate.",
+    "blocked_on": "Original clean29-file import+composition cohort: Employees8/9 active_member pure-derive conflict, CanDo116 nullable user and wider authored composition errors (Capability/design/source owners); owning Fact.task schema same-load model context in State/Interfaces loaders; complete staff/can_work source closure, State viewer-query selection/order/cardinality/result attestation and genuine Dev read/as child execution. Protected dynamic phase, T11 and precise holds remain separate.",
     "refusal": "Default nonnative CLI and unsupported native call profiles retain canonical E6008/no modules. Only complete exact source-aware static mutation no-as/discarded scalar-or-void profile with required builtin child inputs publishes through --native-scenario-receipts. No direct-handler/fake-frame substitute.",
     "qualification": "Exact6530a74e full129targets1356/0failed/0ignored/0filtered, required real completion engines/native/permission bodies zero skips, strict all-target lint/fmt0. Manually reviewed LOCAL2ee246ab preserves compiler/receipt core; fresh graph26/26 and owning real CLI/module1/1 pass. No genuine native child execution, original Task39 or wider reference acceptance/hold lift.",
     "related_argument_correction": "Existing check_action_call consumes explicit value or typed shorthand key_node for additional declaration targets. heterogeneous_action_call1/1 passes original literal, shorthand/explicit-binding exact diagnostic span parity and compatible positives. No executable call or held policy claim.",
@@ -595,25 +595,54 @@
       },
       "reviewed_main": "2ee246ab07dbed47919e0d510d725e91b3ee0fce"
     },
-    "native_consumer": "Consumed coordinator-reviewed LOCALdf394abbaa7ab60a79079e667e8d3889f9546e73: actual NativeStaticCalls.can CLI→portable global D1→ordinary Identity/member HTTP and granted MCP1/1 in22.00s, actual scalar/void physical child associations, one root receipt/fence and no-effect replay, nonmember/Public403, currency/correspondence/awaited cleanup. Reuse owning evidence in implementation/can-dev-server/PLAN.md; no original Workbench credit.",
+    "native_consumer": "Consumed coordinator-reviewed LOCALdf394abbaa7ab60a79079e667e8d3889f9546e73: actual NativeStaticCalls.can CLI\u2192portable global D1\u2192ordinary Identity/member HTTP and granted MCP1/1 in22.00s, actual scalar/void physical child associations, one root receipt/fence and no-effect replay, nonmember/Public403, currency/correspondence/awaited cleanup. Reuse owning evidence in implementation/can-dev-server/PLAN.md; no original Workbench credit.",
     "source_query_producer": {
       "state": "implemented_affected_tested_unfinished_runtime_join",
       "source": "TypeTable.checked_queries; ScenarioDisclosure.source_facts(); IrQuery.source; collect_scenario_source_calls",
       "behavior": "Exact checked query domain/types/ordered clause and alias NodeKeys survive to IR with source validation. Clean typed scenario signatures and static read/ref/composite/as calls survive disclosure Declined; exact authored-order source/IR call bijection retains canonical owning declaration, actual input spans/types and result binding. No emitted-interface schema correspondence claim or native admission from structural facts. Existing Complete/native restrictions retained.",
       "validation": "checked_query_facts3/3, invocation7/7, scenario_disclosure18/18, codegen121/121 =149passed,0failed,0ignored; strict all-target Clippy/fmt0. Missing/skewed/duplicate/input-order/as/query-clause and reordered actual-call controls refuse.",
-      "original_source": "Unchanged21-file imports-only probe135 diagnostics, including undefined collect and opaque delivery fixture. Complete real imports+app-uses closure29files has no missing/ambiguous owner; not yet rechecked after owning source/fixture corrections. Direct controls do not qualify original source."
+      "original_source": "Exact reviewed LOCALe5c8b728 + draft337/adcb + fixture7d complete29-file check once: complete=true,exit10,150 diagnostics, zero Workbench. Direct-query and waiting fixture defects resolved. Employees8/9 E3010 impure active_member in pure staff/can_work; CanDo116 E3001 user? versus user; broader composed source errors remain. Global disclosure correctly withheld.",
+      "nominal_projection": "Existing CheckedQuery optional boxed projection retains actual contract/model/lexical alias, ordered owning field IDs/expression nodes/types and stored-reference/version/direct-field mapping. Actual IR matches whole typed select object/source/active alias/owning fields; forged owner/model/alias/type/mapping/order/omission refuses. Computed/foreign/mixed mapping absent; raw query typing unchanged.",
+      "projection_validation": "Affected151/151 (query5,invocation7,disclosure18,codegen121); final query/invocation12 rerun after boxed optional facts, strict all-target Clippy/fmt0. Finite source review clear; duplicate query as syntax already refuses E1206. No native query/read/as disclosure admission.",
+      "next": "Original reused targets parameter min1/max10 producer: retain exact checked reuse bounds and emit existing input min/max numeric lengths. Packages shared envelope, State private current ref-array admission, Dev exact frame view/slot join; no invented distinctness.",
+      "decision_context": {
+        "state": "unfinished_owning_contract_prerequisite_advice_only",
+        "owner": "Compiler checked transitive helper/default/admission-context source correspondence; State private current-membership observer; Dev actual stage association",
+        "gate": "Preserve pure/default T06 and StateRead active_member; no earlier hoist across set/create/dispatch",
+        "consultation": "decision-context-jev.json; 3 independent Choice requests select owner_prerequisite, confidence .87/.65/.53, probability .90/.74/.65; bounded-contract alternative .10/.25/.34; not language acceptance",
+        "next": "Consume exact qualified owner contract/hooks then implement checked source/context join; continue independent collection and parameter-bound producers.",
+        "source_correspondence": {
+          "state": "implemented_finite_owning_tested_no_activation",
+          "validation": "Owning5/5; final affected34/34; prior unchanged codegen121/invocation7 reused. Strict all-target Clippy/fmt0. Exact immutable inventory + fresh checked semantic IR comparison refuses values/names/operators/duplicate proof/control/default/callee/source skew.",
+          "limits": "Unsupported special expression and create/delete/transition/call/schedule/cancel/emit statement families decline optional recipe. No serial transport/runtime private binding/purity admission.",
+          "next": "Compiler real lazy SEND/frozen lexical producer, State active require/current-membership observer, Dev private stage captures; distinct genuine post-close dispatch required. Current source/native activation withheld."
+        }
+      },
+      "collection_call": {
+        "state": "implemented_affected_tested_native_unfinished",
+        "behavior": "Actual selected any/all/count/first retain query/model/alias and external predicate anchors; IR joins actual typed Query/Lambda/canonical slots and retains association without fabricating Where or granting native admission. Named argument authored order and grouped predicate source retained.",
+        "validation": "Affected154/154: query8, invocation7, codegen121, disclosure18; strict all-target Clippy/fmt0; finite independent review clear. Altered owner/model/out-of-range/query/alias/predicate node/type/missing/builtin/overload refuse.",
+        "remaining": "Async membership predicate sequential runtime and bounded decision-context/source contract; original cohort, State/Dev query/policy/result join."
+      }
     },
     "capability_fixture_attribution": {
-      "state": "implemented_tested_unfinished_original_cohort",
+      "state": "implemented_tested_original_fixture_diagnostic_resolved",
       "behavior": "Exact FixtureTarget::Operation(Some(op)) with actual CapabilityOp symbol retains Delivery{op}; scenario/CRUD/bare/unknown/external operation fixtures keep existing opaque/refusal behavior. Existing request/envelope checks retained. Result/error payload schema certification is not added.",
       "validation": "Owning b4_check283/283,0failed,0ignored; strict all-target Clippy/fmt0. New1 control covers checked target identity, owning nullable delivery assignment, different-operation refusal, malformed request/status, opaque targets and forged handles.",
-      "remaining": "Consume exact reviewed Capability direct-query source/gitlink, then original29-file check. Query/schema/runtime joins remain."
+      "remaining": "Actual original Workbench check has zero diagnostics after exact source/fixture intake. Clean broader cohort, query/schema/runtime joins remain; no result/error payload certification claim."
     },
     "nominal_field_modifiers": {
-      "state": "implemented_affected_tested_unfinished_shared_consumer_join",
+      "state": "implemented_affected_and_real_values_consumer_tested_model_context_unfinished",
       "behavior": "Exact checked immediate field-reuse chain retains defining-scope trim/min/max with compatible narrowing; receiving default/server/required-array/unique/authority is not inherited. Generated alias checked intersections are authoritative. Actual artifact emits numeric length bounds, exact scalar wire bounds and trim; unrelated Judgment does not grant unsupported ordinary schema closure.",
       "validation": "Affected140/140; strict all-target Clippy/fmt0. Independent review found generated-alias bound weakening; corrected owning checked intersection and actual artifact/consumer regression rechecked. No current whole qualification.",
-      "remaining": "Consume coordinator-reviewed Packages nominal envelope/model-name-context repair after coherent commit; qualify actual bounded Values consumption. Model-containing ordinary contracts and original query/authorization/native result remain unfinished."
+      "remaining": "Fact.task publication awaits State/Interfaces actual same-load model-name context; original clean source/query/authorization/native result remain unfinished. No current whole qualification.",
+      "consumer": "Reviewed LOCALe5c8b728 Packages1c/69 consumed by FF; actual Values dependency build4/4 zero cached. Actual CLI bounded inventory through genuine normalizeValueTypes/validateValue, exact int64/Decimal endpoints, trim/nonblank/length/nullable/array controls pass; ordinary native/contract target3/3."
+    },
+    "parameter_array_bounds": {
+      "state": "implemented_owning_cli_and_strict_tested_native_unfinished",
+      "behavior": "Actual reused array parameter source layer retains exact compatible min/max inclusive JS-safe integer lengths in IR, top-level operation input metadata and generated scenario/capability schemas; field-only !, normalization, uniqueness/distinctness are not borrowed. Outer scalar-field[] wrapper does not promote element bounds to cardinality.",
+      "validation": "Owning actual IR/CLI/artifact/generated-schema target3/3: imported Task[] min1/max10, narrowed min2/max5, nullable/read-versus-mutation versions, legal default[] and unbounded/scalar-element wrapper controls; unsafe/symbolic no modules. Direct parameter modifiers already refuse parser E1200; no new unsupported-syntax inference. Strict all-target and changed-source whole due after decision consumer stable. Strict all-target Clippy/fmt0 at coherent decision/parameter source; changed-source whole due.",
+      "owner_release": "Packages exact shared envelope top-level min/max:number for safe nonnegative array lengths, existing array/nullable/ref requireVersion. State per-element current reference/outer checkpoint; Dev private input-array view/slot correspondence. Native array admission remains withheld."
     }
   }
 }

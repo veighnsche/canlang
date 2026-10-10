@@ -652,6 +652,9 @@ pub fn parent_path(expr: &TypedExpr) -> Option<String> {
 /// One named operation input (JSON shape of `McpNamedField`).
 #[derive(Debug, Clone)]
 pub struct JsOperationField {
+    /// Inclusive reused parameter-array lengths, as exact descriptor numbers.
+    pub min: Option<u64>,
+    pub max: Option<u64>,
     /// Input name (parameter or flattened model field).
     pub name: String,
     /// Closed typed schema (element kind for array inputs).
@@ -1083,7 +1086,9 @@ impl Serialize for JsOperationField {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct(
             "OperationField",
-            3 + usize::from(self.nullable)
+            3 + usize::from(self.min.is_some())
+                + usize::from(self.max.is_some())
+                + usize::from(self.nullable)
                 + usize::from(self.value_type.is_some())
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
@@ -1102,6 +1107,12 @@ impl Serialize for JsOperationField {
         }
         if let Some(required) = self.array_required {
             state.serialize_field("array", &ArrayMarker { required })?;
+        }
+        if let Some(min) = self.min {
+            state.serialize_field("min", &min)?;
+        }
+        if let Some(max) = self.max {
+            state.serialize_field("max", &max)?;
         }
         if let Some(default) = &self.default {
             state.serialize_field("default", default)?;
@@ -7822,6 +7833,7 @@ impl<'a> Emitter<'a> {
                 continue;
             };
             if let IrItemKind::Param {
+                array_bounds,
                 ty,
                 default,
                 label,
@@ -7845,6 +7857,14 @@ impl<'a> Emitter<'a> {
                     }
                     IrType::Unknown => "type:\"unknown\"".to_string(),
                 };
+                if let Some(bounds) = array_bounds {
+                    if let Some(min) = bounds.min {
+                        members.push_str(&format!(",min:{min}"));
+                    }
+                    if let Some(max) = bounds.max {
+                        members.push_str(&format!(",max:{max}"));
+                    }
+                }
                 if let Some(default) = default {
                     match default {
                         IrDefault::Literal(value) if wire => {
@@ -7954,6 +7974,8 @@ impl<'a> Emitter<'a> {
                         .map(|message| message.source.clone())
                         .unwrap_or_default(),
                     inputs: vec![JsOperationField {
+                        min: None,
+                        max: None,
                         name: "delivery_id".to_string(),
                         field: JsMcpField::String,
                         value_type: Some("text".to_string()),
@@ -7999,6 +8021,8 @@ impl<'a> Emitter<'a> {
             }
             let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
             inputs.push(JsOperationField {
+                min: None,
+                max: None,
                 name: item.name.clone(),
                 field,
                 value_type: self.operation_input_value_type(ty),
@@ -8026,6 +8050,8 @@ impl<'a> Emitter<'a> {
                 return None;
             }
             inputs.push(JsOperationField {
+                min: None,
+                max: None,
                 name: cohort.bind.clone().unwrap_or_else(|| "$cohort".to_string()),
                 field: JsMcpField::Ref {
                     model: model.canonical.clone(),
@@ -8098,6 +8124,8 @@ impl<'a> Emitter<'a> {
             inputs: ["recordId", "field", "selected"]
                 .into_iter()
                 .map(|name| JsOperationField {
+                    min: None,
+                    max: None,
                     name: name.to_string(),
                     field: JsMcpField::String,
                     value_type: Some(
@@ -8260,6 +8288,7 @@ impl<'a> Emitter<'a> {
                             break;
                         };
                         let IrItemKind::Param {
+                            array_bounds,
                             ty,
                             default,
                             description,
@@ -8298,6 +8327,8 @@ impl<'a> Emitter<'a> {
                             // always ordinary: omission fills empty and
                             // the marker renders `required: false`.
                             Some((field, is_array)) => inputs.push(JsOperationField {
+                                min: array_bounds.as_ref().and_then(|bounds| bounds.min),
+                                max: array_bounds.as_ref().and_then(|bounds| bounds.max),
                                 name: param.name.clone(),
                                 field: alias_name
                                     .map_or(field, |name| JsMcpField::Nominal { name }),
@@ -8476,6 +8507,8 @@ impl<'a> Emitter<'a> {
                                     && !nullable
                                     && !(is_array && !required_array);
                                 flat.push(JsOperationField {
+                                    min: None,
+                                    max: None,
                                     name: field_item.name.clone(),
                                     field,
                                     value_type: self.operation_input_value_type(ty),
@@ -8498,6 +8531,8 @@ impl<'a> Emitter<'a> {
                         continue;
                     }
                     let record = || JsOperationField {
+                        min: None,
+                        max: None,
                         name: "record".to_string(),
                         value_type: None,
                         field: JsMcpField::Ref {
@@ -8527,6 +8562,8 @@ impl<'a> Emitter<'a> {
                                 && let Some(parent_item) = self.ir.items.get(parent_id.0 as usize)
                             {
                                 inputs.push(JsOperationField {
+                                    min: None,
+                                    max: None,
                                     name: "parent".to_string(),
                                     value_type: None,
                                     field: JsMcpField::Ref {
