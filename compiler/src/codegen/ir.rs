@@ -287,6 +287,8 @@ pub enum IrItemKind {
         owner: SymbolId,
         index: usize,
         ty: IrType,
+        /// Borrowed array lengths only; the field-only required marker is excluded.
+        array_bounds: Option<IrParameterArrayBounds>,
         /// `=` default, when one is authored (G1/G6/G7).
         default: Option<IrDefault>,
         /// Checked source anchor before grouping is erased by expression lowering.
@@ -356,6 +358,13 @@ pub struct IrRetain {
     pub until: TypedExpr,
     /// Declaration span.
     pub span: Span,
+}
+
+/// Exact descriptor-number length bounds retained for reused array inputs.
+#[derive(Debug, Clone, Default)]
+pub struct IrParameterArrayBounds {
+    pub min: Option<u64>,
+    pub max: Option<u64>,
 }
 
 /// Stored-field modifiers: `trim`, `min=`/`max=` bounds, field `unique`.
@@ -2440,7 +2449,9 @@ impl<'a> Cx<'a> {
                         },
                         labels: choice.labels.clone(),
                     });
+                let array_bounds = self.decode_parameter_array_bounds(symbol);
                 IrItemKind::Param {
+                    array_bounds,
                     owner: *owner,
                     index: *index,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
@@ -6338,7 +6349,10 @@ impl<'a> Cx<'a> {
             return;
         }
         let mut chain = Vec::new();
-        let mut current = receiving.id;
+        let mut current = match receiving.kind {
+            SymbolKind::Param { .. } => self.program.types.field_reuse_sources[&receiving.id],
+            _ => receiving.id,
+        };
         let mut seen = HashSet::new();
         loop {
             if !seen.insert(current) || chain.len() >= 128 {
@@ -6367,6 +6381,35 @@ impl<'a> Cx<'a> {
                 ));
                 return;
             };
+            if matches!(receiving.kind, SymbolKind::Param { .. }) {
+                // A scalar field wrapped in [] retains element identity, not
+                // outer cardinality. Stop at that exact checked layer boundary.
+                let array_element = |ty: &ResolvedType| {
+                    let ty = match ty {
+                        ResolvedType::Nullable(inner) => inner.as_ref(),
+                        _ => ty,
+                    };
+                    match ty {
+                        ResolvedType::Array { element, .. } => Some(element.as_ref().clone()),
+                        _ => None,
+                    }
+                };
+                let receiving_element = self
+                    .program
+                    .types
+                    .symbol_types
+                    .get(&receiving.id)
+                    .and_then(array_element);
+                let source_element = self
+                    .program
+                    .types
+                    .symbol_types
+                    .get(&current)
+                    .and_then(array_element);
+                if receiving_element.is_none() || receiving_element != source_element {
+                    break;
+                }
+            }
             let data = self
                 .program
                 .effects
@@ -6460,6 +6503,79 @@ impl<'a> Cx<'a> {
         modifiers.trim = effective.trim;
         modifiers.min = effective.min;
         modifiers.max = effective.max;
+    }
+
+    fn decode_parameter_array_bounds(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<IrParameterArrayBounds> {
+        let SymbolKind::Param { owner, .. } = symbol.kind else {
+            return None;
+        };
+        if !matches!(
+            self.program
+                .symbols
+                .get(owner.0 as usize)
+                .map(|symbol| &symbol.kind),
+            Some(SymbolKind::Scenario { .. } | SymbolKind::CapabilityOp { .. })
+        ) {
+            return None;
+        }
+        let mut ty = self.program.types.symbol_types.get(&symbol.id)?;
+        if let ResolvedType::Nullable(inner) = ty {
+            ty = inner;
+        }
+        if !matches!(ty, ResolvedType::Array { .. }) {
+            return None;
+        }
+        let mut modifiers = IrModifiers::default();
+        self.inherit_field_modifiers(symbol, &mut modifiers);
+        let mut bounds = IrParameterArrayBounds::default();
+        // Generated array aliases retain their already checked intersections.
+        // No normalization, distinctness or required-input claim is projected.
+        if let Some(checked) = self.program.types.value_constraints.get(&symbol.id) {
+            for (minimum, value) in [(true, checked.min), (false, checked.max)] {
+                if let Some(value) = value {
+                    if !(0..=9_007_199_254_740_991).contains(&value) {
+                        self.diags.push(Diagnostic::error("E6008", "cannot lower parameter array length: checked bound has no safe descriptor number".to_string(), symbol.span));
+                        return None;
+                    }
+                    if minimum {
+                        bounds.min = Some(value as u64);
+                    } else {
+                        bounds.max = Some(value as u64);
+                    }
+                }
+            }
+        }
+        for (minimum, expression) in [(true, modifiers.min), (false, modifiers.max)] {
+            let Some(expression) = expression else {
+                continue;
+            };
+            let IrExpr::Int(value) = expression.expr else {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower parameter array length: bound must be a nonnegative safe integer literal".to_string(), expression.span));
+                return None;
+            };
+            if !(0..=9_007_199_254_740_991).contains(&value) {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower parameter array length: bound must be a nonnegative safe integer literal".to_string(), expression.span));
+                return None;
+            }
+            let value = value as u64;
+            if minimum {
+                bounds.min = Some(bounds.min.map_or(value, |prior| prior.max(value)));
+            } else {
+                bounds.max = Some(bounds.max.map_or(value, |prior| prior.min(value)));
+            }
+        }
+        if matches!((bounds.min,bounds.max),(Some(min),Some(max)) if min>max) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower parameter array length: inherited range is empty".to_string(),
+                symbol.span,
+            ));
+            return None;
+        }
+        (bounds.min.is_some() || bounds.max.is_some()).then_some(bounds)
     }
 
     /// Whether `owner` is a child model (computed defaults take `{parent}`).
