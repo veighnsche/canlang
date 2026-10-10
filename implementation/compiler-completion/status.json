@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T22:00:45Z",
+  "updated_utc": "2026-10-10T22:12:00Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -100,10 +100,10 @@
     "reused_results": "Unchanged strict all-target Clippy/format and editor/client/LSP qualification; current whole includes actual compiler corpus/LSP/completion/native tests."
   },
   "latest_component": {
-    "base_commit": "898833a1c22d02f439333628db1f55e0ef10e8e8",
-    "state": "full_private_completion_artifact_native_join_unfinished",
-    "record": "standard_completion_codegen",
-    "outcome": "Existing private completion fixture now uses actual artifact::assemble/to_json with owning source/catalog and original full modules/callables/models/requirements/valueTypes; actual BDD generation yields empty tests only because there are no examples/orphan recipes. Installed Values projection consumes the complete original artifact. Owning projection/refusals2/2 pass0.07s; same-source strict all-target Clippy0 (44.21s) and fmt/diff0 reused. Single executable fixture compiler/target/standard-completion-private-qualification supplies Dev original artifact/source/catalog, without a public API or reconstructed metadata. Actual native State/Work issuance/retained ordinary+cohort replay remains Dev-owned and public terminal E6008 remains. Native hook qualification next after exact reviewed adapter intake. No current whole or58/67/nine/hold change."
+    "base_commit": "766e42b7291fbff7722de54c5ae366fc3f00c6e3",
+    "state": "native_hook_success_qualified_rejected_receipt_owner_blocked_unfinished",
+    "record": "hook_order_rollback_runtime",
+    "outcome": "Safe FF ef186936 to exact reviewed containing766e42b7 preserves native source edit; actual owner build22/22 (7cache,11.791s) passes after frozen locked install restores declared esbuild link. Genuine independent positive hook test passes actual CLI/module/assembly/invoker ordered adjustments/staged Audit/native readonly ID/version2/State actor+now defaults/both histories+receipt versions/one fence/target-only disclosure/success replay. Required rejected-receipt test executes six guards and rolls back all domain effects, but fails: global revision remains1 instead of2 and rejection receipt is absent. Owning target1passed1failed0.99s; receipt/fence/failed-replay assertions retained. Blocking prerequisite owner Dev/State: adapt genuine native helper failure through original StateError/canonical rejection path (State invoke.ts551; native hook bridge invoke.ts4488), never accept copied code objects or weaken assertions. Exact owner repair intake then focused rejection rerun; ready producer continuation proceeds. Owning target Clippy0 3.34s, unchanged all-target44.21s/fmt/diff0 reused. No current whole or actor/now/terminal E6008 or58/67/nine/hold release."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -158,7 +158,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Existing private completion fixture now uses actual artifact::assemble/to_json with owning source/catalog and original full modules/callables/models/requirements/valueTypes; actual BDD generation yields empty tests only because there are no examples/orphan recipes. Installed Values projection consumes the complete original artifact. Owning projection/refusals2/2 pass0.07s; same-source strict all-target Clippy0 (44.21s) and fmt/diff0 reused. Single executable fixture compiler/target/standard-completion-private-qualification supplies Dev original artifact/source/catalog, without a public API or reconstructed metadata. Actual native State/Work issuance/retained ordinary+cohort replay remains Dev-owned and public terminal E6008 remains. Native hook qualification next after exact reviewed adapter intake. No current whole or58/67/nine/hold change.",
+  "current_source_work": "Safe FF ef186936 to exact reviewed containing766e42b7 preserves native source edit; actual owner build22/22 (7cache,11.791s) passes after frozen locked install restores declared esbuild link. Genuine independent positive hook test passes actual CLI/module/assembly/invoker ordered adjustments/staged Audit/native readonly ID/version2/State actor+now defaults/both histories+receipt versions/one fence/target-only disclosure/success replay. Required rejected-receipt test executes six guards and rolls back all domain effects, but fails: global revision remains1 instead of2 and rejection receipt is absent. Owning target1passed1failed0.99s; receipt/fence/failed-replay assertions retained. Blocking prerequisite owner Dev/State: adapt genuine native helper failure through original StateError/canonical rejection path (State invoke.ts551; native hook bridge invoke.ts4488), never accept copied code objects or weaken assertions. Exact owner repair intake then focused rejection rerun; ready producer continuation proceeds. Owning target Clippy0 3.34s, unchanged all-target44.21s/fmt/diff0 reused. No current whole or actor/now/terminal E6008 or58/67/nine/hold release.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
