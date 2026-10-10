@@ -1025,6 +1025,10 @@ fn draft_outcome_table() {
     // retain their owning types: two, four and three findings disappear.
     // All 49 other rows remain unchanged; the actual original composition
     // still has 118 findings and emits no artifact.
+    // Assigned drafta8f1151 renames only the nonexported Invoice reconcile
+    // handler. Seven stored enum uses now retain their owning type; all51
+    // other rows remain unchanged. The original composition still refuses
+    // artifact emission with111 findings, including provider event sources.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1052,7 +1056,7 @@ fn draft_outcome_table() {
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
         ("draft/CanInbox.can", 67),
-        ("draft/CanInvoice.can", 249),
+        ("draft/CanInvoice.can", 242),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
         ("draft/CanLeave.can", 79),
