@@ -12,6 +12,8 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
+import { compileFunction, constants as vmConstants } from "node:vm";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
@@ -28,15 +30,20 @@ import type {
 import { deriveCsrfToken, resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
 import { createTestMemoryStorage } from "@canlang/state/storage/memory";
-import {
-  assembleWorker,
-  buildInvoker,
-  type AssembledModules,
-  type HttpPageHandlerFactory,
-  type AssemblyDeps,
-  type InterimFilesBinding,
-  type MutationOutcome,
+import type {
+  AssembledModules,
+  HttpPageHandlerFactory,
+  AssemblyDeps,
+  InterimFilesBinding,
+  MutationOutcome,
 } from "../src/worker/assembly.js";
+// Native installed loading preserves original ESM own-data metadata; Vitest
+// proxies expose export getters, which production correctly refuses.
+const { assembleWorker, buildInvoker } = await compileFunction("return import(url)", ["url"], {
+  importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+})(
+  pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/worker/assembly")).href,
+) as typeof import("../src/worker/assembly.js");
 // Cross-package journey tests import interfaces DIST (never src): src imports
 // would drag pre-existing producer strictness gaps into this lane-07 check
 // program. Root `build` builds interfaces dist first (see package.json).
