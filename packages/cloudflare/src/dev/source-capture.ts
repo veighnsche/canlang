@@ -11,10 +11,13 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import type { FileHandle } from "node:fs/promises";
 
 const MAX_SOURCE_BYTES = 0xffff_ffff;
 const SHA256 = /^[0-9a-f]{64}$/;
 const INPUT_READERS = 8;
+const MAX_INPUT_BYTES = 1024 * 1024 * 1024;
+const HASH_CHUNK_BYTES = 256 * 1024;
 
 export interface NamedInputPath {
   /** Stable identity within its kind, such as a package export path. */
@@ -107,13 +110,15 @@ function normalizedOptions(options: Readonly<Record<string, string>> | undefined
   return Object.freeze(ordered);
 }
 
-async function readStableFile(requestedPath: string): Promise<{ canonicalPath: string; bytes: Buffer }> {
+async function readStable<T>(requestedPath: string,
+  read: (handle: FileHandle, size: number) => Promise<{ value: T; bytes: number }>,
+): Promise<{ canonicalPath: string; value: T }> {
   const canonicalPath = await realpath(requestedPath);
   const handle = await open(canonicalPath, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     const before = await handle.stat();
     if (!before.isFile()) throw new Error(`input is not a regular file: ${requestedPath}`);
-    const bytes = await handle.readFile();
+    const result = await read(handle, before.size);
     const afterHandle = await handle.stat();
     const after = await stat(canonicalPath);
     if (
@@ -124,17 +129,44 @@ async function readStableFile(requestedPath: string): Promise<{ canonicalPath: s
       before.ctimeMs !== afterHandle.ctimeMs ||
       before.dev !== after.dev ||
       before.ino !== after.ino ||
-      bytes.length !== after.size ||
+      result.bytes !== after.size ||
       afterHandle.mtimeMs !== after.mtimeMs ||
       afterHandle.ctimeMs !== after.ctimeMs ||
       (await realpath(requestedPath)) !== canonicalPath
     ) {
       throw new Error(`input changed during capture: ${requestedPath}`);
     }
-    return { canonicalPath, bytes };
+    return { canonicalPath, value: result.value };
   } finally {
     await handle.close();
   }
+}
+
+async function readStableFile(requestedPath: string): Promise<{ canonicalPath: string; bytes: Buffer }> {
+  const result = await readStable(requestedPath, async (handle, size) => {
+    if (size > MAX_SOURCE_BYTES) throw new Error("selected source exceeds compiler byte-offset range");
+    const bytes = await handle.readFile();
+    return { value: bytes, bytes: bytes.length };
+  });
+  return { canonicalPath: result.canonicalPath, bytes: result.value };
+}
+
+/** Bound each producer input and memory use, including installed browser binaries. */
+async function readStableIdentity(requestedPath: string): Promise<{ canonicalPath: string; bytes: number; sha256: string }> {
+  const result = await readStable(requestedPath, async (handle, size) => {
+    if (size > MAX_INPUT_BYTES) throw new Error("capture input exceeds the finite 1 GiB limit");
+    const hash = createHash("sha256"), chunk = Buffer.alloc(HASH_CHUNK_BYTES);
+    let bytes = 0;
+    while (true) {
+      const read = await handle.read(chunk, 0, chunk.length, bytes);
+      if (read.bytesRead === 0) break;
+      bytes += read.bytesRead;
+      if (bytes > MAX_INPUT_BYTES) throw new Error("capture input exceeds the finite 1 GiB limit");
+      hash.update(chunk.subarray(0, read.bytesRead));
+    }
+    return { value: { bytes, sha256: hash.digest("hex") }, bytes };
+  });
+  return { canonicalPath: result.canonicalPath, ...result.value };
 }
 
 function withinRoot(root: string, child: string): string {
@@ -197,13 +229,13 @@ async function captureInputs(root: string, paths: readonly { name: string; path:
       });
     }
     const requestedPath = resolve(root, input.path);
-    const { canonicalPath, bytes } = await readStableFile(requestedPath);
+    const { canonicalPath, bytes, sha256 } = await readStableIdentity(requestedPath);
     return Object.freeze({
       name: input.name,
       requestedPath,
       canonicalPath,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-      bytes: bytes.length,
+      sha256,
+      bytes,
       state: "present" as const,
     });
   });
@@ -239,7 +271,11 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
   const sourceSha256 = createHash("sha256").update(bytes).digest("hex");
   const sourceRevision = digest(["can.dev.source-set.v1", compilerOperand, sourceSha256]);
   const semanticOptions = normalizedOptions(request.semanticOptions);
-  const declaredPaths = namedPaths(request);
+  const browserInputs = request.inputInventory === "installed-local-preview"
+    ? await (await import("./preview-inputs.js")).installedBrowserQualificationInputs(root) : [];
+  const declaredPaths = namedPaths({ ...request,
+    extraInputPaths: [...(request.extraInputPaths ?? []), ...browserInputs],
+  });
   if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
     throw new Error("installed preview input membership changed before capture");
   }
@@ -285,9 +321,10 @@ async function inventoryMatches(
           extraInputPaths: inputs.installedOwnedSourceInputs(root),
         }
       : inputs.installedLocalPreviewInputInventory(root, compilerPath);
+    const browserInputs = runtimeOnly ? [] : await inputs.installedBrowserQualificationInputs(root);
     const expected = [
       ...current.packageInputPaths.map(item => ({ name: `package:${item.name}`, path: item.path })),
-      ...current.extraInputPaths
+      ...[...current.extraInputPaths, ...browserInputs]
         .filter(item => !runtimeOnly || item.name.startsWith("source:"))
         .map(item => ({ name: `extra:${item.name}`, path: item.path })),
     ];
@@ -376,9 +413,9 @@ async function capturedInputsAreCurrent(
           return true;
         }
       }
-      const checked = await readStableFile(input.requestedPath);
-      return checked.canonicalPath === input.canonicalPath && checked.bytes.length === input.bytes &&
-        createHash("sha256").update(checked.bytes).digest("hex") === input.sha256;
+      const checked = await readStableIdentity(input.requestedPath);
+      return checked.canonicalPath === input.canonicalPath && checked.bytes === input.bytes &&
+        checked.sha256 === input.sha256;
     });
     return current.every(Boolean);
   } catch { return false; }

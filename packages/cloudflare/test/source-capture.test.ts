@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, truncateSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -14,9 +15,11 @@ import {
 const installedInventory = vi.hoisted(() => ({
   packageInputPaths: [] as Array<{ name: string; path: string }>,
   extraInputPaths: [] as Array<{ name: string; path: string }>,
+  browserQualificationInputPaths: [] as Array<{ name: string; path: string }>,
   stale: false,
 }));
 vi.mock("../src/dev/preview-inputs.js", () => ({
+  installedBrowserQualificationInputs: async () => installedInventory.browserQualificationInputPaths,
   installedLocalPreviewInputInventory: () => {
     if (installedInventory.stale) throw new Error("installed outputs are older than source");
     return { packageInputPaths: installedInventory.packageInputPaths,
@@ -33,6 +36,7 @@ vi.mock("../src/dev/preview-inputs.js", () => ({
 }));
 
 function fixture(): SingleFileCaptureRequest {
+  installedInventory.browserQualificationInputPaths = [];
   const checkoutRoot = mkdtempSync(join(tmpdir(), "can-source-capture-"));
   writeFileSync(join(checkoutRoot, "app.can"), "app Office\r\nGiven\r\nWhen\r\nThen\r\n");
   writeFileSync(join(checkoutRoot, "compiler"), "compiler build A");
@@ -241,6 +245,7 @@ describe("one-file source capture", () => {
     } finally {
       installedInventory.packageInputPaths = [];
       installedInventory.extraInputPaths = [];
+      installedInventory.browserQualificationInputPaths = [];
       installedInventory.stale = false;
     }
   });
@@ -268,7 +273,105 @@ describe("one-file source capture", () => {
     } finally {
       installedInventory.packageInputPaths = [];
       installedInventory.extraInputPaths = [];
+      installedInventory.browserQualificationInputPaths = [];
       installedInventory.stale = false;
     }
   });
+
+  it("tracks optional browser membership and resources without changing portable runtime currency", async () => {
+    const request = fixture();
+    installedInventory.packageInputPaths = [...request.packageInputPaths];
+    installedInventory.extraInputPaths = [];
+    const selected = { ...request, inputInventory: "installed-local-preview" as const };
+    try {
+      const absent = await captureSingleFileSource(selected);
+      expect(await captureIsCurrent(absent)).toBe(true);
+      const executable = join(request.checkoutRoot, "chromium");
+      const resource = join(request.checkoutRoot, "resources.pak");
+      const alias = join(request.checkoutRoot, "selected-resource.pak");
+      const resourceBytes = Buffer.alloc(600 * 1024, 0x37);
+      writeFileSync(executable, "actual fixture executable bytes");
+      writeFileSync(resource, resourceBytes);
+      symlinkSync(resource, alias);
+      installedInventory.browserQualificationInputPaths = [
+        { name: "browser:executable", path: executable },
+        { name: "browser:resource", path: alias },
+      ];
+      expect(await capturedProducerInputsAreCurrent(absent)).toBe(false);
+      expect(await captureIsCurrent(absent)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(absent)).toBe(true);
+      const installed = await captureSingleFileSource(selected);
+      expect(installed.epochMaterial).not.toBe(absent.epochMaterial);
+      expect(installed.sourceRevision).toBe(absent.sourceRevision);
+      expect(installed.inputs.find(input=>input.name==="extra:browser:resource")?.sha256)
+        .toBe(createHash("sha256").update(resourceBytes).digest("hex"));
+      expect(await captureIsCurrent(installed)).toBe(true);
+      resourceBytes.writeUInt8(resourceBytes.readUInt8(resourceBytes.length - 1) ^ 1, resourceBytes.length - 1);
+      writeFileSync(resource, resourceBytes);
+      expect(await capturedProducerInputsAreCurrent(installed)).toBe(false);
+      expect(await captureIsCurrent(installed)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(installed)).toBe(true);
+      const changed = await captureSingleFileSource(selected);
+      expect(changed.epochMaterial).not.toBe(installed.epochMaterial);
+      const replacement = join(request.checkoutRoot, "replacement.pak");
+      writeFileSync(replacement, resourceBytes);
+      unlinkSync(alias); symlinkSync(replacement, alias);
+      expect(await captureIsCurrent(changed)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(changed)).toBe(true);
+      const retargeted = await captureSingleFileSource(selected);
+      expect(retargeted.epochMaterial).not.toBe(changed.epochMaterial);
+      const additional = join(request.checkoutRoot, "extra.dat"); writeFileSync(additional, "data");
+      installedInventory.browserQualificationInputPaths.push({ name: "browser:additional", path: additional });
+      expect(await capturedProducerInputsAreCurrent(retargeted)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(retargeted)).toBe(true);
+      const expanded = await captureSingleFileSource(selected);
+      expect(expanded.epochMaterial).not.toBe(retargeted.epochMaterial);
+      installedInventory.browserQualificationInputPaths.pop(); unlinkSync(additional);
+      expect(await captureIsCurrent(expanded)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(expanded)).toBe(true);
+      installedInventory.browserQualificationInputPaths = [];
+      const removed = await captureSingleFileSource(selected);
+      expect(removed.epochMaterial).toBe(absent.epochMaterial);
+      expect(await captureIsCurrent(removed)).toBe(true);
+    } finally {
+      installedInventory.packageInputPaths = [];
+      installedInventory.extraInputPaths = [];
+      installedInventory.browserQualificationInputPaths = [];
+      installedInventory.stale = false;
+      rmSync(request.checkoutRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("pins a multi-chunk binary digest and detects a same-size final-byte change", async () => {
+    const request = fixture();
+    try {
+      const bytes = Buffer.alloc(600 * 1024, 0x61);
+      const binary = join(request.checkoutRoot, "producer.bin"); writeFileSync(binary, bytes);
+      const selected = { ...request, packageInputPaths: [{ name: "binary", path: binary }] };
+      const first = await captureSingleFileSource(selected);
+      expect(first.inputs.find(input=>input.name==="package:binary")).toMatchObject({
+        bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
+      expect(await capturedProducerInputsAreCurrent(first)).toBe(true);
+      bytes.writeUInt8(bytes.readUInt8(bytes.length - 1) ^ 1, bytes.length - 1); writeFileSync(binary, bytes);
+      expect(await capturedProducerInputsAreCurrent(first)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
+      const changed = await captureSingleFileSource(selected);
+      expect(changed.epochMaterial).not.toBe(first.epochMaterial);
+      expect(changed.inputs.find(input=>input.name==="package:binary")?.sha256)
+        .toBe(createHash("sha256").update(bytes).digest("hex"));
+    } finally { rmSync(request.checkoutRoot, { recursive: true, force: true }); }
+  });
+
+  it("refuses an oversized sparse producer input without reading its contents", async () => {
+    const request = fixture();
+    try {
+      const binary = join(request.checkoutRoot, "oversized.bin"); writeFileSync(binary, "");
+      truncateSync(binary, 1024 * 1024 * 1024 + 1);
+      await expect(captureSingleFileSource({ ...request,
+        packageInputPaths: [{ name: "oversized", path: binary }],
+      })).rejects.toThrow(/finite 1 GiB limit/);
+    } finally { rmSync(request.checkoutRoot, { recursive: true, force: true }); }
+  });
+
 });
