@@ -33,3 +33,27 @@ Structured controls can declare a closed flat map of required string fields,
 including State's actual nullable `ReceiptError` with only `code` and `message`.
 This adds no arbitrary JSON or opaque-payload exemption; the owning producer
 checks its actual declaration and closed nested data.
+
+The additive opaque File ABI is declared in `state.ts` and exported by the root.
+`opaqueDeclarationSets` retains each original installed/source/model/value-type
+closure with complete canonical/artifact inputs, results and explicit void.
+`FrameworkFilePayloadOrigin` describes the owning `row.data.filePayloadOrigin`:
+original slot lifetime, scope, closed delivery/event/handler/routing/completion
+origin and genuine original receiving facts at typed payload paths. A framework
+field with `kind: 'opaque', role: 'payload-origin'` links that evidence to
+`payloadField`; State must validate this header separately without recursively
+resolving it or exempting arbitrary nested JSON.
+
+The optional `resolveOpaqueField` method is synchronous and data-only. The actual
+same-load owning export validates every retained-result/deferred-input field
+against its persisted origin and historical declarations; State independently
+traverses the actual typed values and matches original File facts. Completion
+covers original source inputs, terminal result, duplicate event result and typed
+schema defaults. Raw committed change payloads differ from handler projections.
+Explicit void and phase-bound no-result projections require positive declaration
+evidence. Judgment persists canonical int64 text and original question order.
+
+These types implement no row capture, census, migration or receiving authority.
+Current State/Work runtime adoption is separate, and existing opaque refusal
+remains. Optional members preserve legacy typing, with missing evidence refused
+for bound opaque rows even when their value is null, empty or File-free.

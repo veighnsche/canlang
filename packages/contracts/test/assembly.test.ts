@@ -44,7 +44,98 @@ const sealedHandleIsPresentation: Equal<barrel.SealedActionHandle, presentation.
 const historyEntryIsState: Equal<barrel.HistoryEntry, state.HistoryEntry> = true;
 const historyEntryIsPresentation: Equal<barrel.HistoryEntry, presentation.HistoryEntry> = true;
 
+const opaquePublicIdentities: [
+  Equal<barrel.FrameworkFileReferenceProducer, state.FrameworkFileReferenceProducer>,
+  Equal<barrel.FrameworkOpaqueFieldResolution, state.FrameworkOpaqueFieldResolution>,
+  Equal<barrel.FrameworkFilePayloadOrigin, state.FrameworkFilePayloadOrigin>,
+  Equal<barrel.FrameworkOpaquePayloadOrigin, state.FrameworkOpaquePayloadOrigin>,
+  Equal<barrel.FrameworkOpaqueDeclaration, state.FrameworkOpaqueDeclaration>,
+  Equal<barrel.FrameworkOpaqueDeclarationSet, state.FrameworkOpaqueDeclarationSet>,
+  Equal<barrel.FrameworkOpaqueValueProjection, state.FrameworkOpaqueValueProjection>,
+  Equal<barrel.FrameworkOpaqueCallable, state.FrameworkOpaqueCallable>,
+  Equal<barrel.FrameworkOpaqueDeliveryContext, state.FrameworkOpaqueDeliveryContext>,
+  Equal<barrel.FrameworkOpaqueJudgmentSpec, state.FrameworkOpaqueJudgmentSpec>,
+  Equal<barrel.RetainedFinalizedFile, files.RetainedFinalizedFile>,
+] = [true, true, true, true, true, true, true, true, true, true, true];
+
+// Compile-only declaration controls. No fixture below authenticates an issuer,
+// owning producer, persisted binding or permission to reuse a File.
+function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
+  resolution: barrel.FrameworkOpaqueFieldResolution, source: barrel.ScenarioReceiptSourceOrigin,
+  callable: barrel.ArtifactCallable, resultType: barrel.CanTypeId,
+  retained: barrel.RetainedFinalizedFile, judgment: barrel.JudgmentSpec,
+  judgmentContext: Extract<barrel.FrameworkOpaqueDeliveryContext, { kind: 'judgment' }>,
+  committedDescriptor: barrel.ArtifactCommittedChangeDescriptor, change: barrel.CommittedChangeEvent,
+  completion: barrel.FrameworkOpaqueStandardCompletionOrigin) {
+  const legacy: barrel.FrameworkFileReferenceProducer = { models: [], validateRow() {} };
+  const synchronous: NonNullable<barrel.FrameworkFileReferenceProducer['resolveOpaqueField']> =
+    (_model, _row, _field, context) => ({ binding: context.binding, values: resolution.values });
+  // @ts-expect-error Resolution must remain synchronous inside the State transaction.
+  const asynchronous: NonNullable<barrel.FrameworkFileReferenceProducer['resolveOpaqueField']> = async () => resolution;
+  const declaration: barrel.FrameworkOpaqueDeclaration = { id: 'original-result',
+    source: { kind: 'callable', source, callable },
+    profile: { kind: 'result', canonical: { type: resultType }, artifact: { type: resultType } } };
+  const explicitVoid: barrel.FrameworkOpaqueDeclaration = { ...declaration,
+    profile: { kind: 'void', canonical: { type: 'void' }, artifact: { type: 'void' } } };
+  const original: barrel.FrameworkFilePayloadOrigin = { ...binding,
+    slot: { ...binding.slot, created: 123, createdBy: 'original-actor' },
+    files: [{ path: ['attachment', 0], file: retained }],
+    origin: { kind: 'event-input', occurrenceId: binding.slot.id as barrel.OccurrenceId,
+      sourceOccurrence: binding.slot.id as barrel.OccurrenceId,
+      declaration: { kind: 'declared-event', source, event: 'Owner.event', inputsDeclarationId: 'original-inputs' },
+      lineage: { kind: 'schedule', key: 'original-key', replaces: null }, target: { kind: 'schedule' } } };
+  const noResult: barrel.FrameworkOpaqueValueProjection = { path: [], kind: 'result',
+    declarationId: explicitVoid.id, presence: 'no-result' };
+  const { scope: _scope, ...withoutScope } = binding;
+  // @ts-expect-error Original scope is required even for empty or null payloads.
+  const missingScope: barrel.FrameworkFilePayloadOrigin = withoutScope;
+  const { files: _files, ...withoutFiles } = binding;
+  // @ts-expect-error Original receiving File evidence must be explicitly represented.
+  const missingFiles: barrel.FrameworkFilePayloadOrigin = withoutFiles;
+  const { created: _created, ...withoutCreated } = binding.slot;
+  // @ts-expect-error A current version cannot replace the original slot lifetime.
+  const missingLifetime: barrel.FrameworkFilePayloadOrigin = { ...binding, slot: withoutCreated };
+  // @ts-expect-error A ref string is not original finalized-file evidence.
+  const refOnly: barrel.FrameworkFilePayloadOrigin = { ...binding, files: [{ path: [], file: { ref: retained.ref } }] };
+  // @ts-expect-error A generic origin cannot replace the source-derived union.
+  const genericOrigin: barrel.FrameworkFilePayloadOrigin = { ...binding, origin: { kind: 'result', declarationId: 'original' } };
+  // @ts-expect-error Null is not original source correspondence.
+  const nullOrigin: barrel.FrameworkFilePayloadOrigin = { ...binding, origin: null };
+  // @ts-expect-error A source tag does not establish the complete event declaration.
+  const taggedEvent: barrel.FrameworkOpaqueEventDeclaration = { kind: 'declared-event', event: 'Owner.event' };
+  // @ts-expect-error Result declarations require both actual canonical and artifact evidence.
+  const implicitResult: barrel.FrameworkOpaqueDeclaration = { ...declaration, profile: { kind: 'result' } };
+  // @ts-expect-error Missing result metadata cannot be reinterpreted as void.
+  const implicitVoid: barrel.FrameworkOpaqueDeclaration = { ...declaration, profile: { kind: 'void' } };
+  // @ts-expect-error No-result projections still require explicit phase/presence evidence.
+  const implicitAbsence: barrel.FrameworkOpaqueValueProjection = { path: [], kind: 'result', declarationId: 'original' };
+  const wireJudgment: barrel.FrameworkOpaqueJudgmentSpec = { ...judgment, version: '1' };
+  const orderedJudgment: barrel.FrameworkOpaqueDeliveryContext = { ...judgmentContext,
+    specification: wireJudgment, order: ['question-one', 'question-two'] };
+  // @ts-expect-error Decoded bigint versions cannot enter persisted JSON specification.
+  const bigintJudgment: barrel.FrameworkOpaqueJudgmentSpec = judgment;
+  // @ts-expect-error Judgment delivery context requires the wire specification too.
+  const decodedContext: barrel.FrameworkOpaqueDeliveryContext = { ...judgmentContext, specification: judgment };
+  const { order: _order, ...withoutOrder } = judgmentContext;
+  // @ts-expect-error Original interleaved question order is mandatory.
+  const unorderedJudgment: barrel.FrameworkOpaqueDeliveryContext = withoutOrder;
+  const rawCommitted: barrel.FrameworkOpaqueEventDeclaration = { kind: 'committed-change', source,
+    descriptor: committedDescriptor, change, projectionInputsDeclarationId: 'checked-handler-projection' };
+  // @ts-expect-error Raw committed source is not the declared-event input projection.
+  const wrongProjectionName: barrel.FrameworkOpaqueEventDeclaration = { kind: 'committed-change', source, descriptor: committedDescriptor, change, inputsDeclarationId: 'checked-handler-projection' };
+  const terminal: barrel.FrameworkOpaqueStandardCompletionOrigin['terminal'] = { ...completion.terminal, status: 'succeeded' };
+  // @ts-expect-error Standard completion cannot retain a pending terminal status.
+  const pendingTerminal: barrel.FrameworkOpaqueStandardCompletionOrigin['terminal'] = { ...completion.terminal, status: 'pending' };
+  return { legacy, synchronous, asynchronous, declaration, explicitVoid, original, noResult,
+    missingScope, missingFiles, missingLifetime, refOnly, genericOrigin, nullOrigin, taggedEvent,
+    implicitResult, implicitVoid, implicitAbsence, wireJudgment, orderedJudgment, bigintJudgment,
+    decodedContext, unorderedJudgment, rawCommitted, wrongProjectionName, terminal, pendingTerminal };
+}
+
 describe("assembly conflict picks", () => {
+  it("pins the synchronous opaque framework public declarations", () => {
+    expect(opaquePublicIdentities).toEqual(Array(11).fill(true));
+  });
   it("pins interim picks until owners reconcile", () => {
     expect([
       operationIdIsState,

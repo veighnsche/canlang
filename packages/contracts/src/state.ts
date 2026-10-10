@@ -1,7 +1,11 @@
 import type { CanTypeId, WireValue } from './values.js';
-import type { ArtifactModel } from './artifact.js';
+import type { ArtifactCallable, ArtifactCommittedChangeDescriptor, ArtifactDeliveryDescriptor,
+  ArtifactJudgmentDeliveryDescriptor, ArtifactModel, ArtifactNominalResult, ArtifactOperation,
+  ArtifactOperationInput, ArtifactSource } from './artifact.js';
 import type { FinalizedFileIdentity, FinalizedFileReceiver, FinalizedFileRef,
   FileRetentionPolicy, RetainedFinalizedFile } from './files.js';
+import type { JudgmentSpec } from './services.js';
+import type { CommittedChangeEvent, OccurrenceId, ReceiptError, TerminalReceiptStatus, WorkScope } from './work.js';
 
 /**
  * Lane 03 producer contract: authoritative state boundary (types only).
@@ -701,7 +705,251 @@ export type FrameworkFileReferenceField =
       readonly nullable?: true;
       readonly optional?: true;
     }
-  | { readonly kind: 'opaque'; readonly role: 'retained-result' | 'deferred-input' };
+  | { readonly kind: 'opaque'; readonly role: 'retained-result' | 'deferred-input' }
+  | {
+      /** Owning filePayloadOrigin evidence, never an arbitrary JSON control.
+       * Optional only for unbound/legacy row compatibility. Bound opaque census
+       * requires this exact evidence even for null, empty or File-free values.
+       * State validates the complete header separately and links payloadField
+       * to its actual owning retained-result/deferred-input slot. Never resolve
+       * the header recursively or exempt its nested facts as arbitrary controls. */
+      readonly kind: 'opaque';
+      readonly role: 'payload-origin';
+      readonly payloadField: string;
+      readonly optional: true;
+    };
+
+/** Original checked callable and its complete private invocation descriptor.
+ * Handlers need not be public operations. Missing result metadata is not void:
+ * resultDeclarationId must select the actual declared return or explicit void. */
+export interface FrameworkOpaqueCallable {
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly callable: Readonly<ArtifactCallable>;
+  readonly canonical: CanonicalOperationDescriptor;
+  readonly artifact: Readonly<ArtifactOperation>;
+  readonly resultDeclarationId: string;
+}
+
+/** Persist the owning std.JudgmentSpec wire value: version is canonical int64
+ * text, not its decoded bigint. The actual Values codec validates the complete
+ * specification; interleaved question order is retained separately below. */
+export type FrameworkOpaqueJudgmentSpec = Omit<JudgmentSpec, 'version'> & {
+  readonly version: string;
+};
+
+/** Actual versioned provider declaration, distinct from the calling callable.
+ * Generation request correlation and frozen Judgment specification are required
+ * only in their closed variants; a std name or provider tag cannot select them. */
+export type FrameworkOpaqueDeliveryContext =
+  | { readonly kind: 'capability'; readonly canonical: CanonicalDeliveryDescriptor;
+      readonly artifact: Readonly<ArtifactDeliveryDescriptor> }
+  | { readonly kind: 'generation'; readonly canonical: CanonicalDeliveryDescriptor;
+      readonly artifact: Readonly<ArtifactDeliveryDescriptor>;
+      readonly request: { readonly source: string; readonly revision: string } }
+  | { readonly kind: 'judgment'; readonly canonical: CanonicalJudgmentDeliveryDescriptor;
+      readonly artifact: Readonly<ArtifactJudgmentDeliveryDescriptor>;
+      readonly specification: FrameworkOpaqueJudgmentSpec; readonly order: ReadonlyArray<string>;
+      readonly valueTypes: CanonicalValueTypes };
+
+/** Complete original profile. Source evidence is bound by the genuine loader;
+ * copied source/callable descriptors and successful codecs authenticate nothing. */
+export interface FrameworkOpaqueDeclaration {
+  readonly id: string;
+  readonly source:
+    | { readonly kind: 'callable'; readonly source: ScenarioReceiptSourceOrigin;
+        readonly callable: Readonly<ArtifactCallable> }
+    | { readonly kind: 'event'; readonly source: ScenarioReceiptSourceOrigin; readonly event: string }
+    | { readonly kind: 'delivery'; readonly source: ScenarioReceiptSourceOrigin;
+        readonly context: FrameworkOpaqueDeliveryContext };
+  readonly profile:
+    | { readonly kind: 'inputs'; readonly canonical: ReadonlyArray<CanonicalInputDef>;
+        readonly artifact: ReadonlyArray<Readonly<ArtifactOperationInput>> }
+    | { readonly kind: 'result'; readonly canonical: NonNullable<CanonicalOperationDescriptor['result']>;
+        readonly artifact: NonNullable<ArtifactOperation['result']> }
+    | { readonly kind: 'provider-result'; readonly canonical: CanonicalNominalResult;
+        readonly artifact: Readonly<ArtifactNominalResult> }
+    | { readonly kind: 'void'; readonly canonical: { readonly type: 'void' };
+        readonly artifact: { readonly type: 'void' } };
+}
+
+/** Historical closure stays available after reopen and migration. Compiled
+ * source SHA and installed State Revision are distinct facts. New declarations
+ * with matching spellings cannot reinterpret a retained original payload. */
+export interface FrameworkOpaqueDeclarationSet {
+  readonly id: string;
+  readonly inventory: FileReferenceInventoryIdentity;
+  readonly snapshot: InstalledSnapshot;
+  readonly sources: ReadonlyArray<Readonly<ArtifactSource>>;
+  readonly canonicalModels: ReadonlyArray<CanonicalModelDescriptor>;
+  readonly artifactModels: ReadonlyArray<ArtifactModel>;
+  readonly valueTypes: CanonicalValueTypes;
+  readonly declarations: ReadonlyArray<FrameworkOpaqueDeclaration>;
+}
+
+/** Raw committed change and checked handler projection are different values. */
+export type FrameworkOpaqueEventDeclaration =
+  | { readonly kind: 'declared-event'; readonly source: ScenarioReceiptSourceOrigin;
+      readonly event: string; readonly inputsDeclarationId: string }
+  | { readonly kind: 'committed-change'; readonly source: ScenarioReceiptSourceOrigin;
+      readonly descriptor: Readonly<ArtifactCommittedChangeDescriptor>;
+      readonly change: Readonly<CommittedChangeEvent>;
+      /** Checked id/version projection; never the raw CommittedChangeEvent schema. */
+      readonly projectionInputsDeclarationId: string }
+  | { readonly kind: 'standard-completion'; readonly source: ScenarioReceiptSourceOrigin;
+      readonly event: string; readonly providerSource: string; readonly binding: string; readonly from: string;
+      readonly sourceInputsDeclarationId: string; readonly inputsDeclarationId: string;
+      readonly resultDeclarationId: string; readonly delivery: FrameworkOpaqueDeliveryContext };
+
+export interface FrameworkOpaqueEventInputOrigin {
+  readonly kind: 'event-input';
+  readonly occurrenceId: OccurrenceId;
+  readonly sourceOccurrence: OccurrenceId;
+  readonly declaration: FrameworkOpaqueEventDeclaration;
+  readonly lineage:
+    | { readonly kind: 'schedule'; readonly key: string; readonly replaces: OccurrenceId | null }
+    | { readonly kind: 'source'; readonly sourceOccurrence: OccurrenceId };
+  readonly target:
+    | { readonly kind: 'schedule' }
+    | { readonly kind: 'handler'; readonly handler: FrameworkOpaqueCallable };
+}
+
+/** Exact adopted owner cohort forms; the original owner and parent are facts,
+ * not current authorization. No cross-owner or partial membership inference. */
+export type FrameworkOpaqueCohort =
+  | { readonly kind: 'model'; readonly owner: string; readonly model: string }
+  | { readonly kind: 'anchored-collection'; readonly owner: string; readonly model: string;
+      readonly parent: { readonly model: string; readonly id: string } };
+
+export interface FrameworkOpaqueSourceBounds {
+  readonly maxSources: number;
+  readonly maxHandlers: number;
+  readonly maxMembers: number;
+  readonly chunkSize: number;
+}
+
+export type FrameworkOpaqueSourceRoute =
+  | { readonly kind: 'ordinary'; readonly handler: FrameworkOpaqueCallable;
+      readonly occurrenceId: OccurrenceId }
+  | { readonly kind: 'fanout'; readonly handler: FrameworkOpaqueCallable;
+      readonly cohort: FrameworkOpaqueCohort; readonly fanoutId: string;
+      readonly members: ReadonlyArray<string>; readonly memberCount: number;
+      readonly firstChunkCount: number; readonly cursor: string | null };
+
+export interface FrameworkOpaqueSourceRoutingOrigin {
+  readonly kind: 'source-routing';
+  readonly occurrenceId: OccurrenceId;
+  readonly revision: Revision;
+  readonly recipe:
+    | { readonly kind: 'scheduled-cohorts'; readonly event: FrameworkOpaqueEventInputOrigin;
+        readonly bounds: { readonly pageLimit: number; readonly chunkSize: number };
+        readonly routes: ReadonlyArray<Extract<FrameworkOpaqueSourceRoute, { kind: 'fanout' }>> }
+    | { readonly kind: 'scheduled-routes'; readonly event: FrameworkOpaqueEventInputOrigin;
+        readonly bounds: { readonly pageLimit: number; readonly chunkSize: number };
+        readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute> }
+    | { readonly kind: 'committed-model'; readonly source: ScenarioReceiptSourceOrigin;
+        readonly descriptor: Readonly<ArtifactCommittedChangeDescriptor>;
+        readonly change: { readonly model: ModelName; readonly recordId: RecordId;
+          readonly version: RecordVersion; readonly kind: 'created' | 'updated' | 'deleted' };
+        readonly payload: Readonly<CommittedChangeEvent>; readonly context: InvocationContext;
+        readonly bounds: FrameworkOpaqueSourceBounds; readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute> };
+}
+
+/** All original dispatch fields survive; generation correlation is a closed
+ * variant rather than partial optional request fields or current recensus. */
+export type FrameworkOpaqueCompletionDispatch = {
+  readonly operationId: string;
+  readonly source: string;
+  readonly occurrenceIndex: number;
+  readonly originOccurrence: OccurrenceId | null;
+  readonly created: number;
+  readonly actor: string;
+} & (
+  | { readonly kind: 'capability' }
+  | { readonly kind: 'generation'; readonly correlation: {
+      readonly requestSource: string; readonly requestRevision: string;
+      readonly requestBinding: string; readonly requestFrom: string;
+      readonly requestApp: string; readonly requestOwner: string;
+    } }
+);
+
+export interface FrameworkOpaqueStandardCompletionOrigin {
+  readonly kind: 'standard-completion';
+  readonly occurrenceId: OccurrenceId;
+  readonly declaration: Extract<FrameworkOpaqueEventDeclaration, { kind: 'standard-completion' }>;
+  readonly originalIntent: Readonly<Pick<OutboxIntent,
+    'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'>>;
+  readonly originalCommit: OriginalOutboxCommit;
+  readonly dispatch: FrameworkOpaqueCompletionDispatch;
+  readonly terminal: { readonly revision: Revision; readonly status: TerminalReceiptStatus;
+    readonly error: ReceiptError | null };
+  readonly revision: Revision;
+  readonly bounds: FrameworkOpaqueSourceBounds;
+  readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute>;
+}
+
+/** Closed owning origins, captured at original production. The actual rich
+ * payload bytes stay in their existing field. Standard completion resolution
+ * covers original provider inputs, terminal R, event payload's duplicate R and
+ * every physically retained typed schema default; raw committed event payloads
+ * use their owning closed control schema, not fabricated handler inputs. */
+export type FrameworkOpaquePayloadOrigin =
+  | { readonly kind: 'delivery-result'; readonly deliveryId: string;
+      readonly intent: Readonly<Pick<OutboxIntent,
+        'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'>>;
+      readonly request: { readonly binding: string; readonly from: string };
+      readonly caller: FrameworkOpaqueCallable;
+      readonly association: { readonly model: ModelName; readonly recordId: RecordId; readonly field: string };
+      readonly declaration: FrameworkOpaqueDeliveryContext; readonly resultDeclarationId: string }
+  | FrameworkOpaqueEventInputOrigin
+  | { readonly kind: 'handler-result'; readonly occurrenceId: OccurrenceId;
+      readonly operationId: OperationId; readonly handler: FrameworkOpaqueCallable;
+      readonly event: FrameworkOpaqueEventInputOrigin }
+  | FrameworkOpaqueSourceRoutingOrigin
+  | FrameworkOpaqueStandardCompletionOrigin;
+
+/** One original owning row.data.filePayloadOrigin, persisted atomically with
+ * its payload; updates explicitly preserve it through progress/supersession.
+ * Slot created/createdBy identify lifetime. Current version/revision are fences,
+ * never lifetime. Retained File facts come from original genuine observations;
+ * their receiver principal and provenance resultPath differ from current reader
+ * identity and typed value paths. Data/casts/copies supply no issuer or grant. */
+export interface FrameworkFilePayloadOrigin {
+  readonly version: 1;
+  readonly inventory: FileReferenceInventoryIdentity;
+  readonly declarationSetId: string;
+  readonly slot: { readonly model: ModelName; readonly id: RecordId;
+    readonly created: number; readonly createdBy: string; readonly field: string;
+    readonly role: 'retained-result' | 'deferred-input' };
+  readonly scope: Readonly<WorkScope>;
+  readonly origin: FrameworkOpaquePayloadOrigin;
+  readonly files: ReadonlyArray<{
+    readonly path: ReadonlyArray<string | number>; readonly file: RetainedFinalizedFile;
+  }>;
+}
+
+/** Full typed projections into the actual stored opaque field, not ref lists.
+ * Inputs/results select original complete profiles. A no-result projection is
+ * valid only for the owning closed phase/status with actual null and explicit
+ * declared/void evidence; it is not a File-free shortcut. Typed defaults select
+ * the exact original input, model or value-field type, including nested values.
+ * Owning validation covers ALL envelope controls and typed positions; missing,
+ * overlapping, duplicate or partial projections refuse. */
+export type FrameworkOpaqueValueProjection = {
+  readonly path: ReadonlyArray<string | number>;
+} & (
+  | { readonly kind: 'inputs'; readonly declarationId: string }
+  | { readonly kind: 'result'; readonly declarationId: string; readonly presence: 'value' | 'no-result' }
+  | { readonly kind: 'default'; readonly owner:
+      | { readonly kind: 'input'; readonly declarationId: string; readonly input: string }
+      | { readonly kind: 'model-field'; readonly model: ModelName; readonly field: string }
+      | { readonly kind: 'value-field'; readonly contract: string; readonly field: string } }
+);
+
+export interface FrameworkOpaqueFieldResolution {
+  /** Must equal the actual original persisted binding, not a replacement DTO. */
+  readonly binding: FrameworkFilePayloadOrigin;
+  readonly values: ReadonlyArray<FrameworkOpaqueValueProjection>;
+}
 
 /** Exact closed data fields from the actual owning row definition. Source tags
  * record correspondence; copied descriptors/tags do not authenticate a producer.
@@ -721,6 +969,22 @@ export interface FrameworkFileReferenceModel {
 export interface FrameworkFileReferenceProducer {
   readonly models: ReadonlyArray<FrameworkFileReferenceModel>;
   validateRow(model: ModelName, row: StoredRow): void;
+  /** Optional for legacy compatibility; absence keeps opaque census refused.
+   * The actual same-load owning export resolves EVERY retained-result and
+   * deferred-input field synchronously
+   * inside State's original guarded snapshot/transaction. No await/provider/File
+   * observation, thenable, precomputed refs or permission verdict. Validate full
+   * original slot/source/declaration/envelope correspondence, then State derives
+   * all occurrences and exactly matches persisted original receiving facts.
+   * installed is the actual port's persisted assignment/current or published
+   * migration inventory; historical declaration sets preserve old interpretation.
+   * State separately validates payload-origin evidence and its exact payloadField
+   * correspondence; it never recursively resolves the header as a payload.
+   * Full current execution/disclosure/reuse authority remains outside census. */
+  resolveOpaqueField?(model: ModelName, row: StoredRow, field: string, context: {
+    readonly installed: InstalledFileReferenceInventory;
+    readonly binding: FrameworkFilePayloadOrigin;
+  }): FrameworkOpaqueFieldResolution;
 }
 
 /** Complete same-load declarations, detached and persisted after validation.
@@ -735,6 +999,10 @@ export interface FileReferenceInventory extends FileReferenceInventoryIdentity {
   readonly artifactModels: ReadonlyArray<ArtifactModel>;
   readonly valueTypes: CanonicalValueTypes;
   readonly frameworkModels: ReadonlyArray<FrameworkFileReferenceModel>;
+  /** Complete original opaque declaration closures, including retained historical
+   * sets. Omission is not an empty/File-free proof; legacy opaque rows refuse.
+   * Runtime adoption is separately required before these fields are accepted. */
+  readonly opaqueDeclarationSets?: ReadonlyArray<FrameworkOpaqueDeclarationSet>;
 }
 
 export interface InstalledFileReferenceInventory {

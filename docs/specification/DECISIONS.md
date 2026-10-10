@@ -8064,3 +8064,77 @@ Keep typed-file-journey.can unchanged and consume its actual emitted empty contr
 ### 2026-10-11 — selected local integration of original empty File consumer67e6c91c
 
 Finite original-source native consumer review CLEAR. Integrate only the exact new existing file-owner-routing test and its directly related Dev plan/decision changes from67e6c91c; no divergent ancestry or duplicate compiler production patches. Original typed-file-journey.can bytes remain unchanged; actual CLI emits checked contracts:[] and explicit void, genuine verified native assembly/current Identity/owner D1/SQLite installs all13 framework families and original canonical inventory. Reuse affected1/1 PASS6066.25ms, zero failures/cancellations/skips: real authenticated upload/finalization, canonical create/attach versions/revisions/receipts/history, full no-effect reference refusal, replacement, permanent State retirement/physical byte deletion and actual same-store SQLite reopen/fresh assembly/original decision/terminal no-effect retry, unchanged source/compiler/catalog/artifact witnesses and awaited cleanup. Prior larger real-contract race/interruption/replay and owner/download/security groups are byte-unchanged and their distinct results reused; this new test does not itself claim those cases or saved void disclosure. No new production emission is required; final frozen root type check remains due at Dev concurrent completion boundary. This local one-team D1/SQLite finite workflow is not live-provider or full application/Office/G2/G3 acceptance. Opaque payload ABI/correspondence and recipient-specific holds remain open. Preserve existing path allocations and complete checkpoint; no remote publication.
+
+
+## 2026-10-11 — Unfinished owning opaque File correspondence decision
+
+Proposed implementation direction, not an accepted ABI: preserve complete original
+checked declarations and per-row/field/lifetime bindings, then let the genuine
+same-load owning producer synchronously resolve each opaque field against those
+persisted facts. State independently traverses every typed position. Copied DTOs,
+tags, callback identity, successful JSON/codec validation, null and apparent
+File-free content cannot establish correspondence or issue current authority.
+Original receiving facts must come from genuine Files observations at production;
+current-use authority stays live and owner-controlled. Reopen and migrations must
+retain each old payload's exact original interpretation.
+
+The human approved the exact three stored TypeSafe/JEV Choice requests after
+automatic review refused their first send before execution. Sent once after that
+approval; all threeHTTP200 responses choose owning typed resolution, probability
+0.61/0.75/0.65 and confidence0.41/0.62/0.48. Generic bound profiles retain
+0.29/0.23/0.30 probability. There is no winning-choice disagreement, but these
+moderate preferences are advice and do not fix the exact origin union. Requests,
+responses and uncertainty remain in the existing TECH-F02 state record.
+
+Necessary pending contract: Capability supplies the closed actual receipt,
+schedule, handler, scheduled routing, committed-model and standard-completion
+origin variants and same-fence persistence; Dev supplies genuine original
+declaration/File capture correspondence, including presently unavailable nested
+and trusted receiver joins. Completion embeds original provider inputs, original
+terminal result, duplicate event result and schema defaults with owning declared
+types. Raw committed change payload differs from derived handler input. Cover
+every such position with actual evidence; do not flatten them to a handler return
+or exempt the schema/defaults as controls. Packages owns only the finite shared
+ABI after this shape, and skips this blocked leaf while other finite repairs
+proceed. No ABI source implemented, opaque refusal lifted, native qualification
+claimed or precise human hold changed. This is an unfinished consultation
+checkpoint, not a completion or recap of prior acceptance.
+
+## 2026-10-11 — Finite owning opaque File ABI declaration
+
+Implement the shared type prerequisite after Capability's actual producer-derived
+union and Dev's capture constraints. `state.ts` declares original installed
+declaration closures, complete canonical/artifact profiles and original
+`filePayloadOrigin` evidence for each retained-result/deferred-input slot. Origins
+are closed delivery, event, handler, scheduled routing, committed-model and
+standard-completion forms. Reuse actual callable/source/input/result/provider
+types; explicit void is distinct from missing metadata. Keep original lifetime
+`created/createdBy`, receiving principal and physical provenance separate from
+current row version, reader and typed value path.
+
+An optional synchronous owning resolver validates the complete original envelope
+and returns typed projections into its stored value; State derives occurrences
+and matches original File facts. This includes original provider inputs, terminal
+and duplicated event results and physically retained typed defaults. Raw committed
+change controls differ from checked handler projections. Judgment wire version
+is canonical int64 text, with mandatory original interleaved question order.
+Only owning closed phase/null correspondence permits a no-result projection.
+The `payload-origin` field role is opaque and independently validated against its
+payloadField, avoiding recursive resolution and arbitrary metadata exemptions.
+Optional fields preserve legacy typing; bound rows require complete evidence.
+
+Contracts emission0, strict existing assembly noEmit0 and focused public case1/1
+pass2ms. Public identity and16negative static controls cover sync, original
+lifetime/scope/File facts, explicit result/void, wire/order and terminal vocabulary.
+Actual unchanged State/Work consumers compile0 against the additive opaque role.
+Finite source review CLEAR after separating header validation; checks of earlier
+unchanged producers/workflows are reused. This declares the ABI only. Coordinator
+review/intake and Capability complete codecs/stagers/census/guard/reopen/migration,
+Dev genuine nested/SEND/trusted receiving capture and Compiler actual checked
+declarations remain prerequisites. Current runtime opaque refusal, full workflow
+gates and all precise human holds remain; no table, payload wrapper, generic
+StoredRow or competing feature implementation was added.
+
+### 2026-10-11 — selected local integration of opaque File ABI ffe78812
+
+Integrate only exact Contracts state.ts, existing assembly type controls and README from ffe78812 with directly related TECH-F02 state/queue/decision fields. Include its related unfinished5979 exact consultation evidence in this coherent source unit rather than an unrelated bookkeeping-only integration; no additional consultation or external call. Coordinator source and public type-surface reviews CLEAR. Reuse Contracts emit0, strict existing assembly noEmit0, affected public case1/1 2ms with11public identities/16negative static controls, and actual unchanged State/Work noEmit0. Original installed historical declarations/lifetime/scope/source/receiving facts and closed origins remain data; owning sync resolution returns full typed projections, never refs/permission or issuer authority. Header classification avoids recursive payload resolution. Explicit result/void/null phase evidence, all completion input/result/default positions and Judgment canonical wire version/original order remain required. Capability now owns complete actual State/Work codecs/atomic persistence/traversal/census/guards/reopen/migration; Dev owns genuine original source-bound receiving/capture/current-use join, Compiler any missing checked declarations. Legacy/missing evidence and existing runtime opaque payload refusal remain; no table/StoredRow/payload/runtime implementation or hold release occurs in this type-only unit. Existing native File local finite results do not qualify opaque rows or live provider configuration. Preserve all path allocations and unadvanced complete checkpoint; no remote publication.
