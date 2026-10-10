@@ -99,6 +99,19 @@ test('captured native required File collections download only current authorized
       assert.ok(input); assert.equal(input.field.kind, 'file'); assert.equal(input.array?.required, true);
       assert.equal(input.valueType, 'file[]!'); assert.equal(input.required, kind === 'create');
     }
+    for (const [name, type, nullable] of [['ordinary', 'file[]', false], ['nullable', 'file[]?', true]] as const) {
+      const field = artifact.models!.find(model => model.name === MODEL)!.fields.find(field => field.name === name);
+      assert.ok(field); assert.equal(field.field.kind, 'file'); assert.equal(field.valueType, type);
+      assert.equal(field.required, false); assert.equal(field.array?.required, false);
+      assert.equal(field.nullable === true, nullable);
+      for (const kind of ['create', 'update'] as const) {
+        const input = artifact.operations!.find(operation => operation.name === `${MODEL}.${kind}`)!.inputs.fields
+          .find(field => field.name === name);
+        assert.ok(input); assert.equal(input.field.kind, 'file'); assert.equal(input.valueType, type);
+        assert.equal(input.required, false); assert.equal(input.array?.required, false);
+        assert.equal(input.nullable === true, nullable);
+      }
+    }
     const asm = await assembleModules({ artifact, sourcePath: fixture }, { workDir: join(dir, 'modules'),
       stdlibUrl: installed('runtime/stdlib.js'), uiUrl: pathToFileURL(createRequire(import.meta.url).resolve('@canlang/ui')).href });
     worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
@@ -178,11 +191,15 @@ test('captured native required File collections download only current authorized
     assert.deepEqual(create, submitted);
     const row = await store.load(MODEL, asId(create.operation_id)); assert.ok(row);
     assert.equal(row.version, 1); assert.equal(row.data.label, 'Uploaded'); assert.deepEqual(row.data.attachments, ordered);
+    assert.deepEqual(row.data.ordinary, []); assert.equal(row.data.nullable, null);
     const projected = created.result.records as readonly ProjectedRecord[];
     assert.equal(projected.length, 1); assert.deepEqual(projected[0]!.data.attachments, ordered);
     assert.equal(await store.readRevision(), revision + 1);
     const receipt = await store.readReceipt(receiptIdentity(create)); assert.ok(receipt);
     assert.equal(receipt.inputHash, await hashInputs(submitted.inputs)); assert.equal(receipt.committedRevision, revision + 1);
+    // Admission fills the ordinary input with []; the model pipeline owns
+    // omitted nullable/literal defaults and persists those exact contributions.
+    assert.deepEqual(receipt.resolvedDefaults, { label: 'Uploaded', nullable: null });
     assert.equal(receipt.outcome.status, 'committed');
     if (receipt.outcome.status !== 'committed') throw new Error('Actual create receipt was not committed.');
     assert.deepEqual(receipt.outcome.recordVersions, [{ model: MODEL, id: row.id, version: 1 }]);
@@ -220,9 +237,9 @@ test('captured native required File collections download only current authorized
       }
     };
     const base = `/files/read/${MODEL}/${row.id}/attachments`;
-    const download = async (ref: string, bytes: Uint8Array) => {
+    const download = async (ref: string, bytes: Uint8Array, field = 'attachments') => {
       const before = await all(), count = byteReads.length;
-      const response = await handler(request(`${base}/${encodeURIComponent(ref)}`, 'GET', undefined, grants[1]!.token));
+      const response = await handler(request(`/files/read/${MODEL}/${row.id}/${field}/${encodeURIComponent(ref)}`, 'GET', undefined, grants[1]!.token));
       assert.equal(response.status, 200, await response.clone().text());
       assert.equal(response.headers.get('cache-control'), 'private, no-store');
       assert.equal(response.headers.get('content-type'), 'application/pdf');
@@ -340,6 +357,92 @@ test('captured native required File collections download only current authorized
       assert.ok('error' in outcome, JSON.stringify(outcome)); assert.equal(outcome.error.code, 'validation');
       assert.equal(byteReads.length, count); assert.deepEqual(await all(), before);
       assert.equal(await store.readReceipt(receiptIdentity(invalid)), null);
+    }
+    const updateCollections = async (patch: MutationEnvelope['inputs'], attachmentField: 'ordinary' | 'nullable' | null) => {
+      const prior = await store.load(MODEL, row.id); assert.ok(prior);
+      const before = await all(), priorHistory = await store.historyFor(MODEL, row.id), priorRevision = await store.readRevision();
+      const update = envelope('update', { record: { id: row.id, version: String(prior.version) }, ...patch });
+      const submitted = structuredClone(update), reads = byteReads.length;
+      const outcome = await invoker.invokeMutation(update, identity);
+      assert.ok('result' in outcome, JSON.stringify(outcome)); assert.equal(outcome.result.status, 'committed');
+      assert.deepEqual(update, submitted); assert.equal(byteReads.length, reads);
+      const current = await store.load(MODEL, row.id); assert.ok(current);
+      assert.equal(current.version, prior.version + 1); assert.deepEqual(current.data, { ...prior.data, ...patch });
+      assert.deepEqual((outcome.result.records as readonly ProjectedRecord[])[0]!.data, current.data);
+      assert.equal(await store.readRevision(), priorRevision + 1);
+      const currentHistory = await store.historyFor(MODEL, row.id);
+      assert.deepEqual(currentHistory.slice(0, -1), priorHistory); assert.equal(currentHistory.length, priorHistory.length + 1);
+      const change = currentHistory.at(-1)!;
+      assert.equal(change.change, 'update'); assert.equal(change.operationId, update.operation_id);
+      assert.equal(change.operation, update.operation); assert.equal(change.version, current.version);
+      assert.deepEqual(change.before, prior.data); assert.deepEqual(change.after, current.data);
+      const receipt = await store.readReceipt(receiptIdentity(update)); assert.ok(receipt);
+      assert.equal(receipt.inputHash, await hashInputs(submitted.inputs)); assert.equal(receipt.committedRevision, priorRevision + 1);
+      assert.deepEqual(receipt.resolvedDefaults, {}); assert.equal(receipt.outcome.status, 'committed');
+      if (receipt.outcome.status !== 'committed') throw new Error('Actual optional collection update did not commit.');
+      assert.deepEqual(receipt.outcome.recordVersions, [{ model: MODEL, id: row.id, version: current.version }]);
+      const after = await all();
+      assert.deepEqual(after.ownerB, before.ownerB); assert.deepEqual(after.identity, before.identity);
+      assert.deepEqual(Object.keys(after.ownerA), Object.keys(before.ownerA));
+      for (const name of Object.keys(before.ownerA)) if (!['fence', 'fence_log', 'records', 'receipts', 'history', 'sqlite_sequence'].includes(name))
+        assert.deepEqual(after.ownerA[name], before.ownerA[name], `optional update leaves ${name} unchanged`);
+      committedFenceLog(before.ownerA, after.ownerA, update.operation, priorRevision + 1);
+      committedHistorySequence(before.ownerA, after.ownerA);
+      assert.equal(after.ownerA.records!.length, before.ownerA.records!.length);
+      assert.equal(after.ownerA.receipts!.length, before.ownerA.receipts!.length + 1);
+      assert.equal(after.ownerA.history!.length, before.ownerA.history!.length + 1);
+      // Genuine legacy retain may update the same receiver's locator; bytes,
+      // first attachment time and every other physical fact remain exact.
+      assert.deepEqual(after.files, attachmentField === null ? before.files : before.files.map(file => ({ ...file,
+        attachedRecord: `${MODEL}/${row.id}/${attachmentField}` })));
+      for (const key of ['intents', 'bytes', 'staging'] as const) assert.deepEqual(after[key], before[key]);
+      return { update, submitted, current };
+    };
+    const recoverCollection = async (saved: Awaited<ReturnType<typeof updateCollections>>) => {
+      for (const retained of [false, true]) {
+        const before = await all(), current = await store.load(MODEL, row.id), reads = byteReads.length;
+        const receipt = await store.readReceipt(receiptIdentity(saved.update));
+        const outcome = retained ? await invoker.invokeRetainedMutation(saved.update, identity)
+          : await invoker.invokeMutation(saved.update, identity);
+        assert.ok('result' in outcome, JSON.stringify(outcome)); assert.equal(outcome.result.status, 'replayed');
+        assert.deepEqual(await store.load(MODEL, row.id), current);
+        assert.deepEqual(await all(), before); assert.equal(byteReads.length, reads);
+        assert.deepEqual(await store.readReceipt(receiptIdentity(saved.update)), receipt);
+        assert.deepEqual(saved.update, saved.submitted);
+      }
+    };
+    for (const field of ['ordinary', 'nullable'] as const) {
+      const fieldPath = `/files/read/${MODEL}/${row.id}/${field}`;
+      for (const ref of [refA, refB]) await withheld(request(`${fieldPath}/${ref}`, 'GET', undefined, grants[1]!.token));
+      const populatedWire = field === 'ordinary' ? ordered : [{ id: refB }, { id: refA }, { id: refB }];
+      const populated = await updateCollections({ [field]: populatedWire }, field);
+      await recoverCollection(populated);
+      await download(refA, A_BYTES, field); await download(refB, B_BYTES, field);
+      await withheld(request(`${fieldPath}/${refA}`, 'GET', undefined, grants[2]!.token));
+      await withheld(request(`${fieldPath}/${refA}`, 'GET', undefined, grants[3]!.token));
+      await withheld(request(`${fieldPath}/${uuidv7(FIXED_NOW, 9001)}`, 'GET', undefined, grants[1]!.token));
+      await withheld(request(fieldPath, 'GET', undefined, grants[1]!.token));
+      const otherField = field === 'ordinary' ? 'nullable' : 'ordinary';
+      await withheld(request(`/files/read/${MODEL}/${row.id}/${otherField}/${refA}`, 'GET', undefined, grants[1]!.token));
+      // A real different-field update omits both collection inputs: no fill or
+      // nullable default can overwrite the already populated owning field.
+      const omitted = await updateCollections({ label: `Preserved ${field}` }, field);
+      assert.deepEqual(omitted.current.data[field], populatedWire);
+      await recoverCollection(omitted); await download(refA, A_BYTES, field);
+      const cleared = await updateCollections({ [field]: [] }, null);
+      assert.deepEqual(cleared.current.data[field], []); await recoverCollection(cleared);
+      await recoverCollection(populated); await recoverCollection(omitted);
+      for (const ref of [refA, refB]) await withheld(request(`${fieldPath}/${ref}`, 'GET', undefined, grants[1]!.token));
+      if (field === 'nullable') {
+        const repopulated = await updateCollections({ nullable: populatedWire }, 'nullable');
+        assert.deepEqual(repopulated.current.data.nullable, populatedWire);
+        await download(refA, A_BYTES, field);
+        const nulled = await updateCollections({ nullable: null }, null);
+        assert.equal(nulled.current.data.nullable, null); await recoverCollection(nulled);
+        await recoverCollection(repopulated); await recoverCollection(populated); await recoverCollection(cleared);
+        for (const ref of [refA, refB]) await withheld(request(`${fieldPath}/${ref}`, 'GET', undefined, grants[1]!.token));
+      }
+      await replayOriginalAfterReplacement((await store.load(MODEL, row.id))!.version, []);
     }
     assert.equal(await captureIsCurrent(capture), true);
     assert.deepEqual(await Promise.all(paths.map(async path => digest(await readFile(path)))), hashes);
