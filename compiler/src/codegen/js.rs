@@ -27,10 +27,10 @@ use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard,
-    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrOwner,
-    IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
-    TypedExpr, expr_uses_async, is_structural, scalar_family,
+    IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEffectCallTarget, IrEventSource, IrExpr,
+    IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated,
+    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
+    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
 use crate::diagnostic::Diagnostic;
@@ -1352,6 +1352,24 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
 }
 
 pub fn emit_program_with_native_receipts(ir: &IrProgram, native_receipts: bool) -> JsOutput {
+    emit_program_with_receipt_sources(ir, native_receipts, None)
+}
+
+/// Native call-site preparation needs the same verified source cohort as IR.
+/// Hosts without those bytes keep call effects outside the receipt profile.
+pub fn emit_program_with_native_source_receipts(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: &crate::source::SourceDb,
+) -> JsOutput {
+    emit_program_with_receipt_sources(ir, native_receipts, Some(db))
+}
+
+fn emit_program_with_receipt_sources(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: Option<&crate::source::SourceDb>,
+) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.validate_model_field_bounds();
     let entry_id = pick_entrypoint(ir);
@@ -1380,7 +1398,37 @@ pub fn emit_program_with_native_receipts(ir: &IrProgram, native_receipts: bool) 
     let mut body = JsWriter::new();
     // Operation descriptors derive once, up front: the `canApp()`
     // registry and the artifact envelope share them verbatim.
-    let operations = emitter.collect_operations();
+    let mut operations = emitter.collect_operations();
+    let call_parents: Vec<_> = ir.items.iter().filter(|item| {
+        emitter.native_receipts.contains_key(&item.id)
+            && ir.scenario_disclosures.get(&item.id).is_some_and(|plan| {
+                matches!(plan, crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)
+                    if checked.effects.iter().any(|effect| matches!(effect.kind,
+                        crate::analysis::scenario_disclosure::DisclosureEffectKind::Call { .. })))
+            })
+    }).collect();
+    for item in call_parents {
+        let sites = db.and_then(|db| {
+            super::scenario_calls::collect_static_scenario_calls(
+                ir,
+                item,
+                &operations,
+                db,
+                &module_path(&entry_name),
+            )
+        });
+        if let Some(sites) = sites {
+            emitter.native_call_sites.insert(item.id, sites);
+        } else {
+            emitter.native_receipts.remove(&item.id);
+            if let Some(operation) = operations
+                .iter_mut()
+                .find(|operation| operation.name == item.canonical)
+            {
+                operation.disclosure = None;
+            }
+        }
+    }
     emitter.emit_identity_consts(&mut body, entry_id);
     for module in &ir.modules {
         for page in &module.pages {
@@ -1829,6 +1877,8 @@ pub struct Emitter<'a> {
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    native_call_sites: HashMap<SymbolId, Vec<super::scenario_calls::StaticScenarioCall>>,
+    receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
     receipt_calls: Vec<Span>,
 }
@@ -1878,6 +1928,8 @@ impl<'a> Emitter<'a> {
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
+            native_call_sites: HashMap::new(),
+            receipt_call_sites: Vec::new(),
             receipt_capture: None,
             receipt_calls: Vec::new(),
         };
@@ -4612,9 +4664,9 @@ impl<'a> Emitter<'a> {
             }
             IrStmt::Call {
                 target,
-                inputs: _,
-                binding: _,
-                result: _,
+                inputs,
+                binding,
+                result,
                 span,
             } => {
                 let operation = target
@@ -4623,6 +4675,41 @@ impl<'a> Emitter<'a> {
                     .map(|id| self.ir.items[id.0 as usize].canonical.as_str())
                     .collect::<Vec<_>>()
                     .join(",");
+                // Admit only the exact active parent's checked static
+                // occurrence joined to the native owner-transaction producer.
+                if self.receipt_capture.is_some()
+                    && self.hook.is_none()
+                    && binding.is_none()
+                    && let IrEffectCallTarget::Operation { operation, .. } = target
+                {
+                    let mut matches = self.receipt_call_sites.iter().filter(|site| {
+                        site.span == *span
+                            && site.operation == *operation
+                            && match (&site.result, result) {
+                                (super::scenario_calls::CallResultFact::Void, None) => true,
+                                (
+                                    super::scenario_calls::CallResultFact::Scalar(expected),
+                                    Some(actual),
+                                ) => expected == actual,
+                                _ => false,
+                            }
+                    });
+                    let site = matches.next().cloned();
+                    if matches.next().is_none()
+                        && let Some(site) = site
+                    {
+                        self.stdlib.insert("invokeScenarioReceiptCall".to_string());
+                        let inputs = self.lower_expr(inputs);
+                        return vec![(
+                            format!(
+                                "{pad}await invokeScenarioReceiptCall(c,{},{},{inputs});",
+                                js_string(&site.id),
+                                js_string(&site.target)
+                            ),
+                            *span,
+                        )];
+                    }
+                }
                 self.unsupported(
                     "call effect",
                     &format!(
@@ -7247,6 +7334,27 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(sites) = self.native_call_sites.get(&item.id) {
+                        // Dev resolves names to its actual loaded canonical
+                        // descriptors; this source carrier duplicates no schema.
+                        let sites: Vec<_> = sites
+                            .iter()
+                            .map(|site| {
+                                serde_json::json!({
+                                    "id": site.id,
+                                    "source": {
+                                        "path": site.source.path,
+                                        "sha256": site.source.sha256,
+                                        "module": site.source.module,
+                                    },
+                                    "kind": "operation",
+                                    "targets": [site.target],
+                                    "resultType": site.interface.result,
+                                })
+                            })
+                            .collect();
+                        members.push(format!("callSites:{}", descriptor_json(&sites)));
+                    }
                     if let Some(event) = event_source {
                         let identity = match event {
                             IrEventSource::Declared(identity)
@@ -9419,6 +9527,11 @@ impl<'a> Emitter<'a> {
                     }
                     self.receipt_calls.clear();
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
+                    self.receipt_call_sites = self
+                        .native_call_sites
+                        .get(&item.id)
+                        .cloned()
+                        .unwrap_or_default();
                     out.push(
                         item.span,
                         Some(item.canonical.clone()),
@@ -9501,6 +9614,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.receipt_capture = None;
+                    self.receipt_call_sites.clear();
                     self.receipt_calls.clear();
                     out.push(item.span, Some(item.canonical.clone()), "},");
                     self.exit_scope();

@@ -1,13 +1,13 @@
 /** Private framework bridge. Only actual State invoke can open a lifetime.
- * Generated source receives only observer/selection facades, never this constructor.
+ * Generated source receives only observer/selection/call facades, never this constructor.
  */
-import type { CanValue, ModelName, ScenarioReceiptIntrinsicDependency, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanValue, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall } from '@canlang/state/invocation';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
-  selectScenarioReceiptReturn as selectStateReturn } from '@canlang/state/invocation';
+  selectScenarioReceiptReturn as selectStateReturn,
+  assertScenarioReceiptCallExecution } from '@canlang/state/invocation';
 import { isGeneratedOperationDef } from '@canlang/state/invocation/registry';
-import { assertScenarioReceiptExecution } from '@canlang/state/invocation/invoke';
 import { StateError } from '@canlang/state/errors';
 import type { HandlerContext } from './context.js';
 import { encodeValue } from '@canlang/values';
@@ -20,6 +20,7 @@ interface Frame {
   readonly owner: object;
   readonly failure: (error: unknown) => void;
   readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
+  readonly invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>;
   active: boolean;
   pending: number;
   failed: boolean;
@@ -45,13 +46,14 @@ function checked(c: HandlerContext): Frame {
   if (frame === undefined) return refuse('Scenario receipt helper requires its active framework context.');
   if (frame.failed) throw frame.error;
   if (!frame.active) return fail(frame, new StateError('validation', 'Scenario receipt helper requires its active framework context.'));
-  try { assertScenarioReceiptExecution(frame.call, frame.store); }
+  try { assertScenarioReceiptCallExecution(frame.call, frame.store); }
   catch (error) { return fail(frame, error); }
   return frame;
 }
 export interface ScenarioReceiptFrame {
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
   bindAdmittedReference(view: object, reference: object): void;
+  prepareReference(view: unknown, model: string): { readonly id: string; readonly version: string };
   assertCompleted(): void;
   close(): void;
 }
@@ -59,16 +61,29 @@ export interface ScenarioReceiptFrame {
  * receiptStore. Neither c.store nor a staged overlay can substitute for it.
  */
 export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
-  store: StoragePort, failure: (error: unknown) => void): ScenarioReceiptFrame {
-  assertScenarioReceiptExecution(call, store);
+  store: StoragePort, failure: (error: unknown) => void,
+  invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>): ScenarioReceiptFrame {
+  assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
-  const frame: Frame = { call, store, failure, intrinsics, owner: Object.freeze({}), active: true, pending: 0, failed: false, error: undefined };
+  const frame: Frame = { call, store, failure, intrinsics, ...(invokeCall === undefined ? {} : { invokeCall }),
+    owner: Object.freeze({}), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
+    prepareReference(view: unknown, model: string) {
+      // Trusted host preparation runs after State suspends this parent and
+      // before child admission. This private frame pointer, never source c,
+      // owns authority here; checked(c) would incorrectly require current execution.
+      if (frame.failed) throw frame.error;
+      if (!frame.active) return fail(frame, new StateError('validation', 'Scenario receipt helper requires its active framework context.'));
+      try {
+        const row = captureNativeScenarioReceiptRow(view, frame.owner, model);
+        return Object.freeze({ id: row.id, version: String(row.version) });
+      } catch (error) { return fail(frame, error); }
+    },
     bind(view: object, model: string, current: () => StoredRow | null | undefined) {
       checked(c);
       try { bindNativeScenarioReceiptRow(view, frame.owner, model, current); }
@@ -88,6 +103,27 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
     },
     close() { frame.active = false; },
   });
+}
+
+/** Generated code receives only this facade. Its literal callback is installed
+ * by the trusted loader and stages through the existing enclosing State owner.
+ */
+export function invokeScenarioReceiptCall(c: HandlerContext, site: string,
+  target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>): Promise<unknown> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario calls and observations must run sequentially.'));
+    frame.pending += 1;
+    try {
+      if (frame.invokeCall === undefined) return refuse('Scenario call requires its installed framework callback.');
+      const result = await frame.invokeCall(site, target, inputs);
+      checked(c);
+      return result;
+    } catch (error) { fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {});
+  return operation;
 }
 
 /** Compiler marker awaits this after its actual native field evaluation. The

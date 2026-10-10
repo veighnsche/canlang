@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. The exact changed-source whole passes1356 with zero skips; genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -740,7 +740,7 @@ compiler leaves:
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
-| Capability Task39 protected call | Compiler retains the actual invocation operand, owning target IDs/input declarations, authored input order and result binding. Capability/State must release same-caller target admission in the existing owner session; Dev must release the source-bound private native facade/result-dependency bridge. Calls still refuse E6008; no nested invocation, receipt or commit substitutes for the missing consumer. Separate BDD3/Task22 holds remain. |
+| Capability Task39 protected call | Reviewed State3e9/LOCAL146cc8bf supplies same-owner mutation admission/execution. Compiler prepares bounded static unused-call disclosure and exact source/target/input/result correspondence. Dev owns the actual source-bound native facade/site carrier; State e73 parent lifetime and Dev e090 facade are released at LOCAL6b5a04a6, while the verified native producer binding remains required. Original Workbench context read/query Fact[], dynamic result binding and authored CRUD normalization remain defining owner joins. Calls still refuse E6008; no nested invocation, receipt or commit substitutes. Separate BDD3/Task22 holds remain. |
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium and2a5d2c72 temporary-profile/wait units are consumed. Actual local native forms/browser2/2 and corrected readonly polling1/1 pass; selected Images source profile still requires its artifact. Dev owns the selected-profile prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
@@ -2029,3 +2029,187 @@ shorthand key instead of skipping it. The owning action-call case **1/1** passes
 with literal rejection, shorthand/explicit-binding diagnostic parity and both
 compatible positives. This closes that finite checker gap; the transaction
 consumer prerequisite above remains unchanged.
+
+
+**Static call source/native preparation (unfinished), 2026-10-10.** Reviewed
+State3e9/LOCAL146cc8bf is consumed by clean fast-forward; actual owning graph
+**26/26**, zero cached, builds on Node24. Required scalar authored arguments
+retain source order and parent effect/branch influence, including no-call
+outcomes. Complete scalar/void children resolve only through prior acyclic
+waves. Source-derived IDs, exact path/hash/callable module, target declarations
+and the actual emitted operation descriptors join through the source-aware
+emitter before native plan publication. Missing bytes, skewed targets/input
+order/results/descriptors, recursion and unsupported profiles refuse preparation.
+Depth16 and aggregate200 match the defining State limits. Owning source
+**18/18**, invocation **6/6**, changed aggregate boundary **1/1**, strict
+all-target lint and formatting pass; finite independent review finds no
+remaining defect after correcting the depth/count bounds. The full changed-
+source run exposed the prior read-narrowing corpus expectation: Workbench
+75 diagnostics, or76 with read=true removed, with the sole additional E3003
+on nullable Proposal and all other diagnostic identities unchanged. Its exact
+count is corrected; the exact saved acfae291 source rerun completes all **129
+targets:1,356 passed,0 failed,0 ignored,0 filtered**, with required real
+completion engines, actual native/permission bodies and zero body skips.
+
+This is prepared source correspondence, with CALL still refusing E6008. Dev's
+real facade/site carrier and State-issued parent pointer are required before
+activation; no native child execution is claimed. Original read/query Fact[],
+protected dynamic/as/CRUD/default/composite profiles and the broader nine
+references remain open. Precise human holds and local/manual integration remain.
+
+
+**Checked callSites carrier and bijection correction (unfinished), 2026-10-10.**
+Dev's exact existing `appDefinition.operations[parent].callSites` contract now
+emits source-ordered closed sites: id, source, kind, canonical target-name
+strings and actual declared resultType (including void, without inferred CRUD
+results). The source carrier duplicates no interface schema or artifact channel.
+Actual emitted modules load through the genuine native stdlib mapping and
+qualify exact identities/source/result facts; no refused handler executes.
+Coordinator review found a collector-only duplicate/omitted occurrence gap: two
+IR calls could reuse one proof while counts matched. Consume each proof once
+and require every source call proof, with the same actual emitter/Node control
+refusing duplicate IDs and omitted occurrences. Changed owning case **1/1**,
+unchanged five owning cases and emitter **121/121**, focused strict lint and
+formatting pass. The prior full **1,356** is retained at its exact pre-carrier
+source; no newer whole or native child execution is claimed.
+
+Reviewed State e73 parent lifetime and Dev e090 stdlib facade are available at
+LOCAL6b5a04a6; consume their exact release after this coherent compiler unit.
+Dev's real verified-operation producer binding remains the activation
+prerequisite, so E6008 stays. Original Workbench/read/query Fact[], dynamic/as/
+CRUD/default/composite joins, broad nine refs and precise holds remain.
+
+
+**Released call runtime prerequisite intake (unfinished), 2026-10-10.**
+Consume only the five exact reviewed State e73 and Dev e090 source/test files
+from LOCAL6b5a04a6, preserving compiler commits and unrelated work. State passes
+the actual invoking root/immediate child identity to preparation and execution;
+the native stdlib facade uses the genuine private State lifetime and sequential
+call/failure boundary. Actual dependency graph **26/26**, zero cached, supplies
+current outputs. Affected native receipts **3/3**, original machine **4/4** and
+invocation/carrier **6/6** pass on Node24.19 with required engines and zero skips.
+Released owning22/5modes/40 results are reused. No native child call executes.
+
+Dev's genuine verified-operation binding remains the activation prerequisite;
+E6008 stays. Original Workbench read/query Fact[], dynamic/as/CRUD/default/
+composite joins, the nine open references and precise human holds remain.
+
+
+**Prepared native call body (unfinished), 2026-10-10.**
+Exact active-parent static no-as scalar/void call sites now lower to the real
+awaited native stdlib `invokeScenarioReceiptCall` facade. Match Call span,
+target SymbolId and result against the prepared inventory; lower the actual
+authored input object once in source order and clear inventory after the handler.
+The owning **6/6** target checks real imported-module body/metadata order and
+missing/skewed/duplicate joins; no handler executes. All canonical calls still
+report E6008 before publication. Dev's genuine verified-operation binding and
+actual native child qualification remain prerequisites, with original Workbench
+read/query Fact[], dynamic/as/CRUD/default/composite and broader references open.
+Strict all-target Clippy and formatting pass. The exact saved **6e51abc5**
+source/core runtime tuple completes **129 targets:1,356 passed,0 failed,0
+ignored,0 filtered**, with required real completion engines, actual native/
+permission bodies and zero body skips. The coordinator manually reviewed and
+integrated the unit into LOCAL **4923733f**. A clean fast-forward preserves
+compiler source/tests and receipt runtime core; fresh graph **26/26**, zero
+cached, and affected actual carrier/body **1/1** qualify the new outputs.
+Reuse unchanged whole results; Dev preview/browser/application acceptance is
+separate. No native child call or wider reference closes.
+
+
+Native activation remains blocked on Dev's binder component and the coordinator's
+exact reviewed release. The existing real `compileCapturedSingleFile` already
+uses `--native-scenario-receipts`; it needs no private artifact bypass. After
+release, activate only the prepared static profile and then qualify real native
+execution, before acceptance. Clean LOCAL4002d808 intake consumes reviewed
+private reference preparation; graph26/26 zero cached passes. Compiler source/
+tests are unchanged, so retain full1356 at its saved6e51 scope.
+
+
+The existing real source/emitter/module call case now proves the defining
+boundary: **16 child edges prepare;17 decline**, with exact root source/site/
+body and omission checks. Owning1/1 and focused strict lint/format pass; no
+handler executes and aggregate200 controls are reused. Pending Dev a2cf89f4
+binder rejects depth16 and globally memoizes visited subtrees independent of
+caller depth. The coordinator has cleared its transaction/authority review and
+routed this exact correction to Dev; activation awaits the corrected release.
+Compiler/State limits remain unchanged and E6008 stays.
+
+
+The finite static CALL collector now excludes actual framework Send in every
+transitive child, including nested branches, preserving root/standalone Send.
+The clean CallFramework source and actual emitter/imported-module case pass
+**1/1** on Node24; parent disclosure/carrier/facade are omitted and standalone
+disclosure survives. Existing aggregate200 and16/17 controls pass in the same
+case. Focused strict Clippy/format and independent review pass. AllCALL E6008
+remains; Dev corrected binder/coordinator release precedes activation. Whole1356
+stays exact saved6e51; this changed collector has focused qualification only.
+
+T11/A5 has no eligible genuine Choice witness in the current producer. The
+actual exported-scenairo failure carries a grammar inventory, material intent
+choice and false evidence; structural ambiguity carries no IDs/context. The
+prerequisite is an accepted source-grounded ambiguity/evidence contract with
+Compiler/design, followed by Dev exact branch qualification. Reuse reported
+Dev098b9f94 SAME41 browser/native1/1 (125.34s) as finite card-consumer evidence;
+messageKinds[] and unknown candidate coverage remain. No intent/evidence is
+inferred from the41 card IDs or passing browser count. Broader refs/holds stay.
+
+Coordinator releases corrected genuine Dev31159eb9 binder at LOCALeb586551.
+The16/17/shared-tail component is tested and manually reviewed. Consume that
+exact release after this coherent collector correction, then activate the finite
+static profile and qualify actual CLI/native execution. No wider hold is released.
+
+Exact reviewed binder source/tests are consumed alone; actual dependency graph
+**26/26**, zero cached, builds on Node24. Component1/1/five modes and unchanged
+prior2/25 reuse their released scopes; finite activation is now ready.
+
+
+**Finite native static CALL activation (unfinished), 2026-10-10.** After exact
+reviewed binder intake, the unique checked active-parent static/no-as/discarded
+scalar-or-void site emits its real awaited facade without E6008. Actual CLI and
+imported-module target passes **6/6**: carrier/two call sites, depth16 and
+aggregate200 publish; generic/read/dynamic/as/CRUD/default/array/childSend and
+overbound profiles refuse with no artifact. Source-less/skewed/duplicate proof
+controls remain. Strict all-target Clippy/format and independent review pass.
+No handler executes; Dev genuine native consumer and final changed-source whole
+qualification are due. Original Workbench/protected profiles, nine refs and exact
+human holds remain. Prior1356 is historical at saved6e51.
+
+
+**Current compiler qualification, 2026-10-10.** Exact finite activation/child-Send
+source **6530a74e** completes all **129 targets:1,356 passed,0 failed,0 ignored,
+0 filtered**, Node24.19, required real completion engines, actual native and
+mode4750 permission bodies, with **zero body skips**. Strict all-target Clippy
+and formatting pass. The coordinator manually reviews and integrates source at
+LOCAL **2ee246ab**; clean fast-forward preserves compiler/tests/receipt core.
+Fresh graph **26/26**, zero cached, and actual owning CLI/module **1/1** pass
+against integrated outputs; unchanged whole results are reused. This completes
+changed compiler source qualification. Genuine Dev native child execution remains
+required before finite execution acceptance; original Workbench/protected/read
+profiles and T11 evidence contract are distinct dependencies. Original **58/67**,
+nine open refs and precise human holds remain. No remote publication follows.
+
+
+**Checked query/source prerequisite (unfinished), 2026-10-10.** The actual
+type checker retains query domain/types, authored ordered clauses and lexical
+alias NodeKeys. IR validates the source join and consumes the checked alias.
+Clean scenario source facts retain required owning signatures and static
+read/reference/composite/as calls even when runtime disclosure is Declined;
+the actual body consumer requires a whole authored-order call bijection and
+exact input/result/binding correspondence. These structural facts grant no
+disclosure, descriptor schema completeness or native admission. Existing
+Complete/static/native refusals remain. Affected **149/149** and strict all-target
+Clippy/format pass, including skew/duplicate/order/binding controls. Whole1356
+remains historical at6530; current full qualification is not claimed.
+
+Reviewed LOCALdf394 consumes genuine Dev CLI→portable global D1→ordinary
+Identity/member HTTP and granted MCP child execution **1/1 in22.00s**, with
+physical child associations, scalar/void results, one root receipt/replay,
+forbidden403 and cleanup. Reuse its owning [native record](../can-dev-server/PLAN.md);
+this does not close original Workbench or wider references. The original
+imports-only21file probe has135 diagnostics; complete actual imports+app-uses
+closure has29files and no missing owner. Capability owns the direct-query
+source correction; Compiler owns checked capability-delivery fixture typing.
+Fact.task canonical Values/schema handoff, complete staff/can_work closure,
+State viewer-query/result attestation and genuine Dev read/as execution remain
+prerequisites before original context admission. Dynamic protected calls,
+T11 evidence and BDD3/Task22 holds keep their precise scopes. **58/67** remains.

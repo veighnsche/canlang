@@ -43,11 +43,200 @@ Then
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }
+
+#[test]
+fn checked_read_query_and_bound_composite_call_join_without_native_admission() {
+    use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
+    use canlang_compiler::codegen::{js, scenario_calls::collect_scenario_source_calls};
+    let source = r#"app SourceCalls
+Given
+ Location {name:text}
+ Task {location:Location,title:text,done:bool=false}
+ policy Location read=members
+ policy Task read=members
+ contract Scope {targets:Task[]! min=1 max=10}
+ contract Fact {task:Task,version:int,title:Task.title,done:bool}
+When
+ scenario context(location:Location,targets:Scope.targets) read=true -> Fact[] by=members
+  do
+   let visible=Task as task where task in targets and task.location==location
+   require count(visible)==count(targets)
+   return visible as task select Fact {task,version=task.version,title=task.title,done=task.done}
+ scenario caller(location:Location,targets:Scope.targets) -> int by=members
+  do
+   call context {location,targets} as facts
+   call context {location,targets} as fresh
+   return count(facts)
+Then
+"#;
+    let mut db = SourceDb::new();
+    let file = db.add("source-calls.can".into(), source.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let context = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "SourceCalls.context")
+        .unwrap();
+    let parent = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "SourceCalls.caller")
+        .unwrap();
+    for item in [context, parent] {
+        let fact = &lowered.scenario_disclosures[&item.id];
+        assert!(matches!(fact, ScenarioDisclosure::Declined(_)));
+        let origin = fact
+            .source_facts()
+            .expect("checked source survives unsupported native closure");
+        assert_eq!(origin.source.path, "source-calls.can");
+        assert_eq!(origin.scenario, item.id);
+    }
+    let IrItemKind::Scenario { effects, .. } = &context.kind else {
+        panic!()
+    };
+    let IrStmt::Let { value, .. } = &effects[0] else {
+        panic!()
+    };
+    let IrExpr::Query(query) = &value.expr else {
+        panic!()
+    };
+    let fact = query.source.as_ref().expect("real checked model query");
+    assert_eq!(
+        (fact.node.file, fact.node.start, fact.node.end),
+        (value.span.file, value.span.start, value.span.end)
+    );
+    assert_eq!(fact.domain_type, checked.types.node_types[&fact.domain]);
+    assert!(query.where_pred.is_some());
+    let IrStmt::Return {
+        value: Some(value), ..
+    } = &effects[2]
+    else {
+        panic!()
+    };
+    let IrExpr::Query(projection) = &value.expr else {
+        panic!()
+    };
+    assert!(projection.source.is_some());
+    let projected = projection.select.as_ref().unwrap();
+    let IrExpr::Object(fields) = &projected.expr else {
+        panic!("{projected:?}")
+    };
+    assert!(matches!(
+        &fields[0].1.ty,
+        ResolvedType::Record { stored: true, .. }
+    ));
+    assert!(matches!(&fields[1].1.expr, IrExpr::Member {field,..} if field=="version"));
+    let emitted = js::emit_program_with_native_source_receipts(&lowered, true, &db);
+    assert!(
+        emitted
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    assert!(
+        emitted
+            .operations
+            .iter()
+            .filter(|operation| operation.name == context.canonical
+                || operation.name == parent.canonical)
+            .all(|operation| operation.disclosure.is_none())
+    );
+    let sites = collect_scenario_source_calls(&lowered, parent, &db).unwrap();
+    assert_eq!(sites.len(), 2);
+    assert_eq!(sites[0].target, "SourceCalls.context");
+    assert!(sites[0].read);
+    assert_eq!(sites[0].binding.as_deref(), Some("facts"));
+    assert_eq!(
+        sites[0].result,
+        lowered.scenario_disclosures[&context.id]
+            .source_facts()
+            .unwrap()
+            .result
+    );
+    assert_eq!(
+        sites[0]
+            .inputs
+            .iter()
+            .map(|input| input.name.as_str())
+            .collect::<Vec<_>>(),
+        ["location", "targets"]
+    );
+    for tamper in 0..4 {
+        let mut altered = lowered.clone();
+        let ScenarioDisclosure::Declined(fact) =
+            altered.scenario_disclosures.get_mut(&parent.id).unwrap()
+        else {
+            panic!()
+        };
+        let proof = fact.source_facts.as_mut().unwrap();
+        match tamper {
+            0 => proof.calls[0].binding = Some("fresh".into()),
+            1 => proof.calls[0].inputs.reverse(),
+            2 => proof.source.sha256 = "0".repeat(64),
+            _ => proof.calls.push(proof.calls[0].clone()),
+        }
+        assert!(
+            collect_scenario_source_calls(&altered, &altered.items[parent.id.0 as usize], &db)
+                .is_none()
+        );
+    }
+    let mut reordered = lowered.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut reordered.items[parent.id.0 as usize].kind
+    else {
+        panic!()
+    };
+    effects.swap(0, 1);
+    assert!(
+        collect_scenario_source_calls(&reordered, &reordered.items[parent.id.0 as usize], &db)
+            .is_none()
+    );
+    let mut altered = checked;
+    altered
+        .types
+        .checked_queries
+        .get_mut(&fact.node)
+        .unwrap()
+        .clauses
+        .reverse();
+    let (altered, diagnostics) = ir::build(&altered, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let IrItemKind::Scenario { effects, .. } = &altered.items[context.id.0 as usize].kind else {
+        panic!()
+    };
+    let IrStmt::Let { value, .. } = &effects[0] else {
+        panic!()
+    };
+    assert!(matches!(value.expr, IrExpr::Unsupported { .. }));
+}
 fn compile(dir: &Path, name: &str, source: &str) -> std::process::Output {
+    compile_with_receipts(dir, name, source, false)
+}
+fn compile_with_receipts(
+    dir: &Path,
+    name: &str,
+    source: &str,
+    native: bool,
+) -> std::process::Output {
     let path = dir.join(format!("{name}.can"));
     std::fs::write(&path, source).unwrap();
-    Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
+    let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
+    command.args(["compile", "--format=json"]);
+    if native {
+        command.arg("--native-scenario-receipts");
+    }
+    command
+        .arg("--catalog")
         .arg(root().join("packages/values/dist/catalog.json"))
         .arg(path)
         .current_dir(root())
@@ -308,28 +497,578 @@ fn mutation_call_invalidates_nullable_member_proof_before_dynamic_invocation() {
 }
 
 #[test]
-fn statement_calls_refuse_publication_until_owner_transaction_consumer_exists() {
+fn unprepared_statement_calls_refuse_publication_in_both_emission_modes() {
     let scratch = tempfile::tempdir().unwrap();
-    let output = compile(scratch.path(), "statement-calls", STATEMENT_CALLS);
-    assert!(!output.status.success());
-    let value = decoded(&output);
-    assert!(value.get("modules").is_none(), "{value}");
+    for native in [false, true] {
+        let output =
+            compile_with_receipts(scratch.path(), "statement-calls", STATEMENT_CALLS, native);
+        assert!(!output.status.success());
+        let value = decoded(&output);
+        assert!(value.get("modules").is_none(), "{value}");
+        assert!(
+            value["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008"
+                    && diagnostic["message"].as_str().is_some_and(|message| message
+                        .contains("canonical cross-operation invocation of CallFacts.context"))),
+            "{value}"
+        );
+        assert!(
+            value["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|diagnostic| diagnostic["code"] != "E6006"),
+            "checked target/value facts must not leave generic decode gaps: {value}"
+        );
+    }
+}
+
+#[test]
+fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering() {
+    use canlang_compiler::codegen::{
+        js,
+        scenario_calls::{CallResultFact, collect_static_scenario_calls},
+    };
+    let source = "app CallProfile\nGiven\nWhen\n scenario child(value:int,note:text) -> int by=members\n  do return value\n scenario finish() by=members\n  do require true\n scenario parent(value:int) -> int by=members\n  do\n   call child {note=\"first\",value}\n   call finish {}\n   return 1\nThen\n";
+    let mut db = SourceDb::new();
+    let file = db.add("static-call-profile.can".into(), source.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let root_path = root();
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: &root_path,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
     assert!(
-        value["diagnostics"]
+        emitted.diagnostics.is_empty(),
+        "exact native static profile: {:?}",
+        emitted.diagnostics
+    );
+    let cli_dir = tempfile::tempdir().unwrap();
+    let assert_refused =
+        |name: &str, source: &str| {
+            let output = compile_with_receipts(cli_dir.path(), name, source, true);
+            let value = decoded(&output);
+            assert!(!output.status.success(), "{name}: {value}");
+            assert!(value.get("modules").is_none(), "{name}: {value}");
+            assert!(
+                value["diagnostics"].as_array().unwrap().iter().any(
+                    |diagnostic| diagnostic["code"] == "E6008"
+                        && diagnostic["message"].as_str().is_some_and(
+                            |message| message.contains("canonical cross-operation invocation")
+                        )
+                ),
+                "{name}: {value}"
+            );
+        };
+    let generic = compile(cli_dir.path(), "static-generic", source);
+    assert!(!generic.status.success());
+    assert!(decoded(&generic).get("modules").is_none());
+    assert!(
+        decoded(&generic)["diagnostics"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"
-                && diagnostic["message"].as_str().is_some_and(|message| message
-                    .contains("canonical cross-operation invocation of CallFacts.context"))),
-        "{value}"
+            .any(|diagnostic| diagnostic["code"] == "E6008")
+    );
+    for (name, refused) in [
+        (
+            "read-child",
+            source.replace(
+                "child(value:int,note:text) -> int",
+                "child(value:int,note:text) read=true -> int",
+            ),
+        ),
+        (
+            "bound-child",
+            source.replace(
+                "call child {note=\"first\",value}",
+                "call child {note=\"first\",value} as ignored",
+            ),
+        ),
+        (
+            "default-child",
+            source.replace("child(value:int,note:text)", "child(value:int=1,note:text)"),
+        ),
+        (
+            "array-child",
+            source
+                .replace(
+                    "child(value:int,note:text) -> int",
+                    "child(value:int,note:text) -> int[]",
+                )
+                .replace("do return value", "do return [value]"),
+        ),
+    ] {
+        assert_refused(name, &refused);
+    }
+    let native = compile_with_receipts(cli_dir.path(), "static-native", source, true);
+    assert!(native.status.success(), "{}", decoded(&native));
+    let artifact = decoded(&native);
+    let native_js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_eq!(
+        native_js
+            .matches("await invokeScenarioReceiptCall(c,")
+            .count(),
+        2
     );
     assert!(
-        value["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|diagnostic| diagnostic["code"] != "E6006"),
-        "checked target/value facts must not leave generic decode gaps: {value}"
+        native_js.contains("callSites:")
+            && native_js.contains("\"targets\":[\"CallProfile.child\"]"),
+        "{native_js}"
     );
+    for name in [
+        "CallProfile.parent",
+        "CallProfile.child",
+        "CallProfile.finish",
+    ] {
+        assert!(
+            emitted
+                .operations
+                .iter()
+                .find(|op| op.name == name)
+                .unwrap()
+                .disclosure
+                .is_some(),
+            "bounded parent and children retain prepared disclosure: {name}"
+        );
+    }
+    let parent = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "CallProfile.parent")
+        .unwrap();
+    let without_source = js::emit_program_with_native_receipts(&ir, true);
+    assert!(
+        without_source
+            .operations
+            .iter()
+            .find(|op| op.name == "CallProfile.parent")
+            .unwrap()
+            .disclosure
+            .is_none(),
+        "no checked source database means no prepared call parent"
+    );
+    let sites =
+        collect_static_scenario_calls(&ir, parent, &emitted.operations, &db, &emitted.entry.path)
+            .expect("exact static mutation profile");
+    assert_eq!(sites.len(), 2);
+    assert_eq!(sites[0].parent, "CallProfile.parent");
+    assert_eq!(sites[0].target, "CallProfile.child");
+    assert_eq!(
+        sites[0]
+            .inputs
+            .iter()
+            .map(|input| input.name.as_str())
+            .collect::<Vec<_>>(),
+        ["note", "value"]
+    );
+    assert_eq!(sites[0].inputs[0].ty, ResolvedType::Scalar(Scalar::Text));
+    assert_eq!(sites[0].inputs[1].ty, ResolvedType::Scalar(Scalar::Int));
+    assert_eq!(
+        source[sites[0].inputs[1].source.start as usize..sites[0].inputs[1].source.end as usize]
+            .trim(),
+        "value"
+    );
+    assert_eq!(
+        sites[0].result,
+        CallResultFact::Scalar(ResolvedType::Scalar(Scalar::Int))
+    );
+    assert_eq!(sites[1].result, CallResultFact::Void);
+    assert_eq!(sites[0].source.path, "static-call-profile.can");
+    assert_eq!(sites[0].source.sha256, db.get(file).unwrap().sha256);
+    assert_eq!(sites[0].source.module, emitted.entry.path);
+    assert_ne!(sites[0].id, sites[1].id);
+    let again =
+        collect_static_scenario_calls(&ir, parent, &emitted.operations, &db, &emitted.entry.path)
+            .unwrap();
+    assert_eq!(sites[0].id, again[0].id);
+    let module_dir = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        module_dir.path().join("node_modules"),
+    )
+    .unwrap();
+    std::fs::write(module_dir.path().join("positive.mjs"), &emitted.entry.js).unwrap();
+    std::fs::write(
+        module_dir.path().join("no-source.mjs"),
+        &without_source.entry.js,
+    )
+    .unwrap();
+    let expected: Vec<_> = sites.iter().map(|site|serde_json::json!({
+        "id":site.id,"source":{"path":site.source.path,"sha256":site.source.sha256,"module":site.source.module},
+        "kind":"operation","targets":[site.target],"resultType":site.interface.result,
+    })).collect();
+    std::fs::write(
+        module_dir.path().join("expected.json"),
+        serde_json::to_vec(&expected).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        sites[0].interface.to_json(),
+        emitted
+            .operations
+            .iter()
+            .find(|op| op.name == sites[0].target)
+            .unwrap()
+            .to_json()
+    );
+    let mut missing = emitted.operations.clone();
+    missing.retain(|op| op.name != "CallProfile.child");
+    assert!(
+        collect_static_scenario_calls(&ir, parent, &missing, &db, &emitted.entry.path).is_none()
+    );
+    let mut skewed = emitted.operations.clone();
+    skewed
+        .iter_mut()
+        .find(|op| op.name == "CallProfile.child")
+        .unwrap()
+        .result = Some("text".into());
+    assert!(
+        collect_static_scenario_calls(&ir, parent, &skewed, &db, &emitted.entry.path).is_none()
+    );
+    let mut foreign = SourceDb::new();
+    foreign.add(
+        "static-call-profile.can".into(),
+        source.replace("first", "changed"),
+    );
+    assert!(
+        collect_static_scenario_calls(
+            &ir,
+            parent,
+            &emitted.operations,
+            &foreign,
+            &emitted.entry.path
+        )
+        .is_none()
+    );
+    for corruption in ["target", "input", "duplicate"] {
+        let mut skewed = ir.clone();
+        let finish = skewed
+            .items
+            .iter()
+            .find(|item| item.canonical == "CallProfile.finish")
+            .unwrap()
+            .id;
+        let IrItemKind::Scenario { effects, .. } = &mut skewed.items[parent.id.0 as usize].kind
+        else {
+            panic!("parent")
+        };
+        if corruption == "duplicate" {
+            // Counts still match, but the second source occurrence was
+            // omitted and the first proof cannot certify two actual calls.
+            effects[1] = effects[0].clone();
+        } else {
+            let IrStmt::Call { target, inputs, .. } = &mut effects[0] else {
+                panic!("call")
+            };
+            if corruption == "target" {
+                let IrEffectCallTarget::Operation { operation, .. } = target else {
+                    panic!("static")
+                };
+                *operation = finish;
+            } else {
+                let IrExpr::Object(entries) = &mut inputs.expr else {
+                    panic!("input object")
+                };
+                entries.reverse();
+            }
+        }
+        let refused = js::emit_program_with_native_source_receipts(&skewed, true, &db);
+        std::fs::write(
+            module_dir.path().join(format!("{corruption}-skew.mjs")),
+            &refused.entry.js,
+        )
+        .unwrap();
+        assert!(
+            refused
+                .operations
+                .iter()
+                .find(|op| op.name == "CallProfile.parent")
+                .unwrap()
+                .disclosure
+                .is_none(),
+            "unmatched target/input proof refuses prepared parent"
+        );
+        assert!(
+            collect_static_scenario_calls(
+                &skewed,
+                &skewed.items[parent.id.0 as usize],
+                &emitted.operations,
+                &db,
+                &emitted.entry.path
+            )
+            .is_none()
+        );
+    }
+    // Root depth is zero: sixteen real child edges are supported, while
+    // the next edge exceeds the shared source/State call-depth boundary.
+    for edges in [16, 17] {
+        let mut source = String::from("app CallDepth\nGiven\nWhen\n");
+        for depth in 0..edges {
+            source.push_str(&format!(
+                " scenario step{depth}() by=members\n  do call step{} {{}}\n",
+                depth + 1
+            ));
+        }
+        source.push_str(&format!(
+            " scenario step{edges}() by=members\n  do require true\nThen\n"
+        ));
+        let mut db = SourceDb::new();
+        let file = db.add(format!("call-depth-{edges}.can"), source.clone());
+        let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
+        let parent = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "CallDepth.step0")
+            .unwrap();
+        let sites = collect_static_scenario_calls(
+            &ir,
+            parent,
+            &emitted.operations,
+            &db,
+            &emitted.entry.path,
+        );
+        assert_eq!(
+            sites.is_some(),
+            edges == 16,
+            "root-excluded child depth {edges}"
+        );
+        let disclosure = emitted
+            .operations
+            .iter()
+            .find(|op| op.name == parent.canonical)
+            .unwrap()
+            .disclosure
+            .as_ref();
+        assert_eq!(
+            disclosure.is_some(),
+            edges == 16,
+            "prepared parent depth {edges}"
+        );
+        if edges == 16 {
+            assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+            let output = compile_with_receipts(cli_dir.path(), "depth-16", &source, true);
+            assert!(output.status.success(), "{}", decoded(&output));
+        } else {
+            assert_refused("depth-17", &source);
+            assert!(
+                emitted
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008")
+            );
+        }
+        if let Some(sites) = sites {
+            assert_eq!(sites.len(), 1);
+            assert_eq!(sites[0].target, "CallDepth.step1");
+            assert_eq!(sites[0].source.path, "call-depth-16.can");
+            assert_eq!(sites[0].source.sha256, db.get(file).unwrap().sha256);
+            assert_eq!(sites[0].source.module, emitted.entry.path);
+            std::fs::write(module_dir.path().join("depth-expected.json"), serde_json::to_vec(&serde_json::json!({
+                "id":sites[0].id,"source":{"path":sites[0].source.path,"sha256":sites[0].source.sha256,"module":sites[0].source.module},
+                "kind":"operation","targets":[sites[0].target],"resultType":sites[0].interface.result
+            })).unwrap()).unwrap();
+        }
+        std::fs::write(
+            module_dir.path().join(format!("depth-{edges}.mjs")),
+            &emitted.entry.js,
+        )
+        .unwrap();
+    }
+    // Send remains supported for its standalone native receipt, but the
+    // finite nested-call consumer cannot admit a framework-sending child.
+    let framework_source = "app CallFramework\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\nWhen\n scenario child() by=members\n  do send LLM.cancel {revision=1,source=\"fixed\"} as stop\n scenario parent() by=members\n  do call child {}\nThen\n";
+    assert_refused("framework-child", framework_source);
+    let mut framework_db = SourceDb::new();
+    let framework_file = framework_db.add("call-framework.can".into(), framework_source.into());
+    let (checked, diagnostics) = check_program(&framework_db, &[framework_file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (framework_ir, diagnostics) = ir::build(&checked, &framework_db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let framework =
+        js::emit_program_with_native_source_receipts(&framework_ir, true, &framework_db);
+    for (name, admitted) in [
+        ("CallFramework.child", true),
+        ("CallFramework.parent", false),
+    ] {
+        let owner = framework_ir
+            .items
+            .iter()
+            .find(|item| item.canonical == name)
+            .unwrap();
+        assert_eq!(
+            collect_static_scenario_calls(
+                &framework_ir,
+                owner,
+                &framework.operations,
+                &framework_db,
+                &framework.entry.path
+            )
+            .is_some(),
+            admitted,
+            "standalone versus nested Send profile: {name}"
+        );
+        assert_eq!(
+            framework
+                .operations
+                .iter()
+                .find(|op| op.name == name)
+                .unwrap()
+                .disclosure
+                .is_some(),
+            admitted,
+            "Send source preparation: {name}"
+        );
+    }
+    assert!(framework.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "E6008"
+            && diagnostic
+                .message
+                .contains("canonical cross-operation invocation")
+    }));
+    std::fs::write(module_dir.path().join("framework.mjs"), &framework.entry.js).unwrap();
+    for package in &framework.packages {
+        std::fs::write(module_dir.path().join(&package.path), &package.js).unwrap();
+    }
+    let runner = r#"import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {registerHooks} from 'node:module';
+import {pathToFileURL} from 'node:url';
+// The real native host maps this emitted specifier to its public facade.
+// Preserve generated module bytes; neither this loader nor the test executes handlers.
+registerHooks({resolve(specifier,context,next){return specifier==='@canlang/stdlib'
+ ?{url:pathToFileURL(process.argv[2]).href,shortCircuit:true}:next(specifier,context);}});
+const expected=JSON.parse(readFileSync(new URL('./expected.json',import.meta.url),'utf8'));
+const positive=await import('./positive.mjs');
+const carrier=positive.appDefinition.operations['CallProfile.parent'].callSites;
+assert.deepEqual(carrier,expected,'actual emitted registry retains checked call order and identity');
+const owning=positive.canApp().operations;
+const parent=owning.find(op=>op.name==='CallProfile.parent');
+const body=positive.canApp()['CallProfile.parent'].toString();
+assert.equal((body.match(/await invokeScenarioReceiptCall\(c,/g)||[]).length,2,'prepared static occurrences each await one real facade call');
+assert.equal((body.match(/note:"first",value:/g)||[]).length,1,'authored object retains note then shorthand value exactly once');
+assert.equal((body.match(/"first"/g)||[]).length,1,'literal argument is not reconstructed or reevaluated');
+let previous=-1;
+for(const site of carrier){
+ const occurrence=`await invokeScenarioReceiptCall(c,${JSON.stringify(site.id)},${JSON.stringify(site.targets[0])},`;
+ const at=body.indexOf(occurrence);assert.ok(at>previous,'real body and metadata retain checked source call order');
+ assert.equal(body.indexOf(occurrence,at+1),-1,'one source site lowers once');previous=at;
+}
+for(const site of carrier){
+ assert.deepEqual(Object.keys(site).sort(),['id','kind','resultType','source','targets']);
+ assert.deepEqual(Object.keys(site.source).sort(),['module','path','sha256']);
+ assert.deepEqual(site.source,parent.result.disclosure.source);
+ assert.equal(site.kind,'operation');assert.equal(site.targets.length,1);
+ assert.equal(site.resultType,owning.find(op=>op.name===site.targets[0]).result?.type??null);
+}
+assert.notEqual(carrier[0].id,carrier[1].id);
+for(const file of ['no-source','target-skew','input-skew','duplicate-skew']){
+ const module=await import(`./${file}.mjs`);
+ assert.equal(Object.hasOwn(module.appDefinition.operations['CallProfile.parent'],'callSites'),false,'unproved source/target/ordered inputs have no public callSites carrier');
+ assert.equal(module.canApp()['CallProfile.parent'].toString().includes('invokeScenarioReceiptCall'),false,'unmatched call profiles retain refusal bodies');
+}
+const depthExpected=JSON.parse(readFileSync(new URL('./depth-expected.json',import.meta.url),'utf8'));
+for(const edges of [16,17]){
+ const module=await import(`./depth-${edges}.mjs`);
+ const operation=module.appDefinition.operations['CallDepth.step0'];
+ const body=module.canApp()['CallDepth.step0'].toString();
+ if(edges===16){
+  assert.deepEqual(operation.callSites,[depthExpected],'sixteen child edges preserve the genuine source-qualified site');
+  assert.deepEqual(operation.callSites[0].source,module.canApp().operations.find(op=>op.name==='CallDepth.step0').result.disclosure.source);
+  assert.equal((body.match(/await invokeScenarioReceiptCall\(c,/g)||[]).length,1);
+  assert.ok(body.includes(`await invokeScenarioReceiptCall(c,${JSON.stringify(depthExpected.id)},"CallDepth.step1",`));
+ }else{
+  assert.equal(Object.hasOwn(operation,'callSites'),false,'seventeenth child edge declines the root carrier');
+  assert.equal(body.includes('invokeScenarioReceiptCall'),false,'over-depth root retains refusal body');
+ }
+}
+const framework=await import('./framework.mjs');
+assert.equal(Object.hasOwn(framework.appDefinition.operations['CallFramework.parent'],'callSites'),false,'framework child cannot publish a parent call site');
+assert.equal(framework.canApp()['CallFramework.parent'].toString().includes('invokeScenarioReceiptCall'),false,'framework child parent retains refusal body');
+const frameworkOperations=framework.canApp().operations;
+assert.equal(frameworkOperations.find(op=>op.name==='CallFramework.parent').result?.disclosure,undefined);
+assert.ok(frameworkOperations.find(op=>op.name==='CallFramework.child').result.disclosure,'standalone Send receipt is preserved');
+// Refused call handlers are deliberately never invoked.
+"#;
+    std::fs::write(module_dir.path().join("inspect.mjs"), runner).unwrap();
+    let inspected = Command::new("node")
+        .arg(module_dir.path().join("inspect.mjs"))
+        .arg(root().join("packages/cloudflare/dist/runtime/stdlib.js"))
+        .output()
+        .unwrap();
+    assert!(
+        inspected.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&inspected.stdout),
+        String::from_utf8_lossy(&inspected.stderr)
+    );
+    // State bounds the aggregate nested execution, not merely each callee's
+    // local inventory: one branch call plus 199 leaves is 200 occurrences.
+    for leaves in [199, 200] {
+        let source = format!(
+            "app CallLimit\nGiven\nWhen\n scenario leaf() by=members\n  do require true\n scenario branch() by=members\n  do\n{} scenario parent() by=members\n  do call branch {{}}\nThen\n",
+            "   call leaf {}\n".repeat(leaves)
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("call-limit.can".into(), source.clone());
+        let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        if leaves == 199 {
+            let output = compile_with_receipts(cli_dir.path(), "aggregate-200", &source, true);
+            assert!(output.status.success(), "{}", decoded(&output));
+        } else {
+            assert_refused("aggregate-201", &source);
+        }
+        let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
+        let parent = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "CallLimit.parent")
+            .unwrap();
+        assert_eq!(
+            collect_static_scenario_calls(
+                &ir,
+                parent,
+                &emitted.operations,
+                &db,
+                &emitted.entry.path
+            )
+            .is_some(),
+            leaves == 199,
+            "aggregate owner call limit"
+        );
+        assert_eq!(
+            emitted
+                .operations
+                .iter()
+                .find(|op| op.name == parent.canonical)
+                .unwrap()
+                .disclosure
+                .is_some(),
+            leaves == 199
+        );
+    }
 }

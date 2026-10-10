@@ -1,23 +1,25 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "a9085535c81a0c9c75173449db65983070985009",
-  "base": "3e9f1615d380529cfac0638179848d01ded0e087",
+  "integrated_source_pin": "4c99e1dd06649f826965c59ede9714cc95b8186f",
+  "base": "58cf2f6a9214b67831e6b88e6f0d7c59f2d27344",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1559,
-    "net_path_deltas": 10799,
-    "history_touched_paths": 11343,
+    "commit_count_since_checkpoint": 1617,
+    "net_path_deltas": 10805,
+    "history_touched_paths": 11349,
     "history_only_paths": 513,
-    "released_feature_paths": 78,
+    "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9297,
-    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL a9085535c81a0c9c75173449db65983070985009 onto coherent unfinished State-call 3e9f1615d380529cfac0638179848d01ded0e087; actual staged tree and both parent histories since complete 8249342707d3280e88e39e8c911b7e457828f31f. Preserve both parent defining owners/scopes/allocations and retirement/task gates. Compiler4b/c248 checked operands, ordered inputs and void/opaque result facts are producer-only; E6008 and Dev source/native adoption remain. New State-call test and six consultation records remain inherited-unallocated pending exact target review; local defining checks do not establish original Workbench acceptance. Reviewed native Text/Images and incoming Compiler/package/Dev41 results reused only at recorded scopes. Original rules/query/composite/corpus/recovery/provider and precise human holds remain; LOCAL/manual/no-push and complete checkpoint retained."
+    "inherited_paths_without_prior_target_allocation": 9302,
+    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL 4c99e1dd06649f826965c59ede9714cc95b8186f onto coherent 58cf2f6a9214b67831e6b88e6f0d7c59f2d27344, including original draft337b373 source repair; actual staged merge tree and both parent histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Preserve both parent defining owners, highest prior per-path review scopes, allocations, retirements and original task/source/target gates. New inputs remain inherited-unallocated unless an owning parent already allocated them. Finite native static-call release retains only its reviewed scope; no original source activation, Workbench/Task39 acceptance or complete workflow credit follows. Exact read/query/composite/rule/grant/native producer gates and recipient-specific holds remain; LOCAL-only and complete checkpoint unadvanced."
   },
   "methods": [
-    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z 8249342707d3280e88e39e8c911b7e457828f31f (actual staged worker merge tree before bookkeeping self-update)",
-    "git log --full-history -m --format= --name-only --no-renames -z 3e9f1615d380529cfac0638179848d01ded0e087 a9085535c81a0c9c75173449db65983070985009 ^8249342707d3280e88e39e8c911b7e457828f31f",
-    "Both rename endpoints excluded from history-only; both parent ledgers preserve prior defining owners/scopes/allocations and retirement/task gates. Similarity renames are bookkeeping, not semantic successor authority."
+    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z 8249342707d3280e88e39e8c911b7e457828f31f (actual staged merge tree before bookkeeping self-update)",
+    "git log --full-history -m --format= --name-only --no-renames -z 8249342707d3280e88e39e8c911b7e457828f31f..HEAD and 8249342707d3280e88e39e8c911b7e457828f31f..4c99e1dd06649f826965c59ede9714cc95b8186f; union touched paths from both parent histories",
+    "git rev-list --count HEAD 4c99e1dd06649f826965c59ede9714cc95b8186f ^8249342707d3280e88e39e8c911b7e457828f31f (reachable commit union without duplicates)",
+    "Both rename endpoints excluded from history-only; both parent ledgers preserve defining owners and highest prior per-path scopes/allocations, retirements and task gates. Similarity renames do not establish semantic successor authority.",
+    "Existing State owner spelling state for packages/state/test/invocation/scenario-owner-call.test.ts is normalized to incoming packages/state under packages/<owner> rule; same defining State owner and inherited-unallocated scope retained."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
   "review_scopes": {
@@ -374,6 +376,12 @@
     ],
     [
       "A",
+      "compiler/src/codegen/scenario_calls.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "compiler/src/codegen/scenario_receipts.rs",
       "compiler",
       "inherited-unallocated"
@@ -681,6 +689,12 @@
     [
       "A",
       "compiler/tests/checked_cohort.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/tests/checked_query_facts.rs",
       "compiler",
       "inherited-unallocated"
     ],
@@ -59054,6 +59068,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/src/dev/first-profile-browser.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/src/dev/first-profile-qualification.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -59888,6 +59908,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/test/first-profile-browser.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/test/fixtures/generated-machines.can",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -60491,6 +60517,12 @@
       "packages/contracts/src/artifact.ts",
       "packages/contracts",
       "feature"
+    ],
+    [
+      "A",
+      "packages/contracts/src/browser/chromium.ts",
+      "packages/contracts",
+      "inherited-unallocated"
     ],
     [
       "A",
@@ -62217,7 +62249,7 @@
     [
       "A",
       "packages/state/test/invocation/scenario-owner-call.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
@@ -64827,6 +64859,12 @@
     ],
     [
       "A",
+      "tests/integration/can-dev-server/NativeStaticCalls.can",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "A",
       "tests/integration/can-dev-server/OfficeSupplies.can",
       "build",
       "inherited-unallocated"
@@ -67430,7 +67468,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9297,
+    "count": 9302,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67444,5 +67482,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL a9085535c81a0c9c75173449db65983070985009 onto coherent unfinished State-call 3e9f1615d380529cfac0638179848d01ded0e087; actual staged tree and both parent histories since complete 8249342707d3280e88e39e8c911b7e457828f31f. Preserve both parent defining owners/scopes/allocations and retirement/task gates. Compiler4b/c248 checked operands, ordered inputs and void/opaque result facts are producer-only; E6008 and Dev source/native adoption remain. New State-call test and six consultation records remain inherited-unallocated pending exact target review; local defining checks do not establish original Workbench acceptance. Reviewed native Text/Images and incoming Compiler/package/Dev41 results reused only at recorded scopes. Original rules/query/composite/corpus/recovery/provider and precise human holds remain; LOCAL/manual/no-push and complete checkpoint retained."
+  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL 4c99e1dd06649f826965c59ede9714cc95b8186f onto coherent 58cf2f6a9214b67831e6b88e6f0d7c59f2d27344, including original draft337b373 source repair; actual staged merge tree and both parent histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Preserve both parent defining owners, highest prior per-path review scopes, allocations, retirements and original task/source/target gates. New inputs remain inherited-unallocated unless an owning parent already allocated them. Finite native static-call release retains only its reviewed scope; no original source activation, Workbench/Task39 acceptance or complete workflow credit follows. Exact read/query/composite/rule/grant/native producer gates and recipient-specific holds remain; LOCAL-only and complete checkpoint unadvanced."
 }

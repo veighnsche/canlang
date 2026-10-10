@@ -1,0 +1,14 @@
+## Finite native static scalar and void child-call consumer witness.
+app NativeStaticCalls
+Given
+When
+ scenario child(value:int,note:text) -> int by=members
+  do return value
+ scenario finish() by=members
+  do require true
+ scenario parent(value:int) -> int by=members
+  do
+   call child {note="first",value}
+   call finish {}
+   return 1
+Then

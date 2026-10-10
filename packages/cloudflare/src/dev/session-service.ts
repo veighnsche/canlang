@@ -19,7 +19,7 @@ import { DevRevisionConflictError, DevSessionCore, type DevCheck, type DevPrevie
 import {
   captureSingleFileSource,
   capturedRuntimeInputsAreCurrent,
-  capturedProducerInputsAreCurrent,
+  captureIsCurrent,
   type SingleFileCapture,
   type SingleFileCaptureRequest,
 } from "./source-capture.js";
@@ -466,6 +466,15 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   let exampleQueue: Promise<unknown> = Promise.resolve();
   const stopExamples = new AbortController();
   const pendingQualifications = new Set<Promise<unknown>>();
+  const qualificationJobs = new Map<string, { capture: SingleFileCapture; controller: AbortController;
+    request: SessionConstructQualificationRequest; bundle: SessionConstructQualification | null; complete: boolean }>();
+  const invalidateQualifications = (capture?: SingleFileCapture): void => {
+    for (const [key, job] of qualificationJobs) {
+      if (capture === undefined || job.capture.epochMaterial !== capture.epochMaterial) {
+        job.controller.abort(); qualificationJobs.delete(key);
+      }
+    }
+  };
   const reruns = new ExampleRerunCoordinator({
     resourcesReady: async ({ fixtureRecipeId }) => {
       const captured = exampleCaptures.get(fixtureRecipeId);
@@ -477,16 +486,21 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   let sessionProducerIdentity: string | null = null;
   const core = new DevSessionCore<SessionCheckDetail, SessionServicePreview>({
     async capture() {
+      if (core.status().dirty) invalidateQualifications();
       const request = options.capture.inputInventory === "installed-local-preview"
         ? { ...options.capture, ...installedLocalPreviewInputInventory(options.capture.checkoutRoot, options.capture.compilerPath) }
         : options.capture;
-      const captured = await captureSingleFileSource(request);
+      let captured: SingleFileCapture;
+      try { captured = await captureSingleFileSource(request); }
+      catch (error) { invalidateQualifications(); throw error; }
+      invalidateQualifications(captured);
       // Node retains the service and Testkit's transitive imports for this
       // process. A newly admitted package hash cannot reload that graph.
       const producerIdentity = createHash("sha256").update(JSON.stringify(captured.inputs
         .filter(input => input.name.startsWith("package:"))
         .map(input => [input.name, input.canonicalPath, input.sha256]))).digest("hex");
       if (sessionProducerIdentity !== null && sessionProducerIdentity !== producerIdentity) {
+        invalidateQualifications();
         throw new Error("installed runtime producer changed; stop and restart this session to consume its new modules");
       }
       sessionProducerIdentity = producerIdentity;
@@ -646,6 +660,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   const stop = (): Promise<void> => {
     if (stopping !== null) return stopping;
     stopExamples.abort();
+    invalidateQualifications();
     ranker.close();
     pendingRanks.clear();
     stopping = (async () => {
@@ -691,39 +706,98 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   };
   const ranker = new ConstructRanker(ranking?.transport, rankerOptions);
 
-  const qualification = async (capture: SingleFileCapture, index: ConstructHelpIndex,
-    requestSignal?: AbortSignal): Promise<SessionConstructQualification | null> => {
-    if (ranking?.qualify === undefined) return null;
-    const signal = requestSignal === undefined ? stopExamples.signal : AbortSignal.any([requestSignal,stopExamples.signal]);
-    if (signal.aborted || !(await capturedProducerInputsAreCurrent(capture)) || signal.aborted) return null;
-    const inputs = Object.freeze(capture.inputs.map(input => Object.freeze({ ...input })));
-    const request = Object.freeze({ resourceProfile: capture.profile, authoringProfile: FIRST_PROFILE,
-      indexRevision: index.revision, compilerSha256: index.compilerSha256,
-      producerInputsDigest: createHash("sha256").update(JSON.stringify(capture.inputs)).digest("hex"), inputs, capture });
-    let bundle: SessionConstructQualification | null;
-    const pending = Promise.resolve().then(() => signal.aborted ? null : ranking?.qualify?.(request,signal) ?? null);
-    pendingQualifications.add(pending);
-    try { bundle = await pending; } catch { return null; }
-    finally { pendingQualifications.delete(pending); }
-    if (signal.aborted || !(await capturedProducerInputsAreCurrent(capture)) || signal.aborted) return null;
-    if (bundle === null || Object.keys(bundle).some(key => !["resourceProfile", "authoringProfile", "indexRevision",
-        "compilerSha256", "producerInputsDigest", "messageKinds", "proofs"].includes(key)) ||
+  const validQualification = (bundle: SessionConstructQualification | null,
+    request: SessionConstructQualificationRequest): boolean => {
+    try {
+    const ownData = (value: unknown, required: readonly string[], optional: readonly string[] = []): boolean => typeof value === "object" && value !== null &&
+      [Object.prototype, null].includes(Object.getPrototypeOf(value)) && Reflect.ownKeys(value).every(key =>
+        typeof key === "string" && (required.includes(key) || optional.includes(key)) && Object.getOwnPropertyDescriptor(value,key)?.enumerable === true &&
+        "value" in Object.getOwnPropertyDescriptor(value,key)!) && required.every(key => {
+          const descriptor = Object.getOwnPropertyDescriptor(value,key);
+          return descriptor?.enumerable === true && "value" in descriptor;
+        });
+    const dense = (value: unknown, limit: number): value is readonly unknown[] => Array.isArray(value) && Object.getPrototypeOf(value) === Array.prototype && Object.isFrozen(value) &&
+      value.length <= limit && Reflect.ownKeys(value).length === value.length + 1 &&
+      Array.from({length:value.length},(_,i)=>Object.getOwnPropertyDescriptor(value,String(i))).every(member=>
+        member !== undefined && member.enumerable === true && "value" in member);
+    if (bundle === null || !ownData(bundle,["resourceProfile", "authoringProfile", "indexRevision",
+        "compilerSha256", "producerInputsDigest", "messageKinds", "proofs"]) ||
         !Object.isFrozen(bundle) || bundle.resourceProfile !== request.resourceProfile ||
         bundle.authoringProfile !== FIRST_PROFILE || bundle.indexRevision !== request.indexRevision ||
         bundle.compilerSha256 !== request.compilerSha256 || bundle.producerInputsDigest !== request.producerInputsDigest ||
-        !Array.isArray(bundle.messageKinds) || !Object.isFrozen(bundle.messageKinds) ||
+        !dense(bundle.messageKinds,64) ||
         bundle.messageKinds.length > 64 || new Set(bundle.messageKinds).size !== bundle.messageKinds.length ||
         bundle.messageKinds.some(kind => typeof kind !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(kind)) ||
-        !Array.isArray(bundle.proofs) || !Object.isFrozen(bundle.proofs) || bundle.proofs.length > 278 ||
+        !dense(bundle.proofs,278) ||
+        bundle.proofs.some(proof => !ownData(proof,["id","profile","indexRevision","compilerSha256","compilerCheck","runtimeCheck"],["exampleCheck"]) || !Object.isFrozen(proof)) ||
         new Set(bundle.proofs.map(proof => proof?.id)).size !== bundle.proofs.length ||
-        bundle.proofs.some(proof => proof === null || typeof proof !== "object" || !Object.isFrozen(proof) ||
+        bundle.proofs.some(proof => {
+          const exampleCheck = Object.getOwnPropertyDescriptor(proof,"exampleCheck")?.value;
+          return (
           typeof proof.id !== "string" || !/^can\.v1\.[a-z0-9_.-]{1,100}$/.test(proof.id) ||
           proof.profile !== FIRST_PROFILE || proof.indexRevision !== request.indexRevision ||
           proof.compilerSha256 !== request.compilerSha256 ||
           typeof proof.compilerCheck !== "string" || !proof.compilerCheck ||
           typeof proof.runtimeCheck !== "string" || !proof.runtimeCheck ||
-          (proof.exampleCheck !== undefined && proof.exampleCheck !== null && typeof proof.exampleCheck !== "string"))) return null;
-    return bundle;
+          (exampleCheck !== undefined && exampleCheck !== null && typeof exampleCheck !== "string"));
+        })) return false;
+      return true;
+    } catch { return false; }
+  };
+  const qualificationCurrent = (capture: SingleFileCapture): boolean => {
+    const state = core.status();
+    return stopping === null && !stopExamples.signal.aborted && !state.dirty && state.captureError === null &&
+      latestCapture?.epochMaterial === capture.epochMaterial;
+  };
+  const qualification = async (capture: SingleFileCapture, index: ConstructHelpIndex,
+    requestSignal?: AbortSignal): Promise<SessionConstructQualification | null> => {
+    if (ranking?.qualify === undefined || requestSignal?.aborted || !qualificationCurrent(capture)) return null;
+    const inputs = Object.freeze(capture.inputs.map(input => Object.freeze({ ...input })));
+    const request = Object.freeze({ resourceProfile: capture.profile, authoringProfile: FIRST_PROFILE,
+      indexRevision: index.revision, compilerSha256: index.compilerSha256,
+      producerInputsDigest: createHash("sha256").update(JSON.stringify(capture.inputs)).digest("hex"), inputs, capture });
+    const key = JSON.stringify([capture.epochMaterial, request.resourceProfile, request.authoringProfile,
+      request.indexRevision, request.compilerSha256, request.producerInputsDigest]);
+    const existing = qualificationJobs.get(key);
+    if (existing !== undefined) {
+      if (!existing.complete || existing.controller.signal.aborted || existing.bundle === null) return null;
+      if (!(await captureIsCurrent(capture)) || requestSignal?.aborted || !qualificationCurrent(capture)) {
+        existing.controller.abort(); qualificationJobs.delete(key); return null;
+      }
+      return validQualification(existing.bundle, request) ? existing.bundle : null;
+    }
+    // Aborted jobs still own cleanup. Do not start more work until their
+    // promises settle; the map and the active cleanup set are both bounded.
+    if (pendingQualifications.size >= 4) return null;
+    while (qualificationJobs.size >= 4) {
+      const oldest = qualificationJobs.keys().next().value!;
+      qualificationJobs.get(oldest)!.controller.abort(); qualificationJobs.delete(oldest);
+    }
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, stopExamples.signal]);
+    const job = { capture, controller, request, bundle: null as SessionConstructQualification | null, complete: false };
+    qualificationJobs.set(key, job);
+    const deadline = setTimeout(() => controller.abort(), 300_000); deadline.unref();
+    const pending: Promise<void> = Promise.resolve().then(async () => {
+      try {
+        if (signal.aborted || !(await captureIsCurrent(capture)) || signal.aborted || !qualificationCurrent(capture)) return;
+        const bundle = await ranking.qualify!(request, signal);
+        if (signal.aborted) return;
+        await core.refresh().catch(() => undefined);
+        if (signal.aborted || !(await captureIsCurrent(capture)) || signal.aborted || !qualificationCurrent(capture)) return;
+        if (qualificationJobs.get(key) === job && validQualification(bundle, request)) {
+          // Keep one immutable cached view. An omitted optional property must
+          // stay absent in meaning even if Object.prototype supplies a getter.
+          job.bundle = Object.freeze({ ...bundle!, proofs: Object.freeze(bundle!.proofs.map(proof =>
+            Object.freeze({ ...proof, exampleCheck: Object.getOwnPropertyDescriptor(proof,"exampleCheck")?.value }))) });
+        }
+      } catch { /* Failed qualification remains deterministic unqualified help. */ }
+      finally { clearTimeout(deadline); job.complete = true; pendingQualifications.delete(pending); }
+    });
+    pendingQualifications.add(pending);
+    // The daemon owns the promise, its deadline and cancellation cleanup.
+    // Socket callers get existing unqualified classification while it runs.
+    return null;
   };
 
   const rankDiagnostic = async (revision: string, diagnosticIndex: number, requestSignal: AbortSignal): Promise<RankResult> => {

@@ -125,6 +125,10 @@ pub struct DisclosureEffect {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisclosureEffectKind {
+    Call {
+        operation: SymbolId,
+        input_keys: Vec<String>,
+    },
     Set {
         model: SymbolId,
         fields: Vec<SymbolId>,
@@ -135,8 +139,48 @@ pub enum DisclosureEffectKind {
     },
 }
 
+/// Clean checked source structure only; these facts establish neither
+/// provenance completeness nor eligibility for native execution.
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioSource {
+    pub scenario: SymbolId,
+    pub node: NodeKey,
+    pub source: DisclosureSource,
+    pub read: bool,
+    pub parameters: Vec<CheckedScenarioParameter>,
+    pub result: Option<ResolvedType>,
+    pub calls: Vec<CheckedScenarioSourceCall>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioParameter {
+    pub parameter: SymbolId,
+    pub node: NodeKey,
+    pub type_node: NodeKey,
+    pub ty: ResolvedType,
+    pub default: Option<NodeKey>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioSourceCall {
+    pub node: NodeKey,
+    pub target_node: NodeKey,
+    pub operation: SymbolId,
+    pub inputs: Vec<CheckedScenarioCallInput>,
+    pub binding: Option<String>,
+    pub result: Option<ResolvedType>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioCallInput {
+    pub name: String,
+    pub node: NodeKey,
+    pub ty: ResolvedType,
+}
+
 #[derive(Debug, Clone)]
 pub struct CheckedScenarioDisclosure {
+    pub source_facts: Option<Box<CheckedScenarioSource>>,
     pub scenario: SymbolId,
     pub node: NodeKey,
     pub source: DisclosureSource,
@@ -146,6 +190,7 @@ pub struct CheckedScenarioDisclosure {
 
 #[derive(Debug, Clone)]
 pub struct DisclosureDecline {
+    pub source_facts: Option<Box<CheckedScenarioSource>>,
     pub node: NodeKey,
     pub reason: &'static str,
     pub influences: Vec<DisclosureInfluence>,
@@ -155,6 +200,15 @@ pub struct DisclosureDecline {
 pub enum ScenarioDisclosure {
     Complete(CheckedScenarioDisclosure),
     Declined(DisclosureDecline),
+}
+
+impl ScenarioDisclosure {
+    pub fn source_facts(&self) -> Option<&CheckedScenarioSource> {
+        match self {
+            Self::Complete(value) => value.source_facts.as_deref(),
+            Self::Declined(value) => value.source_facts.as_deref(),
+        }
+    }
 }
 
 /// Invoke only for a clean checked cohort. Missing anchors/facts decline;
@@ -185,200 +239,266 @@ pub fn analyze_scenario_disclosure(
         authorization: false,
         effect_proofs: Vec::new(),
         effect_visits: 0,
+        complete_children: HashSet::new(),
     };
     let mut out = HashMap::new();
-    for scenario in effects.scenarios.values() {
-        cx.steps = 0;
-        cx.stack.clear();
-        cx.effect_proofs.clear();
-        cx.effect_visits = 0;
-        let result = (|| {
-            if scenario.on.is_some() {
-                return Err(cx.fail(scenario.node, "trusted handler"));
+    // Resolve only proven acyclic children. A prior wave can establish a
+    // parent, never its own recursive prerequisite; cap the call depth at 16.
+    for _ in 0..=16 {
+        cx.complete_children = out
+            .iter()
+            .filter_map(|(id, value)| match value {
+                ScenarioDisclosure::Complete(_) => Some(*id),
+                ScenarioDisclosure::Declined(_) => None,
+            })
+            .collect();
+        let prior_complete = cx.complete_children.len();
+        for scenario in effects.scenarios.values() {
+            if cx.complete_children.contains(&scenario.scenario) {
+                continue;
             }
-            let signature = types
-                .symbol_results
-                .get(&scenario.scenario)
-                .ok_or_else(|| cx.fail(scenario.node, "missing checked result signature"))?;
-            if signature.as_ref().is_some_and(|ty| !result_type(ty)) {
-                return Err(cx.fail(scenario.node, "unsupported result shape"));
-            }
-            let source = cx.source(scenario.module, scenario.node)?;
-            let mut flows = vec![Flow::default()];
-            for param in &scenario.params {
-                let ty = types
-                    .symbol_types
-                    .get(&param.param)
-                    .ok_or_else(|| cx.fail(param.node, "missing parameter type"))?;
-                let mut supplied = ValuePath::default();
-                if let ResolvedType::Record {
-                    symbol,
-                    stored: true,
-                } = ty
-                    && matches!(
-                        resolve.symbols.get(symbol.0 as usize).map(|s| &s.kind),
-                        Some(SymbolKind::Model { .. })
-                    )
-                {
-                    supplied.record = Some(*symbol);
-                    if !scenario.read && param.default.is_none() {
+            cx.steps = 0;
+            cx.stack.clear();
+            cx.effect_proofs.clear();
+            cx.effect_visits = 0;
+            let result = (|| {
+                if scenario.on.is_some() {
+                    return Err(cx.fail(scenario.node, "trusted handler"));
+                }
+                let signature = types
+                    .symbol_results
+                    .get(&scenario.scenario)
+                    .ok_or_else(|| cx.fail(scenario.node, "missing checked result signature"))?;
+                if signature.as_ref().is_some_and(|ty| !result_type(ty)) {
+                    return Err(cx.fail(scenario.node, "unsupported result shape"));
+                }
+                let source = cx.source(scenario.module, scenario.node)?;
+                let mut flows = vec![Flow::default()];
+                for param in &scenario.params {
+                    let ty = types
+                        .symbol_types
+                        .get(&param.param)
+                        .ok_or_else(|| cx.fail(param.node, "missing parameter type"))?;
+                    let mut supplied = ValuePath::default();
+                    if let ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } = ty
+                        && matches!(
+                            resolve.symbols.get(symbol.0 as usize).map(|s| &s.kind),
+                            Some(SymbolKind::Model { .. })
+                        )
+                    {
+                        supplied.record = Some(*symbol);
+                        if !scenario.read && param.default.is_none() {
+                            let parameter =
+                                resolve.symbols.get(param.param.0 as usize).ok_or_else(|| {
+                                    cx.fail(param.node, "missing admitted parameter declaration")
+                                })?;
+                            let model =
+                                resolve.symbols.get(symbol.0 as usize).ok_or_else(|| {
+                                    cx.fail(param.node, "missing admitted parameter model")
+                                })?;
+                            supplied.reference =
+                                Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                                    parameter: param.param,
+                                    parameter_name: parameter.name.clone(),
+                                    model: *symbol,
+                                    model_name: model.canonical.clone(),
+                                });
+                        }
+                    }
+                    if let ResolvedType::Scalar(scalar) = ty
+                        && primitive_type(ty)
+                        && param.default.is_none()
+                        && cx.direct_builtin_parameter_type(param.type_node, *scalar)
+                        && !types
+                            .value_constraints
+                            .get(&param.param)
+                            .is_some_and(|value| value.alias.is_some())
+                    {
                         let parameter =
                             resolve.symbols.get(param.param.0 as usize).ok_or_else(|| {
-                                cx.fail(param.node, "missing admitted parameter declaration")
+                                cx.fail(param.node, "missing admitted primitive parameter")
                             })?;
-                        let model = resolve.symbols.get(symbol.0 as usize).ok_or_else(|| {
-                            cx.fail(param.node, "missing admitted parameter model")
-                        })?;
-                        supplied.reference =
-                            Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
-                                parameter: param.param,
-                                parameter_name: parameter.name.clone(),
-                                model: *symbol,
-                                model_name: model.canonical.clone(),
-                            });
+                        supplied.input = Some((param.param, parameter.name.clone(), *scalar));
                     }
-                }
-                if let ResolvedType::Scalar(scalar) = ty
-                    && primitive_type(ty)
-                    && param.default.is_none()
-                    && cx.direct_builtin_parameter_type(param.type_node, *scalar)
-                    && !types
-                        .value_constraints
-                        .get(&param.param)
-                        .is_some_and(|value| value.alias.is_some())
-                {
-                    let parameter =
-                        resolve.symbols.get(param.param.0 as usize).ok_or_else(|| {
-                            cx.fail(param.node, "missing admitted primitive parameter")
-                        })?;
-                    supplied.input = Some((param.param, parameter.name.clone(), *scalar));
-                }
-                let mut next = Vec::new();
-                for flow in flows {
-                    // Only prior declaration bindings exist while this default
-                    // executes. An explicit input is already admitted and frozen.
-                    let alternatives = match param.default {
-                        Some(default) if !cx.admitted_actor_default(default, ty) => {
-                            Some((default, cx.expr(default, scenario.module, &flow.env, &[])?))
-                        }
-                        _ => None,
-                    };
-                    if let Some((default, alternatives)) = alternatives
-                        && alternatives.iter().any(|value| {
-                            !value.reads.is_empty()
-                                || !value.intrinsics.is_empty()
-                                || !value.decisions.is_empty()
-                        })
-                    {
-                        let provided = DisclosureDecision {
-                            node: default,
-                            calls: Vec::new(),
-                            choice: DisclosureChoice::DefaultProvided,
-                        };
-                        let mut provided_flow = flow.clone();
-                        let mut frozen = supplied.clone();
-                        frozen.decisions.push(provided.clone());
-                        provided_flow.env.insert(Local::Symbol(param.param), frozen);
-                        provided_flow.evaluated.push(provided);
-                        next.push(provided_flow);
-                        for mut value in alternatives {
-                            if !compatible(&flow.evaluated, &value.decisions) {
-                                continue;
+                    let mut next = Vec::new();
+                    for flow in flows {
+                        // Only prior declaration bindings exist while this default
+                        // executes. An explicit input is already admitted and frozen.
+                        let alternatives = match param.default {
+                            Some(default) if !cx.admitted_actor_default(default, ty) => {
+                                Some((default, cx.expr(default, scenario.module, &flow.env, &[])?))
                             }
-                            let decision = DisclosureDecision {
+                            _ => None,
+                        };
+                        if let Some((default, alternatives)) = alternatives
+                            && alternatives.iter().any(|value| {
+                                !value.reads.is_empty()
+                                    || !value.intrinsics.is_empty()
+                                    || !value.decisions.is_empty()
+                            })
+                        {
+                            let provided = DisclosureDecision {
                                 node: default,
                                 calls: Vec::new(),
-                                choice: DisclosureChoice::DefaultEvaluated,
+                                choice: DisclosureChoice::DefaultProvided,
                             };
-                            let mut evaluated = flow.clone();
-                            evaluated.evaluated.push(decision.clone());
-                            for observed in &value.observed {
-                                if !evaluated.observed.contains(observed) {
-                                    evaluated.observed.push(observed.clone());
+                            let mut provided_flow = flow.clone();
+                            let mut frozen = supplied.clone();
+                            frozen.decisions.push(provided.clone());
+                            provided_flow.env.insert(Local::Symbol(param.param), frozen);
+                            provided_flow.evaluated.push(provided);
+                            next.push(provided_flow);
+                            for mut value in alternatives {
+                                if !compatible(&flow.evaluated, &value.decisions) {
+                                    continue;
+                                }
+                                let decision = DisclosureDecision {
+                                    node: default,
+                                    calls: Vec::new(),
+                                    choice: DisclosureChoice::DefaultEvaluated,
+                                };
+                                let mut evaluated = flow.clone();
+                                evaluated.evaluated.push(decision.clone());
+                                for observed in &value.observed {
+                                    if !evaluated.observed.contains(observed) {
+                                        evaluated.observed.push(observed.clone());
+                                    }
+                                }
+                                for choice in &value.decisions {
+                                    if !evaluated.evaluated.contains(choice) {
+                                        evaluated.evaluated.push(choice.clone());
+                                    }
+                                }
+                                value.decisions.push(decision);
+                                evaluated.env.insert(Local::Symbol(param.param), value);
+                                next.push(evaluated);
+                                if next.len() > 1024 {
+                                    return Err(
+                                        cx.fail(default, "parameter default evaluation path bound")
+                                    );
                                 }
                             }
-                            for choice in &value.decisions {
-                                if !evaluated.evaluated.contains(choice) {
-                                    evaluated.evaluated.push(choice.clone());
-                                }
-                            }
-                            value.decisions.push(decision);
-                            evaluated.env.insert(Local::Symbol(param.param), value);
-                            next.push(evaluated);
-                            if next.len() > 1024 {
-                                return Err(
-                                    cx.fail(default, "parameter default evaluation path bound")
-                                );
-                            }
+                        } else {
+                            let mut path = flow;
+                            path.env
+                                .insert(Local::Symbol(param.param), supplied.clone());
+                            next.push(path);
                         }
-                    } else {
-                        let mut path = flow;
-                        path.env
-                            .insert(Local::Symbol(param.param), supplied.clone());
-                        next.push(path);
+                        if next.len() > 1024 {
+                            return Err(
+                                cx.fail(param.node, "parameter default evaluation path bound")
+                            );
+                        }
                     }
-                    if next.len() > 1024 {
-                        return Err(cx.fail(param.node, "parameter default evaluation path bound"));
+                    if next.iter().any(|flow| flow.env.len() > 256) {
+                        return Err(cx.fail(param.node, "binding closure bound"));
+                    }
+                    flows = next;
+                }
+                if let Some(by) = scenario.by {
+                    for flow in &flows {
+                        cx.authorization_expr(by, scenario.module, &flow.env, &[])?;
                     }
                 }
-                if next.iter().any(|flow| flow.env.len() > 256) {
-                    return Err(cx.fail(param.node, "binding closure bound"));
+                let (guards, _) = cx.statements(&scenario.guards, scenario.module, flows, &[])?;
+                let (continuing, mut returns) =
+                    cx.statements(&scenario.effects, scenario.module, guards, &[])?;
+                if !continuing.is_empty() {
+                    if signature.is_some() {
+                        return Err(cx.fail(scenario.node, "unaccounted result fallthrough"));
+                    }
+                    for path in continuing {
+                        returns.push(cx.return_path(
+                            scenario.node,
+                            scenario.module,
+                            path,
+                            ValuePath::default(),
+                        )?);
+                    }
                 }
-                flows = next;
-            }
-            if let Some(by) = scenario.by {
-                for flow in &flows {
-                    cx.authorization_expr(by, scenario.module, &flow.env, &[])?;
+                if returns.is_empty() {
+                    return Err(cx.fail(scenario.node, "no established return path"));
                 }
-            }
-            let (guards, _) = cx.statements(&scenario.guards, scenario.module, flows, &[])?;
-            let (continuing, mut returns) =
-                cx.statements(&scenario.effects, scenario.module, guards, &[])?;
-            if !continuing.is_empty() {
-                if signature.is_some() {
-                    return Err(cx.fail(scenario.node, "unaccounted result fallthrough"));
-                }
-                for path in continuing {
-                    returns.push(cx.return_path(
+                for path in &mut returns {
+                    path.id = cx.opaque(
+                        "return",
                         scenario.node,
-                        scenario.module,
-                        path,
-                        ValuePath::default(),
-                    )?);
+                        &cx.decision_stamp(&path.decisions)?,
+                    )?;
+                    // Include the return anchor: two explicit returns under the
+                    // same decisions must never collide.
+                    path.id = sha256_hex(
+                        format!("{}:{}:{}", path.id, path.node.start, path.node.end).as_bytes(),
+                    );
                 }
-            }
-            if returns.is_empty() {
-                return Err(cx.fail(scenario.node, "no established return path"));
-            }
-            for path in &mut returns {
-                path.id = cx.opaque(
-                    "return",
-                    scenario.node,
-                    &cx.decision_stamp(&path.decisions)?,
-                )?;
-                // Include the return anchor: two explicit returns under the
-                // same decisions must never collide.
-                path.id = sha256_hex(
-                    format!("{}:{}:{}", path.id, path.node.start, path.node.end).as_bytes(),
-                );
-            }
-            Ok(CheckedScenarioDisclosure {
-                scenario: scenario.scenario,
-                node: scenario.node,
-                source,
-                returns,
-                effects: cx.effect_proofs.clone(),
-            })
-        })();
-        out.insert(
-            scenario.scenario,
-            match result {
-                Ok(plan) => ScenarioDisclosure::Complete(plan),
-                Err(reason) => ScenarioDisclosure::Declined(reason),
-            },
-        );
+                Ok(CheckedScenarioDisclosure {
+                    source_facts: None,
+                    scenario: scenario.scenario,
+                    node: scenario.node,
+                    source,
+                    returns,
+                    effects: cx.effect_proofs.clone(),
+                })
+            })();
+            out.insert(
+                scenario.scenario,
+                match result {
+                    Ok(plan) => ScenarioDisclosure::Complete(plan),
+                    Err(reason) => ScenarioDisclosure::Declined(reason),
+                },
+            );
+        }
+        if out
+            .values()
+            .filter(|value| matches!(value, ScenarioDisclosure::Complete(_)))
+            .count()
+            == prior_complete
+        {
+            break;
+        }
+    }
+    // Source facts are collected once, independently of closure waves and
+    // runtime admission. Declined read/composite/bound-call plans retain them.
+    for scenario in effects.scenarios.values() {
+        let facts = cx.checked_source_facts(scenario).map(Box::new);
+        match out.get_mut(&scenario.scenario) {
+            Some(ScenarioDisclosure::Complete(value)) => value.source_facts = facts,
+            Some(ScenarioDisclosure::Declined(value)) => value.source_facts = facts,
+            None => {}
+        }
     }
     out
+}
+
+fn checked_source_type(ty: &ResolvedType) -> bool {
+    let mut pending = vec![(ty, 0usize)];
+    let mut steps = 0usize;
+    while let Some((ty, depth)) = pending.pop() {
+        steps += 1;
+        if steps > 4096 || depth > 64 {
+            return false;
+        }
+        match ty {
+            ResolvedType::Unknown | ResolvedType::Error | ResolvedType::Opaque(_) => return false,
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                pending.push((inner, depth + 1));
+            }
+            ResolvedType::Object(fields) => {
+                if fields.len() > 4096 {
+                    return false;
+                }
+                pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)));
+            }
+            _ => {}
+        }
+        if pending.len() > 4096 {
+            return false;
+        }
+    }
+    true
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -442,6 +562,7 @@ struct Flow {
 }
 
 struct Closure<'a> {
+    complete_children: HashSet<SymbolId>,
     db: &'a SourceDb,
     resolve: &'a ResolveTables,
     types: &'a TypeTable,
@@ -639,10 +760,149 @@ impl<'a> Closure<'a> {
 
     fn fail(&self, node: NodeKey, reason: &'static str) -> DisclosureDecline {
         DisclosureDecline {
+            source_facts: None,
             node,
             reason,
             influences: Vec::new(),
         }
+    }
+
+    fn checked_source_facts(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<CheckedScenarioSource> {
+        let source = self.source(scenario.module, scenario.node).ok()?;
+        let authored = self.db.get(scenario.node.file)?;
+        if source.path.is_empty()
+            || source.sha256 != sha256_hex(authored.text.as_bytes())
+            || self
+                .db
+                .iter()
+                .filter(|(_, value)| value.path == source.path)
+                .count()
+                != 1
+            || scenario.params.len() > 200
+        {
+            return None;
+        }
+        let anchor = |node: NodeKey| {
+            node.file == scenario.node.file
+                && node.start >= scenario.node.start
+                && node.end <= scenario.node.end
+                && node.start <= node.end
+                && self.nodes.contains_key(&node)
+        };
+        if !anchor(scenario.node) {
+            return None;
+        }
+        let result = self.types.symbol_results.get(&scenario.scenario)?.clone();
+        if result.as_ref().is_some_and(|ty| !checked_source_type(ty)) {
+            return None;
+        }
+        let mut parameters = Vec::new();
+        for param in &scenario.params {
+            let ty = self.types.symbol_types.get(&param.param)?;
+            if !anchor(param.node)
+                || !anchor(param.type_node)
+                || param.default.is_some_and(|node| !anchor(node))
+                || !checked_source_type(ty)
+            {
+                return None;
+            }
+            parameters.push(CheckedScenarioParameter {
+                parameter: param.param,
+                node: param.node,
+                type_node: param.type_node,
+                ty: ty.clone(),
+                default: param.default,
+            });
+        }
+        let mut pending: Vec<_> = scenario
+            .guards
+            .iter()
+            .chain(&scenario.effects)
+            .map(|effect| (effect, 0usize))
+            .collect();
+        pending.reverse();
+        let mut calls = Vec::new();
+        let mut steps = 0usize;
+        while let Some((effect, depth)) = pending.pop() {
+            steps += 1;
+            if steps > 16384 || depth > 64 || !anchor(effect.node) {
+                return None;
+            }
+            if effect.verb == EffectVerb::Call {
+                if calls.len() >= 200 || effect.args.len() > 200 {
+                    return None;
+                }
+                let Some(EffectTarget::Operation(operation)) = effect.target.as_ref() else {
+                    return None;
+                };
+                let target_node = effect.target_node?;
+                if !anchor(target_node)
+                    || self.types.node_types.get(&target_node)
+                        != Some(&ResolvedType::Operation(*operation))
+                    || self.resolve.symbols.get(operation.0 as usize).is_none()
+                {
+                    return None;
+                }
+                let result = self.types.effect_call_results.get(&effect.node)?.clone();
+                if result.as_ref().is_some_and(|ty| !checked_source_type(ty)) {
+                    return None;
+                }
+                let mut inputs = Vec::new();
+                let mut names = HashSet::new();
+                for argument in &effect.args {
+                    let node = argument.value.unwrap_or(argument.key_node);
+                    let ty = self.types.node_types.get(&node)?;
+                    if !anchor(argument.key_node)
+                        || !anchor(node)
+                        || !names.insert(argument.key.as_str())
+                        || !checked_source_type(ty)
+                    {
+                        return None;
+                    }
+                    inputs.push(CheckedScenarioCallInput {
+                        name: argument.key.clone(),
+                        node,
+                        ty: ty.clone(),
+                    });
+                }
+                calls.push(CheckedScenarioSourceCall {
+                    node: effect.node,
+                    target_node,
+                    operation: *operation,
+                    inputs,
+                    binding: effect.binding.clone(),
+                    result,
+                });
+            }
+            // Preorder follows authored statement/branch/arm order, not hash
+            // table iteration. This records source structure, not execution.
+            for arm in effect.match_arms.iter().rev() {
+                for child in arm.effects.iter().rev() {
+                    pending.push((child, depth + 1));
+                }
+            }
+            for child in effect.else_effects.iter().rev() {
+                pending.push((child, depth + 1));
+            }
+            for child in effect.then_effects.iter().rev() {
+                pending.push((child, depth + 1));
+            }
+            if pending.len() > 16384 {
+                return None;
+            }
+        }
+        Some(CheckedScenarioSource {
+            scenario: scenario.scenario,
+            node: scenario.node,
+            source,
+            read: scenario.read,
+            parameters,
+            result,
+            calls,
+        })
     }
 
     fn source(
@@ -1947,6 +2207,120 @@ impl<'a> Closure<'a> {
         Ok((paths, effect.binding.as_ref().map(|_| delivery)))
     }
 
+    /// Preparation for the State-owned child lifetime. No result binding or
+    /// protected/reference/composite input provenance is claimed by this slice.
+    fn static_call(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if effect.binding.is_some() || !calls.is_empty() {
+            return Err(self.fail(
+                effect.node,
+                "bound or nested operand call outside source profile",
+            ));
+        }
+        let target_node = effect
+            .target_node
+            .ok_or_else(|| self.fail(effect.node, "missing checked call operand"))?;
+        let Some(EffectTarget::Operation(operation)) = &effect.target else {
+            return Err(self.fail(effect.node, "static mutation scenario call required"));
+        };
+        if self.types.node_types.get(&target_node) != Some(&ResolvedType::Operation(*operation)) {
+            return Err(self.fail(effect.node, "checked static call target mismatch"));
+        }
+        let child = self
+            .effects
+            .scenarios
+            .get(operation)
+            .ok_or_else(|| self.fail(effect.node, "call target is not a mutation scenario"))?
+            .clone();
+        if child.read || child.on.is_some() {
+            return Err(self.fail(
+                effect.node,
+                "read or trusted child call outside source profile",
+            ));
+        }
+        let signature = self
+            .types
+            .symbol_results
+            .get(operation)
+            .ok_or_else(|| self.fail(effect.node, "missing child result signature"))?;
+        if signature.as_ref().is_some_and(|ty| !primitive_type(ty))
+            || self.types.effect_call_results.get(&effect.node) != Some(signature)
+        {
+            return Err(self.fail(effect.node, "unsupported or mismatched child result"));
+        }
+        if !self.complete_children.contains(operation) {
+            return Err(self.fail(effect.node, "child needs complete acyclic source closure"));
+        }
+        if effect.args.len() != child.params.len() || child.params.len() > 200 {
+            return Err(self.fail(effect.node, "call requires complete scalar authored inputs"));
+        }
+        let mut slots = HashMap::new();
+        for parameter in &child.params {
+            let ty = self
+                .types
+                .symbol_types
+                .get(&parameter.param)
+                .ok_or_else(|| self.fail(effect.node, "missing child input type"))?;
+            let ResolvedType::Scalar(scalar) = ty else {
+                return Err(self.fail(
+                    effect.node,
+                    "child reference or composite input outside source profile",
+                ));
+            };
+            if parameter.default.is_some()
+                || !primitive_type(ty)
+                || !self.direct_builtin_parameter_type(parameter.type_node, *scalar)
+            {
+                return Err(self.fail(effect.node, "child input needs required builtin scalar"));
+            }
+            let declaration = self
+                .resolve
+                .symbols
+                .get(parameter.param.0 as usize)
+                .ok_or_else(|| self.fail(effect.node, "missing child parameter identity"))?;
+            slots.insert(declaration.name.clone(), ty.clone());
+        }
+        let mut keys = Vec::new();
+        let mut paths = vec![ValuePath::default()];
+        for argument in &effect.args {
+            let expected = slots
+                .get(&argument.key)
+                .ok_or_else(|| self.fail(argument.key_node, "unowned child input"))?;
+            if keys.contains(&argument.key) {
+                return Err(self.fail(argument.key_node, "duplicate child input"));
+            }
+            let key = argument.value.unwrap_or(argument.key_node);
+            if self.types.node_types.get(&key) != Some(expected) {
+                return Err(self.fail(key, "child input lacks exact checked scalar type"));
+            }
+            let values = match argument.value {
+                Some(value) => self.expr(value, module, env, calls)?,
+                None => self.lexical(argument.key_node, module, env, calls)?,
+            };
+            if values.iter().any(|value| {
+                value.record.is_some() || value.delivery.is_some() || value.members.is_some()
+            }) {
+                return Err(self.fail(key, "opaque child input provenance"));
+            }
+            paths = self.product(effect.node, &paths, &values)?;
+            keys.push(argument.key.clone());
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::Call {
+                operation: *operation,
+                input_keys: keys,
+            },
+        )?;
+        Ok(paths)
+    }
+
     fn transition(
         &mut self,
         effect: &Effect,
@@ -2247,11 +2621,13 @@ impl<'a> Closure<'a> {
                             }
                         }
                     }
-                    EffectVerb::Set | EffectVerb::Send => {
+                    EffectVerb::Set | EffectVerb::Send | EffectVerb::Call => {
                         let (alternatives, delivery) = if effect.verb == EffectVerb::Set {
                             (self.set(effect, module, &flow.env, calls)?, None)
-                        } else {
+                        } else if effect.verb == EffectVerb::Send {
                             self.send(effect, module, &flow.env, calls)?
+                        } else {
+                            (self.static_call(effect, module, &flow.env, calls)?, None)
                         };
                         self.effect_visits += 1;
                         for evaluated in alternatives {
@@ -2452,12 +2828,6 @@ impl<'a> Closure<'a> {
                             module,
                             &[InfluenceKind::QueryMembership, InfluenceKind::QueryOrder],
                             "loop closure",
-                        ));
-                    }
-                    EffectVerb::Call => {
-                        return Err(self.fail(
-                            effect.node,
-                            "effect call lacks executable canonical lowering",
                         ));
                     }
                     _ => return Err(self.fail(effect.node, "mutation or external effect closure")),
