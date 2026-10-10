@@ -78,6 +78,12 @@ export interface FinalizedFileObservationOptions {
 
 type ObservationDeps = Pick<FinalizeDeps, 'files' | 'blobs' | 'clock'>;
 
+/** One current physical read; immutable nongrant facts and detached mutable bytes. */
+export interface CurrentFinalizedFileSnapshot {
+  readonly facts: RetainedFinalizedFile;
+  readonly bytes: Uint8Array;
+}
+
 // Identity, rather than an inspectable brand or saved object shape, authenticates
 // live observations. Persistent facts must be joined to the owning receipt and
 // current row authority by State; this module supplies neither of those grants.
@@ -173,7 +179,7 @@ function currentFileRead(
   caller: ReceivingContext,
   options: FinalizedFileObservationOptions,
   originalRetention?: FileRetentionPolicy,
-): { readonly facts: RetainedFinalizedFile; readonly bytes: Uint8Array } | null {
+): CurrentFinalizedFileSnapshot | null {
   assertSafeBlobKey(ref);
   assertSafeBlobKey(blobKeyForFile(ref));
   const receiver = snapshotReceiver(caller);
@@ -200,6 +206,23 @@ function currentFileRead(
   const check = checkContent(options.policy, facts.contentType, bytes);
   if (check.verdict !== 'accepted' || check.detectedType !== facts.contentType || check.sizeBytes !== facts.sizeBytes) return null;
   return { facts, bytes };
+}
+
+/**
+ * Return metadata and the exact bytes checked together by the current validator.
+ * The wrapper and facts are frozen; bytes are detached from physical storage.
+ * This is not an observation handle or a State disclosure/attachment grant.
+ */
+export function readCurrentFinalizedSnapshot(
+  deps: ObservationDeps,
+  ref: FinalizedFileRef,
+  caller: ReceivingContext,
+  options: FinalizedFileObservationOptions,
+): CurrentFinalizedFileSnapshot | null {
+  try {
+    const current = currentFileRead(deps, ref, caller, options);
+    return current === null ? null : Object.freeze(current);
+  } catch { return null; }
 }
 
 /**

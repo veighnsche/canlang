@@ -67,6 +67,8 @@ import {
   authorizeAttach,
   finalizeUpload,
   observeFinalizedFile,
+  readCurrentFinalizedBytes,
+  readCurrentFinalizedSnapshot,
   readFinalizedBytes,
   readFinalizedFile,
   recordAttachment,
@@ -785,6 +787,10 @@ describe("real finalized-file journey (files -> uploads -> worker seams)", () =>
       recordAttachment: (ref, recordRef, caller) =>
         recordAttachment(finalize, ref, recordRef, caller),
       readBytes: (ref, caller) => readFinalizedBytes(finalize, ref, caller),
+      readCurrentBytes: (ref, physicalReceiver, retention) =>
+        readCurrentFinalizedBytes(finalize, ref, physicalReceiver, { policy: upload.policy, retention }),
+      readCurrentSnapshot: (ref, physicalReceiver, retention) =>
+        readCurrentFinalizedSnapshot(finalize, ref, physicalReceiver, { policy: upload.policy, retention }),
       observeFile: (ref, caller, retention) =>
         observeFinalizedFile(finalize, ref, caller, { policy: upload.policy, retention }),
       revalidateFile: (saved, caller, retention) =>

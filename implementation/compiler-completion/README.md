@@ -3037,9 +3037,9 @@ ignored, filtered or skipped bodies, actual Node24/real engines/native/permissio
 execution. Final strict all-target Clippy passes37.11s after correcting one mechanical
 let-and-return issue; format/diff0. Whole behavior results are unchanged by that
 lint cleanup and reused. Unchanged editor results are
-reused. Prior1415 source results are historical for this producer. Dev still owns genuine
-same-load hydration/private binder/current target admission; no executable
-runtime consumer or original149-diagnostic Workbench acceptance is claimed.
+reused. Prior1415 source results are historical for this producer. The later reviewed f87 release qualifies Dev523 genuine same-load hydration/private
+binder/current target finite native consumer. Its owner result is reused;
+original149-diagnostic Workbench acceptance remains separate.
 Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.
 
 **Original Volunteer source corrections, 2026-10-10 — unfinished composition.**
@@ -3091,3 +3091,61 @@ coordinator must release its containing integration carrier before safe intake.
 No local reset/merge or unrelated branch intake follows.
 Employees pure authority claims and Volunteer tab bindings are outside this
 lease; Dev owns original native qualification.58/67 and precise holds persist.
+
+### 2026-10-10 — preserve Invoice reconciliation cases (unfinished composition)
+
+Assigned local drafta8f1151 renames only the nonexported reconcile handler to
+observe_payment on=ReconcileDue. Keep PaymentRequest.kind enum cases, provider
+Payments.reconcile, original guards/evaluation order/permissions/examples and
+scheduling intact; no actual scenario caller/form consumer exists. Accepted
+lexical-first resolution clears the seven predicted enum-shadow findings. Exact
+original25/catalog compile is complete/omitted0 with all25 paths/hashes matching:
+118→111, Invoice48→41; the separate Payments.reconcile.completed E3010 remains.
+No artifact or original native qualification. Update only isolated Invoice249→242
+in the existing corpus table; all52 rows/full assertions and51 unchanged rows
+remain. Affected table1/1 passes2.11s,36 unrelated tests unselected, superseding
+the stale-pin failure. Reuse unchanged compiler1418/139 and strict/editor results.
+
+Containing fca/f87 intake resolves the old a9 ancestry blocker. Reviewed Dev
+committed-source and Dev523 stored-reference/current-target native consumers
+close their finite dependencies; broader original Workbench/Volunteer and nine
+references remain open. State11fe current File authority and Interfacesaba
+current byte forwarding are coordinator-released defining producers; genuine
+protected native File consumption remains Dev-owned. The safe construct-help
+context remains blocked: unknown UI enters generic catalog analysis without
+source-attested checked type/evidence; collection shape alone does not prove
+complete safe alternatives. No flags/IDs/provider promotion. Next exact source
+assignments, Employees pure authority, Volunteer tab bindings and BDD3/Task22
+holds retain their owners;58/67 unchanged. Local only, no publication.
+
+### 2026-10-10 — preserve Field pending-replacement guards (unfinished composition)
+
+Assigned draft9f60e7d changes only local pending→candidate query aliases and
+state receivers in the two existing CanField requirements. Preserve stored
+pending/unknown enum cases and every current technician/location/skill/notes/
+inspection guard, order, effect and example. Exact original25/catalog compile
+111→109 (Field12→10) is complete/omitted0 with all25 source hashes matching;
+only the two predicted E3001 disappear. The ten remaining Field findings concern
+the separate released handler. Sole isolated Field115→113 corpus snapshot; all52
+rows/full assertions and51 unchanged rows retained. Affected table1/1 passes2.03s,
+36 unrelated tests unselected; format/diff0. Prior Invoice6e and unchanged
+compiler/strict/editor results reused. No artifact/native original qualification,
+new semantics, common gate repair, held source guesses or publication. Exact
+next source assignment and original owner contracts remain;58/67 unchanged.
+
+### 2026-10-10 — retain required File array metadata (unfinished full workflow)
+
+Consume exact reviewed5a7c4ac2 containing own Invoice/Field and released State11fe.
+Its defining loader/profile require file[]! for required File fields. Preserve
+that field-owned identity in emitted model and generated CRUD create/update
+metadata, retaining independent array.required:true; ordinary/nullable/scalar/
+parameter/return and other element profiles remain unchanged. Existing actual
+compiler/artifact→State loader/File profile→Values codec test1/1 passes0.71s with
+all old identity controls and new type/marker/nullable/canonical skew refusals.
+Supplied empty array is allowed; missing and null refuse. Changed State graph
+clean12/12/cache0 passes8.03s onNode24. The attempted required-array event witness
+hits existing E6008 before this path and is removed; no event admission change.
+Required current whole/lint validation follows this coherent producer checkpoint;
+prior whole success is historical. Dev owns protected native host/download and
+remaining defining deletion/provider contracts; original109 findings,58/67 and
+precise BDD3/Task22 holds remain. Local only; no native application acceptance.

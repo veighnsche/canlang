@@ -9,7 +9,7 @@ import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
 import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContentAtOffset, completeUploadContent } from '../upload/index.js';
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
-import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, readCurrentFinalizedBytes, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
+import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, readCurrentFinalizedBytes, readCurrentFinalizedSnapshot, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
 import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
 import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt } from '../retention/index.js';
 import type { RetentionConfig, RetentionBatchOptions } from '../retention/index.js';
@@ -217,6 +217,9 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     /** Same physical byte snapshot checked under the current File policy/lifetime. */
     readCurrentBytes: (ref: string, caller: ReceivingContext, retention: FileRetentionPolicy) =>
       store.transaction(() => readCurrentFinalizedBytes(finalize, ref, caller, { policy, retention })),
+    /** Immutable current facts and their detached validated bytes from one read. */
+    readCurrentSnapshot: (ref: string, caller: ReceivingContext, retention: FileRetentionPolicy) =>
+      store.transaction(() => readCurrentFinalizedSnapshot(finalize, ref, caller, { policy, retention })),
     /** Consistent real byte/metadata observation; facts alone grant no row or read access. */
     observeFile: (ref: string, caller: ReceivingContext, retention: FileRetentionPolicy) =>
       store.transaction(() => observeFinalizedFile(finalize, ref, caller, { policy, retention })),
