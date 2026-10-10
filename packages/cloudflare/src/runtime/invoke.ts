@@ -105,6 +105,7 @@ import type {
 } from "@canlang/contracts";
 import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
 import { parse as parseJavaScript } from 'acorn';
+import { receiverFromIdentity } from '@canlang/interfaces';
 import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
@@ -1298,6 +1299,8 @@ interface StateInvokeProducer {
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
   readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
   readonly bindScenarioReceiptQueryProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer;
+  readonly bindScenarioReceiptFileProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFileProducer;
+  readonly observeScenarioReceiptFileAssignment?: typeof import('@canlang/state/invocation').observeScenarioReceiptFileAssignment;
   readonly projectReadScenarioQueryResult?: typeof import('@canlang/state/invocation').projectReadScenarioQueryResult;
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
@@ -1628,6 +1631,12 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['bindScenarioReceiptQueryProducer'] !== 'function' ? {} : {
         bindScenarioReceiptQueryProducer: scenarioMod['bindScenarioReceiptQueryProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptQueryProducer']>,
+      }),
+      ...(typeof scenarioMod['bindScenarioReceiptFileProducer'] !== 'function' ? {} : {
+        bindScenarioReceiptFileProducer: scenarioMod['bindScenarioReceiptFileProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFileProducer']>,
+      }),
+      ...(typeof scenarioMod['observeScenarioReceiptFileAssignment'] !== 'function' ? {} : {
+        observeScenarioReceiptFileAssignment: scenarioMod['observeScenarioReceiptFileAssignment'] as NonNullable<StateInvokeProducer['observeScenarioReceiptFileAssignment']>,
       }),
       ...(typeof scenarioMod['projectReadScenarioQueryResult'] !== 'function' ? {} : {
         projectReadScenarioQueryResult: scenarioMod['projectReadScenarioQueryResult'] as NonNullable<StateInvokeProducer['projectReadScenarioQueryResult']>,
@@ -5592,6 +5601,49 @@ export async function invokeRetainedMutationCanonical(
   return invokeCanonicalMutation(opts, true);
 }
 
+const nativeScenarioFiles = new WeakMap<GeneratedOperationDef, {
+  readonly files: CanonicalFileBinding;
+  readonly app: string;
+  readonly revalidate: NonNullable<CanonicalFileBinding['revalidate']>;
+}>();
+
+/** Install the genuine receiving-file port before the checked root executes.
+ * Its source/app come from the verified owning module, never a File value. */
+async function bindNativeScenarioFiles(loaded: LoadedCanonicalDescriptors,
+  opts: CanonicalMutationOpts, def: GeneratedOperationDef | undefined): Promise<void> {
+  const plan = def?.descriptor.result?.disclosure;
+  if (def === undefined || plan === undefined) return;
+  const files = opts.files, revalidate = files?.revalidate;
+  const existing = nativeScenarioFiles.get(def);
+  if (existing !== undefined) {
+    if (existing.files !== files || existing.app !== opts.app || existing.revalidate !== revalidate) {
+      throw new loaded.producers.errors('validation', 'Saved File execution requires its original installed receiving port.');
+    }
+    return;
+  }
+  if (files?.observe === undefined || revalidate === undefined) return;
+  const bind = loaded.producers.invoke.bindScenarioReceiptFileProducer;
+  if (bind === undefined) throw new loaded.producers.errors('validation', 'Installed State producer lacks genuine File binding.');
+  const module = await importVerifiedAssemblyModule(opts.asm, plan.source.module, opts.artifact);
+  const where = `Scenario File ${JSON.stringify(def.name)}`;
+  const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
+  const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
+  if (typeof app !== 'string' || app === '' || app !== opts.app) {
+    throw new AssemblyCorrespondenceError('Scenario File receiver differs from its verified owning app.');
+  }
+  // Concurrent first invocations may have awaited the same verified import.
+  const installed = nativeScenarioFiles.get(def);
+  if (installed !== undefined) {
+    if (installed.files !== files || installed.app !== app || installed.revalidate !== revalidate) {
+      throw new loaded.producers.errors('validation', 'Scenario File producer changed during its original binding.');
+    }
+    return;
+  }
+  const currentFile: Parameters<typeof bind>[1]['revalidate'] = (saved, receiver) => revalidate.call(files, saved, receiver);
+  bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, revalidate: currentFile }));
+  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate }));
+}
+
 async function invokeCanonicalMutation(
   opts: CanonicalMutationOpts,
   receiptOnly: boolean,
@@ -5605,6 +5657,7 @@ async function invokeCanonicalMutation(
     throw new StateError('validation', 'Installed State producer lacks retained-receipt-only recovery.');
   }
   const checkedScenario = generatedScenarioDef({ def: loaded.registry.get(opts.operation) });
+  await bindNativeScenarioFiles(loaded, opts, checkedScenario);
   if (checkedScenario?.descriptor.kind === 'scenario' && checkedScenario.descriptor.result?.disclosure !== undefined &&
       (loaded.producers.invoke.readScenarioReceiptAssociation === undefined || loaded.producers.invoke.projectScenarioReceipt === undefined)) {
     throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
@@ -5720,6 +5773,13 @@ async function invokeCanonicalMutation(
       const stagedFiles = await stageFileReferences({
         artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
         ...(opts.files === undefined ? {} : { files: opts.files }),
+        ...(kind !== 'scenario' || checkedScenario?.descriptor.result?.disclosure === undefined ? {} : {
+          observeAssignment: assignment => {
+            const observe = loaded.producers.invoke.observeScenarioReceiptFileAssignment;
+            if (observe === undefined) throw new StateError('validation', 'Installed State producer lacks genuine File capture.');
+            observe(call as AdmittedCall, receiptStore, assignment);
+          },
+        }),
         refuse: text => { throw new StateError('validation', text); },
       });
       attachments = stagedFiles.attachments;
@@ -5738,7 +5798,8 @@ async function invokeCanonicalMutation(
     }
     // Recognized malformed metadata throws in State; legacy saved values are
     // never disclosed raw or upgraded with an association inferred here.
-    if (producer.readScenarioReceiptAssociation(committedReceipt) === null) {
+    const association = producer.readScenarioReceiptAssociation(committedReceipt);
+    if (association === null) {
       throw new StateError('validation', 'Saved scenario has no supported execution association.');
     }
     scenarioProjection = await producer.projectScenarioReceipt({ receipt: committedReceipt,
@@ -5746,10 +5807,40 @@ async function invokeCanonicalMutation(
       policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
       app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
     });
+    if (!receiptOnly && result.status === 'replayed' && checkedScenario !== undefined && opts.files?.revalidate !== undefined) {
+      let checkedAttachment = false;
+      for (const assignment of association.fileAssignments ?? []) {
+        // A projected record has no model discriminator. Ambiguous identities
+        // cannot authorize repair; use only the original association's locator
+        // whose exact saved File field is exposed by current State authority.
+        const changes = association.changed.filter(change => change.row.id === assignment.recordId);
+        const records = scenarioProjection.records.filter(record => record.id === assignment.recordId);
+        if (changes.length !== 1 || records.length !== 1 || changes[0]!.model !== assignment.model ||
+            changes[0]!.row.version !== assignment.rowVersion || records[0]!.version !== assignment.rowVersion ||
+            !Object.hasOwn(records[0]!.data, assignment.field) ||
+            JSON.stringify(records[0]!.data[assignment.field]) !== JSON.stringify(changes[0]!.row.data[assignment.field])) continue;
+        checkedAttachment = true;
+        const receiver = receiverFromIdentity(opts.app, opts.identity);
+        const bound = nativeScenarioFiles.get(checkedScenario);
+        if (bound === undefined || !await bound.revalidate.call(bound.files, assignment.file, receiver)) continue;
+        await bound.files.retain(assignment.file.ref,
+          `${assignment.model}/${assignment.recordId}/${assignment.field}`, opts.identity, opts.app);
+      }
+      if (checkedAttachment) {
+        // Attachment repair awaited physical storage. State performs its full
+        // current File/row/Identity/fence checks again before disclosure.
+        scenarioProjection = await producer.projectScenarioReceipt({ receipt: committedReceipt,
+          registry: loaded.registry as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['registry'],
+          policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
+          app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+        });
+      }
+    }
   }
   if (!receiptOnly && opts.files !== undefined && !(kind === 'scenario' && result.status === 'replayed')) {
     // Ordinary fresh operations retain the existing attachment repair behavior.
-    // Scenario recovery/projected replay performs no file metadata access.
+    // Scenario replay repairs only authenticated original File assignments
+    // above; dedicated retained-only recovery never records attachments.
     await retainCommittedFiles({
       artifact: opts.artifact, operation: opts.operation, inputs: opts.inputs,
       result: result.result, attachments, store: opts.store, files: opts.files,

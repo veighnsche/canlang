@@ -1,4 +1,4 @@
-import type { CompileArtifact, ResolvedIdentity, StoragePort } from '@canlang/contracts';
+import type { CompileArtifact, FileRetentionPolicy, ResolvedIdentity, StoragePort } from '@canlang/contracts';
 import type { IdentityStore } from '@canlang/identity';
 import { assertAudience, IdentityError, resolveIdentity } from '@canlang/identity';
 import {
@@ -14,8 +14,22 @@ import type { CanonicalMembershipReader } from './invoke.js';
 import type { CanonicalFileBinding } from './file-staging.js';
 export type { CanonicalFileBinding } from './file-staging.js';
 
-export function createCanonicalFileBinding(kernel: FileJourneyKernel): CanonicalFileBinding {
+export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?: FileRetentionPolicy): CanonicalFileBinding {
+  // Legacy attachment callers need no saved File capture. A saved observation
+  // always requires the host's explicit receiving policy, pinned at construction.
+  const policy = retention === undefined ? undefined : Object.freeze({
+    unattachedHorizonMs: retention.unattachedHorizonMs,
+    retentionMs: retention.retentionMs,
+  });
   return {
+    async observe(ref, identity, app) {
+      if (policy === undefined || identity.actor === null) return null;
+      return kernel.observeFile(ref, receiverFromIdentity(app, identity), policy);
+    },
+    async revalidate(saved, receiver) {
+      if (policy === undefined) return false;
+      return kernel.revalidateFile(saved, receiver, policy);
+    },
     async validate(ref, identity, app) {
       if (identity.actor === null) return false;
       const receiver = receiverFromIdentity(app, identity);
