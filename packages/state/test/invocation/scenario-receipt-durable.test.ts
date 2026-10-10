@@ -55,7 +55,7 @@ async function nativeStore(kind: 'd1' | 'do') {
     return { store: createD1Storage(db), reopen: async () => createD1Storage(db), dispose: () => mf.dispose() };
   }
   const mf = new Miniflare({ modules: true,
-    scriptPath: fileURLToPath(new URL('../../../test/storage/do-test-worker.js', import.meta.url)),
+    scriptPath: fileURLToPath(new URL('../../test/storage/do-test-worker.js', import.meta.url)),
     modulesRules: [{ type: 'ESModule', include: ['**/*.js'] }], compatibilityDate: '2025-01-01',
     durableObjects: { TEST_DO: { className: 'TestDO', useSQLite: true, unsafePreventEviction: true } } });
   const post = async (path: string, body: unknown) => {

@@ -7575,3 +7575,21 @@ native/publication activation or hold release.
 ### 2026-10-10 — manual local integration of bfee7848
 
 Finite manual source/contract reviews CLEAR. Required serializable frameworkModels is separate from actual same-load owning producer validation. Work root export covers all9 actual RowData shapes via required-key mapping, closed detached bounded own-data/envelope/control checks, owning codecs/identity and explicit retained-result/deferred-input roles. Reuse owning4/4 constructor/handler-stage/refusal cases115.04ms, Contracts/State dependency/Work clean emissions, public root/type required-framework controls and diff0. Copied tags/descriptors/callbacks are not an issuer; successful row validation supplies no opaque File absence or current authority. Capability must join actual State framework families, new inventory schema, genuine producer/source correspondence and all-writer/migration/activation barriers; backend/Files/native workflow remains unqualified. Packages separately owns finite DO test-loader bundling prerequisite, preserving all genuine State protocol/reopen assertions and every recipient-specific hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — rebuild the genuine State DO test worker (finite common gate)
+
+Bundle the original State-owned worker and actual emitted adapter/dependency
+closure during normal State build:emit with pinned owning esbuild. Publish the
+same built dist/test/storage/do-test-worker.js testing asset for every existing
+internal/exported loader. Preserve the raw worker protocol, real DO SQLite and
+transaction/reopen assertions; missing dependencies fail without stale output,
+mock maps, skipped imports or fallback. Only existing loader path hunks change.
+
+Reviewed7a owning emission and55 existing conformance/durable receipt outcomes
+pass2728.80ms. Public export/all13 internal path correspondence, unchanged raw
+worker bytes, missing actual adapter refusal, byte-identical restoration build
+and affected package boundary pass; finite source review CLEAR. This qualifies
+the common loader with the current producer. Published unfinished State485
+retirement source remains unconsumed here; Capability owns required framework
+metadata adaptation and its new guards/issuer/DO qualification. Full physical
+Files/Dev joins and every precise native/backend/security/publication hold remain.
