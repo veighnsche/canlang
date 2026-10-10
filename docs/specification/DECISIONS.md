@@ -5479,14 +5479,6 @@ Exact scalar-wire bounds never convert through Number, including full int64 text
 
 Contracts and Values clean emissions pass; the affected maintained schema file passes118/118, zero skips. Finite independent source review is clear. Coordinator manual release and original Compiler/State/Dev source/query/result adoption remain unfinished; schema normalization still establishes no stored existence, sibling-version equality, authority or query association. All precise holds and broader original workflow gates remain.
 
-Coordinator manually reviews69d1cb09 CLEAR and integrates it at LOCAL10e36d3d with its114checks reused. The followup dependent root noEmit passes after targeted State declaration refresh; the initial15diagnostics identified stale dist missing already released child-call exports, with no State source correction. Its refreshed clean emission passes. The nominal wire-bound/trim followup is a separate coherent local unit pending coordinator release.
-
-## 2026-10-10 — contain local control peer failures (unfinished qualification)
-
-Treat an asynchronously failed handshake/response write as the loss of that control connection, not loss of the daemon. Its socket owns a lifetime error listener and aborts only its pending request on error/close; completed work preserves the existing response/security semantics. Skip writes to destroyed peers and close the connection if the bounded fallback response itself cannot be serialized. Do not add a process-wide exception handler, ignore SDK errors, enlarge shutdown timeouts or remove descriptors manually.
-
-The actual native failure trace identifies session-socket hello write EPIPE before any control close; owning source fixes that path. Node12pass/one existing Linux-only skip and the separate48-peer owner check pass. Fresh stock Office check/normal stop and the complete existing native/Chromium browser workflow now pass with source/refusal/retention/restoration assertions and descriptor cleanup intact. Reuse the unchanged expanded business/examples/isolated-rerun scope. Bound the two positive fixture check/admit paths to four attempts, allowing only supersession or REVISION_CONFLICT before execution with unchanged producer count; assert exact authored bytes, runtime artifact provenance and one actual execution. Preserve intentional revision denials and all retention/redaction checks. Final26/26 CLI/example/rerun bodies, root noEmit and owning clean emission pass; boundaries13/899/1274/zero retain their affected runtime scope. Initial long Darwin fixture paths and incremental-only stale-output admission were corrected through short test roots and the existing clean owning build, not runtime/gate relaxation. No OfficeG2/T11/G3 or complete checkpoint advances.
-
 Coordinator manually reviews69d1cb09 CLEAR and integrates it at LOCAL10e36d3d with its114checks reused. The followup dependent root noEmit passes after targeted State declaration refresh; the initial15diagnostics identified stale dist missing already released child-call exports, with no State source correction. Its refreshed clean emission passes. Coordinator subsequently manually reviews the exact1c2341af followup CLEAR and integrates it at LOCALee24f435, reusing its unchanged118 and dependent root results. Original consumer adoption remains unfinished.
 
 
@@ -5564,12 +5556,76 @@ query/alias/predicate/builtin/overload facts refuse. Affected154/154 and strict
 all-target lint/format pass; actual membership async predicates and native
 query/policy/source/result admission remain unfinished.
 
+## 2026-10-10 — contain local control peer failures (unfinished qualification)
+
+Treat an asynchronously failed handshake/response write as the loss of that control connection, not loss of the daemon. Its socket owns a lifetime error listener and aborts only its pending request on error/close; completed work preserves the existing response/security semantics. Skip writes to destroyed peers and close the connection if the bounded fallback response itself cannot be serialized. Do not add a process-wide exception handler, ignore SDK errors, enlarge shutdown timeouts or remove descriptors manually.
+
+The actual native failure trace identifies session-socket hello write EPIPE before any control close; owning source fixes that path. Node12pass/one existing Linux-only skip and the separate48-peer owner check pass. Fresh stock Office check/normal stop and the complete existing native/Chromium browser workflow now pass with source/refusal/retention/restoration assertions and descriptor cleanup intact. Reuse the unchanged expanded business/examples/isolated-rerun scope. Bound the two positive fixture check/admit paths to four attempts, allowing only supersession or REVISION_CONFLICT before execution with unchanged producer count; assert exact authored bytes, runtime artifact provenance and one actual execution. Preserve intentional revision denials and all retention/redaction checks. Final26/26 CLI/example/rerun bodies, root noEmit and owning clean emission pass; boundaries13/899/1274/zero retain their affected runtime scope. Initial long Darwin fixture paths and incremental-only stale-output admission were corrected through short test roots and the existing clean owning build, not runtime/gate relaxation. No OfficeG2/T11/G3 or complete checkpoint advances.
+
+## 2026-10-10 — preserve bounded reference-array inputs (unfinished workflow)
+
+Retain original Scope.targets `todo.Task[] min=1 max=10` through the shared input envelope without inventing distinctness or a default width. Artifact and HTTP-derived inputs carry optional numeric array-length min/max. Canonical refs retain checked array, nullable and required carriers; other canonical array kinds keep their bounds through the existing marker channel. Validate own exact metadata before reading it: safe nonnegative ordered lengths require an actual array, markers have only own boolean required, and contradictory hints refuse. Accessor/inherited/lossy input metadata never establishes a checked carrier. Compiler owns the actual checked declaration and emitter; this unit does not infer authored facts.
+
+Generic State ordinary/prepared input admission checks present outer shape/length, preserves eligible omissions/defaults/updates and singular behavior, then emits ordered repeated PendingRefs with array param `name/index` and error path `/name/index`; singular params remain unchanged. Keep the existing State version domain and extra-ref behavior. Declared nullable containers remain nullable. MCP full/registry schema consumers retain minItems/maxItems/nullability; live/prepared handlers share existing closed element framing and refuse invalid arrays before downstream invocation. Capability alone owns current row admission, checkpoint/authority and array owner-stage adoption; Dev owns actual native private slot/lifetime bindings.
+
+Contracts, Interfaces and final State clean emissions pass. Interfaces maintained affected files pass50/50, zero skips, including production live/prepared MCP parity. Initial State affected files pass86/87 because an older descriptor assertion expected nullable to be omitted; the new carrier assertion corrects it while retaining null/no-ref/omission behavior. Final owned-admission37/37 passes; unchanged admission17/17 and typed metadata33/33 are reused. Finite review corrects hint getter intake and exact marker keys, with zero-call controls and clear correction review. These declaration-labelled component checks qualify the shared carrier only.
+
+The earlier Interfaces model-context unit83305a79 is manually CLEAR at reviewed LOCALa6b4d0b3. Incoming exact LOCALad4ec635 supplies disjoint State same-load model names plus read/query/projection source joins; coordinator must retain those three hunks with this array delta at the coherent intake boundary. Original compiler-emitted Scope/Workbench and actual State/native authority qualification remain unfinished. All precise publication/preparation/payload/security holds stay unchanged.
+
+### 2026-10-10 — await membership evidence at the actual dispatch guard (unfinished join)
+
+Use additive Work `attemptDispatchAsync` with the existing refusal/availability/guard/authority/claim ordering. Issue an opaque private execution during actual guard evaluation; freeze its lexical inputs, current snapshot, intent and checkpoint. Live observers enroll bounded evidence comparisons; close the execution before awaiting them, then consider skip, current authority and claim. A changed positive or negative observation refuses before a terminal skip or provider claim; source expressions do not execute again. Retain the synchronous kernel and its current callers.
+
+Work clean emission and directly affected async/fence19/19 pass223.14ms. This qualifies the Work component only. State must consume the same live handle with genuine current Team/Identity reader and Compiler v1 sites, and Dev must transport original frozen lexical values and bind real native evaluations/current dispatch admission. Current source gates and precise holds remain; the separate active admitted REQUIRE observer cannot authorize a later SEND.
+
+The async guard requires an actual Bool: unknown values refuse loudly before retained evidence, authority or claim; they cannot certify a skipped business guard. Changed clean Work emission and20/20 async/fence checks pass. This correction remains unfinished for the defining State/Dev native join.
+
+## 2026-10-10 — define private membership decision source and lifetime bindings (proposed activation)
+
+Use the exact checked Bool guard/statement and owning source hash/module, stage
+(leading require, body require or post-close send dispatch), authored branch
+position and complete selected builtin/derive argument-slot/default invocation
+chain. The existing Task39 README defines the minimal contract. Membership binds
+selected active_member slot0 evaluated user and slot1 evaluated current verified
+owner Team through a privately issued actual stage; imported helper/query/lexical
+values retain source origin and need not be admitted parameters. Preserve source
+order, lazy evaluation and once-only captures. Return the actual Identity Bool,
+enrolling positive and negative observations; missing source, wrong lifetime/team
+or reader failure refuses rather than substituting false/role/cache evidence.
+Require can use active scenarioReceiptMemberships; SEND dispatch needs a separately
+issued genuine current reader after business closure, retaining frozen lexical
+inputs. Compiler owns checked source/IR/emitter; State owns private reader/current
+membership guard; Dev owns real stage adapter. Independently safe checked facts
+can ship first, with execution activation and StateRead derive/when admission
+withheld. This is a proposed activation contract, not a purity reclassification or
+native/source/reference acceptance.
+
+
+## 2026-10-10 — qualify bounded decision correspondence without activation (unfinished)
+
+Retain optional exact checked site/selected-call/default/chain facts and join them
+to immutable original inventory plus fresh checked semantic IR. Match actual
+statement/control/operand topology and reached derive/default bodies; source
+anchors/types alone cannot certify altered values or duplicate occurrences.
+Bound traversal and decline unsupported special shapes. Five owning cases and
+34 final affected cases pass; unchanged121/7 reused, strict all-target lint/format0.
+This implements source correspondence at its declared finite scope. Serial
+transport/private issuance/StateRead derive/when admission and native policy/query
+joins remain proposed or owner-dependent.
+
+Use exact source-array layer identity for inherited parameter cardinality;
+scalar-field[] element bounds do not become outer lengths. Preserve original
+min1/max10 and narrowingmin2/max5 in actual operation and generated input schemas,
+with field-only ! and distinctness excluded. Actual CLI3/3 plus strict lint/format
+pass. Direct parameter modifiers are parser-refused E1200; do not implement an
+inferred legal profile. Shared envelopes/intake belong to Packages; native current
+ref-array ownership remains State/Dev.
+
 ## 2026-10-10 — consume exact local query and nominal prerequisites (unfinished consumer)
 
 Intake coordinator LOCALad4ec635 after coherent Dev e8265511; preserve both decision histories and exact same-load Interfaces/State schema contexts rather than copying Task/Fact schemas. State-issued full-domain query execution and opaque candidate/result handles remain required even for empty results; Compiler checked projection/source facts do not manufacture native authority. Reuse owning finite results at their recorded source scopes. Import only the exact released local draftd7 object and fast-forward this worker's clean checkout. Reconcile the existing accumulated registry without advancing its complete checkpoint.
 
 Keep active admitted require/query lifetime separate from post-business-call SEND dispatch. The existing native receipt frame privately identifies its actual root/child call/store; the current dispatch evaluator is synchronous and has no private site-local membership observer. Defining State/Work and Compiler must release the actual won-claim/current-reader, checked lazy-site and frozen lexical carrier before Dev binds that observer. Provider payload arguments, public context memberships, an earlier Bool and expired frames cannot substitute. Packages owns array/nullability/length wire admission; State owns current per-element reference admission and outer checkpoint; Dev preserves ordered repeated native slots with no deduplication. These are genuine original-workflow prerequisites, not Office/T11/G2/G3 acceptance or a lift of precise human holds.
-
 
 ### 2026-10-10 — expose completed qualification through explicit construct help (unfinished whole profile)
 

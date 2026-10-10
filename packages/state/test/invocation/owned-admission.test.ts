@@ -908,7 +908,9 @@ describe('checked nullable singular-ref admission', () => {
     assert.ok(Object.isFrozen(def.inputNullableRefs));
     assert.ok(Object.isFrozen(def.preparedInputs?.rules[0]?.ref));
     assert.equal(def.preparedInputs?.profile, 'state-generated/v1');
-    assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'nullable'), false);
+    const input = def.descriptor.inputs[0]!;
+    assert.ok(input.kind === 'ref');
+    assert.equal(input.nullable, true);
   });
   it('keeps non-null reference/version checks and aggregate error order', () => {
     const def = artifactDef({ nullable: true });
@@ -920,8 +922,8 @@ describe('checked nullable singular-ref admission', () => {
       assert.equal(fields[1]?.path, '/expense');
     }
   });
-  it('does not infer nullability from optional, false/non-true, inherited, or array metadata', () => {
-    for (const extra of [{}, { nullable: false }, { nullable: 'true' }, { nullable: true, array: { required: false } }]) {
+  it('does not infer nullability from optional, false or array metadata and rejects malformed claims', () => {
+    for (const extra of [{}, { nullable: false }, { array: { required: false } }]) {
       assert.throws(() => parity(artifactDef(extra), { expense: null }), StateError);
     }
     const input = Object.assign(Object.create({ nullable: true }) as Record<string, unknown>, {
@@ -929,9 +931,8 @@ describe('checked nullable singular-ref admission', () => {
     });
     const slice = { artifact_version: 1, models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
       operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [input] } }] };
-    const def = loadArtifactDescriptors(slice as Parameters<typeof loadArtifactDescriptors>[0], { by: 'members' }).registry.get(OP);
-    assert.ok(def !== undefined && isGeneratedOperationDef(def));
-    assert.throws(() => parity(def, { expense: null }), StateError);
+    assert.throws(() => artifactDef({ nullable: 'true' }), IncompatibleArtifactError);
+    assert.throws(() => loadArtifactDescriptors(slice as Parameters<typeof loadArtifactDescriptors>[0], { by: 'members' }), IncompatibleArtifactError);
   });
   it('preserves own proof for special input names without prototype array markers', () => {
     for (const name of ['constructor', 'toString', '__proto__']) {
@@ -961,4 +962,177 @@ describe('checked nullable singular-ref admission', () => {
     assert.ok(legacy !== undefined && isGeneratedOperationDef(legacy));
     assert.throws(() => parity(legacy, { expense: null }), StateError);
   });
+});
+
+// Source-current shared carrier controls; these exercise wire shape, not row authority.
+describe('checked operation array carriers and outer bounds', () => {
+  function direct(input: Record<string, unknown>, hints?: Record<string, { required: boolean }>, kind = 'scenario') {
+    const set = {
+      contractVersion: 1, models: [{ name: MODEL, fields: {}, deleteMode: 'archive' }],
+      operations: [{ name: OP, kind, inputs: [...(kind === 'update' ? [{ name: 'record', kind: 'ref', model: MODEL, versioned: true, required: false }] : []), input] }],
+    };
+    const loaded = loadExecutionDescriptorSet(set as unknown as ExecutionDescriptorSet,
+      { by: 'members', ...(hints === undefined ? {} : { inputArrays: { [OP]: hints } }) });
+    const def = loaded.registry.get(OP);
+    assert.ok(def !== undefined && isGeneratedOperationDef(def));
+    return def;
+  }
+  function artifact(extra: Record<string, unknown>, kind = 'scenario') {
+    const slice = { artifact_version: 1,
+      models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
+      operations: [{ name: OP, kind, inputs: { fields: [{ name: 'records',
+        field: { kind: 'ref', model: MODEL, requireVersion: true }, required: false, ...extra }] } }],
+    };
+    const loaded = loadArtifactDescriptors(slice as unknown as ArtifactDescriptorSlice, { by: 'members' });
+    const def = loaded.registry.get(OP);
+    assert.ok(def !== undefined && isGeneratedOperationDef(def));
+    return def;
+  }
+  const ref = { name: 'records', kind: 'ref', model: MODEL, versioned: true, required: false };
+  function parity(def: GeneratedOperationDef, inputs: ClosedInputs) {
+    const plan = prepareOperationInputs(def);
+    try {
+      const result = validateCallInputs(def, inputs);
+      assert.deepEqual(validatePreparedInputs(plan, inputs), result);
+      return result;
+    } catch (error) {
+      assert.ok(error instanceof StateError);
+      assert.deepEqual(captureFields(() => validatePreparedInputs(plan, inputs)), error.fields);
+      throw error;
+    }
+  }
+  it('copies ref carriers through both loaders and retains ordered repeated wire slots', () => {
+    const extra = { array: { required: false }, nullable: true, min: 0, max: 3 };
+    for (const def of [direct({ ...ref, ...extra }), artifact(extra)]) {
+      const input = def.descriptor.inputs[0]!;
+      assert.ok(input.kind === 'ref');
+      assert.deepEqual(input.array, { required: false });
+      assert.equal(input.nullable, true);
+      assert.equal(input.min, 0);
+      assert.equal(input.max, 3);
+      assert.ok(Object.isFrozen(input.array));
+      assert.deepEqual(parity(def, {}), { refs: [], normalized: {} });
+      assert.deepEqual(parity(def, { records: null }), { refs: [], normalized: { records: null } });
+      assert.deepEqual(parity(def, { records: [] }), { refs: [], normalized: { records: [] } });
+      const rows = [{ id: 'b', version: '2', extra: 'preserved' }, { id: 'a', version: '1' }, { id: 'b', version: '2' }];
+      assert.deepEqual(parity(def, { records: rows }), { normalized: { records: rows }, refs: [
+        { param: 'records/0', model: MODEL, id: 'b', expectedVersion: 2 },
+        { param: 'records/1', model: MODEL, id: 'a', expectedVersion: 1 },
+        { param: 'records/2', model: MODEL, id: 'b', expectedVersion: 2 },
+      ] });
+      assert.deepEqual(rows[0], { id: 'b', version: '2', extra: 'preserved' });
+    }
+  });
+  it('joins canonical markers without accepting contradictory hints or nonarray bounds', () => {
+    assert.deepEqual(direct({ ...ref, array: { required: false }, min: 0 }, { records: { required: false } }).inputArrays.records, { required: false });
+    assert.throws(() => direct({ ...ref, array: { required: false } }, { records: { required: true } }), IncompatibleArtifactError);
+    assert.throws(() => direct({ ...ref, min: 0 }), IncompatibleArtifactError);
+    assert.throws(() => artifact({ min: 0 }), IncompatibleArtifactError);
+    const scalar = direct({ name: 'values', kind: 'integer', required: false, min: 1, max: 2 }, { values: { required: false } });
+    assert.equal(scalar.descriptor.inputs[0]!.min, 1);
+    assert.deepEqual(captureFields(() => parity(scalar, {})).map(field => field.code), ['min_length']);
+    assert.deepEqual(parity(scalar, { values: [1] }).normalized, { values: [1] });
+  });
+  it('refuses malformed, lossy and inherited bounds and ref carriers without executing accessors', () => {
+    for (const bound of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '1', 1n, null, undefined]) {
+      for (const key of ['min', 'max']) {
+        assert.throws(() => direct({ ...ref, array: { required: false }, [key]: bound }), IncompatibleArtifactError);
+        assert.throws(() => artifact({ array: { required: false }, [key]: bound }), IncompatibleArtifactError);
+      }
+    }
+    assert.throws(() => direct({ ...ref, array: { required: false }, min: 2, max: 1 }), IncompatibleArtifactError);
+    assert.throws(() => artifact({ array: { required: false }, min: 2, max: 1 }), IncompatibleArtifactError);
+    for (const extra of [{ array: undefined }, { array: { required: 'false' } }, { nullable: undefined }, { nullable: 'true' }]) {
+      assert.throws(() => direct({ ...ref, ...extra }), IncompatibleArtifactError);
+      assert.throws(() => artifact(extra), IncompatibleArtifactError);
+    }
+    for (const marker of [
+      Object.assign(Object.create({ inherited: true }), { required: false }),
+      { required: false, extra: true },
+      { required: false, [Symbol('extra')]: true },
+    ]) {
+      assert.throws(() => direct({ ...ref, array: marker }), IncompatibleArtifactError);
+      assert.throws(() => artifact({ array: marker }), IncompatibleArtifactError);
+    }
+    const plainMarker = Object.assign(Object.create(null), { required: false });
+    assert.deepEqual(direct({ ...ref, array: plainMarker }).inputArrays.records, { required: false });
+    assert.deepEqual(artifact({ array: plainMarker }).inputArrays.records, { required: false });
+    assert.throws(() => direct(Object.assign(Object.create({ min: 1 }), { ...ref, array: { required: false } })), IncompatibleArtifactError);
+    let reads = 0;
+    for (const key of ['min', 'max', 'array', 'nullable']) {
+      const input = Object.defineProperty({ ...ref }, key, { get: () => { reads += 1; return 1; } });
+      assert.throws(() => direct(input), IncompatibleArtifactError);
+      const extra = Object.defineProperty({}, key, { get: () => { reads += 1; return 1; }, enumerable: true });
+      // Build an actual accessor-bearing artifact input rather than spreading the extra.
+      const slice = { artifact_version: 1, models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
+        operations: [{ name: OP, kind: 'scenario', inputs: { fields: [Object.defineProperty({ name: 'records',
+          field: { kind: 'ref', model: MODEL, requireVersion: true }, required: false }, key,
+          Object.getOwnPropertyDescriptor(extra, key)!)] } }] };
+      assert.throws(() => loadArtifactDescriptors(slice as unknown as ArtifactDescriptorSlice, { by: 'members' }), IncompatibleArtifactError);
+    }
+    assert.equal(reads, 0);
+  });
+  it('retains immutable copied bounds and exact error order in both loaded validators', () => {
+    const raw = { ...ref, array: { required: false }, min: 1, max: 2 };
+    const def = direct(raw);
+    raw.min = 0; raw.max = 100; raw.array.required = true;
+    const rule = def.preparedInputs!.rules[0]!;
+    assert.equal(rule.min, 1); assert.equal(rule.max, 2);
+    assert.ok(Object.isFrozen(rule));
+    assert.deepEqual(captureFields(() => parity(def, { unknown: 1, records: [] })).map(field => [field.path, field.code]),
+      [['/unknown', 'unknown_input'], ['/records', 'min_length']]);
+    assert.deepEqual(captureFields(() => parity(def, {})).map(field => field.code), ['min_length']);
+    assert.deepEqual(captureFields(() => parity(def, { records: [{ id: 'a', version: '1' }, { id: 'b', version: '2' }, { id: 'c', version: '3' }] })).map(field => field.code), ['max_length']);
+    assert.deepEqual(captureFields(() => parity(def, { records: 'no' })).map(field => field.code), ['invalid_array']);
+    assert.deepEqual(captureFields(() => parity(def, { records: [null, { id: 'a' }] })).map(field => [field.path, field.code]),
+      [['/records/0', 'invalid_ref'], ['/records/1', 'version_required']]);
+    for (const version of ['0', '01', '-1', '1.0', '1000000000000000', 1]) {
+      assert.deepEqual(captureFields(() => parity(def, { records: [{ id: 'a', version }] })).map(field => [field.path, field.code]), [['/records/0', 'invalid_version']]);
+    }
+    assert.deepEqual(parity(def, { records: [{ id: 'a', version: '999999999999999' }] }).refs[0]!.expectedVersion, 999999999999999);
+  });
+  it('preserves optional fills, defaults, required presence and update omissions', () => {
+    assert.deepEqual(parity(direct({ ...ref, array: { required: false }, min: 0 }), {}), { refs: [], normalized: { records: [] } });
+    for (const def of [direct({ ...ref, array: { required: false }, min: 1, default: { kind: 'literal', value: [] } }),
+      direct({ ...ref, array: { required: false }, min: 1 }, undefined, 'update')]) {
+      assert.deepEqual(parity(def, {}), { refs: [], normalized: {} });
+    }
+    const required = direct({ ...ref, required: true, array: { required: true }, min: 1 });
+    assert.deepEqual(captureFields(() => parity(required, {})).map(field => field.code), ['required']);
+    assert.deepEqual(captureFields(() => parity(direct({ ...ref, array: { required: false } }), { records: null })).map(field => field.code), ['invalid_ref']);
+    assert.throws(() => direct({ ...ref, computedDefault: true, array: { required: false } }), IncompatibleArtifactError);
+  });
+});
+
+it('rejects inherited or accessor engine array hint channels without evaluating them', () => {
+  const set: ExecutionDescriptorSet = { contractVersion: 1,
+    models: [{ name: MODEL, fields: {}, deleteMode: 'archive' }],
+    operations: [{ name: OP, kind: 'scenario', inputs: [
+      { name: 'records', kind: 'ref', model: MODEL, versioned: true, required: false },
+    ] }],
+  };
+  let reads = 0;
+  const getter = () => { reads += 1; return { required: false }; };
+  const marker = { required: false };
+  const valid = { [OP]: { records: marker } };
+  const options = [
+    Object.assign(Object.create({ inputArrays: valid }), { by: 'members' }),
+    Object.defineProperty({ by: 'members' }, 'inputArrays', { get: getter }),
+    { by: 'members', inputArrays: Object.create({ [OP]: { records: marker } }) },
+    { by: 'members', inputArrays: Object.defineProperty({}, OP, { get: getter, enumerable: true }) },
+    { by: 'members', inputArrays: { [OP]: Object.create({ records: marker }) } },
+    { by: 'members', inputArrays: { [OP]: Object.defineProperty({}, 'records', { get: getter, enumerable: true }) } },
+    { by: 'members', inputArrays: { [OP]: { records: Object.create({ required: false }) } } },
+    { by: 'members', inputArrays: { [OP]: { records: Object.defineProperty({}, 'required', { get: getter, enumerable: true }) } } },
+  ];
+  for (const opts of options) {
+    assert.throws(() => loadExecutionDescriptorSet(set, opts as Parameters<typeof loadExecutionDescriptorSet>[1]), IncompatibleArtifactError);
+  }
+  assert.equal(reads, 0);
+  const loaded = loadExecutionDescriptorSet(set, { by: 'members', inputArrays: valid });
+  const def = loaded.registry.get(OP);
+  assert.ok(def !== undefined && isGeneratedOperationDef(def));
+  marker.required = true;
+  assert.deepEqual(validateCallInputs(def, {}), { refs: [], normalized: { records: [] } });
+  assert.deepEqual(validatePreparedInputs(prepareOperationInputs(def), {}), { refs: [], normalized: { records: [] } });
 });
