@@ -14,6 +14,26 @@ function operationId() {
   const rand = randomBytes(10).toString('hex');
   return `${time.slice(0, 8)}-${time.slice(8, 12)}-7${rand.slice(0, 3)}-8${rand.slice(4, 7)}-${rand.slice(7, 19)}`;
 }
+async function dbSnapshot(db) {
+  const names=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()).results.map(row=>row.name).filter(name=>!name.startsWith('_cf_'));
+  const result={};
+  for(const name of names) {
+    if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))throw new Error('unexpected D1 table name');
+    const rows=(await db.prepare(`SELECT * FROM "${name}"`).all()).results;
+    result[name]={count:rows.length,sha256:sha(JSON.stringify(rows.map(row=>JSON.stringify(row)).sort())),
+      ...(name==='fence'?{revision:rows[0]?.revision}: {})};
+  }
+  return result;
+}
+export async function snapshotOfficeResources({identityDb,ownerDbs,ownerLabels}) {
+  if(!identityDb||ownerDbs.size!==2)throw new Error('actual serving D1 handles unavailable');
+  const result={};
+  for(const [label,db] of [['Identity',identityDb], ...[...ownerDbs].map(([owner,db])=>[ownerLabels.get(owner),db])]) {
+    if(!label)throw new Error('owner D1 label unavailable');
+    for(const [name,value] of Object.entries(await dbSnapshot(db)))result[`${label}:${name}`]=value;
+  }
+  return result;
+}
 /** Consume the unchanged Office workflow; supplied preview/resources remain caller-owned.
  * runExamples may return the actual runner result or actual session example.run result.
  */
@@ -33,25 +53,8 @@ let preview, identityDb, ownsPreview=false;
 const ownerDbs=new Map();
 const ownerLabels=new Map();
 let origin, bridgeCookie;
-async function dbSnapshot(db) {
-  const names=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all()).results.map(row=>row.name).filter(name=>!name.startsWith('_cf_'));
-  const result={};
-  for(const name of names) {
-    if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))throw new Error('unexpected D1 table name');
-    const rows=(await db.prepare(`SELECT * FROM "${name}"`).all()).results;
-    result[name]={count:rows.length,sha256:sha(JSON.stringify(rows.map(row=>JSON.stringify(row)).sort())),
-      ...(name==='fence'?{revision:rows[0]?.revision}: {})};
-  }
-  return result;
-}
 async function snapshot() {
-  if(!identityDb||ownerDbs.size!==2)throw new Error('actual serving D1 handles unavailable');
-  const result={};
-  for(const [label,db] of [['Identity',identityDb], ...[...ownerDbs].map(([owner,db])=>[ownerLabels.get(owner),db])]) {
-    if(!label)throw new Error('owner D1 label unavailable');
-    for(const [name,value] of Object.entries(await dbSnapshot(db)))result[`${label}:${name}`]=value;
-  }
-  return result;
+  return snapshotOfficeResources({identityDb,ownerDbs,ownerLabels});
 }
 function changes(before,after) {
   return [...new Set([...Object.keys(before),...Object.keys(after)])].sort().filter(name=>JSON.stringify(before[name])!==JSON.stringify(after[name]));
@@ -438,6 +441,9 @@ export async function runOfficeCohort() {
     const browserPath=join(installed,'implementation/can-dev-server/unfinished-cloud-handoff/office-browser.mjs');
     const {runOfficeBrowserProbe}=await import(pathToFileURL(browserPath).href);
     assert.equal(typeof runOfficeBrowserProbe,'function','actual existing browser consumer export');
+    const failurePath=join(installed,'implementation/can-dev-server/unfinished-cloud-handoff/dev-server-failures/probe.mjs');
+    const {runOfficeFailureProbe}=await import(pathToFileURL(failurePath).href);
+    assert.equal(typeof runOfficeFailureProbe,'function','actual existing failure/rerun consumer export');
     await rm(root,{recursive:true,force:true});
     await mkdir(root,{recursive:true,mode:0o700});
     for(const path of ['package.json','compiler/Cargo.toml','compiler/Cargo.lock',
@@ -536,6 +542,23 @@ export async function runOfficeCohort() {
     }});
     assert.equal(workflowCalls,1,'original browser consumer awaited joined business workflow');
     assert.equal(facts.browser.result??facts.browser.outcome,'passed','original browser workflow passed');
+    const httpRef=facts.browser.blank_failure.ref;
+    const httpFailure=await control('failure.lookup',['--ref',httpRef]);
+    const httpDetail=await control('failure.detail',['--ref',httpRef]);
+    facts.failures=await runOfficeFailureProbe({checkoutRoot:root,session,observeServingResources:async()=>{
+      const status=await control('status');
+      assert.equal(status.preview,'ready');assert.equal(status.stale,false);assert.equal(status.dirty,false);
+      assert.equal(status.revision,status.serving_revision);
+      const current=builds.get(status.serving_build);assert.ok(current,'actual current failure/rerun serving resources');
+      assert.equal(current.capture.sourceRevision,status.source_revision);
+      assert.equal(await captureIsCurrent(current.capture),true,'complete current failure/rerun capture');
+      return {revision:status.revision,sourceRevision:status.source_revision,build:status.serving_build,
+        tables:await snapshotOfficeResources(current)};
+    }});
+    assert.equal(facts.failures.outcome,'passed',facts.failures.failureCause?.message??'joined failure/rerun workflow failed');
+    assert.equal(facts.failures.servingResourceChecks.length,3,'failed run and both isolated reruns preserve serving resources');
+    assert.deepEqual(await control('failure.lookup',['--ref',httpRef]),httpFailure,'original HTTP failure retained through joined example revisions');
+    assert.deepEqual(await control('failure.detail',['--ref',httpRef]),httpDetail,'original HTTP detail retained through joined example revisions');
     assert.equal(sha(await readFile(sourcePath)),sourceSha,'Office source restored after complete consumer');
     facts.outcome='passed';
   } catch(error) {
