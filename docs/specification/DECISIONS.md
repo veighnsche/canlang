@@ -5738,3 +5738,11 @@ error. Owning decision7 and original flat6/order2/schedule2/disclosure18 pass;
 strict all-target lint/format0. This grants no runtime authority or StateRead
 admission. General reference-array loops need the defining ordered-domain and
 zero/conditional coverage contract, not fabricated static dependency evidence.
+
+### 2026-10-10 — hydrate original indexed native reference inputs (unfinished qualification)
+
+Use the actual loaded State descriptor and its admitted `parameter/index` slots to install native array elements. Preserve every authored slot, repeated cached native views, explicit null/empty containers and original admission metadata independently of current staged-row getters. Freeze the native containers once all original slots are bound; do not forward wire reference claims or add flattened indexed parameters to authored code. State remains the sole owner of length/version/current-row/authority admission, and its existing per-parameter private frame bindings identify each repeated slot.
+
+The actual component4/4 and captured native D1 consumer1/1 pass at their scopes. Genuine qualified scalar replay with ref-array inputs succeeds through the private native frame; original array-loop mutation replay correctly refuses its absent Compiler association with all effects unchanged. Fresh compiled stages preserve the three original slots, A+2/B+1, history and one commit; malformed/current-access refusals retain table and Identity assertions. Use storage's actual normalized baseline and omit only D1's prohibited private metadata table from snapshots. Literal array defaults/nullable omission are not claimed.
+
+Keep static child reference-array and frozen-invocation source calls gated until Compiler releases their real source/call producer. Direct root reference-array input emission is available; observed array computations and native model-array return retention still lack a complete capture producer. These are distinct from the existing field/view input consumer and cannot be qualified by a handbuilt component or narrow browser success. The original preclaim dispatch/checkpoint, native query facade and G2/G3 prerequisites remain open.
