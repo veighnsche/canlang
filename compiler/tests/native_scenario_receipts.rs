@@ -1151,3 +1151,119 @@ assert.deepEqual(await snapshot(),retainedBefore);assert.equal(retainedCommits,0
 assert.equal(commits,afterArchive.commits);assert.equal(await store.readRevision(),afterArchive.revision);
 assert.equal(probe.outboxAll().length,0);
 "#;
+
+#[test]
+fn native_reference_array_loop_preserves_ordered_stage_reads_and_empty_replay() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("../../tests/integration/can-dev-server/NativeRefArrays.can");
+    let generic = compile_source(scratch.path(), false, source);
+    let artifact = compile_source(scratch.path(), true, source);
+    let find = |name: &str| {
+        artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|op| op["name"] == name)
+            .unwrap()
+    };
+    let plan = &find("NativeRefArrays.step")["result"]["disclosure"];
+    let paths = plan["returns"]
+        .as_array()
+        .expect("actual finite sourceFor disclosure");
+    assert_eq!(paths.len(), 2);
+    assert_eq!(
+        paths
+            .iter()
+            .filter(|path| path["dependencies"].as_array().unwrap().is_empty())
+            .count(),
+        1
+    );
+    let nonempty = paths
+        .iter()
+        .find(|path| !path["dependencies"].as_array().unwrap().is_empty())
+        .unwrap();
+    assert_eq!(nonempty["dependencies"].as_array().unwrap().len(), 1);
+    assert_eq!(nonempty["dependencies"][0]["model"], "NativeRefArrays.Item");
+    assert_eq!(nonempty["dependencies"][0]["field"], "value");
+    for op in generic["operations"].as_array().unwrap() {
+        assert!(op["result"].get("disclosure").is_none());
+    }
+    let runner = scratch.path().join("reference-array.mjs");
+    std::fs::write(&runner, REF_ARRAY_RUNNER).unwrap();
+    let output = Command::new("node")
+        .arg(&runner)
+        .arg(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+const REF_ARRAY_RUNNER: &str = r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {pathToFileURL,fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),root=process.argv[2];
+const require=createRequire(resolve(root,'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {readScenarioReceiptAssociation}=await load('@canlang/state/invocation');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const artifact=JSON.parse(readFileSync(resolve(base,'native.json'),'utf8'));
+const asm=await assembleModules({artifact,sourcePath:resolve(base,'native-receipts.can')},{workDir:resolve(base,'array-modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const entry=await import(asm.entryUrl);assert.deepEqual(entry.canApp().operations,artifact.operations);
+const {store:backing,probe}=createTestMemoryStorage();
+let commits=0;const store={...backing,commit:async batch=>{commits++;return backing.commit(batch);}};
+const memberships=createMemoryIdentityStore(),member=await seedMember(memberships,{isOwner:false});
+const identity=makeIdentity({membership:member.membership,email:member.user.email});
+const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+let sequence=0;const request=(name,inputs)=>({operation:'NativeRefArrays.'+name,operation_id:uuidv7(FIXED_NOW,++sequence),inputs});
+const receiptFor=req=>store.readReceipt({app:'NativeRefArrays',owner:identity.team.team_id,principal:identity.actor.user_id,operation:req.operation,operationId:req.operation_id});
+const committed=async req=>{const outcome=await invoker.invokeMutation(req,identity);assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');return outcome.result;};
+const model='NativeRefArrays.Item';
+const a=(await committed(request('Item.create',{value:'0'}))).records[0],b=(await committed(request('Item.create',{value:'0'}))).records[0];
+const ref=row=>({id:row.id,version:String(row.version)});
+const inputs={items:[ref(a),ref(b),ref(a)]},originalInputs=structuredClone(inputs);
+const req=request('step',inputs),beforeCommits=commits,result=await committed(req),receipt=await receiptFor(req);
+assert.deepEqual(inputs,originalInputs,'original admitted reference slots remain immutable');
+assert.equal(commits,beforeCommits+1,'one root commit for all repeated writes');
+const association=readScenarioReceiptAssociation(receipt);assert.ok(association);
+const path=association.plan.returns.find(path=>path.id===association.returnId);assert.equal(path.dependencies.length,1);
+const dependency=path.dependencies[0];assert.equal(dependency.model,model);assert.equal(dependency.field,'value');
+assert.deepEqual(association.observations.map(value=>value.dependencyId),[dependency.id,dependency.id,dependency.id]);
+assert.deepEqual(association.observations.map(value=>value.row.id),[a.id,b.id,a.id]);
+assert.deepEqual(association.observations.map(value=>value.row.data.value),['0','0','1']);
+assert.deepEqual(association.observations.map(value=>value.row.version),[1,1,2]);
+const finalA=await store.load(model,a.id),finalB=await store.load(model,b.id);
+assert.equal(finalA.data.value,'2');assert.equal(finalB.data.value,'1');assert.equal(finalA.version,2);assert.equal(finalB.version,2);
+assert.equal(association.changed.length,2);
+for(const row of [finalA,finalB]){const changed=association.changed.find(value=>value.row.id===row.id);assert.equal(changed.model,model);assert.deepEqual(changed.row,row);assert.deepEqual(changed.fieldTypes,{value:'int'});assert.deepEqual(changed.secretFields,[]);assert.deepEqual(changed.withheldFields,[]);}
+assert.equal(result.records.length,2);
+const stable=async request=>({rows:[await store.load(model,a.id),await store.load(model,b.id)],history:[await store.historyFor(model,a.id),await store.historyFor(model,b.id)],receipt:await receiptFor(request),revision:await store.readRevision(),commits,outbox:probe.outboxAll(),schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
+const replay=async(request,result)=>{const before=await stable(request);const outcome=await invoker.invokeMutation(request,identity);assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'replayed');assert.deepEqual(outcome.result.result,result.result);assert.deepEqual(outcome.result.records,result.records);assert.deepEqual(await stable(request),before);};
+await replay(req,result);
+for(const inputs of [{items:[]},{}]){
+ const empty=request('step',inputs),before=await stable(empty),result=await committed(empty),association=readScenarioReceiptAssociation(await receiptFor(empty));assert.ok(association);
+ assert.deepEqual(association.observations,[]);assert.deepEqual(association.changed,[]);assert.deepEqual(result.records,[]);
+ const after=await stable(empty);assert.deepEqual(after.rows,before.rows);assert.deepEqual(after.history,before.history);assert.deepEqual(after.outbox,before.outbox);assert.deepEqual(after.schedules,before.schedules);
+ await replay(empty,result);
+}
+const unused=request('captured',{items:[ref(finalA)]}),unusedResult=await committed(unused);assert.equal(unusedResult.result,'7');assert.deepEqual(readScenarioReceiptAssociation(await receiptFor(unused)).observations,[]);await replay(unused,unusedResult);
+for(const inputs of [{items:[ref(finalA),ref(finalB),ref(finalA),ref(finalB)]},{items:[ref(a)]},{items:[{id:a.id,version:'wrong'}]}]){
+ const bad=request('step',inputs),before=await stable(bad),outcome=await invoker.invokeMutation(bad,identity);assert.ok('error' in outcome,JSON.stringify(outcome));
+ const after=await stable(bad);for(const key of ['rows','history','outbox','schedules'])assert.deepEqual(after[key],before[key],key+' unchanged after refusal');
+ const rejected=after.receipt;if(rejected)assert.equal(readScenarioReceiptAssociation(rejected),null);
+}
+const otherIdentity=makeIdentity({userId:'nonmember',team:member.team,membership:null});
+const foreign=request('step',{items:[ref(finalA)]}),beforeForeign=await stable(foreign),denied=await invoker.invokeMutation(foreign,otherIdentity);assert.ok('error' in denied,JSON.stringify(denied));
+for(const key of ['rows','history','outbox','schedules'])assert.deepEqual((await stable(foreign))[key],beforeForeign[key]);
+"#;

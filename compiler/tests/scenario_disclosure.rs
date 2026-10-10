@@ -9,6 +9,10 @@ use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use std::{collections::HashSet, path::Path};
 
 fn checked(sources: &[(&str, &str)]) -> (SourceDb, CheckedProgram) {
+    let (db, program, _) = checked_with_ir(sources);
+    (db, program)
+}
+fn checked_with_ir(sources: &[(&str, &str)]) -> (SourceDb, CheckedProgram, ir::IrProgram) {
     let mut db = SourceDb::new();
     let files: Vec<_> = sources
         .iter()
@@ -34,7 +38,7 @@ fn checked(sources: &[(&str, &str)]) -> (SourceDb, CheckedProgram) {
             .expect("IR retains checked completeness/decline");
         assert_eq!(format!("{fact:?}"), format!("{retained:?}"));
     }
-    (db, program)
+    (db, program, lowered)
 }
 fn fact<'a>(program: &'a CheckedProgram, name: &str) -> &'a ScenarioDisclosure {
     let symbol = program
@@ -926,6 +930,138 @@ fn static_call_preparation_declines_bound_read_crud_and_reference_profiles() {
                 ScenarioDisclosure::Declined(_)
             ),
             "{source}"
+        );
+    }
+}
+
+#[test]
+fn supplied_reference_array_loop_retains_empty_nonempty_and_exact_ir_correspondence() {
+    use canlang_compiler::codegen::{
+        ir::{IrExpr, IrItemKind, IrStmt},
+        js,
+    };
+    let source = include_str!("../../tests/integration/can-dev-server/NativeRefArrays.can");
+    let (db, program, lowered) = checked_with_ir(&[("NativeRefArrays.can", source)]);
+    let closure = complete(&program, "NativeRefArrays.step");
+    origins(&db, closure);
+    assert_eq!(closure.returns.len(), 2);
+    let empty = closure
+        .returns
+        .iter()
+        .find(|path| path.dependencies.is_empty())
+        .unwrap();
+    let nonempty = closure
+        .returns
+        .iter()
+        .find(|path| !path.dependencies.is_empty())
+        .unwrap();
+    assert_eq!(empty.decisions.len(), 1);
+    assert_eq!(nonempty.decisions.len(), 1);
+    assert_eq!(empty.decisions[0].choice, DisclosureChoice::Else);
+    assert_eq!(nonempty.decisions[0].choice, DisclosureChoice::Then);
+    assert_eq!(empty.decisions[0].node, nonempty.decisions[0].node);
+    assert_eq!(nonempty.dependencies.len(), 1);
+    assert_eq!(nonempty.dependencies[0].model_name, "NativeRefArrays.Item");
+    assert_eq!(nonempty.dependencies[0].field_name, "value");
+    assert_eq!(nonempty.dependencies[0].role, DependencyRole::Data);
+    assert!(empty.intrinsics.is_empty());
+    assert!(nonempty.intrinsics.is_empty());
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "NativeRefArrays.step")
+        .unwrap()
+        .id;
+    let emit = |ir: &ir::IrProgram| js::emit_program_with_native_source_receipts(ir, true, &db);
+    assert!(
+        emit(&lowered)
+            .operations
+            .iter()
+            .find(|operation| operation.name == "NativeRefArrays.step")
+            .unwrap()
+            .disclosure
+            .is_some()
+    );
+    for corruption in 0..9 {
+        let mut changed = lowered.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+            panic!("scenario")
+        };
+        let IrStmt::For {
+            item,
+            domain,
+            limit,
+            body,
+            ..
+        } = &mut effects[0]
+        else {
+            panic!("actual supplied array loop")
+        };
+        match corruption {
+            0 => limit.as_mut().unwrap().expr = IrExpr::Int(4),
+            1 => *item = "foreign".into(),
+            2 => domain.span.start += 1,
+            3 => {
+                let IrStmt::Set { changes, .. } = &mut body[0] else {
+                    panic!("actual Set")
+                };
+                let IrExpr::Object(entries) = &mut changes.expr else {
+                    panic!("actual changes object")
+                };
+                entries[0].0 = "foreign".into();
+            }
+            4 => domain.expr = IrExpr::Name("foreign".into()),
+            5 => body.push(body[0].clone()),
+            6 => body.clear(),
+            7 => {
+                let IrStmt::Set { record, .. } = &mut body[0] else {
+                    panic!("actual Set")
+                };
+                record.expr = IrExpr::Name("foreign".into());
+            }
+            _ => {
+                let IrStmt::Set { changes, .. } = &mut body[0] else {
+                    panic!("actual Set")
+                };
+                let IrExpr::Object(entries) = &mut changes.expr else {
+                    panic!("actual changes object")
+                };
+                let IrExpr::Binary { left, .. } = &mut entries[0].1.expr else {
+                    panic!("actual arithmetic")
+                };
+                let IrExpr::Member { base, .. } = &mut left.expr else {
+                    panic!("actual stored read")
+                };
+                base.expr = IrExpr::Name("foreign".into());
+            }
+        }
+        assert!(
+            emit(&changed)
+                .operations
+                .iter()
+                .find(|operation| operation.name == "NativeRefArrays.step")
+                .unwrap()
+                .disclosure
+                .is_none(),
+            "source/IR skew {corruption} cannot publish a native recipe"
+        );
+    }
+    for body in [
+        "for item in Item limit=3\n    set item {value=item.value+1}",
+        "for item in items limit=3\n    if item.value>0\n     set item {value=item.value+1}",
+        "for item in items limit=3\n    for other in items limit=3\n     set other {value=other.value+1}",
+    ] {
+        let refused = source.replace(
+            "for item in items limit=3\n    set item {value=item.value+1}",
+            body,
+        );
+        let (_, program) = checked(&[("NativeRefArrays.can", &refused)]);
+        assert!(
+            matches!(
+                fact(&program, "NativeRefArrays.step"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "general loop profile remains refused: {body}"
         );
     }
 }
