@@ -166,6 +166,9 @@
         "miniflare": "4.20260730.0",
         "vitest": "^3.2.4",
       },
+      "optionalDependencies": {
+        "@playwright/test": "1.63.0",
+      },
     },
     "packages/ui": {
       "name": "@canlang/ui",

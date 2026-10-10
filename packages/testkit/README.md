@@ -26,3 +26,27 @@ one lane-04-authored scenario table played back per call inside the row
 scope; the playback interpreter lands with the B2 slice. See the lane-07
 status file for the decision record (scenario-data over fixture-server,
 JEV evidence, escape hatch).
+
+## Optional Node Chromium producer
+
+An invoking application can install Testkit and resolve
+`@canlang/testkit/browser/chromium` from its own package boundary. This
+Node-only leaf declares optional `@playwright/test` 1.63.0 and is absent from
+the root entry. It neither downloads browsers nor imports into the portable
+Worker runtime.
+
+`chromiumAvailability()` returns `available: true` with the actual
+`identity.driverEntryPath` and `identity.executablePath`, or `available: false`
+with `driver-not-installed` or `executable-not-installed`. Broken installed
+exports, entry/API/loading failures and executable permission errors throw.
+Availability supplies capture inputs; the application owns producer/source
+currency checks and actual UI qualification.
+
+`acquireChromium({ signal?, timeoutMs? })` returns the real Playwright
+`browser`, the same identity shape and an idempotent awaited `close()`.
+Always await `close()` in `finally`, including cancellation. The default
+launch bound is 30 seconds; the supplied bound must be positive and finite.
+An aborted signal closes an acquired browser. Cancellation during launch
+waits for the bounded Playwright launch to settle and closes before rejecting;
+the locked driver has no launch signal port. Only its declared Chromium
+executable is used, with no system-browser fallback.
