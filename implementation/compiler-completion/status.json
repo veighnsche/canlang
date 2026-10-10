@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T03:36:04.330661+00:00",
+  "updated_utc": "2026-10-10T03:38:49.940041+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -616,6 +616,12 @@
           "validation": "Owning5/5; final affected34/34; prior unchanged codegen121/invocation7 reused. Strict all-target Clippy/fmt0. Exact immutable inventory + fresh checked semantic IR comparison refuses values/names/operators/duplicate proof/control/default/callee/source skew.",
           "limits": "Unsupported special expression and create/delete/transition/call/schedule/cancel/emit statement families decline optional recipe. No serial transport/runtime private binding/purity admission.",
           "next": "Compiler real lazy SEND/frozen lexical producer, State active require/current-membership observer, Dev private stage captures; distinct genuine post-close dispatch required. Current source/native activation withheld."
+        },
+        "async_send_guard": {
+          "state": "implemented_affected_tested_dispatch_join_unfinished",
+          "behavior": "Refuse async when before generating awaited expressions inside synchronous callbacks; E6008/no modules. Ordinary synchronous callbacks and source admission unchanged.",
+          "validation": "Actual binding/CLI target3/3 including new no-publication control and unchanged executed synchronous false/binding cases; codegen121/121. Strict/whole final due.",
+          "next": "Compiler source-bound real lazy guard/frozen lexical captures; State/Dev genuine separate post-close dispatch observer/reader. Task22 target/deployment lookup hold unchanged."
         }
       },
       "collection_call": {

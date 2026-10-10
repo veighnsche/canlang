@@ -2415,3 +2415,15 @@ trim, uniqueness/distinctness are not projected. Packages owns released additive
 shared envelope/intake/length validation; State/Dev own real per-element current
 reference/checkpoint/private-view correspondence. Strict all-target lint/format0;
 whole/native array workflow remains unqualified.
+
+
+**Async dispatch guard refusal (unfinished dispatch join), 2026-10-10.**
+The generic emitter previously put awaited derived calls in synchronous `when`
+callbacks, creating invalid JavaScript. Refuse that async profile E6008 before
+publication until the owning live dispatch observer/frozen lexical transport is
+joined. Actual CLI no-module refusal and existing executed synchronous false/
+ordinary binding behavior pass: binding target3/3 plus codegen121/121. Pure
+helper source admission is unchanged; no SEND is hoisted, Promise interpreted as
+Bool, or stale root context reused. Compiler owns the genuine lazy guard/capture
+producer; State/Dev own its separately issued dispatch lifetime. Precise Task22
+target/deployment lookup hold stays unchanged. Final strict/whole checks follow.

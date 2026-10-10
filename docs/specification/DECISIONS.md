@@ -5543,3 +5543,14 @@ with field-only ! and distinctness excluded. Actual CLI3/3 plus strict lint/form
 pass. Direct parameter modifiers are parser-refused E1200; do not implement an
 inferred legal profile. Shared envelopes/intake belong to Packages; native current
 ref-array ownership remains State/Dev.
+
+
+## 2026-10-10 — refuse unjoined async dispatch guards before publication (unfinished)
+
+Awaited derived expressions cannot appear in synchronous `when:()=>...` callbacks.
+Refuse E6008/no modules until the real live dispatch observer and frozen lexical
+transport exist; preserve admitted source and ordinary synchronous callback
+behavior. Actual CLI/refusal/executed binding3/3 and codegen121 pass. Do not hoist
+membership reads or accept Promises as booleans. Compiler's eventual lazy capture
+producer and State/Dev dispatch lifetime are prerequisites; no broader hold or
+Task22 lookup release is implied.

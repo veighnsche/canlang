@@ -4861,6 +4861,22 @@ impl<'a> Emitter<'a> {
                         *span,
                     )];
                 }
+                if let Some(condition) = when
+                    && super::ir::expr_uses_async(condition)
+                {
+                    self.unsupported(
+                        "send dispatch guard",
+                        "async guard requires the owning live dispatch observer and frozen lexical transport",
+                        condition.span,
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}throw new Error({});",
+                            js_string("async send guard has no dispatch lowering")
+                        ),
+                        *span,
+                    )];
+                }
                 self.stdlib.insert("send".to_string());
                 let args_text = self.lower_expr(args);
                 let mut options = Vec::new();
