@@ -7,7 +7,7 @@
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
-import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalValueTypes, CanTypeId, DeliveryRef, DomainWrite, ModelName, OutboxIntent, ProjectedRecord, RecordId,
+import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -16,26 +16,29 @@ import type { PolicyTable } from '../policy/grants.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import { projectSavedRecordForViewer } from '../query/engine.js';
 import type { ResolvedIdentity } from '@canlang/contracts';
-import type { AdmittedCall } from './admission.js';
-import { assertScenarioReceiptExecution, type ExecutionEffects } from './invoke.js';
+import { admitOwnerStageCall, type AdmittedCall } from './admission.js';
+import { assertScenarioReceiptExecution, scenarioReceiptMemberships, type ExecutionEffects } from './invoke.js';
 import { beginOwnerMutation, type OwnerMutationInput, type OwnerMutationReadView,
   type OwnerMutationSession, type MutationWritesResult } from '../mutation/pipeline.js';
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
-import { stableStringify } from './replay.js';
+import { stableStringify, hashInputs } from './replay.js';
 import type { SystemCommandContext, SystemStaging } from '../ports/system.js';
 import { stageAuthoredDelivery } from '../receipt/authored-delivery.js';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../receipt/tables.js';
+import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
+import { isGeneratedOperationDef } from './registry.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
 
 /** Own JSON data only: no accessors, prototypes, aliasing, cycles or unbounded trees. */
-function dataCopy<T>(value: T): T {
+function dataCopy<T>(value: T, decodedValues = false): T {
   let nodes = 0;
   const seen = new Set<object>();
   const copy = (part: unknown, depth: number): unknown => {
     if (++nodes > 20_000 || depth > 32) return invalid('data exceeds its finite budget.');
     if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
+    if (decodedValues && typeof part === 'bigint') return part;
     if (typeof part === 'number' && Number.isFinite(part)) return part;
     if (typeof part !== 'object' || part === null || seen.has(part) ||
         (!Array.isArray(part) && ![Object.prototype, null].includes(Object.getPrototypeOf(part)))) {
@@ -58,7 +61,11 @@ function dataCopy<T>(value: T): T {
 
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) ||
-      Object.keys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) return invalid('closed shape required.');
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+      Reflect.ownKeys(value).length !== keys.length || keys.some(key => {
+        const member = Object.getOwnPropertyDescriptor(value, key);
+        return member === undefined || !('value' in member) || !member.enumerable;
+      })) return invalid('closed own data shape required.');
   return value as Record<string, unknown>;
 }
 function text(value: unknown): string {
@@ -173,6 +180,256 @@ interface BoundPlan {
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
+
+export interface ScenarioReceiptCallSite {
+  readonly id: string;
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly kind: 'operation' | 'invocation';
+  readonly targets: readonly { readonly operation: string; readonly interface: CanonicalOperationDescriptor }[];
+  /** null preserves an owning target's opaque/undeclared result fact. */
+  readonly resultType: CanTypeId | null;
+}
+export interface ScenarioReceiptCallFrame {
+  readonly call: AdmittedCall;
+  readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>;
+  /** Genuine native guards join the same outer commit, even for void callees. */
+  readonly guard: (value: NonNullable<ExecutionEffects['guards']>[number]) => void;
+}
+/** Exact source/callable verification belongs to Dev's owning loader. This
+ * binder checks transport correspondence and binds literal native adapters
+ * once; neither request metadata nor adapter shape attests executable bytes.
+ * prepare preserves native protected references while converting actual
+ * authored inputs to canonical wire. InvocationRef bound args are encoded by
+ * State from the selected checked target schema and cannot be overridden. */
+export interface ScenarioReceiptCallProducer {
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly app: string;
+  readonly registry: OperationRegistry;
+  readonly sites: readonly ScenarioReceiptCallSite[];
+  readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => ClosedInputs | Promise<ClosedInputs>;
+  readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
+}
+interface BoundCalls {
+  readonly producer: ScenarioReceiptCallProducer;
+  readonly sites: readonly ScenarioReceiptCallSite[];
+  readonly targets: ReadonlyMap<string, GeneratedOperationDef>;
+}
+const callProducers = new WeakMap<GeneratedOperationDef, BoundCalls>();
+const activeCalls = new WeakMap<AdmittedCall, { readonly owner: ReceiptOwnerSession }>();
+const retainedCallGuards = new WeakMap<AdmittedCall, readonly NonNullable<ExecutionEffects['guards']>[number][]>();
+/** Invoke consumes this private ledger independently of the root's trusted
+ * admission bypass. Neither executor effects nor request data can omit it. */
+export async function revalidateScenarioReceiptCalls(call: AdmittedCall): Promise<void> {
+  for (const guard of retainedCallGuards.get(call) ?? []) {
+    if (!await guard.evaluate()) throw new StateError('forbidden', `Child guard ${JSON.stringify(guard.name)} no longer holds at commit.`);
+  }
+}
+
+/** Native adapters bind only this literal live State-issued call. This
+ * assertion cannot create a child or reactivate a completed call. */
+export function assertScenarioReceiptCallExecution(call: AdmittedCall, store: StoragePort): void {
+  const child = activeCalls.get(call);
+  if (child === undefined) { assertScenarioReceiptExecution(call, store); return; }
+  ownerHealthy(child.owner);
+  if (child.owner.store !== store || child.owner.executingCall !== call || !Object.isFrozen(call)) return invalid('child capture requires its actual active owner frame.');
+}
+
+function callResultType(def: GeneratedOperationDef): CanTypeId | null {
+  return def.descriptor.result?.type ?? null;
+}
+export function bindScenarioReceiptCallProducer(def: GeneratedOperationDef, producer: ScenarioReceiptCallProducer): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined || callProducers.has(def) || invokedPlans.has(def)) return invalid('call producer requires one checked source binding before execution.');
+  if (typeof producer !== 'object' || producer === null || Array.isArray(producer) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(producer)) ||
+      Reflect.ownKeys(producer).length !== 6 || ['source', 'app', 'registry', 'sites', 'prepare', 'execute'].some(key => {
+        const member = Object.getOwnPropertyDescriptor(producer, key);
+        return member === undefined || !('value' in member) || !member.enumerable;
+      }) || typeof producer.prepare !== 'function' || typeof producer.execute !== 'function') return invalid('own closed loader call producer required.');
+  const source = dataCopy(producer.source); origin(source); text(producer.app);
+  if (stableStringify(source) !== stableStringify(bound.plan.source)) return invalid('call producer source differs from its checked parent.');
+  const sites = list(dataCopy(producer.sites)) as unknown as ScenarioReceiptCallSite[];
+  const names = new Set<string>(), targets = new Map<string, GeneratedOperationDef>();
+  for (const site of sites) {
+    object(site, ['id', 'source', 'kind', 'targets', 'resultType']); origin(site.source); text(site.id);
+    if (stableStringify(site.source) !== stableStringify(bound.plan.source)) return invalid('call occurrence differs from its owning checked source.');
+    if (names.has(site.id) || !['operation', 'invocation'].includes(site.kind)) return invalid('unique checked call occurrence and operand kind required.');
+    names.add(site.id);
+    const alternatives = list(site.targets), local = new Set<string>();
+    if (alternatives.length === 0 || site.kind === 'operation' && alternatives.length !== 1) return invalid('static call or finite invocation target inventory required.');
+    for (const value of alternatives) {
+      const target = object(value, ['operation', 'interface']); const name = text(target['operation']);
+      const callee = producer.registry.get(name);
+      if (callee === undefined || !isGeneratedOperationDef(callee) || callee.name !== name || local.has(name) ||
+          stableStringify(dataCopy(callee.descriptor)) !== stableStringify(target['interface']) ||
+          callResultType(callee) !== site.resultType) return invalid('call target or result disagrees with its checked owning interface.');
+      local.add(name); targets.set(name, callee);
+    }
+  }
+  callProducers.set(def, { producer: Object.freeze({ ...producer, source: deepFreeze(source), app: producer.app }),
+    sites: deepFreeze(sites), targets });
+}
+
+function retainedCallScenario(call: AdmittedCall, result: unknown): Omit<ScenarioReceiptAssociation, 'changed' | 'calls'> {
+  const state = captures.get(call), bound = boundPlans.get(call.def as GeneratedOperationDef);
+  if (bound === undefined || state?.poisoned || state?.pending !== 0) return invalid('child omitted its complete checked result closure.');
+  const returnId = state?.returnId ?? (bound.type === 'void' && bound.plan.returns.length === 1 &&
+    bound.plan.returns[0]!.dependencies.length === 0 && (bound.plan.returns[0]!.intrinsics?.length ?? 0) === 0 ? bound.plan.returns[0]!.id : null);
+  const returned = bound.plan.returns.find(entry => entry.id === returnId);
+  if (returned === undefined) return invalid('child omitted its actual selected return.');
+  scalarWire(bound.type, result);
+  const observations = (state?.observations ?? []).filter(entry => returned.dependencies.some(dep => dep.id === entry.dependencyId));
+  const intrinsics = (state?.intrinsics ?? []).filter(entry => returned.intrinsics?.some(dep => dep.id === entry.dependencyId));
+  if (returned.dependencies.some(dep => !observations.some(entry => entry.dependencyId === dep.id)) ||
+      returned.intrinsics?.some(dep => !intrinsics.some(entry => entry.dependencyId === dep.id))) return invalid('child result dependency was not evaluated/captured.');
+  return deepFreeze(dataCopy({ kind: 'scenario-result/v1' as const, plan: bound.plan, resultType: bound.type, returnId: returned.id,
+    observations: observations.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
+    ...(returned.intrinsics === undefined ? {} : { intrinsics }) }));
+}
+
+/** Canonical same-owner call. Only the genuine active parent execution can
+ * open this finite child lifetime. Admission, all staged effects and every
+ * child guard share the unchanged outer fence and one finalization/receipt.
+ * The owning read/query and protected File/Delivery profiles still require
+ * their defining producers; no independent invoke supplies those joins. */
+export async function invokeScenarioReceiptCall(call: AdmittedCall, store: StoragePort, input: {
+  readonly site: string; readonly target: string | InvocationRef; readonly inputs: Readonly<Record<string, unknown>>;
+}): Promise<unknown> {
+  const contextMember = typeof call === 'object' && call !== null ? Object.getOwnPropertyDescriptor(call, 'context') : undefined;
+  let owner = ownerSessions.get(call) ?? (contextMember !== undefined && 'value' in contextMember &&
+    typeof contextMember.value === 'object' && contextMember.value !== null ? ownerContexts.get(contextMember.value) : undefined);
+  let child: AdmittedCall | undefined;
+  try {
+    capture(call, store); owner = ownerSessions.get(call);
+    if (owner === undefined || owner.session === null) return invalid('call requires the actual existing owner transaction.');
+    ownerHealthy(owner);
+    if (owner.busy || owner.executingCall !== call || owner.capture.pending !== 0 || ++owner.callCount > MAX_ITEMS || owner.callDepth >= 16) return invalid('concurrent or unbounded child calls are forbidden.');
+    const bound = callProducers.get(call.def as GeneratedOperationDef);
+    if (bound === undefined || bound.producer.app !== call.context.app) return invalid('no loader-verified call producer for this source/app.');
+    const report = object(input, ['site', 'target', 'inputs']);
+    if (typeof input.inputs !== 'object' || input.inputs === null || Array.isArray(input.inputs)) return invalid('own authored input object required.');
+    object(input.inputs, Object.keys(input.inputs));
+    const site = bound.sites.find(value => value.id === report['site']);
+    if (site === undefined) return invalid('unknown checked call occurrence.');
+    const operand = site.kind === 'operation' ? text(input.target) : object(deepFreeze(dataCopy(input.target, true)), ['kind', 'target', 'args']);
+    if (typeof operand !== 'string' && operand['kind'] !== 'invocation') return invalid('actual InvocationRef operand required.');
+    const target = typeof operand === 'string' ? operand : text(operand['target']);
+    const alternative = site.targets.find(value => value.operation === target), def = bound.targets.get(target);
+    if (alternative === undefined || def === undefined || stableStringify(dataCopy(def.descriptor)) !== stableStringify(alternative.interface)) return invalid('actual target is outside its unchanged checked interface/allowlist.');
+    if (def.kind === 'read') return invalid('native current-viewer read/query call requires its defining source closure producer.');
+    if (def.kind === 'scenario' && !boundPlans.has(def)) return invalid('callee requires its complete checked source result closure.');
+    const context = deepFreeze(dataCopy({ ...owner.call.context, operation: def.name, source: site.source.path }));
+    // A copied child never becomes active; its genuine context still locates
+    // the owner to latch a caught attempt as a terminal transaction failure.
+    ownerContexts.set(context, owner);
+    const memberships = scenarioReceiptMemberships(owner.call, store);
+    const current: AdmittedCall = { context, def, inputs: {}, recordRefs: [], inputHash: '', revision: owner.call.revision, replay: null };
+    child = current; owner.executingCall = current; owner.callDepth += 1;
+    const underlying = owner.session;
+    const healthy = () => { ownerHealthy(owner!); if (owner!.executingCall !== current || activeCalls.get(current)?.owner !== owner) return invalid('child frame is closed or superseded.'); };
+    const issue = (model: ModelName, row: StoredRow | null) => {
+      if (row !== null) ownerRows.set(row, { session: owner!, stage: owner!.stage, model });
+      return row;
+    };
+    const view = (side: OwnerMutationReadView, issued: boolean): OwnerMutationReadView => Object.freeze<OwnerMutationReadView>({
+      get: (model, id) => ownerOperation(owner!, async () => {
+        const row = await side.get(model, id); return issued ? issue(model, row) : row;
+      }, current),
+      query: spec => ownerOperation(owner!, async () => {
+        const rows = await side.query(deepFreeze(dataCopy(spec)));
+        if (issued) for (const row of rows) issue(spec.model, row);
+        return rows;
+      }, current),
+    });
+    if (site.kind === 'invocation' && Object.keys(dataCopy(input.inputs)).length !== 0) return invalid('invocation calls require empty authored inputs and complete frozen arguments.');
+    const prepared = site.kind === 'invocation' ? {} : dataCopy(await bound.producer.prepare(def, input.inputs));
+    ownerHealthy(owner);
+    if (owner.executingCall !== current) return invalid('call preparation crossed a child lifetime.');
+    if (typeof prepared !== 'object' || prepared === null || Array.isArray(prepared)) return invalid('canonical authored input object required.');
+    if (typeof operand !== 'string') {
+      const args = operand['args'];
+      if (typeof args !== 'object' || args === null || Array.isArray(args)) return invalid('canonical invocation arguments required.');
+      for (const [name, value] of Object.entries(args)) {
+        if (Object.hasOwn(prepared, name)) return invalid('authored inputs cannot replace frozen invocation arguments.');
+        const field = def.descriptor.inputs.find(field => field.name === name);
+        if (field === undefined) return invalid('invocation argument is absent from its selected target schema.');
+        let wire: unknown;
+        if (field.kind === 'ref') {
+          const ref = object(value, ['kind', 'model', 'id', ...(Object.hasOwn(value as object, 'version') ? ['version'] : [])]);
+          if (ref['kind'] !== 'ref' || ref['model'] !== field.model) return invalid('invocation reference disagrees with its selected target.');
+          wire = { id: text(ref['id']), ...(ref['version'] === undefined ? {} : { version: String(ref['version']) }) };
+        } else {
+          const type = field.kind === 'delivery' ? undefined : field.valueType ??
+            ({ string: 'text', integer: 'int', boolean: 'bool', decimal: 'decimal', money: 'money', datetime: 'datetime', duration: 'duration', user: 'user',
+              enum: field.kind === 'enum' ? `enum(${field.enumValues?.join(',')})` : undefined } as Record<string, string | undefined>)[field.kind];
+          if (type === undefined) return invalid('invocation argument lacks its checked owning value type.');
+          wire = encodeValue(type, value as never);
+        }
+        Object.defineProperty(prepared, name, { value: wire, enumerable: true, configurable: true, writable: true });
+      }
+    }
+    const admitted = await ownerOperation(owner, () => admitOwnerStageCall({ def, inputs: prepared,
+      context, read: underlying.views.final, memberships, revision: current.revision,
+      owner: owner!.call.checkpoint!.owner, modelNames: new Set(owner!.capture.bound.artifactModels.keys()),
+      ...(owner!.capture.bound.valueSchema === undefined ? {} : { valueSchema: owner!.capture.bound.valueSchema }) }), current);
+    current.inputs = deepFreeze(dataCopy(admitted.inputs));
+    current.recordRefs = Object.freeze(admitted.recordRefs.map(ref => Object.freeze({ ...ref, row: issue(ref.model, ref.row)! })));
+    current.checkpoint = deepFreeze(dataCopy(admitted.checkpoint!)); current.inputHash = await hashInputs(prepared);
+    Object.freeze(current); activeCalls.set(current, { owner }); ownerSessions.set(current, owner);
+    const final = view(underlying.views.final, true), entry = view(underlying.views.entry, false);
+    const session = Object.freeze<Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>>({
+      views: Object.freeze({ context, maxRows: underlying.views.maxRows, entry, final,
+        consumeWork: (amount?: number) => { try { healthy(); if (owner!.busy) return invalid('concurrent child work is forbidden.'); underlying.views.consumeWork(amount); }
+          catch (error) { owner!.capture.poisoned = true; throw error; } } }),
+      read: final.get,
+      stage: (writes, options) => ownerOperation(owner!, async () => {
+        healthy();
+        if (Reflect.ownKeys(options).some(key => !['cause', 'input'].includes(String(key))) ||
+            def.kind === 'scenario' && options.cause !== 'scenario' ||
+            def.kind !== 'scenario' && (options.cause !== 'crud' || options.input !== current.inputs)) return invalid('child staging requires its genuine operation cause and admitted inputs.');
+        await underlying.stage(writes, { ...options, context }); owner!.stage += 1;
+      }, current),
+    });
+    const guard = (value: NonNullable<ExecutionEffects['guards']>[number]) => {
+      try {
+        healthy(); object(value, ['name', 'evaluate']);
+        const name = Object.getOwnPropertyDescriptor(value, 'name')!, evaluate = Object.getOwnPropertyDescriptor(value, 'evaluate')!;
+        if (!('value' in name) || !('value' in evaluate) || typeof evaluate.value !== 'function' || owner!.callGuards.length >= MAX_ITEMS) return invalid('bounded own child guard required.');
+        owner!.callGuards.push(Object.freeze({ name: text(name.value), evaluate: evaluate.value }));
+      } catch (error) { owner!.capture.poisoned = true; throw error; }
+    };
+    if (def.kind === 'scenario') capture(current, store);
+    const raw = def.kind === 'scenario' ? await bound.producer.execute(Object.freeze({ call: current, session, guard }))
+      : await stageGeneratedCrudOwnerCall({ table: owner.options.table, store }, session as OwnerMutationSession, current,
+        def.kind === 'create' ? `${owner.call.context.operationId}/call/${owner.callCount}` as RecordId : undefined);
+    healthy();
+    const result = dataCopy(raw);
+    const scenario = def.kind === 'scenario' ? retainedCallScenario(current, result) : undefined;
+    const references = current.recordRefs.map(ref => ({ model: ref.model, row: ref.row,
+      secretFields: [...(owner!.capture.bound.models.get(ref.model)?.secrets ?? [])] }));
+    owner.calls.push(deepFreeze(dataCopy({ site: site.id, caller: call.def.name, target, targetInterface: stableStringify(alternative.interface),
+      references, result, ...(scenario === undefined ? {} : { scenario }) })));
+    if (owner.callGuards.length >= MAX_ITEMS) return invalid('child commit guard budget exceeded.');
+    owner.callGuards.push(Object.freeze({ name: `call:${owner.callCount}:${target}`, evaluate: async () => {
+      if (stableStringify(dataCopy(def.descriptor)) !== stableStringify(alternative.interface)) return false;
+      if (await store.readRevision() !== current.revision) throw new StateError('conflict', 'Child call checkpoint moved before the outer commit.');
+      const actorUserId = context.actor?.userId ?? null, teamId = context.team?.teamId ?? null;
+      const membership = actorUserId !== null && teamId !== null ? await memberships.findMembership(teamId, actorUserId) : null;
+      if (!await evaluateBy(def.by, { actorUserId, teamId, membership, memberships })) throw new StateError('forbidden', 'Child target authority no longer holds at commit.');
+      if (await store.readRevision() !== current.revision) throw new StateError('conflict', 'Child call authority read moved beyond its outer checkpoint.');
+      return true;
+    } }));
+    return result;
+  } catch (error) { if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally {
+    if (owner !== undefined && child !== undefined) {
+      const captured = captures.get(child);
+      if (captured?.poisoned || captured !== undefined && captured.pending !== 0 || owner.executingCall !== child) owner.capture.poisoned = true;
+      activeCalls.delete(child); ownerSessions.delete(child); captures.delete(child);
+      owner.executingCall = call; owner.callDepth -= 1;
+    }
+  }
+}
 
 /** Registry-owned registration after exact artifact source/callable checking. */
 export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[],
@@ -304,7 +561,9 @@ interface Capture {
 const captures = new WeakMap<AdmittedCall, Capture>();
 function capture(call: AdmittedCall, store: StoragePort): Capture {
   try {
-    assertScenarioReceiptExecution(call, store);
+    assertScenarioReceiptCallExecution(call, store);
+    const owner = ownerSessions.get(call);
+    if (owner !== undefined && owner.executingCall !== call) return invalid('capture cannot cross a pending child call.');
     const bound = boundPlans.get(call.def as GeneratedOperationDef);
     if (bound === undefined) return invalid('no loader-verified source dependency plan.');
     invokedPlans.add(call.def as GeneratedOperationDef);
@@ -314,6 +573,10 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
     return value;
   } catch (error) {
     const state = captures.get(call); if (state !== undefined) state.poisoned = true;
+    const context = typeof call === 'object' && call !== null ? Object.getOwnPropertyDescriptor(call, 'context') : undefined;
+    const owner = ownerSessions.get(call) ?? (context !== undefined && 'value' in context &&
+      typeof context.value === 'object' && context.value !== null ? ownerContexts.get(context.value) : undefined);
+    if (owner !== undefined) owner.capture.poisoned = true;
     throw error;
   }
 }
@@ -343,8 +606,16 @@ interface ReceiptOwnerSession {
   readonly inputDefaults: Record<string, unknown>;
   readonly computedDefaults: readonly CanonicalInputDef[];
   computedIndex: number;
+  session: OwnerMutationSession | null;
+  readonly options: ScenarioReceiptMutationInput;
+  executingCall: AdmittedCall;
+  callCount: number;
+  callDepth: number;
+  readonly calls: NonNullable<ScenarioReceiptAssociation['calls']>[number][];
+  readonly callGuards: NonNullable<ExecutionEffects['guards']>[number][];
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
+const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
 const ownerRows = new WeakMap<StoredRow, {
   readonly session: ReceiptOwnerSession; readonly stage: number; readonly model: ModelName;
 }>();
@@ -357,6 +628,7 @@ function frameworkOwner(call: AdmittedCall, store: StoragePort): ReceiptOwnerSes
   try {
     capture(call, store);
     if (owner === undefined || owner.store !== store || owner.framework === null) return invalid('framework stage requires its actual bound owner session.');
+    if (owner.call !== call) return invalid('child framework effects require their own defining source binding join.');
     ownerHealthy(owner); return owner;
   } catch (error) {
     if (owner !== undefined) owner.capture.poisoned = true;
@@ -569,7 +841,7 @@ export function observeScenarioInputComputedDefault(call: AdmittedCall, store: S
   const owner = ownerSessions.get(call);
   try {
     capture(call, store);
-    if (owner === undefined || owner.store !== store) return invalid('computed default requires its actual admitted owner session.');
+    if (owner === undefined || owner.store !== store || owner.call !== call) return invalid('computed default requires its actual admitted root owner session; child attribution requires its defining join.');
     ownerHealthy(owner);
     if (owner.busy || owner.capture.pending !== 0) return invalid('computed default cannot overlap an owner operation.');
     const observed = object(dataCopy(report), ['name', 'wire']);
@@ -617,11 +889,11 @@ function ownerHealthy(owner: ReceiptOwnerSession): void {
   assertScenarioReceiptExecution(owner.call, owner.store);
   if (owner.closed || owner.finalized !== null || owner.capture.poisoned) return invalid('owner session is closed, finalized or poisoned.');
 }
-async function ownerOperation<T>(owner: ReceiptOwnerSession, execute: () => Promise<T>): Promise<T> {
+async function ownerOperation<T>(owner: ReceiptOwnerSession, execute: () => Promise<T>, caller = owner.call): Promise<T> {
   let acquired = false;
   try {
     ownerHealthy(owner);
-    if (owner.busy || owner.capture.pending !== 0) return invalid('concurrent owner session operations are forbidden.');
+    if (owner.busy || owner.capture.pending !== 0 || owner.executingCall !== caller) return invalid('concurrent owner session operations are forbidden.');
     owner.busy = true; acquired = true;
     const result = await execute();
     ownerHealthy(owner);
@@ -657,12 +929,15 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     const owner: ReceiptOwnerSession = { call, store, capture: state, stage: 0, busy: false, closed: false, finalized: null,
       commitEffects: null, consumeWork: null, maxRows: bounds['maxRows'] as number,
       framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), ordinal: 0 },
-      ...inputDefaultSlots(call, state.bound), computedIndex: 0 };
+      ...inputDefaultSlots(call, state.bound), computedIndex: 0,
+      session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [] };
     ownerSessions.set(call, owner);
+    ownerContexts.set(call.context, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
       trigger: { revision: call.revision, owner: call.checkpoint?.owner ?? call.context.team?.teamId ?? call.context.app },
       gateArchivedTargets: true }));
     owner.consumeWork = session.views.consumeWork;
+    owner.session = session;
     const issue = (model: ModelName, row: StoredRow | null): StoredRow | null => {
       if (row !== null) ownerRows.set(row, { session: owner, stage: owner.stage, model });
       return row;
@@ -720,7 +995,7 @@ export function closeScenarioReceiptExecution(call: AdmittedCall): void {
   const owner = ownerSessions.get(call);
   if (owner !== undefined) {
     owner.closed = true;
-    if (owner.busy || owner.finalized === null) owner.capture.poisoned = true;
+    if (owner.busy || owner.executingCall !== call || owner.finalized === null) owner.capture.poisoned = true;
   }
   const state = captures.get(call);
   if (state !== undefined && state.pending !== 0) state.poisoned = true;
@@ -767,6 +1042,8 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       });
     } else snapshot[key] = dataCopy(member.value);
   }
+  const owner = ownerSessions.get(call);
+  if (owner !== undefined && owner.callGuards.length !== 0) retainedCallGuards.set(call, Object.freeze([...owner.callGuards]));
   return deepFreeze(snapshot) as unknown as ExecutionEffects;
 }
 
@@ -886,10 +1163,18 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
     if (owner !== undefined) owner.busy = true;
     state.pending += 1; acquired = true;
     if (observation.kind === 'admitted-reference-version') {
-      const current = await store.load(observation.model, observation.row.id);
-      capture(call, store);
-      if (current === null || stableStringify(dataCopy(current)) !== stableStringify(observation.row)) {
-        return invalid('original admitted reference moved before intrinsic capture.');
+      if (activeCalls.has(call)) {
+        const reference = call.recordRefs.find(ref => ref.param === (dependency.kind === 'admitted-reference-version' ? dependency.parameter : ''))!;
+        const issued = ownerRows.get(reference.row);
+        if (owner === undefined || issued?.session !== owner || issued.model !== observation.model || issued.stage > owner.stage) {
+          return invalid('child original reference requires its privately admitted owner-stage row.');
+        }
+      } else {
+        const current = await store.load(observation.model, observation.row.id);
+        capture(call, store);
+        if (current === null || stableStringify(dataCopy(current)) !== stableStringify(observation.row)) {
+          return invalid('original admitted reference moved before intrinsic capture.');
+        }
       }
     }
     const revision = await store.readRevision(); capture(call, store);
@@ -993,6 +1278,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   }
   return deepFreeze(dataCopy({ kind: 'scenario-result/v1' as const, plan: bound.plan, resultType: bound.type,
     returnId: state.returnId, observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
+    ...(owner === undefined || owner.calls.length === 0 ? {} : { calls: owner.calls }),
     ...(returned.intrinsics === undefined ? {} : { intrinsics }), changed }));
 }
 
@@ -1003,6 +1289,7 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
   if (receipt.outcome.status !== 'committed') return invalid('association requires a committed outcome.');
   const scenario = dataCopy(receipt.outcome.scenario);
   const value = object(scenario, ['kind', 'plan', 'resultType', 'returnId', 'observations', 'changed',
+    ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'calls') ? ['calls'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'intrinsics') ? ['intrinsics'] : [])]);
   if (value['kind'] !== 'scenario-result/v1') return invalid('unknown association version.');
   const plan = checkScenarioResultDisclosurePlan(value['plan']); const resultType = scalarType(value['resultType']);
@@ -1053,6 +1340,21 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
     identities.add(key);
   }
   if (changed.length !== receipt.outcome.recordVersions.length) return invalid('incomplete committed changed snapshots.');
+  for (const entry of list(value['calls'] ?? [])) {
+    const saved = object(entry, ['site', 'caller', 'target', 'targetInterface', 'references', 'result',
+      ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'scenario') ? ['scenario'] : [])]);
+    text(saved['site']); text(saved['caller']); text(saved['target']); text(saved['targetInterface']);
+    for (const reference of list(saved['references'])) {
+      const ref = object(reference, ['model', 'row', 'secretFields']); text(ref['model']); checkedRow(ref['row']); paths(ref['secretFields']);
+    }
+    if (saved['scenario'] !== undefined) {
+      const child = object(saved['scenario'], ['kind', 'plan', 'resultType', 'returnId', 'observations',
+        ...(Object.hasOwn(saved['scenario'] as object, 'intrinsics') ? ['intrinsics'] : [])]);
+      readScenarioReceiptAssociation({ ...receipt, identity: { ...receipt.identity, operation: saved['target'] as Receipt['identity']['operation'] },
+        outcome: { status: 'committed', result: saved['result'], recordVersions: [],
+          scenario: { ...child, changed: [] } as unknown as ScenarioReceiptAssociation } });
+    }
+  }
   return deepFreeze(value as unknown as ScenarioReceiptAssociation);
 }
 
@@ -1111,6 +1413,38 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld] });
     };
     let dependenciesReadable = true;
+    for (const saved of association.calls ?? []) {
+      const caller = input.registry.get(saved.caller), target = input.registry.get(saved.target);
+      const calls = caller === undefined ? undefined : callProducers.get(caller as GeneratedOperationDef);
+      const site = calls?.sites.find(site => site.id === saved.site);
+      const alternative = site?.targets.find(target => target.operation === saved.target);
+      if (target === undefined || !isGeneratedOperationDef(target) || alternative === undefined ||
+          stableStringify(target.descriptor) !== saved.targetInterface || stableStringify(alternative.interface) !== saved.targetInterface ||
+          !await evaluateBy(target.by, context)) { dependenciesReadable = false; continue; }
+      for (const ref of saved.references) {
+        if (await savedProjection(ref.model, ref.row, ref.secretFields, []) === null) dependenciesReadable = false;
+      }
+      const child = saved.scenario, current = boundPlans.get(target);
+      if (child === undefined) continue;
+      if (current === undefined || stableStringify(current.plan) !== stableStringify(child.plan) || current.type !== child.resultType) {
+        dependenciesReadable = false; continue;
+      }
+      const returned = child.plan.returns.find(entry => entry.id === child.returnId)!;
+      for (const observed of child.observations) {
+        const dependency = returned.dependencies.find(dep => dep.id === observed.dependencyId)!;
+        const projection = await savedProjection(observed.model, observed.row, observed.secretFields, []);
+        if (current.models.get(observed.model)?.fields.get(dependency.field) !== dependency.type || projection === null ||
+            !Object.hasOwn(projection.data, dependency.field) ||
+            stableStringify(projection.data[dependency.field]) !== stableStringify(observed.row.data[dependency.field])) dependenciesReadable = false;
+      }
+      for (const observed of child.intrinsics ?? []) {
+        const dependency = returned.intrinsics!.find(dep => dep.id === observed.dependencyId)!;
+        if (observed.kind === 'operation-id') continue;
+        if (observed.kind === 'admitted-input') { if (!primitiveInput(target, dependency)) dependenciesReadable = false; continue; }
+        const projection = await savedProjection(observed.model, observed.row, observed.secretFields, []);
+        if (!versionedReferenceInput(target, dependency) || projection === null || String(projection.version) !== observed.wire) dependenciesReadable = false;
+      }
+    }
     const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
     for (const observation of association.observations) {
       const dependency = returned.dependencies.find(dep => dep.id === observation.dependencyId)!;

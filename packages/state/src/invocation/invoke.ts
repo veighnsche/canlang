@@ -74,7 +74,7 @@ import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
 import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
-import { closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects } from './scenario-receipt.js';
+import { closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects, revalidateScenarioReceiptCalls } from './scenario-receipt.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
@@ -346,6 +346,14 @@ export function assertScenarioReceiptExecution(call: AdmittedCall, store: Storag
   }
 }
 
+/** Internal call admission uses Invoke's real Identity reader, never a host
+ * replacement supplied with an authored call or a fabricated context. */
+export function scenarioReceiptMemberships(call: AdmittedCall, store: StoragePort): MembershipReader {
+  assertScenarioReceiptExecution(call, store);
+  return scenarioExecutionMemberships.get(call)!;
+}
+const scenarioExecutionMemberships = new WeakMap<AdmittedCall, MembershipReader>();
+
 /** Internal receipt join assertion; checking cannot activate an execution. */
 export function assertOwnerReceiptExecution(
   call: AdmittedCall, store: StoragePort, fence: FenceScope,
@@ -502,6 +510,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
     try {
       let raw: ExecutionEffects;
       activeAdmittedExecutions.add(call);
+      scenarioExecutionMemberships.set(call, input.memberships);
       try {
         const claimed = isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined;
         scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
@@ -518,6 +527,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
         closeScenarioReceiptExecution(call);
         activeAdmittedExecutions.delete(call);
         scenarioExecutions.delete(call);
+        scenarioExecutionMemberships.delete(call);
       }
       // S6: validate executor-staged outbox/schedules INSIDE the try, so
       // malformed executor output becomes a fenced rejected receipt via the
@@ -628,6 +638,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
           memberships: input.memberships,
           ...(effects.readings !== undefined ? { readings: effects.readings } : {}),
         });
+        await revalidateScenarioReceiptCalls(call);
       } catch (fenceError) {
         if (fenceError instanceof StateError && fenceError.code === 'conflict') {
           continue;
