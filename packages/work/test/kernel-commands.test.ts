@@ -8,6 +8,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
+  ClaimId,
   ModelName,
   OperationId,
   OperationName,
@@ -334,8 +335,10 @@ for (const family of GENERATION_FAMILIES) describe(`kernel commands: ${family.na
 });
 
 describe('installed dispatch guard joins the actual original registry commit (memory only)', () => {
-  async function fixture(over: Record<string, unknown> = {}, superseded = false) {
-    const { store } = createTestMemoryStorage();
+  const allocateClaim = () => 'allocated-claim' as ClaimId;
+  async function fixture(over: Record<string, unknown> = {}, superseded = false,
+    allocator?: () => ClaimId) {
+    const { store, probe } = createTestMemoryStorage();
     const staged = stageOutboxIntent({ operationId: '0193f2c0-0000-7000-8000-000000000003',
       source: 'std.EmailV1.send', occurrenceIndex: 0, request: { to: 'a@example.com' },
       originOccurrence: null });
@@ -355,18 +358,32 @@ describe('installed dispatch guard joins the actual original registry commit (me
     // Unit intent model names the actual committed seed revision. Native lexical
     // and commit-marker issuance remain Dev's separate source-adapter prerequisite.
     const intent = commitOutboxIntent(staged, { revision: committed.revision, committedAtMs: NOW });
-    const run = (guard: DispatchClaimGuard, availability = () => true) =>
-      createSystemRegistry([createWorkDispatchClaimCommand(availability, guard)]).run('work.dispatch.claim', {
-        intentId: staged.item.id, claimId: 'new-claim', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE,
+    const originalOutbox = await store.outboxGet(staged.item.id);
+    const originalOutboxIntents = probe.outboxAll();
+    const run = (guard: DispatchClaimGuard | undefined, availability = () => true,
+      extraArgs: Record<string, unknown> = {}) =>
+      createSystemRegistry([createWorkDispatchClaimCommand(availability, guard, allocator)]).run('work.dispatch.claim', {
+        intentId: staged.item.id, ...(allocator === undefined ? { claimId: 'new-claim' } : {}),
+        claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE, ...extraArgs,
       }, { actor: ACTOR, now: NOW, operation: 'test.claim', operationId: 'claim-run' }, { store });
     return { store, intent, row: seeded, revision: committed.revision, run,
+      async unchanged(expectedRevision = committed.revision) {
+        assert.equal(await store.readRevision(), expectedRevision);
+        assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, staged.item.id as RecordId), seeded);
+        assert.deepEqual(await store.outboxGet(staged.item.id), originalOutbox);
+        assert.deepEqual(probe.historyFor(WORK_DISPATCH_MODEL, staged.item.id as RecordId), []);
+        assert.deepEqual(probe.outboxAll(), originalOutboxIntents);
+      },
       current: () => store.load(WORK_DISPATCH_MODEL, staged.item.id as RecordId) };
   }
 
-  for (const stale of [false, true]) for (const result of [false, true]) {
-    it(`${stale ? 'stale reclaim' : 'pending'} ${result ? 'claims' : 'skips without claim or attempt'} after closed evidence and authority`, async () => {
+  for (const installed of [false, true]) for (const stale of [false, true]) for (const result of [false, true]) {
+    it(`${installed ? 'allocated' : 'explicit'} ${stale ? 'stale reclaim' : 'pending'} ${result ? 'claims' : 'skips without claim or attempt'} after closed evidence and authority`, async () => {
+      let allocations = 0; const order: string[] = [];
       const f = await fixture(stale ? { state: 'claimed', claimId: 'old', claimedAtMs: NOW - MAX_AGE,
-        attempts: 2, firstAttemptAtMs: NOW - MAX_AGE * 2 } : {});
+        attempts: 2, firstAttemptAtMs: NOW - MAX_AGE * 2 } : {}, false, installed ? () => {
+        allocations++; order.push('allocate'); return allocateClaim();
+      } : undefined);
       let execution!: DispatchGuardExecution, context!: SystemCommandContext;
       let sourceCalls = 0, observationChecks = 0, authorityChecks = 0;
       const outcome = await f.run(async input => {
@@ -380,7 +397,7 @@ describe('installed dispatch guard joins the actual original registry commit (me
         const phase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: { user: 'u1' },
           stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
           evaluateGuard: (_predicate, _inputs, _snapshot, issued) => {
-            execution = issued; sourceCalls++;
+            execution = issued; sourceCalls++; order.push('evaluate');
             registerDispatchGuardRevalidation(issued, async () => {
               observationChecks++;
               assert.equal(await f.store.readRevision(), input.revision);
@@ -397,6 +414,8 @@ describe('installed dispatch guard joins the actual original registry commit (me
       });
       assert.equal(outcome.revision, f.revision + 1);
       assert.equal(sourceCalls, 1); assert.equal(observationChecks, 1); assert.equal(authorityChecks, 1);
+      assert.equal(allocations, installed && result ? 1 : 0);
+      assert.deepEqual(order, installed && result ? ['evaluate', 'allocate'] : ['evaluate']);
       assert.throws(() => readDispatchGuardExecution(execution), /not live/);
       assert.throws(() => systemCommandStageRevision(context), /./);
       assert.throws(() => enrollSystemCommandCommitCheck(context, () => true), /./);
@@ -408,8 +427,8 @@ describe('installed dispatch guard joins the actual original registry commit (me
       const retained = await f.store.outboxGet(f.intent.item.id); assert.ok(retained);
       if (result) {
         assert.deepEqual(outcome.result, { claimed: true, ...(stale ? { reclaimed: true } : {}),
-          intentId: f.intent.item.id, claimId: 'new-claim' });
-        assert.equal(data.state, 'claimed'); assert.equal(data.claimId, 'new-claim');
+          intentId: f.intent.item.id, claimId: installed ? allocateClaim() : 'new-claim' });
+        assert.equal(data.state, 'claimed'); assert.equal(data.claimId, installed ? allocateClaim() : 'new-claim');
         assert.equal(data.claimedAtMs, NOW); assert.equal(retained.status, 'pending');
       } else {
         assert.deepEqual(outcome.result, { claimed: false, reason: 'guard-false', intentId: f.intent.item.id });
@@ -420,7 +439,67 @@ describe('installed dispatch guard joins the actual original registry commit (me
     });
   }
 
-  it('does not execute guards for superseded, pinned, deferred, held, settled or unavailable rows', async () => {
+  it('rejects nonfunction allocators at installation', () => {
+    for (const invalid of [null, 'claim', 1, {}, Promise.resolve('claim')]) {
+      assert.throws(() => createWorkDispatchClaimCommand(undefined, undefined,
+        invalid as unknown as () => ClaimId), /allocator.*function/);
+    }
+  });
+
+  it('refuses an explicit own claimId with an installed allocator before guard or allocation', async () => {
+    for (const claimId of ['explicit', undefined, null]) {
+      let guards = 0, allocations = 0;
+      const f = await fixture({}, false, () => { allocations++; return allocateClaim(); });
+      await assert.rejects(f.run(() => { guards++; throw new Error('ambiguous guard entered'); },
+        () => true, { claimId }), /claimId must be omitted/);
+      assert.equal(guards, 0); assert.equal(allocations, 0); await f.unchanged();
+    }
+  });
+
+  it('rejects an own claimId accessor without reading it or allocating', async () => {
+    let reads = 0, allocations = 0;
+    const command = createWorkDispatchClaimCommand(undefined, undefined, () => {
+      allocations++; return allocateClaim();
+    });
+    const args = Object.defineProperty({ intentId: 'op_1#0', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE },
+      'claimId', { get() { reads++; throw new Error('claimId getter entered'); } });
+    await assert.rejects(runStage(command.stage, args, fakeCtx(seed([]))), /claimId must be omitted/);
+    assert.equal(reads, 0); assert.equal(allocations, 0);
+  });
+
+  it('allocates exactly once for an eligible claim without an installed guard', async () => {
+    let allocations = 0;
+    const f = await fixture({}, false, () => { allocations++; return allocateClaim(); });
+    const outcome = await f.run(undefined);
+    assert.equal(allocations, 1); assert.equal(outcome.revision, f.revision + 1);
+    assert.deepEqual(outcome.result, { claimed: true, intentId: f.intent.item.id, claimId: allocateClaim() });
+    const row = await f.current(); assert.ok(row);
+    assert.equal(readDispatchRow(row).claimId, allocateClaim());
+    assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+  });
+
+  it('refuses invalid or throwing allocator results after the actual true guard without effects', async () => {
+    for (const stale of [false, true]) for (const invalid of ['', 7, Promise.resolve('claim'), 'throw']) {
+      let evaluations = 0, allocations = 0;
+      const order: string[] = [];
+      const f = await fixture(stale ? { state: 'claimed', claimId: 'old', claimedAtMs: NOW - MAX_AGE,
+        attempts: 2, firstAttemptAtMs: NOW - MAX_AGE * 2 } : {}, false, () => {
+        allocations++; order.push('allocate');
+        if (invalid === 'throw') throw new Error('allocation failed');
+        return invalid as unknown as ClaimId;
+      });
+      await assert.rejects(f.run(async input => ({
+        phase: await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
+          stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
+          evaluateGuard: () => { evaluations++; order.push('evaluate'); return true; } }),
+        currentAuthority: () => true,
+      })));
+      assert.equal(evaluations, 1); assert.equal(allocations, 1);
+      assert.deepEqual(order, ['evaluate', 'allocate']); await f.unchanged();
+    }
+  });
+
+  it('does not allocate IDs or execute guards for superseded, pinned, deferred, held, settled or unavailable rows', async () => {
     for (const [over, marked, available, reason] of [
       [{}, true, true, 'superseded'], [{ guardVerdict: false }, false, true, 'guard-false'],
       [{ availableAtMs: NOW + 1 }, false, true, 'deferred'],
@@ -428,17 +507,19 @@ describe('installed dispatch guard joins the actual original registry commit (me
       [{ state: 'delivered' }, false, true, 'settled'], [{}, false, false, 'unavailable'],
       [{ state: 'claimed', claimId: 'old', claimedAtMs: NOW - MAX_AGE }, false, false, 'unavailable'],
     ] as const) {
-      const f = await fixture(over, marked);
-      const outcome = await f.run(() => { throw new Error('ineligible source executed'); }, () => available);
+      let guards = 0, allocations = 0;
+      const f = await fixture(over, marked, () => { allocations++; return allocateClaim(); });
+      const outcome = await f.run(() => { guards++; throw new Error('ineligible source executed'); }, () => available);
       assert.equal((outcome.result as { reason: string }).reason, reason);
-      assert.deepEqual(await f.current(), f.row);
-      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+      assert.equal(guards, 0); assert.equal(allocations, 0);
+      // The registry preserves its ordinary empty-commit revision advance.
+      assert.equal(outcome.revision, f.revision + 1); await f.unchanged(outcome.revision);
     }
   });
 
   for (const result of [true, false]) for (const failure of ['observation', 'authority', 'nonboolean', 'reader', 'unknown-source']) {
     it(`refuses ${result ? 'claim' : 'skip'} when ${failure} fails before the original commit`, async () => {
-      const f = await fixture(); let evaluated = 0;
+      const f = await fixture({}, false, allocateClaim); let evaluated = 0;
       await assert.rejects(f.run(async input => ({
         phase: await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
           stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
@@ -452,9 +533,7 @@ describe('installed dispatch guard joins the actual original registry commit (me
           } }),
         currentAuthority: () => failure === 'nonboolean' ? 'true' as unknown as boolean : failure !== 'authority',
       })));
-      assert.equal(evaluated, 1); assert.equal(await f.store.readRevision(), f.revision);
-      assert.deepEqual(await f.current(), f.row);
-      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+      assert.equal(evaluated, 1); await f.unchanged();
     });
   }
 
@@ -462,7 +541,7 @@ describe('installed dispatch guard joins the actual original registry commit (me
     for (const misuse of ['forged', 'copied', 'consumed', 'wrong-revision', 'wrong-id', 'wrong-source', 'wrong-operation',
       'absent-commit', 'staged-commit', 'future-commit', 'zero-commit', 'fractional-commit',
       'negative-time', 'missing-time', 'string-time', 'missing-commit-revision']) {
-      const f = await fixture();
+      const f = await fixture({}, false, allocateClaim);
       await assert.rejects(f.run(async input => {
         const candidate: Record<string, unknown> = { ...f.intent, item: { ...f.intent.item,
           ...(misuse === 'wrong-id' ? { id: 'foreign' } : {}),
@@ -486,21 +565,20 @@ describe('installed dispatch guard joins the actual original registry commit (me
         if (misuse === 'consumed') await phase.revalidate();
         return { phase, currentAuthority: () => true };
       }));
-      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
-      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+      await f.unchanged();
     }
   });
 
   it('refuses precreated, no-stage, copied-stage and foreign-stage phases at the same checkpoint', async () => {
     for (const misuse of ['precreated', 'no-stage', 'copied-stage', 'foreign-stage']) {
-      const f = await fixture();
+      const f = await fixture({}, false, allocateClaim);
       let retained: DispatchGuardPhase | undefined;
       const make = (stage?: SystemCommandContext) => runDispatchGuardPhase({ stage,
         predicate: 'current.membership', frozenInputs: {}, stateSnapshot: f.row,
         checkpoint: { revision: f.revision, owner: 'team-1' }, intent: f.intent, evaluateGuard: () => true });
       if (misuse === 'precreated') retained = await make();
       if (misuse === 'foreign-stage') {
-        const foreign = await fixture();
+        const foreign = await fixture({}, false, allocateClaim);
         assert.equal(foreign.revision, f.revision);
         await assert.rejects(foreign.run(async input => {
           retained = await make(input.context);
@@ -512,14 +590,13 @@ describe('installed dispatch guard joins the actual original registry commit (me
         phase: retained ?? await make(misuse === 'copied-stage' ? { ...input.context } : undefined),
         currentAuthority: () => true,
       })));
-      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
-      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+      await f.unchanged();
     }
   });
 
   it('caught double or concurrent phase issuance poisons the original actual stage', async () => {
     for (const concurrent of [false, true]) {
-      const f = await fixture(); let evaluations = 0;
+      const f = await fixture({}, false, allocateClaim); let evaluations = 0;
       await assert.rejects(f.run(async input => {
         let release!: () => void;
         const waiting = new Promise<void>(resolve => { release = resolve; });
@@ -538,14 +615,13 @@ describe('installed dispatch guard joins the actual original registry commit (me
         return { phase, currentAuthority: () => true };
       }), /poisoned/);
       assert.equal(evaluations, 1);
-      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
-      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+      await f.unchanged();
     }
   });
 
   it('caught repeated transfers or late actual handle misuse poison commit evidence', async () => {
     for (const misuse of ['before-stage', 'during-authority', 'late-registration']) {
-      const f = await fixture();
+      const f = await fixture({}, false, allocateClaim);
       await assert.rejects(f.run(async input => {
         let execution!: DispatchGuardExecution;
         const phase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
@@ -561,13 +637,13 @@ describe('installed dispatch guard joins the actual original registry commit (me
           return true;
         } };
       }));
-      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
+      await f.unchanged();
     }
   });
 
   it('refuses moved physical revision and source failure without claim or skip effects', async () => {
     for (const moved of [false, true]) {
-      const f = await fixture();
+      const f = await fixture({}, false, allocateClaim);
       await assert.rejects(f.run(async input => {
         if (!moved) throw new Error('source guard failed');
         const phase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
@@ -593,7 +669,7 @@ describe('installed dispatch guard joins the actual original registry commit (me
       fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row: dispatchRow('op_1#0') }]))));
     assert.equal(sourceCalls, 0);
 
-    const f = await fixture(); const originalLoad = f.store.load;
+    const f = await fixture({}, false, allocateClaim); const originalLoad = f.store.load;
     let release!: () => void;
     const waiting = new Promise<void>(resolve => { release = resolve; });
     Object.defineProperty(f.store, 'load', { value: async (model: ModelName, id: RecordId) => {
