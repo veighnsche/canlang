@@ -2058,6 +2058,7 @@ fn construct_scalars_per_op() {
     // Queries lower to records() with viewer grants applied first.
     let query = typed(
         IrExpr::Query(IrQuery {
+            source: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: Some(Box::new(binary(
@@ -3793,6 +3794,7 @@ fn construct_value_query() {
     // no parens.
     let query = typed(
         IrExpr::Query(IrQuery {
+            source: None,
             domain: IrQueryDomain::Value {
                 base: Box::new(name(
                     "selected",
@@ -3824,6 +3826,7 @@ fn construct_value_query() {
     // Awaiting bases parenthesize: `(await records(...)).map(...)`.
     let fetched = typed(
         IrExpr::Query(IrQuery {
+            source: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: None,
@@ -3838,6 +3841,7 @@ fn construct_value_query() {
     );
     let query = typed(
         IrExpr::Query(IrQuery {
+            source: None,
             domain: IrQueryDomain::Value {
                 base: Box::new(fetched),
                 alias: "row".to_string(),
@@ -6715,6 +6719,7 @@ fn t31_hook_expr_gaps() {
     emitter.enter_hook(SymbolId(0));
     let query = typed(
         IrExpr::Query(IrQuery {
+            source: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: None,
