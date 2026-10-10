@@ -3483,3 +3483,19 @@ intermediate failures. Strict all-target Clippy0 (44.21s), fmt/diff0. Native
 ordered execution, late-guard rollback, replay and server defaults follow exact
 reviewed adapter intake; no current whole or typed contextual source acceptance.
 Actor/now E6008, terminal E6008,58/67/nine and precise holds remain. Local only.
+
+
+### 2026-10-10 — deliver full private completion artifact (unfinished native join)
+
+Extend the existing private projection fixture through the actual artifact
+assembler/serializer, keeping its unchanged checked source, owning catalog,
+module bytes, callables, model inventory and requirements together. Existing
+BDD generation is used; the fixture explicitly has no examples or orphan recipes.
+Installed Values checks consume the complete artifact instead of reduced JSON
+fragments. One executable fixture is saved under compiler/target/standard-completion-
+private-qualification for Dev's genuine retained source consumer; no public API
+or reconstructed carrier metadata is added. Owning projection/refusals2/2 pass
+(0.07s), full all-target lint/format reused from the same source (44.21s).
+Public terminal E6008 remains; actual issuance/retained ordinary and cohort replay
+await Dev's original State/Work join. Hook native qualification continues next.
+No whole-source acceptance or58/67/nine/hold change. Local only.

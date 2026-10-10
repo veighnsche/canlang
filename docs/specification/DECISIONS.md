@@ -7803,3 +7803,23 @@ Actor/now E6008, terminal E6008,58/67/nine and precise holds remain. Local only.
 ### 2026-10-11 — manual local integration of 898833a1
 
 Finite classifier and descriptor/emitter source reviews CLEAR. Complete checked own create/update ordered guard/let/branch/candidate and same-module staged-create profiles only; unsupported delete/cohort/parameterized/foreign/metadata/result-dependent profiles withhold the entire certificate. Existing create/update/remove vocabulary maps to canonical operations; delete remains refused at profile scope. Module binding references the original hooks operation run and callable, uses exactly three arguments, flat native before/after and actual State after.version, original ordered candidate/stage/guard lowering. Reuse owning hook6/rule6/actual CLI-module4/codegen121 and strict all-target44.21s/fmt/diff0 at the frozen producer scope. Tests establish mapping, not callback execution. Dev must assess its changed unclaimed-hook premise and qualify supported native ordered staging/context/rollback; public terminal E6008, void/anchored/WorkflowField and precise consultation/publication holds remain. Genuine State-to-Files, native/provider/original application acceptance stay separate. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — deliver full private completion artifact (unfinished native join)
+
+Extend the existing private projection fixture through the actual artifact
+assembler/serializer, keeping its unchanged checked source, owning catalog,
+module bytes, callables, model inventory and requirements together. Existing
+BDD generation is used; the fixture explicitly has no examples or orphan recipes.
+Installed Values checks consume the complete artifact instead of reduced JSON
+fragments. One executable fixture is saved under compiler/target/standard-completion-
+private-qualification for Dev's genuine retained source consumer; no public API
+or reconstructed carrier metadata is added. Owning projection/refusals2/2 pass
+(0.07s), full all-target lint/format reused from the same source (44.21s).
+Public terminal E6008 remains; actual issuance/retained ordinary and cohort replay
+await Dev's original State/Work join. Hook native qualification continues next.
+No whole-source acceptance or58/67/nine/hold change. Local only.
+
+### 2026-10-11 — manual local integration of ef186936
+
+Finite private artifact delivery review CLEAR. Existing qualification producer now uses genuine artifact assemble/to_json and unchanged original source/catalog to emit full modules/callables/models/requirements/valueTypes rather than fragments. No reconstructed metadata, shared DTO, public flag or fabricated ABI; source has no examples or orphan recipes. Reuse owning2/2 0.07s; this qualifies delivery of actual producer output, not native State/Work authority or execution. Dev receives the owner target artifact/source/catalog and reviewed containing carrier for actual unchanged-module completion/replay checks. Public terminal E6008, void/anchored/unknown WorkflowField, hook native callback/context/rollback, original apps and every precise hold remain. File State-to-physical/native current-authority qualification continues with existing assigned owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
