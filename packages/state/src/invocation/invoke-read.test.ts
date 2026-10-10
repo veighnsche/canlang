@@ -474,10 +474,11 @@ describe('saved generated CRUD disclosure', () => {
     const loaded = loadArtifactDescriptors(slice, { by: 'members' });
     const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
     let observed: Receipt | undefined;
+    const envelope = makeEnvelope(`${GADGET}.delete`, uuidv7(FIXED_NOW, ++readSeq), {
+      record: { id: world.current.id, version: String(world.current.version) },
+    });
     await invoke({ ...world, registry: loaded.registry,
-      envelope: makeEnvelope(`${GADGET}.delete`, uuidv7(FIXED_NOW, ++readSeq), {
-        record: { id: world.current.id, version: String(world.current.version) },
-      }), source: 'test', clock: { nowMs: () => FIXED_NOW },
+      envelope, source: 'test', clock: { nowMs: () => FIXED_NOW },
       execute: generatedCrudExecute({ table, store: world.store,
         secretFields: new Map([[asModel(GADGET), []]]) }),
       observeCommittedReceipt: receipt => { observed = receipt; },
@@ -486,6 +487,21 @@ describe('saved generated CRUD disclosure', () => {
     const revision = await world.store.readRevision();
     assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, registry: loaded.registry, receipt: observed }),
       { result: null, records: [] });
+    const saved = structuredClone(observed);
+    let executions = 0, commits = 0;
+    const replay = await invoke({ ...world, registry: loaded.registry, envelope,
+      admissionMode: 'retained-receipt-only', source: 'test', clock: { nowMs: () => FIXED_NOW + 16 * 60 * 1000 },
+      store: { ...world.store, commit: async batch => { commits++; return world.store.commit(batch); } },
+      execute: async () => { executions++; throw new Error('Removal recovery must not execute.'); },
+      observeCommittedReceipt: receipt => { observed = receipt; },
+    });
+    assert.equal(replay.status, 'replayed'); assert.equal(replay.result, null);
+    assert.equal(executions, 0); assert.equal(commits, 0); assert.deepEqual(observed, saved);
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, registry: loaded.registry, receipt: observed! }),
+      { result: null, records: [] });
+    const nonRemoval = { ...saved, outcome: { ...saved.outcome, result: world.current } } as Receipt;
+    assert.equal((await captureStateError(() => projectGeneratedCrudReceipt({ ...world, registry: loaded.registry,
+      receipt: nonRemoval }))).code, 'validation');
     assert.equal(await world.store.load(asModel(GADGET), world.current.id), null);
     assert.equal(await world.store.readRevision(), revision);
   });
