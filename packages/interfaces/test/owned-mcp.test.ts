@@ -105,9 +105,9 @@ async function mcpCall(
   return { status: res.status, body: (await res.json()) as RpcBody };
 }
 
-async function mcpSetup() {
+async function mcpSetup(slice = SLICE) {
   const t = await createTestMcpDeps({
-    descriptors: registryFromArtifactOperations(SLICE).list(createTestApp()),
+    descriptors: registryFromArtifactOperations(slice).list(createTestApp()),
     mutations: {
       'Billing.Invoice.issue': (envelope) => ({
         result: { status: 'committed', operation_id: envelope.operation_id, result: { echoed: envelope.inputs } },
@@ -117,7 +117,7 @@ async function mcpSetup() {
       'Billing.Invoice.read': (envelope) => ({ result: envelope.inputs }),
     },
   });
-  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(SLICE) };
+  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(slice) };
   return { t, deps, handler: createMcpHandler(deps), grant: t.grantToken };
 }
 
@@ -268,4 +268,43 @@ test('V02.5 owned-mcp: InvalidParams projection preserved; sealed handle path un
     () => runPreparedMcpPlan(plan, { action_handle: { sealed: true }, operation_id: id }),
     /handle-mode path/,
   );
+});
+
+test('bounded ref-array component preserves real/prepared MCP wire admission and repeated inputs', async () => {
+  // Component metadata over the existing Shop identity; original emitted
+  // Workbench/State native authority remains a separate owner qualification.
+  const operation: ArtifactOperation = { ...MCP_CREATE, inputs: { fields: MCP_CREATE.inputs.fields.map(field =>
+    field.name === 'owner' ? { ...field, required: true, array: { required: false }, min: 1, max: 10 } : field) } };
+  const slice = { ...SLICE, operations: [operation, MCP_READ] };
+  const catalog = catalogFromArtifactOperations(slice);
+  const descriptor = registryFromArtifactOperations(slice).list(createTestApp())[0]!;
+  const plan = prepareMcpPlan(descriptor, catalog.shapeFor(operation.name)!, catalog.derivedFor(operation.name)!);
+  assert.equal(plan.refs.find(rule => rule.name === 'owner')!.array, true);
+  assert.ok(Object.isFrozen(plan.refs));
+  const { t, handler, grant } = await mcpSetup(slice);
+  const ref = { id: 'gadget', version: '2' };
+  let accepted = 0;
+  for (const [owner, expected] of [
+    [[ref], true], [Array.from({ length: 10 }, () => ref), true], [[ref, ref], true], [null, true],
+    [[], false], [Array.from({ length: 11 }, () => ref), false], [ref, false],
+    [[ref, { id: 'bad', version: 2 }], false], [[{ id: '', version: '2' }], false],
+    [[{ id: 'gadget', version: '2', extra: 'row' }], false], [[null], false],
+  ] as const) {
+    const args = { operation_id: freshOperationId(), customer: { id: 'customer' }, owner };
+    const planned = runPreparedMcpPlan(plan, args);
+    assert.equal(planned.ok, expected, JSON.stringify(owner));
+    const response = await mcpCall(handler, 'tools/call', { name: operation.name, arguments: args }, grant);
+    if (planned.ok) {
+      accepted += 1;
+      assert.equal(response.body.error, undefined);
+      assert.deepEqual(planned.inputs['owner'], owner);
+    } else {
+      assert.equal(response.body.error?.code, -32602);
+      assert.ok(response.body.error?.message.includes(planned.error.message));
+    }
+    assert.equal(t.invoker.mutations.length, accepted, 'invalid arrays never invoke the downstream caller');
+  }
+  const indexed = runPreparedMcpPlan(plan, { operation_id: freshOperationId(), customer: { id: 'customer' }, owner: [ref, { id: 'bad', version: 2 }] });
+  assert.ok(!indexed.ok);
+  assert.equal(indexed.error.fields?.[0]?.path, '/owner/1/version');
 });

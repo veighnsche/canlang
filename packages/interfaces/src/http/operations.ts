@@ -513,6 +513,8 @@ function toDerivedDeliveryInput(field: CheckedArtifactDeliveryField): DerivedWri
     required: field.required,
     ...(field.nullable === undefined ? {} : { nullable: field.nullable }),
     ...(field.array === undefined ? {} : { array: field.array }),
+    ...(field.min === undefined ? {} : { min: field.min }),
+    ...(field.max === undefined ? {} : { max: field.max }),
     ...(field.default === undefined ? {} : { default: field.default }),
     delivery: field.delivery,
     ...(field.description === undefined ? {} : { description: field.description }),
@@ -528,6 +530,8 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
     required: field.required,
     ...(field.nullable === undefined ? {} : { nullable: field.nullable }),
     ...(field.array === undefined ? {} : { array: field.array }),
+    ...(field.min === undefined ? {} : { min: field.min }),
+    ...(field.max === undefined ? {} : { max: field.max }),
     ...(field.default === undefined ? {} : { default: field.default }),
     ...(field.description === undefined ? {} : { description: field.description }),
   };
