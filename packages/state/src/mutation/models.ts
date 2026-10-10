@@ -322,7 +322,7 @@ export interface ModelTableOptions {
   readonly valueSchema?: NormalizedSchema;
 }
 
-function checkModelValueType(field: InterimFieldDef, name: string, model: string, schema?: NormalizedSchema): void {
+function checkModelValueType(field: InterimFieldDef, name: string, model: string, modelNames: ReadonlySet<string>, schema?: NormalizedSchema): void {
   if (!Object.hasOwn(field, 'valueType')) return;
   let valid = false;
   if (typeof field.valueType === 'string') {
@@ -332,10 +332,12 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
       const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
         (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
           schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));
+      const reference = parsed.base.kind === 'nominal' && modelNames.has(parsed.base.path);
+      if (reference && nominal) throw new Error('Model and value declaration namespaces overlap.');
       const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
-      valid = (scalar || nominal || enumeration) && printTypeId(parsed) === field.valueType &&
+      valid = (scalar || nominal || reference || enumeration) && printTypeId(parsed) === field.valueType &&
         parsed.array === (field.array !== undefined) &&
-        (!nominal || parsed.requiredArray === (field.array?.required === true)) &&
+        (!(nominal || reference) || parsed.requiredArray === (field.array?.required === true)) &&
         (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
     } catch { /* The single descriptive error below owns malformed claims. */ }
   }
@@ -410,6 +412,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
   // Reuse the values validator's normalized-schema shape gate.
   if (opts.valueSchema !== undefined) validateValue(opts.valueSchema, 'text', '', 'create');
   const table = new Map<ModelName, InterimModelDef>();
+  const modelNames = new Set(models.map(def => def.model as string));
   for (const def of models) {
     if (typeof def.model !== 'string' || def.model === '') {
       throw new Error('Invalid model def: model names are non-empty strings.');
@@ -440,7 +443,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
             'required and serverOnly must be booleans.',
         );
       }
-      checkModelValueType(field, name, model, opts.valueSchema);
+      checkModelValueType(field, name, model, modelNames, opts.valueSchema);
       try { modelFieldConstraintSchema(field, opts.valueSchema); }
       catch (error) { throw new Error(`Invalid constraints for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ${String(error)}`); }
       if (field.array !== undefined) {
@@ -828,10 +831,11 @@ export function buildModelTableFromCanonical(
   opts: CanonicalModelTableOptions = {},
 ): ModelTable {
   const defs: InterimModelDef[] = [];
+  const modelNames = new Set(models.map(model => model.name as string));
   for (const model of models) {
     const fields: Record<string, InterimFieldDef> = {};
     for (const [name, field] of Object.entries(model.fields)) {
-      checkModelValueType(field, name, model.name, opts.valueSchema);
+      checkModelValueType(field, name, model.name, modelNames, opts.valueSchema);
 
       let fallback: unknown;
       let hasFallback = false;

@@ -5,7 +5,7 @@
  * References retain original facts; they confer no referenced-row authority. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CanTypeId, QueryPredicate, Receipt, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanTypeId, ClosedInputs, QueryPredicate, Receipt, StoragePort, StoredRow } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { StateError } from '../errors.js';
 import { createMemoryStorage } from '../storage/memory.js';
@@ -17,7 +17,8 @@ import { receiptIdentityFor, type AdmittedCall } from './admission.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice, type GeneratedOperationDef } from './registry.js';
 import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
 import { beginScenarioReceiptMutation, bindScenarioReceiptReferenceProducer, observeScenarioReceiptDependency,
-  selectScenarioReceiptReturn, readScenarioReceiptAssociation, projectScenarioReceipt } from './scenario-receipt.js';
+  bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, selectScenarioReceiptReturn,
+  readScenarioReceiptAssociation, projectScenarioReceipt } from './scenario-receipt.js';
 import { FIXED_NOW, asId, asModel, asVersion, makeBatch, makeEnvelope, makeIdentity,
   seedRow, uuidv7 } from '../../test/invocation/fixtures.js';
 
@@ -219,6 +220,90 @@ test('nullable stored Task.location admits canonical null and reference wires wi
     assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, wire === null ? '0' : '1');
     assert.equal(w.locationLoads(), 0); assert.equal(w.queries(), 0);
   }
+});
+
+test('a genuine nested child retains reference influence without root dependencies and recovers its original scalar under current source authority', async () => {
+  const ROOT = 'workbench.reviewStoredTargets', slice = artifact();
+  slice.callables!.push({ id: ROOT, kind: 'operation', module: 'stored-reference.mjs', export: 'identity', member: ['reviewStoredTargets'] });
+  slice.operations!.push({ name: ROOT, kind: 'scenario', description: '', inputs: { fields: [] }, result: {
+    type: 'int' as CanTypeId, disclosure: { version: 1, source: origin(), returns: [{
+      id: 'review-count', source: origin(), influences: [], dependencies: [],
+    }] },
+  } });
+  const w = await world({}, undefined, slice), root = w.registry.get(ROOT) as GeneratedOperationDef;
+  assert.deepEqual(root.descriptor.result!.disclosure!.returns[0]!.dependencies, []);
+  let childExecutions = 0, rootExecutions = 0, finalizations = 0, commits = 0;
+  let parentCall: AdmittedCall | undefined, childCall: AdmittedCall | undefined, receipt: Receipt | undefined;
+  const originalCommit = w.store.commit;
+  w.store.commit = async batch => { commits++; return originalCommit(batch); };
+  bindScenarioReceiptCallProducer(root, { source: origin(), app: APP, registry: w.registry,
+    sites: [{ id: 'stored-child', source: origin(), kind: 'operation', resultType: 'int' as CanTypeId,
+      targets: [{ operation: OP, interface: w.def.descriptor }] }],
+    prepare: (_def, inputs, parent) => { assert.equal(parent, parentCall); return inputs as ClosedInputs; },
+    execute: async frame => {
+      childExecutions++; childCall = frame.call;
+      assert.equal(frame.parent, parentCall); assert.notEqual(frame.call, parentCall);
+      const step = await frame.session.read(STEP, w.step.id); assert.ok(step);
+      await observeScenarioReceiptDependency(frame.call, w.store,
+        { dependencyId: 'step-parent', model: STEP, row: step, field: 'parent' });
+      const run = await frame.session.read(RUN, step.parent!.id); assert.ok(run);
+      await observeScenarioReceiptDependency(frame.call, w.store,
+        { dependencyId: 'run-location', model: RUN, row: run, field: 'location' });
+      await observeScenarioReceiptDependency(frame.call, w.store,
+        { dependencyId: 'run-targets', model: RUN, row: run, field: 'targets' });
+      const count = w.count(run.data['targets']);
+      selectScenarioReceiptReturn(frame.call, w.store, 'target-count');
+      return String(count);
+    },
+  });
+  const envelope = makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), {});
+  const result = await invoke({ ...w, envelope, execute: async call => {
+    rootExecutions++; parentCall = call;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    const count = await invokeScenarioReceiptCall(call, w.store, { site: 'stored-child', target: OP,
+      inputs: { step: { id: w.step.id, version: String(w.step.version) } } });
+    assert.equal(count, '3');
+    await session.stage({ op: 'update', model: RUN, id: w.run.id, data: { state: 'nested-counted' } }, cause);
+    selectScenarioReceiptReturn(call, w.store, 'review-count'); finalizations++;
+    const output = await session.finalize();
+    assert.equal(output.writes.length, 1); assert.equal(output.history.length, 1);
+    return { ...output, result: count, outbox: [] };
+  }, observeCommittedReceipt: value => { receipt = value; } });
+  assert.equal(result.status, 'committed'); assert.equal(result.result, '3'); assert.ok(receipt); assert.ok(childCall);
+  assert.equal(rootExecutions, 1); assert.equal(childExecutions, 1); assert.equal(finalizations, 1); assert.equal(commits, 1);
+  const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+  assert.deepEqual(association.observations, []); assert.equal(association.calls!.length, 1);
+  const child = association.calls![0]!;
+  assert.equal(child.target, OP); assert.equal(child.result, '3'); assert.equal(child.scenario!.returnId, 'target-count');
+  assert.deepEqual(child.scenario!.observations.map(entry => [entry.model, entry.dependencyId]),
+    [[STEP, 'step-parent'], [RUN, 'run-location'], [RUN, 'run-targets']]);
+  assert.deepEqual(child.scenario!.observations[2]!.row.data['targets'], targets());
+  const saved = JSON.parse(JSON.stringify(receipt)) as Receipt;
+  assert.deepEqual(readScenarioReceiptAssociation(saved), association);
+  const projected = await projectScenarioReceipt({ ...w, receipt: saved });
+  assert.equal(projected.result, '3'); assert.equal(projected.records.length, 1);
+  assert.deepEqual(projected.records[0]!.data, { reviewer: { id: w.subject.user_id }, state: 'nested-counted' });
+  const current = await w.physical.load(RUN, w.run.id); assert.ok(current);
+  await update(w, RUN, current.id, { data: { ...current.data, location: { id: 'another-unloaded-location' },
+    targets: [{ id: 'another-unloaded-task', version: '99' }] } });
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt: saved }), projected);
+  const before = await domain(w), revision = await w.store.readRevision();
+  assert.equal((await invokeRetainedReceiptOnly({ ...w, envelope, clock: { nowMs: () => FIXED_NOW + 16 * 60_000 },
+    execute: async () => { rootExecutions++; return empty(); } })).status, 'replayed');
+  assert.equal(rootExecutions, 1); assert.equal(childExecutions, 1); assert.equal(finalizations, 1); assert.equal(commits, 1);
+  const partial = policyFor(w.loaded, { runFields: ['location.id', 'targets', 'reviewer', 'state'] });
+  assert.deepEqual(await projectScenarioReceipt({ ...w, policy: partial, receipt: saved }), { result: null, records: [] });
+  await w.memberships.removeMembership(w.subject.membership_id);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt: saved }), { result: null, records: [] });
+  const context = { actorUserId: w.caller.user_id, teamId: w.team.team_id, membership: w.caller, memberships: w.memberships };
+  for (const [model, row] of [[TASK, w.task], [LOCATION, w.location]] as const) {
+    assert.equal(await projectSavedRecordForViewer({ policy: w.policy.get(model), context,
+      current: row, saved: row, originalSecretFields: [] }), null);
+  }
+  await assert.rejects(observeScenarioReceiptDependency(childCall, w.store,
+    { dependencyId: 'run-targets', model: RUN, row: child.scenario!.observations[2]!.row, field: 'targets' }), stateError);
+  assert.equal(w.counts(), 1); assert.equal(w.referenceLoads(), 0); assert.equal(w.queries(), 0);
+  assert.deepEqual(await domain(w), before); assert.equal(await w.store.readRevision(), revision);
 });
 
 test('stored reference observation rejects incomplete, malformed, wrong-model and out-of-bound source wires before computation', async () => {
