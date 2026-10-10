@@ -133,6 +133,9 @@ test('allows only registered canonical fixture reads from exact Cloudflare consu
       import { fileURLToPath } from 'node:url';
       const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
       readFileSync(join(root, 'compiler/tests/fixtures/hook_order_rollback.can'));
+      readFileSync(join(root, 'compiler/tests/fixtures/anonymous-message-consumer.mjs'));
+      readFileSync(join(root, 'compiler/tests/fixtures/anonymous-message-consumer.mjs'));
+      readFileSync(join(root, 'compiler/tests/fixtures/anonymous-message-consumer.mjs'));
     `,
   };
   const f = fixture(t, { cloudflareConsumers: consumers });
@@ -140,6 +143,9 @@ test('allows only registered canonical fixture reads from exact Cloudflare consu
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
     'packages/cloudflare/src/dev/session-service.test.ts',
+    'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
+    'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
+    'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
@@ -158,6 +164,7 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
       readFileSync(join(repo, 'tests/integration/can-dev-server/Another.can'));
       readFileSync(join(repo, 'compiler/tests/fixtures/hook_order_rollback.can'));
+      readFileSync(join(repo, 'compiler/tests/fixtures/anonymous-message-consumer.mjs'));
     `,
     'test/committed-model-consumer.test.ts': `
       import { readFileSync } from 'node:fs';
@@ -174,19 +181,22 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       import '../../../a/src/index.js';
       const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
       readFileSync(join(root, 'compiler/tests/fixtures/Another.can'));
+      readFileSync(join(root, 'compiler/tests/fixtures/anonymous-message-consumer.mjs'));
     `,
     'src/runtime/native-local-rules-d1.integration.test.ts': `
       import { readFileSync } from 'node:fs';
       import { join, resolve } from 'node:path';
       import { fileURLToPath } from 'node:url';
       import '../../../a/src/index.js';
+      import '../../../../compiler/tests/fixtures/anonymous-message-consumer.mjs';
       const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
       readFileSync(join(root, 'compiler/tests/fixtures/Another.can'));
+      readFileSync(join(root, 'compiler/tests/fixtures/Another.mjs'));
     `,
   } });
   const result = f.check();
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 5);
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 4);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 8);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 5);
   assert.deepEqual(result.registered, []);
 });
 
