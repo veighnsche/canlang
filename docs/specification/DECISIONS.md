@@ -6517,3 +6517,15 @@ workflow/58 of67 and precise BDD3/Task22 holds remain open.
 ### 2026-10-10 — manual local integration of be6934a4
 
 Review exact complete bound-child any/all projection attribution, selected slots/alias/type and fresh source-to-IR static Call correspondence. Preserve separate model/query authority and Values ordered short-circuit behavior without per-element parent observations. Reuse owning619 affected outcomes, genuine native reference/version/CRUD failure/rollback/replay/current-role controls and strict all-target lint/format. Stored Step.input nominal authority remains State-owned and contained reference hydration Dev-owned; original old/fresh predicate and File/source join remain Compiler consumers. No whole58/67 acceptance, arbitrary child reuse or change to BDD3/Task22 holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Compiler assignment-only File source, 2026-10-10 (unfinished native host join):
+admit only explicit direct required defaultless root File input into its owning
+singular File/file? field. Preserve original TypedFileJourney awaited Set then
+accept guard. Dedicated source proof joins actual owning schema and input with
+verified original value/parameter declaration bytes; mutable agreeing proof/IR
+cannot substitute another valid File input. Genuine finalized observation,
+physical lifetime and final postwrite association remain Files/State-owned;
+no general File scalar/read/result/child/copy/loop admission follows. Affected316,
+strict all-target lint/format0 and finite review CLEAR qualify compiler source
+publication. Dev actual native binding/staging/retained replay and unchanged D1
+journey remain required;58/67 and precise BDD3/Task22 holds stay unchanged.
