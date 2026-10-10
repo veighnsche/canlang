@@ -6446,3 +6446,13 @@ Safely FF exact reviewed a8de5109 into clean own branch, retaining manuallyCLEAR
 Qualify existing direct-field Step.input:workbench.Input dependency against genuine same-load contract/canonical model, exact current-stage owning rows and complete canonical Values wire, preserving required ordered Fact[]! bounds and original one count. Existing association/recovery/current owning field permission/lifetime/source/receipt and full Identity fences retain the original scalar result; valid current Input replacement is authority validation, not recomputation. Current absent/malformed/noncanonical Input withholds, as do secrecy, partial fields and final-await membership loss. Stored referenced IDs do not grant referenced-row access. No dotted model field, query replacement, new carrier/table or scalar/changed nominal expansion.
 
 Offline install25ms/no changes, owning dependency build12/12 in5.933s and final clean State emission pass. Affected135 has134passes plus one invalid grant-over-secret fixture; correct only the test's current grant fields, then changed group1/1 passes198.16ms, reusing134. Seven new groups plus128existing cases qualified; boundary13/921/1332/0 reused after fixture-only edit. Component manual review and Compiler checked root/member/count plus Dev actual contained hydration/native use remain pending. Original full application, general loop and consulted-but-undecided cardinality producers are not accepted; exact holds remain.
+
+Compiler bound child count, 2026-10-10 (unfinished original workflow): use
+existing State complete child association and Dev exact schema decoding. Admit
+only checked direct count(CallAs) with exact Complete occurrence/result type,
+binding the actual awaited wire after authored input evaluation. All retained
+child authority gates parent disclosure; add no scalar observation/row grant.
+Copies/general fields/first/helper uses remain refused. Affected313, strict
+lint/format and finite source/authority review CLEAR; genuine native guard,
+return, post-child rollback, retained cardinality, replay and withholding pass.
+Original approve source provenance, full58/67 and precise holds remain open.

@@ -2912,3 +2912,19 @@ released State/Files/Interfaces dependencies build16/16 after frozen local
 installation; unchanged whole/editor results are reused. Dev owns actual native
 File binding/staging/retained replay and the unchanged real D1 journey. This
 source unit does not close that workflow or58/67; precise holds remain.
+
+**Bound child count (unfinished original approve), 2026-10-10.** Existing
+State/Dev APIs already retain, decode and reauthorize the genuine complete child
+result; direct cardinality consumption needs no new result-slot API. Compiler
+now proves the exact Complete call occurrence/type and binds its actual awaited
+wire. Only checked direct count(CallAs) is admitted; copied arrays, general
+fields, first/helper uses remain refused. Parent disclosure remains gated by
+all retained child authority, without fabricated scalar dependencies/row views.
+Affected313 pass (library161,codegen121,invocation7,disclosure23,actual native1),
+strict all-targetClippy/format0 and finite source/authority review CLEAR. Genuine
+parent count2 guard/return, valid child1 then parent refusal, post-child accept
+failure, rollback, child-length receipt association, no-execution replay and
+current withholding pass. Stale Declined and unmangled-binding test expectations
+were corrected. Unchanged whole/editor/runtime results reused. Original approve
+member inputs, stored contract-array count, any/all reference/version predicates,
+pure/dynamic closure and exact external/held joins remain;58/67 unchanged.

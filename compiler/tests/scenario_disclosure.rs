@@ -981,7 +981,7 @@ fn query_child_preparation_proves_original_inputs_and_unused_binding_in_source_o
 fn query_parent_full_emission_requires_immutable_prepared_child_receipt() {
     let source = finite_query_parent_source(
         "location:Location,targets:Scope.targets",
-        "   call context {location,targets} as facts\n   return 1",
+        "   call context {location,targets} as facts\n   require count(facts)==2\n   return count(facts)",
         true,
     );
     let mut db = SourceDb::new();
@@ -1106,7 +1106,7 @@ fn query_parent_full_emission_requires_immutable_prepared_child_receipt() {
 }
 
 #[test]
-fn query_child_preparation_refuses_nonoriginal_inputs_and_bound_result_use() {
+fn query_child_preparation_refuses_nonoriginal_inputs_and_unproved_result_use() {
     for (parameters, body) in [
         (
             "location:Location,targets:Scope.targets",
@@ -1129,7 +1129,7 @@ fn query_child_preparation_refuses_nonoriginal_inputs_and_bound_result_use() {
         ),
         (
             "location:Location,targets:Scope.targets",
-            "   call context {location,targets} as facts\n   return count(facts)",
+            "   call context {location,targets} as facts\n   require first(facts)!=null\n   return 1",
         ),
         (
             "location:Location,targets:Scope.targets",
