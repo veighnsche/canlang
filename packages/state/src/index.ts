@@ -122,6 +122,8 @@ export {
   createInvoker,
   createReadPort,
   createSystemRegistry,
+  systemCommandStageRevision,
+  enrollSystemCommandCommitCheck,
   createTransactionPort,
   defineSystemCommand,
   outboxAckCommand,

@@ -115,7 +115,6 @@ describe('async actual dispatch guard execution', () => {
       return true;
     });
     attempt.fence = { checkpoint: { revision: 4, owner: 'team-a' }, revalidateAuthority: async () => {
-      assert.throws(() => readDispatchGuardExecution(retained), /not live/);
       order.push('authority'); return true;
     } };
     const pending = attemptDispatchAsync(deps, attempt);
@@ -141,8 +140,8 @@ describe('async actual dispatch guard execution', () => {
       order.push('authority'); throw failure;
     } };
     const pending = attemptDispatchAsync(deps, attempt);
-    assert.throws(() => readDispatchGuardExecution(retained), /not live/);
     await assert.rejects(pending, error => error === failure);
+    assert.throws(() => readDispatchGuardExecution(retained), /not live/);
     assert.equal(order.includes('claim'), false);
   });
 
@@ -168,8 +167,6 @@ describe('async actual dispatch guard execution', () => {
       const { deps, attempt, order } = setup(async (_p, _i, _s, execution) => {
         const observed = current;
         registerDispatchGuardRevalidation(execution, async () => {
-          assert.throws(() => registerDispatchGuardRevalidation(execution, () => true), /not live/);
-          assert.throws(() => readDispatchGuardExecution(execution), /not live/);
           order.push('observation');
           return current === observed;
         });
@@ -226,14 +223,24 @@ describe('async actual dispatch guard execution', () => {
     }
   });
 
-  it('bounds live enrollment to 200 functions', async () => {
+  it('caught enrollment beyond 200 functions refuses the logical claim', async () => {
     const { deps, attempt } = setup((_p, _i, _s, execution) => {
-      assert.throws(() => registerDispatchGuardRevalidation(execution, null as unknown as () => boolean), /must be a function/);
       for (let index = 0; index < 200; index++) registerDispatchGuardRevalidation(execution, () => true);
       assert.throws(() => registerDispatchGuardRevalidation(execution, () => true), /exceed bounds/);
       return true;
     });
-    assert.equal((await attemptDispatchAsync(deps, attempt)).status, 'claimed');
+    await assert.rejects(attemptDispatchAsync(deps, attempt), /poisoned/);
+  });
+
+  it('caught late misuse during current authority refuses the logical claim', async () => {
+    let execution!: DispatchGuardExecution;
+    const { deps, attempt, order } = setup((_p, _i, _s, issued) => { execution = issued; return true; });
+    attempt.fence = { checkpoint: { revision: 4, owner: 'team-a' }, revalidateAuthority: () => {
+      assert.throws(() => registerDispatchGuardRevalidation(execution, () => true), /not live/);
+      return true;
+    } };
+    await assert.rejects(attemptDispatchAsync(deps, attempt), /poisoned/);
+    assert.equal(order.includes('claim'), false);
   });
 
   it('owns decoded bigint values and refuses undefined, nonfinite, sparse and hidden data', async () => {
