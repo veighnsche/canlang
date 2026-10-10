@@ -95,9 +95,13 @@ attachment-time regressions through the public ports refuse; public transactions
 grant no cleanup permission. Legacy full/batch retention also refuses on that
 profile, including after reopen without issuer configuration. Staging and
 unpublished final-byte cleanup retain their separate existing semantics.
-Controlled lookup tests qualify these Files mechanics only. The actual State
-issuer, complete framework/declaration/admission guards and Dev all-writer/owner
-reopen binding remain prerequisites for a supported shared-retirement profile.
+Controlled lookup tests qualify these Files mechanics only. The genuine
+persisted D1 State issuer and separate Files SQLite consumer are also qualified
+in Work's existing retirement integration test: permanent original issuance,
+physical rollback, both-store reopen, exact journal retry and legacy refusal.
+The reviewed State implementation supplies complete framework/declaration and
+commit/publication/activation guards. Dev's complete all-writer/owner binding and
+native lifecycle/reopen qualification remain prerequisites for a supported host.
 No DTO, callback, live observation or structural port cast establishes issuance.
 Retention cleans unpublished terminal bytes while published files keep
 their own policy and immutable tombstones.
@@ -178,8 +182,8 @@ locator and current caller/physical receiver correspondence. Shared reference
 retention additionally needs complete committed slots and a host fence through
 byte deletion; the single attachment marker cannot establish that contract.
 
-The current D1 State plus separate `files.sqlite` profile does not support
-shared-reference physical deletion. The selected implementation direction is
+The complete D1 State plus separate `files.sqlite` deployment profile remains
+unqualified for shared-reference physical deletion. The implemented direction is
 permanent durable retirement in the authoritative State owner: the complete
 census, its original revision and installed declaration correspondence must
 admit retirement under one State fence. Every subsequent live-reference writer,
@@ -187,7 +191,8 @@ migration publication and schema activation must honor that admission barrier.
 Packages consumes the exact persisted issuer and immutable physical File
 identity before terminal metadata and byte deletion in the Files transaction;
 Dev supplies complete owner/store routing and interruption/reopen recovery.
-Those State, Files and host primitives remain absent. An awaited census,
+The State issuer and Files consumer now exist; the actual host binding and
+complete native workflow remain owning prerequisites. An awaited census,
 revision revalidation, ordinary decision DTO or process-local mutex cannot
 substitute for them. Existing low-level sweeps retain their Files-local scope;
 the decision does not activate a cross-store cleanup path or change retention

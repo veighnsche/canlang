@@ -3,6 +3,13 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { Miniflare } from 'miniflare';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { blobKeyForFile, describeForReceipt, sha256Hex } from '@canlang/files';
+import { createSqliteFileStore, createSqliteFileBindings } from '@canlang/files/host/sqlite';
+import { WORK_FILE_REFERENCE_PRODUCER as PUBLIC_WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { ArtifactModel, CanTypeId, DomainWrite, FileReferenceInventory,
   FileReferenceStoragePort, FileRetirementAuthority, FinalizedFileIdentity,
@@ -310,4 +317,209 @@ describe('actual Memory migration engine with mixed State and Work File inventor
     for (const original of domain) assert.deepEqual(await store.load(MODEL, original.id), original);
     for (const [model, original] of controls) assert.deepEqual(await store.load(model, original.id), original);
   });
+});
+
+describe('genuine persisted State retirement consumed by separate Files SQLite', () => {
+  const bytes = new TextEncoder().encode('%PDF-1.4\ntrailer\n');
+  const receiver = { ...authority.receiver, principal: 'alice' };
+  const retention = { unattachedHorizonMs: 10, retentionMs: 100 };
+  const actualProducers = [STATE_FILE_REFERENCE_PRODUCER, PUBLIC_WORK_FILE_REFERENCE_PRODUCER];
+  const start = Date.parse('2026-10-11T12:00:00Z');
+
+  async function stateTables(database: D1Database) {
+    // D1's reserved _cf_* provider tables prohibit reads through its public API.
+    const names = (await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB '_cf_*' ORDER BY name").all<{ name: string }>()).results;
+    const result: Record<string, unknown> = {};
+    for (const { name } of names) {
+      const rows = (await database.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all()).results;
+      result[name] = rows.map(row => JSON.stringify(row)).sort();
+    }
+    return result;
+  }
+
+  for (const disposition of ['orphaned', 'expired'] as const) {
+    it(`${disposition}: genuine issuance survives physical rollback and both-store reopen without changing State`, async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'can-state-files-retirement-'));
+      const filePath = join(dir, 'files.sqlite'), d1Persist = join(dir, 'd1');
+      let physical = createSqliteFileStore(filePath);
+      let native: Miniflare | null = null;
+      let database!: D1Database, state!: FileReferenceStoragePort;
+      let now = start;
+      const clock = { nowMs: () => now };
+      const options = { clock, intentTtlMs: 1000, urlBase: 'https://documents.example.test',
+        policy: { types: ['application/pdf'], maxBytes: bytes.length } };
+      const sql = (action: (connection: DatabaseSync) => void) => {
+        const connection = new DatabaseSync(filePath);
+        try { action(connection); } finally { connection.close(); }
+      };
+      function fileTables() {
+        const result: Record<string, string[]> = {};
+        sql(connection => {
+          const names = connection.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
+          for (const entry of names) {
+            const name = entry.name as string;
+            result[name] = connection.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all()
+              .map(row => JSON.stringify(row)).sort();
+          }
+        });
+        return result;
+      }
+      function fileRefusal(action: () => unknown) {
+        const before = fileTables();
+        assert.throws(action);
+        assert.deepEqual(fileTables(), before);
+      }
+      async function asyncFileRefusal(action: () => Promise<unknown>, message?: RegExp) {
+        const before = fileTables();
+        if (message === undefined) await assert.rejects(action);
+        else await assert.rejects(action, message);
+        assert.deepEqual(fileTables(), before);
+      }
+      let boundAuthority!: FileRetirementAuthority;
+      async function openState() {
+        native = new Miniflare({ modules: true, script: 'export default {fetch(){return new Response("ok")}}',
+          d1Databases: { DB: 'retirement-consumer' }, d1Persist });
+        database = await native.getD1Database('DB');
+        await ensureD1Schema(database);
+        state = createD1Storage(database, boundAuthority, actualProducers);
+      }
+      async function closeState() {
+        const current = native;
+        native = null;
+        if (current !== null) await current.dispose();
+      }
+      async function reopenBoth() {
+        physical.close(); await closeState();
+        physical = createSqliteFileStore(filePath);
+        assert.equal(physical.fileStoreId, boundAuthority.fileStoreId);
+        await openState();
+      }
+      const boundFiles = () => createSqliteFileBindings(physical, {
+        ...options, fileRetirement: { storage: state, retention },
+      });
+      try {
+        assert.equal(PUBLIC_WORK_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER);
+        assert.equal(actualProducers.flatMap(producer => producer.models).length, 13);
+        const upload = createSqliteFileBindings(physical, options);
+        const request = { upload_id: 'original-upload', operation: 'Documents.Record.create', field: '/attachment',
+          arguments: {}, name: 'original.pdf', type: 'application/pdf', size: String(bytes.length) };
+        const binding = { adapter: 'deployment.web', deliveryId: 'original-delivery', resultPath: 'receipt' };
+        const created = upload.createIntent({ request, receiver, binding });
+        assert.equal(created.status, 'granted');
+        if (created.status !== 'granted') throw new Error('Expected actual upload grant');
+        assert.deepEqual(upload.append(created.intentId, receiver, bytes, 0), { status: 'appended', receivedBytes: bytes.length });
+        assert.equal(upload.complete(created.intentId, receiver).status, 'completed');
+        const finalized = upload.finalize({ intentId: created.intentId, retryId: request.upload_id,
+          bytesDigest: sha256Hex(bytes), caller: receiver });
+        assert.equal(finalized.status, 'finalized');
+        if (finalized.status !== 'finalized') throw new Error('Expected actual finalized file');
+        const ref = finalized.result.file;
+        assert.equal(upload.recordAttachment(ref, 'Documents.Record/live', receiver).status, 'attached');
+        const original = physical.files.get(ref)!;
+        const identity: FinalizedFileIdentity = { ref, receiver: { ...original.owner },
+          provenance: structuredClone(original.file.provenance), contentType: original.file.contentType,
+          sizeBytes: original.file.sizeBytes, bytesDigest: original.file.bytesDigest, finalizedAtMs: original.finalizedAtMs };
+        assert.deepEqual(identity.provenance, { kind: 'request', ...receiver, ...binding });
+        boundAuthority = { ...authority, stateStoreId: 'persisted-state', fileStoreId: physical.fileStoreId,
+          receiver: { ...authority.receiver } };
+        await openState();
+        const declarations = inventory();
+        await state.installFileReferenceInventory({ expectedRevision: await state.readRevision(), authority: boundAuthority,
+          snapshot: { ...snapshot, installedAt: start }, inventory: declarations });
+        const live = { ...makeRow({ id: 'live', created: start, updated: start, data: { attachment: { id: ref } } }), parent: null };
+        const archived = { ...makeRow({ id: 'archived', created: start, updated: start,
+          archivedAt: start, data: { attachment: { id: ref } } }), parent: null };
+        await state.commit(makeBatch(await state.readRevision(), { writes: [
+          { kind: 'insert', model: MODEL, row: live }, { kind: 'insert', model: MODEL, row: archived },
+          ...controlRows().map(([model, row]) => ({ kind: 'insert' as const, model, row })),
+        ] }));
+        now = start + retention.unattachedHorizonMs;
+        const retireInput = async () => ({ expectedRevision: await state.readRevision(), inventory: {
+          owner: declarations.owner, snapshotId: declarations.snapshotId, digest: declarations.digest },
+          file: identity, disposition, retention, atMs: now, maxRows: 30, maxReferences: 100 });
+        const beforeReferenceRefusal = await stateTables(database);
+        await asyncFileRefusal(() => state.retireFinalizedFile({ expectedRevision: asRevision(2), inventory: {
+          owner: declarations.owner, snapshotId: declarations.snapshotId, digest: declarations.digest },
+          file: identity, disposition: 'orphaned', retention, atMs: now, maxRows: 30, maxReferences: 100 }));
+        assert.deepEqual(await stateTables(database), beforeReferenceRefusal);
+        if (disposition === 'orphaned') {
+          await state.commit(makeBatch(await state.readRevision(), { writes: [{ kind: 'update', model: MODEL,
+            id: live.id, expectedVersion: live.version, row: { ...live, version: asVersion(2), data: {} } }] }));
+          const archivedOnly = await stateTables(database);
+          await asyncFileRefusal(async () => state.retireFinalizedFile(await retireInput()));
+          assert.deepEqual(await stateTables(database), archivedOnly);
+          await state.commit(makeBatch(await state.readRevision(), { writes: [{ kind: 'remove', model: MODEL,
+            id: archived.id, expectedVersion: archived.version }] }));
+        } else now = start + retention.retentionMs;
+        const decision = await state.retireFinalizedFile(await retireInput());
+        assert.deepEqual(decision.file, identity);
+        assert.equal(decision.authority.fileStoreId, physical.fileStoreId);
+        const permanentState = await stateTables(database);
+        const cleanup = boundFiles();
+        await asyncFileRefusal(() => createSqliteFileBindings(physical, { ...options,
+          policy: { ...options.policy, maxBytes: bytes.length - 1 },
+          fileRetirement: { storage: state, retention } }).deleteRetiredFile(ref));
+        assert.deepEqual(physical.files.get(ref), original);
+        assert.deepEqual(physical.blobs.read(blobKeyForFile(ref)), bytes);
+        sql(connection => connection.exec("CREATE TRIGGER interrupt_retirement BEFORE DELETE ON files_blobs BEGIN SELECT RAISE(ABORT, 'physical deletion interrupted'); END"));
+        await asyncFileRefusal(() => cleanup.deleteRetiredFile(ref), /physical deletion interrupted/);
+        assert.deepEqual(physical.files.get(ref), original);
+        assert.deepEqual(physical.blobs.read(blobKeyForFile(ref)), bytes);
+        sql(connection => assert.equal(connection.prepare('SELECT count(*) AS n FROM files_retirement_journal').get()!.n, 0));
+        assert.deepEqual(await state.readFinalizedFileRetirement(ref), decision);
+        assert.deepEqual(await stateTables(database), permanentState);
+
+        await reopenBoth();
+        assert.deepEqual(await state.readFinalizedFileRetirement(ref), decision);
+        const legacyState = createD1Storage(database, undefined, actualProducers);
+        await asyncFileRefusal(() => legacyState.commit(makeBatch(decision.retiredRevision, { writes: [{ kind: 'insert', model: MODEL,
+          row: { ...makeRow({ id: 'revived', data: { attachment: { id: ref } } }), parent: null } }],
+          schedules: [{ op: 'replace', key: 'no-secondary-effect', at: now, event: asOperation('Documents.due'), payload: {} }] })));
+        assert.deepEqual(await stateTables(database), permanentState);
+        const omitted = createSqliteFileBindings(physical, options);
+        await asyncFileRefusal(() => omitted.deleteRetiredFile(ref));
+        fileRefusal(() => omitted.runRetention(retention));
+        const foreign = createD1Storage(database, { ...boundAuthority, stateStoreId: 'foreign-state' }, actualProducers);
+        fileRefusal(() => createSqliteFileBindings(physical, { ...options, fileRetirement: { storage: foreign, retention } }));
+        fileRefusal(() => physical.blobs.remove(blobKeyForFile(ref)));
+        fileRefusal(() => physical.files.put({ ...original, file: { ...original.file, sizeBytes: 1 } }));
+        sql(connection => connection.exec('DROP TRIGGER interrupt_retirement'));
+        assert.equal(await boundFiles().deleteRetiredFile(ref), 'deleted');
+        assert.deepEqual(physical.files.get(ref), { ...original, state: disposition });
+        assert.equal(physical.blobs.read(blobKeyForFile(ref)), null);
+        fileRefusal(() => physical.files.put(original));
+        fileRefusal(() => physical.blobs.write(blobKeyForFile(ref), bytes));
+        fileRefusal(() => physical.blobs.append(blobKeyForFile(ref), bytes));
+        assert.deepEqual(describeForReceipt({ files: physical.files, blobs: physical.blobs }, ref),
+          { file: ref, status: 'redacted', contentType: 'application/pdf', sizeBytes: bytes.length });
+        let journal = '';
+        sql(connection => {
+          journal = connection.prepare('SELECT json FROM files_retirement_journal WHERE id=?').get(ref)!.json as string;
+          const saved = JSON.parse(journal);
+          assert.deepEqual(saved.retirement, decision);
+          assert.equal(typeof saved.tombstone, 'string');
+          assert.equal(saved.tombstone,
+            connection.prepare('SELECT json FROM files_finalized WHERE id=?').get(ref)!.json);
+        });
+        assert.deepEqual(await stateTables(database), permanentState);
+        for (const changed of [{ retention: { ...retention, retentionMs: 101 } },
+          { disposition: disposition === 'orphaned' ? 'expired' as const : 'orphaned' as const }]) {
+          await asyncFileRefusal(async () => state.retireFinalizedFile({ ...await retireInput(), ...changed }));
+          assert.deepEqual(await stateTables(database), permanentState);
+        }
+        await reopenBoth();
+        assert.deepEqual(await state.readFinalizedFileRetirement(ref), decision);
+        assert.equal(await boundFiles().deleteRetiredFile(ref), 'already-deleted');
+        sql(connection => connection.prepare('DELETE FROM files_retirement_journal WHERE id=?').run(ref));
+        await asyncFileRefusal(() => boundFiles().deleteRetiredFile(ref));
+        sql(connection => connection.prepare('INSERT INTO files_retirement_journal(id,json) VALUES(?,?)').run(ref, journal));
+        assert.equal(await boundFiles().deleteRetiredFile(ref), 'already-deleted');
+        assert.deepEqual(physical.files.get(ref), { ...original, state: disposition });
+        assert.deepEqual(await stateTables(database), permanentState);
+      } finally {
+        physical.close(); await closeState();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
 });
