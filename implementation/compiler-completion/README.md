@@ -2534,3 +2534,24 @@ unsupported event contract control by including the still-unsupported email leaf
 retaining whole-descriptor/inventory withholding and every actual schedule/cancel
 payload, declaring-owner, carrier, authored-order and failure assertion. Owning
 schedule2/2 passes; unchanged real model-reference positives are reused.
+
+
+**Query-aware decision correspondence (unfinished runtime activation), 2026-10-10.**
+The real decision consumer now joins Query facts to the immutable checker and
+fresh complete IR: domain, lexical aliases, operands, ordering, async marker,
+optional clauses and collection attribution. External predicate Lambda admission
+requires its exact checked any/all slot, alias and type. Imported staff→abs→any
+source order/call chain, direct where, serialization and11 corruption controls
+pass. Awaited derive predicates retain their exact synchronous-predicate E6008;
+unsupported query/predicate refusals are preserved instead of masked by the
+collection-fact join. Owning decision7/7, flat6/6, order2/2, schedule2/2 and
+disclosure18/18 pass; unchanged affected codegen121 and query8 are reused. Strict
+all-target Clippy/format0 and finite source review clear. No StateRead/async/native
+activation or original-reference completion follows; final whole checks run next.
+
+SKIP general array/loop receipt activation: Dev's reported NativeRefArrays source
+is not yet released, and existing static dependency presence cannot prove ordered
+reference-array domains, zero iterations or conditionally skipped per-element
+reads. State/Contracts must release actual domain/order/duplicate/zero/conditional
+coverage and Dev genuine capture lifetime. Existing row markers already support
+repeated observations; do not invent index markers or relabel query recipes.
