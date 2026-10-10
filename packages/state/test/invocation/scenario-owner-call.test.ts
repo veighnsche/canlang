@@ -117,7 +117,7 @@ async function finish(call: AdmittedCall, w: World, session: OwnerMutationSessio
   return { ...await session.finalize(), result: null, outbox: [] };
 }
 
-test('reviewed CRUD and native calls share one owner commit, net history and exact replay', async () => {
+test('reviewed CRUD and native calls share one owner commit, ordered history and exact replay', async () => {
   const w = await world(), producer = bind(w), reviewed = target(w); let receipt: Receipt | undefined, roots = 0, commits = 0;
   assert.equal(w.row.version, 1);
   const originalCommit = w.store.commit;
@@ -133,9 +133,14 @@ test('reviewed CRUD and native calls share one owner commit, net history and exa
     assert.ok(Object.isFrozen(reviewed)); assert.ok(Object.isFrozen(reviewed.args['record']));
     await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: true } }, cause);
     const output = await finish(call, w, session);
-    assert.equal(output.writes.length, 1); assert.equal(output.history.length, 1);
-    assert.deepEqual(output.history[0]!.before, w.row.data);
-    assert.deepEqual(output.history[0]!.after, { key: 'reviewed', done: true, approved: true });
+    assert.equal(output.writes.length, 1); assert.equal(output.history.length, 3);
+    const reviewedData = { ...w.row.data, key: 'reviewed' };
+    const completedData = { ...reviewedData, done: true };
+    assert.deepEqual(output.history.map(entry => [entry.operation, entry.version, entry.before, entry.after]), [
+      [UPDATE, w.row.version + 1, w.row.data, reviewedData],
+      [COMPLETE, w.row.version + 1, reviewedData, completedData],
+      [ROOT, w.row.version + 1, completedData, { ...completedData, approved: true }],
+    ]);
     assert.deepEqual(output.uniqueClaims, [{ model: MODEL, recordId: w.row.id, keyName: 'key', keyValue: 'reviewed' }]);
     assert.deepEqual(output.uniqueReleases, [{ model: MODEL, keyName: 'key', keyValue: 'original' }]);
     assert.deepEqual(output.resolvedDefaults, {});
@@ -718,14 +723,22 @@ test('a nested genuine call resolves its immediate child parent pointer and pres
       await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: true } }, cause);
       if (rollback) throw new StateError('rule_failed', 'Post-nested workflow requirement failed.');
       const output = await finish(call, w, session);
-      assert.equal(output.writes.length, 1); assert.equal(output.history.length, 1); return output;
+      assert.equal(output.writes.length, 1); assert.equal(output.history.length, 2);
+      const nestedData = { ...w.row.data, key: 'nested' };
+      assert.deepEqual(output.history.map(entry => [entry.operation, entry.version, entry.before, entry.after]), [
+        [UPDATE, w.row.version + 1, w.row.data, nestedData],
+        [ROOT, w.row.version + 1, nestedData, { ...nestedData, approved: true }],
+      ]);
+      return output;
     } };
     if (rollback) {
       await assert.rejects(invoke(input), stateError); assert.deepEqual(await domain(w), before);
     } else {
       assert.equal((await invoke(input)).status, 'committed');
       assert.deepEqual((await w.store.load(MODEL, w.row.id))!.data, { key: 'nested', done: false, approved: true });
+      const committedDomain = await domain(w);
       assert.equal((await invoke(input)).status, 'replayed');
+      assert.deepEqual(await domain(w), committedDomain);
     }
     assert.equal(roots, 1); assert.equal(nativeExecutions, 1);
   }

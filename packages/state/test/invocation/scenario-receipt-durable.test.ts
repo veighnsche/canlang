@@ -230,8 +230,11 @@ for (const substrate of ['d1', 'do'] as const) {
         const final = await session.read(MODEL, original.id); assert.ok(final);
         assert.equal(final.data.visible, 'generating'); assert.equal(final.version, queued.version);
         const effects = await session.finalize();
-        assert.equal(effects.writes.length, 1); assert.equal(effects.history.length, 1);
-        assert.equal(effects.history[0]!.before?.visible, 'created'); assert.equal(effects.history[0]!.after?.visible, 'generating');
+        assert.equal(effects.writes.length, 1); assert.equal(effects.history.length, 2);
+        assert.deepEqual(effects.history.map(entry => [entry.operation, entry.version, entry.before?.visible, entry.after?.visible]), [
+          [OP, original.version + 1, 'created', 'queued'],
+          [OP, original.version + 1, 'queued', 'generating'],
+        ]);
         assert.deepEqual(await store.load(MODEL, original.id), original, 'intermediate and final writes remain provisional');
         return { ...effects, outbox: [], result: null };
       }, observeCommittedReceipt: value => { receipt = value; } });
@@ -247,9 +250,11 @@ for (const substrate of ['d1', 'do'] as const) {
       assert.equal(association.observations[0]!.row.data.visible, 'queued');
       assert.equal(association.changed[0]!.row.data.visible, 'generating');
       assert.equal(association.changed[0]!.row.version, original.version + 1);
-      assert.equal((await store.historyFor(MODEL, original.id)).length, 1);
+      const retainedHistory = await store.historyFor(MODEL, original.id);
+      assert.equal(retainedHistory.length, 2);
       store = await native.reopen();
       assert.deepEqual(await store.readReceipt(retained.identity), retained);
+      assert.deepEqual(await store.historyFor(MODEL, original.id), retainedHistory);
       assert.deepEqual(readScenarioReceiptAssociation((await store.readReceipt(retained.identity))!)!.intrinsics,
         association.intrinsics);
       assert.deepEqual(await store.load(MODEL, original.id), association.changed[0]!.row);
@@ -259,6 +264,7 @@ for (const substrate of ['d1', 'do'] as const) {
         execute: async () => { executes++; throw new Error('Retained owner session must not execute'); } };
       const replay = await invokeRetainedReceiptOnly(recovery);
       assert.equal(replay.status, 'replayed'); assert.equal(replay.result, null);
+      assert.deepEqual(await store.historyFor(MODEL, original.id), retainedHistory);
       const later = await runMutationWrites({ table, store,
         context: pipelineContext({ operation: 'Shop.Record.update', operationId: uuidv7(FIXED_NOW, 9712), now: FIXED_NOW + 1 }),
         writes: [{ op: 'update', model: MODEL, id: original.id, data: { visible: 'current running' } }] });

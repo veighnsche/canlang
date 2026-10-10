@@ -112,13 +112,23 @@ test('admitted owner session retains intermediate control reads and final net ef
     assert.deepEqual(await session.views.entry.get(MODEL, w.row.id), w.row);
     await captureQueued(call, w, session, row);
     const output = await finish(call, w, session);
-    assert.equal(output.writes.length, 1); assert.equal(output.history.length, 1);
+    assert.equal(output.writes.length, 1); assert.equal(output.history.length, 3);
     const write = output.writes[0]; assert.ok(write); assert.equal(write.kind, 'update');
     if (write.kind !== 'update') throw new Error('Expected final update');
     assert.equal(write.expectedVersion, w.row.version);
     assert.equal(write.row.version, w.row.version + 1);
-    assert.deepEqual(output.history[0]!.before, w.row.data);
-    assert.deepEqual(output.history[0]!.after, { ...w.row.data, state: 'generating', key: 'final-key' });
+    const keyedData = { ...w.row.data, key: 'queued-key' };
+    const queuedData = { ...keyedData, state: 'queued' };
+    assert.deepEqual(output.history.map(entry => [entry.before, entry.after]), [
+      [w.row.data, keyedData],
+      [keyedData, queuedData],
+      [queuedData, { ...queuedData, state: 'generating', key: 'final-key' }],
+    ]);
+    for (const entry of output.history) {
+      assert.equal(entry.version, w.row.version + 1); assert.equal(entry.operation, OP);
+      assert.equal(entry.operationId, w.envelope.operation_id);
+      assert.equal(entry.actor, w.identity.actor!.user_id); assert.equal(entry.at, FIXED_NOW);
+    }
     assert.deepEqual(output.uniqueClaims, [{ model: MODEL, recordId: w.row.id, keyName: 'key', keyValue: 'final-key' }]);
     assert.deepEqual(output.uniqueReleases, [{ model: MODEL, keyName: 'key', keyValue: 'entry-key' }]);
     return effects(output);
@@ -131,7 +141,7 @@ test('admitted owner session retains intermediate control reads and final net ef
   assert.equal(association.changed[0]!.row.data['state'], 'generating');
   assert.equal(association.changed[0]!.row.data['key'], 'final-key');
   assert.equal(association.changed[0]!.row.version, w.row.version + 1);
-  assert.equal((await w.store.historyFor(MODEL, w.row.id)).length, 1);
+  assert.equal((await w.store.historyFor(MODEL, w.row.id)).length, 3);
   const before = await domain(w), revision = await w.store.readRevision();
   let executes = 0, commits = 0; let recovered: Receipt | undefined;
   const recoveryStore: StoragePort = { ...w.store, commit: async batch => { commits++; return w.store.commit(batch); } };
@@ -267,7 +277,7 @@ test('admitted owner effects reject getters without execution and isolate post-r
       const write = raw.writes[0]!; assert.notEqual(write.kind, 'remove');
       if (write.kind === 'remove') throw new Error('Expected update');
       (write.row.data as Record<string, unknown>)['key'] = 'post-return alias';
-      (raw.history[0]!.after as Record<string, unknown>)['key'] = 'post-return history alias';
+      for (const entry of raw.history) (entry.after as Record<string, unknown>)['key'] = 'post-return history alias';
       raw.resolvedDefaults['forged'] = 'post-return default alias';
       return true;
     } }];
@@ -278,7 +288,9 @@ test('admitted owner effects reject getters without execution and isolate post-r
   if (aliasedWrite.kind === 'remove') throw new Error('Expected update');
   assert.equal(aliasedWrite.row.data['key'], 'post-return alias');
   assert.equal((await w.store.load(MODEL, w.row.id))!.data['key'], 'final-key');
-  assert.equal((await w.store.historyFor(MODEL, w.row.id))[0]!.after!['key'], 'final-key');
+  assert.deepEqual((await w.store.historyFor(MODEL, w.row.id)).map(entry => [entry.version, entry.after!['key']]), [
+    [w.row.version + 1, 'queued-key'], [w.row.version + 1, 'queued-key'], [w.row.version + 1, 'final-key'],
+  ]);
   assert.deepEqual(receipt.resolvedDefaults, {});
   const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
   assert.equal(association.changed[0]!.row.data['key'], 'final-key');

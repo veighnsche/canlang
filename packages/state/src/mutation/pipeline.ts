@@ -348,14 +348,12 @@ function fieldDataEqual(left: unknown, right: unknown, seen = new WeakMap<object
  * pre-check every expectedVersion against stored state, so chained
  * provisional versions conflict. Staged writes inherit exactly the
  * caller multi-write rule.) Owner sessions reserve and net one final write
- * and history record per identity instead, while sharing this same machinery.
+ * per identity instead, retaining ordered history for existing rows while
+ * sharing this same machinery.
  */
 function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owner?: OwnerMutationInput, revision?: Revision): OwnerMutationSession {
   const { table, context, store } = input;
   let stageContext = context;
-  // Final net history retains the last contributing stage's operation;
-  // actor, clock and operation identity remain those of the enclosing call.
-  const historyContexts = new Map<string, InvocationContext>();
   const now = context.now;
   const actor = actorFor(context);
   // T32b-wire: the transitive facility's trigger point. Revision + owner
@@ -1172,7 +1170,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     readonly before: StoredRow | null;
     readonly after: Readonly<Record<string, unknown>> | null;
   }, attribution: InvocationContext = stageContext): void => {
-    if (owner !== undefined) historyContexts.set(keyOf(entry.model, entry.recordId), attribution);
     outHistory.push({
       model: entry.model,
       recordId: entry.recordId,
@@ -1780,7 +1777,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         recordHistory({
           model: write.model,
           recordId: id,
-          version: before.version,
+          version: owner === undefined ? before.version : nextVersion(write.model, id, before),
           change: 'remove',
           before,
           after: null,
@@ -1843,7 +1840,27 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         consumeWork();
         await owner.policies.finalize(deepFreeze(changes), policyViews);
       }
-      outWrites.length = 0; outHistory.length = 0; outClaims.length = 0; outReleases.length = 0;
+      // Existing-row effects retain their actual stage snapshots and operation
+      // attribution, in source order. Net creation remains one final entry at
+      // its last contributing stage; a self-cancelled new row leaves no entry.
+      // History cardinality is independent of the single final write/version.
+      const byIdentity = new Map(changes.map(change => [keyOf(change.model, change.id), change]));
+      const lastNewStage = new Map<string, number>();
+      for (const [index, entry] of outHistory.entries()) {
+        const key = keyOf(entry.model, entry.recordId);
+        if (byIdentity.get(key)?.before === null) lastNewStage.set(key, index);
+      }
+      const history = outHistory.flatMap((entry, index): HistoryEntry[] => {
+        const key = keyOf(entry.model, entry.recordId);
+        const change = byIdentity.get(key)!;
+        if (change.before !== null) return [entry];
+        if (change.after === null || lastNewStage.get(key) !== index) return [];
+        return [{ ...entry, version: change.after.version, change: 'create', before: null,
+          after: structuredClone(change.after.data) }];
+      });
+      outHistory.length = 0;
+      for (const entry of history) outHistory.push(entry);
+      outWrites.length = 0; outClaims.length = 0; outReleases.length = 0;
       for (const change of changes) {
         consumeWork();
         const { model, id, before, after } = change;
@@ -1852,11 +1869,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         if (before === null) outWrites.push({ kind: 'insert', model, row: after! });
         else if (after === null) outWrites.push({ kind: 'remove', model, id, expectedVersion: before.version });
         else outWrites.push({ kind: 'update', model, id, expectedVersion: before.version, row: after });
-        recordHistory({ model, recordId: id, before, after: after?.data ?? null,
-          version: after?.version ?? (before!.version + 1) as RecordVersion,
-          change: before === null ? 'create' : after === null ? 'remove' :
-            before.archivedAt === null && after.archivedAt !== null ? 'archive' : 'update' },
-          historyContexts.get(keyOf(model, id)) ?? context);
         for (const key of def.uniqueKeys) {
           consumeWork();
           const previous = before === null ? null : canonicalUnique(before.data[key], key, def);
