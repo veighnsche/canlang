@@ -1228,10 +1228,13 @@ pub enum IrQueryDomain {
 pub struct IrQuery {
     /// Actual checked authored query, before lexical clause identities are erased.
     /// Synthetic and example-only queries do not acquire a source proof.
-    pub source: Option<CheckedQuery>,
+    pub source: Option<Box<CheckedQuery>>,
     /// Exact selected collection call, joined to this query and its external predicate.
     /// This is source correspondence, not native query admission.
     pub collection_call: Option<Box<crate::analysis::types::CheckedCollectionCall>>,
+    /// Separate immutable value-domain contract alias proof; never a model scan.
+    pub contract_collection_call:
+        Option<Box<crate::analysis::types::CheckedContractCollectionCall>>,
     /// Query domain.
     pub domain: IrQueryDomain,
     /// Containment parent value, if any (model domains only).
@@ -3225,6 +3228,7 @@ impl<'a> Cx<'a> {
                     return IrExpr::Query(IrQuery {
                         source: None,
                         collection_call: None,
+                        contract_collection_call: None,
                         domain: IrQueryDomain::Model(self.canonical(id)),
                         parent: None,
                         where_pred: None,
@@ -3465,6 +3469,7 @@ impl<'a> Cx<'a> {
                 IrExpr::Query(IrQuery {
                     source: None,
                     collection_call: None,
+                    contract_collection_call: None,
                     domain: IrQueryDomain::Model(self.canonical(child)),
                     parent: Some(Box::new(parent)),
                     where_pred: None,
@@ -3640,7 +3645,7 @@ impl<'a> Cx<'a> {
         else {
             return false;
         };
-        let Some(source) = query.source.as_ref() else {
+        let Some(source) = query.source.as_deref() else {
             return false;
         };
         let Some(alias) = source
@@ -3739,6 +3744,153 @@ impl<'a> Cx<'a> {
             return false;
         };
         query.collection_call = Some(Box::new(fact.clone()));
+        true
+    }
+
+    /// Keep contract collection attribution separate from model-query facts.
+    /// Ordinary generic calls without this finite proof lower as before.
+    fn join_contract_collection_call(
+        &self,
+        node: &SyntaxNode,
+        id: &str,
+        overload: usize,
+        selected: &SelectedCall,
+        args: &mut [TypedExpr],
+    ) -> bool {
+        let Some(fact) = self
+            .program
+            .types
+            .checked_contract_collection_calls
+            .get(&NodeKey::of(node))
+        else {
+            return true;
+        };
+        if fact.node != NodeKey::of(node)
+            || fact.builtin != id
+            || fact.overload != overload
+            || !matches!(id, "any" | "all")
+            || selected.arguments != fact.arguments
+            || selected.slots.as_slice() != [Some(fact.slots[0]), Some(fact.slots[1])]
+            || args.len() != 2
+            || fact.slots[0] == fact.slots[1]
+            || !self
+                .program
+                .symbols
+                .get(fact.contract.0 as usize)
+                .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. }))
+        {
+            return false;
+        }
+        let Some(TypedExpr {
+            expr: IrExpr::Query(query),
+            ty,
+            ..
+        }) = args.get(fact.slots[0])
+        else {
+            // Preserve the original refusal if source lowering already failed.
+            return args
+                .get(fact.slots[0])
+                .is_some_and(|arg| matches!(arg.expr, IrExpr::Unsupported { .. }));
+        };
+        let Some(source) = query.source.as_deref() else {
+            return false;
+        };
+        let [alias] = source.clauses.as_slice() else {
+            return false;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return false;
+        };
+        let IrQueryDomain::Value {
+            base,
+            alias: live_alias,
+        } = &query.domain
+        else {
+            return false;
+        };
+        fn grouped(mut current: &SyntaxNode) -> Option<&SyntaxNode> {
+            for _ in 0..64 {
+                if current.kind != SyntaxKind::Group {
+                    return Some(current);
+                }
+                let mut children = current
+                    .children
+                    .iter()
+                    .filter(|child| is_expression(child.kind));
+                current = children.next()?;
+                if children.next().is_some() {
+                    return None;
+                }
+            }
+            None
+        }
+        let Some(domain_node) = self.node(&fact.domain).and_then(grouped) else {
+            return false;
+        };
+        let domain_name = kids(domain_node)
+            .into_iter()
+            .find_map(|child| name_text(self.db, child));
+        if source.node != fact.query
+            || source.domain != fact.domain
+            || alias.node != fact.alias
+            || source.domain_type != source.result
+            || *ty != source.result
+            || base.ty != source.domain_type
+            || live_alias != name
+            || query.collection_call.is_some()
+            || source.projection.is_some()
+            || query.parent.is_some()
+            || query.where_pred.is_some()
+            || query.where_async
+            || !query.order.is_empty()
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || query.select.is_some()
+            || query.select_param.is_some()
+            || domain_node.kind != SyntaxKind::NameRef
+            || base.span != domain_node.span
+            || !matches!(&base.expr, IrExpr::Name(actual) if Some(actual) == domain_name.as_ref())
+            || self
+                .program
+                .types
+                .effect_call_results
+                .get(&fact.call)
+                .and_then(Option::as_ref)
+                != Some(&source.domain_type)
+            || !matches!(query_element_ty(&source.result), ResolvedType::Record {symbol,..} if symbol == fact.contract)
+            || self.program.types.checked_queries.get(&fact.query) != Some(source)
+        {
+            return false;
+        }
+        let Some(TypedExpr {
+            expr: IrExpr::Lambda { param, body },
+            ty,
+            ..
+        }) = args.get(fact.slots[1])
+        else {
+            return args
+                .get(fact.slots[1])
+                .is_some_and(|arg| matches!(arg.expr, IrExpr::Unsupported { .. }));
+        };
+        let Some(predicate_node) = self.node(&fact.predicate.node).and_then(grouped) else {
+            return false;
+        };
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        if selected.arguments.get(fact.slots[1]) != Some(&fact.predicate.node)
+            || fact.predicate.ty != boolean
+            || *ty != boolean
+            || body.ty != boolean
+            || body.span != predicate_node.span
+            || param != name
+            || expr_uses_async(body)
+            || self.program.types.node_types.get(&fact.predicate.node) != Some(&boolean)
+        {
+            return false;
+        }
+        let IrExpr::Query(query) = &mut args[fact.slots[0]].expr else {
+            return false;
+        };
+        query.contract_collection_call = Some(Box::new(fact.clone()));
         true
     }
 
@@ -3961,7 +4113,10 @@ impl<'a> Cx<'a> {
                         self.decode_anchored(scope, key, "call argument")
                     })
                     .collect();
-                if !self.join_collection_call(node, &id, overload, &selected, &mut args) {
+                if !self.join_collection_call(node, &id, overload, &selected, &mut args)
+                    || !self
+                        .join_contract_collection_call(node, &id, overload, &selected, &mut args)
+                {
                     return IrExpr::Unsupported {
                         what: "collection call source facts".into(),
                         why:
@@ -4674,8 +4829,9 @@ impl<'a> Cx<'a> {
             },
         };
         IrExpr::Query(IrQuery {
-            source: checked,
+            source: checked.map(Box::new),
             collection_call: None,
+            contract_collection_call: None,
             domain,
             parent,
             where_pred,
