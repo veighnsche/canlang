@@ -162,6 +162,9 @@ type InstalledDispatcherOptions =
   | (BoundImagesDispatcherOptions & { readonly profile: 'images' })
   | (BoundJudgmentDispatcherOptions & { readonly profile: 'judgment' });
 type RichRunWire = TextRunWire | ImageRunWire;
+class GenerationControlCheckpointMoved extends Error {
+  constructor() { super('Generation cleanup admission changed.'); }
+}
 type TextControlAdapter = BoundTextGenerationAdapter & Required<Pick<BoundTextGenerationAdapter,
   'controlCorrelation' | 'controlObservation' | 'observeControl'>>;
 function hasTextControlEntries(adapter: BoundTextGenerationAdapter): adapter is TextControlAdapter {
@@ -413,6 +416,18 @@ async function createInstalledDispatcher(
     outboxAck: [...new Set([...before.outboxAck ?? [], ...after.outboxAck ?? []])] });
   const qualifyGenerationControl = async (control: OutboxIntent, admission: GenerationControlAdmission,
     ctx: SystemCommandContext, pinnedOriginal?: string): Promise<GenerationControlObservation> => {
+    // Original progress and its Work acknowledgement may commit while this
+    // read-only qualification awaits. Retry the complete current authority and
+    // correspondence checks; the enclosing system commit keeps its own fence.
+    for (let attempt = 0; ; attempt++) {
+      try { return await qualifyGenerationControlOnce(control, admission, ctx, pinnedOriginal); }
+      catch (error) {
+        if (!(error instanceof GenerationControlCheckpointMoved) || attempt === 2) throw error;
+      }
+    }
+  };
+  const qualifyGenerationControlOnce = async (control: OutboxIntent, admission: GenerationControlAdmission,
+    ctx: SystemCommandContext, pinnedOriginal?: string): Promise<GenerationControlObservation> => {
     const profile = dispatchGenerationTargetProfile(control.target);
     if (controlAdapter === null || profile?.role !== 'control' || profile.family !== options.profile || admission.fence.owner === '') {
       throw new Error('Generation control needs its actual cleanup owner fence.');
@@ -456,7 +471,7 @@ async function createInstalledDispatcher(
     if (receipt === null) throw new Error('Generation control original receipt is absent.');
     await readCurrentGenerationAssociation(original, receipt, ctx);
     if (await admission.fence.revalidateAuthority() !== true) throw new Error('Generation cleanup authority was revoked.');
-    if (await store.readRevision() !== revision) throw new Error('Generation cleanup admission changed.');
+    if (await store.readRevision() !== revision) throw new GenerationControlCheckpointMoved();
     return { original, correlation, receipt, admission, originalContext: context };
   };
   const sameGenerationReceipt = (before: AssociatedReceipt, after: AssociatedReceipt, context: ReceiptResultContext) =>
