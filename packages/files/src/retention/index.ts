@@ -19,6 +19,7 @@ import type {
   ClockPort,
   FinalizedStorePort,
   IntentStorePort,
+  UploadIntentRecord,
 } from '../ports.js';
 import { blobKeyForFile } from '../finalize/index.js';
 import { stagingKeyForIntent } from '../upload/index.js';
@@ -59,6 +60,13 @@ function compareStrings(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+function removeUnpublishedFinalBytes(deps: RetentionDeps, record: UploadIntentRecord): void {
+  const claim = record.pendingFinalization;
+  if (claim !== undefined && deps.files.get(claim.ref) === null) {
+    deps.blobs.remove(blobKeyForFile(claim.ref));
+  }
+}
+
 /**
  * Run one retention pass: sweep expired intents (staging deleted),
  * orphan unattached objects past the horizon (bytes deleted), and expire
@@ -88,8 +96,16 @@ export function runRetention(
   const sweptIntents: UploadIntentId[] = [];
 
   for (const record of deps.intents.listAll()) {
-    if (record.state === 'expired') {
+    if (record.state === 'finalized') {
+      // Publication can commit before staging cleanup on a separate
+      // byte store. The published file keeps its own retention policy.
+      const stagingKey = stagingKeyForIntent(record.intentId);
+      if (deps.blobs.sizeOf(stagingKey) !== null) deps.blobs.remove(stagingKey);
+      continue;
+    }
+    if (record.state === 'expired' || record.state === 'rejected') {
       deps.blobs.remove(stagingKeyForIntent(record.intentId));
+      removeUnpublishedFinalBytes(deps, record);
       continue;
     }
     if (
@@ -102,6 +118,7 @@ export function runRetention(
       record.detectedType = null;
       deps.intents.put(record);
       deps.blobs.remove(stagingKeyForIntent(record.intentId));
+      removeUnpublishedFinalBytes(deps, record);
       sweptIntents.push(record.intentId);
     }
   }

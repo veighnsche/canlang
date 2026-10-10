@@ -5,10 +5,16 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createSqliteFileStore } from '../src/host/sqlite.js';
+import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
 import {
   appendUploadContent,
   completeUploadContent,
   sha256Hex,
+  stagingKeyForIntent,
 } from '../src/upload/index.js';
 import {
   finalizeUpload,
@@ -31,6 +37,151 @@ import {
 
 const HORIZON_MS = 60 * 60 * 1000;
 const RETENTION_MS = 24 * HORIZON_MS;
+
+function durablePending(dir: string, phase: 'bytes' | 'row' | 'pointer', ttl = INTENT_TTL_MS) {
+  let store = createSqliteFileStore(join(dir, 'metadata.sqlite'));
+  let blobs = createFsBlobStore(join(dir, 'blobs'));
+  const h = makeHarness();
+  const upload = { ...h.upload, intents: store.intents, blobs, intentTtlMs: ttl };
+  const request = uploadRequest();
+  const created = handleCreateIntent(h.bridge, upload, {}, request, BINDING);
+  assert.equal(created.status, 'granted');
+  if (created.status !== 'granted') throw new Error('setup: intent grant failed');
+  assert.equal(appendUploadContent(upload, created.intentId, RECEIVER, PDF_BYTES).status, 'appended');
+  assert.equal(completeUploadContent(upload, created.intentId, RECEIVER).status, 'completed');
+  const finalize = () => ({ ...h.finalize, intents: store.intents, files: store.files, blobs });
+  const input = { intentId: created.intentId, retryId: request.upload_id, bytesDigest: sha256Hex(PDF_BYTES), caller: RECEIVER };
+  const crash = new Error('Interrupted durable publication');
+  const deps = finalize();
+  assert.throws(() => finalizeUpload({ ...deps,
+    blobs: { read: blobs.read.bind(blobs), sizeOf: blobs.sizeOf.bind(blobs), append: blobs.append.bind(blobs), remove: blobs.remove.bind(blobs),
+      write(key, bytes) { blobs.write(key, bytes); if (phase === 'bytes') throw crash; } },
+    files: { ...store.files, put(row) { store.files.put(row); if (phase === 'row') throw crash; } },
+    intents: { ...store.intents, put(row) { store.intents.put(row); if (phase === 'pointer' && row.state === 'finalized') throw crash; } },
+  }, input), error => error === crash);
+  const intent = store.intents.get(created.intentId);
+  assert.ok(intent?.pendingFinalization);
+  const ref = intent.pendingFinalization.ref;
+  return {
+    clock: h.clock, input, ref, finalize,
+    retention: () => ({ clock: h.clock, intents: store.intents, files: store.files, blobs }),
+    reopen() { store.close(); store = createSqliteFileStore(join(dir, 'metadata.sqlite')); blobs = createFsBlobStore(join(dir, 'blobs')); },
+    close() { store.close(); },
+  };
+}
+
+const DURABLE_POLICY = { unattachedHorizonMs: HORIZON_MS, retentionMs: RETENTION_MS };
+
+describe('real SQLite metadata and FS publication retention', () => {
+  for (const interrupted of [false, true]) {
+    it(`expires unpublished pending bytes${interrupted ? ' across interrupted cleanup and reopen' : ' exactly once'}`, () => {
+      const dir = mkdtempSync(join(tmpdir(), 'can-pending-retention-'));
+      const h = durablePending(dir, 'bytes');
+      try {
+        h.clock.advanceBy(INTENT_TTL_MS + 1);
+        const deps = h.retention();
+        if (interrupted) {
+          assert.throws(() => runRetention({ ...deps, blobs: {
+            read: deps.blobs.read.bind(deps.blobs), sizeOf: deps.blobs.sizeOf.bind(deps.blobs), write: deps.blobs.write.bind(deps.blobs), append: deps.blobs.append.bind(deps.blobs),
+            remove(key) {
+              assert.equal(deps.intents.get(h.input.intentId)?.state, 'expired');
+              deps.blobs.remove(key);
+              throw new Error('Interrupted terminal cleanup');
+            },
+          } }, DURABLE_POLICY), /Interrupted terminal cleanup/);
+          assert.equal(deps.intents.get(h.input.intentId)?.state, 'expired');
+          assert.deepEqual(deps.blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+        } else {
+          assert.deepEqual(runRetention(deps, DURABLE_POLICY), { orphaned: [], expired: [], sweptIntents: [h.input.intentId] });
+        }
+        h.reopen();
+        assert.deepEqual(runRetention(h.retention(), DURABLE_POLICY), { orphaned: [], expired: [], sweptIntents: [] });
+        assert.equal(h.retention().blobs.read(stagingKeyForIntent(h.input.intentId)), null);
+        assert.equal(h.retention().blobs.read(blobKeyForFile(h.ref)), null);
+        assert.equal(h.retention().files.get(h.ref), null);
+        assert.deepEqual(finalizeUpload(h.finalize(), h.input), { status: 'failed', reason: 'expired' });
+      } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+    });
+  }
+
+  it('cleans rejected unpublished claims without reporting another expiry', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-rejected-retention-'));
+    const h = durablePending(dir, 'bytes');
+    try {
+      const intent = h.retention().intents.get(h.input.intentId)!;
+      h.retention().intents.put({ ...intent, state: 'rejected' });
+      h.reopen();
+      assert.deepEqual(runRetention(h.retention(), DURABLE_POLICY), { orphaned: [], expired: [], sweptIntents: [] });
+      assert.equal(h.retention().blobs.read(stagingKeyForIntent(h.input.intentId)), null);
+      assert.equal(h.retention().blobs.read(blobKeyForFile(h.ref)), null);
+      assert.equal(h.retention().intents.get(h.input.intentId)?.state, 'rejected');
+    } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('protects a published pending row until its owning horizon', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-published-retention-'));
+    const h = durablePending(dir, 'row');
+    try {
+      const published = h.retention().files.get(h.ref);
+      h.clock.advanceBy(INTENT_TTL_MS + 1);
+      assert.deepEqual(runRetention(h.retention(), DURABLE_POLICY), { orphaned: [], expired: [], sweptIntents: [h.input.intentId] });
+      h.reopen();
+      assert.deepEqual(h.retention().files.get(h.ref), published);
+      assert.deepEqual(h.retention().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+      assert.equal(h.retention().blobs.read(stagingKeyForIntent(h.input.intentId)), null);
+      h.clock.advanceBy(HORIZON_MS);
+      assert.deepEqual(runRetention(h.retention(), DURABLE_POLICY), { orphaned: [h.ref], expired: [], sweptIntents: [] });
+      assert.equal(h.retention().blobs.read(blobKeyForFile(h.ref)), null);
+      assert.equal(h.retention().files.get(h.ref)?.state, 'orphaned');
+    } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('cleans finalized leftover staging without deleting or resurrecting final bytes', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-finalized-retention-'));
+    const h = durablePending(dir, 'pointer');
+    try {
+      assert.deepEqual(runRetention(h.retention(), DURABLE_POLICY), { orphaned: [], expired: [], sweptIntents: [] });
+      assert.equal(h.retention().blobs.read(stagingKeyForIntent(h.input.intentId)), null);
+      assert.deepEqual(h.retention().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+      h.clock.advanceBy(HORIZON_MS + 1);
+      assert.deepEqual(runRetention(h.retention(), DURABLE_POLICY), { orphaned: [h.ref], expired: [], sweptIntents: [] });
+      h.reopen();
+      const before = h.retention().files.get(h.ref);
+      const intent = h.retention().intents.get(h.input.intentId);
+      const repeated = finalizeUpload(h.finalize(), h.input);
+      assert.equal(repeated.status, 'repeated');
+      if (repeated.status !== 'repeated') throw new Error('repeat refused');
+      assert.equal(repeated.file.id, h.ref);
+      assert.equal(h.retention().blobs.read(blobKeyForFile(h.ref)), null);
+      assert.deepEqual(h.retention().files.get(h.ref), before);
+      assert.deepEqual(h.retention().intents.get(h.input.intentId), intent);
+      assert.equal(h.retention().intents.get(h.input.intentId)?.finalizedRef, h.ref);
+      assert.equal(h.retention().files.listAll().length, 1);
+    } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  for (const state of ['orphaned', 'expired'] as const) {
+    it(`refuses a complete pending claim after its published row becomes ${state}`, () => {
+      const dir = mkdtempSync(join(tmpdir(), 'can-pending-tombstone-'));
+      const h = durablePending(dir, 'row', RETENTION_MS * 2);
+      try {
+        h.clock.advanceBy(state === 'orphaned' ? HORIZON_MS + 1 : RETENTION_MS + 1);
+        const report = runRetention(h.retention(), DURABLE_POLICY);
+        assert.deepEqual(report, { orphaned: state === 'orphaned' ? [h.ref] : [], expired: state === 'expired' ? [h.ref] : [], sweptIntents: [] });
+        h.reopen();
+        const before = h.retention().intents.get(h.input.intentId);
+        assert.equal(before?.state, 'complete');
+        const published = h.retention().files.get(h.ref);
+        assert.equal(published?.state, state);
+        assert.deepEqual(finalizeUpload(h.finalize(), h.input), { status: 'failed', reason: 'expired' });
+        assert.deepEqual(h.retention().intents.get(h.input.intentId), before);
+        assert.deepEqual(h.retention().files.get(h.ref), published);
+        assert.equal(h.retention().blobs.read(blobKeyForFile(h.ref)), null);
+        assert.deepEqual(h.retention().blobs.read(stagingKeyForIntent(h.input.intentId)), PDF_BYTES);
+      } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+    });
+  }
+});
 
 function finalizedRef(h: ReturnType<typeof makeHarness>): string {
   const request = uploadRequest();
