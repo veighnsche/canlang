@@ -74,6 +74,7 @@ import type {
   AssemblyDeps,
   BrowserAssetsHandler,
   HttpOperationHandlerFactory,
+  HttpCsvHandlerFactory,
   HttpAuthConfiguration,
   HttpAuthJoin,
   HttpPageHandlerFactory,
@@ -217,6 +218,8 @@ export interface MainLoaders {
   readonly loadDerivedInputs?: () => Promise<BakedDerivedInputs | undefined>;
   /** Resolves `undefined` when `./http-operations.js` is absent (-> assembly 501 on the op route). */
   readonly loadHttpOperationsFactory?: () => Promise<HttpOperationHandlerFactory | undefined>;
+  /** Absent bundle or CSV export retains assembly's unavailable CSV join. */
+  readonly loadHttpCsvFactory?: () => Promise<HttpCsvHandlerFactory | undefined>;
   readonly loadHttpAuthJoin?: () => Promise<HttpAuthJoin | undefined>;
   readonly loadHttpPageFactory?: () => Promise<HttpPageHandlerFactory | undefined>;
   readonly loadCohortTickFactory?: () => Promise<CreateCohortTickFn>;
@@ -489,6 +492,22 @@ async function defaultLoadSourceFormBindingsFactory(): Promise<CreateSourceFormB
   );
 }
 
+async function defaultLoadHttpCsvFactory(): Promise<HttpCsvHandlerFactory | undefined> {
+  let mod: unknown;
+  try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
+  catch { return undefined; }
+  if (!isRecord(mod)) {
+    throw new Error('deploy main: worker sibling ./http-operations.js imported a non-module namespace');
+  }
+  if (!Object.hasOwn(mod, 'handleCsvRequest')) return undefined;
+  const handle = mod['handleCsvRequest'];
+  if (typeof handle !== 'function') {
+    throw new Error('deploy main: worker sibling ./http-operations.js has no function export "handleCsvRequest"');
+  }
+  const chain = handle as (deps: unknown, request: Request) => Promise<Response>;
+  return deps => request => chain(deps, request);
+}
+
 /** Source provenance only; the defining service hashes this stable revision. */
 function sourceFormRevision(artifact: CompileArtifact): string {
   return JSON.stringify({
@@ -674,6 +693,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
   const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
   const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
+  const loadHttpCsv = loaders.loadHttpCsvFactory ?? defaultLoadHttpCsvFactory;
   const loadHttpAuth = loaders.loadHttpAuthJoin ?? defaultLoadHttpAuthJoin;
   const loadHttpPages = loaders.loadHttpPageFactory ?? defaultLoadHttpPageFactory;
   const loadFormBindings = loaders.loadSourceFormBindingsFactory ?? defaultLoadSourceFormBindingsFactory;
@@ -691,6 +711,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const getPermsFactory = memoize(() => loadPerms());
   const getDerivedInputs = memoize(() => loadDerived());
   const getHttpOpsFactory = memoize(() => loadHttpOps());
+  const getHttpCsvFactory = memoize(() => loadHttpCsv());
   const getHttpAuthJoin = memoize(() => loadHttpAuth());
   const getHttpPageFactory = memoize(() => loadHttpPages());
   const getFormBindingsFactory = memoize(() => loadFormBindings());
@@ -721,11 +742,12 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     const deps = await prodDepsFor(env);
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
+    const csvFactory = await getHttpCsvFactory();
     const pageFactory = await getHttpPageFactory();
     const authJoin = await getHttpAuthJoin();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const derivedInputs =
-      factory === undefined && httpFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
+      factory === undefined && httpFactory === undefined && csvFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
     const browserAssets = staged.browserAssets;
     const cohortRequirement = staged.artifact.requires.find(requirement => requirement.capability === 'state.cohorts');
@@ -791,7 +813,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
               ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           }),
-      ...(httpFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
+      ...(httpFactory === undefined && csvFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
         ? null
         : {
             http: {
@@ -800,6 +822,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
               ...(authJoin === undefined ? {} : { authHandler: authJoin }),
               ...(formBindings === undefined ? {} : { formBindings }),
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
+              ...(csvFactory === undefined ? {} : { createCsvHandler: csvFactory }),
               ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
               ...(derivedInputs === undefined ? null : { derivedInputs }),
               ...(browserAssets === undefined ? {} : {
