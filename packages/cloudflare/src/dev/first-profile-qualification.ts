@@ -335,7 +335,7 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     if (fixture.inputs.some(item => item.state==='present' && item.name.startsWith('package:@canlang/testkit@'))) {
       const testkit = await loadInstalledExampleTestkit(capture.root); check();
       const before = await snapshot();
-      for (const rowIndex of [0,1]) {
+      for (const rowIndex of [0,1,2]) {
         check(); const result = await runCompiledExamples({...preview.exampleInput(),testkit,...(signal===undefined?{}:{signal}),runId:callId(),
           selectedRow:{operation:`${model}.update`,rowIndex}});
         assert.deepEqual(await snapshot(),before,'actual isolated authored rows preserve all serving resources');
@@ -345,9 +345,21 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
         assert.equal(result.ok,true,`selected actual authored CRUD row must pass: ${JSON.stringify(failedRows)}`);
         assert.equal(result.executed,1); assert.equal(result.report.summary.total,1); assert.equal(result.report.summary.passed,1);
         assert.equal(result.report.summary.failed,0); assert.equal(result.report.summary.setupFailed,0); assert.equal(result.report.summary.unsupported,0);
-        pass(rowIndex===0 ? ['can.v1.examples.table.crud','can.v1.fixture.model'] : ['can.v1.examples.table.error'],
-          rowIndex===0 ? 'HelpOffice: actual compiled Supply.update model fixture row observes its successful changes in isolated D1/Identity'
-            : 'HelpOffice: actual compiled Supply.update outsider row observes forbidden and no effects in isolated D1/Identity',
+        const tables = result.report.cases.filter(entry=>entry.kind==='table'); assert.equal(tables.length,1);
+        const table = tables[0]!; assert.equal(table.operation,`${model}.update`); assert.equal(table.rows.length,1);
+        const selected = table.rows[0]!; assert.equal(selected.rowIndex,rowIndex); assert.equal(selected.outcome,'passed');
+        assert.equal(selected.caller.authenticated,true); assert.equal(selected.caller.team,'current');
+        // Testkit's owning provisionRowAccounts derives these opaque accounts
+        // from the original authored row index and suite recipe name.
+        assert.equal(selected.caller.account,rowIndex===1 ? 'row-1-user-person' : `row-${rowIndex}-${rowIndex===0 ? 'other' : 'outsider'}`);
+        assert.deepEqual(selected.caller.roles,rowIndex===1 ? [`${app}.reviewer`] : rowIndex===0 ? ['members'] : []);
+        if(rowIndex===2) assert.deepEqual(selected.rejection,{error:'forbidden',sideEffectsAbsent:true});
+        else { assert.equal(selected.rejection,undefined); assert.equal(selected.mismatches?.length ?? 0,0); }
+        pass(rowIndex===0 ? ['can.v1.examples.table.crud','can.v1.fixture.model'] :
+          rowIndex===1 ? ['can.v1.fixture.user'] : ['can.v1.examples.table.error'],
+          rowIndex===0 ? 'HelpOffice: actual compiled Supply.update other-member row observes A4 paper/8 in isolated D1/Identity'
+            : rowIndex===1 ? 'HelpOffice: actual compiled Supply.update person row authenticates row-1-user-person in current team with HelpOffice.reviewer and observes Reviewed paper/6 in isolated D1/Identity'
+            : 'HelpOffice: actual compiled Supply.update outsider row authenticates without roles and observes exact forbidden with sideEffectsAbsent in isolated D1/Identity',
           `${model}.update#${rowIndex}: passed`);
       }
       check(); const scenarioRow = await runCompiledExamples({...preview.exampleInput(),testkit,...(signal===undefined?{}:{signal}),runId:callId(),
