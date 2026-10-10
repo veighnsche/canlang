@@ -66,6 +66,7 @@ export interface SystemCommandContext {
 /** Actual registry-issued staging capability, separate from caller context. */
 interface SystemStageLedger {
   readonly revision: Revision;
+  readonly readOnly: boolean;
   readonly readOutbox: StoragePort['outboxGet'];
   readonly checks: Array<() => boolean | Promise<boolean>>;
   phase: 'stage' | 'checks' | 'closed';
@@ -116,6 +117,7 @@ export function readSystemCommandRetainedOutbox(ctx: SystemCommandContext,
 export function enrollSystemCommandCommitCheck(ctx: SystemCommandContext,
   check: () => boolean | Promise<boolean>): void {
   const ledger = actualStage(ctx);
+  if (ledger.readOnly) return stageFailure(ledger, 'Read-only system execution cannot enroll commit checks.');
   if (typeof check !== 'function' || ledger.checks.length >= MAX_SYSTEM_COMMIT_CHECKS) {
     return stageFailure(ledger, 'System stage requires a bounded commit check function.');
   }
@@ -132,17 +134,20 @@ export interface SystemCommandDef {
     args: Readonly<Record<string, unknown>>,
     ctx: SystemCommandContext,
   ) => SystemStaging | Promise<SystemStaging>;
+  /** Read an existing result in an issued context, without staging effects. */
+  readonly read?: (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => unknown | Promise<unknown>;
 }
 
 /** Define one system command. Empty names are programmer bugs (lane-authored). */
 export function defineSystemCommand(input: {
   readonly name: string;
   readonly stage: SystemCommandDef['stage'];
+  readonly read?: NonNullable<SystemCommandDef['read']>;
 }): SystemCommandDef {
   if (typeof input.name !== 'string' || input.name === '') {
     throw new Error('System commands need a non-empty name.');
   }
-  return { name: input.name, stage: input.stage };
+  return { name: input.name, stage: input.stage, ...(input.read === undefined ? {} : { read: input.read }) };
 }
 
 /** Caller context for a command run; `actor`/`operation` are opaque strings. */
@@ -153,7 +158,7 @@ export interface SystemRunContext {
   readonly operationId: string;
 }
 
-/** Command run outcome: the post-commit fence revision plus staged result. */
+/** Execution outcome: committed revision for run, original checkpoint for read. */
 export interface SystemRunResult {
   readonly revision: Revision;
   readonly result: unknown;
@@ -161,6 +166,13 @@ export interface SystemRunResult {
 
 /** Bound command registry: run by name over a caller-supplied store. */
 export interface SystemRegistry {
+  /** Original read checkpoint and detached result; never commits. */
+  read(
+    name: string,
+    args: unknown,
+    ctx: SystemRunContext,
+    deps: { readonly store: StoragePort },
+  ): Promise<SystemRunResult>;
   run(
     name: string,
     args: unknown,
@@ -190,6 +202,36 @@ function checkOutboxAck(value: unknown): ReadonlyArray<string> {
   return value as ReadonlyArray<string>;
 }
 
+/** Both execution modes issue exactly the same private, tracked reader context. */
+function issueSystemContext(ctx: SystemRunContext, store: StoragePort, revision: Revision, readOnly: boolean) {
+  const ledger: SystemStageLedger = { revision, readOnly, checks: [], phase: 'stage', pendingReads: 0, poisoned: false,
+    readOutbox: (intentId) => read(() => store.outboxGet(intentId)) };
+  const read = <T>(work: () => Promise<T>): Promise<T> => {
+    const pending = (async () => {
+      if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
+      ledger.pendingReads++;
+      try {
+        const value = await work();
+        if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
+        return value;
+      } catch (error) { ledger.poisoned = true; throw error; }
+      finally { ledger.pendingReads--; }
+    })();
+    // A rejected fire-and-forget reader still poisons its execution; closing an
+    // unawaited read must not create an unrelated unhandled rejection.
+    void pending.catch(() => {});
+    return pending;
+  };
+  const stageContext: SystemCommandContext = Object.freeze<SystemCommandContext>({
+    actor: ctx.actor, now: ctx.now, operation: ctx.operation,
+    load: (model, id) => read(() => store.load(model, id)),
+    query: (spec) => read(() => store.query(spec)),
+  });
+  systemStages.set(stageContext, ledger);
+  stageReaders.set(stageContext.load, ledger); stageReaders.set(stageContext.query, ledger);
+  return { ledger, stageContext };
+}
+
 /**
  * Create the command registry. Duplicate names are programmer bugs
  * (commands are lane-authored and registered once).
@@ -203,6 +245,35 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
     byName.set(command.name, command);
   }
   return {
+    read: async (name, args, ctx, deps) => {
+      const command = byName.get(name);
+      if (command?.read === undefined) throw new StateError('validation', `System command ${JSON.stringify(name)} has no read-only execution.`);
+      if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+        throw new StateError('validation', 'System command args must be an object.');
+      }
+      const clonedArgs = jsonClone(args as Record<string, unknown>, 'System command args');
+      if (typeof ctx.operationId !== 'string' || ctx.operationId === '' || ctx.operationId.length > STAGING_MAX_ID_LENGTH) {
+        throw new StateError('validation', 'System runs need a non-empty operation identity.');
+      }
+      const revision = await deps.store.readRevision();
+      const { ledger, stageContext } = issueSystemContext(ctx, deps.store, revision, true);
+      try {
+        const value = await command.read(clonedArgs, stageContext);
+        ledger.phase = 'checks';
+        if (ledger.pendingReads !== 0) return stageFailure(ledger, 'System read left an unawaited reader.');
+        stageHealthy(ledger);
+        if (typeof value === 'object' && value !== null &&
+            ['writes', 'history', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'outboxAck'].some(key => Object.hasOwn(value, key))) {
+          return stageFailure(ledger, 'Read-only system execution cannot return write staging.');
+        }
+        const result = deepFreeze(jsonClone(value ?? null, 'System read result'));
+        if (await deps.store.readRevision() !== revision) {
+          throw new StateError('busy', 'System read revision changed.', null, { retryable: true });
+        }
+        stageHealthy(ledger);
+        return { revision, result };
+      } finally { ledger.phase = 'closed'; }
+    },
     run: async (name, args, ctx, deps) => {
       const command = byName.get(name);
       if (command === undefined) {
@@ -220,31 +291,14 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
         throw new StateError('validation', 'System runs need a non-empty operation identity.');
       }
       const revision = await deps.store.readRevision();
-      const ledger: SystemStageLedger = { revision, checks: [], phase: 'stage', pendingReads: 0, poisoned: false,
-        readOutbox: (intentId) => read(() => deps.store.outboxGet(intentId)) };
-      const read = async <T>(work: () => Promise<T>): Promise<T> => {
-        if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
-        ledger.pendingReads++;
-        try {
-          const value = await work();
-          if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
-          return value;
-        } finally { ledger.pendingReads--; }
-      };
-      const stageContext: SystemCommandContext = Object.freeze<SystemCommandContext>({
-        actor: ctx.actor, now: ctx.now, operation: ctx.operation,
-        load: (model, id) => read(() => deps.store.load(model, id)),
-        query: (spec) => read(() => deps.store.query(spec)),
-      });
-      systemStages.set(stageContext, ledger);
-      stageReaders.set(stageContext.load, ledger); stageReaders.set(stageContext.query, ledger);
+      const { ledger, stageContext } = issueSystemContext(ctx, deps.store, revision, false);
       let staged: SystemStaging;
       try { staged = await command.stage(clonedArgs, stageContext); }
       catch (error) { ledger.poisoned = true; ledger.phase = 'closed'; throw error; }
       ledger.phase = 'checks';
-      if (ledger.pendingReads !== 0) return stageFailure(ledger, 'System stage left an unawaited reader.');
-      stageHealthy(ledger);
       try {
+        if (ledger.pendingReads !== 0) return stageFailure(ledger, 'System stage left an unawaited reader.');
+        stageHealthy(ledger);
         if (typeof staged !== 'object' || staged === null || Array.isArray(staged)) {
           throw new StateError('validation', 'System command staging must be an object.');
         }

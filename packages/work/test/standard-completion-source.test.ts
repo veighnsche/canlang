@@ -115,7 +115,10 @@ async function world(options: Options = {}) {
   };
   const issue = (selectedStore: StoragePort = store, args: Record<string, unknown> = { deliveryId }) =>
     run(source.name, args, undefined, selectedStore);
-  return { store, memberships, member, scope, source, originId, handlers, deliveryId, run, settle, issue, installed };
+  const read = (selectedStore: StoragePort = store) => registry.read(source.name, { deliveryId },
+    { actor: member.user.user_id, now: Date.now(), operation: 'Demo.request', operationId: `completion-read-${sequence}-${++runs}` },
+    { store: selectedStore });
+  return { store, memberships, member, scope, source, originId, handlers, deliveryId, run, settle, issue, read, installed };
 }
 type World = Awaited<ReturnType<typeof world>>;
 async function seedContained(w: World, id: string) {
@@ -373,4 +376,68 @@ test('a retained generic Email completion validates its owning result and routes
   assert.deepEqual(await sourceRows(partial.store), preexisting);
   assert.equal((await rows(partial.store, WORK_OCCURRENCE_MODEL)).length, 0);
   assert.equal((await rows(partial.store, WORK_HANDLER_OCCURRENCE_MODEL)).length, 1);
+});
+
+
+test('genuine read-only completion returns the detached consumed original after current receipt expiry with no commit or census', async () => {
+  const w = await world({ routes: scope => [{ handler: 'Demo.completed' },
+    { handler: 'Demo.all', cohort: { kind: 'model', owner: scope.owner, model: ITEM } }] });
+  await seedRow(w.store, ITEM, { id: 'original' }); await w.settle(); await w.issue();
+  const sourceId = `standard-completion/v1/${encodeURIComponent(w.deliveryId)}`;
+  const stored = await w.store.load(WORK_OCCURRENCE_MODEL, asId(sourceId)); assert.ok(stored);
+  const original = readOccurrenceRow(stored);
+  const current = await w.store.load(asModel(RECEIPT_MODEL), asId(w.deliveryId)); assert.ok(current);
+  await corrupt(w, asModel(RECEIPT_MODEL), w.deliveryId, { data: { ...current.data, resultExpiresAtMs: 0 } });
+  await seedRow(w.store, ITEM, { id: 'later' });
+  const revision = await w.store.readRevision(), before = await sourceRows(w.store);
+  let commits = 0, queries = 0, receiptReads = 0;
+  const selected: StoragePort = { ...w.store,
+    commit: async batch => { commits++; return w.store.commit(batch); },
+    query: async spec => { queries++; return w.store.query(spec); },
+    load: async (model, id) => { if (model === RECEIPT_MODEL) receiptReads++; return w.store.load(model, id); },
+  };
+  const read = await w.read(selected);
+  assert.equal(read.revision, revision); assert.deepEqual(read.result, original);
+  assert.notEqual(read.result, original); assert.ok(Object.isFrozen(read.result));
+  const source = (read.result as typeof original).result as Record<string, unknown>;
+  assert.ok(Object.isFrozen(source)); assert.ok(Object.isFrozen(source['payload']));
+  assert.equal(commits, 0); assert.equal(queries, 0); assert.equal(receiptReads, 0);
+  assert.equal(await w.store.readRevision(), revision); assert.deepEqual(await sourceRows(w.store), before);
+  // Fenced replay uses the same consumed validator and still avoids fresh capture.
+  assert.equal(((await w.issue()).result as { status: string }).status, 'replayed');
+});
+
+test('missing consumption refuses before reading the current receipt or capturing any cohort', async () => {
+  const w = await world({ routes: scope => [{ handler: 'Demo.all', cohort: { kind: 'model', owner: scope.owner, model: ITEM } }] });
+  await w.settle();
+  const revision = await w.store.readRevision(); let receiptReads = 0, queries = 0, commits = 0;
+  const selected: StoragePort = { ...w.store,
+    load: async (model, id) => { if (model === RECEIPT_MODEL) receiptReads++; return w.store.load(model, id); },
+    query: async spec => { queries++; return w.store.query(spec); },
+    commit: async batch => { commits++; return w.store.commit(batch); },
+  };
+  await assert.rejects(w.read(selected), /has not been consumed/);
+  assert.equal(receiptReads, 0); assert.equal(queries, 0); assert.equal(commits, 0);
+  assert.equal(await w.store.readRevision(), revision);
+  for (const [, records] of await sourceRows(w.store)) assert.deepEqual(records, []);
+});
+
+test('consumed read and replay share complete route validation and reject forged or closed contexts', async () => {
+  const w = await world(); await w.settle(); await w.issue();
+  let issued!: SystemCommandContext;
+  const probe: SystemCommandDef = { name: 'fixture.read-probe', stage: () => ({}), read: async (_args, ctx) => {
+    issued = ctx;
+    await assert.rejects(w.source.read({ deliveryId: w.deliveryId }, { ...ctx }), refusal);
+    return null;
+  } };
+  const ctx = { actor: w.member.user.user_id, now: Date.now(), operation: 'Demo.request', operationId: 'completion-forged-read' };
+  await assert.rejects(createSystemRegistry([probe]).read(probe.name, {}, ctx, { store: w.store }), refusal);
+  await assert.rejects(w.source.read({ deliveryId: w.deliveryId }, issued), refusal);
+  const id = handlerOccurrenceRowId(`standard-completion/v1/${encodeURIComponent(w.deliveryId)}`, w.handlers[0]!.handler);
+  const route = await w.store.load(WORK_HANDLER_OCCURRENCE_MODEL, asId(id)); assert.ok(route);
+  await corrupt(w, WORK_HANDLER_OCCURRENCE_MODEL, id, { data: { ...route.data, event: 'Demo.foreign.completed' } });
+  const revision = await w.store.readRevision(), before = await sourceRows(w.store);
+  await assert.rejects(w.read(), /consumed ordinary route differs/);
+  await assert.rejects(w.issue(), /consumed ordinary route differs/);
+  assert.equal(await w.store.readRevision(), revision); assert.deepEqual(await sourceRows(w.store), before);
 });
