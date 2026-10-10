@@ -21,3 +21,11 @@ publication/activation. Generic `StoragePort` has no such capability. State must
 implement the atomic guards even through legacy calls; Files and Dev must consume
 the genuine persisted issuer and physical pins. These declarations implement no
 storage or deletion and do not qualify the current cross-store profile.
+
+`FileReferenceInventory.frameworkModels` is required alongside domain models
+and value types. Actual owning exports supply `FrameworkFileReferenceProducer`
+inventories and closed row validators; the host binds those same-load exports
+outside persisted JSON and checks their source/shape correspondence. Copied
+tags or validators do not establish authority. Unknown/colliding models and
+opaque retained results/deferred inputs without checked declarations refuse
+census/admission. A successful shape read does not establish File absence.

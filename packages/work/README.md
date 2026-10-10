@@ -80,6 +80,8 @@ Key exports per module:
   `TestOnly*` in-memory doubles (tests only, never production)
 - `src/kernel/tables.ts`: `KernelTableError`, `WORK_*_MODEL` table names,
   `read*Row` / `new*Row` helpers, query builders
+- `src/kernel/file-reference-inventory.ts`: root-exported
+  `WORK_FILE_REFERENCE_PRODUCER`, the exact nine owning row shapes and validator
 - `src/kernel/commands.ts`: `WORK_SYSTEM_COMMANDS` (nine
   `work.dispatch.*`, `work.occurrence.*`, `work.schedule.*`,
   `work.every.*` fenced system commands)
@@ -101,6 +103,20 @@ or cache restoration. Package `typecheck` and `test` use the same graph, then
 run the owning TypeScript check or compiled `node:test` suite uncached. Cross-producer state/work integration proofs run from work’s test suite.
 Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
 steps; use the public commands above to prepare dependencies.
+
+The File retirement inventory derives its closed fields from the actual Work
+row interfaces and validates their envelopes and existing codecs. Validation
+uses detached own JSON data, bounded to 20,000 nodes and depth 32; exhaustion
+refuses. It includes archived rows. `work.occurrence.result` remains an opaque
+retained result; `work.schedule.payload` and `work.handler_occurrence.payload`
+remain opaque deferred inputs. Their JSON shape supplies no File absence or
+current authority, so State must refuse an unclassified payload until its
+checked source/input/result declaration join exists. Provider arguments live
+in the separate outbox store. State owns its receipt/navigation families.
+Hosts must bind the actual same-load producer and compare its inventory with
+persisted declarations, rejecting domain/framework collisions; source tags
+and copied descriptors are correspondence facts only. This producer implements
+no State retirement guard, physical deletion or authority-bearing payload read.
 
 ## Source layout
 
