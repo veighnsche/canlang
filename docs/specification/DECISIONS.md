@@ -7638,3 +7638,25 @@ unfinished; exact holds and parent completion statuses are preserved.
 ### 2026-10-10 — manual local integration of 7738135a
 
 Finite manual review CLEAR for necessary closed flat required string-field control vocabulary and bounded detached Work validator compatibility. Actual nine Work inventory descriptors remain unchanged; no arbitrary JSON or opaque result exemption. Reuse owning Contracts/Work emissions and exact ReceiptError membership/negative type controls, unchanged Work runtime results. Capability must bind the actual State ReceiptError producer descriptor and qualify nested own-data error controls in its real framework/retirement graph. State DO, physical Files, opaque result/source authority and native joins remain unfinished; preserve every precise hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — consume permanent retirement in Files (unfinished genuine join)
+
+Keep State issuance at the trusted original owner port, outside request data.
+Files accepts only a reference, persists its physical store identity and first
+exact State/receiver assignment, and checks the original whole decision after
+await against current physical metadata/policy/clock in one SQLite transaction.
+Save the original decision and matching terminal tombstone with byte deletion.
+Missing bytes require that same journal; copied DTOs, absence, live observations
+and public transactions supply no issuance or cleanup permission. Pinned public
+ports refuse finalized byte changes, terminal revival and first attachment time
+regression; genuine attachment marker moves preserve the original time.
+
+Owning emission passes. Five affected Files files115/115 pass695.76ms. Finite
+review found the attachment regression; corrected and final seven retirement
+controls7/7 pass192.31ms, with real DELETE-trigger rollback/reopen retry, original
+journal/identity and malformed/current-policy/legacy-bypass refusals. Correction
+review CLEAR; reuse other109 results. These controlled issuer tests qualify only
+Files mechanics. Pending reviewed State032 issuer/framework/DO source intake,
+genuine State-to-Files reopen qualification and Dev all-writer/routing recovery
+remain necessary; full physical profile and parent scopes remain unfinished.
+All exact holds are preserved; no unchanged Work/DO/native tests or publication.

@@ -9,6 +9,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { FileReferenceStoragePort, FinalizedFileRetirement, Revision } from '@canlang/contracts';
 import { createSqliteFileStore, createSqliteFileBindings } from '../src/host/sqlite.js';
 import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
 import {
@@ -38,6 +39,246 @@ import {
 
 const HORIZON_MS = 60 * 60 * 1000;
 const RETENTION_MS = 24 * HORIZON_MS;
+
+describe('persisted State retirement consumer with real SQLite', () => {
+  // Controlled issuer lookup only: these cases do not qualify State issuance.
+  function setup() {
+    const dir = mkdtempSync(join(tmpdir(), 'can-retired-file-'));
+    const path = join(dir, 'files.sqlite');
+    let store = createSqliteFileStore(path);
+    const h = sqliteRetentionHarness(store);
+    const ref = finalizedRef(h);
+    const original = store.files.get(ref)!;
+    const authority = { app: RECEIVER.app, stateOwner: 'Owner', stateStoreId: 'state-store',
+      fileStoreId: store.fileStoreId, receiver: { app: RECEIVER.app, team: RECEIVER.team, owner: RECEIVER.owner } };
+    let decision: unknown;
+    let calls = 0;
+    const storage = { fileRetirementAuthority: authority,
+      async readFinalizedFileRetirement(requested: string) {
+        calls++; assert.equal(requested, ref); return decision;
+      } } as unknown as FileReferenceStoragePort;
+    const options = { clock: h.clock, intentTtlMs: INTENT_TTL_MS, urlBase: 'https://app.example.test',
+      fileRetirement: { storage, retention: DURABLE_POLICY } };
+    function retirement(disposition: 'orphaned' | 'expired' = 'orphaned'): FinalizedFileRetirement {
+      return { retirementId: 'retirement-original', authority: structuredClone(authority),
+        file: { ref, receiver: structuredClone(original.owner), provenance: structuredClone(original.file.provenance),
+          contentType: original.file.contentType, sizeBytes: original.file.sizeBytes,
+          bytesDigest: original.file.bytesDigest, finalizedAtMs: original.finalizedAtMs },
+        snapshot: { owner: 'Owner', snapshotId: 'snapshot', digest: 'digest',
+          installedRevision: 1 as Revision, installedAt: original.finalizedAtMs },
+        censusRevision: 2 as Revision, retiredRevision: 3 as Revision,
+        retiredAtMs: h.clock.nowMs(), disposition, retention: { ...DURABLE_POLICY } };
+    }
+    return { h, ref, original, authority, storage, options, retirement,
+      get store() { return store; }, get calls() { return calls; },
+      setDecision(value: unknown) { decision = value; },
+      bind() { return createSqliteFileBindings(store, options); },
+      reopen() { store.close(); store = createSqliteFileStore(path); },
+      sql(body: (db: DatabaseSync) => void) { const db = new DatabaseSync(path); try { body(db); } finally { db.close(); } },
+      close() { store.close(); rmSync(dir, { recursive: true, force: true }); } };
+  }
+
+  it('atomically preserves attachment and immutable metadata, redacts bytes and replays the original decision after reopen', async () => {
+    const f = setup();
+    try {
+      assert.equal(recordAttachment(f.h.finalize, f.ref, 'Expense_shared', RECEIVER).status, 'attached');
+      const attached = f.store.files.get(f.ref)!;
+      f.h.clock.advanceBy(RETENTION_MS);
+      const decision = f.retirement('expired'); f.setDecision(decision);
+      assert.equal(await f.bind().deleteRetiredFile(f.ref), 'deleted');
+      assert.deepEqual(f.store.files.get(f.ref), { ...attached, state: 'expired' });
+      assert.equal(f.store.blobs.read(blobKeyForFile(f.ref)), null);
+      assert.deepEqual(describeForReceipt({ ...f.h.retention, files: f.store.files, blobs: f.store.blobs }, f.ref),
+        { file: f.ref, status: 'redacted', contentType: 'application/pdf', sizeBytes: PDF_BYTES.length });
+      f.sql(db => {
+        const rows = db.prepare('SELECT id, json FROM files_retirement_journal').all();
+        assert.equal(rows.length, 1);
+        assert.deepEqual(JSON.parse(rows[0]!.json as string).retirement, decision);
+      });
+      const fileStoreId = f.store.fileStoreId;
+      f.reopen(); assert.equal(f.store.fileStoreId, fileStoreId);
+      assert.equal(await f.bind().deleteRetiredFile(f.ref), 'already-deleted');
+      assert.deepEqual(f.store.files.get(f.ref), { ...attached, state: 'expired' });
+      f.setDecision({ ...decision, retirementId: 'replacement' });
+      await assert.rejects(() => f.bind().deleteRetiredFile(f.ref));
+      f.h.clock.advanceBy(1);
+      f.setDecision({ ...decision, retiredAtMs: decision.retiredAtMs + 1 });
+      await assert.rejects(() => f.bind().deleteRetiredFile(f.ref));
+      assert.equal(f.store.files.get(f.ref)?.state, 'expired');
+      f.setDecision(decision);
+      f.sql(db => db.prepare('DELETE FROM files_retirement_journal WHERE id = ?').run(f.ref));
+      await assert.rejects(() => f.bind().deleteRetiredFile(f.ref));
+      assert.equal(f.store.blobs.read(blobKeyForFile(f.ref)), null);
+    } finally { f.close(); }
+  });
+
+  it('captures the issuer method before await and refuses bytes or metadata changed during that lookup', async () => {
+    for (const changed of [false, true]) {
+      const f = setup();
+      try {
+        f.h.clock.advanceBy(HORIZON_MS);
+        const decision = f.retirement();
+        let release!: () => void;
+        const wait = new Promise<void>(resolve => { release = resolve; });
+        let originalCalls = 0, replacementCalls = 0;
+        f.storage.readFinalizedFileRetirement = async requested => {
+          originalCalls++; assert.equal(requested, f.ref); await wait; return decision;
+        };
+        const policy = { types: ['application/pdf'], maxBytes: PDF_BYTES.length };
+        const pending = createSqliteFileBindings(f.store, { ...f.options, policy }).deleteRetiredFile(f.ref);
+        assert.equal(originalCalls, 1);
+        f.storage.readFinalizedFileRetirement = async () => { replacementCalls++; throw new Error('replacement issuer'); };
+        policy.types.length = 0; policy.maxBytes = 0;
+        let before = f.store.files.get(f.ref)!;
+        if (changed) {
+          before = { ...before, attachedRecord: 'Expense_later', state: 'attached' };
+          f.store.files.put(before);
+        }
+        release();
+        if (changed) {
+          await assert.rejects(() => pending);
+          assert.deepEqual(f.store.files.get(f.ref), before);
+          assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), PDF_BYTES);
+        } else assert.equal(await pending, 'deleted');
+        assert.equal(replacementCalls, 0);
+      } finally { f.close(); }
+    }
+  });
+
+  it('refuses missing, malformed and foreign issuance or changed immutable facts without cleanup', async () => {
+    const f = setup();
+    try {
+      await assert.rejects(async () => createSqliteFileBindings(f.store, {
+        clock: f.h.clock, intentTtlMs: INTENT_TTL_MS, urlBase: 'https://app.example.test',
+      }).deleteRetiredFile(f.ref));
+      f.h.clock.advanceBy(HORIZON_MS);
+      const good = f.retirement();
+      const invalid: unknown[] = [null, {}, { ...good, retirementId: '' },
+        { ...good, authority: { ...good.authority, stateStoreId: 'foreign' } },
+        { ...good, authority: { ...good.authority, fileStoreId: 'foreign' } },
+        { ...good, file: { ...good.file, ref: 'foreign' } },
+        { ...good, file: { ...good.file, receiver: { ...good.file.receiver, owner: 'foreign' } } },
+        { ...good, file: { ...good.file, provenance: { ...good.file.provenance, kind: 'foreign' } } },
+        { ...good, file: { ...good.file, bytesDigest: 'sha256:changed' } },
+        { ...good, file: { ...good.file, finalizedAtMs: good.file.finalizedAtMs + 1 } },
+        { ...good, retention: { ...good.retention, retentionMs: -1 } },
+        { ...good, disposition: 'deleted' }, { ...good, disposition: 'expired' },
+        { ...good, retiredAtMs: good.file.finalizedAtMs },
+        { ...good, retiredAtMs: Number.MAX_SAFE_INTEGER + 1 }];
+      let getters = 0;
+      const accessor = { ...good.file };
+      Object.defineProperty(accessor, 'provenance', { enumerable: true, get() { getters++; return good.file.provenance; } });
+      invalid.push({ ...good, file: accessor });
+      for (const candidate of invalid) {
+        f.setDecision(candidate);
+        await assert.rejects(() => f.bind().deleteRetiredFile(f.ref));
+        assert.deepEqual(f.store.files.get(f.ref), f.original);
+        assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), PDF_BYTES);
+      }
+      assert.equal(getters, 0);
+      f.setDecision(good);
+      await assert.rejects(() => f.bind().deleteRetiredFile(structuredClone(good) as unknown as string));
+      assert.deepEqual(f.store.files.get(f.ref), f.original);
+      assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), PDF_BYTES);
+      await assert.rejects(() => createSqliteFileBindings(f.store, {
+        ...f.options, clock: { nowMs: () => Number.MAX_SAFE_INTEGER + 1 },
+      }).deleteRetiredFile(f.ref));
+      await assert.rejects(() => createSqliteFileBindings(f.store, {
+        ...f.options, policy: { types: [], maxBytes: PDF_BYTES.length },
+      }).deleteRetiredFile(f.ref));
+      await assert.rejects(() => createSqliteFileBindings(f.store, {
+        ...f.options, fileRetirement: { storage: f.storage,
+          retention: { ...DURABLE_POLICY, unattachedHorizonMs: HORIZON_MS + 1 } },
+      }).deleteRetiredFile(f.ref));
+      assert.deepEqual(f.store.files.get(f.ref), f.original);
+      assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), PDF_BYTES);
+    } finally { f.close(); }
+  });
+
+  it('permanently pins the owner across reopen and refuses legacy sweep, deletion, revival and metadata drift', async () => {
+    const f = setup();
+    try {
+      f.h.clock.advanceBy(HORIZON_MS); const decision = f.retirement(); f.setDecision(decision);
+      f.bind();
+      for (const field of ['stateStoreId', 'fileStoreId'] as const) {
+        const foreign = { ...f.storage, fileRetirementAuthority: { ...f.authority, [field]: 'foreign' } };
+        assert.throws(() => createSqliteFileBindings(f.store, { ...f.options,
+          fileRetirement: { ...f.options.fileRetirement, storage: foreign } }));
+      }
+      f.reopen();
+      const legacy = createSqliteFileBindings(f.store, { clock: f.h.clock, intentTtlMs: INTENT_TTL_MS,
+        urlBase: 'https://app.example.test' });
+      assert.throws(() => legacy.runRetention(DURABLE_POLICY));
+      assert.throws(() => legacy.runRetentionBatch(DURABLE_POLICY, { limit: 1 }));
+      assert.throws(() => f.store.blobs.remove(blobKeyForFile(f.ref)));
+      assert.throws(() => f.store.blobs.write(blobKeyForFile(f.ref), PDF_BYTES));
+      assert.throws(() => f.store.blobs.append(blobKeyForFile(f.ref), PDF_BYTES));
+      assert.throws(() => f.store.files.put({ ...f.original, file: { ...f.original.file, sizeBytes: 1 } }));
+      const unpublished = stagingKeyForIntent('unpublished-control');
+      f.store.blobs.write(unpublished, PDF_BYTES);
+      f.store.blobs.remove(unpublished);
+      assert.equal(f.store.blobs.read(unpublished), null);
+      assert.deepEqual(f.store.files.get(f.ref), f.original);
+      assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), PDF_BYTES);
+      assert.equal(await f.bind().deleteRetiredFile(f.ref), 'deleted');
+      assert.throws(() => f.store.files.put(f.original));
+      assert.equal(f.store.files.get(f.ref)?.state, 'orphaned');
+    } finally { f.close(); }
+  });
+
+  it('rolls back terminal metadata and journal on actual SQLite deletion failure, then retries after reopen', async () => {
+    const f = setup();
+    try {
+      f.h.clock.advanceBy(HORIZON_MS); const decision = f.retirement(); f.setDecision(decision);
+      f.bind();
+      f.sql(db => db.exec("CREATE TRIGGER refuse_retired_delete BEFORE DELETE ON files_blobs BEGIN SELECT RAISE(ABORT, 'retirement deletion interrupted'); END"));
+      await assert.rejects(() => f.bind().deleteRetiredFile(f.ref), /retirement deletion interrupted/);
+      assert.deepEqual(f.store.files.get(f.ref), f.original);
+      assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), PDF_BYTES);
+      f.sql(db => assert.equal(db.prepare('SELECT count(*) AS n FROM files_retirement_journal').get()!.n, 0));
+      f.reopen(); f.sql(db => db.exec('DROP TRIGGER refuse_retired_delete'));
+      assert.equal(await f.bind().deleteRetiredFile(f.ref), 'deleted');
+      f.sql(db => assert.deepEqual(JSON.parse(db.prepare('SELECT json FROM files_retirement_journal').get()!.json as string).retirement, decision));
+      assert.equal(await f.bind().deleteRetiredFile(f.ref), 'already-deleted');
+    } finally { f.close(); }
+  });
+
+  it('preserves first attachment time while allowing the owning attachment marker to move', () => {
+    const f = setup();
+    try {
+      const bindings = f.bind();
+      assert.equal(bindings.recordAttachment(f.ref, 'Expense_first', RECEIVER).status, 'attached');
+      const original = f.store.files.get(f.ref)!;
+      const { attachedAtMs: _first, ...withoutTime } = original;
+      for (const changed of [
+        { ...original, state: 'finalized' as const, attachedRecord: null },
+        { ...original, attachedRecord: null },
+        withoutTime,
+        { ...original, attachedAtMs: original.attachedAtMs! + 1 },
+      ]) assert.throws(() => f.store.transaction(() => f.store.files.put(changed)));
+      assert.deepEqual(f.store.files.get(f.ref), original);
+      f.h.clock.advanceBy(1);
+      assert.equal(bindings.recordAttachment(f.ref, 'Expense_second', RECEIVER).status, 'attached');
+      assert.deepEqual(f.store.files.get(f.ref), { ...original, attachedRecord: 'Expense_second' });
+    } finally { f.close(); }
+  });
+
+  it('refuses missing bytes without an original journal and same-length physical content drift', async () => {
+    for (const missing of [false, true]) {
+      const f = setup();
+      try {
+        f.h.clock.advanceBy(HORIZON_MS); f.setDecision(f.retirement());
+        if (missing) f.store.blobs.remove(blobKeyForFile(f.ref));
+        else { const bytes = PDF_BYTES.slice(); bytes[bytes.length - 1] = bytes[bytes.length - 1]! ^ 1; f.store.blobs.write(blobKeyForFile(f.ref), bytes); }
+        const bytes = f.store.blobs.read(blobKeyForFile(f.ref));
+        await assert.rejects(() => f.bind().deleteRetiredFile(f.ref));
+        assert.deepEqual(f.store.files.get(f.ref), f.original);
+        assert.deepEqual(f.store.blobs.read(blobKeyForFile(f.ref)), bytes);
+        f.sql(db => assert.equal(db.prepare('SELECT count(*) AS n FROM files_retirement_journal').get()!.n, 0));
+      } finally { f.close(); }
+    }
+  });
+});
 
 function durablePending(dir: string, phase: 'bytes' | 'row' | 'pointer', ttl = INTENT_TTL_MS) {
   let store = createSqliteFileStore(join(dir, 'metadata.sqlite'));
