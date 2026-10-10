@@ -1,0 +1,15 @@
+## Ordinary native reference-array hydration; no saved-result disclosure claim.
+app NativeRefArrays
+Given
+ Item {value:int=0}
+ policy Item read=members
+When
+ crud Item by=members fields=value
+ scenario step(items:Item[]) by=members
+  do
+   for item in items limit=3
+    set item {value=item.value+1}
+ ## The owning Compiler qualifies unused inputs with a scalar return.
+ scenario captured(items:Item[]) -> int by=members
+  do return 7
+Then
