@@ -74,6 +74,7 @@ import type {
   HistoryEntry,
   InvocationContext,
   Membership,
+  MembershipSnapshot,
   ModelName,
   MutationResult,
   OccurrenceId,
@@ -632,6 +633,8 @@ export type CanonicalByPredicate =
  */
 export interface CanonicalMembershipReader {
   findMembership(teamId: string, userId: string): Promise<Membership | null>;
+  /** Actual coherent Identity producer; legacy readers stay singular-only. */
+  findMembershipsSnapshot?(teamId: string, userIds: readonly string[]): Promise<MembershipSnapshot>;
 }
 
 /**
