@@ -3405,3 +3405,18 @@ and strict57.26s. Safe FF481→reviewed containing4a6 consumes Workdc7/File679/
 selected Devb31 without source overlap or discarded edits. Private completion
 carrier and original typed hook context remain unfinished executable joins.
 58/67/nine and precise holds remain; exported Rent excluded. Local only.
+
+
+### 2026-10-10 — retain standard completion provenance (unfinished executable join)
+
+Keep selected canonical std operation and original result spelling before
+envelope nullability, plus exact own module/alias/import span and existing
+qualified binding/from, in the internal checked fact. Unique own correspondence
+is required; ambiguous aliases acquire no fact and unbound routes remain absent.
+This supplies actual producer inputs for the pinned private Dev/Work join without
+reconstructing declaration identity from nullable payloads. Payload/effects and
+existing publication E6008 remain unchanged. Owning delivery_error_shapes9/9
+pass1.14s, including distinct aliases/routes, unbound/duplicate/unknown controls
+and existing actual native observer/nullable set. fmt/diff0. Source32 witness
+reused; whole1429/138/strict retains frozen pre-provenance scope until the related
+join qualification.58/67/nine and precise holds unchanged. Local only.

@@ -185,10 +185,146 @@ fn standard_completions_keep_declared_nullable_results_and_checked_source_identi
             .iter()
             .find(|symbol| symbol.canonical == "StandardCompletion.observe")
             .unwrap();
+        assert_eq!(checked.types.std_delivery_completion_handlers.len(), 1);
+        let completion = checked
+            .types
+            .std_delivery_completion_handlers
+            .values()
+            .next()
+            .unwrap();
+        let module = &checked.modules[scenario.module.0 as usize];
+        let import = &module.imports[0];
+        assert_eq!(
+            completion.canonical_operation,
+            format!("std.{capability}.{op}")
+        );
+        assert_eq!(
+            completion.result_type,
+            if capability == "EmailV1" {
+                "EmailAccepted"
+            } else {
+                "PaymentState"
+            }
+        );
+        assert_eq!(completion.module, module.id);
+        assert_eq!(completion.alias, "Wire");
+        assert_eq!(completion.import_span, import.span);
+        assert_eq!(
+            completion.binding.as_deref(),
+            Some("StandardCompletion.Wire")
+        );
+        assert_eq!(completion.from.as_deref(), Some("deployment.wire"));
         assert!(matches!(&checked.effects.scenarios[&scenario.id].on,
             Some(HandlerSource::StdDeliveryCompleted {capability:canonical,op:operation,source:identity})
                 if canonical == &format!("std.{capability}") && operation == op
                     && identity == &format!("StandardCompletion.Wire.{op}.completed")));
+    }
+}
+
+#[test]
+fn standard_completion_provenance_selects_the_authored_alias_and_preserves_unbound_imports() {
+    let catalog = catalog();
+    let source = r#"app CompletionRoutes
+use std {EmailV1 as Secondary} from=deployment.secondary
+use std {EmailV1 as Primary} from=deployment.primary
+Given
+When
+ scenario observe_primary on=Primary.send.completed
+  do
+   let id=event.delivery_id
+ scenario observe_secondary on=Secondary.send.completed
+  do
+   let id=event.delivery_id
+Then
+"#;
+    let (checked, diagnostics) = check(source, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(checked.types.std_delivery_completion_handlers.len(), 2);
+    let module = checked
+        .modules
+        .iter()
+        .find(|module| module.name == "CompletionRoutes")
+        .unwrap();
+    for (alias, route) in [
+        ("Primary", "deployment.primary"),
+        ("Secondary", "deployment.secondary"),
+    ] {
+        let identity = format!("CompletionRoutes.{alias}.send.completed");
+        let completion = checked
+            .types
+            .std_delivery_completion_handlers
+            .values()
+            .find(|completion| completion.source == identity)
+            .unwrap();
+        let import = module
+            .imports
+            .iter()
+            .find(|import| import.members.iter().any(|member| member.alias == alias))
+            .unwrap();
+        assert_eq!(completion.canonical_operation, "std.EmailV1.send");
+        assert_eq!(completion.result_type, "EmailAccepted");
+        assert_eq!(completion.module, module.id);
+        assert_eq!(completion.alias, alias);
+        assert_eq!(completion.import_span, import.span);
+        assert_eq!(
+            completion.binding,
+            Some(format!("CompletionRoutes.{alias}"))
+        );
+        assert_eq!(completion.from.as_deref(), Some(route));
+    }
+
+    let unbound =
+        standard_completion_source("EmailV1", "send").replace(" from=deployment.wire", "");
+    let (checked, diagnostics) = check(&unbound, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(checked.types.std_delivery_completion_handlers.len(), 1);
+    let completion = checked
+        .types
+        .std_delivery_completion_handlers
+        .values()
+        .next()
+        .unwrap();
+    assert_eq!(completion.canonical_operation, "std.EmailV1.send");
+    assert_eq!(completion.result_type, "EmailAccepted");
+    assert_eq!(completion.source, "StandardCompletion.Wire.send.completed");
+    assert_eq!(completion.alias, "Wire");
+    let module = &checked.modules[completion.module.0 as usize];
+    assert_eq!(module.name, "StandardCompletion");
+    assert_eq!(completion.import_span, module.imports[0].span);
+    assert_eq!(completion.binding, None);
+    assert_eq!(completion.from, None);
+}
+
+#[test]
+fn ambiguous_standard_completion_imports_do_not_acquire_checked_provenance() {
+    let catalog = catalog();
+    let original = standard_completion_source("EmailV1", "send");
+    for duplicate in [
+        "use std {EmailV1 as Wire} from=deployment.second",
+        "use std {PaymentsV1 as Wire} from=deployment.second",
+    ] {
+        let source = original.replace(
+            "use std {EmailV1 as Wire} from=deployment.wire",
+            &format!("use std {{EmailV1 as Wire}} from=deployment.first\n{duplicate}"),
+        );
+        assert_ne!(source, original, "control must change source");
+        let (checked, diagnostics) = check(&source, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E2002"),
+            "{duplicate}: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.code.starts_with("E1")),
+            "{diagnostics:?}"
+        );
+        assert!(
+            checked.types.std_delivery_completion_handlers.is_empty(),
+            "ambiguous import acquired provenance: {duplicate}"
+        );
     }
 }
 
@@ -232,11 +368,17 @@ fn standard_completion_checks_reject_unknown_targets_unsafe_reads_and_wrong_exam
     ] {
         let source = original.replace(before, after);
         assert_ne!(source, original, "control must change the source: {before}");
-        let (_, diagnostics) = check(&source, &catalog);
+        let (checked, diagnostics) = check(&source, &catalog);
         assert!(
             diagnostics.iter().any(|diagnostic| diagnostic.code == code),
             "{after}: expected {code}, got {diagnostics:?}"
         );
+        if code == "E3010" {
+            assert!(
+                checked.types.std_delivery_completion_handlers.is_empty(),
+                "rejected source acquired provenance: {after}"
+            );
+        }
         assert!(
             diagnostics
                 .iter()
