@@ -9,7 +9,7 @@ use crate::analysis::scenario_disclosure::{
     DisclosureSource, ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
-use crate::source::{Span, sha256_hex};
+use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{
@@ -195,6 +195,7 @@ pub(super) fn collect_native_scenario_receipt(
     item: &IrItem,
     models: &[JsModel],
     entry_module: &str,
+    db: Option<&SourceDb>,
 ) -> Option<NativeScenarioReceipt> {
     let IrItemKind::Scenario {
         trusted: false,
@@ -236,7 +237,7 @@ pub(super) fn collect_native_scenario_receipt(
     }
     let source = transport_source(&checked.source, entry_module)?;
     let sites = Sites::collect(ir, item, params, by, guards, effects)?;
-    match_effect_proofs(ir, item, models, checked, &sites)?;
+    match_effect_proofs(ir, item, models, checked, &sites, db)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -929,6 +930,7 @@ fn match_effect_proofs(
     models: &[JsModel],
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     sites: &Sites<'_>,
+    db: Option<&SourceDb>,
 ) -> Option<()> {
     if checked.effects.len() > 200 || checked.effects.len() != sites.effects.len() {
         return None;
@@ -1118,7 +1120,11 @@ fn match_effect_proofs(
                 }
             }
             (
-                DisclosureEffectKind::Set { model, fields },
+                DisclosureEffectKind::Set {
+                    model,
+                    fields,
+                    file_inputs,
+                },
                 IrStmt::Set {
                     record,
                     changes,
@@ -1158,6 +1164,7 @@ fn match_effect_proofs(
                     return None;
                 }
                 let mut seen_fields = HashSet::new();
+                let mut matched_files = HashSet::new();
                 for ((name, value), id) in entries.iter().zip(fields) {
                     let field = ir.items.get(id.0 as usize)?;
                     let IrItemKind::Field {
@@ -1190,6 +1197,23 @@ fn match_effect_proofs(
                     if !compatible {
                         return None;
                     }
+                    let base = match ty {
+                        ResolvedType::Nullable(inner) => inner.as_ref(),
+                        ty => ty,
+                    };
+                    if *base == ResolvedType::Scalar(Scalar::File) {
+                        let mut inputs = file_inputs.iter().filter(|input| input.field == *id);
+                        let input = inputs.next()?;
+                        if inputs.next().is_some() || !matched_files.insert(input.field) {
+                            return None;
+                        }
+                        file_assignment_input_matches(
+                            ir, owner, checked, input, value, proof.node, db?,
+                        )?;
+                    }
+                }
+                if matched_files.len() != file_inputs.len() {
+                    return None;
                 }
             }
             (
@@ -1266,6 +1290,15 @@ fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
         ty => (ty, false),
     };
+    if *base == ResolvedType::Scalar(Scalar::File) {
+        // Assignment lifetime belongs to Files/State. This does not admit
+        // File through the scalar result or dependency observation codecs.
+        return matches!(field.field, JsModelFieldType::File)
+            && field.value_type.as_deref() == Some(if nullable { "file?" } else { "file" })
+            && field.nullable == nullable
+            && field.array_required.is_none()
+            && field.machine.is_none();
+    }
     if let ResolvedType::StdDelivery { capability, op } = base {
         let Some(expected) = super::js::delivery_descriptor(capability, op) else {
             return false;
@@ -1294,6 +1327,123 @@ fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool
         if nullable { "?" } else { "" }
     );
     native_result_type(ty) && inventory_type(field).as_deref() == Some(expected.as_str())
+}
+
+fn file_assignment_input_matches(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    input: &crate::analysis::scenario_disclosure::DisclosureFileInput,
+    value: &TypedExpr,
+    statement: crate::analysis::NodeKey,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrItemKind::Scenario {
+        params,
+        trusted: false,
+        read: false,
+        event_source: None,
+        hook: None,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let parameter = ir.items.get(input.parameter.0 as usize)?;
+    let IrItemKind::Param {
+        owner: declared_owner,
+        index,
+        ty: IrType::Known(ty),
+        default: None,
+        default_node: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let file = ResolvedType::Scalar(Scalar::File);
+    let source = checked
+        .source_facts
+        .as_ref()?
+        .parameters
+        .iter()
+        .find(|parameter| parameter.parameter == input.parameter)?;
+    if parameter.id != input.parameter
+        || *declared_owner != owner.id
+        || params.get(*index) != Some(&input.parameter)
+        || parameter.module != owner.module
+        || *ty != file
+        || source.ty != file
+        || source.default.is_some()
+        || value.ty != file
+        || value.span != node_span(input.value)
+        || input.value.kind != SyntaxKind::NameRef as u8
+        || !matches!(&value.expr,IrExpr::Name(name) if name == &parameter.name)
+        || input.value.file != checked.node.file
+        || input.value.start < checked.node.start
+        || input.value.end > checked.node.end
+        || input.value.file != statement.file
+        || input.value.start < statement.start
+        || input.value.end > statement.end
+    {
+        return None;
+    }
+    // Both the proof and executable IR are mutable carriers. Join the actual
+    // name to the original value and parameter declaration in verified source
+    // bytes, so changing both carriers to another valid File input cannot pass.
+    let original = super::scenario_calls::checked_source(ir, owner, db)?;
+    let authored = db.get(input.value.file)?;
+    if authored
+        .text
+        .get(input.value.start as usize..input.value.end as usize)?
+        != parameter.name
+    {
+        return None;
+    }
+    let declaration = original.parameters.get(*index)?;
+    if declaration.parameter != input.parameter || declaration.node != source.node {
+        return None;
+    }
+    let (tree, diagnostics) = crate::syntax::parse_source(input.value.file, &authored.text);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut pending = vec![&tree];
+    let mut steps = 0usize;
+    let mut matched_declaration = false;
+    let mut matched_value = false;
+    while let Some(node) = pending.pop() {
+        steps += 1;
+        if steps > 200000 {
+            return None;
+        }
+        if crate::analysis::NodeKey::of(node) == declaration.node {
+            let name = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)?;
+            if node.kind != SyntaxKind::Parameter
+                || name.span != parameter.span
+                || name.token()?.text(&authored.text) != parameter.name
+            {
+                return None;
+            }
+            matched_declaration = true;
+        }
+        if crate::analysis::NodeKey::of(node) == input.value {
+            matched_value = node.kind == SyntaxKind::NameRef;
+        }
+        if matched_declaration && matched_value {
+            return Some(());
+        }
+        pending.extend(node.children.iter().rev());
+    }
+    None
 }
 
 #[derive(Default)]

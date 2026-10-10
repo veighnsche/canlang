@@ -2894,3 +2894,21 @@ State active-frame/final-write/post-write association and Dev actual execution
 consumers must release before Compiler checked File/Set source. Original pure
 cohort, consumed child result, committed events and precise BDD3/Task22 holds
 remain; completion stays58/67 with nine overlapping references.
+
+**Assignment-only File source (unfinished native host join), 2026-10-10.**
+The unchanged TypedFileJourney attachment scenario now has Complete disclosure
+and actual native void publication: the original awaited owning Set precedes
+the accept guard. A dedicated proof permits only an explicit direct required,
+defaultless root File input into its owning singular File/file? field. Files/
+State supply the genuine finalized observation and lifetime; the compiler adds
+no scalar File observation, read/result/child/copy/loop authority. Emission joins
+actual input/field types and schema with verified original value and parameter
+declaration bytes, refusing paired substitution with another valid File input.
+Missing or changed source, ten other IR/proof corruptions and eight unsupported
+File profiles refuse. Review identified the paired-substitution gap, now fixed.
+Affected316 pass (library161,codegen121,disclosure29,native receipts4,actual query
+native1); strict all-target Clippy/format0 and finite source review CLEAR. The
+released State/Files/Interfaces dependencies build16/16 after frozen local
+installation; unchanged whole/editor results are reused. Dev owns actual native
+File binding/staging/retained replay and the unchanged real D1 journey. This
+source unit does not close that workflow or58/67; precise holds remain.

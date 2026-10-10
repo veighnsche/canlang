@@ -1464,6 +1464,7 @@ fn emit_program_with_sources(
                 item,
                 &models,
                 &module_path(&entry_name),
+                db,
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
             }
