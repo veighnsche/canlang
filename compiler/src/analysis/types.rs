@@ -8395,6 +8395,54 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("button")
+                    && attribute_value(node, "target", cx.text).is_some()
+                {
+                    for name in ["target", "caption"] {
+                        let Some(value) = attribute_value(node, name, cx.text) else {
+                            continue;
+                        };
+                        let ty = self.expr(cx, value, None);
+                        let valid = if name == "target" {
+                            // Accepted destination types remain valid source;
+                            // URL/File emission needs its separate native profile.
+                            matches!(
+                                ty,
+                                ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
+                                    | ResolvedType::Error
+                            )
+                        } else {
+                            matches!(
+                                ty,
+                                ResolvedType::Scalar(Scalar::Text)
+                                    | ResolvedType::InlineMessage
+                                    | ResolvedType::Message(_)
+                                    | ResolvedType::Error
+                            )
+                        };
+                        if !valid {
+                            self.diags.push(Diagnostic::error(
+                                "E3001",
+                                format!(
+                                    "button {name} needs {}",
+                                    if name == "target" {
+                                        "text, url or file"
+                                    } else {
+                                        "text or a message descriptor"
+                                    }
+                                ),
+                                tight_span(cx.text, value),
+                            ));
+                        }
+                        for (call, span) in self.effectful_calls(value, cx.text) {
+                            self.diags.push(Diagnostic::error(
+                                "E3010",
+                                format!("button {name} must be pure; '{call}' is not allowed here"),
+                                span,
+                            ));
+                        }
+                    }
+                }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("stat")
                     && let Some(value) = attribute_value(node, "description", cx.text)
                 {
