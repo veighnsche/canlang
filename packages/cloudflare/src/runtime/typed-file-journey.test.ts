@@ -153,8 +153,9 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.equal(created.result.result, null);
     const row = created.result.records![0] as { id: string };
     const authRequest = (url: string, method: string, body?: string | Uint8Array, bearer = ownerGrant.token,
-      viaSession = false) => new Request(url.startsWith('https:') ? url : `https://test.invalid${url}`, {
+      viaSession = false, uploadOffset = 0) => new Request(url.startsWith('https:') ? url : `https://test.invalid${url}`, {
       method, headers: { ...(viaSession ? { cookie, 'x-csrf-token': csrf } : { authorization: `Bearer ${bearer}` }),
+        ...(method === 'PUT' ? { 'upload-offset': String(uploadOffset) } : {}),
         ...(body instanceof Uint8Array ? { 'content-type': 'application/octet-stream' } : { 'content-type': 'application/json' }) },
       ...(body === undefined ? {} : { body }),
     });
@@ -173,15 +174,34 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     };
     const grant = await intent('actual-upload');
     assert.deepEqual(await intent('actual-upload'), grant);
+    const beforeMissingOffset = fileStore.intents.get(grant.intent_id);
+    const missingOffset = authRequest(grant.content, 'PUT', BYTES.slice(0, 8));
+    missingOffset.headers.delete('upload-offset');
+    assert.equal((await handler(missingOffset)).status, 400);
+    assert.equal(missingOffset.bodyUsed, false);
+    assert.deepEqual(fileStore.intents.get(grant.intent_id), beforeMissingOffset);
+    assert.equal(fileStore.blobs.read(stagingKeyForIntent(grant.intent_id)), null);
     const partial = await handler(authRequest(grant.content, 'PUT', BYTES.slice(0, 8), ownerGrant.token, true));
     assert.equal(partial.status, 200);
     assert.deepEqual(await partial.json(), { received_bytes: 8, complete: false });
     assert.equal((await finalize(grant, 'actual-upload')).status, 422);
     const partialAttach = await attach(grant.intent_id, true);
     assert.ok('error' in partialAttach); assert.equal(partialAttach.error.code, 'validation');
-    const rest = await handler(authRequest(grant.content, 'PUT', BYTES.slice(8)));
+    const beforeStaleOffset = fileStore.intents.get(grant.intent_id);
+    assert.equal((await handler(authRequest(grant.content, 'PUT', BYTES.slice(8), ownerGrant.token, false, 0))).status, 409);
+    assert.deepEqual(fileStore.intents.get(grant.intent_id), beforeStaleOffset);
+    assert.deepEqual(fileStore.blobs.read(stagingKeyForIntent(grant.intent_id)), BYTES.slice(0, 8));
+    const rest = await handler(authRequest(grant.content, 'PUT', BYTES.slice(8), ownerGrant.token, false, 8));
     assert.equal(rest.status, 200);
     assert.equal((await rest.json() as { complete: boolean }).complete, true);
+    const beforeFullRetry = fileStore.intents.get(grant.intent_id);
+    const fullRetry = await handler(authRequest(grant.content, 'PUT', BYTES));
+    assert.equal(fullRetry.status, 200);
+    const retriedContent = await fullRetry.json() as { received_bytes: number; complete: boolean };
+    assert.equal(retriedContent.received_bytes, BYTES.length);
+    assert.equal(retriedContent.complete, true);
+    assert.deepEqual(fileStore.intents.get(grant.intent_id), beforeFullRetry);
+    assert.deepEqual(fileStore.blobs.read(stagingKeyForIntent(grant.intent_id)), BYTES);
     const beforeFaultIntent = fileStore.intents.get(grant.intent_id);
     const beforeFaultFiles = fileStore.files.listAll();
     failFinalizeWrite = true;

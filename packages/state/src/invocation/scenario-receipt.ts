@@ -27,7 +27,7 @@ import { stageAuthoredDelivery } from '../receipt/authored-delivery.js';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../receipt/tables.js';
 import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
 import { isGeneratedOperationDef } from './registry.js';
-import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory, queryProjectionWire, checkSavedQueries, savedQueriesReadable } from './scenario-query-plan.js';
+import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory, projectReadQueryProjectionWire, queryProjectionWire, checkSavedQueries, savedQueriesReadable } from './scenario-query-plan.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 
@@ -800,6 +800,23 @@ function resultWire(bound: BoundPlan, result: unknown): void {
     if (stableStringify(canonical) !== stableStringify(result)) return invalid('query result is not canonical owning Values wire.');
   } catch (error) { if (error instanceof StateError) throw error; return invalid('query result disagrees with its owning Values schema.'); }
 }
+/** Receipt-free conversion for an actual owning checked read definition. This
+ * validates the entire result with its bound Values schema but grants no read
+ * authority and creates no owner frame, receipt or persistence. */
+export function projectReadScenarioQueryResult(def: GeneratedOperationDef, queryId: string,
+  returnId: string, selected: readonly ProjectedRecord[]): unknown[] {
+  if (!isGeneratedOperationDef(def) || def.kind !== 'read') return invalid('actual generated checked read required.');
+  const bound = boundPlans.get(def) ?? invalid('read requires its actual bound checked result plan.');
+  const query = bound.plan.queries?.find(query => query.id === queryId)
+    ?? invalid('read query must name its bound checked query.');
+  const returned = bound.plan.returns.find(returned => returned.id === returnId);
+  if (returned?.projection === undefined || returned.projection.queryId !== query.id)
+    return invalid('read return must name its bound checked query projection.');
+  const wire = projectReadQueryProjectionWire(returned.projection, query, selected);
+  resultWire(bound, wire);
+  return wire;
+}
+
 function requireQueryResult(state: Capture | undefined, returned: ScenarioResultDisclosurePlan['returns'][number], result: unknown): void {
   if (returned.projection === undefined) return;
   if (state === undefined || state.queryResult === undefined || stableStringify(state.queryResult) !== stableStringify(result) ||
