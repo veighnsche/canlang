@@ -445,6 +445,13 @@ for(const [index,invalid] of [
  {...wire,optional:false}, {...wire,tasks:null}, {...wire,tasks:[null]},
  {...wire,tasks:[{...second,version:'invalid'}]}, {...wire,title:'   '}
 ].entries()) assert.throws(()=>validateValue(valueSchema,'ModelContracts.Fact',invalid,'create'),`invalid model contract case ${index}`);
+const {loadArtifactDescriptors}=await import(pathToFileURL(require.resolve('@canlang/state/invocation/registry')));
+const loaded=loadArtifactDescriptors(artifact,{by:'members'});
+assert.deepEqual(loaded.models.map(model=>model.name),models);
+assert.deepEqual(loaded.registry.get('ModelContracts.snapshot').descriptor.result,{type:'ModelContracts.Fact'});
+assert.deepEqual(validateValue(loaded.valueSchema,'ModelContracts.Fact',wire,'create'),native);
+assert.throws(()=>loadArtifactDescriptors({...artifact,models:[]},{by:'members'}),error=>error.reason==='dangling_reference');
+assert.throws(()=>loadArtifactDescriptors({...artifact,models:[...artifact.models,...artifact.models]},{by:'members'}),error=>error.reason==='duplicate_name');
 "#).unwrap();
     let consumed = Command::new("node")
         .arg(runner)

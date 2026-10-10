@@ -414,6 +414,45 @@ fn serial_v1_preserves_actual_sources_types_slots_defaults_and_frames() {
         .unwrap(),
     )
     .unwrap();
+    // Consume this exact compiler serialization through the installed State checker.
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("decision-sites.json");
+    std::fs::write(&input, serde_json::to_vec(&json).unwrap()).unwrap();
+    let runner = scratch.path().join("check-membership.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(resolve(process.argv[2],'package.json'));
+const state=dirname(require.resolve('@canlang/state'));
+const {checkScenarioReceiptMembershipSites}=await import(pathToFileURL(resolve(state,'invocation/scenario-membership-plan.js')));
+const produced=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const checked=checkScenarioReceiptMembershipSites(produced);
+assert.deepEqual(checked,produced,'installed State preserves genuine compiler sources, stages, slots, defaults and frames');
+assert.ok(Object.isFrozen(checked));
+assert.equal(checked[1].calls[0].arguments[0].type,'user');
+assert.equal(checked[1].calls[0].arguments[1].type,'Team');
+assert.equal(checked[2].calls[0].defaults[0].parameter,'helpers.good.last');
+assert.equal(checked[2].calls[1].chain[0].derive,'helpers.good');
+const lower=structuredClone(produced);
+lower[1].calls[0].arguments[1].type='team';
+assert.throws(()=>checkScenarioReceiptMembershipSites(lower),error=>error.code==='validation');
+console.log('actual compiler v1 decision sites accepted by installed State; lowercase Team refused');
+"#).unwrap();
+    let consumed = std::process::Command::new("node")
+        .arg(&runner)
+        .arg(root)
+        .arg(&input)
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "installed State decision consumer: {}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
     assert_eq!(json.as_array().unwrap().len(), 3);
     assert_eq!(json[0]["version"], 1);
     assert_eq!(json[0]["owner"], "DecisionSerial.run");
