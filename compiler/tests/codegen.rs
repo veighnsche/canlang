@@ -26,10 +26,10 @@ use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::artifact::{self, CompileArtifact};
 use canlang_compiler::codegen::bdd::{self, BddSuite, IrExampleImport};
 use canlang_compiler::codegen::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrDeleteMode, IrExpr, IrFixture, IrFixtureKind, IrGuard,
-    IrItem, IrItemKind, IrMessage, IrMessageParam, IrModifiers, IrModule, IrOrder, IrOwner, IrPage,
-    IrProgram, IrQuery, IrQueryDomain, IrSequence, IrServer, IrStep, IrStmt, IrTable, IrTableRow,
-    IrType, IrUi, IrUnOp, TypedExpr,
+    IrBinOp, IrCallTarget, IrDefault, IrDeleteMode, IrEffectCallTarget, IrExpr, IrFixture,
+    IrFixtureKind, IrGuard, IrItem, IrItemKind, IrMessage, IrMessageParam, IrModifiers, IrModule,
+    IrOrder, IrOwner, IrPage, IrProgram, IrQuery, IrQueryDomain, IrSequence, IrServer, IrStep,
+    IrStmt, IrTable, IrTableRow, IrType, IrUi, IrUnOp, TypedExpr,
 };
 use canlang_compiler::codegen::js::{self, Emitter};
 use canlang_compiler::codegen::sourcemap;
@@ -2573,9 +2573,13 @@ fn construct_effects() {
     let mut emitter = Emitter::new(&ir);
     let lines = emitter.lower_stmt(
         &IrStmt::Call {
-            operation: "demo.other".to_string(),
+            target: IrEffectCallTarget::Operation {
+                source: sp(0, 1),
+                operation: SymbolId(0),
+            },
             inputs: typed(IrExpr::Object(vec![]), widget),
             binding: None,
+            result: None,
             span: sp(0, 1),
         },
         0,
@@ -2584,7 +2588,7 @@ fn construct_effects() {
     let (diags, _, _, _) = emitter.finish();
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].code, "E6008");
-    assert!(diags[0].message.contains("demo.other"));
+    assert!(diags[0].message.contains(&ir.items[0].canonical));
 }
 
 /// Messages retain checked source language through the owning UI factory
