@@ -6337,3 +6337,19 @@ with no host or behavioral assertion weakened. Whole/editor and unchanged
 owner results are reused. Bound result consumption and original application
 purity/row-policy/File/event contracts remain distinct dependencies;58/67 and
 precise human holds are unchanged. Local coherent commit for coordinator review.
+
+
+Compiler row-subject source/State join, 2026-10-10 (unfinished native workflow):
+Choose exact released State945 row-subject descriptors only for a whole checked
+role predicate over the owning model's direct singular stored user/user? field.
+Require canonical model/module/field/type and unique rule correspondence; keep
+filtered, compound, member and nested predicates registry-only. Nullable user
+calls evaluate once and absence is false, preventing the omitted-subject actor
+overload. Redundant explicit actor calls retain E4020; other nullable/array
+subjects retain E3001. Genuine emitted metadata/State canonical declarations,
+Identity snapshots and Memory consumption qualify grants, title projection,
+null/revocation/refusal/no-effect behavior; affected409 and strict lint/format
+pass, finite source review CLEAR. Dev's string-only native parser and actual
+State hasRole-subject refusal still require genuine current coherent Identity
+execution binding. This finite source consumer does not accept native subject
+execution, original58/67 closure, held consultation, File or committed events.
