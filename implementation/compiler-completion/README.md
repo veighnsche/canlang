@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Ready compiler call producers are locally integrated and source-qualified; activation awaits Dev's genuine verified binder and actual native execution. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Ready compiler call producers are locally integrated; the final child-framework exclusion passes focused qualification. Activation awaits Dev's corrected genuine verified binder release and actual native execution. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2133,3 +2133,27 @@ binder rejects depth16 and globally memoizes visited subtrees independent of
 caller depth. The coordinator has cleared its transaction/authority review and
 routed this exact correction to Dev; activation awaits the corrected release.
 Compiler/State limits remain unchanged and E6008 stays.
+
+
+The finite static CALL collector now excludes actual framework Send in every
+transitive child, including nested branches, preserving root/standalone Send.
+The clean CallFramework source and actual emitter/imported-module case pass
+**1/1** on Node24; parent disclosure/carrier/facade are omitted and standalone
+disclosure survives. Existing aggregate200 and16/17 controls pass in the same
+case. Focused strict Clippy/format and independent review pass. AllCALL E6008
+remains; Dev corrected binder/coordinator release precedes activation. Whole1356
+stays exact saved6e51; this changed collector has focused qualification only.
+
+T11/A5 has no eligible genuine Choice witness in the current producer. The
+actual exported-scenairo failure carries a grammar inventory, material intent
+choice and false evidence; structural ambiguity carries no IDs/context. The
+prerequisite is an accepted source-grounded ambiguity/evidence contract with
+Compiler/design, followed by Dev exact branch qualification. Reuse reported
+Dev098b9f94 SAME41 browser/native1/1 (125.34s) as finite card-consumer evidence;
+messageKinds[] and unknown candidate coverage remain. No intent/evidence is
+inferred from the41 card IDs or passing browser count. Broader refs/holds stay.
+
+Coordinator releases corrected genuine Dev31159eb9 binder at LOCALeb586551.
+The16/17/shared-tail component is tested and manually reviewed. Consume that
+exact release after this coherent collector correction, then activate the finite
+static profile and qualify actual CLI/native execution. No wider hold is released.
