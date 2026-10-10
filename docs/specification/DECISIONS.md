@@ -5578,6 +5578,8 @@ Use additive Work `attemptDispatchAsync` with the existing refusal/availability/
 
 Work clean emission and directly affected async/fence19/19 pass223.14ms. This qualifies the Work component only. State must consume the same live handle with genuine current Team/Identity reader and Compiler v1 sites, and Dev must transport original frozen lexical values and bind real native evaluations/current dispatch admission. Current source gates and precise holds remain; the separate active admitted REQUIRE observer cannot authorize a later SEND.
 
+The async guard requires an actual Bool: unknown values refuse loudly before retained evidence, authority or claim; they cannot certify a skipped business guard. Changed clean Work emission and20/20 async/fence checks pass. This correction remains unfinished for the defining State/Dev native join.
+
 ## 2026-10-10 — define private membership decision source and lifetime bindings (proposed activation)
 
 Use the exact checked Bool guard/statement and owning source hash/module, stage
