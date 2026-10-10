@@ -1029,6 +1029,10 @@ fn draft_outcome_table() {
     // handler. Seven stored enum uses now retain their owning type; all51
     // other rows remain unchanged. The original composition still refuses
     // artifact emission with111 findings, including provider event sources.
+    // Assigned draft9f60e7d uses noncolliding query aliases in Field's two
+    // pending-replacement requirements. Both guards retain the stored state
+    // enum cases; two findings clear without any other row change. Original
+    // complete composition retains109 findings and no emitted artifact.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1051,7 +1055,7 @@ fn draft_outcome_table() {
         ("draft/CanEvent.can", 198),
         ("draft/CanExpense.can", 92),
         ("draft/CanFeedback.can", 13),
-        ("draft/CanField.can", 115),
+        ("draft/CanField.can", 113),
         ("draft/CanGallery.can", 22),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),

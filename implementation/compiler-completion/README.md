@@ -3117,3 +3117,18 @@ source-attested checked type/evidence; collection shape alone does not prove
 complete safe alternatives. No flags/IDs/provider promotion. Next exact source
 assignments, Employees pure authority, Volunteer tab bindings and BDD3/Task22
 holds retain their owners;58/67 unchanged. Local only, no publication.
+
+### 2026-10-10 — preserve Field pending-replacement guards (unfinished composition)
+
+Assigned draft9f60e7d changes only local pending→candidate query aliases and
+state receivers in the two existing CanField requirements. Preserve stored
+pending/unknown enum cases and every current technician/location/skill/notes/
+inspection guard, order, effect and example. Exact original25/catalog compile
+111→109 (Field12→10) is complete/omitted0 with all25 source hashes matching;
+only the two predicted E3001 disappear. The ten remaining Field findings concern
+the separate released handler. Sole isolated Field115→113 corpus snapshot; all52
+rows/full assertions and51 unchanged rows retained. Affected table1/1 passes2.03s,
+36 unrelated tests unselected; format/diff0. Prior Invoice6e and unchanged
+compiler/strict/editor results reused. No artifact/native original qualification,
+new semantics, common gate repair, held source guesses or publication. Exact
+next source assignment and original owner contracts remain;58/67 unchanged.
