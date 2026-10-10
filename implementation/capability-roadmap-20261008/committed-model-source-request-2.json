@@ -1,0 +1,36 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "decision": "Choose committed-model source cardinality for the original Can workflow. Both semantics and their complete producers are proposed, not implemented or accepted.",
+    "verified_context": [
+      "CanVolunteer.can46 refresh_reminders on=Opportunity.updated each=Signup uses event.id to cancel/conditionally replace matching reminders. A declared Event or scheduled wrapper would replace the required source.",
+      "DESIGN6 defines Model.created/updated/deleted immutable record ID, owner, resulting version and occurrence ID; no implicit historical snapshot. Later independent handlers load current authority and cannot reject their committed source. Scenario writes also emit these events without rerunning CRUD hooks.",
+      "State beginOwnerMutation/runMutationWrites share the mutation pipeline. Owner finalization retains ordered existing-row stage history at one shared reserved version and coalesces final stored writes. New surviving rows retain one net creation entry at the last contributing stage; a new row created then removed retains neither a row write nor history. Root generated CRUD, nested CRUD and scenario owner sessions share this pipeline; final provisional query includes staged business changes. Original invoke expectedRevision commit joins business/history/receipt/outbox/schedules/uniqueness. No durable committed-model source is emitted.",
+      "Work CommittedChangeEvent contains recordId/owner/version/occurrenceId; admitCommittedChange is synchronous injected receipt/current-loader logic, not the durable producer. Existing retained handler routes support independent replay/terminal outcomes. Native atomic ordinary/cohort routing is scheduled-declared-event-specific; State freezeFanoutMembership separately commits. Neither can substitute unchanged inside the original mutation fence.",
+      "Compiler checks Committed but cohort emission requires declared Event metadata, so original model cohort remains E6008. It needs checked model/change/input/handler metadata preserving event.id; Dev needs real schema/payload/current-owner adoption. DESIGN settles identities/later bodies, but not cardinality for multiple same-row stages. Durable history alone cannot choose."
+    ],
+    "common_requirements": [
+      "Cover root CRUD, scenario/nested child and hook secondary business changes; derive sources only from checked owning model declarations, never internal framework rows or inferred names.",
+      "Stage all matching ordinary routes, complete bounded cohort cuts and retained source receipts with the actual original winning mutation fence. Conflicts/aborts emit nothing; no fake schedule, postcommit mint, historical row snapshot, partial routing or second commit.",
+      "Preserve runtime stable source/independent handler IDs, original app/owner/principal/operation and exact model/change/version. Replay repeats no effects; later bodies recheck current owner/row authority.",
+      "Freeze complete model/anchored membership from final provisional business state at that source fence; exclude later insertions, preserve independent sources/no automatic supersession, refuse truncation and bounded overflow.",
+      "Preserve the existing history contract and every explicit authored SEND/schedule effect under either proposal; do not rewrite history to manufacture source facts. Compare identical complete workflows, edge cases, evaluation/replay, adoption/simplicity and necessary bounded cost; do not award absent APIs or treat proposals as acceptance."
+    ],
+    "edge_cases": [
+      "Create\u2192update\u2192remove within one winning owner transaction: final live row and retained history are both absent. Stage-source B would require new execution-owned pre-net stage facts, not inference from retained history.",
+      "Two updates of an existing row, including A\u2192B\u2192A values: ordered existing-row histories and final row use the same one reserved version. Distinct B occurrences need stable source-stage identity in addition to model/record/version.",
+      "Update\u2192remove/archive: resulting delete version attribution remains even if no live row.",
+      "Distinct rows, nested attribution, hook secondaries, abort/conflict/replay, source/cohort overflow and later revocation."
+    ]
+  },
+  "questions": {
+    "cardinality": {
+      "type": "choice",
+      "instructions": "Which proposed event cardinality, A for each final net record change or B for every retained ordered mutation stage, better serves the identical Can source requirements? Weigh author expectations, immutable version provenance, replay, complete atomic cohort routing and bounded work without assuming either producer exists.",
+      "criteria": {
+        "A": "Final-net proposal: one source per final stored record change, with actual final version and create/update/delete classification. Transaction-local create\u2192remove emits none; existing update\u2192remove emits one delete; repeated updates emit one final update. Preserve ordered history and explicit effects separately. Every emitted source retains full atomic routes/cut/receipt and immutable payload/current-state later guards. Aligns notifications with net stored changes, but suppresses intermediate authored stage notifications.",
+        "B": "Ordered-stage proposal: one source per successfully evaluated ordered business mutation stage in the winning owner transaction, including stages absent from net history. It requires a new execution-owned pre-net stage carrier with exact model/change/shared reserved version/operation attribution and stable stage identity distinguishing repeated same-version updates; retained history is insufficient. Create\u2192remove emits create and delete despite no final row/history. All routes/cuts/receipts still share the original fence/final provisional cutoff. Payloads contain identities only; later bodies load current state without resurrecting intermediate rows. Preserves authored transition notifications, but adds stage capture, more sources/cuts and a distinction between evaluated stages and net stored commits. Existing durable history remains unchanged."
+      }
+    }
+  }
+}
