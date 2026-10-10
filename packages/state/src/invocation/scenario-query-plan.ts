@@ -117,7 +117,20 @@ export function checkQueryProjection(returned: Record<string, unknown>, queries:
     if (influences.length !== 0) fail('query/absence return influence is unsupported; defining provenance/current-authority join required.');
     return;
   }
-  const projection = object(copy(returned.projection), ['kind', 'queryId', 'source', 'fields']);
+  const projection = checkProjection(returned.projection, queries);
+  const query = queries.find(query => query.id === projection.queryId)!;
+  const ids: string[] = []; const influenceKinds = new Set<string>();
+  for (const value of influences) {
+    const influence = object(value, ['id', 'kind', 'queryId']); ids.push(text(influence.id));
+    if (!['query-existence', 'query-cardinality', 'query-membership', 'query-order'].includes(String(influence.kind)) || influence.queryId !== query.id) fail('foreign or unsupported query influence.');
+    influenceKinds.add(influence.kind as string);
+  }
+  unique(ids);
+  if (influenceKinds.size !== 4) fail('complete query influence closure required.');
+}
+
+function checkProjection(value: unknown, queries: readonly ScenarioReceiptQueryPlan[]): ScenarioReceiptQueryProjection {
+  const projection = object(copy(value), ['kind', 'queryId', 'source', 'fields']);
   if (projection.kind !== 'query-contract-array') fail('unsupported query projection.');
   source(projection.source);
   const query = queries.find(query => query.id === projection.queryId) ?? fail('projection must name its checked query.');
@@ -132,14 +145,7 @@ export function checkQueryProjection(returned: Record<string, unknown>, queries:
   }
   unique(names);
   if (!kinds.has('reference') || !kinds.has('version')) fail('reference and original version projections required.');
-  const ids: string[] = []; const influenceKinds = new Set<string>();
-  for (const value of influences) {
-    const influence = object(value, ['id', 'kind', 'queryId']); ids.push(text(influence.id));
-    if (!['query-existence', 'query-cardinality', 'query-membership', 'query-order'].includes(String(influence.kind)) || influence.queryId !== query.id) fail('foreign or unsupported query influence.');
-    influenceKinds.add(influence.kind as string);
-  }
-  unique(ids);
-  if (influenceKinds.size !== 4) fail('complete query influence closure required.');
+  return projection as unknown as ScenarioReceiptQueryProjection;
 }
 
 export function disclosureType(type: unknown, plan: ScenarioResultDisclosurePlan): CanTypeId {
@@ -214,7 +220,7 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   }
 }
 
-type Candidate = Pick<ScenarioReceiptQueryObservation['candidates'][number], 'row' | 'record'>;
+type Candidate = { readonly row: Pick<StoredRow, 'id' | 'version'>; readonly record: ProjectedRecord };
 export function queryProjectionWire(projection: ScenarioReceiptQueryProjection, queryPlan: ScenarioReceiptQueryPlan,
   candidates: readonly Candidate[], selectedIndices: readonly number[]): unknown[] {
   if (projection.queryId !== queryPlan.id) return fail('projection query identity differs.');
@@ -234,6 +240,29 @@ export function queryProjectionWire(projection: ScenarioReceiptQueryProjection, 
     }
     return out;
   });
+}
+
+/** Pure fresh-read wire conversion. The caller owns viewer selection and current
+ * authorization; this creates no receipt, source evidence or owner authority. */
+export function projectReadScenarioQueryResult(projection: ScenarioReceiptQueryProjection,
+  query: ScenarioReceiptQueryPlan, selected: readonly ProjectedRecord[]): unknown[] {
+  const checked = checkQueries([query])[0]!;
+  const mapping = checkProjection(projection, [checked]);
+  const records = list(copy(selected)).map(value => row(value, true) as ProjectedRecord);
+  if (checked.limit !== null && records.length > checked.limit) fail('fresh query overflow.');
+  unique(records.map(record => record.id));
+  for (const record of records) {
+    if (checked.archived === 'exclude' && record.archivedAt !== null) fail('fresh archive selection differs.');
+    for (const field of mapping.fields) {
+      if (field.kind !== 'field') continue;
+      const dependency = checked.dependencies.find(dep => dep.role === 'data' && dep.field === field.field)!;
+      if (!Object.hasOwn(record.data, dependency.field)) fail('selected projected field is missing.');
+      canonicalWire(dependency.type, record.data[dependency.field]);
+    }
+  }
+  return queryProjectionWire(mapping, checked,
+    records.map(record => ({ row: { id: record.id, version: record.version }, record })),
+    records.map((_, index) => index));
 }
 
 function row(value: unknown, projected = false): StoredRow {
