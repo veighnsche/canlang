@@ -639,6 +639,7 @@ enum Local {
     Let(NodeKey),
     For(NodeKey),
     Send(NodeKey),
+    Call(NodeKey),
 }
 type Env = HashMap<Local, ValuePath>;
 
@@ -654,6 +655,9 @@ struct ValuePath {
     members: Option<Vec<(String, ValuePath)>>,
     schema: Option<String>,
     delivery: Option<ResolvedType>,
+    /// Exact Complete query child whose actual call occurrence owns this wire.
+    /// This marker admits only direct cardinality consumption, never a row view.
+    query_child: Option<SymbolId>,
 }
 
 impl ValuePath {
@@ -2677,6 +2681,27 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing checked call selection"))?
             .clone();
+        // State retains and reauthorizes the complete child association before
+        // disclosing any parent result. Counting its exact returned wire needs
+        // no fabricated parent scalar/row observation. Other uses still refuse
+        // at CallAs, including aliases, helpers and field selection.
+        if calls.is_empty()
+            && let Some(argument) = self.query_count(key)
+            && let Some(Binding::CallAs { node }) = self.query_binding(argument)
+            && let Some(value) = env.get(&Local::Call(*node))
+            && let Some(child) = value.query_child
+            && self.complete_children.contains(&child)
+            && self.types.effect_call_results.get(node) == self.types.symbol_results.get(&child)
+            && self
+                .types
+                .effect_call_results
+                .get(node)
+                .and_then(Option::as_ref)
+                == self.types.node_types.get(&argument)
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return Ok(vec![ValuePath::default()]);
+        }
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
             let alternatives = self.expr(*argument, module, env, calls)?;
@@ -3391,8 +3416,8 @@ impl<'a> Closure<'a> {
         Ok((paths, effect.binding.as_ref().map(|_| delivery)))
     }
 
-    /// Preparation for the State-owned child lifetime. Bound query results may
-    /// remain unused; consuming them still requires a separate provenance proof.
+    /// Prepare the State-owned child lifetime; only direct cardinality uses of
+    /// its exact returned wire can consume the bound result.
     fn static_call(
         &mut self,
         effect: &Effect,
@@ -3623,7 +3648,10 @@ impl<'a> Closure<'a> {
                 input_keys: keys,
             },
         )?;
-        Ok(vec![ValuePath::default()])
+        Ok(vec![ValuePath {
+            query_child: Some(operation),
+            ..ValuePath::default()
+        }])
     }
 
     fn transition(
@@ -4243,6 +4271,15 @@ impl<'a> Closure<'a> {
                                         ..ValuePath::default()
                                     },
                                 );
+                                if path.env.len() > 256 {
+                                    return Err(self.fail(effect.node, "binding closure bound"));
+                                }
+                            }
+                            if effect.verb == EffectVerb::Call
+                                && effect.binding.is_some()
+                                && evaluated.query_child.is_some()
+                            {
+                                path.env.insert(Local::Call(effect.node), evaluated.clone());
                                 if path.env.len() > 256 {
                                     return Err(self.fail(effect.node, "binding closure bound"));
                                 }

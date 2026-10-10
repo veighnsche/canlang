@@ -5098,12 +5098,16 @@ impl<'a> Emitter<'a> {
                     {
                         self.stdlib.insert("invokeScenarioReceiptCall".to_string());
                         let inputs = self.lower_expr(inputs);
+                        let call = format!(
+                            "await invokeScenarioReceiptCall(c,{},{},{inputs})",
+                            js_string(&site.id),
+                            js_string(&site.target)
+                        );
                         return vec![(
-                            format!(
-                                "{pad}await invokeScenarioReceiptCall(c,{},{},{inputs});",
-                                js_string(&site.id),
-                                js_string(&site.target)
-                            ),
+                            match binding {
+                                Some(name) => format!("{pad}const {} = {call};", self.bind(name)),
+                                None => format!("{pad}{call};"),
+                            },
                             *span,
                         )];
                     }

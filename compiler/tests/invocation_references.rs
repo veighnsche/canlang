@@ -96,13 +96,7 @@ Then
     for item in [context, parent] {
         let fact = &lowered.scenario_disclosures[&item.id];
         assert!(
-            if item.id == context.id {
-                matches!(fact, ScenarioDisclosure::Complete(_))
-            } else {
-                // Consuming a query child binding remains outside the finite
-                // parent profile, even when the child itself is complete.
-                matches!(fact, ScenarioDisclosure::Declined(_))
-            },
+            matches!(fact, ScenarioDisclosure::Complete(_)),
             "{}: {fact:?}",
             item.canonical
         );
@@ -235,7 +229,7 @@ Then
     );
     for tamper in 0..4 {
         let mut altered = lowered.clone();
-        let ScenarioDisclosure::Declined(fact) =
+        let ScenarioDisclosure::Complete(fact) =
             altered.scenario_disclosures.get_mut(&parent.id).unwrap()
         else {
             panic!()
