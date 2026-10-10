@@ -1,7 +1,7 @@
 /** Actual native source -> installed portable bundle -> workerd and owner D1. */
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,7 @@ import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from
 import { compileCapturedSingleFile } from '../dev/compiler-check.js';
 import { selectPreviewWorkerVars, type LocalPreviewSeed } from '../dev/preview-builder.js';
 import { preflightLocalPreviewActivation, localPreviewActivationVerdict, produceInstalledPortableBundle,
-  seedLocalPreviewActors } from '../dev/preview-host.js';
+  seedLocalPreviewActors, createInstalledLocalPreviewBuilder } from '../dev/preview-host.js';
 import { startLocalDev, type LocalDev } from '../dev/local-run.js';
 import { startProtectedPreview, type ProtectedPreview } from '../dev/preview-bridge.js';
 import { PINNED_COMPATIBILITY_DATE } from '../dev/zero-config.js';
@@ -658,4 +658,143 @@ for (const contextual of [false, true]) it(contextual
         finally { if (persistence) await rm(persistence, { recursive: true, force: true });
           if (capture) assert.equal(await captureIsCurrent(capture), true, 'HookOrder finish source-current'); } } }
   }
+});
+
+/** Complete owning URL recipe, consumed through the portable root host only. */
+it('serves the unchanged native URL recipe with the protected preview deployment base', { timeout: 180000 }, async () => {
+  const recipePath = join(root, 'compiler/tests/fixtures/anonymous-message-consumer.mjs');
+  const recipeBytes = await readFile(recipePath);
+  const recipe = recipeBytes.toString('utf8');
+  const start = 'const urlSource=`';
+  const end = '`;\nconst urlFixture=';
+  assert.equal(recipe.split(start).length, 2);
+  const sourceStart = recipe.indexOf(start) + start.length;
+  const sourceEnd = recipe.indexOf(end, sourceStart);
+  assert.ok(sourceEnd > sourceStart);
+  const source = recipe.slice(sourceStart, sourceEnd);
+  // Extract the entire literal; never recreate or narrow its source declarations.
+  assert.ok(source.startsWith('app UrlDestinations\n'));
+  assert.ok(source.endsWith('   require false\n'));
+  assert.ok(!source.includes('`'));
+  assert.ok(!source.includes('${'));
+  const sourceBytes = Buffer.from(source, 'utf8');
+  const scratch = await mkdtemp(join(root, 'compiler/target/url-preview-'));
+  try {
+    const appPath = join(scratch, 'UrlDestinations.can');
+    await writeFile(appPath, sourceBytes);
+    const capture = await captureSingleFileSource(prepareLocalPreviewCapture({
+      checkoutRoot: root, appPath,
+      compilerPath: join(root, 'compiler/target/debug/can'),
+      catalogPath: fileURLToPath(distribution.catalog),
+      helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
+    }));
+    const assertCurrent = async () => {
+      assert.deepEqual(await readFile(recipePath), recipeBytes);
+      assert.deepEqual(await readFile(appPath), sourceBytes);
+      assert.equal(await captureIsCurrent(capture), true);
+    };
+    assert.equal(capture.sourceText, source);
+    assert.equal(capture.sourceBytes, sourceBytes.length);
+    assert.equal(capture.sourceSha256, createHash('sha256').update(sourceBytes).digest('hex'));
+    await assertCurrent();
+    const compiled = await compileCapturedSingleFile(capture);
+    assert.equal(compiled.kind, 'artifact', JSON.stringify(compiled.kind === 'artifact' ? {} : compiled));
+    if (compiled.kind !== 'artifact') throw new Error('native URL recipe compilation failed');
+    assert.deepEqual(compiled.artifact.models ?? [], []);
+    assert.deepEqual(compiled.artifact.operations, []);
+    assert.deepEqual(compiled.artifact.pages.map(page => page.path), ['/url-static', '/url-order']);
+    assert.deepEqual(compiled.artifact.sources, [{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
+    const artifactBytes = new Uint8Array(compiled.artifactBytes);
+    const artifactJson = JSON.stringify(compiled.artifact);
+    const preview = await createInstalledLocalPreviewBuilder()(compiled.artifact, capture, compiled.artifactBytes);
+    try {
+      await assertCurrent();
+      if (typeof preview.issueOpenUrl !== 'function') throw new Error('installed preview has no protected-open producer');
+      const opened = preview.issueOpenUrl();
+      const origin = new URL(opened).origin;
+      assert.equal(new URL(origin).hostname, '127.0.0.1');
+      assert.notEqual(new URL(origin).port, '');
+      assert.equal(new URL(origin).pathname, '/');
+      const cookies = new Map<string, string>();
+      const request = async (path: string, init: RequestInit = {}) => {
+        const headers = new Headers(init.headers);
+        if (cookies.size > 0) headers.set('cookie', [...cookies].map(([name, value]) => `${name}=${value}`).join('; '));
+        if (init.method === 'POST' && !headers.has('origin')) headers.set('origin', origin);
+        const response = await fetch(new URL(path, origin), { ...init, headers, redirect: 'manual' });
+        for (const cookie of response.headers.getSetCookie()) {
+          const pair = cookie.split(';', 1)[0]!;
+          const index = pair.indexOf('=');
+          cookies.set(pair.slice(0, index), pair.slice(index + 1));
+        }
+        return response;
+      };
+      assert.equal((await fetch(new URL('/url-static', origin), { redirect: 'manual' })).status, 401);
+      const bootstrap = await request(opened);
+      assert.equal(bootstrap.status, 303);
+      assert.equal(bootstrap.headers.get('location'), '/');
+      assert.equal((await request(opened)).status, 403);
+      const actor = preview.issueLocalActors().find(candidate => candidate.label === 'Ava');
+      assert.ok(actor);
+      const descriptor = await request('/auth/login');
+      assert.equal(descriptor.status, 200);
+      const loginDescriptor = await descriptor.json() as { preSessionToken: string };
+      const login = await request('/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: actor!.email, password: actor!.password, _presession: loginDescriptor.preSessionToken }) });
+      assert.equal(login.status, 200);
+      const session = cookies.get('can_session');
+      assert.ok(session);
+      const teamsResponse = await request('/auth/teams');
+      assert.equal(teamsResponse.status, 200);
+      const teams = await teamsResponse.json() as { teams: Array<{ team_id: string }> };
+      assert.equal(teams.teams.length, 1);
+      const team = teams.teams[0]!.team_id;
+      assert.match(team, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+      const csrf = await deriveCsrfToken(decodeURIComponent(session!));
+      const select = { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ team, _csrf: csrf }) };
+      assert.equal((await request('/auth/select-team', select)).status, 200);
+      assert.equal((await request('/auth/select-team', { ...select, headers: { ...select.headers, origin: 'http://foreign.invalid' } })).status, 403);
+      const hrefs = [
+        `href="${origin}/">Home</a>`,
+        `href="${origin}/search?q=%3Ctag%3E&amp;page=1">Search &lt;all&gt;</a>`,
+      ];
+      for (const partial of [false, true]) {
+        for (const spoof of [false, true]) {
+          const headers = new Headers(partial ? { 'HX-Request': 'true' } : {});
+          if (spoof) {
+            headers.set('origin', 'http://foreign.invalid');
+            headers.set('x-forwarded-host', 'foreign.invalid');
+            headers.set('x-deployment-base', 'https://foreign.invalid/mount');
+          }
+          const page = await request('/url-static', { headers });
+          assert.equal(page.status, 200);
+          assert.ok(page.headers.get('content-type')?.includes('text/html'));
+          const html = await page.text();
+          for (const href of hrefs) assert.ok(html.includes(href), href);
+          assert.ok(!html.includes('href="https://foreign.invalid'));
+          assert.ok(!html.includes('href="http://foreign.invalid'));
+          if (!partial) assert.ok(html.includes('/assets/browser/bootstrap.js'));
+        }
+        // The genuine team UUID is not a slash-prefixed app path. Values rejects
+        // it during rendering; Interfaces intentionally exposes a safe envelope.
+        const order = await request('/url-order', { headers: partial ? { 'HX-Request': 'true' } : {} });
+        assert.equal(order.status, 422);
+        assert.ok(order.headers.get('content-type')?.includes('application/json'));
+        const refusal = object(await order.json());
+        assert.equal(refusal.code, 'rule_failed'); assert.equal(refusal.retryable, false);
+      }
+      for (const path of ['/assets/browser/bootstrap.js', '/assets/browser/can-style.css', '/assets/browser/polling.js']) {
+        const asset = await request(path);
+        assert.equal(asset.status, 200, path);
+        assert.ok(asset.headers.get('content-type')?.includes(path.endsWith('.css') ? 'text/css' : 'application/javascript'));
+        assert.ok((await asset.arrayBuffer()).byteLength > 0);
+      }
+      assert.deepEqual(compiled.artifactBytes, artifactBytes);
+      assert.equal(JSON.stringify(compiled.artifact), artifactJson);
+      await assertCurrent();
+    } finally { await preview.dispose(); }
+    assert.throws(() => preview.issueLocalActors(), /disposal/);
+    await assertCurrent();
+  } finally { await rm(scratch, { recursive: true, force: true }); }
+  assert.deepEqual(await readFile(recipePath), recipeBytes);
 });

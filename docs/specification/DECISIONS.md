@@ -8356,3 +8356,19 @@ by these policy cases.
 ### 2026-10-11 — reviewed local gate integration
 
 Select only Packages b92c9e1d exact fixture-reader pair and defining positive/refusal cases, independently reviewed CLEAR. Reuse two changed policy cases2/2 357.305292ms; import execution remains forbidden, no directory/source shortcut waiver. Dev owns the actual changed-source boundary qualification after intake and its complete original native consumer. Preserve all existing allocations and recipient holds; complete checkpoint stays unadvanced. Local integration only.
+
+
+
+### 2026-10-11 — consume the owning native assembly test loader
+
+Consume only Packages09357ecd’s reviewed original assembly test import patch. Native installed ESM retains its real own-data metadata while production accessor refusal stays intact. After current CF emission and frozen root types0, Dev’s affected host full/partial/spoof/config cases pass2/2 in266ms; reuse the owner’s original buildInvoker3/3 result and leave21 unrelated cases unselected. This resolves the shared test-loader blocker without qualifying the whole plan or lifting any holds.
+
+
+
+### 2026-10-11 — serve the unchanged page-only URL source (unfinished full plan)
+
+The original Compiler URL recipe declares two pages and no business operations. Dev admits that original artifact through the same activation, real D1/Identity, protected host, resource and source gates; it does not invent an operation. The actual authenticated MCP inventory must be empty for a zero-operation app, and readiness probes the declared root or first declared page. The complete original captured native/portable consumer passes1/1 in40.91s with full/partial configured links, escaped bytes, spoof refusal, invalid original team path safe422, foreign effectful-origin refusal, packaged assets, currency and cleanup. Admission21/21, CF emission and frozen root types pass0. The three original recipe reader boundary sites remain an exact owning Packages registration prerequisite, not a bypass or passing gate. Nonroot routing, opaque File/source producers, original applications/Office/G2–G3 and publication/recipient holds remain unfinished.
+
+### 2026-10-11 — reviewed local preview integration
+
+Independently reviewed Dev a31e3947 original page-only preview source, full original native consumer and admission tests CLEAR. Select exact four source/test/readme paths; parent correspondence preserves prior2331 root host and a0 full-context cases. Reuse actual unchanged original capture/locked CLI/installed preview/D1/Identity workflow1/1 40911.67ms, admission21/21 24ms, CF emission/root types0. Fold only related8b699139 qualification for the already-integrated093 test loader: two retained newer host cases2/2 266ms,21unselected, no repeated native source test or duplicate loader patch. Packages b92 exact three-reader registration is released; Dev owns the affected full boundary scan once after intake. No invented business operation or fallback route, resource/security/source admission remains. Complete mounted serving, opaque runtime/native File joins, original applications, Office/G2-G3 and precise holds remain unfinished; checkpoint unadvanced and local-only.

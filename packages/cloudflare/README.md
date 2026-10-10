@@ -53,6 +53,11 @@ access. Nonroot mounts currently refuse until all route and link consumers are
 joined. Protected local previews supply their actual bound loopback root base
 and reject overrides pointing elsewhere.
 
+Page-only previews retain the same source, activation, resource and Identity
+checks. Their authenticated MCP discovery must be empty when the checked app
+declares no operations. Readiness probes the declared root page, or the first
+declared page when the app has no root route.
+
 ## `can-platform` CLI (L1 IR-03 delegation target)
 
 Thin `can run|test|build|deploy` entries exec this binary, resolved from
