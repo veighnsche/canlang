@@ -1283,3 +1283,95 @@ it('refuses caught child input failures, child guard revocation and skewed occur
   await assert.rejects(world(false,true,undefined,artifact=>staticCallsFixture(artifact,'source-skew'),false),
     /exact checked source/);
 });
+
+/** A declaration-labelled graph in the existing actual-loader consumer
+ * fixture. Compiler source/emitter depth acceptance is independently owned. */
+function staticCallDepthFixture(artifact: CompileArtifact, edges: 16 | 17,
+  shape: 'chain' | 'shared' | 'cycle'): void {
+  const origin = { path: source, sha256: sha, module: modulePath };
+  const emptyPlan: ScenarioResultDisclosurePlan = { version: 1, source: origin,
+    returns: [{ id: 'selected', source: origin, influences: [], dependencies: [] }] };
+  const graph = new Map<string, readonly string[]>();
+  if (shape === 'cycle') {
+    graph.set(operation, ['Shop.depth1']); graph.set('Shop.depth1', ['Shop.depth2']);
+    graph.set('Shop.depth2', ['Shop.depth1']);
+  } else if (shape === 'shared') {
+    // Visit the short branch first. Its cached tail must still contribute two
+    // edges when reached from the later, deeper branch of this same root.
+    graph.set(operation, ['Shop.tail', 'Shop.depth1']);
+    graph.set('Shop.tail', ['Shop.leaf']); graph.set('Shop.leaf', []);
+    for (let index = 1; index <= edges - 2; index++) {
+      graph.set(`Shop.depth${index}`, [index === edges - 2 ? 'Shop.tail' : `Shop.depth${index + 1}`]);
+    }
+  } else {
+    graph.set(operation, ['Shop.depth1']);
+    for (let index = 1; index <= edges; index++) {
+      graph.set(`Shop.depth${index}`, index === edges ? [] : [`Shop.depth${index + 1}`]);
+    }
+  }
+  const declarations: Record<string, unknown> = {};
+  const handlers: string[] = [], policies: string[] = [];
+  for (const [name, targets] of graph) {
+    const callSites = targets.map((target, index) => ({ id: `${name}-call-${index}`, source: origin,
+      kind: 'operation', targets: [target], resultType: 'void' }));
+    declarations[name] = { inputs: name === operation ? { record: { type: model } } : { value: { type: 'text' } },
+      ...(name === operation ? { result: { type: 'text' } } : {}), callSites };
+    const calls = callSites.map(site => `await invokeScenarioReceiptCall(c,${JSON.stringify(site.id)},${JSON.stringify(site.targets[0])},{value:"depth"});`).join('\n');
+    if (name === operation) {
+      // Insert actual ordered calls after the unchanged root field observation.
+      artifact.modules[0]!.js = artifact.modules[0]!.js.replace('selectScenarioReceiptReturn(c,"selected"); return value;',
+        `${calls}\nselectScenarioReceiptReturn(c,"selected"); return value;`);
+      continue;
+    }
+    artifact.operations!.push({ name, kind: 'scenario', description: '',
+      inputs: { fields: [{ name: 'value', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true }] },
+      result: { type: 'void' as CanTypeId, disclosure: emptyPlan } });
+    const member = name.split('.');
+    artifact.callables.push({ id: name, kind: 'operation', module: modulePath,
+      export: member[1]!, member, inputStyle: 'parameters' });
+    policies.push(`${JSON.stringify(name)}:{by:["members"]}`);
+    handlers.push(`${member[1]}:async(c,input)=>{executions++;${calls}}`);
+  }
+  const module = artifact.modules[0]!;
+  module.js = module.js.replace('selectScenarioReceiptReturn }', 'selectScenarioReceiptReturn, invokeScenarioReceiptCall }')
+    .replace('operations:{"Shop.saved":', `operations:{${policies.join(',')},"Shop.saved":`)
+    .replace('appDefinition={id:"SavedScenario",', `appDefinition={id:"SavedScenario",operations:${JSON.stringify(declarations)},`)
+    .replace('}}};}', `},${handlers.join(',')}}};}`);
+}
+
+it('admits sixteen child edges and refuses seventeen on chains and previously visited shared subtrees, while retaining cycle refusal', async () => {
+  for (const shape of ['chain','shared'] as const) {
+    const w = await world(false,true,undefined,artifact=>staticCallDepthFixture(artifact,16,shape),false);
+    const originalStoredRow = await w.store.load(model,w.row.id); assert.ok(originalStoredRow);
+    const batches: Array<Parameters<StoragePort['commit']>[0]> = [];
+    const store: StoragePort = { ...w.store, commit: async batch => { batches.push(batch); return w.store.commit(batch); } };
+    const fresh = await buildInvoker(w.artifact,w.asm,store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(w.envelope,w.identity);
+    assert.ok('result' in fresh,`${shape}: ${JSON.stringify(fresh)}`);
+    assert.equal(fresh.result.status,'committed'); assert.equal(fresh.result.result,'original visible');
+    const calls = shape === 'chain' ? 16 : 18;
+    assert.equal(w.counters().executions,calls+1,'every genuine child, including repeated shared-tail calls, executes');
+    assert.equal(batches.length,1,'all child lifetimes share one root receipt commit');
+    for (const batch of batches) {
+      assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]); assert.deepEqual(batch.outbox,[]);
+      assert.deepEqual(batch.schedules,[]); assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
+    }
+    const receipt = await w.store.readReceipt(w.receiptIdentity); assert.ok(receipt);
+    const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+    assert.equal(association.calls?.length,calls); assert.deepEqual(association.changed,[]);
+    assert.deepEqual(await w.store.load(model,w.row.id),originalStoredRow);
+    const before = { snapshot: await w.snapshot(), receipt };
+    for (const dedicated of [false,true]) {
+      const replay = dedicated ? await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity)
+        : await w.invoker().invokeMutation(w.envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.equal(replay.result.result,'original visible');
+      assert.deepEqual({snapshot:await w.snapshot(),receipt:await w.store.readReceipt(w.receiptIdentity)},before);
+    }
+    assert.deepEqual(w.counters(),{commits:0,files:0,executions:calls+1});
+    await assert.rejects(world(false,true,undefined,artifact=>staticCallDepthFixture(artifact,17,shape),false),
+      /defining depth bound/,`${shape} rejects the full seventeen-edge path before execution`);
+  }
+  await assert.rejects(world(false,true,undefined,artifact=>staticCallDepthFixture(artifact,16,'cycle'),false),
+    /must be acyclic/);
+});
