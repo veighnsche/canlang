@@ -5674,3 +5674,24 @@ existing type IDs, including user and Team. Literal default module metadata must
 join the original checked module even without a nested call. Owning6/6 validates
 actual JSON and skew refusals. This is internal structural transport, without
 artifact registration, runtime private issuance, effect admission or authority.
+
+
+### 2026-10-10 — intake released decision and bounded-ref prerequisites (unfinished consumers)
+
+Intake exact reviewed LOCAL2430 onto coherent451102c1, preserving both parent decisions and source ownership. Use Packagesd559 canonical array/nullable/min/max and ordered generic PendingRef `name/index` emission, Compiler e60/183 exact1..10/decision facts and released Worke100/3771 ports. State owns the actual current per-element original-version/checkpoint and InvocationRef encoding consumer; Dev owns private native element correspondence. Preserve repeated refs and current permissions; no generated distinctness or shared CI/validator rewrite. Contracts/State clean emissions pass; reuse finite owner20 and50/37/3/34 outcomes. Reconciliation1665commits/10824net/11368history/513history-only/9321pending registers four membership paths and preserves79featurepaths/30targetleaves. Complete824 checkpoint remains unadvanced; original workflows/native source gates remain open.
+
+The deferred membership producer binds once per distinct predicate within a checked scenario, rather than once for the entire scenario. Actual CanRent correspondence/CanCatch notify source demonstrates multiple guarded SEND occurrences; transitive membership in Workbench is separately evidenced, not an asserted combined native case. Keep per-binding private handles and refuse duplicate predicate binding. Changed State/Work clean emissions and dispatch membership26/26 pass, with no Compiler-v1 schema change or native predicate/source qualification. Unchanged20/81 results are reused.
+
+
+### 2026-10-10 — consume ordered owner reference arrays (unfinished native join)
+
+Remove the explicit owner-array refusal and use the released generic indexed PendingRefs with existing per-occurrence current-row/version/parent checkpoint loading. Preserve authored order and repetitions. Encode each frozen InvocationRef nominal reference against its selected owning model, retaining optional canonical versions and null containers; let the existing descriptor/generic producer apply version-required and length rules. No inferred distinctness or version requirement for an unversioned descriptor.
+
+State clean emission and final new29/29 pass107.15ms; reuse unchanged existing22/22 from the relevant initial run. Twenty new rollback assertions initially assumed no revision increment; corrected them to require the existing retained failure receipt's one increment while preserving all asserted domain rollback. Dev private native array/frame correspondence and original source/workflow qualification remain open.
+
+
+### 2026-10-10 — consume actual Team vocabulary and unique SEND occurrences (unfinished source join)
+
+Consume existing Compiler canonical `Team` in the active_member slot, refusing lowercase `team` without adding a Values primitive or schema. Retain exact owner/source/guard-node identity across all predicate bindings before issuing opaque occurrence handles. Predicate aliases or altered authored position cannot duplicate a physical SEND guard. Failed overlap leaves a legitimate distinct site bindable. Correct current producer comments to require membership observation before claim. State/Work clean emissions and affected35/35 plus27/27 pass; Compiler owns the sole actual DTO→installed checker check. Other unchanged outcomes are reused.
+
+Proposed durable membership disclosure must use existing scenario outcomes/child associations with Compiler-owned return/query/control/lazy closure and a defining membership dependency/observation family. Commit-only callGuards disappear durably and cannot certify saved dependencies. Original multi-subject privacy needs a coherent Identity fence: existing projection deliberately withholds authorityFacts.size>1. This remains a prerequisite, not acceptance through a single-subject fixture or repeated non-atomic reads. State's retention/reader/projection extension is blocked on those exact producer facts.
