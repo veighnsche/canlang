@@ -1,5 +1,5 @@
 /** Public schema facade. Arbitrary callers always enter the canonical TS core. */
-import type { CanValue, ContractValue } from "@canlang/contracts/values";
+import type { CanValue, ContractValue, WireValue } from "@canlang/contracts/values";
 import type { CanonicalNominalLeaf, CanonicalValueTypes } from "@canlang/contracts";
 import { normalizeSchema, validateValueTsCore, validateOperationInputTsCore } from "./internal/schema-core.js";
 import type { FieldDescriptor, NormalizedSchema, UpdateContract, ValidationMode } from "./internal/schema-core.js";
@@ -31,6 +31,10 @@ export function normalizeValueTypes(inventory: unknown, modelNames: readonly str
   const fail = (code: ValueTypesError["code"], message: string): never => { throw new ValueTypesError(code, message); };
   const record = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value);
+  // The core admits only primitive bounds or a closed, flat money wire object.
+  // Detach objects before validation; malformed/nested bounds never publish.
+  const copyBound = (value: unknown): WireValue =>
+    record(value) ? Object.freeze({ ...value }) as WireValue : value as WireValue;
   const keys = (value: object, expected: readonly string[]): boolean =>
     Object.keys(value).length === expected.length && expected.every(key => Object.hasOwn(value, key));
   if (!record(inventory) || !keys(inventory, ["contracts", ...(Object.hasOwn(inventory, "enums") ? ["enums"] : []), ...(Object.hasOwn(inventory, "aliases") ? ["aliases"] : [])]) ||
@@ -77,7 +81,7 @@ export function normalizeValueTypes(inventory: unknown, modelNames: readonly str
     const fields: Record<string, FieldDescriptor> = Object.create(null);
     const copied: CanonicalNominalLeaf[] = [];
     for (const field of declaration["fields"]) {
-      if (!record(field) || !keys(field, ["name", "type", ...["min", "max", "format", "distinctBy", "excludedIds"].filter(key => Object.hasOwn(field, key))]) || typeof field["name"] !== "string" ||
+      if (!record(field) || !keys(field, ["name", "type", ...["trim", "min", "max", "format", "distinctBy", "excludedIds"].filter(key => Object.hasOwn(field, key))]) || typeof field["name"] !== "string" ||
           field["name"] === "" || typeof field["type"] !== "string") return fail("malformed", "Invalid valueTypes field.");
       if (Object.hasOwn(fields, field["name"])) return fail("duplicate", `Duplicate valueTypes field ${JSON.stringify(field["name"])}.`);
       let parsed;
@@ -88,24 +92,26 @@ export function normalizeValueTypes(inventory: unknown, modelNames: readonly str
       if (parsed.base.kind === "nominal" && !names.has(parsed.base.path) && !models.has(parsed.base.path)) {
         return fail("dangling", `Undeclared valueTypes nominal ${JSON.stringify(parsed.base.path)}.`);
       }
-      if (["min", "max"].some(key => Object.hasOwn(field, key) && typeof field[key] !== "number") ||
+      if (["min", "max"].some(key => Object.hasOwn(field, key) && field[key] === undefined) ||
+          Object.hasOwn(field, "trim") && typeof field["trim"] !== "boolean" ||
           Object.hasOwn(field, "format") && field["format"] !== "name" ||
           Object.hasOwn(field, "distinctBy") && field["distinctBy"] !== "id" ||
           Object.hasOwn(field, "excludedIds") && (!Array.isArray(field["excludedIds"]) || field["excludedIds"].some((entry: unknown) => typeof entry !== "string"))) {
         return fail("malformed", "Invalid valueTypes field constraints.");
       }
       const constraints = {
-        ...(Object.hasOwn(field, "min") ? { min: field["min"] as number } : {}),
-        ...(Object.hasOwn(field, "max") ? { max: field["max"] as number } : {}),
+        ...(Object.hasOwn(field, "trim") ? { trim: field["trim"] as boolean } : {}),
+        ...(Object.hasOwn(field, "min") ? { min: copyBound(field["min"]) } : {}),
+        ...(Object.hasOwn(field, "max") ? { max: copyBound(field["max"]) } : {}),
         ...(Object.hasOwn(field, "format") ? { format: "name" as const } : {}),
         ...(Object.hasOwn(field, "distinctBy") ? { distinctBy: "id" as const } : {}),
         ...(Object.hasOwn(field, "excludedIds") ? { excludedIds: Object.freeze(Array.from(field["excludedIds"] as string[])) } : {}),
       };
-      // Checked artifact int bounds are numbers; the exact scalar codec takes
-      // decimal wire strings. Refuse already-lossy bounds before conversion.
+      // Preserve exact scalar wire bounds. Legacy numeric int metadata can
+      // convert only while exact; never route full-int64 bounds through Number.
       const valueBounds: { min?: string; max?: string } = {};
       if (!parsed.array && parsed.base.kind === "scalar" && parsed.base.name === "int") {
-        for (const key of ["min", "max"] as const) if (Object.hasOwn(field, key)) {
+        for (const key of ["min", "max"] as const) if (Object.hasOwn(field, key) && typeof field[key] === "number") {
           if (!Number.isSafeInteger(field[key])) return fail("malformed", "valueTypes int bounds require exact safe integers.");
           valueBounds[key] = String(field[key]);
         }
