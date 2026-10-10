@@ -390,3 +390,249 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
           if (capture) assert.equal(await captureIsCurrent(capture),true,'finish source-current'); } } }
   }
 });
+
+it('consumes unchanged native HookOrder with one portable D1 fence and late staged-Audit rollback', { timeout: 180000 }, async () => {
+  const sourcePath = join(root, 'compiler/tests/fixtures/hook_order_rollback.can');
+  const originalSource = await readFile(sourcePath, 'utf8');
+  const entryModel = 'HookOrder.Entry', auditModel = 'HookOrder.Audit';
+  let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
+  let persistence: string | undefined;
+  let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
+  try {
+    capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root, appPath: sourcePath,
+      compilerPath: join(root, 'compiler/target/debug/can'), catalogPath: fileURLToPath(distribution.catalog),
+      helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
+    assert.equal(await captureIsCurrent(capture), true);
+    const compiled = await compileCapturedSingleFile(capture);
+    assert.equal(compiled.kind, 'artifact', 'the original native HookOrder source must compile');
+    if (compiled.kind !== 'artifact') throw new Error('Original HookOrder did not compile');
+    const artifact = compiled.artifact, originalArtifact = JSON.stringify(artifact);
+    assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+    assert.deepEqual(artifact.sources, [{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
+    assert.equal(artifact.pages.length, 0);
+    const policy = artifact.modelPolicies?.find(item => item.model === entryModel); assert.ok(policy);
+    assert.deepEqual(policy.hooks, [{ id: 'HookOrder.adjustEntry', op: 'update', operation: `${entryModel}.update` }]);
+    assert.equal(artifact.callables.filter(item => item.id === 'HookOrder.adjustEntry' && item.module === policy.module &&
+      item.member.join('.') === 'hooks.HookOrder.Entry.update.run').length, 1);
+    const preflight = await preflightLocalPreviewActivation(artifact, capture);
+    assert.equal(preflight.active, true, 'actual installed native hook preflight');
+    if (!preflight.active) throw new Error('Original HookOrder preflight refused');
+    const evidence = await produceInstalledPortableBundle({ artifact, capture,
+      verdict: preflight as ActivationVerdict & { active: true }, assets: { browser: true, valuesWasm: true } });
+    assert.equal(evidence.captureEpochMaterial, capture.epochMaterial);
+    assert.equal(evidence.artifactJsonSha256, digest(artifact));
+    assert.equal(await captureIsCurrent(capture), true);
+
+    bridge = await startProtectedPreview({ dispatchUrl: (url, init) => {
+      if (!worker) return Promise.reject(new Error('actual HookOrder worker is starting'));
+      return worker.dispatchUrl(url, init);
+    } });
+    const origin = bridge.url;
+    persistence = await mkdtemp(join(tmpdir(), 'can-native-hook-order-d1-'));
+    const databaseId = `hook-order-identity-${randomUUID()}`;
+    provisioning = await startLocalDev({ workerName: `hook-order-provision-${randomUUID()}`,
+      compatibilityDate: PINNED_COMPATIBILITY_DATE, mainModule: 'provision.js',
+      modules: { 'provision.js': 'export default {fetch(){return new Response(null,{status:404})}};' },
+      d1Databases: [{ binding: 'DB', id: databaseId }], d1Persist: persistence });
+    const seed = await seedLocalPreviewActors(await provisioning.getD1Database('DB'));
+    await provisioning.dispose(); provisioning = undefined;
+    const owners = seed.owners.map(owner => ({ ...owner, id: `hook-order-owner-${randomUUID()}` }));
+    worker = await startLocalDev({ workerName: `hook-order-${randomUUID()}`,
+      compatibilityDate: PINNED_COMPATIBILITY_DATE, mainModule: evidence.bundle.mainModule,
+      modules: evidence.bundle.modules, binaryModules: evidence.bundle.binaries,
+      d1Databases: [{ binding: 'DB', id: databaseId }, ...owners.map(owner => ({ binding: owner.binding, id: owner.id }))],
+      d1Persist: persistence, vars: { ...selectPreviewWorkerVars({ resources: {
+        d1: { binding: 'DB', availability: 'real_local' }, identity: { backingBinding: 'DB', availability: 'real_local' } } }, origin),
+        CAN_STATE_OWNERS: { version: 1, owners: owners.map(owner => ({ owner: owner.owner,
+          binding: owner.binding, initializeFresh: true })) } } });
+    const identityDb = await worker.getD1Database('DB'), dbs = new Map<string, D1Database>();
+    for (const owner of owners) {
+      const db: D1Database = await worker.getD1Database(owner.binding); dbs.set(owner.owner, db);
+      assert.equal((await localPreviewActivationVerdict(artifact, capture, db, owner.id, owner.owner, identityDb)).active, true);
+    }
+    assert.equal(dbs.size, 2);
+    const bootstrap = await fetch(bridge.issueOpenUrl(), { redirect: 'manual' }); assert.equal(bootstrap.status, 303);
+    const bridgeCookie = bootstrap.headers.getSetCookie().find(item => item.startsWith('can_dev_preview='))?.split(';', 1)[0];
+    assert.ok(bridgeCookie);
+    const request = (actor: Actor | null, path: string, body?: unknown, token?: string) => fetch(new URL(path, origin), {
+      method: body === undefined ? 'GET' : 'POST', redirect: 'manual', headers: {
+        cookie: [bridgeCookie, actor?.cookie].filter(Boolean).join('; '), origin,
+        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        ...(path === '/mcp' ? { accept: 'application/json, text/event-stream' } : {}),
+        ...(actor ? { 'x-csrf-token': actor.csrf } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    const login = async (label: string): Promise<Actor> => {
+      const seeded = seed.actors.find(item => item.label === label); assert.ok(seeded);
+      const descriptor = await request(null, '/auth/login');
+      let bootFailure: string | undefined;
+      if (descriptor.status !== 200) {
+        const failure = object(await descriptor.clone().json());
+        bootFailure = JSON.stringify({ code: typeof failure.code === 'string' ? failure.code : undefined,
+          message: typeof failure.message === 'string' ? failure.message.slice(0, 512) : undefined });
+      }
+      assert.equal(descriptor.status, 200, bootFailure);
+      const preSessionToken = word(object(await descriptor.json()).preSessionToken);
+      const response = await request(null, '/auth/login', { email: seeded.email, password: seeded.password,
+        _presession: preSessionToken }); assert.equal(response.status, 200);
+      const cookie = response.headers.getSetCookie().find(item => item.startsWith('can_session='))?.split(';', 1)[0]; assert.ok(cookie);
+      const principal = await identityDb.prepare('SELECT user_id FROM identity_users WHERE email_lc=?')
+        .bind(seeded.email.toLowerCase()).first<{ user_id: string }>(); assert.ok(principal);
+      const actor: Actor = { cookie, csrf: await deriveCsrfToken(decodeURIComponent(cookie.slice('can_session='.length))),
+        owner: null, principal: principal.user_id };
+      const listing = await request(actor, '/auth/teams'); assert.equal(listing.status, 200);
+      const teams = object(await listing.json()); assert.ok(Array.isArray(teams.teams));
+      actor.owner = teams.teams.length ? word(object(teams.teams[0]).team_id) : null;
+      if (actor.owner) assert.equal((await request(actor, '/auth/select-team', { team: actor.owner, _csrf: actor.csrf })).status, 200);
+      return actor;
+    };
+    const ava = await login('Ava'), ben = await login('Ben'); assert.ok(ava.owner); assert.equal(ben.owner, ava.owner);
+    const grant = await request(ben, '/mcp/grants', { client_id: 'native-hook-order-d1-test' }); assert.equal(grant.status, 200);
+    ben.grant = word(object(await grant.json()).token);
+    const db = dbs.get(ava.owner)!;
+    const tables = async (database: D1Database) => {
+      const names = (await database.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        .all<{ name: string }>()).results.map(row => row.name).filter(name => !name.startsWith('_cf_') &&
+          (!name.startsWith('sqlite_') || name === 'sqlite_sequence'));
+      const result: Record<string, Record<string, unknown>[]> = {};
+      for (const name of names) {
+        assert.match(name, /^[A-Za-z_][A-Za-z0-9_]*$/);
+        result[name] = (await database.prepare(`SELECT * FROM "${name}"`).all()).results
+          .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      }
+      return result;
+    };
+    const resources = async () => ({ identity: await tables(identityDb), owners: Object.fromEntries(
+      await Promise.all([...dbs].map(async ([owner, database]) => [owner, await tables(database)] as const))) });
+    const physical = async (name: string) => (await db.prepare('SELECT model,id,version,data FROM records WHERE model=? ORDER BY id')
+      .bind(name).all<{ model: string; id: string; version: number; data: string }>()).results
+      .map(row => ({ ...row, data: object(JSON.parse(row.data)) }));
+    const read = async (name: string) => {
+      const response = await request(ben, '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/call',
+        params: { name: `${name}.read`, arguments: {} } }, ben.grant); assert.equal(response.status, 200);
+      const result = object(object(await response.json()).result); assert.notEqual(result.isError, true);
+      const rows = object(result.structuredContent).records; assert.ok(Array.isArray(rows));
+      return rows.map(item => { const row = object(item); return { id: word(row.id), data: object(row.data) }; });
+    };
+    const mutate = async (kind: string, inputs: ClosedInputs, id = operationId()) => {
+      const response = await request(ava, `/api/operations/${entryModel}.${kind}`, { operation_id: id, inputs });
+      return { status: response.status, body: object(await response.json()), id, inputs, operation: `${entryModel}.${kind}` };
+    };
+    type Mutation = Awaited<ReturnType<typeof mutate>>;
+    const receipt = async (result: Mutation) => {
+      const row = await db.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(result.id).first<ReceiptRow>(); assert.ok(row);
+      assert.equal(row.app, 'HookOrder'); assert.equal(row.owner, ava.owner); assert.equal(row.principal, ava.principal);
+      assert.equal(row.operation, result.operation); assert.equal(row.input_hash, await hashInputs(result.inputs));
+      assert.deepEqual(JSON.parse(row.resolved_defaults), {}); assert.ok(Number.isSafeInteger(row.created_at));
+      assert.ok(Number.isSafeInteger(row.committed_revision)); return row;
+    };
+    const history = async () => (await db.prepare('SELECT * FROM history ORDER BY seq').all()).results;
+    const assertFence = (before: Awaited<ReturnType<typeof resources>>, after: Awaited<ReturnType<typeof resources>>,
+      saved: ReceiptRow, changes: string[]) => {
+      assert.deepEqual(after.identity, before.identity);
+      for (const owner of dbs.keys()) if (owner !== ava.owner) assert.deepEqual(after.owners[owner], before.owners[owner]);
+      const previous = before.owners[ava.owner!]!, current = after.owners[ava.owner!]!;
+      assert.deepEqual(Object.keys(current), Object.keys(previous));
+      const fence = previous.fence![0]!;
+      assert.equal(saved.committed_revision, Number(fence.revision) + 1);
+      assert.deepEqual(current.fence, [{ ...fence, revision: saved.committed_revision }]);
+      assert.equal(current.fence_log!.length, previous.fence_log!.length + 1);
+      assert.deepEqual(current.fence_log!.filter(row => row.revision === saved.committed_revision),
+        [{ revision: saved.committed_revision, at: saved.created_at, operation: saved.operation }]);
+      assert.deepEqual(current.fence_log!.filter(row => row.revision !== saved.committed_revision), previous.fence_log);
+      assert.equal(current.receipts!.length, previous.receipts!.length + 1);
+      assert.deepEqual(current.receipts!.filter(row => row.operation_id !== saved.operation_id), previous.receipts);
+      for (const name of Object.keys(previous)) if (!['receipts', 'fence', 'fence_log', ...changes].includes(name))
+        assert.deepEqual(current[name], previous[name], `${name}: no unrelated table effects`);
+    };
+    const assertHistorySequence = (before: Awaited<ReturnType<typeof resources>>, after: Awaited<ReturnType<typeof resources>>, count: number) => {
+      const previous = before.owners[ava.owner!]!.sqlite_sequence ?? [], current = after.owners[ava.owner!]!.sqlite_sequence ?? [];
+      assert.deepEqual(current.filter(row => row.name !== 'history'), previous.filter(row => row.name !== 'history'));
+      assert.deepEqual(current.filter(row => row.name === 'history'),
+        [{ name: 'history', seq: Number(previous.find(row => row.name === 'history')?.seq ?? 0) + count }]);
+    };
+    const beforeCreate = await resources(), created = await mutate('create', { state: 'initial', accept: true });
+    assert.equal(created.status, 200); assert.equal(created.body.status, 'committed');
+    const initial = (await physical(entryModel))[0]!; assert.equal(initial.id, created.id); assert.equal(initial.version, 1);
+    assert.deepEqual(initial.data, created.inputs); assert.deepEqual(await physical(auditModel), []);
+    assert.deepEqual(await read(entryModel), [{ id: initial.id, data: initial.data }]); assert.deepEqual(await read(auditModel), []);
+    const createReceipt = await receipt(created), createOutcome = object(JSON.parse(createReceipt.outcome));
+    assert.equal(createOutcome.status, 'committed');
+    assert.deepEqual(createOutcome.recordVersions, [{ model: entryModel, id: initial.id, version: 1 }]);
+    const afterCreate = await resources(); assertFence(beforeCreate, afterCreate, createReceipt, ['records', 'history', 'sqlite_sequence']);
+    assertHistorySequence(beforeCreate, afterCreate, 1);
+    assert.equal(afterCreate.owners[ava.owner]!.records!.length, beforeCreate.owners[ava.owner]!.records!.length + 1);
+    const initialPhysical = afterCreate.owners[ava.owner]!.records!.find(row => row.model === entryModel && row.id === initial.id)!;
+    assert.ok(initialPhysical); assert.equal(initialPhysical.created, createReceipt.created_at);
+    assert.equal(initialPhysical.updated, createReceipt.created_at); assert.equal(initialPhysical.created_by, ava.principal);
+    assert.equal(initialPhysical.updated_by, ava.principal); assert.equal(initialPhysical.archived_at, null);
+    assert.equal(initialPhysical.parent_model, null); assert.equal(initialPhysical.parent_id, null);
+    const firstHistory = await history(); assert.equal(firstHistory.length, 1);
+    assert.equal(firstHistory[0]!.model, entryModel); assert.equal(firstHistory[0]!.record_id, initial.id);
+    assert.equal(firstHistory[0]!.version, 1); assert.equal(firstHistory[0]!.change, 'create'); assert.equal(firstHistory[0]!.before, null);
+    assert.deepEqual(JSON.parse(word(firstHistory[0]!.after)), initial.data);
+
+    const updated = await mutate('update', { record: { id: initial.id, version: '1' }, state: 'proposed', accept: true });
+    assert.equal(updated.status, 200); assert.equal(updated.body.status, 'committed');
+    const current = (await physical(entryModel))[0]!, audits = await physical(auditModel); assert.equal(audits.length, 1);
+    const audit = audits[0]!; assert.equal(current.id, initial.id); assert.equal(current.version, 2);
+    assert.deepEqual(current.data, { state: 'second', accept: true }); assert.equal(audit.version, 1);
+    assert.deepEqual(audit.data, { note: 'first' }, 'the staged child observes the first source-ordered candidate');
+    assert.deepEqual(await read(entryModel), [{ id: current.id, data: current.data }]);
+    assert.deepEqual(await read(auditModel), [{ id: audit.id, data: audit.data }]);
+    const updateReceipt = await receipt(updated), updateOutcome = object(JSON.parse(updateReceipt.outcome));
+    assert.equal(updateOutcome.status, 'committed');
+    // The owner finalizer orders net writes by model/id; history below keeps
+    // the actual source stage order instead of inventing extra root versions.
+    assert.deepEqual(updateOutcome.recordVersions, [{ model: auditModel, id: audit.id, version: 1 },
+      { model: entryModel, id: current.id, version: 2 }]);
+    const afterUpdate = await resources(); assertFence(afterCreate, afterUpdate, updateReceipt, ['records', 'history', 'sqlite_sequence']);
+    assertHistorySequence(afterCreate, afterUpdate, 2);
+    assert.equal(afterUpdate.owners[ava.owner]!.records!.length, afterCreate.owners[ava.owner]!.records!.length + 1);
+    const updatedPhysical = afterUpdate.owners[ava.owner]!.records!.find(row => row.model === entryModel && row.id === current.id)!;
+    assert.ok(updatedPhysical);
+    assert.deepEqual({ ...updatedPhysical, version: initialPhysical.version, data: initialPhysical.data,
+      updated: initialPhysical.updated, updated_by: initialPhysical.updated_by }, initialPhysical,
+    'the winning hook preserves every original root storage field except its final data/version/update attribution');
+    assert.equal(updatedPhysical.updated, updateReceipt.created_at); assert.equal(updatedPhysical.updated_by, ava.principal);
+    const auditPhysical = afterUpdate.owners[ava.owner]!.records!.find(row => row.model === auditModel && row.id === audit.id)!;
+    assert.ok(auditPhysical); assert.equal(auditPhysical.created, updateReceipt.created_at);
+    assert.equal(auditPhysical.updated, updateReceipt.created_at); assert.equal(auditPhysical.created_by, ava.principal);
+    assert.equal(auditPhysical.updated_by, ava.principal); assert.equal(auditPhysical.archived_at, null);
+    assert.equal(auditPhysical.parent_model, null); assert.equal(auditPhysical.parent_id, null);
+    const committedHistory = await history(); assert.equal(committedHistory.length, 3);
+    assert.deepEqual(committedHistory.slice(0, 1), firstHistory);
+    const changes = committedHistory.slice(1); assert.deepEqual(changes.map(row => [row.model, row.record_id, row.version, row.change]),
+      [[entryModel, current.id, 2, 'update'], [auditModel, audit.id, 1, 'create']]);
+    assert.deepEqual(JSON.parse(word(changes[0]!.before)), initial.data); assert.deepEqual(JSON.parse(word(changes[0]!.after)), current.data);
+    assert.equal(changes[1]!.before, null); assert.deepEqual(JSON.parse(word(changes[1]!.after)), audit.data);
+    for (const row of committedHistory) {
+      const saved = row.operation_id === created.id ? createReceipt : updateReceipt;
+      assert.equal(row.operation_id, saved.operation_id); assert.equal(row.operation, saved.operation);
+      assert.equal(row.actor, ava.principal); assert.equal(row.at, saved.created_at);
+    }
+    const replay = async (original: Mutation, before: Awaited<ReturnType<typeof resources>>) => {
+      const result = await mutate(original.operation.slice(entryModel.length + 1), original.inputs, original.id);
+      assert.equal(result.status, original.status);
+      if (original.status === 200) { assert.equal(result.body.status, 'replayed'); assert.deepEqual(result.body.records, original.body.records); }
+      else assert.deepEqual(result.body, original.body);
+      assert.deepEqual(await resources(), before);
+    };
+    await replay(created, afterUpdate); await replay(updated, afterUpdate);
+    const refused = await mutate('update', { record: { id: current.id, version: '2' }, state: 'proposed', accept: false });
+    assert.equal(refused.status, 422); assert.equal(refused.body.code, 'rule_failed');
+    const rejectedReceipt = await receipt(refused), rejectedOutcome = object(JSON.parse(rejectedReceipt.outcome));
+    assert.equal(rejectedOutcome.status, 'rejected'); assert.equal(rejectedOutcome.code, 'rule_failed');
+    const afterReject = await resources(); assertFence(afterUpdate, afterReject, rejectedReceipt, []);
+    assert.deepEqual(await physical(entryModel), [current]); assert.deepEqual(await physical(auditModel), [audit]);
+    assert.deepEqual(await history(), committedHistory, 'late failure rolls back both candidate adjustments and the staged Audit');
+    await replay(refused, afterReject);
+    assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await readFile(sourcePath, 'utf8'), originalSource);
+    assert.equal(await captureIsCurrent(capture), true, 'original source/compiler/catalog and installed portable graph stay current');
+  } finally {
+    try { await bridge?.close(); }
+    finally { try { await worker?.dispose(); }
+      finally { try { await provisioning?.dispose(); }
+        finally { if (persistence) await rm(persistence, { recursive: true, force: true });
+          if (capture) assert.equal(await captureIsCurrent(capture), true, 'HookOrder finish source-current'); } } }
+  }
+});

@@ -4290,10 +4290,21 @@ function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row
 /** This private control is not an executor option or a public context factory. */
 interface LocalOwnerPolicyControl {
   readonly policies: CheckedOwnerModelPolicies;
+  readonly hookCallables: ReadonlySet<string>;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
   createOwnerFrame(input: { readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
+
+/** Host scope selection only; genuine checked hooks execute in their owner mutation. */
+export async function nativeHandlersUseOwnerMutationScope(asm: AssembledModules, artifact: CompileArtifact): Promise<boolean> {
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const control = localOwnerPolicyControls.get(loaded);
+  if (control === undefined) return !artifact.callables.some(callable => callable.kind === 'handler');
+  await control.verifyAssembly(asm, artifact);
+  return artifact.callables.filter(callable => callable.kind === 'handler').every(callable =>
+    control.hookCallables.has(JSON.stringify([callable.module, callable.id, callable.member])));
+}
 
 function localPolicyObject(value: unknown, keys?: readonly string[]): Record<string, unknown> {
   if (!isUnknownRecord(value) || (Object.getPrototypeOf(value) !== null && Object.getPrototypeOf(value) !== Object.prototype)) {
@@ -4374,6 +4385,7 @@ async function loadLocalOwnerPolicyControl(input: {
     }
   }
   const activeFrames = new WeakMap<InvocationContext, { active: boolean }>();
+  const hookCallables = new Set<string>();
   const modules: { path: string; registry: unknown }[] = [];
   for (const emitted of input.artifact.modules) {
     const imported: unknown = await importVerifiedAssemblyModule(input.asm, emitted.path, input.artifact);
@@ -4404,6 +4416,7 @@ async function loadLocalOwnerPolicyControl(input: {
             !sameLocalPolicyStrings(callables[0]!.member, ['hooks', hook.operation, 'run'])) {
           throw new Error('Native owner hook lacks its original callback/CRUD/callable correspondence.');
         }
+        hookCallables.add(JSON.stringify([callables[0]!.module, callables[0]!.id, callables[0]!.member]));
         const encodeFields = (model: string, value: unknown): Record<string, unknown> => {
           const definition = input.native.models.find(candidate => candidate.name === model);
           if (definition === undefined) throw new input.native.producers.errors('validation', 'Hook stage names no loaded model.');
@@ -4614,7 +4627,7 @@ async function loadLocalOwnerPolicyControl(input: {
   // carrier is verified. The issuer checks the whole JS/map closure even
   // when this module namespace is already in the ESM import cache.
   const verificationPath = modules[0]!.path;
-  return Object.freeze({ policies, async verifyAssembly(asm: AssembledModules, artifact: CompileArtifact) {
+  return Object.freeze({ policies, hookCallables, async verifyAssembly(asm: AssembledModules, artifact: CompileArtifact) {
     if (asm !== input.asm) {
       throw new input.native.producers.errors('validation', 'Native owner policies require their original verified assembly.');
     }
