@@ -826,7 +826,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) {
     return invalid('reference producer differs from its checked source/policy.');
   }
-  const policy = buildPolicyTable([...producer.policy].map(([model, value]) => {
+  const policy = buildPolicyTable([...Map.prototype.entries.call(producer.policy)].map(([model, value]) => {
     const copied = dataCopy(value);
     if (copied.model !== model) return invalid('reference policy model differs from its owning key.');
     return copied;
@@ -1804,8 +1804,8 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
     capture(call, store);
     if (state.returnId !== null) return invalid('observation must complete before return selection.');
     if (revision !== call.revision) throw new StateError('conflict', 'Scenario observation moved beyond its admitted revision.');
-    await referenceRevalidate?.(); capture(call, store);
     if (referenceRevalidate !== undefined) {
+      await referenceRevalidate(); capture(call, store);
       ownerHealthy(owner!);
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source reference final observation moved beyond its admitted revision.');
       capture(call, store); ownerHealthy(owner!);
@@ -2247,7 +2247,12 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     ? memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
   const live = await membership(); const membershipSnapshot = stableStringify(dataCopy(live));
   const withheld = { result: null, records: [] } as const;
-  const project = async (member: Awaited<ReturnType<typeof membership>>) => {
+  const referenceInfluence = currentBound.referenceDependencies.size !== 0 ||
+    association.calls?.some(saved => {
+      const target = input.registry.get(saved.target);
+      return target !== undefined && (boundPlans.get(target as GeneratedOperationDef)?.referenceDependencies.size ?? 0) !== 0;
+    }) === true;
+  const projectOnce = async (member: Awaited<ReturnType<typeof membership>>) => {
     const context = { actorUserId, teamId, membership: member, memberships };
     if (!await evaluateBy(def.by, context)) return withheld;
     const currentSavedRow = async (model: ModelName, saved: StoredRow) => {
@@ -2407,6 +2412,15 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     }
     return { result: dependenciesReadable && association.resultType === currentBound.type && receipt.outcome.status === 'committed'
       ? dataCopy(receipt.outcome.result) : null, records };
+  };
+  const project = async (member: Awaited<ReturnType<typeof membership>>) => {
+    try { return await projectOnce(member); }
+    catch (error) {
+      // A current row grant can lose its complete Identity facts during an
+      // awaited row projection. No partial retained influence escapes it.
+      if (referenceInfluence && error instanceof StateError && error.code === 'forbidden') return withheld;
+      throw error;
+    }
   };
   const first = await project(live);
   if (authorityFacts.size > 1) {
