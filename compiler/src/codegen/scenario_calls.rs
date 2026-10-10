@@ -70,7 +70,7 @@ pub fn collect_static_scenario_calls(
         if owner.id != id {
             return None;
         }
-        let sites = collect_owner(ir, owner, operations, db, entry_module)?;
+        let sites = collect_owner(ir, owner, operations, db, entry_module, id != parent.id)?;
         occurrences = occurrences.checked_add(sites.len())?;
         if occurrences > 200 {
             return None;
@@ -115,6 +115,7 @@ fn collect_owner(
     operations: &[JsOperation],
     db: &SourceDb,
     entry: &str,
+    is_child: bool,
 ) -> Option<Vec<StaticScenarioCall>> {
     let IrItemKind::Scenario {
         trusted: false,
@@ -356,6 +357,9 @@ fn collect_owner(
                     }
                 }
             }
+            // The finite nested-call consumer profile excludes framework Send effects.
+            // Root/standalone receipt profiles retain their existing Send support.
+            IrStmt::Send { .. } if is_child => return None,
             IrStmt::Let { .. }
             | IrStmt::Require { .. }
             | IrStmt::Return { .. }
