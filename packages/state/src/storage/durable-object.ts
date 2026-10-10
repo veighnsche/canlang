@@ -72,6 +72,7 @@ import type {
   StoredRow,
   FileReferenceStoragePort,
   FileRetirementAuthority,
+  FrameworkFileReferenceProducer,
   FileReferencePublishMigrationChunk,
   FileReferenceFlipInstalledSnapshot,
   InstallFileReferenceInventory,
@@ -83,7 +84,7 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import {
-  FILE_GUARD_MAX_ROWS, checkedFileAuthority, checkFileBinding, checkFileGuardSnapshots, fileGuardCopy,
+  FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy,
   guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow,
 } from './file-retirement.js';
@@ -786,20 +787,24 @@ function planDiscardStaged(input: DiscardStagedRows, next: number, at: number): 
  * Durable Object SQLite-backed `StoragePort`. Call `ensureSchema(storage)`
  * once before first use.
  */
-export function createDOStorage(storage: DurableObjectStorage, authority: FileRetirementAuthority): FileReferenceStoragePort;
-export function createDOStorage(storage: DurableObjectStorage): StoragePort;
-export function createDOStorage(storage: DurableObjectStorage, authority?: FileRetirementAuthority): StoragePort | FileReferenceStoragePort {
+export function createDOStorage(storage: DurableObjectStorage, authority: FileRetirementAuthority, producers?: readonly FrameworkFileReferenceProducer[]): FileReferenceStoragePort;
+export function createDOStorage(storage: DurableObjectStorage, authority?: undefined, producers?: readonly FrameworkFileReferenceProducer[]): StoragePort;
+export function createDOStorage(storage: DurableObjectStorage, authority?: FileRetirementAuthority,
+  producers: readonly FrameworkFileReferenceProducer[] = []): StoragePort | FileReferenceStoragePort {
+  const framework = bindFileFrameworkProducers(producers);
   const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
   const assertBinding = (): void => {
     if (binding !== undefined) {
       const state = readFileGuard(storage);
       checkFileBinding(state, binding);
+      checkFileFrameworkBinding(state, framework);
       checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
     }
   };
   const capture = <T>(input: T): T => {
     const state = readFileGuard(storage);
     checkFileBinding(state, binding);
+    checkFileFrameworkBinding(state, framework);
     checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
     return binding !== undefined || state.authority !== null ? fileGuardCopy(input) : input;
   };
@@ -877,12 +882,13 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
         transact(storage, () => {
           const state = readFileGuard(storage);
           checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
           checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
           const before = state.authority === null ? [] : readFileRows(storage);
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
-          if (state.authority !== null) guardFileCommit(state, binding, before, readFileRows(storage));
+          if (state.authority !== null) guardFileCommit(state, binding, before, readFileRows(storage), framework);
         });
       } catch (error) {
         throw toCommitError(storage, batch.expectedRevision, error);
@@ -1060,6 +1066,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
         transact(storage, () => {
           const state = readFileGuard(storage);
           checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
           checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
           const before = state.authority === null ? [] : readFileRows(storage);
           for (const statement of statements) {
@@ -1070,7 +1077,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
               (input as Partial<FileReferencePublishMigrationChunk>).fileReferenceInventory,
               before, readFileRows(storage),
               input.rows.map(row => ({ model: row.targetModel as string, id: row.recordId as string })),
-              input.drops.map(row => ({ model: row.model as string, id: row.recordId as string })));
+              input.drops.map(row => ({ model: row.model as string, id: row.recordId as string })), framework);
             persistFileGuard(storage, nextState);
           }
         });
@@ -1098,6 +1105,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
           return transact(storage, () => {
             const state = readFileGuard(storage);
             checkFileBinding(state, binding);
+            checkFileFrameworkBinding(state, framework);
             checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
             const installedRow = storage.sql.exec<SnapshotRow>(
               `SELECT ${SNAPSHOT_COLUMNS} FROM snapshots WHERE owner = ?`, input.owner,
@@ -1108,7 +1116,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
             // declaration correspondence are checked before idempotency.
             const nextState = guardFileFlip(state, binding,
               input as FlipInstalledSnapshot & Partial<Pick<FileReferenceFlipInstalledSnapshot, 'fileReferenceInventory'>>,
-              readFileRows(storage), (current + 1) as Revision, existing);
+              readFileRows(storage), (current + 1) as Revision, existing, framework);
             const same = input.snapshot === null ? existing === null : existing !== null &&
               existing.snapshotId === input.snapshot.snapshotId && existing.digest === input.snapshot.digest;
             if (same) return { revision: current, flipped: false };
@@ -1266,6 +1274,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
         return transact(storage, () => {
           const state = readFileGuard(storage);
           checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
           checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
           const current = readRevisionInner(storage);
           checkMigrationExpected(storage, input.expectedRevision);
@@ -1274,7 +1283,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
             `SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`,
           ).toArray().map(toInstalledSnapshot);
           const plan = planFileInstall(state, binding, input, snapshots,
-            readFileRows(storage), (current + 1) as Revision);
+            readFileRows(storage), (current + 1) as Revision, framework);
           if (!plan.changed) return { revision: current };
           const next = fenceFileWrite(storage, input.expectedRevision, Date.now(), 'files:install-reference-inventory');
           storage.sql.exec(
@@ -1293,6 +1302,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
     async readFileReferenceInventory(owner: string): Promise<InstalledFileReferenceInventory | null> {
       const state = readFileGuard(storage);
       checkFileBinding(state, binding);
+      checkFileFrameworkBinding(state, framework);
       checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
       return fileGuardCopy(state.inventories.find(item => item.inventory.owner === owner) ?? null);
     },
@@ -1303,6 +1313,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
         return transact(storage, () => {
           const state = readFileGuard(storage);
           checkFileBinding(state, binding);
+          checkFileFrameworkBinding(state, framework);
           checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
           const current = readRevisionInner(storage);
           const previous = state.retirements.find(fact => fact.file.ref === input.file.ref);
@@ -1313,7 +1324,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
           const validBound = Number.isSafeInteger(input.maxRows) && input.maxRows > 0;
           const rows = previous !== undefined || !validBound
             ? [] : readFileRows(storage, input.maxRows);
-          const plan = planFileRetirement(state, binding, input, rows, (current + 1) as Revision);
+          const plan = planFileRetirement(state, binding, input, rows, (current + 1) as Revision, framework);
           if (!plan.fresh) return fileGuardCopy(plan.fact);
           fenceFileWrite(storage, input.expectedRevision, input.atMs, 'files:retire-finalized-file');
           storage.sql.exec('INSERT INTO file_retirements(ref, retirement) VALUES (?, ?)',
@@ -1328,6 +1339,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
     async readFinalizedFileRetirement(ref: FinalizedFileRef): Promise<FinalizedFileRetirement | null> {
       const state = readFileGuard(storage);
       checkFileBinding(state, binding);
+      checkFileFrameworkBinding(state, framework);
       checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
       if (typeof ref !== 'string' || ref.length === 0) {
         throw new StorageConstraintError('reference', 'File retirement: immutable File ref required');
