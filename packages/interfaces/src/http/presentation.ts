@@ -38,6 +38,8 @@ const unavailablePageRecords: PageRecordsReader = async () => {
 
 /** Inputs to {@link buildPresentationContext}, all dispatcher-supplied. */
 export interface BuildPresentationContextInput {
+  /** Explicit trusted host origin plus mount prefix; never request-derived. */
+  readonly deploymentBase?: string;
   /** Request carrying the `Accept-Language` header. */
   readonly request: Request;
   /** Already-normalized pathname. */
@@ -107,7 +109,11 @@ function parseAcceptLanguage(header: string | null): readonly string[] {
 export function buildPresentationContext(
   input: BuildPresentationContextInput,
 ): PresentationContext {
-  const source = input.source ?? buildPageSourceContext(input.principal);
+  // Source/identity facts cannot supply host configuration, including when the
+  // source object carries extra fields from another context.
+  const { deploymentBase: _sourceDeploymentBase, ...source } =
+    (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
+      Pick<PresentationContext, 'deploymentBase'>;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
   if (url.search.length <= COLLECTION_SELECTION_QUERY_MAX_CHARS + 1) {
@@ -128,6 +134,7 @@ export function buildPresentationContext(
       readRecords: input.readRecords ?? unavailablePageRecords,
       ...(input.observeDelivery === undefined ? {} : { observeDelivery: input.observeDelivery }),
     }),
+    ...(input.deploymentBase === undefined ? {} : { deploymentBase: input.deploymentBase }),
     preferredLocales: parseAcceptLanguage(input.request.headers.get('accept-language')),
     appDefaultLocale: input.appDefaultLocale,
     theme: DEFAULT_THEME,

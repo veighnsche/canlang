@@ -1,9 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { ValueError, int64 as producerInt64, datetime as producerDatetime,
   compareInstant as producerCompareInstant } from '@canlang/values';
-import { int64, datetime, compareInstant } from '../src/runtime/stdlib.js';
+import type { StoragePort } from '@canlang/contracts';
+import { createContext } from '../src/runtime/context.js';
+import { app_url, int64, datetime, compareInstant } from '../src/runtime/stdlib.js';
 
 describe('runtime pure producer exports', () => {
+  it('constructs app URLs only from the explicit host context', () => {
+    const deps = { caller: { userId: 'u1', roles: [] }, store: {} as StoragePort };
+    const c = createContext({ ...deps, deploymentBase: 'https://app.example/tenant/' });
+    expect(c.deploymentBase).toBe('https://app.example/tenant/');
+    expect(app_url(c, '/reports/7?view=summary#total'))
+      .toBe('https://app.example/tenant/reports/7?view=summary#total');
+    expect(app_url({ deploymentBase: 'http://localhost:3000/preview' }, '/'))
+      .toBe('http://localhost:3000/preview/');
+
+    const missing = createContext(deps);
+    expect(Object.hasOwn(missing, 'deploymentBase')).toBe(false);
+    for (const run of [
+      () => app_url(missing, '/reports'),
+      () => app_url({ deploymentBase: '' }, '/reports'),
+      () => app_url(c, '//other.example/reports'),
+      () => app_url(c, '/%2e%2e/reports'),
+      () => app_url({ deploymentBase: 'https://user@app.example/tenant' }, '/reports'),
+      () => app_url({ deploymentBase: 'https://app.example/tenant?redirect=other' }, '/reports'),
+    ]) {
+      let thrown: unknown;
+      try { run(); } catch (error) { thrown = error; }
+      expect(thrown).toBeInstanceOf(ValueError);
+      expect(thrown).toMatchObject({ kind: 'value', code: 'invalid-construction' });
+    }
+  });
   it('retains the exact producer functions', () => {
     expect(int64).toBe(producerInt64);
     expect(datetime).toBe(producerDatetime);

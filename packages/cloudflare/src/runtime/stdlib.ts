@@ -52,6 +52,7 @@ import type {
   CanValue,
   JudgmentSpec,
   OrderTerm,
+  PresentationContext,
   ProjectedRecord,
   QueryPredicate,
   ReadAuthority,
@@ -59,7 +60,7 @@ import type {
   StoredRow,
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext } from './context.js';
-import { equalValue as equalValueProducer } from '@canlang/values';
+import { app_url as appUrlProducer, equalValue as equalValueProducer, ValueError } from '@canlang/values';
 import { sameNativeReference } from './native-records.js';
 
 // Private generated markers resolve only framework-bound scenario lifetimes.
@@ -74,6 +75,14 @@ export {
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
+
+/** Pure app link construction from explicit host configuration; grants no access. */
+export function app_url(c: Pick<PresentationContext, 'deploymentBase'>, path: string): string {
+  if (c.deploymentBase === undefined) {
+    throw new ValueError('invalid-construction', 'app_url requires a trusted deployment base');
+  }
+  return appUrlProducer(path, c.deploymentBase);
+}
 
 /** Lowered static source constant: no provider call, storage read or additional authority. */
 export function judgmentSpecification(c: HandlerContext, qualifiedName: string, options?: unknown): JudgmentSpec {

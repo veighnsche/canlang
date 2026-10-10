@@ -176,6 +176,8 @@ export interface IdentityDeps {
  */
 /** Page serving uses the owning identity store and authorized request readers. */
 export interface PageHttpDeps {
+  /** Trusted host origin plus app mount prefix, independent of request/auth URLs. */
+  readonly deploymentBase?: string;
   readonly app: AppInfo;
   readonly pages: PageRegistry;
   readonly logger: Logger;

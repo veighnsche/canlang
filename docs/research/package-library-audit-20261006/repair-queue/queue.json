@@ -3583,7 +3583,8 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Mounted current auth/files/export/print/resource routes; operation/retry/finalized progress contract; immutable asset byte ownership; trusted URL producer versus sink policy. TECHF01/2 own durable file fixes; no duplicated file coding."
+        "Mounted current auth/files/export/print/resource routes; operation/retry/finalized progress contract; immutable asset byte ownership; trusted URL producer versus sink policy. TECHF01/2 own durable file fixes; no duplicated file coding.",
+        "Finite shared app_url context/helper seam is implemented, directly checked, independently reviewed and locally integrated from dd688cfe: host-only deploymentBase carries trusted HTTP(S) origin plus mount into full/partial/form-error presentation and CF handler factory; missing configuration refuses. Dev owns actual installed/preview/deploy configuration, assembly mirrors and mutation/read/policy invocation forwarding plus mounted route compatibility; Compiler owns checked c-first app_url(context,path) lowering. No request/poll/auth fallback or authority elevation. Parent mounted/browser/security gates and all precise holds remain."
       ],
       "intended_deleted_mechanisms": [
         "None; selected DOM/network/lifetime join qualification only."

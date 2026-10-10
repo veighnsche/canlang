@@ -121,6 +121,7 @@ async function denyOrRerender(
   try {
     const fragment = isPartialRequest(request);
     const context = buildPresentationContext({
+      ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
       request,
       pathname: new URL(request.url).pathname,
       isPartial: fragment,

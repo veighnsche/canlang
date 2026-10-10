@@ -2406,6 +2406,42 @@
       "remaining_prerequisite": {
         "prerequisite": "Complete selected mounted auth/files/export/print/resource journey, finalized/retry progress and URL lifetime producer/sink policy.",
         "owner": "UI/Interfaces/Files actual browser/asset integrators"
+      },
+      "trusted_app_url_context_join": {
+        "state": "Finite host-only carrier/helper independently reviewed and locally integrated from dd688cfe; actual host configuration, Compiler c-first lowering and complete mounted serving remain owner work.",
+        "source_files": [
+          "packages/contracts/src/presentation.ts",
+          "packages/interfaces/src/ports.ts",
+          "packages/interfaces/src/http/presentation.ts",
+          "packages/interfaces/src/http/pages.ts",
+          "packages/interfaces/src/http/operations.ts",
+          "packages/cloudflare/src/runtime/context.ts",
+          "packages/cloudflare/src/runtime/stdlib.ts"
+        ],
+        "test_files": [
+          "packages/interfaces/test/http-pages.test.ts",
+          "packages/cloudflare/test/runtime-stdlib-pure.test.ts"
+        ],
+        "contract": "Optional host-only deploymentBase:string is the trusted HTTP(S) origin plus mount prefix. Interfaces forwards only the explicit dependency; extra source fields cannot supply it. CF createContext forwards only the explicit dependency and c-first app_url(context,path) delegates to owning Values. Missing host configuration refuses at helper use; no request, poll, auth, app identity or authority fallback.",
+        "verified": {
+          "contracts_emission": "pass0",
+          "interfaces_emission": "pass0",
+          "cloudflare_emission": "pass0",
+          "http_render_case": "1/1 pass229.25025ms; four actual authenticated full/partial requests with configured or absent base, unrelated request origin and authored labels, same actor/team/roles",
+          "runtime_helper_case": "1/1 pass4ms; actual createContext, mounted origin and preview base, missing/empty config and real Values path/base refusals; four unchanged cases unselected",
+          "finite_source_review": "Coordinator source and focused consumer reviews CLEAR; source extras excluded and full/partial/form-error forwarding uses only explicit host dependency. No authority or whole mounted-serving acceptance."
+        },
+        "remaining_dependencies": [
+          {
+            "owner": "Dev",
+            "prerequisite": "Supply explicit validated deployment/preview base at actual installed host, assembly dependency mirrors and every mutation/read/model-policy invocation createContext producer. Preserve mounts in real routing; auth origin and request/poll URLs cannot substitute."
+          },
+          {
+            "owner": "Compiler",
+            "prerequisite": "Emit checked app_url(context,path) calls against the actual runtime helper and complete original source/installed-host consumer once Dev supplies configuration."
+          }
+        ],
+        "acceptance_limit": "Finite shared carrier/helper only; no configured deployment/native/browser complete acceptance or human hold lift. Existing Values corpus and unrelated gates are unchanged and reused."
       }
     },
     "DEL-D03": {
