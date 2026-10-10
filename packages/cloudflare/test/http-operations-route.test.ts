@@ -26,10 +26,12 @@
  * (`AssemblyDeps.identityStore` is deliberately `unknown`).
  */
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { compileFunction, constants as vmConstants } from "node:vm";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   CompileArtifact,
@@ -46,6 +48,7 @@ import {
   handleOperationRequest,
 } from "@canlang/interfaces/http/operations";
 import type { HttpDeps as RealHttpDeps } from "@canlang/interfaces";
+import { handleCsvRequest } from "@canlang/interfaces";
 import type { McpDeps as RealMcpDeps } from "@canlang/interfaces";
 import { createMcpHandler } from "@canlang/interfaces/mcp/server";
 import {
@@ -60,8 +63,16 @@ import type {
   HttpDeps,
   HttpOperationHandlerFactory,
 } from "../src/worker/assembly.js";
-import { assembleWorker } from "../src/worker/assembly.js";
 import type { BakedDerivedInputs } from "../src/runtime/mcp-registry.js";
+
+// Load the emitted consumer and its fixture through Node's ESM loader. Vitest
+// transforms exports into getters, which canonical metadata correctly refuses.
+const importNativeModule = compileFunction("return import(url)", ["url"], {
+  importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+}) as (url: string) => Promise<unknown>;
+const { assembleWorker } = await importNativeModule(
+  pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/worker/assembly")).href,
+) as typeof import("../src/worker/assembly.js");
 
 /* ------------------------------------------------------------------ */
 /* Static conformance: the worker-side mirrors satisfy the REAL        */
@@ -170,20 +181,24 @@ function fixtureModels(): unknown[] {
   ];
 }
 
-const OPS_SOURCE = `export const calls = [];
+const OPS_SOURCE = `export const appDefinition = {
+  id: "Shop",
+  policy: {
+    operations: {
+      "Shop.Gadget.create": { by: ["members"] },
+      "Receipts.notifyEmail": { by: ["members"] },
+      "Acme.Probe.echo": { by: ["members"] },
+    },
+  },
+};
+export const calls = [];
 const throwing = () => { throw new Error("fixture: CRUD handler must never run on the canonical path"); };
 export function canApp() {
   return {
     calls,
     // B7: every op declares its admission gate (absent entries
     // deny) so the route pins still reach dispatch/validation.
-    policy: {
-      operations: {
-        "Shop.Gadget.create": { by: ["members"] },
-        "Receipts.notifyEmail": { by: ["members"] },
-        "Acme.Probe.echo": { by: ["members"] },
-      },
-    },
+    policy: appDefinition.policy,
     Gadget: { create: throwing },
     Receipts: {
       notifyEmail: async (c, input) => {
@@ -206,8 +221,8 @@ function fixtureArtifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: "http-ops-fixture/0 (hand-written; NOT compiler output)",
     tool_version: "http-ops-fixture/0",
-    sources: [{ path: "examples/Shop.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: module, sha256: createHash("sha256").update(OPS_SOURCE).digest("hex") }],
+    modules: [{ path: module, js: OPS_SOURCE }],
     operations: fixtureOperations(),
     models: fixtureModels(),
     callables: [
@@ -286,6 +301,7 @@ interface HttpOpsWorker {
 
 async function assembleHttpOpsWorker(opts: {
   withHttpFactory?: boolean;
+  withCsvFactory?: boolean;
   withMcpFactory?: boolean;
   operations?: unknown[];
 }): Promise<HttpOpsWorker> {
@@ -294,7 +310,7 @@ async function assembleHttpOpsWorker(opts: {
   const operations = opts.operations ?? fixtureOperations();
   const artifact = fixtureArtifact("ops.mjs");
   (artifact as unknown as { operations: unknown[] }).operations = operations;
-  const asm: AssembledModules = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": moduleUrl } };
+  const asm: AssembledModules = { dir, entryUrl: moduleUrl, moduleUrls: { "ops.mjs": moduleUrl } };
   const { store } = createTestMemoryStorage();
   const identity = await createIdentityFixture({});
   // B7: the members gates need a teamful session (login mints
@@ -319,18 +335,23 @@ async function assembleHttpOpsWorker(opts: {
             derivedInputs,
           },
         }),
-    ...(opts.withHttpFactory === false
+    ...(opts.withHttpFactory === false && opts.withCsvFactory !== true
       ? null
       : {
           http: {
-            createOperationHandler: (d) => (req, op) =>
-              handleOperationRequest(d as unknown as RealHttpDeps, req, op),
+            ...(opts.withHttpFactory === false ? {} : {
+              createOperationHandler: (d: HttpDeps) => (req: Request, op: string) =>
+                handleOperationRequest(d as unknown as RealHttpDeps, req, op),
+            }),
+            ...(opts.withCsvFactory !== true ? {} : {
+              createCsvHandler: (d: HttpDeps) => (req: Request) => handleCsvRequest(d as unknown as RealHttpDeps, req),
+            }),
             derivedInputs,
           },
         }),
   };
   const worker = await assembleWorker(artifact, asm, deps, { active: true });
-  const mod = (await import(moduleUrl)) as { calls: Array<readonly [string, unknown]> };
+  const mod = (await importNativeModule(moduleUrl)) as { calls: Array<readonly [string, unknown]> };
   const csrf = await deriveCsrfToken(identity.sessionToken);
   return { fetch: worker.fetch, grantToken, cookie: identity.cookie, csrf, store, calls: mod.calls };
 }
@@ -406,6 +427,62 @@ async function modelRows(store: StoragePort, model: string): Promise<Array<{ id:
 /* Route proofs: the join serves, the interim stays honest.            */
 /* ------------------------------------------------------------------ */
 
+describe("worker CSV review/commit installed join", () => {
+  it("names the missing CSV join and delegates joined method/path refusals", async () => {
+    const absent = await assembleHttpOpsWorker({});
+    for (const path of ['/api/csv/review','/api/csv/commit']) {
+      const response = await absent.fetch(new Request(`https://test.invalid${path}`, {method:'POST'}));
+      expect(response.status).toBe(501);
+      expect(await response.json()).toMatchObject({code:'assembly-interim',message:expect.stringContaining('createCsvHandler')});
+    }
+    const joined = await assembleHttpOpsWorker({withCsvFactory:true,withHttpFactory:false});
+    for (const path of ['/api/csv/review','/api/csv/commit','/api/csv/unknown']) {
+      expect((await joined.fetch(new Request(`https://test.invalid${path}`))).status).toBe(404);
+    }
+    expect(await modelRows(joined.store,'Shop.Gadget')).toEqual([]);
+  });
+
+  it("uses the same checked catalog and canonical owner invoker with only the CSV factory mounted", async () => {
+    const w = await assembleHttpOpsWorker({withCsvFactory:true,withHttpFactory:false});
+    const csv = 'title,stock,note\ncsv,3,';
+    const body = {operation:GADGET_CREATE_OP,csv};
+    const post = (path:string, value:unknown) => w.fetch(new Request(`https://test.invalid${path}`, {
+      method:'POST',headers:{'content-type':'application/json',cookie:w.cookie,'x-csrf-token':w.csrf},body:JSON.stringify(value),
+    }));
+    const reviewed = await post('/api/csv/review',body);
+    expect(reviewed.status).toBe(200);
+    const review = await reviewed.json() as {consent:unknown;rows:unknown[];counts:unknown};
+    expect(review.rows).toEqual([{index:0,status:'valid',inputs:{title:'csv',stock:'3',note:null}}]);
+    expect(review.counts).toEqual({total:1,valid:1,invalid:0,duplicate:0});
+    expect(await modelRows(w.store,'Shop.Gadget')).toEqual([]);
+    const operation_id = freshOperationId();
+    const selection = {...body,consent:review.consent,rows:[{index:0,operation_id}]};
+    const committed = await post('/api/csv/commit',selection);
+    expect(committed.status).toBe(200);
+    expect(await committed.json()).toMatchObject({rows:[{index:0,operation_id,status:'committed',result:{status:'committed',operation_id}}]});
+    const stored = await modelRows(w.store,'Shop.Gadget');
+    expect(stored).toHaveLength(1);expect(stored[0]?.data).toMatchObject({title:'csv',stock:'3',note:null});
+    const replayed = await post('/api/csv/commit',selection);
+    expect(replayed.status).toBe(200);
+    expect(await replayed.json()).toMatchObject({rows:[{index:0,operation_id,status:'committed',result:{status:'replayed',operation_id}}]});
+    expect(await modelRows(w.store,'Shop.Gadget')).toEqual(stored);
+  });
+
+  it("preserves session and CSRF admission before CSV review or commit", async () => {
+    const w = await assembleHttpOpsWorker({withCsvFactory:true});
+    for (const path of ['/api/csv/review','/api/csv/commit']) for (const headers of [
+      {'content-type':'application/json'},
+      {'content-type':'application/json',cookie:w.cookie,'x-csrf-token':'wrong'},
+    ]) {
+      const response = await w.fetch(new Request(`https://test.invalid${path}`, {
+        method:'POST',headers,body:JSON.stringify({operation:GADGET_CREATE_OP,csv:'title\ncsv'}),
+      }));
+      expect(response.status).toBe(403);expect(await response.json()).toMatchObject({code:'forbidden'});
+    }
+    expect(await modelRows(w.store,'Shop.Gadget')).toEqual([]);
+  });
+});
+
 describe("worker POST /api/operations/* (C3 op-route join)", () => {
   it("keeps the explicit interim 501 without the factory", async () => {
     const w = await assembleHttpOpsWorker({ withHttpFactory: false });
@@ -453,7 +530,7 @@ describe("worker POST /api/operations/* (C3 op-route join)", () => {
       note: "hello",
       fee: { minor: "150", currency: "USD" },
       when: "2026-01-01T00:00:00.000Z",
-      doc: "file-id-123",
+      doc: { id: "file-id-123" },
     };
     const res = await opPost(
       w.fetch,
@@ -538,6 +615,7 @@ interface AgreedDenial {
   readonly httpStatus: number;
   readonly httpCode: string;
   readonly message: string;
+  readonly fields: Array<{ path: string; code: string; message: string }> | undefined;
   readonly mcpErrorCode: number;
   readonly mcpMessage: string;
 }
@@ -553,7 +631,7 @@ async function agreedDenial(
     { operation_id: freshOperationId(), inputs },
     { cookie: w.cookie, csrf: w.csrf },
   );
-  const httpBody = http.json as { code: string; message: string };
+  const httpBody = http.json as { code: string; message: string; fields?: AgreedDenial["fields"] };
   const mcp = await mcpCall(
     w.fetch,
     "tools/call",
@@ -570,6 +648,7 @@ async function agreedDenial(
     httpStatus: http.status,
     httpCode: httpBody.code,
     message: httpBody.message,
+    fields: httpBody.fields,
     mcpErrorCode: mcp.body.error.code,
     mcpMessage,
   };
@@ -626,7 +705,8 @@ describe("browser/MCP bound-rule agreement (C3 T19)", () => {
       { label: "versioned ref missing version", inputs: { title: "x", owner: { model: "Shop.Gadget", id: "g-1" } }, hint: /version/i, verdictOnly: true },
       { label: "money half-present", inputs: { title: "x", fee: { minor: "150" } }, hint: /currency|money/i },
       { label: "datetime wall", inputs: { title: "x", when: "2026-01-01 10:00" }, hint: /date|time|RFC|3339|instant/i },
-      { label: "file empty id", inputs: { title: "x", doc: "" }, hint: /non-empty|string/i },
+      { label: "file empty id", inputs: { title: "x", doc: { id: "" } }, hint: /^Invalid value for input "doc": schema validation failed with 1 violation\(s\)\.$/ },
+      { label: "file primitive id", inputs: { title: "x", doc: "file-id-123" }, hint: /^Invalid value for input "doc": schema validation failed with 1 violation\(s\)\.$/ },
     ];
     for (const { label, inputs, hint, verdictOnly } of cases) {
       const denial = await agreedDenial(w, GADGET_CREATE_OP, inputs);
@@ -634,6 +714,9 @@ describe("browser/MCP bound-rule agreement (C3 T19)", () => {
       expect(denial.httpCode, label).toBe("validation");
       expect(denial.message, label).toMatch(hint);
       expect(denial.mcpErrorCode, label).toBe(-32602);
+      if (label.startsWith("file ")) {
+        expect(denial.fields, label).toEqual([{ path: "/doc", code: "binding_mismatch", message: denial.message }]);
+      }
       if (verdictOnly === true) {
         expect(denial.mcpMessage, label).toMatch(/Invalid record (id|version)\./);
       } else {

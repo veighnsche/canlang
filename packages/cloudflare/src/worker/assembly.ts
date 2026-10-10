@@ -402,6 +402,8 @@ export type HttpOperationHandlerFactory = (
   deps: HttpDeps,
 ) => (req: Request, op: string) => Promise<Response>;
 export type VersionedHttpOperationHandlerFactory = HttpOperationHandlerFactory & { readonly inputChoicesVersion?: number };
+/** Published Interfaces CSV review/commit handler over the same operation deps. */
+export type HttpCsvHandlerFactory = (deps: HttpDeps) => (req: Request) => Promise<Response>;
 
 /**
  * HTTP op-route join inputs. `createOperationHandler` absent ->
@@ -455,6 +457,7 @@ export interface HttpJoin {
   readonly preferences?: PagePreferenceStore;
   readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: VersionedHttpOperationHandlerFactory;
+  readonly createCsvHandler?: HttpCsvHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
   readonly derivedInputs?: BakedDerivedInputs;
   /** Selected static resources load only after the existing serving gates. */
@@ -1467,36 +1470,17 @@ const HTTP_OPERATIONS_PREFIX = "/api/operations/";
  * The catalog serves the SAME baked `derivedInputs` the MCP path
  * consumes, and the invoker is THE same `buildInvoker` bridge, so
  * browser/MCP bound rules and invocation agree by construction.
- * Members the op handler never touches (pages, limiter,
+ * Members the operation/CSV handlers never touch (pages, limiter,
  * secureCookies, uploads, ingress) bind interim fail-closed stubs.
  */
-async function handleHttpOperationRequest(
-  req: Request,
-  ctx: InterimDispatchContext,
-  pathname: string,
-): Promise<Response> {
-  const factory = ctx.http?.createOperationHandler;
-  if (factory === undefined || typeof factory !== "function") {
-    return interimUnavailable(
-      "operation invocation needs the interfaces join (handleOperationRequest via " +
-        "AssemblyDeps.http.createOperationHandler); the worker serves pages only until it lands",
-    );
-  }
-  let catalog: SchemaCatalog;
-  try {
-    const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
-      "../runtime/mcp-registry.js",
-      "runtime/mcp-registry.ts",
-      "createArtifactCatalog",
-    );
-    catalog = createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ code: "http-catalog", message }, 500);
-  }
+async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<HttpDeps> {
+  const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
+    "../runtime/mcp-registry.js", "runtime/mcp-registry.ts", "createArtifactCatalog",
+  );
+  const catalog = createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs);
   const now = ctx.now;
   const unjoined = (family: string): never => {
-    throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the op route)`);
+    throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the operation/CSV routes)`);
   };
   const deps: HttpDeps = {
     ...(ctx.http?.formBindings === undefined ? {} : { formBindings: ctx.http.formBindings }),
@@ -1530,7 +1514,7 @@ async function handleHttpOperationRequest(
       store: ctx.identityStore,
       mail: {
         sendMail: async (): Promise<void> => {
-          throw new Error("assembly: mail is unbound on the HTTP op path (no op flow sends mail)");
+          throw new Error("assembly: mail is unbound on the operation/CSV paths (these transports send no mail)");
         },
       },
       clock: { nowMs: () => now() },
@@ -1539,7 +1523,7 @@ async function handleHttpOperationRequest(
       inviteBaseUrl: "",
       sessionMaxAgeSeconds: 0,
     },
-    // The op handler never writes cookies (identity resolves from the
+    // The operation/CSV handlers never write cookies (identity resolves from the
     // request); the auth join owns the real deployment flag.
     secureCookies: false,
     uploads: {
@@ -1563,6 +1547,25 @@ async function handleHttpOperationRequest(
       sink: { accept: async (): Promise<{ accepted: boolean }> => unjoined("ingress sink") },
     },
   };
+  return deps;
+}
+
+async function handleHttpOperationRequest(
+  req: Request, ctx: InterimDispatchContext, pathname: string,
+): Promise<Response> {
+  const factory = ctx.http?.createOperationHandler;
+  if (factory === undefined || typeof factory !== "function") {
+    return interimUnavailable(
+      "operation invocation needs the interfaces join (handleOperationRequest via " +
+        "AssemblyDeps.http.createOperationHandler); the worker serves pages only until it lands",
+    );
+  }
+  let deps: HttpDeps;
+  try { deps = await buildHttpTransportDeps(ctx); }
+  catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ code: "http-catalog", message }, 500);
+  }
   let op = pathname.slice(HTTP_OPERATIONS_PREFIX.length);
   try {
     op = decodeURIComponent(op);
@@ -1571,6 +1574,21 @@ async function handleHttpOperationRequest(
     // shape check answers `not_found` (never a 500).
   }
   return factory(deps)(req, op);
+}
+
+async function handleHttpCsvRequest(req: Request, ctx: InterimDispatchContext): Promise<Response> {
+  const factory = ctx.http?.createCsvHandler;
+  if (factory === undefined || typeof factory !== "function") {
+    return interimUnavailable("CSV review/commit needs the interfaces join " +
+      "(handleCsvRequest via AssemblyDeps.http.createCsvHandler)");
+  }
+  let deps: HttpDeps;
+  try { deps = await buildHttpTransportDeps(ctx); }
+  catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ code: "http-catalog", message }, 500);
+  }
+  return factory(deps)(req);
 }
 
 function buildInterimFetch(
@@ -1590,6 +1608,9 @@ function buildInterimFetch(
     }
     if (pathname.startsWith(HTTP_OPERATIONS_PREFIX)) {
       return handleHttpOperationRequest(req, ctx, pathname);
+    }
+    if (pathname === "/api/csv/review" || pathname === "/api/csv/commit") {
+      return handleHttpCsvRequest(req, ctx);
     }
     if (pathname.startsWith("/auth/")) {
       const config = ctx.http?.auth;
