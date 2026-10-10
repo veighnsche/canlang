@@ -79,6 +79,8 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         disclosure: None,
         inputs: vec![
             JsOperationField {
+                min: None,
+                max: None,
                 name: "z".into(),
                 field: JsMcpField::Integer,
                 value_type: None,
@@ -91,6 +93,8 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
                 choices: None,
             },
             JsOperationField {
+                min: None,
+                max: None,
                 name: "a".into(),
                 field: JsMcpField::String,
                 value_type: None,

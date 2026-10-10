@@ -2307,3 +2307,111 @@ the exact bounded decision contract and sequential runtime consumer join. Next
 ready prerequisite: original reused targets parameter min1/max10 currently drops
 at IR/operation input emission; Compiler owns producer, Packages shared envelopes,
 State per-element private current references, Dev actual frame array correspondence.
+
+
+**Bounded membership decision contract (proposed activation; checked producer), 2026-10-10.**
+The private contract uses the existing checked source identity and exact authored
+site: `source:{path,sha256,module}`, `owner` canonical scenario, `node:{start,end}`
+(actual Bool guard), `statement:{start,end}`, `stage` (`leading-require`,
+`body-require`, `send-dispatch`) and ordered nested statement/branch position.
+Each call occurrence has exact source/node, checked builtin id/overload or
+canonical derive owner, authored argument source/node/type array, canonical slots,
+omitted defining default anchors and full invocation-chain occurrences. Symbols
+and NodeKeys are checked producer identities; any serialized handoff uses owning
+canonical names and source offsets, never a source-file ordinal as authority.
+Missing/recursive/unsupported/bounded-overflow closure withholds the recipe.
+
+The membership observer binding is the exact selected active_member occurrence:
+canonical slot0 is the **actually evaluated user**, slot1 the **actually evaluated
+Team**. These need not be admitted scenario parameters: imported helper arguments,
+lexical values and query predicates retain their checked call-chain origin. The
+trusted emitter passes captured values once to a privately issued site binding;
+metadata or a caller-supplied `{id}` cannot issue that binding. State verifies
+slot1 against the stage's current verified owner Team and reads slot0 through
+that stage's real private Identity reader. It returns the exact Bool to the same
+expression and enrolls both positive and negative current-membership observations.
+Original expressions retain lazy and/or/??, query alias scope, source argument
+order and omitted-default evaluation; an unevaluated branch issues no membership
+observation and is accounted for by its actual decision path. Unknown/stale site,
+source/callee/type/team mismatch, closed lifetime or reader error refuses, never
+substitutes false or actor-role evidence.
+
+Leading/body require bind the active admitted call/store/checkpoint. SEND when is
+later dispatch: State/Dev must issue its genuine current dispatch execution/reader
+with frozen lexical inputs after business closure; an expired root-call observer
+cannot authorize it. Neither guard is hoisted or replayed at commit. State owns
+current-membership guard lifetime/recheck; Dev owns actual private stage issuance;
+Compiler owns source/IR bijection and exact once-only emitter captures. Checked
+facts grant no execution. Allowing StateRead through the bounded derive/when
+recipe remains proposed until accepted semantics and defining observers join;
+current pure/default/when/T06 gates and precise human holds remain enforced.
+
+
+The proposed serial handoff is version1, with no execution authority:
+```ts
+{
+  version: 1,
+  source: { path: string, sha256: string, module: string },
+  owner: string, // canonical scenario
+  node: { start: number, end: number },
+  statement: { start: number, end: number },
+  stage: 'leading-require' | 'body-require' | 'send-dispatch',
+  position: Array<
+    { kind: 'guard' | 'body' | 'then' | 'else' | 'loop', index: number } |
+    { kind: 'match', arm: number, statement: number }
+  >,
+  calls: Array<{
+    source: { path: string, sha256: string, module: string },
+    node: { start: number, end: number },
+    target: { kind: 'builtin', id: string, overload: number } |
+            { kind: 'derive', name: string },
+    arguments: Array<{ node: { start: number, end: number }, type: string }>,
+    slots: Array<number | null>,
+    defaults: Array<{
+      parameter: string, // exact canonical owning parameter
+      source: { path: string, sha256: string, module: string },
+      node: { start: number, end: number }, type: string
+    }>,
+    chain: Array<{
+      source: { path: string, sha256: string, module: string },
+      node: { start: number, end: number }, derive: string
+    }>
+  }>
+}
+```
+Types use the existing owning Can type IDs (`user`, `team`, exact nominal IDs),
+not new primitive spellings. Argument offsets belong to the call's source;
+defaults carry their own source. For active_member the canonical slots map to
+user and Team as defined above. This freezes vocabulary for independent State/
+Dev components; serialization/descriptor transport remains unimplemented until
+the actual checked source/IR bijection is qualified. The issued runtime binding
+is a private identity, never a public descriptor ID or source-offset claim.
+
+
+**Decision source/IR unit (unfinished activation), 2026-10-10.**
+The optional real checked producer now retains leading/body require and SEND
+when sites, exact nested paths and selected builtin/derive typed argument slots,
+omitted defaults and complete imported call chains. The real IR consumer joins
+that immutable original inventory and fresh checked lowering to actual statements,
+controls, operands, reached callee bodies and defaults. Changed Bool/name/operator,
+source/site/slots/default/frame, duplicate guard/proof and preceding lexical
+statement controls refuse. Unsupported special expressions or create/delete/
+transition/call/schedule/cancel/emit statement families decline this finite optional
+recipe. No serial transport, private binding issuance, StateRead admission or native
+workflow is claimed. Owning5/5 and final affected34/34 (including parameter3,
+disclosure18, typed artifact2/descriptor6) pass; unchanged codegen121/invocation7
+results are reused. Strict all-target Clippy/format0. Source-correspondence
+implementation is safe to release ahead of defining observers; current pure/
+default/when/T06 gates remain. Whole changed-source qualification is due.
+
+**Array parameter producer (unfinished native admission), 2026-10-10.**
+Exact checked same-layer array reuse retains compatible inherited numeric min/max
+in IR, operation inputs and actual scenario/capability schemas. Original min1/max10
+and narrower min2/max5, nullability, read-versus-mutation ref versions, valid empty
+default, unbounded and scalar-field[] layer controls pass actual CLI/artifact3/3.
+Symbolic/unsafe lengths refuse E6008/no modules. Direct parameter modifiers already
+refuse parser E1200; they are not an admitted narrowing profile. Field-only !,
+trim, uniqueness/distinctness are not projected. Packages owns released additive
+shared envelope/intake/length validation; State/Dev own real per-element current
+reference/checkpoint/private-view correspondence. Strict all-target lint/format0;
+whole/native array workflow remains unqualified.
