@@ -69,6 +69,7 @@ export interface FilesKernelBindings {
     intentId: string,
     caller: UploadReceiver,
     chunk: Uint8Array,
+    expectedOffset: number,
   ) => KernelAppendOutcome | Promise<KernelAppendOutcome>;
   readonly complete: (
     intentId: string,
@@ -195,7 +196,7 @@ export function createFileKernel(bindings: unknown): FileKernel {
   return {
     maxBytes: () => bindings.maxBytes,
     createIntent: async (input) => bindings.createIntent(input),
-    append: async (intentId, caller, chunk) => bindings.append(intentId, caller, chunk),
+    append: async (intentId, caller, chunk, expectedOffset) => bindings.append(intentId, caller, chunk, expectedOffset),
     complete: async (intentId, caller) => bindings.complete(intentId, caller),
     finalize: async (input) => bindings.finalize(input),
   };

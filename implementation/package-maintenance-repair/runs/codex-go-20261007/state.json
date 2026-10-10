@@ -973,7 +973,7 @@
     },
     "TECH-F01": {
       "planning_status": "implementing",
-      "state": "Independently accepted joined completion/finalization size correction at98c1e811/d450130f; broader lifecycle open",
+      "state": "Finalization publication/reopen/retention and explicit offset append producer/Interfaces consumer implemented and directly tested; mounted native/provider/full packet qualification remains open",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -1027,11 +1027,11 @@
       },
       "commit": "d450130f",
       "remaining_prerequisite": {
-        "prerequisite": "Packages finalization publication/reopen/retention repair implemented with direct affected checks; offset retry consultation specifically held awaiting exact human approval. Packages owns append/Interfaces consumer implementation after choice; actual mounted/native/provider qualification remains owning host dependency.",
-        "owner": "Packages defining Files/Interfaces contract; human exact three-request approval; Dev actual native consumer"
+        "prerequisite": "Dev actual bound-images binding4th offset and native typed-file HTTP upload-offset consumer update/qualification; Packages defining producer/consumer and direct owning checks are implemented. Further provider/mounted/concurrent external-store/power-loss requirements require actual owning host, not TestOnly substitution.",
+        "owner": "Dev actual native Files consumer; actual deployment/provider host owner"
       },
       "append_retry_consultation": {
-        "status": "held: automatic approval review rejected export of summarized internal upload/storage facts; exact three requests awaiting human approval; not sent",
+        "status": "completed once with exact human approval; range_identity selected as implementation advice, not acceptance",
         "endpoint": "https://api.typesafe.ai/v1/systemone",
         "requests": [
           {
@@ -1140,8 +1140,82 @@
             }
           }
         ],
-        "responses": [],
-        "scope": "Necessary defining append retry choice only; does not authorize other held payloads or certify production hosts."
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "retry_contract": {
+                "type": "choice",
+                "choice": "range_identity",
+                "confidence": 0.8,
+                "probabilities": {
+                  "range_identity": 0.87,
+                  "nonce_ledger": 0.13,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1079,
+              "output_tokens": 44
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "retry_contract": {
+                "type": "choice",
+                "choice": "range_identity",
+                "confidence": 0.76,
+                "probabilities": {
+                  "range_identity": 0.84,
+                  "nonce_ledger": 0.16,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1082,
+              "output_tokens": 44
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "retry_contract": {
+                "type": "choice",
+                "choice": "range_identity",
+                "confidence": 0.66,
+                "probabilities": {
+                  "range_identity": 0.77,
+                  "nonce_ledger": 0.23,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1081,
+              "output_tokens": 44
+            }
+          }
+        ],
+        "scope": "Necessary defining append retry choice only; does not authorize other held payloads or certify production hosts.",
+        "authorization": "Human explicitly approved these three exact TECH-F01 requests and destination; unrelated held payloads remain held.",
+        "decision": {
+          "choice": "range_identity",
+          "probabilities": [
+            0.87,
+            0.84,
+            0.77
+          ],
+          "confidence": [
+            0.8,
+            0.76,
+            0.66
+          ],
+          "disagreement": "None; nonce ledger remains viable if preserving original request boundaries is separately required. Exact byte ranges satisfy the current outcomes without retained per-request metadata.",
+          "rationale": "Owning intent+explicit offset+actual length+exact retained bytes defines idempotent transfer. ACK is range end; current validated completion is separate. SQLite check/write is one real transaction; no guessed offsets, nonce ledger, partial-overlap healing or byte/digest healing."
+        }
       },
       "finalization_recovery": {
         "state": "implemented and directly tested; parent TECH-F01 unfinished",
@@ -1158,8 +1232,25 @@
             "/private/tmp/can-packages-file-finalization-retention-tests.log"
           ]
         },
-        "remaining": "Retry Choice trio remains specifically held awaiting exact human approval; no requests sent. Actual mounted new transport/native/provider qualification remains owning-host work; serial FS protocol does not establish concurrent external-store serialization or power-loss/R2 acceptance.",
+        "remaining": "Offset defining implementation and owning checks now complete; Dev actual native consumer intake/qualification remains pending. Serial FS protocol does not establish concurrent external-store serialization or power-loss/R2 acceptance.",
         "review": "Finite source review returned immutable timestamp/claim replay gap; corrected and actual persisted regression passes. Exact retention/timestamp extension review CLEAR; no other concrete defect. No whole packet/source-host acceptance."
+      },
+      "append_retry_implementation": {
+        "state": "implemented and owning-tested; actual native consumer update is Dev-owned and pending",
+        "contract": "New appendUploadContentAtOffset and handleAppendAtOffset retain legacy metadata-free API explicitly without retry credit. Selected SQLite append and Interfaces FileKernel/FilesKernelBindings require fourth expectedOffset. HTTP requires canonical safe nonnegative upload-offset captured after actual auth/proof before awaits. Match complete retained range exactly for zero-write range-end ACK; only append at current count. Gap, straddle, unsafe numeric and changed bytes conflict; preserve foreign/terminal/expiry/policy/drift refusal. Idempotent completed response rechecks exact actual bytes/count/original digest/type without writes/healing. Finalized/rejected stay terminal before expiry sweep, preserving saved finalized identity after TTL. Provider output passes verified suffix start.",
+        "validation": {
+          "build": "Clean owning Files and Interfaces emissions pass with Node24.19/Bun1.4.2.",
+          "cases": "168 distinct affected cases pass: Files88, provider26 including actual local-server output transfer, Interfaces54. New invalid publication-time8 cases refuse before mint/writes. Separate actual SQLite connections/reopen and thrown transaction interruption tested; no process-kill/power-loss/concurrent external FS proof. Prior unchanged retention15 reused. Closed-state completion fixture uses terminal rejected because completed content now has explicit idempotent exact-content checks.",
+          "logs": [
+            "/private/tmp/can-packages-file-offset-build.log",
+            "/private/tmp/can-packages-file-offset-interfaces-build.log",
+            "/private/tmp/can-packages-file-offset-tests.log",
+            "/private/tmp/can-packages-file-offset-provider-tests.log",
+            "/private/tmp/can-packages-file-offset-interfaces-tests.log"
+          ]
+        },
+        "review": "Finite independent Files range/completion source and Interfaces transport/adapter/helper review CLEAR. Scripted route outcomes are not durable/native workflow acceptance.",
+        "remaining": "Dev consumes defining required offset0 in bound-images-durable actual binding test and explicit headers in typed-file native HTTP fixture, then publishes its actual qualification. Generic concurrent separate-provider serialization, power-loss and live R2 remain outside serial FS protocol. All precise native preparation/timezone holds persist."
       }
     },
     "TECH-F02": {

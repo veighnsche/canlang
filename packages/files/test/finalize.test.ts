@@ -278,7 +278,7 @@ for (const phase of ['blob-write', 'staging-remove', 'file-put', 'intent-put'] a
       const created = binding.createIntent({ request, receiver: RECEIVER, binding: BINDING });
       assert.equal(created.status, 'granted');
       if (created.status !== 'granted') throw new Error('expected actual SQLite grant');
-      assert.equal(binding.append(created.intentId, RECEIVER, PDF_BYTES).status, 'appended');
+      assert.equal(binding.append(created.intentId, RECEIVER, PDF_BYTES, 0).status, 'appended');
       assert.equal(binding.complete(created.intentId, RECEIVER).status, 'completed');
       const original = store.intents.get(created.intentId)!;
       assert.equal(original.state, 'complete');
@@ -384,7 +384,7 @@ it('refuses persisted SQLite replay timestamp and publication-claim corruption w
     const created = binding.createIntent({ request, receiver: RECEIVER, binding: BINDING });
     assert.equal(created.status, 'granted');
     if (created.status !== 'granted') throw new Error('expected SQLite grant');
-    assert.equal(binding.append(created.intentId, RECEIVER, PDF_BYTES).status, 'appended');
+    assert.equal(binding.append(created.intentId, RECEIVER, PDF_BYTES, 0).status, 'appended');
     assert.equal(binding.complete(created.intentId, RECEIVER).status, 'completed');
     const input = { intentId: created.intentId, retryId: request.upload_id,
       bytesDigest: sha256Hex(PDF_BYTES), caller: RECEIVER };
