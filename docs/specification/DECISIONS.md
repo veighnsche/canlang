@@ -5716,3 +5716,25 @@ Six new/eight actual async attempts pass; full affected Node result is76/78, wit
 ### 2026-10-10 — retain closed dispatch guard evidence (unfinished preclaim join)
 
 Factor the existing Work actual guard phase into runDispatchGuardPhase, preserving private frozen inputs/current snapshot/original intent/checkpoint and finally-closing execution. Its frozen result retains one private bounded, strict-Bool evidence consumer; repeated/concurrent consumption poisons the original and cannot replay source. attemptDispatchAsync consumes it before its unchanged false/authority/claim order; synchronous/default paths remain unchanged. Work clean emission and affected async/fence plus new transfer controls pass23/23 (66.69ms). This finite producer is unfinished until State original-stage commit enrollment and Work eligible-command/native adoption. The three balanced preclaim JEV requests are prepared adjacent; automatic approval review rejected egress to api.typesafe.ai because exact destination/repository-context approval is required, despite general preauthorization. No responses exist; exact human approval question is pending. The complete architecture choice remains proposed. No pushes or whole workflow acceptance.
+
+
+### Compiler emitter borrowing, 2026-10-10 — implemented, final qualification pending
+
+Use borrowed iteration for read-only whole-program emitter passes. The actual
+scenario3000 native crash trace identifies unnecessary recursive IR clones in
+identity emission; borrowing preserves expression/output order and source gates
+without changing stack limits. Codegen121 passes; owning flat/native and current
+whole qualification remain required.
+
+
+### Query decision correspondence, 2026-10-10 — implemented, runtime activation withheld
+
+Join actual Query/collection facts by typed equality to the immutable checker and
+compare complete fresh IR before retaining optional decision sites. External
+predicates require the exact selected any/all slot and lexical alias; preserve
+source call chains and existing async/unsupported refusals. Unsupported query or
+predicate operands keep their own refusal rather than a secondary correspondence
+error. Owning decision7 and original flat6/order2/schedule2/disclosure18 pass;
+strict all-target lint/format0. This grants no runtime authority or StateRead
+admission. General reference-array loops need the defining ordered-domain and
+zero/conditional coverage contract, not fabricated static dependency evidence.
