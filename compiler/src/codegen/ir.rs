@@ -1367,6 +1367,41 @@ pub struct IrMatchArm {
     pub span: Span,
 }
 
+/// A checked production call operand and its owning declarations. Symbol IDs
+/// index `IrProgram.items`, retaining owner-derived input/result schemas.
+#[derive(Debug, Clone)]
+pub enum IrEffectCallTarget {
+    Operation {
+        /// A static declaration reference has no executable value operand.
+        source: Span,
+        operation: SymbolId,
+    },
+    Invocation {
+        operand: TypedExpr,
+        targets: Vec<SymbolId>,
+    },
+    Action {
+        operand: TypedExpr,
+        targets: Vec<SymbolId>,
+    },
+}
+
+impl IrEffectCallTarget {
+    pub fn operand(&self) -> Option<&TypedExpr> {
+        match self {
+            Self::Operation { .. } => None,
+            Self::Invocation { operand, .. } | Self::Action { operand, .. } => Some(operand),
+        }
+    }
+
+    pub fn operations(&self) -> &[SymbolId] {
+        match self {
+            Self::Operation { operation, .. } => std::slice::from_ref(operation),
+            Self::Invocation { targets, .. } | Self::Action { targets, .. } => targets,
+        }
+    }
+}
+
 /// Checked effect/handler statements in source order.
 // Statement payloads stay inline in the once-built IR; changing their public
 // representation solely for variant size would add allocations, as with IrStep.
@@ -1409,12 +1444,15 @@ pub enum IrStmt {
         mode: IrDeleteMode,
         span: Span,
     },
-    /// `call operation {...}`. Cross-operation canonical invocation has no
-    /// §13 lowering; the JS stage raises `E6008` naming the operation.
+    /// `call target {...}`. Preserve the actual checked operand and its
+    /// declaring operations; execution awaits the owner transaction consumer.
     Call {
-        operation: String,
+        target: IrEffectCallTarget,
         inputs: TypedExpr,
         binding: Option<String>,
+        /// Checked statement result, including opaque heterogeneous results.
+        /// `None` means void; target declarations own their schemas.
+        result: Option<ResolvedType>,
         span: Span,
     },
     /// `emit Event {...}` → `emit(c, identity, payload)`.
@@ -4796,16 +4834,7 @@ impl<'a> Cx<'a> {
                 }
             }
             EffectVerb::Delete => self.decode_delete(scope, effect, what, span),
-            EffectVerb::Call => {
-                let operation = self.effect_operation(effect);
-                let inputs = self.effect_args_object(scope, effect);
-                IrStmt::Call {
-                    operation,
-                    inputs,
-                    binding: effect.binding.clone(),
-                    span,
-                }
-            }
+            EffectVerb::Call => self.decode_effect_call(scope, effect, span),
             EffectVerb::Emit => {
                 let event = match &effect.target {
                     Some(crate::analysis::effects::EffectTarget::Event(id)) => self.canonical(*id),
@@ -5260,17 +5289,66 @@ impl<'a> Cx<'a> {
         Ok((operation, None))
     }
 
-    /// Operation identity of a `call` effect (total over targets).
-    fn effect_operation(&self, effect: &crate::analysis::effects::Effect) -> String {
-        match &effect.target {
-            Some(crate::analysis::effects::EffectTarget::Operation(id)) => self.canonical(*id),
-            Some(crate::analysis::effects::EffectTarget::Action(ids))
-            | Some(crate::analysis::effects::EffectTarget::Invocation(ids)) => ids
-                .iter()
-                .map(|id| self.canonical(*id))
-                .collect::<Vec<_>>()
-                .join(","),
-            _ => String::new(),
+    /// Join the checked operand, possible declaring operations, authored
+    /// arguments and result without replacing dynamic values by spellings.
+    fn decode_effect_call(
+        &mut self,
+        scope: &Scope,
+        effect: &crate::analysis::effects::Effect,
+        span: Span,
+    ) -> IrStmt {
+        use crate::analysis::effects::EffectTarget;
+        let (Some(node), Some(result)) = (
+            effect.target_node,
+            self.program.types.effect_call_results.get(&effect.node),
+        ) else {
+            return unsupported_stmt(
+                "call statement",
+                "checked target or result facts are unavailable",
+                span,
+            );
+        };
+        let result = result.clone();
+        let checked = self.program.types.node_types.get(&node).cloned();
+        let target = match (&effect.target, checked.as_ref()) {
+            (Some(EffectTarget::Operation(operation)), Some(ResolvedType::Operation(checked)))
+                if operation == checked =>
+            {
+                IrEffectCallTarget::Operation {
+                    source: Span::new(node.file, node.start, node.end),
+                    operation: *operation,
+                }
+            }
+            (
+                Some(EffectTarget::Invocation(targets)),
+                Some(ResolvedType::Invocation { targets: checked }),
+            ) if targets == checked && !targets.is_empty() => IrEffectCallTarget::Invocation {
+                operand: self.decode_anchored(scope, &node, "invocation call target"),
+                targets: targets.clone(),
+            },
+            (
+                Some(EffectTarget::Action(targets)),
+                Some(ResolvedType::Action {
+                    targets: checked, ..
+                }),
+            ) if targets == checked && !targets.is_empty() => IrEffectCallTarget::Action {
+                operand: self.decode_anchored(scope, &node, "action call target"),
+                targets: targets.clone(),
+            },
+            _ => {
+                return unsupported_stmt(
+                    "call statement",
+                    "checked operand and declaring targets disagree",
+                    span,
+                );
+            }
+        };
+        IrStmt::Call {
+            target,
+            inputs: self.effect_args_object(scope, effect),
+            binding: effect.binding.clone(),
+            result,
+            span,
         }
     }
 

@@ -5019,3 +5019,26 @@ user recipe; owning compiler target6/6 passes. This supplies the missing source
 prerequisite for Dev's genuine Identity/member journey, not runtime acceptance
 or a change to held BDD3 policy. Reuse unchanged compiler/native results; Dev
 owns current-profile capture and execution, Packages the shared bundle gate.
+
+## 2026-10-10 — retain checked production call operands and declaring schemas
+
+Preserve a static operation's checked symbol/source and a dynamic call's actual
+typed operand separately from its declaration-derived allowed target IDs.
+Those IDs index existing owning parameter/model/result declarations; authored
+inputs retain order and typed shorthand anchors. Publish checked statement
+result/void/opaque facts for `as` binding without inventing compatible results
+for heterogeneous targets. Only an exact checked read-scenario call preserves
+member-path narrowing; potentially mutating or unknown calls still invalidate.
+
+This is the compiler producer for existing Task39, not executable acceptance.
+State owns same-caller admission inside the existing owner session/outer fence;
+Dev owns a source-bound private native facade, once-evaluated values and bounded
+result/dependency correspondence. Keep E6008 until that defining consumer is
+released. Structural InvocationRef data, direct handlers, child contexts and
+nested invocation/receipt/commit cannot replace it. Precise BDD3/Task22 holds
+remain separate; all changes stay local for coordinator review.
+
+Owning invocation target5/5 and existing call controls8/8 pass on the actual
+installed catalog/Node24; unchanged emitter121/121 is reused after the isolated
+read-narrowing correction. Strict all-target lint/format pass. The actual CLI
+still refuses call publication with E6008 and no generic producer decode gap.
