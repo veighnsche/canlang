@@ -161,6 +161,22 @@ export interface FinalizedStorePort {
 }
 
 /**
+ * Bounded storage traversal for retention. Each call reads at most `limit`
+ * records, ordered by immutable id and strictly after the supplied key.
+ * A short page ends this collection at that observation; later sweeps
+ * revisit records inserted before the cursor. This is not a snapshot.
+ * Limits are integers from 1 through 1000; cursors are null or safe stored
+ * ids. Implementations must bound the storage query, not slice `listAll()`.
+ */
+export interface PagedIntentStorePort extends IntentStorePort {
+  listAfter(after: UploadIntentId | null, limit: number): UploadIntentRecord[];
+}
+
+export interface PagedFinalizedStorePort extends FinalizedStorePort {
+  listAfter(after: FinalizedFileRef | null, limit: number): StoredFileRecord[];
+}
+
+/**
  * Receiving-identity resolver. The real binding reads the L6 identity
  * context (S8 join); tests use `TestOnlyFixedPrincipal`. A null result
  * means unauthenticated and every handler fails closed.

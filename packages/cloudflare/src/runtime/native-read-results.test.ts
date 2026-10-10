@@ -91,10 +91,79 @@ interface FixtureModule {
   setReplacementReference(reference: ReturnType<typeof makeRecordRef>): void;
 }
 
-it('encodes read-local nominal reference results and refuses copied, foreign or revoked views without effects', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'can-native-read-codec-'));
-  try {
-    const artifact = declaration(), asm = await assembleModules({ artifact, sourcePath: SOURCE }, {
+function checkedQueryDeclaration(): CompileArtifact {
+  const artifact = declaration(), operation = artifact.operations!.find(op => op.name === `${APP}.facts`)!;
+  const previousOperations = JSON.stringify(artifact.operations);
+  const origin = { path: SOURCE, sha256: sha, module: MODULE };
+  operation.result = { type: `${APP}.Fact[]` as CanTypeId, disclosure: {
+    version: 1, source: origin, queries: [{ id: 'rows', source: origin, model: TASK,
+      order: [{ field: 'title', direction: 'desc' }], limit: null, archived: 'exclude', dependencies: [
+        { id: 'title-control', source: origin, role: 'control', field: 'title', type: 'text' },
+        { id: 'title-data', source: origin, role: 'data', field: 'title', type: 'text' },
+      ] }], returns: [{ id: 'selected', source: origin, dependencies: [],
+      influences: (['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
+        .map(kind => ({ id: kind, kind, queryId: 'rows' })),
+      projection: { kind: 'query-contract-array', queryId: 'rows', source: origin, fields: [
+        { name: 'task', kind: 'reference' }, { name: 'version', kind: 'version' },
+        { name: 'title', kind: 'field', field: 'title' },
+      ] } }],
+  } };
+  const module = artifact.modules[0]!;
+  module.js = module.js.replace(previousOperations, JSON.stringify(artifact.operations));
+  const start = module.js.indexOf('async function read(c,input,wrapper=false){');
+  const end = module.js.indexOf('export function canApp()', start);
+  assert.ok(start >= 0 && end > start, 'the existing declaration-labelled handler is replaced exactly');
+  const body = `let lastContext,lastRows,predicateCalls=0;
+export const queryInspect=()=>({predicateCalls,executions});
+export const lateQuery=()=>executeScenarioReceiptQuery(lastContext,'rows',()=>true);
+export const lateObservation=()=>observeScenarioReceiptQueryDependency(lastContext,'${TASK}',lastRows[0],'title','title-data');
+export const lateSelection=()=>selectScenarioReceiptReturn(lastContext,'selected');
+async function read(c,input){
+ executions++; predicateCalls=0;
+ const predicate=task=>{
+  predicateCalls++;
+  const title=task.title;
+  if(input.mode!=='omitted-marker')observeScenarioReceiptQueryDependency(c,'${TASK}',input.mode==='copied-view'?Object.defineProperties({},Object.getOwnPropertyDescriptors(task)):task,'title',
+   input.mode==='wrong-marker'?'unknown-marker':input.mode==='data-role-predicate'?'title-data':'title-control');
+  if(input.mode==='non-bool-predicate')return 'true';
+  return input.mode!=='empty'&&title!=='excluded';
+ };
+ if(input.mode==='unawaited'){void executeScenarioReceiptQuery(c,'rows',predicate);return [];}
+ let rows;
+ try{rows=await executeScenarioReceiptQuery(c,'rows',predicate);}
+ catch(error){if(['copied-view','wrong-marker','omitted-marker','data-role-predicate','non-bool-predicate'].includes(input.mode))return [];throw error;}
+ if(afterQuery){const callback=afterQuery;afterQuery=undefined;await callback();}
+ const facts=rows.map(task=>{const title=task.title;
+  observeScenarioReceiptQueryDependency(c,'${TASK}',task,'title','title-data');
+  return {task,version:task.version,title};});
+ try{
+  if(input.mode==='reordered-facts')facts.reverse();
+  if(input.mode==='copied-fact-reference')facts[0].task=Object.defineProperties({},Object.getOwnPropertyDescriptors(facts[0].task));
+  if(input.mode==='substituted-fact-reference')facts[0].task=replacementReference;
+  if(input.mode==='contract-accessor')Object.defineProperty(facts[0],'title',{enumerable:true,get(){getterReads++;throw new Error('contract getter must not run');}});
+  if(input.mode==='foreign-view')observeScenarioReceiptQueryDependency(c,'${TASK}',lastRows[0],'title','title-data');
+  bindScenarioReceiptQueryResult(c,input.mode==='wrong-return'?'unknown-return':'selected',input.mode==='copied-array'?[...rows]:rows,facts);
+  selectScenarioReceiptReturn(c,'selected');
+ }catch(error){if(['foreign-view','wrong-return','copied-array','reordered-facts','copied-fact-reference','substituted-fact-reference','contract-accessor'].includes(input.mode))return facts;throw error;}
+ if(input.mode==='changed-result'&&facts[0])facts[0].title='substituted after binding';
+ lastContext=c;lastRows=rows;
+ return facts;
+}
+`;
+  module.js = `import {executeScenarioReceiptQuery,observeScenarioReceiptQueryDependency,bindScenarioReceiptQueryResult,selectScenarioReceiptReturn} from '@canlang/stdlib';\n` +
+    module.js.slice(0, start) + body + module.js.slice(end);
+  return artifact;
+}
+
+interface CheckedQueryModule extends FixtureModule {
+  queryInspect(): { predicateCalls: number; executions: number };
+  lateQuery(): Promise<unknown>;
+  lateObservation(): void;
+  lateSelection(): void;
+}
+
+async function readWorld(artifact: CompileArtifact, dir: string) {
+    const asm = await assembleModules({ artifact, sourcePath: SOURCE }, {
       workDir: dir, stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
     });
     const namespace = await importVerifiedAssemblyModule(asm, MODULE, artifact) as FixtureModule;
@@ -126,6 +195,14 @@ it('encodes read-local nominal reference results and refuses copied, foreign or 
       outbox: probe.outboxAll(), schedules: await physical.schedulesDue(Number.MAX_SAFE_INTEGER, 100),
       membership: await identities.findMembershipById(membership.membership_id),
       user: await identities.findUserById(user.user_id), team: await identities.findTeamById(team.team_id), commits, receiptReads });
+    const invokerFor = (selected: StoragePort) => buildInvoker(artifact, asm, selected, { appId: APP, memberships: identities, now: () => FIXED_NOW });
+    return { artifact, asm, namespace, identities, membership, identity, physical, store, probe, a, b, other, invoker, invokerFor, snapshot };
+}
+
+it('encodes read-local nominal reference results and refuses copied, foreign or revoked views without effects', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'can-native-read-codec-'));
+  try {
+    const { namespace, identities, membership, identity, invoker, snapshot, a, b } = await readWorld(declaration(), dir);
     const before = await snapshot();
     const facts = [b, a].map(row => ({ task: { id: row.id, version: String(row.version) },
       version: String(row.version), title: row.data.title }));
@@ -159,8 +236,133 @@ it('encodes read-local nominal reference results and refuses copied, foreign or 
     const freshRevoked = await invoke('normal'); assert.ok('error' in freshRevoked);
     assert.equal(freshRevoked.error.code, 'forbidden', JSON.stringify(freshRevoked));
     assert.deepEqual(await snapshot(), revokedSnapshot, 'current authorization refusal adds no State/Identity effects');
-    assert.equal(commits, 0, 'fresh reads never enter receipt or mutation commit');
-    assert.equal(receiptReads, 0, 'fresh reads never use mutation receipts');
+    assert.equal((await snapshot()).commits, 0, 'fresh reads never enter receipt or mutation commit');
+    assert.equal((await snapshot()).receiptReads, 0, 'fresh reads never use mutation receipts');
     assert.equal(namespace.inspect().getterReads, 0);
   } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+it('owns checked public query markers and result lifetimes without mutation receipts or effects', { timeout: 15000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'can-public-query-helper-'));
+  let release: (() => void) | undefined;
+  try {
+    const w = await readWorld(checkedQueryDeclaration(), dir);
+    const namespace = w.namespace as CheckedQueryModule;
+    assert.equal(typeof namespace.queryInspect, 'function');
+    const excluded = await seedRow(w.physical, TASK, { id: uuidv7(FIXED_NOW, 804), data: { title: 'excluded' } });
+    const before = await w.snapshot(), excludedHistory = w.probe.historyFor(TASK, excluded.id);
+    const expected = [w.b, w.a].map(row => ({ task: { id: row.id, version: String(row.version) },
+      version: String(row.version), title: row.data.title }));
+    const request = (mode: string) => ({ operation: `${APP}.facts`, inputs: { mode } });
+    const unchanged = async () => {
+      assert.deepEqual(await w.snapshot(), before);
+      assert.deepEqual(w.probe.historyFor(TASK, excluded.id), excludedHistory);
+    };
+    // The false candidate remains in the source-observation domain. Neither
+    // final authorization nor result conversion may replay its predicate.
+    for (const mode of ['normal', 'empty', 'normal']) {
+      const calls = namespace.queryInspect().executions;
+      assert.deepEqual(await w.invoker.invokeRead(request(mode), w.identity), {
+        result: { result: mode === 'empty' ? [] : expected, revision: before.revision },
+      });
+      assert.deepEqual(namespace.queryInspect(), { predicateCalls: 3, executions: calls + 1 });
+      await unchanged();
+    }
+    for (const late of [() => namespace.lateQuery(), () => Promise.resolve().then(() => namespace.lateObservation()),
+      () => Promise.resolve().then(() => namespace.lateSelection())]) {
+      await assert.rejects(late, /closed|active|frame|context/i, 'the actual returned public context is closed');
+      await unchanged();
+    }
+    for (const mode of ['copied-view', 'copied-array', 'wrong-marker', 'omitted-marker', 'data-role-predicate',
+      'non-bool-predicate', 'wrong-return', 'foreign-view', 'changed-result', 'reordered-facts',
+      'copied-fact-reference', 'substituted-fact-reference', 'contract-accessor']) {
+      const calls = namespace.queryInspect().executions;
+      const outcome = await w.invoker.invokeRead(request(mode), w.identity);
+      assert.ok('error' in outcome, `${mode} cannot convert a caught or changed query result into success`);
+      assert.equal(outcome.error.code, 'validation', mode);
+      assert.equal(Object.hasOwn(outcome.error, 'operation_id'), false);
+      assert.equal(namespace.queryInspect().executions, calls + 1, 'exact handler executes once');
+      assert.ok(namespace.queryInspect().predicateCalls <= 3, 'source candidates never replay after failure');
+      assert.equal(namespace.inspect().getterReads, 0, `${mode} refuses without evaluating untrusted getters`);
+      await unchanged();
+    }
+    let entered!: () => void;
+    const loading = new Promise<void>(resolve => { entered = resolve; });
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    let pendingQueries = 0;
+    const gated: StoragePort = { ...w.store, query: async query => {
+      if (query.model === TASK) { pendingQueries++; entered(); await waiting; }
+      return w.physical.query(query);
+    } };
+    const invocation = w.invokerFor(gated).invokeRead(request('unawaited'), w.identity);
+    // The gate wraps the viewer reader's actual physical query.
+    await Promise.race([loading, invocation.then(() => {
+      throw new Error('unawaited control must reach the actual gated physical query before its public refusal');
+    })]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const outcome = await Promise.race([invocation, new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('unawaited public query failed to refuse while its real load was pending')), 2000);
+      })]);
+      assert.ok('error' in outcome); assert.equal(outcome.error.code, 'validation');
+      assert.equal(Object.hasOwn(outcome.error, 'operation_id'), false);
+      assert.equal(pendingQueries, 1, 'one detached actual query, without another source execution');
+    } finally { if (timer !== undefined) clearTimeout(timer); release?.(); }
+    await new Promise<void>(resolve => { setImmediate(resolve); });
+    await unchanged();
+    let domainQueries = 0, finalFences = 0, caughtFinalFailure: unknown;
+    const finalFence: StoragePort = { ...w.store,
+      query: async query => {
+        const rows = await w.physical.query(query);
+        if (query.model === TASK) domainQueries++;
+        return rows;
+      },
+      readRevision: async () => {
+        const revision = await w.store.readRevision();
+        // The second physical query is the current-grant re-admission of the
+        // full original domain. Its first fence belongs to that reader; the
+        // next is the public callback's final awaited disclosure fence.
+        if (domainQueries === 2 && ++finalFences === 2) {
+          try { namespace.lateSelection(); } catch (error) { caughtFinalFailure = error; }
+        }
+        return revision;
+      },
+    };
+    const finalCalls = namespace.queryInspect().executions;
+    const finalRefusal = await w.invokerFor(finalFence).invokeRead(request('normal'), w.identity);
+    assert.equal(domainQueries, 2, 'one source query and one current-grant domain re-admission');
+    assert.equal(finalFences, 2, 'caught helper failure occurs during the actual final awaited fence');
+    assert.ok(caughtFinalFailure instanceof Error);
+    assert.match(caughtFinalFailure.message, /completed exact binding/);
+    assert.ok('error' in finalRefusal, 'a caught final-fence helper failure stays terminal');
+    assert.equal(finalRefusal.error.code, 'validation');
+    assert.equal(Object.hasOwn(finalRefusal.error, 'operation_id'), false);
+    assert.deepEqual(namespace.queryInspect(), { predicateCalls: 3, executions: finalCalls + 1 });
+    await unchanged();
+    let revokedSnapshot: Awaited<ReturnType<typeof w.snapshot>> | undefined;
+    namespace.setAfterQuery(async () => {
+      await w.identities.removeMembership(w.membership.membership_id);
+      revokedSnapshot = await w.snapshot();
+    });
+    const calls = namespace.queryInspect().executions;
+    const revoked = await w.invoker.invokeRead(request('normal'), w.identity);
+    assert.ok('error' in revoked, 'membership revoked after the actual query cannot disclose its selected facts');
+    // The predicate's full domain is re-admitted without its original order
+    // or limit. Lost grants change that domain before any facts are disclosed.
+    assert.equal(revoked.error.code, 'forbidden', JSON.stringify(revoked));
+    assert.equal(revoked.error.message, 'Record read authority changed during the read scenario.');
+    assert.equal(Object.hasOwn(revoked.error, 'operation_id'), false);
+    assert.deepEqual(namespace.queryInspect(), { predicateCalls: 3, executions: calls + 1 });
+    assert.ok(revokedSnapshot);
+    assert.deepEqual(await w.snapshot(), revokedSnapshot);
+    assert.deepEqual(w.probe.historyFor(TASK, excluded.id), excludedHistory);
+    const freshRevoked = await w.invoker.invokeRead(request('normal'), w.identity);
+    assert.ok('error' in freshRevoked); assert.equal(freshRevoked.error.code, 'forbidden');
+    assert.equal(Object.hasOwn(freshRevoked.error, 'operation_id'), false);
+    assert.equal(namespace.queryInspect().executions, calls + 1, 'fresh denied admission never executes the handler');
+    assert.deepEqual(await w.snapshot(), revokedSnapshot);
+    assert.deepEqual(w.probe.historyFor(TASK, excluded.id), excludedHistory);
+    assert.equal(namespace.inspect().getterReads, 0);
+    assert.equal((await w.snapshot()).commits, 0); assert.equal((await w.snapshot()).receiptReads, 0);
+  } finally { release?.(); await rm(dir, { recursive: true, force: true }); }
 });

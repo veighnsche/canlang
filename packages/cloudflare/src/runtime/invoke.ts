@@ -112,7 +112,8 @@ import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
 import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite } from '@canlang/state/invocation';
-import { openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
+import { stableStringify } from '@canlang/state/invocation';
+import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -1247,6 +1248,7 @@ interface StateInvokeProducer {
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
   readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
   readonly bindScenarioReceiptQueryProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer;
+  readonly projectReadScenarioQueryResult?: typeof import('@canlang/state/invocation').projectReadScenarioQueryResult;
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
@@ -1576,6 +1578,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['bindScenarioReceiptQueryProducer'] !== 'function' ? {} : {
         bindScenarioReceiptQueryProducer: scenarioMod['bindScenarioReceiptQueryProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptQueryProducer']>,
+      }),
+      ...(typeof scenarioMod['projectReadScenarioQueryResult'] !== 'function' ? {} : {
+        projectReadScenarioQueryResult: scenarioMod['projectReadScenarioQueryResult'] as NonNullable<StateInvokeProducer['projectReadScenarioQueryResult']>,
       }),
       ...(typeof scenarioMod['bindScenarioReceiptCallProducer'] !== 'function' ? {} : {
         bindScenarioReceiptCallProducer: scenarioMod['bindScenarioReceiptCallProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptCallProducer']>,
@@ -3981,11 +3986,13 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
 /** Native query fields read the literal State candidate carrier only when
  * authored source evaluates them. Enumeration never hydrates protected data. */
 function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row: ProjectedRecord,
-  read: (field: string) => void, current: () => ProjectedRecord): Readonly<Record<string, unknown>> {
+  read: (field: string) => void, current: () => ProjectedRecord, decoded?: (value: unknown) => void): Readonly<Record<string, unknown>> {
   const view: Record<string, unknown> = Object.create(null);
   for (const field of Object.keys(row.data)) Object.defineProperty(view, field, { enumerable: true, get: () => {
     read(field);
-    return nativeRecordField(loaded, model, field, current().data[field]);
+    const value = nativeRecordField(loaded, model, field, current().data[field]);
+    decoded?.(value);
+    return value;
   } });
   Object.assign(view, nativeRecordMetadata(row));
   bindNativeRecord(view, model, row.id, row.version);
@@ -7031,7 +7038,8 @@ async function runReadScenarioSeam(
     }
     return view;
   };
-  const readModel = async (model: string, query: CanonicalReadQuery, dependencies?: ProjectedRecord[]): Promise<CanonicalReadServed> => {
+  const readModel = async (model: string, query: CanonicalReadQuery, dependencies?: ProjectedRecord[],
+    nativePredicate?: (record: ProjectedRecord) => Promise<boolean>): Promise<CanonicalReadServed> => {
     if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
     if (Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
         (query.authority !== undefined && query.authority !== 'viewer') ||
@@ -7071,14 +7079,15 @@ async function runReadScenarioSeam(
       throw new StateError('validation', 'Read scenario limit requires a non-negative safe integer.');
     }
     const selection: CanonicalReadSelection = {
-      ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
+      ...(typeof where === 'function' || nativePredicate !== undefined || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
         if (parentBinding !== undefined && (row.parent?.model !== parentBinding.model || row.parent.id !== parentBinding.id)) return false;
-        if (typeof where !== 'function') return true;
+        if (typeof where !== 'function' && nativePredicate === undefined) return true;
         // Retain every granted observation before source runs, including false
         // candidates. Nested source reads retain their own domains below.
         dependencies?.push(structuredClone(row));
         await navigation.prepare(model, row);
-        const matched = await where(recordView(model, row));
+        const matched = nativePredicate !== undefined ? await nativePredicate(row)
+          : typeof where === 'function' ? await where(recordView(model, row)) : true;
         if (typeof matched !== 'boolean') throw new StateError('validation', 'Read scenario predicates must return bool.');
         return matched;
       } } : {}),
@@ -7183,48 +7192,82 @@ async function runReadScenarioSeam(
   for (const ref of call.recordRefs) await navigation.prepare(ref.model, ref.row);
   const parameters = scenarioParameters(call, loaded,
     recordView, Object.create(null) as Record<string, unknown>);
-  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
-  if (!outcome.ok) {
-    const recorded = typeof outcome.error === 'string' ? navigationFailures.get(outcome.error) : undefined;
-    if (recorded !== undefined) throw recorded;
-    throw new StateError('rule_failed', outcome.error ?? 'The read operation was rejected.');
+  const queryPlan = call.def.descriptor.result?.disclosure;
+  const projector = loaded.producers.invoke.projectReadScenarioQueryResult;
+  if ((queryPlan?.queries?.length ?? 0) > 0 && projector === undefined) {
+    throw new StateError('validation', 'Checked public queries require their installed owning result projector.');
   }
-  // A granted link permits identity comparison; returning the target also
-  // requires its current viewer admission and exact-row projection.
-  const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs,
-    navigation.authorizeReference, navigation.resolveRecord);
-  await navigation.revalidate();
-  // Re-admit each original domain with current grants and the same state fence.
-  // Source callbacks never run again: their complete observed domain includes
-  // false candidates and each independently retained nested or empty read.
-  const capturedReadings = [...readings];
+  const queryFrame = (queryPlan?.queries?.length ?? 0) === 0 ? undefined : openReadScenarioQueryFrame(ctx, call.def, {
+    record: (model, row, read, current) => {
+      const view = nativeScenarioQueryRecord(loaded, model, row, read, current, value => {
+        for (const reference of Array.isArray(value) ? value : [value]) if (isRecordRef(reference)) decodedRefs.add(reference);
+      });
+      views.set(view, { model, id: row.id, version: row.version });
+      return view;
+    },
+    encode: value => scenarioResult(call, loaded, value),
+  }, async (plan, predicate) => {
+    const query: CanonicalReadQuery = { authority: 'viewer', archived: plan.archived,
+      ...(plan.order.length === 0 ? {} : { order: plan.order.map(term => `${term.direction === 'desc' ? '-' : ''}${term.field}`) }),
+      ...(plan.limit === null ? {} : { limit: plan.limit }) };
+    const dependencies: ProjectedRecord[] = [];
+    const served = await readModel(plan.model, query, dependencies, predicate);
+    readings.push({ model: plan.model, query, sourcePredicate: true, projection: dependencyProjection(dependencies) });
+    return served.records;
+  }, (queryId, returnId, selected) => projector!(call.def, queryId, returnId, selected), error => {
+    if (error instanceof Error) navigationFailures.set(error.message, error);
+  });
   try {
-    for (const reading of capturedReadings) {
-      activeViews = new WeakMap(); activeDecodedRefs = new WeakSet();
-      let query = reading.query;
-      if (reading.sourcePredicate) {
-        // The authored limit applies after its predicate. Applying that limit
-        // or order to the unfiltered dependency domain changes its meaning.
-        const { where: _where, limit: _limit, order: _order, ...domain } = query;
-        query = domain;
+    const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
+    queryFrame?.assertCompleted();
+    if (!outcome.ok) {
+      const recorded = typeof outcome.error === 'string' ? navigationFailures.get(outcome.error) : undefined;
+      if (recorded !== undefined) throw recorded;
+      throw new StateError('rule_failed', outcome.error ?? 'The read operation was rejected.');
+    }
+    // A granted link permits identity comparison; returning the target also
+    // requires its current viewer admission and exact-row projection.
+    const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs,
+      navigation.authorizeReference, navigation.resolveRecord);
+    if (queryFrame !== undefined && stableStringify(queryFrame.result(outcome.value)) !== stableStringify(result)) {
+      throw new StateError('validation', 'Public query codec differs from its original bound projection.');
+    }
+    await navigation.revalidate();
+    // Re-admit each original domain with current grants and the same state fence.
+    // Source callbacks never run again: their complete observed domain includes
+    // false candidates and each independently retained nested or empty read.
+    const capturedReadings = [...readings];
+    try {
+      for (const reading of capturedReadings) {
+        activeViews = new WeakMap(); activeDecodedRefs = new WeakSet();
+        let query = reading.query;
+        if (reading.sourcePredicate) {
+          // The authored limit applies after its predicate. Applying that limit
+          // or order to the unfiltered dependency domain changes its meaning.
+          const { where: _where, limit: _limit, order: _order, ...domain } = query;
+          query = domain;
+        }
+        const fresh = (await readModel(reading.model, query)).records;
+        const projection = reading.sourcePredicate ? dependencyProjection(fresh) : JSON.stringify(fresh);
+        if (projection !== reading.projection) {
+          throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+        }
       }
-      const fresh = (await readModel(reading.model, query)).records;
-      const projection = reading.sourcePredicate ? dependencyProjection(fresh) : JSON.stringify(fresh);
-      if (projection !== reading.projection) {
-        throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+    } finally {
+      activeViews = views; activeDecodedRefs = decodedRefs;
+    }
+    // Re-resolve selected leaf grants as well as record projections before disclosure.
+    for (const reading of receiptReads) {
+      const fresh = await observeReceipt(reading.binding, reading.field, reading.selected);
+      if (JSON.stringify(fresh) !== reading.observation) {
+        throw new StateError('forbidden', 'Delivery read authority changed during the read scenario.');
       }
     }
-  } finally {
-    activeViews = views; activeDecodedRefs = decodedRefs;
-  }
-  // Re-resolve selected leaf grants as well as record projections before disclosure.
-  for (const reading of receiptReads) {
-    const fresh = await observeReceipt(reading.binding, reading.field, reading.selected);
-    if (JSON.stringify(fresh) !== reading.observation) {
-      throw new StateError('forbidden', 'Delivery read authority changed during the read scenario.');
-    }
-  }
-  return result;
+    if (await opts.store.readRevision() !== call.revision) throw new StateError('conflict', 'State changed before read scenario disclosure.');
+    queryFrame?.assertCompleted();
+    queryFrame?.result(outcome.value);
+    return result;
+  } finally { queryFrame?.close(); }
 }
 
 export async function invokeReadCanonical(
