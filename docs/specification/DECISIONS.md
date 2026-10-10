@@ -6447,3 +6447,13 @@ Offline frozen install and dependency/Cloudflare22/22 build pass. Owning validat
 ### 2026-10-10 — manual local integration of 806679e3
 
 Manually review the exact portable Files digest and genuine exported finalizer closure, preserving canonical private observation identity and meaningful installed refusals. Reuse owning digest13, bundle2, dependency build22 and installed223-module workerd qualification; no repeated checks or full native typed-File acceptance. Defining State/Compiler/Dev consumers and precise native/publication holds remain separate. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — forward owning file observation through Interfaces
+
+Extend the existing full FileJourney binding with required observeFile(ref,caller,retention) and revalidateFile(savedunknown,caller,retention). Forward original arguments, method receiver and sync/async outcomes/errors; retain upfront named missing/nonfunction refusals. The core FileKernel remains unchanged. Shared opaque observation/retention types come from Contracts; the adapter authenticates no shape and duplicates no expiration, digest or assignment policy.
+
+Interfaces emission and owning15/15 cases pass, including exact transport identity, original method-this, thrown/rejected errors and existing core/refusal behavior. A direct actual SQLite intent/append/complete/finalize journey through the public adapter and genuine Files extractor passes private handle/JSON revalidation and copied/foreign/tampered/unswept-expiry refusals without metadata mutation. Cloudflare noEmit passes. Existing boundary and Files/portable Worker results reused because runtime ownership/dependencies are unchanged. Dev still owns real canonical binding/staged assignment/current-auth/replay adoption, State admitted-frame/final-write association and Compiler checked source. Coherent local prerequisite only; full typedFile and precise native/publication holds remain unfinished.
+
+### 2026-10-10 — manual local integration of bf58c8de
+
+Manually review only the leased FileJourney kernel and direct tests. Forward genuine opaque observations and retained revalidation with original method receiver, exact arguments and errors; missing seams refuse and core FileKernel is unchanged. Reuse owner15 checks, actual SQLite producer journey and Cloudflare noEmit. Dev owns the actual staged native consumer; this adapter establishes no whole typed-File acceptance or release of held native preparation. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

@@ -2,15 +2,18 @@
  * J6 kernel-binding tests: the real-L4 adapter (`uploads/kernel.ts`)
  * passes outcomes through verbatim, accepts sync-or-async entry points,
  * and fails loud naming the first unmet seam. The scripted bindings are
- * L4-shaped plain functions (structural injection — this package cannot
- * import `@canlang/files`); the real kernel behind the real routes is
- * proven by the worker-assembly journey suite.
+ * L4-shaped plain functions supplied through the structural binding table;
+ * these tests establish transport, not Files observation authenticity.
+ * The real kernel behind the real routes is proven by the worker-assembly
+ * journey suite.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
   ContentCheck,
   FinalizedFile,
+  FinalizedFileObservation,
+  FileRetentionPolicy,
   UploadIntentGrant,
   UploadIntentRequest,
 } from '@canlang/contracts';
@@ -37,6 +40,8 @@ const RECEIVER: UploadReceiver = {
   owner: 't-1',
   principal: 'u-1',
 };
+
+const RETENTION: FileRetentionPolicy = { unattachedHorizonMs: 60_000, retentionMs: 3600_000 };
 
 const BINDING: UploadBinding = {
   adapter: 'bridge-v1',
@@ -104,6 +109,8 @@ function journeyBindings(overrides: Partial<FileJourneyBindings> = {}): FileJour
     authorizeAttach: () => ({ status: 'authorized', ref: 'file-1' }),
     recordAttachment: () => ({ status: 'attached', ref: 'file-1' }),
     readBytes: () => new Uint8Array([1, 2, 3, 4]),
+    observeFile: () => null,
+    revalidateFile: () => false,
     ...overrides,
   };
 }
@@ -195,6 +202,8 @@ test('kernel methods are async even over sync L4 functions', async () => {
   const journey = createFileJourneyKernel(journeyBindings());
   assert.ok((journey.readProvenance('file-1', RECEIVER) as unknown) instanceof Promise);
   assert.ok((journey.readBytes('file-1', RECEIVER) as unknown) instanceof Promise);
+  assert.ok(journey.observeFile('file-1', RECEIVER, RETENTION) instanceof Promise);
+  assert.ok(journey.revalidateFile({}, RECEIVER, RETENTION) instanceof Promise);
 });
 
 /* ------------------------------------------------------------------ */
@@ -263,12 +272,77 @@ test('journey kernel passes fail-closed nulls through without substituting bytes
     reason: 'foreign',
   });
   assert.equal(await kernel.readBytes('file-9', RECEIVER), null);
+  assert.equal(await kernel.observeFile('file-9', RECEIVER, RETENTION), null);
+  assert.equal(await kernel.revalidateFile({}, RECEIVER, RETENTION), false);
 });
 
+for (const mode of ['sync', 'async'] as const) {
+  test(`journey ${mode} file observation methods preserve arguments, binding receiver and opaque outcomes`, async () => {
+    // An adapter-only sentinel: the cast supplies no genuine Files provenance.
+    const sentinel = Object.freeze({ transportSentinel: true }) as unknown as FinalizedFileObservation;
+    const saved = Object.freeze({ transportSavedSentinel: true });
+    let observation: FinalizedFileObservation | null = sentinel;
+    let revalidation = true;
+    const calls: string[] = [];
+    const bindings = journeyBindings({
+      observeFile(ref, caller, retention) {
+        assert.equal(this, bindings);
+        assert.equal(ref, 'file-1');
+        assert.equal(caller, RECEIVER);
+        assert.equal(retention, RETENTION);
+        calls.push('observe');
+        return mode === 'async' ? Promise.resolve(observation) : observation;
+      },
+      revalidateFile(value, caller, retention) {
+        assert.equal(this, bindings);
+        assert.equal(value, saved);
+        assert.equal(caller, RECEIVER);
+        assert.equal(retention, RETENTION);
+        calls.push('revalidate');
+        return mode === 'async' ? Promise.resolve(revalidation) : revalidation;
+      },
+    });
+    const kernel = createFileJourneyKernel(bindings);
+    assert.equal(await kernel.observeFile('file-1', RECEIVER, RETENTION), sentinel);
+    assert.equal(await kernel.revalidateFile(saved, RECEIVER, RETENTION), true);
+    observation = null;
+    revalidation = false;
+    assert.equal(await kernel.observeFile('file-1', RECEIVER, RETENTION), null);
+    assert.equal(await kernel.revalidateFile(saved, RECEIVER, RETENTION), false);
+    assert.deepEqual(calls, ['observe', 'revalidate', 'observe', 'revalidate']);
+  });
+
+  test(`journey file observation methods preserve ${mode === 'sync' ? 'thrown' : 'rejected'} error identity as Promise rejection`, async () => {
+    const observeError = new Error(`${mode} observe failure`);
+    const revalidateError = new Error(`${mode} revalidate failure`);
+    const kernel = createFileJourneyKernel(journeyBindings({
+      observeFile() {
+        if (mode === 'async') return Promise.reject(observeError);
+        throw observeError;
+      },
+      revalidateFile() {
+        if (mode === 'async') return Promise.reject(revalidateError);
+        throw revalidateError;
+      },
+    }));
+    const observation = kernel.observeFile('file-1', RECEIVER, RETENTION);
+    assert.ok(observation instanceof Promise);
+    await assert.rejects(observation, error => error === observeError);
+    const revalidation = kernel.revalidateFile({}, RECEIVER, RETENTION);
+    assert.ok(revalidation instanceof Promise);
+    await assert.rejects(revalidation, error => error === revalidateError);
+  });
+}
+
 test('journey kernel throws naming each unbound journey seam', () => {
-  for (const seam of ['readProvenance', 'authorizeAttach', 'recordAttachment', 'readBytes'] as const) {
-    const bindings = { ...journeyBindings(), [seam]: undefined };
-    assert.throws(() => createFileJourneyKernel(bindings), new RegExp(`'${seam}' is not bound`), seam);
+  for (const seam of ['readProvenance', 'authorizeAttach', 'recordAttachment', 'readBytes', 'observeFile', 'revalidateFile'] as const) {
+    const missing: Record<string, unknown> = { ...journeyBindings() };
+    delete missing[seam];
+    assert.throws(() => createFileJourneyKernel(missing), new RegExp(`'${seam}' is not bound`), seam);
+    for (const value of [undefined, null, 42, {}]) {
+      const bindings = { ...journeyBindings(), [seam]: value };
+      assert.throws(() => createFileJourneyKernel(bindings), new RegExp(`'${seam}' is not bound`), seam);
+    }
   }
 });
 
