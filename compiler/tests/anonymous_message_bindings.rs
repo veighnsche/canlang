@@ -592,9 +592,11 @@ fn invalid_destination_buttons_and_stat_descriptions_refuse() {
         ),
         ("  button \"Header\" target=\"/\"\n", "E6008"),
         ("  button target=\"/\"\n   text \"Body\"\n", "E6008"),
+        ("  button target=app_url(1) caption=\"Button\"\n", "E3005"),
+        ("  button target=app_url() caption=\"Button\"\n", "E3005"),
         (
-            "  button target=app_url(\"/\") caption=\"Button\"\n",
-            "E6008",
+            "  button target=app_url(mutate()) caption=\"Button\"\n",
+            "E3005",
         ),
         ("  button submit=true caption=\"Button\"\n", "E6008"),
         ("  stat 1 description=1\n", "E3001"),

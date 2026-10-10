@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T22:31:40Z",
+  "updated_utc": "2026-10-10T23:16:43Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -100,10 +100,10 @@
     "reused_results": "Unchanged strict all-target Clippy/format and editor/client/LSP qualification; current whole includes actual compiler corpus/LSP/completion/native tests."
   },
   "latest_component": {
-    "base_commit": "565217532942425fb49d3e902b5453a520fa7343",
-    "state": "original_contextual_fixture_and_native_abi_witnesses_qualified_whole_unfinished",
-    "record": "hook_context_scope_hook_order_rollback_runtime_js_binding_runtime",
-    "outcome": "Expose one permanent original full contextual source fixture, byte-identical to the qualified runtime case (SHA2564c4ebefea8e03bd50f59c471608ca534a6ed0ba6d21ad8f3c377b061951970f7), and use it in existing full/core Rust native cases. Actual CLI artifact is compiler/target/hook-context-artifact.json with the original owning catalog; no independently reconstructed Dev source needed. Original four native success/rejection/full/core cases4/4 pass1.42s. Current whole uncovered two outdated context-refusal tests and an obsolete two-argument/absent-after ABI host witness; update them to assert bounded native context/callable/policy/staging, preserving every exact nongrant/foreign/disabled/source-token/unsupported-whole refusal and readonly after metadata. Corrected hook_context_scope2/2 .55s, owning legal bindings1/1 1.32s; unchanged sibling2 pass reused. Production unchanged from565; whole passed prefix reused and remaining current checks/strict lint due. Portable original full-context Dev workflow remains unfinished;58/67/nine and precise holds unchanged."
+    "base_commit": "3d90c8d44c9a36e12425f2de4fcb983e1efd3ca6",
+    "state": "app_url_source_and_native_helper_consumer_qualified_remaining_validation_unfinished",
+    "record": "anonymous_message_bindings/codegen",
+    "outcome": "Selected app_url builtin lowering now passes the original host context before authored arguments; button target alone admits validated Url strings. Exact reviewed Packagesdd688 helper/carrier consumed through safe FF3d90, with zero incoming compiler delta and preserved edits. Actual original CLI/native CF stdlib/UI fixture passes configured deployment base+mount, URL/caption escaping, source order/once/gates/first failure, absent-config refusal despite request/poll/auth hints and Values invalid paths. Closed builtin redeclaration remains E2002/no artifact. Owning bindings9 pass (unchanged sibling8 plus corrected native1/1 1.17s); fmt/diff0. Owner dependency graph22/22 uncached23.969s; actual unchanged effectful completion consumer1/1 52802.09ms, zero skips. Prior565/445 strict all-target Clippy0 in1m15s; changed app_url codegen/unrun whole/strict remain in progress. Public terminal E6008 remains pending own late staged-write rollback; File targets and Dev actual installed/preview/deployment/mounted HTTP flows remain separate.58/67/nine and BDD3/S9Q07/Task22/T11 holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -158,7 +158,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Destination source/native145 and original full/core hook workflows pass. Permanent byte-identical full context fixture connects the actual CLI/catalog to Dev portable capture. Current whole prefix1033 passed; outdated hook-context refusals and incomplete ABI host harness are corrected, only failed/unrun checks and strict lint continue. Packages explicit host-only deploymentBase + Values-backed app_url(c,path) proposal unlocks the next Compiler Url lowering using exact reviewed dd688cfe carrier/helper released in local main0c05102d, with actual configured Dev host adoption still due; no request/auth origin fallback. Reviewed native File retirement/race/reopen and original effectful completion consumer are integrated at their finite scopes; portable full contextual workflow is now finite native-qualified at a0c32979, while opaque receiving remains Dev-owned;58/67/nine and precise holds remain.",
+  "current_source_work": "Destination source/native145 and original full/core hook workflows pass. Permanent byte-identical full context fixture connects the actual CLI/catalog to Dev portable capture. Current whole prefix1033 passed; outdated hook-context refusals and incomplete ABI host harness are corrected, only failed/unrun checks and strict lint continue. Reviewed f8fb77fa selected builtin lowering now passes the host context before unchanged ordered arguments and button-only validated Url targets consume the exact dd688cfe carrier/helper. Actual native configured-base/mount helper assertions pass; Dev configured host adoption and complete mounted HTTP serving remain due, with no request/auth origin fallback. Reviewed native File retirement/race/reopen and original effectful completion consumer are integrated at their finite scopes; portable full contextual workflow is now finite native-qualified at a0c32979, while opaque receiving remains Dev-owned;58/67/nine and precise holds remain.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -835,7 +835,12 @@
   "destination_button": {
     "state": "string_destination_and_message_caption_native_factory_qualified",
     "outcome": "Saved destination-button source now resolves and checks target/caption in genuine lexical scope, retaining typed selected/member facts, message descriptor bindings, purity and enclosing gates. String targets connect unchanged CLI modules to actual UI button factory. Native positive covers localized bare/named/derived/anonymous captions, escaping, authored once-only property order, gated nonevaluation and first-failure identity. Unknown/wrong-type/effectful/partial/mixed-binding/body/header/unsupported attributes refuse; accepted Url/File types remain valid analysis but emission requires its defining native profile. Owning bindings9/codegen121/selected7/UI8=145 pass (2.33/0.57/0.33/0.18s), fmt/diff0. Whole compiler suite and changed strict lint are in progress, not yet qualified. No action/opens/submit/full application or58/67 credit.",
-    "remaining": "Reviewed Packagesdd688cfe releases explicit host-only deploymentBase in Contracts/Interfaces/CF context plus app_url(c,path) delegating to Values; Dev owns assembly/invoker/preview/deploy base and mount configuration. Compiler owns actual contextual app_url and validated Url target lowering after exact reviewed repair. Carrier/helper alone is not full configured or mounted-serving acceptance. Finalized File destinations, protected actions, owning submits/panels and whole app remain separate."
+    "remaining": "Reviewed Packagesdd688cfe releases explicit host-only deploymentBase in Contracts/Interfaces/CF context plus app_url(c,path) delegating to Values; Dev owns assembly/invoker/preview/deploy base and mount configuration. Reviewed f8fb77fa completes contextual app_url and button-only validated Url lowering at the finite native helper/UI scope; Dev configured-root and complete mounted HTTP consumers remain due. Carrier/helper alone is not full configured or mounted-serving acceptance. Finalized File destinations, protected actions, owning submits/panels and whole app remain separate.",
+    "app_url": {
+      "state": "compiler_source_and_actual_installed_helper_consumer_qualified",
+      "outcome": "Selected app_url builtin lowering now passes the original host context before authored arguments; button target alone admits validated Url strings. Exact reviewed Packagesdd688 helper/carrier consumed through safe FF3d90, with zero incoming compiler delta and preserved edits. Actual original CLI/native CF stdlib/UI fixture passes configured deployment base+mount, URL/caption escaping, source order/once/gates/first failure, absent-config refusal despite request/poll/auth hints and Values invalid paths. Closed builtin redeclaration remains E2002/no artifact. Owning bindings9 pass (unchanged sibling8 plus corrected native1/1 1.17s); fmt/diff0. Owner dependency graph22/22 uncached23.969s; actual unchanged effectful completion consumer1/1 52802.09ms, zero skips. Prior565/445 strict all-target Clippy0 in1m15s; changed app_url codegen/unrun whole/strict remain in progress. Public terminal E6008 remains pending own late staged-write rollback; File targets and Dev actual installed/preview/deployment/mounted HTTP flows remain separate.58/67/nine and BDD3/S9Q07/Task22/T11 holds unchanged.",
+      "remaining": "Dev actual root/nonroot route/action/static/poll configuration and whole application qualification; File target emission unsupported. Changed compiler whole/codegen/strict still in progress."
+    }
   },
   "contextual_native_source": {
     "state": "original_source_native_memory_and_portable_contextual_workflows_qualified_full_plan_unfinished",
