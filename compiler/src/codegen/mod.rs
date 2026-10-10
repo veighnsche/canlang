@@ -46,6 +46,7 @@ pub mod js;
 pub mod model_policies;
 pub mod model_policy_profile;
 pub mod scenario_calls;
+pub mod scenario_queries;
 mod scenario_receipts;
 pub mod sourcemap;
 
@@ -149,10 +150,31 @@ pub fn emit(
         return (empty_artifact(sources.db), vec![diagnostic]);
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
-    let js_out = js::emit_program_with_native_source_receipts(
+    let mut query_sources = std::collections::BTreeMap::new();
+    if sources.options.native_scenario_receipts {
+        // Query source correspondence is independent of permission/capture
+        // admission. Unsupported scenarios keep their disclosure refusal.
+        if let Some(entry) = js::pick_entrypoint(&ir) {
+            let entry_module = js::module_path(&ir.module(entry).name);
+            for item in &ir.items {
+                if let Some(plan) = scenario_queries::serialize_query_sources(
+                    program,
+                    &ir,
+                    item,
+                    sources.db,
+                    sources.catalog,
+                    &entry_module,
+                ) {
+                    query_sources.insert(item.canonical.clone(), plan);
+                }
+            }
+        }
+    }
+    let js_out = js::emit_program_with_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
         sources.db,
+        &query_sources,
     );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {

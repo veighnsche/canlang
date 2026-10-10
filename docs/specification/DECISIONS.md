@@ -5878,3 +5878,36 @@ Actual affected native journey passes1/1 in73.88s, zero skips/cancellations; CF 
 Use Node's native ESM loader for the installed Worker assembly and the exact authored fixture module, matching existing MCP fixtures. Vitest's transformed export getters correctly fail canonical own-data metadata admission; keep that production guard intact. The explicitly hand-written artifact now declares its actual module bytes and SHA-256, real entry URL, defining Shop app identity and unchanged shared members policy. Keep injected Interfaces handlers and form-binding registries in their existing loader graph so fragment rendering observes the same registry.
 
 The accepted File transport repair uses Values' closed `{id}` wire object. Update the positive rich input to that shape and retain both empty-ID and primitive-string refusals, exact `/doc` error fields, HTTP/MCP parity and zero model writes. All framing, binding, session/CSRF, receipt/replay, CRUD-handler and fragment assertions remain. After these fixture corrections and refreshing changed emitted runtime prerequisites, the maintained route suite passes17/17 without skips; the owning CF graph passes22/22 and root typechecking passes. Finite source review is clear. This repairs the common fixture only; Dev retains its active CSV host and native consumer changes, whose qualification is separate. No full-parent acceptance or human hold changes.
+
+
+## 2026-10-10 — emit checked query source and actual read sites (unfinished workflow)
+
+**Choice.** Retain the actual checked model query/local nominal select lineage
+independently of permission/disclosure admission. Join input/alias/model/contract,
+cardinality guard, actual field types and full executable source against fresh
+checked IR before serializing the existing State QueryPlan/projection/four
+influences. Query slot dependencies remain in the query inventory; they are not
+ordinary scalar return observations. Native opt-in emits fresh own-data source
+recipes and the defining Dev query/read/result façades; immediate synchronous
+read markers preserve original getters and lazy order. A source recipe never
+upgrades Declined or supplies current authority. Default emission is unchanged.
+
+**Rationale and uncertainty.** The original Workbench query is already checked
+but no complete receipt producer existed. Static possible fields do not prove
+which lazy predicate reads executed; State/Dev must bind real full candidate
+domains and issued slots, preserving false/empty/order/current-schema checks.
+Do not hoist location reads after false target membership. Keep the original
+nominal Task.priority schema instead of forcing an inline enum to accommodate
+a consumer limitation. Full original source guards, approval/protected proposal
+and rollback stay unchanged and unqualified until their owning contract joins.
+
+**Verification.** Current affected326 pass, strict all-target Clippy/format0,
+and finite source review clear. Actual installed source-plan check succeeds but
+its owning inventory test fails on nominal Task.priority: Capability/State owns
+the exact schema/tag repair and lazy-domain reconciliation. The failed positive
+assertion is preserved. Dev owns actual loader/frame/slot/result and unbound
+generic behavior; no source-data-only test certifies runtime activation. Actual
+CLI retains external active_member E6007; original29-file149 diagnostics remain
+at their recorded source scope. Whole1386 qualifies historical14b only, pending
+current source qualification. Earlier actual Dev eb8aad65 D1 history/replay1/1
+resolves that separate bounded-loop prerequisite; no broader reference closes.
