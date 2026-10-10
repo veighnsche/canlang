@@ -417,7 +417,6 @@ function durableSuite(
         let mints = 0, providers = 0, snapshots = 0;
         const base = driveOpts(stack, await pendingIntent(stack, id), async () => {
           events.push('provider'); providers++; assert.ok(execution);
-          assert.throws(() => guards.assertDispatchGuardExecution(execution));
           return { kind: 'delivered', result: null };
         }, () => retained.originalCommit!.createdAt + 1000);
         const { registry: _registry, ...opts } = base; void _registry;
@@ -427,7 +426,7 @@ function durableSuite(
           readStateSnapshot: () => { snapshots++; return { allowed: verdict }; },
           fence: { owner: 'durable-component-owner', revalidateAuthority: async () => {
             events.push('authority'); assert.ok(execution);
-            assert.throws(() => guards.assertDispatchGuardExecution(execution)); return true;
+            return true;
           }, asyncGuard: { attemptDispatch: guards.attemptDispatchAsync, frozenInputs: { allowed: verdict, lexical: 'original' },
             evaluateGuard: async (predicate, lexical, snapshot, handle) => {
               execution = handle; events.push('guard'); guards.assertDispatchGuardExecution(handle);
@@ -440,11 +439,13 @@ function durableSuite(
                 committedAtMs: retained.originalCommit!.createdAt });
               assert.notEqual(observed.intent.commit.revision, observed.checkpoint?.revision);
               guards.registerDispatchGuardRevalidation(handle, async () => {
-                events.push('evidence'); assert.throws(() => guards.assertDispatchGuardExecution(handle)); return true;
+                events.push('evidence'); return true;
               });
               await Promise.resolve(); guards.assertDispatchGuardExecution(handle); return verdict;
             } } },
         }, await preclaimRegistry(stack));
+        assert.ok(execution);
+        assert.throws(() => guards.assertDispatchGuardExecution(execution));
         const after = await dispatchSnapshot(secondHandle(), model, id);
         assert.equal(snapshots, 1); assert.equal(mints, verdict ? 1 : 0); assert.equal(providers, verdict ? 1 : 0);
         assert.deepEqual(events, verdict ? ['guard','mint','evidence','authority','provider'] : ['guard','evidence','authority']);
@@ -467,7 +468,7 @@ function durableSuite(
     });
 
     it('preclaim refuses changed positive or negative evidence, current authority and physical revision before durable claim', async () => {
-      for (const mode of ['positive-evidence','negative-evidence','authority','revision'] as const) {
+      for (const mode of ['positive-evidence','negative-evidence','authority','revision','closed-reuse'] as const) {
         const { store, secondHandle, reset } = await handles(); await reset();
         const stack = await workerStack(store), model = stack.work.WORK_DISPATCH_MODEL as ModelName;
         const guards: typeof import('@canlang/work/dispatch') = stack.work.guards;
@@ -487,8 +488,15 @@ function durableSuite(
             asyncGuard: { attemptDispatch: guards.attemptDispatchAsync, frozenInputs: { allowed: true },
               evaluateGuard: async (_predicate, _lexical, _snapshot, handle) => {
                 evaluations++; guards.assertDispatchGuardExecution(handle);
-                guards.registerDispatchGuardRevalidation(handle, async () =>
-                  mode !== 'positive-evidence' && mode !== 'negative-evidence');
+                guards.registerDispatchGuardRevalidation(handle, async () => {
+                  if (mode === 'closed-reuse') {
+                    // Caught reuse of the real closed handle must poison its
+                    // original stage before any physical claim can commit.
+                    try { guards.assertDispatchGuardExecution(handle); } catch { /* Deliberately caught by this adverse consumer. */ }
+                    return true;
+                  }
+                  return mode !== 'positive-evidence' && mode !== 'negative-evidence';
+                });
                 if (mode === 'revision') await stageDispatchBatch({ registry: stack.registry, store: stack.joined,
                   actor: ACTOR, now: NOW, operation: 'test.join', runKey: `intervene-${id}`,
                   intents: [stageInput({ intentId: `other-${id}` })] });

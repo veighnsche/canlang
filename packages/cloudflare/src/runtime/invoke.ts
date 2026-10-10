@@ -104,6 +104,7 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
+import { parse as parseJavaScript } from 'acorn';
 import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
@@ -130,7 +131,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { AssemblyCorrespondenceError, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -346,22 +347,27 @@ async function invokeWith(
   args?: unknown[],
   preserveThrown = false,
 ): Promise<InvokeResult> {
-  // Direct callable users may precede canonical preload. Discover only the
-  // actual module carrier; object presence is a verification gate, not policy.
-  if (rowPolicyAssemblies.get(artifact) === undefined && canonicalCache.get(artifact)?.rowPolicyAssembly === undefined) {
+  // Source claims must gate the first import, before unverified exports can
+  // strip their carrier or run a module initializer.
+  const claimedRowSource = requiresRowReadCorrespondence(artifact);
+  let checkedSource = hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || claimedRowSource;
+  if (checkedSource) await verifyCheckedAssembly(asm, artifact);
+  if (claimedRowSource) rowPolicyAssemblies.set(artifact, asm);
+  // Preserve legacy actor-only components without an issued source carrier.
+  // An unexpected object carrier still refuses rather than granting policy.
+  if (!checkedSource) {
     const callable = artifact.callables.find(entry => entry.id === id);
     const url = callable === undefined ? undefined : asm.moduleUrls[callable.module];
     if (url !== undefined) {
       let module: unknown;
       try { module = await import(url); } catch { /* Existing callable import reports legacy failure below. */ }
       if (hasRowReadCarrier(module)) {
-        await verifyAssemblerModuleCapability(asm, artifact);
+        await verifyCheckedAssembly(asm, artifact);
         rowPolicyAssemblies.set(artifact, asm);
+        checkedSource = true;
       }
     }
   }
-  const checkedSource = requiresScenarioCorrespondence(artifact) || rowPolicyAssemblies.has(artifact) ||
-    canonicalCache.get(artifact)?.rowPolicyAssembly !== undefined;
   if (checkedSource) await verifyCheckedAssembly(asm, artifact);
   try {
     return await invokeAssembledCallable(asm, artifact, id, ctx, args, preserveThrown, checkedSource);
@@ -1975,6 +1981,7 @@ async function importPolicyRegistry(
   asm: AssembledModules,
   module: string,
   opName: string,
+  artifact?: CompileArtifact,
 ): Promise<unknown> {
   const where = `operation ${JSON.stringify(opName)} module ${JSON.stringify(module)}`;
   const url: unknown = Object.hasOwn(asm.moduleUrls, module)
@@ -1985,8 +1992,10 @@ async function importPolicyRegistry(
   }
   let mod: unknown;
   try {
-    mod = await import(url);
+    mod = hasAssemblerModuleCapability(asm) || artifact !== undefined && (requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact))
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
   } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`t16b: ${where} failed to import (${reason})`);
   }
@@ -2007,7 +2016,8 @@ async function assertComputedDefaultsPair(
 ): Promise<void> {
   const url = asm.moduleUrls[callable.module];
   if (url === undefined) throw new Error('Computed default has no owning assembled module.');
-  const module: unknown = await import(url);
+  const module: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+    ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(url);
   const where = `Computed defaults for ${JSON.stringify(operation.name)}`;
   const own = (value: unknown, key: string) =>
     isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
@@ -2034,7 +2044,8 @@ async function assertReadScenarioPair(
   artifact: CompileArtifact, asm: AssembledModules, op: PreloadOperation,
   callable: PreloadCallable, registry: unknown,
 ): Promise<void> {
-  const module: unknown = await import(asm.moduleUrls[callable.module]!);
+  const module: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+    ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(asm.moduleUrls[callable.module]!);
   const where = `Read scenario ${JSON.stringify(op.name)}`;
   const own = (value: unknown, key: string): unknown =>
     isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
@@ -2142,6 +2153,64 @@ const canonicalCache = new WeakMap<CompileArtifact, {
   rowPolicyAssembly?: AssembledModules;
 }>();
 
+const rowReadSourceClaims = new WeakMap<object, { readonly source: string; readonly claimed: boolean }>();
+
+/** Nonexecuting presence gate from captured producer source. Parsing a literal
+ * property (including escaped/computed literal keys) establishes no grant or
+ * Compiler acceptance; State still validates the actual owning metadata. */
+function claimsRowReadSource(artifact: CompileArtifact): boolean {
+  const where = 'Row read source correspondence';
+  try {
+    const modules = readMetadataMember(artifact, 'modules', where);
+    if (modules === undefined) return false; // Historical actor-only component.
+    for (const module of readMetadataArray(modules.value, where, 'modules')) {
+      if (!isUnknownRecord(module)) throw new Error(`${where}: module data required.`);
+      const sourceMember = readMetadataMember(module, 'js', where);
+      if (sourceMember === undefined) continue; // Legacy metadata-only carrier.
+      const source = sourceMember.value;
+      if (typeof source !== 'string') throw new Error(`${where}: own source text required.`);
+      let claim = rowReadSourceClaims.get(module);
+      if (claim?.source !== source) {
+        let claimed = false;
+        try {
+          const pending: unknown[] = [parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module' })];
+          while (pending.length > 0 && !claimed) {
+            const node = pending.pop();
+            if (node === null || typeof node !== 'object') continue;
+            if (Array.isArray(node)) { for (const entry of node) pending.push(entry); continue; }
+            const value = node as Record<string, unknown>;
+            if (value.type === 'Property' && value.key !== null && typeof value.key === 'object') {
+              const key = value.key as Record<string, unknown>;
+              claimed = key.type === 'Identifier' && key.name === 'roleSubject' ||
+                key.type === 'Literal' && key.value === 'roleSubject';
+            }
+            for (const child of Object.values(value)) if (child !== null && typeof child === 'object') pending.push(child);
+          }
+        } catch {
+          // Unsupported/malformed syntax cannot justify importing unchecked
+          // source. Its genuine issuer and exact closure must verify first.
+          claimed = true;
+        }
+        claim = { source, claimed };
+        rowReadSourceClaims.set(module, claim);
+      }
+      if (claim.claimed) return true;
+    }
+    return false;
+  } catch (error) {
+    throw new AssemblyCorrespondenceError(error instanceof Error ? error.message : 'Malformed row read source metadata.');
+  }
+}
+
+function requiresRowReadCorrespondence(artifact: CompileArtifact): boolean {
+  return claimsRowReadSource(artifact) || rowPolicyAssemblies.has(artifact) ||
+    canonicalCache.get(artifact)?.rowPolicyAssembly !== undefined;
+}
+
+function requiresVerifiedAssemblyImports(asm: AssembledModules, artifact: CompileArtifact): boolean {
+  return hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact);
+}
+
 /** Presence gate only: State still owns descriptor/claim schema validation. */
 function claimsScenarioDisclosure(artifact: CompileArtifact): boolean {
   const descriptor = (object: object, key: string): PropertyDescriptor | undefined => {
@@ -2247,13 +2316,17 @@ async function collectModelPolicyManifests(
     if (typeof url !== "string" || url.length === 0) continue;
     let mod: unknown;
     try {
-      mod = await import(url);
+      mod = requiresVerifiedAssemblyImports(asm, artifact)
+        ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
     } catch (error) {
+      if (error instanceof AssemblyCorrespondenceError) throw error;
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
         `t17b: module ${JSON.stringify(module)} failed to import while establishing read policy (${reason})`,
       );
     }
+    // Every import in a row-bearing artifact is checked, but unrelated page
+    // and asset modules do not become model policy factories.
     let checkedRow = hasRowReadCarrier(mod);
     if (checkedRow) {
       await verifyCheckedAssembly(asm, artifact);
@@ -2682,7 +2755,8 @@ async function collectUnsupportedHookOperations(asm: AssembledModules, artifact:
     const where = `Canonical hooks module ${JSON.stringify(module)}`;
     const url = readMetadataMember(asm.moduleUrls, module, where)?.value;
     if (typeof url !== 'string' || url === '') throw new Error(`${where} has no owning module URL.`);
-    const imported: unknown = await import(url);
+    const imported: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
     const factory = isUnknownRecord(imported) ? readMetadataMember(imported, 'canApp', where)?.value : undefined;
     if (factory === undefined) continue;
     if (typeof factory !== 'function') throw new Error(`${where} has no callable canApp.`);
@@ -2994,8 +3068,19 @@ export async function loadCanonicalDescriptors(
   artifact: CompileArtifact,
 ): Promise<LoadedCanonicalDescriptors> {
   const claimedScenario = claimsScenarioDisclosure(artifact);
+  const claimedRowSource = requiresRowReadCorrespondence(artifact);
+  // An issued assembly must still match its captured artifact and complete
+  // closure when a caller strips the visible policy/source claim.
+  if (hasAssemblerModuleCapability(asm)) await verifyCheckedAssembly(asm, artifact);
+  if (claimedRowSource) {
+    await verifyCheckedAssembly(asm, artifact);
+    rowPolicyAssemblies.set(artifact, asm);
+  }
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
+    if (claimedRowSource && cached.rowPolicyAssembly === undefined) {
+      throw new AssemblyCorrespondenceError('Row read source differs from its cached policy plan.');
+    }
     if (cached.rowPolicyAssembly !== undefined) await verifyCheckedAssembly(asm, artifact);
     if (cached.scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, cached.scenarioAssembly);
     else if (claimedScenario) throw new Error('Scenario disclosure differs from its cached source plan.');
@@ -3018,14 +3103,14 @@ export async function loadCanonicalDescriptors(
   for (const op of ops) {
     if (op.kind === "create" || op.kind === "update" || op.kind === "delete") {
       const callable = resolvePreloadCallable(artifact, op);
-      const registry = await importPolicyRegistry(asm, callable.module, op.name);
+      const registry = await importPolicyRegistry(asm, callable.module, op.name, artifact);
       crudBy.set(op.name, mapCrudPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
     } else if (op.kind === "scenario" ||
         (op.kind === "read" && artifact.callables.some(candidate => candidate.id === op.name))) {
       // B7: scenarios join admission transcription (absent -> deny;
       // their leading require guards stay handler-enforced inside).
       const callable = resolvePreloadCallable(artifact, op);
-      const registry = await importPolicyRegistry(asm, callable.module, op.name);
+      const registry = await importPolicyRegistry(asm, callable.module, op.name, artifact);
       if (op.kind === "read") await assertReadScenarioPair(artifact, asm, op, callable, registry);
       else await assertComputedDefaultsPair(artifact, asm, op, callable);
       crudBy.set(op.name, mapScenarioPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
