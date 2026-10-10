@@ -3042,12 +3042,33 @@ same-load hydration/private binder/current target admission; no executable
 runtime consumer or original149-diagnostic Workbench acceptance is claimed.
 Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.
 
-**Original Volunteer qualification prerequisite.** Existing SEQ-048's actual
-unchanged composition fails analysis with138 findings and emits no artifact.
-Read-only representative classification confirms existing owning-enum,
-lexical-first, required-array and server-field rules; no Compiler defect is
-established. Source/application owners must release exact Affiliate enum reuse
-or subset comparisons, CRM genuine Term.hours and owner-reassignment declaration,
-and Desk/Event operation-shadow corrections before Dev reruns. Proposed exact
-corrections are attached to the existing committed source record in status.json;
-no blanket source rewrite, weakening or repeated unchanged compile is performed.
+**Original Volunteer source corrections, 2026-10-10 — unfinished composition.**
+The coordinator assigned six exact corrections in the owning local draft
+checkout. Coherent commits057ce7d/598a6e8/3efd895 reuse CommissionResult bank and
+allocation, pair the three accepted partner milestones, supply genuine Brussels
+weekday09–18 purchased Term.hours, retain Deal owner reassignment through an
+actor default with unchanged create exclusion/eligibility, and rename Desk/Event
+operations plus their actual forms. Bodies, permissions, enum cases and every
+example remain intact. Final exact Dev supplied ordered25/catalog ordinary
+compile passes complete-source correspondence and clears every representative
+finding; it exits10 with127 errors (prior138), complete=true/omitted0,2.176s.
+All25 actual report paths/hashes match; original Volunteer bytes are unchanged.
+An earlier entry-first native precheck had the same127; the final recorded check
+uses the subsequently supplied original ordinary invocation. No artifact,
+committedChanges, executed examples or native original acceptance follows.
+
+The coordinator reviewed the six corrections CLEAR and authorized only the
+three changed source snapshots: CRM144→146,Desk78→74,Event203→202. All52 rows
+and diagnostic/context assertions remain;49 unchanged rows include Affiliate39.
+CRM adds two test_site uses and the owning earlier fold case while removing one
+server-owned owner input finding (net+2); these imported names are unavailable
+to the isolated-file corpus check. Final affected table passes1/1 in2.70s,
+36 unrelated tests unselected, superseding the initial stale-pin failure.
+Unchanged compiler1418/139, strict/editor results are reused at their original
+scope with this separately qualified corpus delta. Remaining127 source findings
+still prevent an artifact. The next exact assigned source unit is Desk reply,
+Event expired and Member revoke operation shadows with actual consumers;
+Volunteer unresolved tabs, Employees pure authority claims and other findings
+remain outside that lease. Dev owns actual original native qualification and
+private source/runtime joins. No broad source rewrite/common gate repair or
+hold change;58/67 and precise BDD3/Task22 remain unchanged.
