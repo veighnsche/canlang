@@ -141,7 +141,7 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
         assert.ok(await page.getByText('No stock', { exact: true }).count() > 0, 'browser must render authored table empty state');
       } else {
         const table = page.locator('table.table'); assert.ok(await table.count() === 1, 'browser must render the authored table');
-        assert.ok(isDeepStrictEqual(await table.locator('thead th').allTextContents(), ['Name', 'Stock', 'Available']), 'browser table must retain authored columns');
+        assert.ok(isDeepStrictEqual(await table.locator('thead th').allTextContents(), ['name', 'stock', 'available']), 'browser table must retain authored columns');
         assert.ok(await table.locator('tbody tr').count() === all.length, 'browser table must remain unfiltered by list preferences');
         for (const item of all) {
           const tableRow = table.locator('tbody tr').filter({ hasText: item.name });
