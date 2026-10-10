@@ -8,7 +8,7 @@ use crate::analysis::resolve::{SymbolId, SymbolKind};
 use crate::analysis::scenario_disclosure::{DependencyRole, DisclosureSource, InfluenceKind};
 use crate::analysis::types::CheckedQueryProjectionMapping;
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType};
-use crate::source::{SourceDb, Span, sha256_hex};
+use crate::source::{SourceDb, Span};
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrStmt, IrType};
 use super::scenario_decisions::{same_scenario_semantics, serial_type};
@@ -259,13 +259,7 @@ pub fn serialize_query_sources(
             dependencies,
         }],
         returns: vec![ReceiptReturn {
-            id: sha256_hex(
-                format!(
-                    "query-return:{}:{}:{}",
-                    q.id, q.return_node.start, q.return_node.end
-                )
-                .as_bytes(),
-            ),
+            id: q.return_id(),
             // Candidate slots belong to the query observation inventory, not
             // ordinary scalar observations. Leading authorization is still
             // unqualified; this source transport grants no scenario admission.

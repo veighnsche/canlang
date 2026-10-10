@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1390 qualifies exact e67 query producer plus State9e intake at72f51295 with required real engines/native/permission bodies and zero skips. The subsequent nongrant activation/reference/map correction passes affected140 and strict lint/format; its real Fact[] read consumer remains Dev-codec blocked. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1390 qualifies exact e67 query producer plus State9e intake at72f51295 with required real engines/native/permission bodies and zero skips. The subsequent nongrant activation/reference/map correction passes affected140 and strict lint/format; its unchanged real Fact[] public consumer now passes Dev's actual1/1 qualification. Bounded whole query analysis passes affected303 and strict lint/format; native read publication still needs Dev's public/private helper dispatch and ordinary-array child admission. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2716,3 +2716,66 @@ event.id to recordId and the genuine owner/version/occurrenceId. Compiler then
 owns the checked IR/metadata/callable emission. Existing schedule/cohort selection
 and raw State model change facts do not supply that authority. No guessed
 payload, fabricated declared event, schedule wrapper or source rewrite.
+
+
+**Reviewed owner intake (unfinished workflows), 2026-10-10.** Consume exact
+reviewed LOCALc4e3faf6 at the committed21371478 boundary, preserving both
+histories and incoming per-path allocations. State/Workf27 original-stage
+preclaim enrollment is owning-qualified147; Dev58d production membership
+snapshot1/1 and Dev017 lazy native query1/1/canonical45 are reused unchanged.
+Contracts06ea defines complete optional original outbox revision/time only;
+actual persistence and native consumption remain their owners' prerequisites.
+These releases do not supply Compiler original guard/frozen lexical/committed
+event payload provenance, public nominal Fact[] codec or private child admission.
+The original event payload/atomic source and Fact[] prerequisites above remain
+SKIP with exact owners; BDD3/Task22 holds remain precise. No unchanged full Cargo,
+editor or owning tests are repeated, and no remote push follows this intake.
+
+
+**Reviewed native query codec/read-child release (unfinished source join),
+2026-10-10.** Intake exact reviewed LOCALc1bbffe8/Dev763330ec onto4fdb151f,
+preserving all histories and released allocations. Reuse Dev49 finite outcomes
+and owner clean emits/root/boundaries. Same-load nominal contract/array result
+conversion and protected complete query-read child preparation are now released.
+The unchanged generated public Fact[] consumer is assigned to Dev for its one
+actual qualification; Compiler does not duplicate that execution. Its prior0/1
+remains historical until that result arrives. Next Compiler unit owns truthful
+whole checked scan/count/select Complete, receipt publication, acyclic parent
+CALL/protected inputs and bound result correspondence with an actual generated
+parent consumer. This source inventory alone proves none of these. State49e/3e
+saved multisubject and351/919 original outbox provenance releases are finite
+owner prerequisites; reuse their owning qualification. Filesdf1 repair remains
+Packages-owned and does not release any Compiler hold. Original pure membership,
+checked subject-policy source transport and precise BDD3/Task22 holds remain.
+
+
+**Whole bounded query analysis (unfinished native source join), 2026-10-10.**
+The exact checked scan/count/select body now gains Complete only after separate
+whole declaration proof: closed role authorization, original frozen-array count
+headers, owning named model/reference-array parameters, positive literal bounds
+through the actual checked field-reuse declarations and exact nominal result.
+Do not borrow the field-only required-array marker. Candidate dependencies stay
+in the query inventory; all four influences and the shared deterministic return
+identity match the source serializer. Extra controls, defaults, effects,
+unbounded or skewed declarations remain declined. Actual affected303/303 pass
+(library161, codegen121, source producer2, disclosure19), strict all-target Clippy
+and format0 pass; finite independent closure and corrected bounds reviews CLEAR.
+Historical whole1390 and unchanged editor results are reused, not current-source
+whole qualification.
+
+Dev's unchanged actual generated public query consumer now passes1/1 (0.76s)
+after reviewed native codec intake, with real Memory CRUD/read, genuine nominal
+Fact[] references/versions, true/false/null predicates, ordered projection,
+bounds/duplicates/location/outsider/revocation and receipt-free invariants.
+Reuse its48 canonical/frame outcomes. This supersedes the prior213 codec failure.
+Native query publication remains closed: **SKIP Dev defining public/private
+helper dispatch** (the same compiled read handler currently reaches private
+frame helpers from public execution), and **SKIP Dev ordinary-array child target
+admission** (real min/max arrays retain required=false). Compiler continues fresh
+checked Complete receipt serialization independently and owns genuine parent
+CALL/source/result correspondence after those exact releases. **SKIP Capability
+row-selected subject-policy ABI/evaluator**, then Dev transcription and Compiler
+owning source metadata; current row-independent by caches cannot represent
+read=auditor(row.person). The separately recorded committed-model event payload
+and atomic original source remain Capability/Dev prerequisites. No broader
+completion, original Workbench guard acceptance or BDD3/Task22 hold release.
