@@ -144,6 +144,7 @@ describe("deploy bundle (P-B)", () => {
     expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/work/"))).toEqual([
       "vendor/work/intent/staging.js",
       "vendor/work/kernel/arguments.js",
+      "vendor/work/kernel/committed-model-source.js",
       "vendor/work/kernel/dispatch-staging.js",
       "vendor/work/kernel/handler-occurrence.js",
       "vendor/work/kernel/occurrence-staging.js",
@@ -859,6 +860,33 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       expect(restored).toBe(readFileSync(file, "utf8"));
       producers.push(await import(pathToFileURL(file).href));
     }
+    const workDistribution = await import("@canlang/work/distribution");
+    const committedFile = new URL("kernel/committed-model-source.js", workDistribution.distribution.modules);
+    const committedKey = "vendor/work/kernel/committed-model-source.js";
+    const committed = bundle.modules[committedKey];
+    expect(committed).toBeDefined();
+    const restoredCommitted = rewriteModuleImports(committed!, committedKey, imported =>
+      imported === "../../state/index.js" ? "@canlang/state" : imported,
+    { profile: "trusted-producer" }).js;
+    expect(restoredCommitted).toBe(readFileSync(committedFile, "utf8"));
+    expect(scanModuleImports(committed!, committedKey).map(record => record.specifier)).toContain("../../state/index.js");
+    const workRoot = await import(pathToFileURL(resolveProducerFile("@canlang/work", "bun run --filter @canlang/work build")).href);
+    const committedProducer = await import(committedFile.href);
+    expect(typeof committedProducer.createCommittedModelSourceStager).toBe("function");
+    expect(workRoot.createCommittedModelSourceStager).toBe(committedProducer.createCommittedModelSourceStager);
+    // Both public State routes preserve the same defining source-stage identity.
+    const stateRoot = await import(pathToFileURL(resolveProducerFile("@canlang/state", "bun run --filter @canlang/state build")).href);
+    const mutationFile = resolveProducerFile("@canlang/state/mutation", "bun run --filter @canlang/state build");
+    const mutation = await import(pathToFileURL(mutationFile).href);
+    const sourceFinalization = await import(pathToFileURL(join(dirname(mutationFile), "source-finalization.js")).href);
+    expect(typeof sourceFinalization.readOwnerMutationSourceStage).toBe("function");
+    expect(stateRoot.readOwnerMutationSourceStage).toBe(sourceFinalization.readOwnerMutationSourceStage);
+    expect(mutation.readOwnerMutationSourceStage).toBe(sourceFinalization.readOwnerMutationSourceStage);
+    expect(bundle.modules["vendor/state/index.js"]).toBeDefined();
+    expect(scanModuleImports(bundle.modules["vendor/state/index.js"]!, "vendor/state/index.js").map(record => record.specifier))
+      .toContain("./mutation/index.js");
+    expect(scanModuleImports(bundle.modules["vendor/state/mutation/index.js"]!, "vendor/state/mutation/index.js").map(record => record.specifier))
+      .toContain("./source-finalization.js");
     const receipt = producers[0]!;
     const functions = await receipt.loadWorkReceiptFns();
     expect(functions.observeSelectedReceipt).toBe(producers[1]!.observeSelectedReceipt);
@@ -880,6 +908,8 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       "vendor/work/receipt/index.js",
       "vendor/work/observation/observation.js",
       "vendor/work/observation/association.js",
+      "vendor/state/index.js",
+      "vendor/state/mutation/source-finalization.js",
     ]) {
       const missing = { ...bundle.modules };
       delete missing[key];
