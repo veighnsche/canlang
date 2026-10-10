@@ -183,6 +183,13 @@ pub struct DisclosureEffect {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisclosureFileInput {
+    pub field: SymbolId,
+    pub parameter: SymbolId,
+    pub value: NodeKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisclosureEffectKind {
     For {
         domain: NodeKey,
@@ -200,6 +207,7 @@ pub enum DisclosureEffectKind {
     Set {
         model: SymbolId,
         fields: Vec<SymbolId>,
+        file_inputs: Vec<DisclosureFileInput>,
     },
     Send {
         operation: String,
@@ -3396,6 +3404,7 @@ impl<'a> Closure<'a> {
             return Err(self.fail(effect.node, "set receiver lacks binding provenance"));
         }
         let mut written = Vec::new();
+        let mut file_inputs = Vec::new();
         for arg in &effect.args {
             let field = fields
                 .iter()
@@ -3420,15 +3429,33 @@ impl<'a> Closure<'a> {
                 base,
                 ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }
             );
-            if !delivery {
+            let file = matches!(base, ResolvedType::Scalar(Scalar::File));
+            if !delivery && !file {
                 if matches!(base, ResolvedType::Array { .. }) {
                     return Err(self.fail(arg.key_node, "set array outside scalar effect profile"));
                 }
                 self.field_type_id(arg.key_node, field.id, ty)?;
             }
-            let values = match arg.value {
-                Some(value) => self.expr(value, module, env, calls)?,
-                None => self.lexical(arg.key_node, module, env, calls)?,
+            let values = if file {
+                let value = arg.value.ok_or_else(|| {
+                    self.fail(
+                        arg.key_node,
+                        "File assignment needs explicit original input",
+                    )
+                })?;
+                file_inputs.push(self.file_assignment_input(
+                    effect.node,
+                    module,
+                    env,
+                    calls,
+                    (NodeKey::of(receiver), field.id, value),
+                )?);
+                vec![ValuePath::default()]
+            } else {
+                match arg.value {
+                    Some(value) => self.expr(value, module, env, calls)?,
+                    None => self.lexical(arg.key_node, module, env, calls)?,
+                }
             };
             if values.iter().any(|value| {
                 if delivery {
@@ -3451,9 +3478,107 @@ impl<'a> Closure<'a> {
             DisclosureEffectKind::Set {
                 model: *model,
                 fields: written,
+                file_inputs,
             },
         )?;
         Ok(paths)
+    }
+
+    /// Source correspondence only. The installed Files producer supplies the
+    /// genuine finalized observation to the owning active root invocation.
+    fn file_assignment_input(
+        &self,
+        statement: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+        assignment: (NodeKey, SymbolId, NodeKey),
+    ) -> Result<DisclosureFileInput, DisclosureDecline> {
+        let (receiver, field, value) = assignment;
+        let fail = || self.fail(value, "File assignment needs original required root input");
+        if !calls.is_empty()
+            || self.loop_node.is_some()
+            || self
+                .nodes
+                .get(&value)
+                .is_none_or(|node| node.kind != SyntaxKind::NameRef)
+            || self.types.node_types.get(&value) != Some(&ResolvedType::Scalar(Scalar::File))
+        {
+            return Err(fail());
+        }
+        let Some(Binding::Symbol(parameter)) = self.query_binding(value) else {
+            return Err(fail());
+        };
+        let Some(SymbolKind::Param { owner, .. }) = self
+            .resolve
+            .symbols
+            .get(parameter.0 as usize)
+            .map(|symbol| &symbol.kind)
+        else {
+            return Err(fail());
+        };
+        let parent = self.effects.scenarios.get(owner).ok_or_else(fail)?;
+        let param = parent
+            .params
+            .iter()
+            .find(|param| param.param == *parameter)
+            .ok_or_else(fail)?;
+        let Some(Binding::Symbol(receiver_parameter)) = self.query_binding(receiver) else {
+            return Err(fail());
+        };
+        let field_owner = match self
+            .resolve
+            .symbols
+            .get(field.0 as usize)
+            .map(|symbol| &symbol.kind)
+        {
+            Some(SymbolKind::Field { owner, .. }) => *owner,
+            _ => return Err(fail()),
+        };
+        let declaration = self
+            .effects
+            .models
+            .get(&field_owner)
+            .and_then(|model| {
+                model
+                    .fields
+                    .iter()
+                    .find(|candidate| candidate.field == field)
+            })
+            .ok_or_else(fail)?;
+        if parent.read
+            || parent.on.is_some()
+            || parent.cohort.is_some()
+            || parent.scope_authority
+            || parent.module != module
+            || statement.file != parent.node.file
+            || statement.start < parent.node.start
+            || statement.end > parent.node.end
+            || value.file != statement.file
+            || value.start < statement.start
+            || value.end > statement.end
+            || param.default.is_some()
+            || !self.direct_builtin_parameter_type(param.type_node, Scalar::File)
+            || self.types.symbol_types.get(parameter) != Some(&ResolvedType::Scalar(Scalar::File))
+            || self.types.field_reuse_sources.contains_key(parameter)
+            || self.types.field_reuse_sources.contains_key(&field)
+            || declaration.required_array
+            || !env.contains_key(&Local::Symbol(*parameter))
+            || !matches!(self.resolve.symbols.get(receiver_parameter.0 as usize).map(|symbol| &symbol.kind),
+                Some(SymbolKind::Param { owner: receiver_owner, .. }) if receiver_owner == owner)
+            || !parent
+                .params
+                .iter()
+                .any(|param| param.param == *receiver_parameter && param.default.is_none())
+        {
+            return Err(fail());
+        }
+        self.source(module, value)?;
+        Ok(DisclosureFileInput {
+            field,
+            parameter: *parameter,
+            value,
+        })
     }
 
     fn send(
