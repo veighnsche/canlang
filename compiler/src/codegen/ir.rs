@@ -1374,6 +1374,240 @@ impl IrCommittedChange {
 pub struct CheckedCommittedSources {
     pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
     pub(crate) handlers: Vec<CheckedCommittedHandler>,
+    // Source-cohort schema absence, independent of committed handler/event authority.
+    empty_value_inventory: Option<CheckedEmptyValueInventory>,
+}
+
+/// Private evidence for the bounded no-import File-model source cohort. The
+/// original CST establishes absence; the census prevents an edited IR from
+/// borrowing that evidence. This carries no handler or runtime authority.
+#[derive(Debug, Clone)]
+struct CheckedEmptyValueInventory {
+    catalog_version: String,
+    roots: Vec<NodeKey>,
+    modules: Vec<EmptyValueModule>,
+    items: Vec<EmptyValueItem>,
+    constraints: HashMap<SymbolId, CheckedValueConstraints>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EmptyValueModule {
+    id: ModuleId,
+    name: String,
+    kind: ModuleKind,
+    file: SourceId,
+    span: Span,
+    locale: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EmptyValueItem {
+    id: SymbolId,
+    canonical: String,
+    name: String,
+    module: ModuleId,
+    span: Span,
+    exported: bool,
+    kind: std::mem::Discriminant<IrItemKind>,
+    links: Vec<SymbolId>,
+    types: Vec<ResolvedType>,
+    owner: Option<IrOwner>,
+    required_array: bool,
+    flags: Vec<bool>,
+    names: Vec<String>,
+}
+
+impl CheckedEmptyValueInventory {
+    fn census(ir: &IrProgram) -> Option<(Vec<EmptyValueModule>, Vec<EmptyValueItem>)> {
+        if ir.modules.is_empty()
+            || ir.modules.iter().any(|module| {
+                !module.imports.is_empty()
+                    || !module.uses.is_empty()
+                    || !module.uses_resolved.is_empty()
+            })
+            || ir
+                .value_constraints
+                .values()
+                .any(|constraint| constraint.alias.is_some())
+        {
+            return None;
+        }
+        let modules = ir
+            .modules
+            .iter()
+            .map(|module| EmptyValueModule {
+                id: module.id,
+                name: module.name.clone(),
+                kind: module.kind,
+                file: module.file,
+                span: module.span,
+                locale: module.app_default_locale.clone(),
+            })
+            .collect();
+        let mut has_file_model = false;
+        let mut items = Vec::with_capacity(ir.items.len());
+        fn file_type(ty: &ResolvedType) -> bool {
+            match ty {
+                ResolvedType::Scalar(Scalar::File) => true,
+                ResolvedType::Nullable(inner) => file_type(inner),
+                ResolvedType::Array { element, .. } => file_type(element),
+                _ => false,
+            }
+        }
+        fn known(ty: &IrType) -> Option<ResolvedType> {
+            match ty {
+                IrType::Known(ty) if !matches!(ty, ResolvedType::Error | ResolvedType::Unknown) => {
+                    Some(ty.clone())
+                }
+                _ => None,
+            }
+        }
+        for item in &ir.items {
+            let mut row = EmptyValueItem {
+                id: item.id,
+                canonical: item.canonical.clone(),
+                name: item.name.clone(),
+                module: item.module,
+                span: item.span,
+                exported: item.exported,
+                kind: std::mem::discriminant(&item.kind),
+                links: Vec::new(),
+                types: Vec::new(),
+                owner: None,
+                required_array: false,
+                flags: Vec::new(),
+                names: Vec::new(),
+            };
+            match &item.kind {
+                IrItemKind::Contract { .. }
+                | IrItemKind::Judgment { .. }
+                | IrItemKind::JudgmentGenerated(_)
+                | IrItemKind::Capability { .. }
+                | IrItemKind::CapabilityOp { .. }
+                | IrItemKind::Event { .. }
+                | IrItemKind::Preferences { .. } => return None,
+                IrItemKind::Model {
+                    fields,
+                    owner,
+                    crud,
+                    ..
+                } => {
+                    row.links = fields.clone();
+                    row.links.extend(crud);
+                    row.owner = Some(*owner);
+                    for field in fields {
+                        let field = ir.items.iter().find(|candidate| candidate.id == *field)?;
+                        let IrItemKind::Field { owner, ty, .. } = &field.kind else {
+                            return None;
+                        };
+                        if *owner != item.id {
+                            return None;
+                        }
+                        has_file_model |= file_type(&known(ty)?);
+                    }
+                }
+                IrItemKind::Field {
+                    owner,
+                    ty,
+                    required_array,
+                    ..
+                } => {
+                    row.links.push(*owner);
+                    row.types.push(known(ty)?);
+                    row.required_array = *required_array;
+                }
+                IrItemKind::Param {
+                    owner, index, ty, ..
+                } => {
+                    row.links.push(*owner);
+                    // Parameter order is part of the owning declaration census.
+                    if ir
+                        .items
+                        .iter()
+                        .find(|candidate| candidate.id == *owner)
+                        .and_then(|owner| match &owner.kind {
+                            IrItemKind::Scenario { params, .. }
+                            | IrItemKind::DeriveFn { params, .. }
+                            | IrItemKind::Message { params, .. } => params.get(*index),
+                            _ => None,
+                        })
+                        != Some(&item.id)
+                    {
+                        return None;
+                    }
+                    row.types.push(known(ty)?);
+                }
+                IrItemKind::Scenario { params, result, .. } => {
+                    row.links = params.clone();
+                    row.types.extend(result.clone());
+                }
+                IrItemKind::DeriveField { model, ty, .. } => {
+                    row.links.push(*model);
+                    row.types.push(known(ty)?);
+                }
+                IrItemKind::DeriveFn { params, result, .. } => {
+                    row.links = params.clone();
+                    row.types.push(known(result)?);
+                }
+                IrItemKind::Message { params, .. } => row.links = params.clone(),
+                IrItemKind::Crud {
+                    model,
+                    create,
+                    update,
+                    delete,
+                    ..
+                } => {
+                    row.links.push(*model);
+                    row.flags = vec![*create, *update, *delete];
+                }
+                IrItemKind::CrudOp { model, fields, .. } => {
+                    row.links.push(*model);
+                    row.names = fields.clone();
+                }
+                _ => {}
+            }
+            items.push(row);
+        }
+        has_file_model.then_some((modules, items))
+    }
+}
+
+impl CheckedCommittedSources {
+    pub(crate) fn has_empty_value_inventory_fact(&self) -> bool {
+        self.empty_value_inventory.is_some()
+    }
+
+    /// Validate the private complete-empty schema census against the same
+    /// original sources and current IR. Raw, stale or edited cohorts have no
+    /// certificate; this is independent of any committed event admission.
+    pub(crate) fn has_complete_empty_value_inventory(&self, ir: &IrProgram, db: &SourceDb) -> bool {
+        let Some(fact) = &self.empty_value_inventory else {
+            return false;
+        };
+        if self.sources.is_empty()
+            || fact.roots.len() != self.sources.len()
+            || !self
+                .sources
+                .iter()
+                .zip(&fact.roots)
+                .all(|((id, path, hash), root)| {
+                    root.file == *id
+                        && db.get(*id).is_some_and(|source| {
+                            source.path == *path
+                                && source.sha256 == *hash
+                                && sha256_hex(source.text.as_bytes()) == *hash
+                                && root.start == 0
+                                && root.end as usize == source.text.len()
+                        })
+                })
+            || ir.catalog_version != fact.catalog_version
+            || ir.value_constraints != fact.constraints
+        {
+            return false;
+        }
+        CheckedEmptyValueInventory::census(ir)
+            .is_some_and(|(modules, items)| modules == fact.modules && items == fact.items)
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -2176,6 +2410,7 @@ impl<'a> Cx<'a> {
         let suites = self.build_suites(&items);
         let referenced_builtins = self.build_referenced_builtins();
         let committed_sources = CheckedCommittedSources {
+            empty_value_inventory: None,
             sources: self
                 .program
                 .checked_files()
@@ -2232,7 +2467,7 @@ impl<'a> Cx<'a> {
                 })
                 .collect(),
         };
-        let program = IrProgram {
+        let mut program = IrProgram {
             modules,
             items,
             value_constraints: self.program.types.value_constraints.clone(),
@@ -2250,6 +2485,39 @@ impl<'a> Cx<'a> {
             suites,
             migrations,
         };
+        // Establish absence from the owning original CST, never from a raw or
+        // partial IR. Imported/catalog and declared structural closures remain
+        // owned by the existing nonempty collector.
+        fn empty_schema_source(node: &SyntaxNode) -> bool {
+            !matches!(
+                node.kind,
+                SyntaxKind::Import
+                    | SyntaxKind::Contract
+                    | SyntaxKind::Judgment
+                    | SyntaxKind::Capability
+                    | SyntaxKind::Event
+                    | SyntaxKind::Preferences
+                    | SyntaxKind::Error
+                    | SyntaxKind::BadToken
+            ) && node.children.iter().all(empty_schema_source)
+        }
+        if self.diags.is_empty()
+            && !self.trees.is_empty()
+            && self.trees.iter().all(|(_, tree)| empty_schema_source(tree))
+            && let Some((modules, items)) = CheckedEmptyValueInventory::census(&program)
+        {
+            program.committed_sources.empty_value_inventory = Some(CheckedEmptyValueInventory {
+                catalog_version: program.catalog_version.clone(),
+                roots: self
+                    .trees
+                    .iter()
+                    .map(|(_, tree)| NodeKey::of(tree))
+                    .collect(),
+                modules,
+                items,
+                constraints: program.value_constraints.clone(),
+            });
+        }
         (program, std::mem::take(&mut self.diags))
     }
 
