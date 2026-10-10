@@ -8,6 +8,7 @@ import { compileFunction, constants as vmConstants } from "node:vm";
 import { expect, it } from "vitest";
 import { attachDevSessionService, startDevSessionService, type SessionCheckResponse, type SessionConstructQualification } from "../src/dev/session-service.js";
 import type { CompilerConstructCandidates } from "../src/dev/construct-help.js";
+import { firstProfileConstructIds } from "../src/dev/construct-help.js";
 import { prepareLocalPreviewCapture } from "../src/dev/preview-inputs.js";
 
 const project = resolve(import.meta.dirname, "../../..");
@@ -106,10 +107,19 @@ it("retains released native originating context and keeps unqualified ranking lo
 it("joins only actual current first-profile runtime and example outcomes through the private native session", async () => {
   // Native installed producer imports preserve ESM own-data metadata;
   // Vitest proxies expose export getters instead of the owning carrier.
-  const {createInstalledFirstProfileQualification}=await compileFunction("return import(url)",["url"],{
+  const nativeImport=compileFunction("return import(url)",["url"],{
     importModuleDynamically:vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
-  })(pathToFileURL(join(project,"packages/cloudflare/dist/dev/first-profile-qualification.js")).href
+  });
+  const {createInstalledFirstProfileQualification}=await nativeImport(pathToFileURL(
+    join(project,"packages/cloudflare/dist/dev/first-profile-qualification.js")).href
   ) as typeof import("../src/dev/first-profile-qualification.js");
+  // Optional browser capture also consumes owner-issued Node namespaces.
+  const {startDevSessionService,attachDevSessionService}=await nativeImport(pathToFileURL(
+    join(project,"packages/cloudflare/dist/dev/session-service.js")).href
+  ) as typeof import("../src/dev/session-service.js");
+  const {prepareLocalPreviewCapture}=await nativeImport(pathToFileURL(
+    join(project,"packages/cloudflare/dist/dev/preview-inputs.js")).href
+  ) as typeof import("../src/dev/preview-inputs.js");
   // The qualification fixture remains Compiler-owned. Only this distinct
   // invalid application is temporary, inside the selected actual checkout.
   const appRoot=await mkdtemp(join(project,".can-dev-help-"));
@@ -155,8 +165,12 @@ it("joins only actual current first-profile runtime and example outcomes through
       expect(proof!.compilerSha256).toBe(actual.compilerSha256);expect(proof!.indexRevision).toBe(actual.indexRevision);
       if(id.includes("examples."))expect(proof!.exampleCheck).toContain("passed");
     }
-    for(const id of ["can.v1.ui.card",
-      "can.v1.ui.table","can.v1.ui.stat","can.v1.then.form","can.v1.then.edit","can.v1.then.delete"])expect(proofs.has(id)).toBe(false);
+    // This positive whole-source case requires the actual installed UI consumer;
+    // optional absence remains a production withholding path, not UI evidence.
+    expect([...proofs.keys()].sort()).toEqual(firstProfileConstructIds());
+    for(const id of ["can.v1.ui.card","can.v1.ui.table","can.v1.ui.stat","can.v1.then.form",
+      "can.v1.then.edit","can.v1.then.delete","can.v1.ui.tabs-selector","can.v1.type.enum"])
+      expect(proofs.get(id)!.runtimeCheck).toContain("Chromium");
     expect(await client.request({command:"preview.status"})).toMatchObject({state:"unavailable"});
   } finally {await owner.stop();await rm(appRoot,{recursive:true,force:true});await rm(runtimeDir,{recursive:true,force:true});}
-}, 120_000);
+}, 180_000);
