@@ -548,7 +548,7 @@ fn collect_owner(
                     }
                     let input = descriptor.inputs.iter().find(|input| input.name == *name)?;
                     if query.is_some() {
-                        protected_query_input(ir, owner, param, value, input, operations)?;
+                        protected_query_input(ir, owner, param, value, input, operations, db)?;
                     } else if !input.required
                         || input.nullable
                         || input.array_required.is_some()
@@ -843,7 +843,11 @@ fn protected_query_input(
     value: &super::ir::TypedExpr,
     input: &JsOperationField,
     operations: &[JsOperation],
+    db: &SourceDb,
 ) -> Option<()> {
+    if matches!(value.expr, IrExpr::Member { .. }) {
+        return protected_stored_query_input(ir, owner, child_param, value, input, operations, db);
+    }
     let IrExpr::Name(name) = &value.expr else {
         return None;
     };
@@ -957,6 +961,140 @@ fn protected_query_input(
         return None;
     }
     Some(())
+}
+
+fn protected_stored_query_input(
+    ir: &IrProgram,
+    owner: &IrItem,
+    child_param: &IrItem,
+    value: &super::ir::TypedExpr,
+    input: &JsOperationField,
+    operations: &[JsOperation],
+    db: &SourceDb,
+) -> Option<()> {
+    let original = super::scenario_receipts::stored_reference_operand(ir, owner, value, db)?;
+    let IrExpr::Member { base, .. } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Member { base, .. } = &base.expr else {
+        return None;
+    };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let parent = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .find(|parameter| parameter.name == *name)?;
+    let IrItemKind::Param {
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol,
+                stored: true,
+            }),
+        default: None,
+        default_node: None,
+        array_bounds: None,
+        ..
+    } = &parent.kind
+    else {
+        return None;
+    };
+    let model = ir.items.get(symbol.0 as usize)?;
+    let original_input = operations
+        .iter()
+        .find(|operation| operation.name == owner.canonical)?
+        .inputs
+        .iter()
+        .find(|field| field.name == *name)?;
+    if !original_input.required
+        || original_input.nullable
+        || original_input.array_required.is_some()
+        || original_input.value_type.is_some()
+        || original_input.min.is_some()
+        || original_input.max.is_some()
+        || original_input.default.is_some()
+        || original_input.computed_default
+        || !matches!(&original_input.field, JsMcpField::Ref { model: name, require_version: true } if name == &model.canonical)
+    {
+        return None;
+    }
+    let IrItemKind::Param {
+        ty: IrType::Known(ty),
+        default: None,
+        default_node: None,
+        array_bounds: bounds,
+        ..
+    } = &child_param.kind
+    else {
+        return None;
+    };
+    if ty != &value.ty
+        || ty != &original.ty
+        || input.nullable
+        || input.value_type.is_some()
+        || input.default.is_some()
+        || input.computed_default
+    {
+        return None;
+    }
+    let target = match ty {
+        ResolvedType::Record {
+            symbol,
+            stored: true,
+        } => {
+            if !input.required
+                || input.array_required.is_some()
+                || bounds.is_some()
+                || input.min.is_some()
+                || input.max.is_some()
+            {
+                return None;
+            }
+            symbol
+        }
+        ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        } => {
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = element.as_ref()
+            else {
+                return None;
+            };
+            let bounds = bounds.as_ref()?;
+            let min = u64::try_from(original.min.as_ref()?.1).ok()?;
+            let max = u64::try_from(original.max.as_ref()?.1).ok()?;
+            if min == 0
+                || max < min
+                || max > 200
+                || (bounds.min, bounds.max) != (Some(min), Some(max))
+                || input.required
+                || input.array_required != Some(false)
+                || input.min != Some(min)
+                || input.max != Some(max)
+            {
+                return None;
+            }
+            symbol
+        }
+        _ => return None,
+    };
+    let model = ir.items.get(target.0 as usize)?;
+    (model.id == *target && matches!(model.kind, IrItemKind::Model { .. })
+        && matches!(&input.field, JsMcpField::Ref { model: name, require_version: false } if name == &model.canonical))
+        .then_some(())
 }
 
 fn simple_value(value: &super::ir::TypedExpr) -> bool {
