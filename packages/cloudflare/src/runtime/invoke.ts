@@ -5605,6 +5605,7 @@ const nativeScenarioFiles = new WeakMap<GeneratedOperationDef, {
   readonly files: CanonicalFileBinding;
   readonly app: string;
   readonly revalidate: NonNullable<CanonicalFileBinding['revalidate']>;
+  readonly prepareObservation: () => void;
 }>();
 
 /** Install the genuine receiving-file callback before the checked root executes.
@@ -5645,20 +5646,26 @@ async function bindNativeScenarioFiles(loaded: LoadedCanonicalDescriptors,
     return;
   }
   // Binding a checked scenario does not inspect optional File ports. State
-  // calls this only for an actual captured/saved assignment. Pin the genuine
-  // host method at that first use and refuse its replacement thereafter.
+  // calls this only for an actual captured/saved assignment. Fresh capture
+  // pins before its observer awaits; saved-only recovery pins at first use.
   let originalRevalidate: CanonicalFileBinding['revalidate'];
-  const currentFile: NonNullable<CanonicalFileBinding['revalidate']> = async (saved, receiver) => {
+  const prepareObservation = (): void => {
     const revalidate = files.revalidate;
-    if (revalidate === undefined) return false;
+    if (typeof revalidate !== 'function') {
+      throw new loaded.producers.errors('validation', 'Saved File execution requires its installed receiving revalidator.');
+    }
     if (originalRevalidate !== undefined && originalRevalidate !== revalidate) {
       throw new loaded.producers.errors('validation', 'Saved File execution requires its original installed receiving port.');
     }
     originalRevalidate ??= revalidate;
-    return revalidate.call(files, saved, receiver);
+  };
+  const currentFile: NonNullable<CanonicalFileBinding['revalidate']> = async (saved, receiver) => {
+    if (originalRevalidate === undefined && files.revalidate === undefined) return false;
+    prepareObservation();
+    return originalRevalidate!.call(files, saved, receiver);
   };
   bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, revalidate: currentFile }));
-  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate: currentFile }));
+  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate: currentFile, prepareObservation }));
 }
 
 async function invokeCanonicalMutation(
@@ -5791,6 +5798,13 @@ async function invokeCanonicalMutation(
         artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
         ...(opts.files === undefined ? {} : { files: opts.files }),
         ...(kind !== 'scenario' || checkedScenario?.descriptor.result?.disclosure === undefined ? {} : {
+          prepareObservation: () => {
+            const bound = nativeScenarioFiles.get(checkedScenario);
+            if (bound === undefined || bound.files !== opts.files || bound.app !== opts.app) {
+              throw new StateError('validation', 'Saved File execution requires its original installed receiving port.');
+            }
+            bound.prepareObservation();
+          },
           observeAssignment: assignment => {
             const observe = loaded.producers.invoke.observeScenarioReceiptFileAssignment;
             if (observe === undefined) throw new StateError('validation', 'Installed State producer lacks genuine File capture.');

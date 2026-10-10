@@ -25,6 +25,8 @@ export async function stageFileReferences(input: {
   readonly identity: ResolvedIdentity;
   readonly app: string;
   readonly files?: CanonicalFileBinding;
+  /** Pin the trusted receiving producer before any actual observation awaits. */
+  readonly prepareObservation?: () => void;
   /** Trusted host capture for explicit, checked assignment locators only. */
   readonly observeAssignment?: (input: {
     readonly model: ModelName;
@@ -89,6 +91,7 @@ export async function stageFileReferences(input: {
             if (files.observe === undefined || files.revalidate === undefined) {
               input.refuse('Saved file assignment requires its installed receiving observer and revalidator.');
             }
+            input.prepareObservation?.();
             const observation = await files.observe(ref, input.identity, input.app);
             if (observation === null) input.refuse('Saved file assignment requires a genuine live receiving File observation.');
             input.observeAssignment({ model: write.model, recordId: row.id, field: field.name, observation });
