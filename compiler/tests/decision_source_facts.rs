@@ -374,3 +374,183 @@ fn semantic_ir_tampering_cannot_reuse_decision_proofs() {
         );
     }
 }
+
+#[test]
+fn serial_v1_preserves_actual_sources_types_slots_defaults_and_frames() {
+    use canlang_compiler::codegen::{ir, scenario_decisions::serialize_decision_sources};
+    let source = "app DecisionSerial\nuse helpers {good}\nGiven\nWhen\n scenario run(person:user,a:int,b:int) by=members\n  require good(last=b,first=a)\n  do\n   require active_member(person,team)\n   if a>0\n    require (good(first=a))\nThen\n";
+    let helper = "package helpers\n Given\n  export derive good(first:int,last:int=abs(-2)):bool = first>0 and last>0\n When\n Then\n";
+    let (db, initial, diagnostics) = check(&[("serial.can", source), ("helpers.can", helper)]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (cat, ds) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(db.iter().next().unwrap().0, 0, 0),
+    });
+    assert!(ds.is_empty());
+    let (program, ds) = check_program(&db, initial.checked_files(), cat.as_ref());
+    assert!(ds.is_empty(), "{ds:?}");
+    let (lowered, ds) = ir::build(&program, &db, cat.as_ref());
+    assert!(ds.is_empty(), "{ds:?}");
+    let id = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "DecisionSerial.run")
+        .unwrap()
+        .id;
+    let json = serde_json::to_value(
+        serialize_decision_sources(
+            &program,
+            &lowered,
+            &lowered.items[id.0 as usize],
+            &db,
+            cat.as_ref(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(json.as_array().unwrap().len(), 3);
+    assert_eq!(json[0]["version"], 1);
+    assert_eq!(json[0]["owner"], "DecisionSerial.run");
+    assert_eq!(
+        json[0]["source"],
+        serde_json::json!({"path":"serial.can","sha256":canlang_compiler::source::sha256_hex(source.as_bytes()),"module":"DecisionSerial"})
+    );
+    assert_eq!(json[0]["stage"], "leading-require");
+    assert_eq!(
+        json[0]["position"],
+        serde_json::json!([{ "kind":"guard","index":0 }])
+    );
+    assert_eq!(
+        json[0]["calls"][0]["target"],
+        serde_json::json!({"kind":"derive","name":"helpers.good"})
+    );
+    assert_eq!(json[0]["calls"][0]["slots"], serde_json::json!([1, 0]));
+    let args = json[0]["calls"][0]["arguments"].as_array().unwrap();
+    for (arg, expected) in args.iter().zip(["b", "a"]) {
+        assert_eq!(arg["type"], "int");
+        let start = arg["node"]["start"].as_u64().unwrap() as usize;
+        let end = arg["node"]["end"].as_u64().unwrap() as usize;
+        assert_eq!(&source[start..end], expected);
+    }
+    assert_eq!(json[1]["calls"][0]["arguments"][0]["type"], "user");
+    assert_eq!(json[1]["calls"][0]["arguments"][1]["type"], "Team");
+    assert_eq!(
+        json[2]["position"],
+        serde_json::json!([{ "kind":"body","index":1 },{"kind":"then","index":0}])
+    );
+    assert_eq!(json[2]["calls"][0]["slots"], serde_json::json!([0, null]));
+    assert_eq!(
+        json[2]["calls"][0]["defaults"][0]["parameter"],
+        "helpers.good.last"
+    );
+    assert_eq!(
+        json[2]["calls"][0]["defaults"][0]["source"],
+        serde_json::json!({"path":"helpers.can","sha256":canlang_compiler::source::sha256_hex(helper.as_bytes()),"module":"helpers"})
+    );
+    assert_eq!(json[2]["calls"][0]["defaults"][0]["type"], "int");
+    assert_eq!(json[2]["calls"][1]["chain"][0]["derive"], "helpers.good");
+    for corruption in 0..4 {
+        let mut changed = lowered.clone();
+        let facts = match changed.scenario_disclosures.get_mut(&id).unwrap() {
+            canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure::Complete(v) => {
+                v.source_facts.as_mut().unwrap()
+            }
+            canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure::Declined(v) => {
+                v.source_facts.as_mut().unwrap()
+            }
+        };
+        let sites = facts.decision_sites.as_mut().unwrap();
+        match corruption {
+            0 => sites[0].owner = canlang_compiler::analysis::resolve::SymbolId(u32::MAX),
+            1 => sites[0].source.sha256 = "0".repeat(64),
+            2 => sites[2].calls[0].defaults.clear(),
+            _ => {
+                sites[0].calls[0].arguments[0].1 = canlang_compiler::analysis::ResolvedType::Unknown
+            }
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[id.0 as usize],
+                &db,
+                cat.as_ref()
+            )
+            .is_none(),
+            "serial corruption {corruption}"
+        );
+    }
+    let (role_db, role_program, ds) = check(&[(
+        "role.can",
+        "app RoleSerial\nGiven\n role reviewer label=\"Reviewer\"\nWhen\n scenario run(person:user) by=members\n  do require reviewer(person)\nThen\n",
+    )]);
+    assert!(ds.is_empty(), "{ds:?}");
+    let (role_program, ds) = check_program(&role_db, role_program.checked_files(), cat.as_ref());
+    assert!(ds.is_empty(), "{ds:?}");
+    let (role_ir, ds) = ir::build(&role_program, &role_db, cat.as_ref());
+    assert!(ds.is_empty());
+    let role = role_ir
+        .items
+        .iter()
+        .find(|i| i.canonical == "RoleSerial.run")
+        .unwrap();
+    assert!(
+        serialize_decision_sources(&role_program, &role_ir, role, &role_db, cat.as_ref()).is_none()
+    );
+
+    // A literal default creates no nested call-origin check. Its transport
+    // must still join the owning checked module, rather than trust IR labels.
+    let literal_helper = helper.replace("abs(-2)", "2");
+    let (literal_db, initial, ds) =
+        check(&[("serial.can", source), ("helpers.can", &literal_helper)]);
+    assert!(ds.is_empty(), "{ds:?}");
+    let (literal_program, ds) = check_program(&literal_db, initial.checked_files(), cat.as_ref());
+    assert!(ds.is_empty(), "{ds:?}");
+    let (literal_ir, ds) = ir::build(&literal_program, &literal_db, cat.as_ref());
+    assert!(ds.is_empty(), "{ds:?}");
+    let literal_owner = literal_ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "DecisionSerial.run")
+        .unwrap();
+    assert!(
+        serialize_decision_sources(
+            &literal_program,
+            &literal_ir,
+            literal_owner,
+            &literal_db,
+            cat.as_ref()
+        )
+        .is_some()
+    );
+    let helper_module = literal_ir
+        .modules
+        .iter()
+        .position(|module| module.name == "helpers")
+        .unwrap();
+    for corruption in 0..3 {
+        let mut changed = literal_ir.clone();
+        match corruption {
+            0 => changed.modules[helper_module].name = "foreign".into(),
+            1 => changed.modules[helper_module].file = literal_owner.span.file,
+            _ => changed.modules[helper_module].span.start += 1,
+        }
+        assert!(
+            serialize_decision_sources(
+                &literal_program,
+                &changed,
+                &changed.items[literal_owner.id.0 as usize],
+                &literal_db,
+                cat.as_ref()
+            )
+            .is_none(),
+            "literal default module corruption {corruption}"
+        );
+    }
+}
