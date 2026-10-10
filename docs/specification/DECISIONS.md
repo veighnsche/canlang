@@ -5626,3 +5626,26 @@ ref-array ownership remains State/Dev.
 Explicit `construct.help` consumes the existing daemon-owned completed qualification bundle through the same exact card/profile/index/compiler predicate as diagnostic detail. Refresh actual captured source before and after lookup and withhold working availability for stale, cancelled, pending, historical, malformed or outside-profile evidence. Refuse unknown IDs before starting a job. Keep the captured card immutable and candidate coverage unknown; one card lookup does not establish a complete compiler candidate inventory. No new proof schema, external request or business authority is introduced.
 
 The actual private CLI/Unix component and owning card tests pass28/28, including one-job reuse, source changes before watcher delivery and existing malformed bundle/accessor refusal. Owning CF clean emission and root noEmit pass; reuse the unchanged actual41-card producer/browser result at its recorded tuple. Current consumed ad4 compiler rebuild12.32s and owning graph22/22 plus root noEmit/boundaries13packages/902files/1279expressions/zero violations qualify only that released intake. G2/G3, original native query/reference-array/membership/SEND producer joins, authorized actor/trace/row detail and exact external disclosure holds remain open.
+
+
+## 2026-10-10 — refuse unjoined async dispatch guards before publication (unfinished)
+
+Awaited derived expressions cannot appear in synchronous `when:()=>...` callbacks.
+Refuse E6008/no modules until the real live dispatch observer and frozen lexical
+transport exist; preserve admitted source and ordinary synchronous callback
+behavior. Actual CLI/refusal/executed binding3/3 and codegen121 pass. Do not hoist
+membership reads or accept Promises as booleans. Compiler's eventual lazy capture
+producer and State/Dev dispatch lifetime are prerequisites; no broader hold or
+Task22 lookup release is implied.
+
+
+## 2026-10-10 — join nominal model references to emitted inventory (unfinished native query)
+
+Admit an ordinary contract model leaf only through its exact checked Model
+SymbolId and canonical name in the actual emitted model inventory. Keep nominal
+contract fixed-point closure and existing unsupported wrappers; reference leaves
+do not copy model row schemas or confer existence/version/authority evidence.
+Use released Values normalization with actual same-load model names. Actual CLI/
+installed consumer4/4 and independent finite review pass; nullable/ordered arrays
+and wire/native version behavior remain owning codec semantics. Same-load loader
+and original native query/result provenance qualification remain separate.
