@@ -75,7 +75,7 @@ async function fixture(selectedAssembly: AssembledModules = asm, selectedArtifac
   const invoker = buildInvoker(selectedArtifact, selectedAssembly, store, { memberships: identities, now: () => now });
   const invoke = (kind: string, inputs: Record<string, unknown>, id = operationId(now)) =>
     invoker.invokeMutation({ operation: `${selectedModel}.${kind}`, operation_id: id, inputs }, identity);
-  const rows = () => store.query({ model, authority: 'owner', archived: 'include' });
+  const rows = () => store.query({ model: selectedModel, authority: 'owner', archived: 'include' });
   const snapshot = async () => ({ rows: await rows(), outbox: probe.outboxAll(), revision: await store.readRevision() });
   const commit = async (kind: string, inputs: Record<string, unknown>, id?: OperationId): Promise<MutationResult> => {
     const result = await invoke(kind, inputs, id);
@@ -84,7 +84,7 @@ async function fixture(selectedAssembly: AssembledModules = asm, selectedArtifac
     return result.result;
   };
   const record = async (id: OperationId) => {
-    const row = await store.load(model, id as unknown as RecordId);
+    const row = await store.load(selectedModel, id as unknown as RecordId);
     assert.ok(row); return row;
   };
   const update = async (id: OperationId, changes: Record<string, unknown>) => {
@@ -93,7 +93,7 @@ async function fixture(selectedAssembly: AssembledModules = asm, selectedArtifac
   };
   const deny = async (kind: string, inputs: Record<string, unknown>, target?: OperationId) => {
     const before = await snapshot(), beforeBatches = batches.length, id = operationId(now);
-    const history = target === undefined ? [] : probe.historyFor(model, target as unknown as RecordId);
+    const history = target === undefined ? [] : probe.historyFor(selectedModel, target as unknown as RecordId);
     const result = await invoke(kind, inputs, id);
     assert.ok('error' in result, JSON.stringify(result));
     assert.equal(result.error.code, 'rule_failed');
@@ -106,8 +106,8 @@ async function fixture(selectedAssembly: AssembledModules = asm, selectedArtifac
     assert.equal(batch.expectedRevision, before.revision);
     for (const field of ['writes', 'history', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'outboxAck'] as const)
       assert.deepEqual(batch[field] ?? [], [], `rejection stages no ${field}`);
-    const receipt = await store.readReceipt({ app: 'NativeLocalRules', owner: team.team_id,
-      principal: user.user_id, operation: `${model}.${kind}` as OperationName, operationId: id });
+    const receipt = await store.readReceipt({ app: selectedModel.slice(0, selectedModel.lastIndexOf('.')), owner: team.team_id,
+      principal: user.user_id, operation: `${selectedModel}.${kind}` as OperationName, operationId: id });
     assert.ok(receipt);
     assert.deepEqual(batch.receipt, receipt);
     assert.equal(receipt.inputHash, await hashInputs(inputs));
@@ -115,8 +115,8 @@ async function fixture(selectedAssembly: AssembledModules = asm, selectedArtifac
     assert.ok(receipt.outcome.status === 'rejected');
     assert.equal(receipt.outcome.code, 'rule_failed');
     assert.deepEqual(receipt.resolvedDefaults, {});
-    if (target !== undefined) assert.deepEqual(probe.historyFor(model, target as unknown as RecordId), history);
-    assert.deepEqual(probe.historyFor(model, id as unknown as RecordId), []);
+    if (target !== undefined) assert.deepEqual(probe.historyFor(selectedModel, target as unknown as RecordId), history);
+    assert.deepEqual(probe.historyFor(selectedModel, id as unknown as RecordId), []);
   };
   return { now, identity, invoker, store, probe, batches, invoke, commit, record, update, deny };
 }
@@ -144,10 +144,10 @@ it('consumes native int64 policies through create, saved replay, and current mem
   assert.deepEqual(projected.records[0]!.data, { ...inputs, quantity: '7', locked: false, state: 'open' });
 });
 
-it('keeps genuine unclaimed native hooks refused without executing their candidate changes', async () => {
+it('keeps genuine unsupported delete hooks refused without executing their body', async () => {
   const scratch = await mkdtemp(join(root, '.can-native-unclaimed-hook-'));
   const sourcePath = join(scratch, 'NativeUnclaimedHook.can');
-  const text = 'app NativeUnclaimedHook\nGiven\n Item {label:text}\nWhen\n crud Item by=members fields=label\n scenario changed on=Item.update\n  do set event.after {label="Hook"}\nThen\n';
+  const text = 'app NativeUnclaimedHook\nGiven\n Item {label:text}\nWhen\n crud Item by=members fields=label\n scenario changed on=Item.delete\n  do require event.before.label!="never"\nThen\n';
   await writeFile(sourcePath, text);
   const hookCapture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
     appPath: sourcePath, compilerPath: join(root, 'compiler/target/debug/can'),
@@ -159,9 +159,9 @@ it('keeps genuine unclaimed native hooks refused without executing their candida
     const emitted = compiled.artifact;
     const originalArtifact = JSON.stringify(emitted);
     const owningModel = 'NativeUnclaimedHook.Item' as ModelName;
-    const operation = `${owningModel}.update`;
+    const operation = `${owningModel}.delete`;
     assert.equal(emitted.modelPolicies?.some(policy => policy.hooks.some(hook => hook.operation === operation)) ?? false, false,
-      'this released compiler has no checked hook producer');
+      'delete remains outside the released checked hook profile');
     assert.equal(emitted.callables.filter(callable => callable.kind === 'handler' && callable.member.join('.') === `hooks.${operation}.run`).length, 1);
     const assembly = await assembleModules({ artifact: emitted, sourcePath }, { workDir: join(scratch, 'assembly'),
       stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
@@ -174,13 +174,13 @@ it('keeps genuine unclaimed native hooks refused without executing their candida
     const row = await f.store.load(owningModel, createId as unknown as RecordId);
     assert.ok(row);
     const before = { revision: await f.store.readRevision(), history: f.probe.historyFor(owningModel, row.id), outbox: f.probe.outboxAll(), batches: f.batches.length };
-    const inputs = { record: { id: row.id, version: String(row.version) }, label: 'Requested' };
+    const inputs = { record: { id: row.id, version: String(row.version) } };
     const id = operationId(f.now);
-    const denied = await f.invoke('update', inputs, id);
+    const denied = await f.invoke('delete', inputs, id);
     assert.ok('error' in denied, JSON.stringify(denied));
     assert.equal(denied.error.code, 'validation');
     assert.match(denied.error.message, /requires unsupported canonical hooks/);
-    assert.deepEqual(await f.store.load(owningModel, row.id), row, 'neither requested nor legacy hook candidate is published');
+    assert.deepEqual(await f.store.load(owningModel, row.id), row, 'unsupported hook leaves the actual record untouched');
     assert.deepEqual(f.probe.historyFor(owningModel, row.id), before.history);
     assert.deepEqual(f.probe.outboxAll(), before.outbox);
     assert.equal(await f.store.readRevision(), before.revision + 1);
@@ -198,7 +198,7 @@ it('keeps genuine unclaimed native hooks refused without executing their candida
     assert.equal(receipt.committedRevision, before.revision + 1);
     assert.deepEqual(rejectedBatch.receipt, receipt);
     assert.deepEqual(receipt.resolvedDefaults, {});
-    assert.deepEqual(await f.invoke('update', inputs, id), denied, 'rejected replay preserves original refusal');
+    assert.deepEqual(await f.invoke('delete', inputs, id), denied, 'rejected replay preserves original refusal');
     const replay = await f.invoke('create', { label: 'Original' }, createId);
     assert.ok('result' in replay, JSON.stringify(replay));
     assert.equal(replay.result.status, 'replayed');
@@ -209,6 +209,91 @@ it('keeps genuine unclaimed native hooks refused without executing their candida
     assert.equal(await readFile(sourcePath, 'utf8'), text);
     assert.equal(await captureIsCurrent(hookCapture), true);
   } finally { await rm(scratch, { recursive: true, force: true }); }
+});
+
+it('executes the unchanged native HookOrder candidate sequence and rolls back its staged Audit on a late guard', {timeout:120000}, async () => {
+  const sourcePath = join(root, 'compiler/tests/fixtures/hook_order_rollback.can');
+  const originalSource = await readFile(sourcePath, 'utf8');
+  const hookCapture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
+    appPath: sourcePath, compilerPath: join(root, 'compiler/target/debug/can'),
+    catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
+  const scratch = await mkdtemp(join(tmpdir(), 'can-native-checked-hook-'));
+  try {
+    const compiled = await compileCapturedSingleFile(hookCapture);
+    assert.equal(compiled.kind, 'artifact', `unchanged original HookOrder native compilation: ${compiled.kind}`);
+    if (compiled.kind !== 'artifact') throw new Error('Original HookOrder fixture did not compile');
+    const emitted = compiled.artifact, originalArtifact = JSON.stringify(emitted);
+    assert.deepEqual(emitted.sources, [{ path: hookCapture.compilerOperand, sha256: hookCapture.sourceSha256 }]);
+    const owningModel = 'HookOrder.Entry' as ModelName, auditModel = 'HookOrder.Audit' as ModelName;
+    const policy = emitted.modelPolicies?.find(policy => policy.model === owningModel);
+    assert.ok(policy);
+    assert.deepEqual(policy.hooks, [{id:'HookOrder.adjustEntry',op:'update',operation:'HookOrder.Entry.update'}]);
+    assert.equal(emitted.callables.filter(callable => callable.id === 'HookOrder.adjustEntry' &&
+      callable.module === policy.module && callable.member.join('.') === 'hooks.HookOrder.Entry.update.run').length, 1);
+    const assembly = await assembleModules({artifact:emitted,sourcePath}, {workDir:join(scratch,'assembly'),
+      stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+    const loaded = await loadCanonicalDescriptors(assembly, emitted);
+    assert.equal(loaded.unsupportedHookOperations.has('HookOrder.Entry.update'),false);
+    const f = await fixture(assembly, emitted, owningModel), id = operationId(f.now);
+    assert.ok(f.identity.actor && f.identity.team);
+    const receipt = async (kind:string,operation_id:OperationId) => {
+      const saved = await f.store.readReceipt({app:'HookOrder',owner:f.identity.team!.team_id,
+        principal:f.identity.actor!.user_id,operation:`${owningModel}.${kind}` as OperationName,operationId:operation_id});
+      assert.ok(saved);return saved;
+    };
+    const resources = async () => {
+      const entries = await f.store.query({model:owningModel,authority:'owner',archived:'include'});
+      const audits = await f.store.query({model:auditModel,authority:'owner',archived:'include'});
+      return {entries,audits,history:await Promise.all([...entries.map(row=>[owningModel,row.id] as const),
+        ...audits.map(row=>[auditModel,row.id] as const)].map(([model,id])=>f.store.historyFor(model,id))),
+        revision:await f.store.readRevision(),batches:f.batches.length,outbox:f.probe.outboxAll(),schedules:f.batches.flatMap(batch=>batch.schedules??[])};
+    };
+    const createInputs = {state:'initial',accept:true};
+    const created = await f.commit('create',createInputs,id);
+    const initial = await f.record(id);assert.equal(initial.version,1);assert.deepEqual(initial.data,createInputs);
+    const createdReceipt = await receipt('create',id);assert.equal(createdReceipt.outcome.status,'committed');
+    const updateId = operationId(f.now), inputs = {record:{id:initial.id,version:'1'},state:'proposed',accept:true};
+    const updated = await f.commit('update',inputs,updateId);
+    const current = await f.record(id);assert.equal(current.version,2);assert.deepEqual(current.data,{state:'second',accept:true});
+    const audits = await f.store.query({model:auditModel,authority:'owner',archived:'include'});
+    assert.equal(audits.length,1);assert.equal(audits[0]!.version,1);assert.deepEqual(audits[0]!.data,{note:'first'});
+    const batch = f.batches.at(-1)!;
+    assert.equal(batch.writes.length,2);assert.equal(batch.history.length,2);
+    const entryHistory = await f.store.historyFor(owningModel,current.id);
+    assert.equal(entryHistory.length,2);assert.deepEqual(entryHistory.at(-1)!.before,initial.data);assert.deepEqual(entryHistory.at(-1)!.after,current.data);
+    const auditHistory = await f.store.historyFor(auditModel,audits[0]!.id);
+    assert.equal(auditHistory.length,1);assert.equal(auditHistory[0]!.before,null);assert.deepEqual(auditHistory[0]!.after,audits[0]!.data);
+    const saved = await receipt('update',updateId);
+    assert.equal(saved.inputHash,await hashInputs(inputs));assert.deepEqual(batch.receipt,saved);
+    assert.equal(saved.outcome.status,'committed');assert.equal(saved.committedRevision,await f.store.readRevision());
+    const beforeReplay = await resources();
+    const replay = await f.invoke('update',inputs,updateId);assert.ok('result' in replay);
+    assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.records,updated.records);
+    assert.deepEqual(await resources(),beforeReplay);
+    const createReplay = await f.invoke('create',createInputs,id);assert.ok('result' in createReplay);
+    assert.equal(createReplay.result.status,'replayed');assert.deepEqual(createReplay.result.records,created.records);
+    assert.deepEqual(await resources(),beforeReplay);
+    const rejectedId = operationId(f.now), rejectedInputs = {record:{id:current.id,version:'2'},state:'proposed',accept:false};
+    const rejected = await f.invoke('update',rejectedInputs,rejectedId);assert.ok('error' in rejected);
+    assert.equal(rejected.error.code,'rule_failed');
+    const afterReject = await resources();
+    assert.deepEqual({...afterReject,revision:beforeReplay.revision,batches:beforeReplay.batches},beforeReplay);
+    assert.equal(afterReject.revision,beforeReplay.revision+1);assert.equal(afterReject.batches,beforeReplay.batches+1);
+    const rejectionBatch = f.batches.at(-1)!, rejectedReceipt = await receipt('update',rejectedId);
+    assert.ok(rejectedReceipt.outcome.status==='rejected');assert.equal(rejectedReceipt.outcome.code,'rule_failed');
+    assert.equal(rejectedReceipt.inputHash,await hashInputs(rejectedInputs));assert.deepEqual(rejectionBatch.receipt,rejectedReceipt);
+    for(const name of ['writes','history','outbox','schedules','uniqueClaims','uniqueReleases','outboxAck'] as const)
+      assert.deepEqual(rejectionBatch[name]??[],[],`late guard rolls back ${name}`);
+    assert.deepEqual(await f.invoke('update',rejectedInputs,rejectedId),rejected);
+    assert.deepEqual(await resources(),afterReject);
+    const copied = await fixture({...assembly,moduleUrls:{...assembly.moduleUrls}},emitted,owningModel);
+    const refused = await copied.invoke('create',createInputs);assert.ok('error' in refused);assert.equal(refused.error.code,'validation');
+    assert.equal(copied.batches.length,0);assert.equal(await copied.store.readRevision(),0);
+    assert.deepEqual(await copied.store.query({model:owningModel,authority:'owner',archived:'include'}),[]);
+    assert.deepEqual(await copied.store.query({model:auditModel,authority:'owner',archived:'include'}),[]);
+    assert.equal(JSON.stringify(emitted),originalArtifact);
+    assert.equal(await readFile(sourcePath,'utf8'),originalSource);assert.equal(await captureIsCurrent(hookCapture),true);
+  } finally {await rm(scratch,{recursive:true,force:true});}
 });
 
 it('rejects each source-ordered false invariant with exact receipt bookkeeping and no domain effects', async () => {

@@ -102,8 +102,9 @@ export async function createBoundCohortTick(input: {
       if (row === null) throw new Error('Cohort tick retained intent lost its authoritative source.');
       const receipt = readOccurrenceRow(row);
       const result = receipt.result as { kind?: unknown; event?: unknown } | null;
-      if (receipt.status !== 'completed' || result?.kind !== 'committed-model-source' || typeof result.event !== 'string') {
-        throw new Error('Cohort tick retained intent lacks a committed source receipt.');
+      if (receipt.status !== 'completed' ||
+          result?.kind !== 'committed-model-source' && result?.kind !== 'standard-completion-source' || typeof result?.event !== 'string') {
+        throw new Error('Cohort tick retained intent lacks a checked source receipt.');
       }
       body = await createCanonicalCommittedCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
         source: { occurrenceId: intent.sourceOccurrence, event: result.event, scope }, store, identities, now: () => now });
@@ -112,6 +113,7 @@ export async function createBoundCohortTick(input: {
     if (checkpoint === null) throw new Error('Cohort tick retained intent lost its checkpoint.');
     const admissionStore = { ...store, async commit(batch: Parameters<typeof store.commit>[0]) {
       await ownerStorage.forTrustedScope(scope, now);
+      await body.verifySource(now);
       return store.commit(batch);
     } };
     const admission = await admitRetainedFanoutChunk({ store: admissionStore, intentRow, checkpointRow: checkpoint,
@@ -119,7 +121,7 @@ export async function createBoundCohortTick(input: {
       meta: { actor: body.trustedSource, nowMs: now } });
     if (!admission.ok) return [...outputs, admission];
     outputs.push(await runRetainedFanoutSchedulerTurn({ store, owner: scope.owner, retainedIntent: intentRow,
-      sourceOwner: { boundary: ownerStorage, scope },
+      sourceOwner: { boundary: ownerStorage, scope, sourceAssembly: { asm, artifact, identities } },
       fanoutId: body.fanoutId, advanceOwnerScan: true,
       bounds: { pageLimit: Math.min(body.bounds.pageLimit, INSTALLED_SLICE_LIMIT), maxDrives: 1 },
       policy: { maxAttempts: 3, horizonMs: 60_000 },

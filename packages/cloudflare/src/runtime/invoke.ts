@@ -122,7 +122,7 @@ import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import { createCommittedModelSourceStager, createStandardCompletionSourceCommand } from '@canlang/work';
 import { isConsistentCompletion } from '@canlang/work/receipt';
-import { enrollSystemCommandCommitCheck } from '@canlang/state';
+import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
 import { assertOwnerMutationHookContext } from '@canlang/state/mutation';
@@ -4416,6 +4416,9 @@ async function loadLocalOwnerPolicyControl(input: {
           }
           return wire;
         };
+        const guards = await loadProducerModule('@canlang/state/effects/guards', 'native hook authored require');
+        const isRequireFailure = requireProducerFn(guards, 'isAuthoredRequireFailure', 'native hook authored require') as
+          typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure;
         adapted.push(Object.freeze({ id: hook.id, model: descriptor.model, kind: 'hook',
           module: descriptor.module, ownerPackage: descriptor.ownerPackage,
           run: async (candidate: Record<string, unknown>, original: OwnerMutationHookContext): Promise<Record<string, unknown>> => {
@@ -4484,6 +4487,12 @@ async function loadLocalOwnerPolicyControl(input: {
               const answer: unknown = await (run as (candidate: Record<string, unknown>, bridge: unknown, c: HandlerContext) => unknown)(fields(candidate), bridge, c);
               assertLive();
               return encodeFields(descriptor.model, answer);
+            } catch (error) {
+              const failure = failed ? firstFailure : error;
+              if (isRequireFailure(failure)) {
+                throw new input.native.producers.errors('rule_failed', failure.message);
+              }
+              throw failure;
             } finally { active = false; }
           },
         }));
@@ -6657,6 +6666,27 @@ async function loadCheckedStandardCompletions(asm: AssembledModules, artifact: C
   return result;
 }
 
+interface InstalledNativeCompletionSource {
+  readonly identities: IdentityStore;
+  readonly bounds: import('@canlang/work').StandardCompletionSourceBounds;
+  readonly command: import('@canlang/state').SystemCommandDef;
+  readonly registry: import('@canlang/state').SystemRegistry;
+  readonly verify: (now: number) => Promise<void>;
+}
+// Only the checked native factory installs this binding. A saved receipt never
+// supplies configuration, an assembler capability, or a replacement reader.
+const installedNativeCompletionSources = new WeakMap<AssembledModules,
+  WeakMap<CompileArtifact, Map<string, InstalledNativeCompletionSource>>>();
+
+function installedNativeCompletionSource(asm: AssembledModules, artifact: CompileArtifact,
+  scope: import('@canlang/contracts').WorkScope, identities: IdentityStore): InstalledNativeCompletionSource {
+  const installed = installedNativeCompletionSources.get(asm)?.get(artifact)?.get(stableStringify(scope));
+  if (installed === undefined || installed.identities !== identities) {
+    throw new AssemblyCorrespondenceError('Completion consumption requires its original native host installation.');
+  }
+  return installed;
+}
+
 /** Private host enrollment only. The command accepts one retained delivery ID,
  * and Work reads/stages it through State's actual issued context and fence. */
 export async function createNativeStandardCompletionSourceCommand(input: {
@@ -6721,20 +6751,56 @@ export async function createNativeStandardCompletionSourceCommand(input: {
     if (stableStringify(facts(census)) !== stableStringify(facts(installed))) {
       throw new AssemblyCorrespondenceError('Completion lost its original native source/schema/handler correspondence.');
     }
+    await resolvePrivateSourceOwner(identities, scope, now);
+    await verifyCheckedAssembly(asm, artifact);
   };
-  return Object.freeze({ name: command.name, async stage(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
-    // Enrolling first rejects copied/closed contexts before any source reads.
-    enrollSystemCommandCommitCheck(ctx, async () => { await verify(ctx.now); return true; });
-    await verify(ctx.now);
-    const staged = await command.stage(args, ctx);
-    const outcome = localPolicyObject(staged.result);
-    if (outcome.status === 'staged' || outcome.status === 'replayed') {
-      const source = installed.find(source => source.event === outcome.event);
-      if (source === undefined) throw new AssemblyCorrespondenceError('Completion issuer returned an uninstalled event.');
-      checkedCompletionPayload(source, outcome.payload);
+  const wrapped = Object.freeze({ name: command.name,
+    async read(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
+      systemCommandStageRevision(ctx);
+      await verify(ctx.now);
+      const receipt = await command.read(args, ctx);
+      const result = localPolicyObject(receipt.result);
+      const source = installed.find(source => source.event === result.event);
+      if (receipt.status !== 'completed' || result.kind !== 'standard-completion-source' || source === undefined) {
+        throw new AssemblyCorrespondenceError('Completion reader returned an uninstalled consumed source.');
+      }
+      if (source.resultType === null) {
+        throw new AssemblyCorrespondenceError('Native void completion consumption is not joined.');
+      }
+      checkedCompletionPayload(source, result.payload);
+      await verify(ctx.now);
+      systemCommandStageRevision(ctx);
+      return receipt;
+    },
+    async stage(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
+      // Enrolling first rejects copied/closed contexts before any source reads.
+      enrollSystemCommandCommitCheck(ctx, async () => { await verify(ctx.now); return true; });
+      await verify(ctx.now);
+      const staged = await command.stage(args, ctx);
+      const outcome = localPolicyObject(staged.result);
+      if (outcome.status === 'staged' || outcome.status === 'replayed') {
+        const source = installed.find(source => source.event === outcome.event);
+        if (source === undefined) throw new AssemblyCorrespondenceError('Completion issuer returned an uninstalled event.');
+        checkedCompletionPayload(source, outcome.payload);
+      }
+      return staged;
+    } });
+  let byArtifact = installedNativeCompletionSources.get(asm);
+  if (byArtifact === undefined) {
+    byArtifact = new WeakMap(); installedNativeCompletionSources.set(asm, byArtifact);
+  }
+  let byScope = byArtifact.get(artifact);
+  if (byScope === undefined) { byScope = new Map(); byArtifact.set(artifact, byScope); }
+  const key = stableStringify(scope), previous = byScope.get(key);
+  if (previous !== undefined) {
+    if (previous.identities !== identities || stableStringify(previous.bounds) !== stableStringify(bounds)) {
+      throw new AssemblyCorrespondenceError('Completion cannot replace its original native host installation.');
     }
-    return staged;
-  } });
+    return previous.command;
+  }
+  byScope.set(key, Object.freeze({ identities, bounds, command: wrapped,
+    registry: createSystemRegistry([wrapped]), verify }));
+  return wrapped;
 }
 
 function committedSourceData(value: unknown): unknown {
@@ -6998,13 +7064,19 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
   return { status: 'completed' as const, occurrenceId: opts.due.occurrenceId, result };
 }
 
-async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app'>,
+async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app' | 'identities' | 'now'>,
   loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope) {
   if (scope.app !== opts.app) throw new Error('Private source scope disagrees with its deployment.');
   if (loaded.standardCompletions?.has(event)) {
-    // Issuance is available independently. Consumption needs the owning Work
-    // replay reader, rather than trusting an injected occurrence envelope.
-    throw new Error('Standard completion consumption needs its original owning Work source replay reader.');
+    const completion = loaded.standardCompletions.get(event)!;
+    if (completion.ownerPackage !== scope.ownerPackage || completion.app !== scope.app) {
+      throw new AssemblyCorrespondenceError('Completion source differs from its checked declaring app/package.');
+    }
+    if (completion.resultType === null) {
+      throw new AssemblyCorrespondenceError('Native void completion consumption is not joined.');
+    }
+    await installedNativeCompletionSource(opts.asm, opts.artifact, scope, opts.identities).verify(opts.now());
+    return completion.routes;
   }
   const committed = loaded.committedChanges.get(event);
   if (committed !== undefined) {
@@ -7084,10 +7156,63 @@ async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, st
   return { receipt, result, payload, handlers, bounds };
 }
 
+async function readCheckedRetainedSource(
+  opts: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact' | 'identities'>,
+  loaded: LoadedCanonicalDescriptors, store: StoragePort, occurrenceId: string, event: string,
+  scope: import('@canlang/contracts').WorkScope, now: number) {
+  if (!loaded.standardCompletions?.has(event)) {
+    return readCheckedCommittedSource(loaded, store, occurrenceId, event, scope);
+  }
+  const source = loaded.standardCompletions.get(event)!;
+  if (source.app !== scope.app || source.ownerPackage !== scope.ownerPackage) {
+    throw new AssemblyCorrespondenceError('Completion source differs from its checked declaring app/package.');
+  }
+  if (source.resultType === null) {
+    throw new AssemblyCorrespondenceError('Native void completion consumption is not joined.');
+  }
+  const installed = installedNativeCompletionSource(opts.asm, opts.artifact, scope, opts.identities);
+  await installed.verify(now);
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'completion source locator');
+  const row = await store.load(requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'completion source locator') as ModelName,
+    occurrenceId as RecordId);
+  if (row === null) throw new AssemblyCorrespondenceError('Completion has no consumed physical source.');
+  // This physical field only locates the delivery. The owning Work read must
+  // prove the original delivery, source, and complete retained route inventory.
+  const rawReceipt = requireProducerFn(tables, 'readOccurrenceRow', 'completion source locator') as
+    typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+  const locator = privateSourceMember(privateSourceMember(rawReceipt(row).result, 'payload'), 'delivery_id');
+  if (typeof locator !== 'string' || locator === '' || locator.length > 128) {
+    throw new AssemblyCorrespondenceError('Completion source has no bounded delivery locator.');
+  }
+  const read = await installed.registry.read(installed.command.name, { deliveryId: locator },
+    { actor: `completion:${event}`, now, operation: event, operationId: 'native-completion.read' }, { store });
+  const receipt = read.result as import('@canlang/work/kernel/tables').OccurrenceRowData;
+  const result = localPolicyObject(receipt.result);
+  const payload = localPolicyObject(localPolicyMember(result, 'payload'));
+  const handlers = nativeCallArray(localPolicyMember(result, 'handlers'), 200);
+  if (receipt.status !== 'completed' || receipt.occurrenceId !== occurrenceId ||
+      result.kind !== 'standard-completion-source' || result.event !== event || payload.delivery_id !== locator ||
+      handlers.length !== source.routes.length || handlers.some((route, index) =>
+        privateSourceMember(route, 'handler') !== source.routes[index]!.handler ||
+        privateSourceMember(route, 'kind') !== (source.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
+    throw new AssemblyCorrespondenceError('Completion read differs from its selected original occurrence/event/routes.');
+  }
+  checkedCompletionPayload(source, payload);
+  await installed.verify(now);
+  if (await store.readRevision() !== read.revision) {
+    throw new AssemblyCorrespondenceError('Completion source revision changed after its checked read.');
+  }
+  return { receipt, result, payload, handlers,
+    bounds: { maxMembers: installed.bounds.maxMembers, chunkSize: installed.bounds.chunkSize } };
+}
+
 /** Freeze every declared route at one source cut; ordinary bodies run later. */
 export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueScheduleOpts) {
   assertCanonicalStore(opts.store, opts.handler);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  if (loaded.standardCompletions?.has(opts.due.event)) {
+    throw new AssemblyCorrespondenceError('Completion routing requires its original consumed delivery, not a schedule head.');
+  }
   const routes = await checkedPrivateSourceRoutes(opts, loaded, opts.due.event, opts.due.scope);
   if (!routes.some(route => route.handler === opts.handler)) throw new Error('Source selected no matching checked handler.');
   if (routes.some(route => route.cohort)) assertDeclaredCohortVersion(opts.artifact);
@@ -7168,6 +7293,9 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
   assertCanonicalStore(opts.store, opts.handler);
   assertDeclaredCohortVersion(opts.artifact);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  if (due !== undefined && loaded.standardCompletions?.has(selectedSource.event)) {
+    throw new AssemblyCorrespondenceError('Completion cohort requires its original consumed delivery, not a schedule head.');
+  }
   const callable = opts.artifact.callables.find(entry => entry.kind === 'handler' && entry.id === opts.handler);
   const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
   if (moduleUrl === undefined) throw new Error('Private cohort has no owning assembled handler.');
@@ -7181,7 +7309,9 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
   const readReceipt = requireProducerFn(tables, 'readOccurrenceRow', 'cohort retained source') as
     typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
   const committed = due === undefined
-    ? await readCheckedCommittedSource(loaded, opts.store, selectedSource.occurrenceId, selectedSource.event, selectedSource.scope) : undefined;
+    ? await readCheckedRetainedSource(opts, loaded, opts.store, selectedSource.occurrenceId,
+      selectedSource.event, selectedSource.scope, opts.now()) : undefined;
+  const completion = loaded.standardCompletions?.has(selectedSource.event) === true;
   let source: { occurrenceId: string; event: string; payload: unknown; scopeOwner: string };
   let receipt: ReturnType<typeof readReceipt>;
   if (committed !== undefined) {
@@ -7248,19 +7378,29 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
   }
   freezeScenarioSnapshot(admittedInputs);
   const identity = await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, opts.now());
-  const trustedSource = `${committed === undefined ? 'schedule' : 'committed'}:${source.event}`;
+  const trustedSource = `${committed === undefined ? 'schedule' : completion ? 'completion' : 'committed'}:${source.event}`;
   const privateLoaded = { ...loaded, registry: privateDescriptors.registry };
   const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
   const guards = await loadProducerModule('@canlang/state/effects/guards', 'private child require');
   const isRequireFailure = requireProducerFn(guards, 'isAuthoredRequireFailure', 'private child require') as
     typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure;
+  const verifySource = async (now: number): Promise<void> => {
+    await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, now);
+    if (committed !== undefined) {
+      const current = await readCheckedRetainedSource(opts, loaded, opts.store, source.occurrenceId,
+        source.event, selectedSource.scope, now);
+      if (stableStringify(current.result) !== stableStringify(committed.result)) {
+        throw new Error('Private cohort lost its original retained source.');
+      }
+    }
+  };
   const body: FanoutSchedulerBodyPort = async (child, _row, attempt) => {
     const call = attempt.call;
     if (call === undefined || call.def !== def || attempt.occurrenceIds === undefined ||
         call.context.operationId !== attempt.operationId || call.context.operation !== opts.handler ||
         call.context.app !== opts.app || call.context.source !== 'schedule' ||
         call.context.trustedSource !== trustedSource || call.context.actor !== null ||
-        (call.context.team?.teamId ?? (committed === undefined ? 'app' : call.context.app)) !== source.scopeOwner ||
+        (call.context.team?.teamId ?? (committed === undefined || completion && source.scopeOwner === 'app' ? 'app' : call.context.app)) !== source.scopeOwner ||
         child.parentOccurrence !== source.occurrenceId || child.handler !== opts.handler ||
         !frozen.members.includes(child.recordId) || !call.recordRefs?.some(ref => ref.param === declared.refInput && ref.row.id === child.recordId)) {
       throw new loaded.producers.errors('forbidden', 'Private child cannot borrow another source, owner or admitted record.');
@@ -7270,11 +7410,7 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
         throw new loaded.producers.errors('validation', 'Private child event arguments differ from the retained source.');
       }
     }
-    await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, call.context.now);
-    if (committed !== undefined) {
-      const current = await readCheckedCommittedSource(loaded, opts.store, source.occurrenceId, source.event, selectedSource.scope);
-      if (stableStringify(current.result) !== stableStringify(committed.result)) throw new Error('Committed cohort source changed before its child execution.');
-    }
+    await verifySource(call.context.now);
     let effects: CanonicalExecutionEffects;
     try {
       effects = await runScenarioSeam(privateLoaded, { ...opts, operation: opts.handler, operationId: attempt.operationId,
@@ -7292,16 +7428,13 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
       refuse: text => { throw new loaded.producers.errors('validation', text); } });
     return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards,
       { name: 'cohort.owner', evaluate: async () => {
-        await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, call.context.now);
-        if (committed !== undefined) {
-          const current = await readCheckedCommittedSource(loaded, opts.store, source.occurrenceId, source.event, selectedSource.scope);
-          if (stableStringify(current.result) !== stableStringify(committed.result)) throw new Error('Committed cohort source changed before commit.');
-        }
+        await verifySource(call.context.now);
         return true;
       } }],
       operationResult: effects.result, result: { kind: 'completed' } } as FanoutSchedulerBodyEffects;
   };
   return { registry: privateDescriptors.registry, body, identity, cohort: declared.cohort, fanoutId,
+    verifySource,
     inputs: admittedInputs, refInput: declared.refInput as string, trustedSource,
     bounds: { pageLimit: Number(bounds.pageLimit), chunkSize: Number(bounds.chunkSize) } };
 }
@@ -7318,6 +7451,9 @@ class DueScheduleChanged extends Error {
 export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts) {
   assertCanonicalStore(opts.store, opts.handler);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  if (loaded.standardCompletions?.has(opts.due.event)) {
+    throw new AssemblyCorrespondenceError('Completion execution requires its original consumed delivery, not a schedule head.');
+  }
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.handler && entry.kind === 'handler');
   if (callable === undefined) throw new Error('Due schedule names no checked source handler.');
   const moduleUrl = opts.asm.moduleUrls[callable.module];
@@ -7519,16 +7655,29 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   const mintOperationId = requireProducerFn(ui, 'mintOperationId', 'retained handler operation identity') as
     typeof import('@canlang/ui').mintOperationId;
   const now = opts.now();
-  const trustedSource = `${loaded.committedChanges.has(selector.event) ? 'committed' : 'schedule'}:${selector.event}`;
+  const completion = loaded.standardCompletions?.has(selector.event) === true;
+  const trustedSource = `${completion ? 'completion' : loaded.committedChanges.has(selector.event) ? 'committed' : 'schedule'}:${selector.event}`;
   const context = workStageContext(opts.store, { actor: trustedSource, now, operation: selector.handler });
   const identity = await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+  const consumed = completion ? await readCheckedRetainedSource(opts, loaded, opts.store,
+    selector.sourceOccurrence, selector.event, selector.scope, now) : undefined;
   const retained = await stageRetained(selector, context);
-  if (retained.status !== 'ready') return retained;
-  const committed = loaded.committedChanges.has(selector.event)
-    ? await readCheckedCommittedSource(loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope) : undefined;
+  if (retained.status !== 'ready') {
+    if (consumed !== undefined) {
+      const current = await readCheckedRetainedSource(opts, loaded, opts.store,
+        selector.sourceOccurrence, selector.event, selector.scope, now);
+      if (stableStringify(current.result) !== stableStringify(consumed.result)) {
+        throw new AssemblyCorrespondenceError('Retained handler completion source changed during recovery.');
+      }
+    }
+    return retained;
+  }
+  const committed = consumed ?? (loaded.committedChanges.has(selector.event)
+    ? await readCheckedCommittedSource(loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope) : undefined);
   const verifyCommitted = async (): Promise<void> => {
     if (committed === undefined) return;
-    const current = await readCheckedCommittedSource(loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope);
+    const current = await readCheckedRetainedSource(opts, loaded, opts.store,
+      selector.sourceOccurrence, selector.event, selector.scope, now);
     const route = current.handlers.find(entry => privateSourceMember(entry, 'handler') === selector.handler);
     if (stableStringify(current.result) !== stableStringify(committed.result) ||
         stableStringify(current.payload) !== stableStringify(retained.occurrence.payload) ||
@@ -7563,6 +7712,10 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         throw new Error(`Retained private handler guard ${JSON.stringify(guard.name)} no longer holds.`);
       }
     }
+    if (completion) {
+      await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+      await verifyCommitted();
+    }
     return opts.store.commit(batch);
   } };
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: selector.handler, operationId,
@@ -7584,7 +7737,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
             JSON.stringify(current.occurrence.payload) !== JSON.stringify(retained.occurrence.payload) ||
             call.context.actor !== null || call.context.app !== opts.app || call.context.source !== 'schedule' ||
             call.context.trustedSource !== trustedSource ||
-            (call.context.team?.teamId ?? (committed === undefined ? 'app' : call.context.app)) !== selector.scope.owner) {
+            (call.context.team?.teamId ?? (committed === undefined || completion && selector.scope.owner === 'app' ? 'app' : call.context.app)) !== selector.scope.owner) {
           throw new Error('Retained private handler changed its captured source or admitted owner.');
         }
         await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
@@ -13270,6 +13423,7 @@ export interface RunRetainedFanoutSchedulerTurnOpts extends Omit<RunFanoutSchedu
   readonly sourceOwner?: {
     readonly boundary: import('../worker/assembly.js').TeamOwnerStorageBoundary;
     readonly scope: import('@canlang/contracts').WorkScope;
+    readonly sourceAssembly?: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact' | 'identities'>;
   };
 }
 
@@ -13284,6 +13438,7 @@ export async function maintainFanoutNavigationCanonical(opts: {
   readonly now: number;
   readonly intentRow?: StoredRow;
   readonly advanceOwnerScan?: boolean;
+  readonly sourceAssembly?: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact' | 'identities'>;
 }): Promise<{ readonly wrapped: boolean; readonly navigationWrite?: DomainWrite }> {
   const { boundary, now, intentRow, advanceOwnerScan } = opts;
   const scope = Object.freeze({ ...opts.scope });
@@ -13299,6 +13454,7 @@ export async function maintainFanoutNavigationCanonical(opts: {
   const meta = { actor: 'scheduler:fanout-navigation', nowMs: now };
   const writes: DomainWrite[] = [];
   let navigationWrite: DomainWrite | undefined;
+  let verifyCompletion: (() => Promise<void>) | undefined;
   if (intentRow === undefined) {
     const query = requireProducerFn(module, 'fanoutOwnerIntentQuery', 'state fanout maintenance') as
       typeof import('@canlang/state/fanout/navigation').fanoutOwnerIntentQuery;
@@ -13337,6 +13493,25 @@ export async function maintainFanoutNavigationCanonical(opts: {
             entry.handler === intent.handler && entry.fanoutId === intent.fanoutId)) {
         throw new Error('Fanout maintenance source receipt disagrees with its actual owner or retained route.');
       }
+    } else if (privateSourceMember(receipt.result, 'kind') === 'standard-completion-source') {
+      const assembly = opts.sourceAssembly;
+      const event = privateSourceMember(receipt.result, 'event');
+      if (assembly === undefined || typeof event !== 'string') {
+        throw new AssemblyCorrespondenceError('Completion navigation requires its original installed native source.');
+      }
+      const loaded = await loadCanonicalDescriptors(assembly.asm, assembly.artifact);
+      const original = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now);
+      const route = original.handlers.find(route => privateSourceMember(route, 'handler') === intent.handler);
+      if (privateSourceMember(route, 'kind') !== 'fanout' || privateSourceMember(route, 'fanoutId') !== intent.fanoutId ||
+          stableStringify(privateSourceMember(route, 'members')) !== stableStringify(intent.members)) {
+        throw new AssemblyCorrespondenceError('Completion navigation differs from its original frozen route.');
+      }
+      verifyCompletion = async () => {
+        const current = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now);
+        if (stableStringify(current.result) !== stableStringify(original.result)) {
+          throw new AssemblyCorrespondenceError('Completion navigation lost its original consumed source.');
+        }
+      };
     } else {
       const result = receipt.result;
       const savedScope = privateSourceMember(result, 'scope');
@@ -13370,6 +13545,7 @@ export async function maintainFanoutNavigationCanonical(opts: {
   // Revalidate actual current Identity and persisted physical owner pin nearest
   // the same revision-fenced maintenance commit; no synthetic child is used.
   await boundary.forTrustedScope(scope, now);
+  await verifyCompletion?.();
   await store.commit({ expectedRevision: revision, writes, history: [], receipt: null,
     outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
   return { wrapped: true, ...(navigationWrite === undefined ? {} : { navigationWrite }) };
