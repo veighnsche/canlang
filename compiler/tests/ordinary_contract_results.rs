@@ -466,3 +466,189 @@ assert.throws(()=>loadArtifactDescriptors({...artifact,models:[...artifact.model
         String::from_utf8_lossy(&consumed.stderr)
     );
 }
+
+#[test]
+fn ordinary_contract_file_union_closure_binds_original_state_profiles() {
+    let scratch = tempfile::tempdir().unwrap();
+    let source = r#"app FileProfile
+Given
+ Record {attachments:file[]! min=1 max=2,label:text trim min=1 max=5}
+ policy Record read=members
+ contract Packet {attachments:file[]! min=1 max=3,optional:file?,related:Record?,label:text trim max=5,state:enum(open,closed)}
+ contract Empty {note:text}
+ contract Bundle {choice:Packet|Empty,extras:file[],optional:file[]?}
+When
+ scenario inspect(payload:Bundle) read=true -> Bundle by=members
+  do return payload
+ scenario inspectNullable(payload:Bundle?) read=true -> Bundle? by=members
+  do return payload
+ scenario bounded(values:Record.attachments) read=true -> file[] by=members
+  do return values
+Then
+"#;
+    // A nominal union cannot lend publication to an incomplete or model arm.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    for (name, refused_source) in [
+        (
+            "incomplete-file-union",
+            source.replace("optional:file?", "optional:email?"),
+        ),
+        (
+            "mixed-model-union",
+            source.replace("choice:Packet|Empty", "choice:Packet|Record"),
+        ),
+        (
+            "cyclic-contract-union",
+            source.replace(
+                "contract Empty {note:text}",
+                "contract Empty {note:text,next:Bundle}",
+            ),
+        ),
+    ] {
+        let input = scratch.path().join(format!("{name}.can"));
+        std::fs::write(&input, refused_source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(!output.status.success(), "{name}: {refusal}");
+        assert!(refusal.get("modules").is_none(), "{name}: {refusal}");
+        assert!(
+            refusal["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008"),
+            "{name}: {refusal}"
+        );
+    }
+    let artifact = compile(source, scratch.path(), "file-profile");
+    let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
+    for name in [
+        "FileProfile.Packet",
+        "FileProfile.Empty",
+        "FileProfile.Bundle",
+    ] {
+        assert!(contracts.iter().any(|contract| contract["name"] == name));
+    }
+    assert!(
+        !contracts
+            .iter()
+            .any(|contract| contract["name"] == "FileProfile.Record")
+    );
+    let bundle = contracts
+        .iter()
+        .find(|contract| contract["name"] == "FileProfile.Bundle")
+        .unwrap();
+    let choice = bundle["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|field| field["name"] == "choice")
+        .unwrap();
+    assert_eq!(choice["type"], "FileProfile.Packet|FileProfile.Empty");
+    let runner = scratch.path().join("file-profile.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(process.argv[2]+'/package.json');
+const {loadArtifactDescriptors}=await import(pathToFileURL(require.resolve('@canlang/state/invocation/registry')));
+const {StateError}=await import(pathToFileURL(require.resolve('@canlang/state/errors')));
+const {bindDeclaredFileReferenceProfile,fileReferenceOccurrences}=await import(pathToFileURL(process.argv[2]+'/packages/state/dist/src/ports/file-reference-profile.js'));
+const artifact=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const loaded = loadArtifactDescriptors(artifact, { by: 'members' });
+const bound = { artifactModels: new Map(artifact.models.map(model => [model.name, model])),
+  canonicalModels: loaded.models, valueSchema: loaded.valueSchema, valueTypes: loaded.valueTypes };
+const original = loaded.registry.get('FileProfile.inspect').descriptor;
+const declaration = original.inputs.find(input => input.name === 'payload');
+assert.equal(declaration.valueType, 'FileProfile.Bundle');
+assert.equal(original.result.type, declaration.valueType);
+const profile = bindDeclaredFileReferenceProfile(bound, declaration.valueType, declaration);
+const resultProfile = bindDeclaredFileReferenceProfile(bound, original.result.type);
+assert.equal(profile.fileBearing, true);
+const wire = { choice: { type: 'FileProfile.Packet', value: {
+  attachments: [{ id: 'alpha' }, { id: 'alpha' }], optional: { id: 'beta' },
+  related: { id: 'record', version: '1' }, label: 'label', state: 'open',
+} }, extras: [{ id: 'gamma' }], optional: null };
+const expected = [
+  { ref: 'alpha', path: ['choice', 'value', 'attachments', 0] },
+  { ref: 'alpha', path: ['choice', 'value', 'attachments', 1] },
+  { ref: 'beta', path: ['choice', 'value', 'optional'] },
+  { ref: 'gamma', path: ['extras', 0] },
+];
+assert.deepEqual(fileReferenceOccurrences(profile, wire), expected);
+assert.deepEqual(fileReferenceOccurrences(resultProfile, wire), expected);
+const optional = loaded.registry.get('FileProfile.inspectNullable').descriptor.inputs[0];
+const nullableProfile = bindDeclaredFileReferenceProfile(bound, optional.valueType, optional);
+assert.deepEqual(fileReferenceOccurrences(nullableProfile, null), []);
+assert.deepEqual(fileReferenceOccurrences(nullableProfile, wire), expected);
+assert.deepEqual(fileReferenceOccurrences(profile, { choice: { type: 'FileProfile.Empty', value: { note: 'none' } },
+  extras: [], optional: [{ id: 'delta' }] }), [{ ref: 'delta', path: ['optional', 0] }]);
+for (const mutate of [
+  copy => { copy.choice.value.attachments = []; },
+  copy => { copy.choice.value.attachments[0].url = 'https://invalid.test'; },
+  copy => { copy.choice.value.optional = { id: 7 }; },
+  copy => { copy.choice.value.label = ' label '; },
+  copy => { copy.choice.value.label = 'overbound'; },
+  copy => { copy.choice.value.state = 'missing'; },
+  copy => { copy.choice.value.related.version = '01'; },
+  copy => { copy.choice.type = 'FileProfile.Missing'; },
+  copy => { copy.choice.authority = true; },
+  copy => { delete copy.extras; },
+  copy => { copy.optional = [null]; },
+]) {
+  const malformed = structuredClone(wire); mutate(malformed);
+  assert.throws(() => fileReferenceOccurrences(profile, malformed), error => error instanceof StateError);
+}
+assert.throws(() => fileReferenceOccurrences({ ...profile }, wire), error => error instanceof StateError);
+for (const type of ['FileProfile.Missing', 'file []', 'text|FileProfile.Packet']) {
+  assert.throws(() => bindDeclaredFileReferenceProfile(bound, type), error => error instanceof StateError);
+}
+const bounded = loaded.registry.get('FileProfile.bounded').descriptor.inputs.find(input => input.name === 'values');
+assert.equal(bounded.min, 1); assert.equal(bounded.max, 2);
+assert.equal(bounded.valueType, 'file[]');
+const boundedProfile = bindDeclaredFileReferenceProfile(bound, bounded.valueType, bounded);
+const required = loaded.models.find(model => model.name === 'FileProfile.Record').fields.attachments;
+assert.equal(required.valueType, 'file[]!'); assert.deepEqual(required.array, { required: true });
+const requiredProfile = bindDeclaredFileReferenceProfile(bound, required.valueType, required);
+for (const profile of [boundedProfile, requiredProfile]) {
+  assert.deepEqual(fileReferenceOccurrences(profile, [{ id: 'alpha' }]), [{ ref: 'alpha', path: [0] }]);
+  for (const wire of [[], Array(3).fill({ id: 'alpha' }), undefined, null]) {
+    assert.throws(() => fileReferenceOccurrences(profile, wire), error => error instanceof StateError);
+  }
+}
+const label = loaded.models.find(model => model.name === 'FileProfile.Record').fields.label;
+const text = bindDeclaredFileReferenceProfile(bound, label.valueType, label);
+assert.equal(text.fileBearing, false);
+assert.deepEqual(fileReferenceOccurrences(text, 'label'), []);
+for (const value of [' label ', '', 'longer']) {
+  assert.throws(() => fileReferenceOccurrences(text, value), error => error instanceof StateError);
+}
+for (const constraint of [{ ...bounded, valueType: 'file[]!' }, { ...bounded, min: -1 },
+  { ...bounded, max: undefined }, { ...bounded, trim: true }]) {
+  assert.throws(() => bindDeclaredFileReferenceProfile(bound, bounded.valueType, constraint), error => error instanceof StateError);
+}
+const skewed = structuredClone(loaded.valueTypes);
+skewed.contracts = skewed.contracts.filter(contract => contract.name !== 'FileProfile.Packet');
+assert.throws(() => bindDeclaredFileReferenceProfile({ ...bound, valueTypes: skewed }, declaration.valueType),
+  error => error instanceof StateError);
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(scratch.path().join("file-profile.json"))
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+}
