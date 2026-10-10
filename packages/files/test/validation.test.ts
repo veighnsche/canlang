@@ -4,10 +4,12 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
   appendUploadContent,
   completeUploadContent,
   stagingKeyForIntent,
+  sha256Hex,
 } from '../src/upload/index.js';
 import { finalizeUpload } from '../src/finalize/index.js';
 import { handleCreateIntent } from '../src/bridge.js';
@@ -38,6 +40,18 @@ function grantedIntentId(h: ReturnType<typeof makeHarness>, size: number): strin
 }
 
 describe('content validation', () => {
+  it('portable SHA-256 matches native crypto for exact bytes and sliced views', () => {
+    const backing = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]);
+    const sliced = backing.subarray(1, 5);
+    assert.ok(sliced.byteOffset > 0);
+    for (const bytes of [new Uint8Array(0), PDF_BYTES, new Uint8Array([0x00, 0xff, 0x80, 0x01]), sliced]) {
+      const before = new Uint8Array(bytes);
+      assert.equal(sha256Hex(bytes), `sha256:${createHash('sha256').update(bytes).digest('hex')}`);
+      assert.deepEqual(bytes, before);
+    }
+    assert.notEqual(sha256Hex(sliced), sha256Hex(backing));
+  });
+
   it('finalizing a partial transfer fails with no file', () => {
     const h = makeHarness();
     const intentId = grantedIntentId(h, PDF_BYTES.length);
