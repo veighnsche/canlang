@@ -1083,7 +1083,9 @@ fn draft_outcome_table() {
         ("draft/CanMaintain.can", 112),
         ("draft/CanMember.can", 319),
         ("draft/CanOnboard.can", 54),
-        ("draft/CanPropose.can", 127),
+        // The nonexported hold_result no longer captures nine held cases;
+        // the callback body and stored inventory states remain unchanged.
+        ("draft/CanPropose.can", 118),
         ("draft/CanPurchase.can", 143),
         ("draft/CanReception.can", 179),
         // The nonexported join_program retains its input scope without
