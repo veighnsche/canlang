@@ -5228,3 +5228,8 @@ Owning invocation target5/5 and existing call controls8/8 pass on the actual
 installed catalog/Node24; unchanged emitter121/121 is reused after the isolated
 read-narrowing correction. Strict all-target lint/format pass. The actual CLI
 still refuses call publication with E6008 and no generic producer decode gap.
+
+The same declaration-derived argument rule applies to shorthand: consume its
+existing checked key-node type for additional action targets, just as for an
+explicit expression. Owning action-call1/1 passes with rejection/span parity and
+compatible positives; no runtime API or held policy changes.

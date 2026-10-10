@@ -2023,3 +2023,9 @@ continues to refuse E6008. Owning invocation target **5/5**, existing call contr
 pass. The initial nullable-member failure exposed read-call invalidation and is
 corrected; the mutation control still refuses that same path. This producer grants no transaction/native Task39
 acceptance, broader reference credit or access to held BDD3/Task22 contracts.
+
+The related additional-target argument checker now consumes the existing typed
+shorthand key instead of skipping it. The owning action-call case **1/1** passes
+with literal rejection, shorthand/explicit-binding diagnostic parity and both
+compatible positives. This closes that finite checker gap; the transaction
+consumer prerequisite above remains unchanged.

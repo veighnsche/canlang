@@ -3755,8 +3755,10 @@ impl<'a> Cx<'a> {
             .find(|n| n.kind == SyntaxKind::Object)
             .copied();
         let Some(object) = object else { return };
-        for (key, _key_node, value) in object_entries(object, text) {
-            let Some(value) = value else { continue };
+        for (key, key_node, value) in object_entries(object, text) {
+            // entry_value records the checked binding/narrowed type on the
+            // shorthand key, just as explicit values have an expression type.
+            let value = value.unwrap_or(key_node);
             let mut expected: Vec<(SymbolId, ResolvedType)> = Vec::new();
             let mut unknown = false;
             for op in targets.iter().skip(1) {

@@ -105,10 +105,10 @@
     "targets": 129
   },
   "latest_component": {
-    "base_commit": "acc5fe0b4413b6d844a62330abfea18e23f9ed7b",
-    "state": "task39_checked_call_producer_qualified_executable_join_unfinished",
-    "outcome": "Owning invocation5/5, existing checked call controls8/8, prior unchanged emitter121/121 reused; strict all-target lint/format0. Actual operand/declaration IDs/ordered typed inputs/result binding preserved; checked static read calls preserve narrowing, mutation calls still invalidate. Publication remains canonical E6008.",
-    "remaining": "Capability/State same-session target admission + Dev source-bound private facade and bounded result/dependency correspondence. Original Text Send and broader nine refs/precise holds remain."
+    "base_commit": "4b4b1ddba6e9be6c95aaff1bb6ac2c3960f0f81e",
+    "state": "checked_call_argument_correction_qualified_transaction_join_blocked",
+    "outcome": "Additional action targets consume the existing checked shorthand key type instead of skipping it. Owning heterogeneous_action_call1/1 passes original literal rejection, shorthand/explicit-binding diagnostic span parity and compatible positives. Prior Task39 producer5/5 + call controls8/8 and unchanged emitter121/121 retained at recorded scope.",
+    "remaining": "Capability/State same-session target admission + Dev source-bound private facade/result-dependency contract. Broader nine refs/precise holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Task39 checked call producer is implemented/tested but executable join unfinished: actual Invocation/Action operands separate from owning target IDs, ordered typed inputs/as/result/void/opaque retained; static read-call narrowing corrected. Owning5/5 + existing call controls8/8, emitter121/121 unchanged after read-narrow correction, strict all-target lint/fmt0. State owns same-session target admission; Dev exact native facade/result-dependency closure. Publication remains E6008, no nested invocation/receipt/commit. Historical full1349/native3/3/machine4/4 and unchanged fixture6/6 reused at recorded scopes, no current-head whole/native call qualification. Released Dev172340d1/1cb0c527 selected Identity/reviewer/outsider/rename actual1/1 and finite26 core proofs reused; UI/T11/application/fullprofile open. Broader58/67 nine refs and BDD3/Task22/other-recipient holds intact. Local/manual integration only.",
+  "current_source_work": "Finite additional-target action argument checker corrected: existing shorthand key-node checked type now checked for every declaration target. Owning1/1 passes rejection/span parity and compatible positives. Task39 producer4b4b1ddb facts/5/5+callcontrols8/8 remain qualified; emitter121/121 reused after isolated read-narrow correction; executable publication remains E6008 pending State same-session admission + Dev source-bound facade/result-dependency correspondence. Historical full1349/native3/3/machine4/4 and unchanged fixture6/6 reused only at recorded scopes. Dev172340d1/1cb0c527 actual selected Identity/rename1/1 + core26 reused; UI/T11/application/fullprofile open. Broader58/67 nine refs and BDD3/Task22/other-recipient holds intact. Local/manual integration only.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -525,6 +525,7 @@
     "behavior": "Actual dynamic operands separated from declaring SymbolIds; owning parameter/model/result schemas retained by index, authored input order/typed shorthand/source anchors, as bindings and value/void/opaque result facts. Exact read-scenario static calls preserve member-path narrowing; mutating/dynamic/unknown calls invalidate.",
     "blocked_on": "Capability/State admission+execution in existing owner session/outer fence and Dev exact source-bound private native facade with once-evaluated operands/inputs and bounded awaited result/dependency closure.",
     "refusal": "Actual CLI refuses canonical calls E6008 with no modules/no E6006 gap. Structural InvocationRef packaging/direct handlers/child context/nested invocation,receipt,commit are not substitutes.",
-    "qualification": "Compiler facts only. No Task39 native acceptance, current-head full-suite acceptance, broader task credit or BDD3/Task22 hold lift."
+    "qualification": "Compiler facts only. No Task39 native acceptance, current-head full-suite acceptance, broader task credit or BDD3/Task22 hold lift.",
+    "related_argument_correction": "Existing check_action_call consumes explicit value or typed shorthand key_node for additional declaration targets. heterogeneous_action_call1/1 passes original literal, shorthand/explicit-binding exact diagnostic span parity and compatible positives. No executable call or held policy claim."
   }
 }
