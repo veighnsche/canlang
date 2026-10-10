@@ -494,9 +494,20 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
         if (field === undefined) return invalid('invocation argument is absent from its selected target schema.');
         let wire: unknown;
         if (field.kind === 'ref') {
-          const ref = object(value, ['kind', 'model', 'id', ...(Object.hasOwn(value as object, 'version') ? ['version'] : [])]);
-          if (ref['kind'] !== 'ref' || ref['model'] !== field.model) return invalid('invocation reference disagrees with its selected target.');
-          wire = { id: text(ref['id']), ...(ref['version'] === undefined ? {} : { version: String(ref['version']) }) };
+          const encodeRef = (element: unknown, path: string) => {
+            const hasVersion = typeof element === 'object' && element !== null && Object.hasOwn(element, 'version');
+            const ref = object(element, ['kind', 'model', 'id', ...(hasVersion ? ['version'] : [])]);
+            if (ref['kind'] !== 'ref' || ref['model'] !== field.model) return invalid(`invocation reference ${path} disagrees with its selected target.`);
+            if (hasVersion && (typeof ref['version'] !== 'bigint' || !/^[1-9][0-9]{0,14}$/.test(String(ref['version'])))) {
+              return invalid(`invocation reference ${path} requires its original expected version.`);
+            }
+            return { id: text(ref['id']), ...(hasVersion ? { version: String(ref['version']) } : {}) };
+          };
+          // Encode nominal identity before generic admission applies the owning
+          // container's nullable/length rules. Preserve every authored slot.
+          wire = value === null ? null : Object.hasOwn(def.inputArrays, name) && Array.isArray(value)
+            ? value.map((element, index) => encodeRef(element, `${name}/${index}`))
+            : encodeRef(value, name);
         } else {
           const type = field.kind === 'delivery' ? undefined : field.valueType ??
             ({ string: 'text', integer: 'int', boolean: 'bool', decimal: 'decimal', money: 'money', datetime: 'datetime', duration: 'duration', user: 'user',
