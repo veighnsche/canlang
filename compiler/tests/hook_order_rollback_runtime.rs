@@ -1,15 +1,32 @@
-//! Canonical CRUD refuses authored hooks while native execution is unavailable.
+//! Canonical CRUD executes checked hooks in order with atomic rollback and replay.
 //! The only observer delegates guards to the installed native owner.
 #![cfg(unix)]
 
 use std::{path::Path, process::Command};
 
 #[test]
-fn authored_hook_crud_refuses_before_unavailable_native_execution() {
+fn authored_hook_crud_orders_adjustments_and_replays_success() {
+    run_native_hook_case("positive");
+}
+
+#[test]
+fn authored_hook_crud_rolls_back_late_guard_and_replays_rejection() {
+    run_native_hook_case("rollback");
+}
+
+fn run_native_hook_case(case: &str) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let input = scratch.path().join("hook-order-rollback.can");
-    std::fs::write(&input, include_str!("fixtures/hook_order_rollback.can")).unwrap();
+    // Exercise native readonly metadata and omitted server initializers without
+    // changing the original authored behavior fixture.
+    let source = include_str!("fixtures/hook_order_rollback.can")
+        .replace("Audit {note:text}", "Audit {note:text,author:user server=actor,at:datetime server=now}")
+        .replace(
+            "require event.after.state==\"proposed\"",
+            "require event.after.state==\"proposed\"\n   require event.after.id!=\"\"\n   require event.after.version==2",
+        );
+    std::fs::write(&input, source).unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
         .arg(root.join("packages/values/dist/catalog.json"))
@@ -39,10 +56,21 @@ const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
 const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
 const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
 const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {hashInputs}=await load('@canlang/state/invocation/replay');
 const {FIXED_NOW,asId,asModel,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
 const model='HookOrder.Entry',auditModel='HookOrder.Audit',operation=`${model}.update`;
 assert.equal(artifact.operations.find(entry=>entry.name===operation).kind,'update');
+const hookId='HookOrder.adjustEntry';
+const policy=artifact.modelPolicies.find(entry=>entry.model===model);
+assert.equal(policy.abi,'state.owner-model-policies@1');
+assert.equal(policy.ownerPackage,'HookOrder');
+assert.equal(policy.module,artifact.modules[0].path);
+assert.deepEqual(policy.hooks,[{id:hookId,op:'update',operation}]);
+const callable=artifact.callables.filter(entry=>entry.id===hookId);
+assert.equal(callable.length,1);
+assert.equal(callable[0].kind,'handler');assert.equal(callable[0].module,policy.module);
+assert.deepEqual(callable[0].member,['hooks',operation,'run']);
 // Observe only native guard calls. Invocation contexts, models, admission
 // and persistence remain production-owned; the shim delegates unchanged.
 const seamUrl=pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href;
@@ -60,7 +88,9 @@ const asm=await assembleModules({artifact,sourcePath:resolve(base,'hook-order-ro
  workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(shim).href,
  uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href,
 });
-const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+const {store:backing}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+const batches=[];
+const store={...backing,commit:async batch=>{batches.push(batch);return backing.commit(batch);}};
 const member=await seedMember(memberships,{isOwner:false});
 const identity=makeIdentity({membership:member.membership,email:member.user.email});
 const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
@@ -86,7 +116,11 @@ async function receipt(){
  const saved=await store.readReceipt({app:'HookOrder',owner:identity.team.team_id,
   principal:identity.actor.user_id,operation:lastRequest.operation,operationId:lastRequest.operation_id});
  assert.ok(saved,'canonical invocation persists its native receipt');
- assert.deepEqual(saved.resolvedDefaults,{});return saved;
+ assert.equal(saved.identity.operation,lastRequest.operation);
+ assert.equal(saved.identity.operationId,lastRequest.operation_id);
+ assert.equal(saved.inputHash,await hashInputs(lastRequest.inputs));
+ assert.equal(saved.createdAt,FIXED_NOW);
+ return saved;
 }
 const initial=committed(await invoke(`${model}.create`,{state:'initial',accept:true}));
 assert.equal(initial.version,1);assert.deepEqual(initial.data,{state:'initial',accept:true});
@@ -98,27 +132,96 @@ async function snapshot(){
   auditHistory:await store.historyFor(asModel(auditModel),asId(stagedId))};
 }
 const before=await snapshot();assert.equal(before.audit,null);assert.deepEqual(before.auditHistory,[]);
-// The canonical owner refuses this operation before the CRUD executor can
-// silently skip its authored hook. This is a refusal proof, not execution
-// evidence for candidate adjustments, staged writes or late-guard rollback.
+if(process.argv[3]==='rollback'){
 const failed=await invoke(operation,{record:{id,version:'1'},state:'proposed',accept:false});
-const message=`Operation ${JSON.stringify(operation)} requires unsupported canonical hooks.`;
+const failedRequest=lastRequest;
 assert.ok('error' in failed,JSON.stringify(failed));
-assert.equal(failed.error.code,'validation');assert.equal(failed.error.message,message);
-assert.deepEqual(checks,[],'refusal precedes authored hook and emitted helper execution');
+assert.equal(failed.error.code,'rule_failed');
+assert.deepEqual(checks.map(check=>check.condition),[true,true,true,true,true,false],
+ 'native guards see readonly identity/version and both ordered adjustments before the late refusal');
 const after=await snapshot();
-assert.deepEqual(after.entry,before.entry,'refusal preserves Entry data and version');
-assert.deepEqual(after.entryHistory,before.entryHistory,'refusal preserves Entry history');
+assert.deepEqual(after.entry,before.entry,'late refusal preserves Entry data and version');
+assert.deepEqual(after.entryHistory,before.entryHistory,'late refusal preserves Entry history');
 assert.equal(after.audit,null);assert.deepEqual(after.auditHistory,[]);
 assert.equal(after.revision,before.revision+1,'native rejected receipt advances the global fence once');
 const rejectedReceipt=await receipt();
-assert.deepEqual(rejectedReceipt.outcome,{status:'rejected',code:'validation',message});
+assert.deepEqual(rejectedReceipt.outcome,{status:'rejected',code:'rule_failed',message:failed.error.message});
+assert.deepEqual(rejectedReceipt.resolvedDefaults,{});
 assert.equal(rejectedReceipt.committedRevision,after.revision);
-console.log('authored hook CRUD: explicit unsupported refusal, no domain writes or hook execution, native rejected receipt passed');
+const rejectedBatch=batches.at(-1);
+assert.equal(rejectedBatch.expectedRevision,before.revision);
+assert.deepEqual(rejectedBatch.receipt,rejectedReceipt);
+for(const field of ['writes','history','outbox','schedules','uniqueClaims','uniqueReleases','outboxAck'])
+ assert.deepEqual(rejectedBatch[field]??[],[],`late refusal stages no ${field}`);
+const rejectedBatchCount=batches.length;
+checks.length=0;
+assert.deepEqual(await invoker.invokeMutation(failedRequest,identity),failed,'same-envelope failed replay');
+assert.deepEqual(checks,[],'failed replay never runs hooks');
+assert.deepEqual(await snapshot(),after);assert.equal(batches.length,rejectedBatchCount);
+console.log('native hook late rollback, rejected receipt and failed replay passed');
+}else{
+const positiveBatchCount=batches.length;
+const succeeded=await invoke(operation,{record:{id,version:'1'},state:'proposed',accept:true});
+const successRequest=lastRequest;
+committed(succeeded);
+assert.deepEqual(checks.map(check=>check.condition),[true,true,true,true,true,true]);
+const final=await snapshot();
+assert.equal(final.revision,before.revision+1,'one fenced positive commit');
+assert.equal(batches.length,positiveBatchCount+1);
+assert.equal(final.entry.id,id);assert.equal(final.entry.version,2);
+assert.deepEqual(final.entry.data,{state:'second',accept:true});
+assert.equal(final.audit.id,stagedId);assert.equal(final.audit.version,1);assert.equal(final.audit.parent,null);
+assert.deepEqual(final.audit.data,{note:'first',author:{id:identity.actor.user_id},at:new Date(FIXED_NOW).toISOString()});
+for(const row of [final.entry,final.audit]){
+ assert.equal(row.created,FIXED_NOW);assert.equal(row.updated,FIXED_NOW);
+ assert.equal(row.createdBy,identity.actor.user_id);assert.equal(row.updatedBy,identity.actor.user_id);
+ assert.equal(row.archivedAt,null);
+}
+assert.deepEqual(succeeded.result.records[0].data,{state:'second',accept:true});
+assert.equal(succeeded.result.records[0].id,id);assert.equal(succeeded.result.records[0].version,2);
+assert.equal(final.entryHistory.length,before.entryHistory.length+1);
+assert.equal(final.auditHistory.length,1);
+for(const entry of [final.entryHistory.at(-1),final.auditHistory[0]]){
+ assert.equal(entry.operation,operation);assert.equal(entry.operationId,successRequest.operation_id);
+}
+assert.deepEqual(final.entryHistory.at(-1).before,before.entry.data);
+assert.deepEqual(final.entryHistory.at(-1).after,final.entry.data);
+assert.deepEqual(final.auditHistory[0].after,final.audit.data);
+const committedReceipt=await receipt();
+assert.equal(committedReceipt.outcome.status,'committed');
+assert.deepEqual(committedReceipt.outcome.result,final.entry,'saved CRUD business result is the original target row');
+assert.deepEqual([...committedReceipt.outcome.recordVersions].sort((a,b)=>a.model.localeCompare(b.model)),[
+ {model:auditModel,id:stagedId,version:1},{model,id,version:2}]);
+assert.deepEqual(committedReceipt.resolvedDefaults,{
+ '1:HookOrder.Audit.author':{id:identity.actor.user_id},
+ '1:HookOrder.Audit.at':new Date(FIXED_NOW).toISOString(),
+});
+assert.equal(committedReceipt.committedRevision,final.revision);
+const positiveBatch=batches.at(-1);
+assert.equal(positiveBatch.expectedRevision,before.revision);
+assert.equal(positiveBatch.writes.length,2);assert.equal(positiveBatch.history.length,2);
+for(const field of ['outbox','schedules','uniqueClaims','uniqueReleases','outboxAck'])
+ assert.deepEqual(positiveBatch[field]??[],[],`positive hook commit has no ${field}`);
+assert.deepEqual(positiveBatch.receipt,committedReceipt);
+checks.length=0;
+const replay=await invoker.invokeMutation(successRequest,identity);
+assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+assert.deepEqual(replay.result.records,succeeded.result.records);
+assert.equal(replay.result.result,null);
+assert.deepEqual(checks,[],'successful replay never runs hooks or resolves server initializers');
+assert.deepEqual(await snapshot(),final);assert.equal(batches.length,positiveBatchCount+1);
+assert.deepEqual(await receipt(),committedReceipt);
+console.log('native hooks: ordered adjustments, readonly metadata, server omissions, committed receipt and success replay passed');
+}
 "#,
     )
     .unwrap();
-    let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
+    let executed = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(case)
+        .output()
+        .unwrap();
     assert!(
         executed.status.success(),
         "{}\n{}",

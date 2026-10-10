@@ -7908,3 +7908,31 @@ metadata, fixture, acceptance or precise human hold change; local commit only.
 ### 2026-10-11 — selected local integration of aff26352
 
 Finite exact fixture-read policy/test review CLEAR. Integrate only the two owning checker paths and related existing shared-gate record; preserve every other accepted source and package task. Exactly native-local-rules.integration.test.ts reading compiler/tests/fixtures/hook_order_rollback.can is registered, with the original literal consumer/target predicate retained. Wrong consumer/fixture and sibling source imports remain refused. Reuse two affected checker cases264.95ms, zero failure/cancel/skip; current joined-root boundary qualification follows. No runtime/provider/full-plan acceptance is inferred. Preserve allocations/holds and reconcile the existing living plan/coverage/decisions with complete checkpoint unadvanced; no publication.
+
+
+### 2026-10-10 — qualify native hook success (unfinished rejected receipts)
+
+Safe FF ef186936→reviewed containing766e42b7 preserves the open native test.
+Exact released State/Work/Dev/Packages/Files source is consumed; a frozen-lock
+install restores the new declared esbuild link after the first owner build
+failure. Actual owner build22/22 (7cached,11.791s) passes without common fixes.
+Two independent tests use original CLI stdout/modules, real assembly/invoker,
+fresh State/Identity stores and a delegating native guard/commit observer.
+Positive1/1 passes ordered candidate changes, staged Audit, actual native
+ID/version guards, State-owned actor/now omissions/defaults, both histories and
+receipt versions, one commit, target-only disclosure and no-execution replay.
+
+Late-guard rollback executes all six guards in order and leaves Entry/history/
+Audit unchanged, but its rejection is not saved: revision1 remains1 rather
+than2. Owning target1passed/1failed in0.99s; the required receipt/fence/replay
+assertions are retained. Dev/State own the missing failure-to-canonical-receipt
+join: State invoke.ts551 accepts its genuine StateError, while the native
+hook bridge invoke.ts4488 propagates the helper error without adaptation.
+Skip blocked rejection qualification until exact owner repair; continue ready
+producer work. Target strict lint0 (3.34s), prior unchanged all-target44.21s
+reused, fmt/diff0. No current whole, actor/now or terminal E6008 release, broader
+reference/58-of67/nine/precise-hold change. Local only.
+
+### 2026-10-11 — manual local integration of 4f3dc6c5
+
+Finite actual CLI/assembly/State Identity/storage native HookOrder assertion and truthful checkpoint reviews CLEAR. Merge coherent four-path test checkpoint so Compiler can safely fast-forward with its original4f ancestry; no reset, broad Dev ancestry or worker worktree mutation. Reuse original frozen positive1pass and rejected-receipt1fail0.99s, strict owningClippy3.34s/fmt0 at that pre-repair tuple. Main already includes reviewed Devf57 genuine authored-require-to-StateError repair and independently qualified Memory8/8. Compiler must rerun only the affected native pair on this repaired carrier; preserve all original rejected receipt/replay/rollback assertions. No current independent pair pass is inferred before that result. State55 router and Packages genuine State-to-Files consumer/exact fixture registration are integrated; current-root emitted dependency refresh is ongoing after stale installed declarations, with no source acceptance expansion. All public/contextual/full-application holds remain. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
