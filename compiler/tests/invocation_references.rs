@@ -1,7 +1,44 @@
 //! Generated complete invocation construction uses the existing public Values contracts.
 #![cfg(unix)]
+use canlang_compiler::{
+    analysis::{
+        catalog::{CatalogRequest, load_catalog},
+        check_program,
+        types::{ResolvedType, Scalar},
+    },
+    codegen::ir::{self, IrEffectCallTarget, IrExpr, IrItemKind, IrStmt, IrType},
+    source::{SourceDb, Span},
+};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+const STATEMENT_CALLS: &str = r#"app CallFacts
+Given
+ Item {title:text}
+ Proposal {call:invocation(Item.update,empty)?}
+ policy Item read=members
+ policy Proposal read=members
+When
+ crud Item by=members fields=title
+ scenario context(value:int,note:text) read=true -> int by=members
+  do return value
+ scenario scalar(value:int) -> int by=members
+  do return value
+ scenario empty() by=members
+  do require true
+ scenario caller(proposal:Proposal,descriptor:invocation(scalar),value:int,note:text) -> int by=members
+  require proposal.call!=null
+  do
+   call context {note="Authored first",value} as fresh
+   let retained=fresh
+   call proposal.call {}
+   call descriptor {} as computed
+   call empty {}
+   return computed
+ scenario void_caller(descriptor:invocation(empty)) by=members
+  do call descriptor {}
+Then
+"#;
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
@@ -73,4 +110,226 @@ fn invocation_target_alias_uses_owner_identity() {
     assert!(emitted.contains("invocation(work.mutate)"), "{emitted}");
     assert!(emitted.contains("\"work.mutate\""), "{emitted}");
     assert!(!emitted.contains("invocation(Client.execute)"));
+}
+
+#[test]
+fn statement_call_ir_retains_checked_operands_declarations_inputs_and_results() {
+    let mut db = SourceDb::new();
+    let file = db.add("statement-calls.can".into(), STATEMENT_CALLS.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let root_path = root();
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: &root_path,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = |name: &str| {
+        ir.items
+            .iter()
+            .find(|item| item.canonical == format!("CallFacts.{name}"))
+            .unwrap()
+    };
+    let caller = owner("caller");
+    let IrItemKind::Scenario { effects, .. } = &caller.kind else {
+        panic!("scenario owner")
+    };
+    let calls: Vec<_> = effects
+        .iter()
+        .filter_map(|statement| match statement {
+            IrStmt::Call {
+                target,
+                inputs,
+                binding,
+                result,
+                span,
+            } => Some((target, inputs, binding, result, span)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(calls.len(), 4);
+    let (target, inputs, binding, result, span) = calls[0];
+    let context = owner("context");
+    assert!(
+        matches!(target, IrEffectCallTarget::Operation {operation, ..} if *operation == context.id)
+    );
+    assert_eq!(target.operations(), [context.id]);
+    assert!(target.operand().is_none());
+    let IrEffectCallTarget::Operation { source, .. } = target else {
+        panic!("static declaration target")
+    };
+    assert_eq!(source.file, file);
+    assert_eq!(
+        STATEMENT_CALLS[source.start as usize..source.end as usize].trim(),
+        "context"
+    );
+    assert_eq!(binding.as_deref(), Some("fresh"));
+    assert_eq!(*result, Some(ResolvedType::Scalar(Scalar::Int)));
+    assert!(STATEMENT_CALLS[span.start as usize..span.end as usize].contains("call context"));
+    let IrExpr::Object(entries) = &inputs.expr else {
+        panic!("ordered authored input object")
+    };
+    assert_eq!(
+        entries
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>(),
+        ["note", "value"]
+    );
+    assert_eq!(entries[0].1.ty, ResolvedType::Scalar(Scalar::Text));
+    assert_eq!(entries[1].1.ty, ResolvedType::Scalar(Scalar::Int));
+    assert!(matches!(&entries[1].1.expr, IrExpr::Name(name) if name == "value"));
+    for (_, value) in entries {
+        assert_eq!(value.span.file, file);
+        assert!(value.span.start < value.span.end);
+    }
+    assert_eq!(
+        &STATEMENT_CALLS[entries[1].1.span.start as usize..entries[1].1.span.end as usize],
+        "value"
+    );
+    assert!(effects.iter().any(|statement| matches!(statement, IrStmt::Let{name,value,..} if name=="retained" && value.ty==ResolvedType::Scalar(Scalar::Int) && matches!(&value.expr,IrExpr::Name(name) if name=="fresh"))));
+    let IrItemKind::Scenario {
+        params,
+        result,
+        read,
+        ..
+    } = &context.kind
+    else {
+        panic!("context declaration")
+    };
+    assert!(*read);
+    assert_eq!(*result, Some(ResolvedType::Scalar(Scalar::Int)));
+    assert_eq!(params.len(), 2);
+    for (index, expected) in [Scalar::Int, Scalar::Text].iter().enumerate() {
+        assert!(
+            matches!(&ir.items[params[index].0 as usize].kind, IrItemKind::Param{owner,index:slot,ty:IrType::Known(ResolvedType::Scalar(actual)),..} if *owner==context.id && *slot==index && actual==expected)
+        );
+    }
+    let (dynamic, inputs, binding, result, _) = calls[1];
+    let update = owner("Item.update");
+    let empty = owner("empty");
+    assert!(matches!(dynamic, IrEffectCallTarget::Invocation { .. }));
+    assert_eq!(dynamic.operations(), [update.id, empty.id]);
+    assert_eq!(
+        dynamic.operand().unwrap().ty,
+        ResolvedType::Invocation {
+            targets: vec![update.id, empty.id]
+        }
+    );
+    assert!(
+        matches!(&dynamic.operand().unwrap().expr, IrExpr::Member{base,field} if field=="call" && matches!(&base.expr,IrExpr::Name(name) if name=="proposal"))
+    );
+    let operand = dynamic.operand().unwrap().span;
+    assert_eq!(
+        STATEMENT_CALLS[operand.start as usize..operand.end as usize].trim(),
+        "proposal.call"
+    );
+    assert!(matches!(&inputs.expr, IrExpr::Object(entries) if entries.is_empty()));
+    assert!(binding.is_none());
+    assert!(matches!(result, Some(ResolvedType::Opaque(_))));
+    let IrItemKind::CrudOp { model, fields, .. } = &update.kind else {
+        panic!("generated CRUD declaration")
+    };
+    assert_eq!(*model, owner("Item").id);
+    assert_eq!(fields, &["title"]);
+    let IrItemKind::Model { fields, .. } = &ir.items[model.0 as usize].kind else {
+        panic!("model owner")
+    };
+    assert_eq!(fields.len(), 1);
+    assert!(
+        matches!(&ir.items[fields[0].0 as usize].kind, IrItemKind::Field{owner,ty:IrType::Known(ResolvedType::Scalar(Scalar::Text)),..} if owner==model)
+    );
+    assert_eq!(calls[2].0.operations(), [owner("scalar").id]);
+    assert!(matches!(calls[2].0, IrEffectCallTarget::Invocation { .. }));
+    assert_eq!(calls[2].2.as_deref(), Some("computed"));
+    assert_eq!(*calls[2].3, Some(ResolvedType::Scalar(Scalar::Int)));
+    assert_eq!(calls[3].0.operations(), [empty.id]);
+    assert!(calls[3].3.is_none());
+    let IrItemKind::Scenario { effects, .. } = &owner("void_caller").kind else {
+        panic!("void declaration")
+    };
+    assert!(
+        matches!(&effects[0], IrStmt::Call{target:IrEffectCallTarget::Invocation{targets,..},result:None,binding:None,..} if targets==&[empty.id])
+    );
+    let scenario = checked.effects.scenarios.get(&caller.id).unwrap();
+    let actual_targets: Vec<_> = scenario
+        .effects
+        .iter()
+        .filter_map(|effect| effect.target_node.map(|node| (effect, node)))
+        .collect();
+    assert_eq!(actual_targets.len(), calls.len());
+    for ((effect, node), (target, _, _, result, _)) in actual_targets.iter().zip(&calls) {
+        assert_eq!(
+            checked.types.effect_call_results.get(&effect.node),
+            Some(*result)
+        );
+        let source = match target {
+            IrEffectCallTarget::Operation { source, .. } => *source,
+            _ => target.operand().unwrap().span,
+        };
+        assert_eq!(node.file, source.file);
+        assert_eq!((node.start, node.end), (source.start, source.end));
+    }
+}
+
+#[test]
+fn mutation_call_invalidates_nullable_member_proof_before_dynamic_invocation() {
+    let source = STATEMENT_CALLS.replace(
+        "context(value:int,note:text) read=true",
+        "context(value:int,note:text)",
+    );
+    let mut db = SourceDb::new();
+    let file = db.add("mutation-call-control.can".into(), source.clone());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let root_path = root();
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: &root_path,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (_, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3009"
+                && diagnostic.primary.file == file
+                && source[diagnostic.primary.start as usize..diagnostic.primary.end as usize]
+                    .trim()
+                    == "proposal.call"),
+        "a potentially mutating call must invalidate the nullable member proof: {diagnostics:?}"
+    );
+}
+
+#[test]
+fn statement_calls_refuse_publication_until_owner_transaction_consumer_exists() {
+    let scratch = tempfile::tempdir().unwrap();
+    let output = compile(scratch.path(), "statement-calls", STATEMENT_CALLS);
+    assert!(!output.status.success());
+    let value = decoded(&output);
+    assert!(value.get("modules").is_none(), "{value}");
+    assert!(
+        value["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008"
+                && diagnostic["message"].as_str().is_some_and(|message| message
+                    .contains("canonical cross-operation invocation of CallFacts.context"))),
+        "{value}"
+    );
+    assert!(
+        value["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|diagnostic| diagnostic["code"] != "E6006"),
+        "checked target/value facts must not leave generic decode gaps: {value}"
+    );
 }
