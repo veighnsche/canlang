@@ -2615,3 +2615,16 @@ and qualifies that consumer after the released resolution. The compiler whole
 scope and do not certify three history rows or D1 replay. No compiler bypass,
 shared mutation repair, weakened assertion or new human hold is authorized here.
 Other ready Compiler work is exhausted until the recorded defining releases.
+
+
+**Ordered-history changed-consumer qualification, 2026-10-10.** Exact
+reviewed LOCAL61240891/State72a4ce23 corrects the defining ordered-stage history
+producer; its owning94 checks are manually qualified. Safe FF leaves Compiler14b
+and the actual NativeRefArrays source unchanged. Actual changed graph22/22
+builds uncached on Node24.19; only affected native_scenario_receipts **4/4**
+passes once (1.32s), preserving public invoker/receipt/current/order/replay
+assertions. Historical whole1386 belongs to its original installed5fa tuple;
+unchanged compiler/full/focused301/lint/format results are reused with this
+changed-consumer delta. The earlier State history prerequisite is resolved;
+Dev alone qualifies its actual existing D1 consumer. No D1 acceptance, new full
+run, competing repair/test or broader reference/hold release is claimed here.
