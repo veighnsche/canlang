@@ -7044,6 +7044,25 @@ fixture from the genuine Files producer; the current State authority wrapper
 and all precise host/native/provider prerequisites and holds remain separate.
 Coordinator manual local source intake is pending; full TECH-F02 is unfinished.
 
+### 2026-10-10 — bind the current reader in the genuine assembly fixture
+
+The existing typed File journey fixture supplies its new required method
+through genuine `readCurrentFinalizedBytes`, using the same finalized/blob
+stores, owning clock, upload policy and forwarded physical receiver/retention.
+Only that literal and its public Files import change. Cloudflare noEmit and
+both affected actual journey cases pass;19 unrelated cases are unselected.
+Preserve every original auth/CSRF/offset/digest/provenance/attachment/bytes and
+refusal assertion. Reuse Interfaces15 and its real SQLite consumer result;
+no new producer build or protected native read qualification is claimed.
+
+Coordinator has separately reviewed/released State11fe at local maina71.
+Its complete canonical slot census and guarded whole-field/Identity read API
+are available for safe intake; revision revalidation supplies no deletion lock.
+Dev owns actual protected host/native adoption and credential/session freshness;
+physical deletion serialization and actual provider ingress retain their
+defining owners. This finite common fixture correction awaits manual intake,
+with full TECH-F02 and every precise hold unchanged.
+
 ### 2026-10-10 — manual local integration of a770ebb5
 
 Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
