@@ -5,7 +5,9 @@ use std::collections::HashSet;
 
 use crate::analysis::catalog::Catalog;
 use crate::analysis::resolve::{SymbolId, SymbolKind};
-use crate::analysis::scenario_disclosure::{DependencyRole, DisclosureSource, InfluenceKind};
+use crate::analysis::scenario_disclosure::{
+    DependencyRole, DisclosureSource, InfluenceKind, ScenarioDisclosure,
+};
 use crate::analysis::types::CheckedQueryProjectionMapping;
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType};
 use crate::source::{SourceDb, Span};
@@ -13,8 +15,9 @@ use crate::source::{SourceDb, Span};
 use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrStmt, IrType};
 use super::scenario_decisions::{same_scenario_semantics, serial_type};
 use super::scenario_receipts::{
-    ReceiptDisclosurePlan, ReceiptInfluence, ReceiptQuery, ReceiptQueryDependency,
-    ReceiptQueryProjection, ReceiptQueryProjectionField, ReceiptReturn, ReceiptRole, ReceiptSource,
+    NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptInfluence, ReceiptQuery,
+    ReceiptQueryDependency, ReceiptQueryProjection, ReceiptQueryProjectionField, ReceiptReturn,
+    ReceiptRole, ReceiptSource,
 };
 
 /// Serialize the real checked model scan, local nominal select and all four
@@ -28,6 +31,108 @@ pub fn serialize_query_sources(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<serde_json::Value> {
+    serde_json::to_value(checked_query_plan(
+        program,
+        ir,
+        owner,
+        db,
+        catalog,
+        entry_module,
+    )?)
+    .ok()
+}
+
+/// Whole checked query closure, still unfinished for native publication.
+/// The emitter's existing result gate withdraws this recipe until the defining
+/// public-read/private-child dispatch contract is released.
+pub fn serialize_complete_query_receipt(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<serde_json::Value> {
+    serde_json::to_value(
+        collect_complete_query_receipt(program, ir, owner, db, catalog, entry_module)?.plan,
+    )
+    .ok()
+}
+
+pub(super) fn collect_complete_query_receipt(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<NativeScenarioReceipt> {
+    // Reuse the full owning source/type/executable correspondence, not a
+    // caller-supplied JSON plan or an IR-only Complete tag.
+    let plan = checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
+    let original = program.scenario_disclosures().get(&owner.id)?;
+    let queries = original.source_facts()?.queries.as_ref()?;
+    let [query] = queries.as_slice() else {
+        return None;
+    };
+    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    for disclosure in [
+        original,
+        fresh.scenario_disclosures.get(&owner.id)?,
+        ir.scenario_disclosures.get(&owner.id)?,
+    ] {
+        let ScenarioDisclosure::Complete(checked) = disclosure else {
+            return None;
+        };
+        let [returned] = checked.returns.as_slice() else {
+            return None;
+        };
+        if checked.scenario != owner.id
+            || checked.node != original.source_facts()?.node
+            || checked.source != original.source_facts()?.source
+            || !checked.effects.is_empty()
+            || returned.id != query.return_id()
+            || returned.node != query.return_node
+            || returned.source != query.source
+            || !returned.decisions.is_empty()
+            || !returned.dependencies.is_empty()
+            || !returned.intrinsics.is_empty()
+            || returned.influences != query.influences
+        {
+            return None;
+        }
+    }
+    Some(NativeScenarioReceipt {
+        plan,
+        dependencies: Default::default(),
+        intrinsics: Default::default(),
+        decisions: Default::default(),
+        decision_keys: Default::default(),
+        calls: Default::default(),
+        returns: vec![NativeReturn {
+            id: query.return_id(),
+            span: Span::new(
+                query.return_node.file,
+                query.return_node.start,
+                query.return_node.end,
+            ),
+            decisions: Vec::new(),
+            implicit: false,
+        }],
+    })
+}
+
+fn checked_query_plan(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<ReceiptDisclosurePlan> {
     program.validate_cohort(db, catalog).ok()?;
     if entry_module.is_empty() {
         return None;
@@ -50,6 +155,9 @@ pub fn serialize_query_sources(
     // every executable owner expression must still join the original lowering.
     let (fresh, _) = super::ir::build(program, db, catalog);
     same_scenario_semantics(program, ir, &fresh, owner)?;
+    // Public callers may pass a detached owner. Its valid body cannot cover
+    // a different executable scenario stored in the supplied IR.
+    same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
@@ -246,7 +354,7 @@ pub fn serialize_query_sources(
     if kinds.len() != 4 {
         return None;
     }
-    serde_json::to_value(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan {
         version: 1,
         source: origin(&source.source, entry_module),
         queries: vec![ReceiptQuery {
@@ -275,7 +383,6 @@ pub fn serialize_query_sources(
             }),
         }],
     })
-    .ok()
 }
 
 fn same_span(node: NodeKey, span: Span) -> bool {
