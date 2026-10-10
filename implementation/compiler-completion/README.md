@@ -2114,3 +2114,22 @@ compiler source/tests and receipt runtime core; fresh graph **26/26**, zero
 cached, and affected actual carrier/body **1/1** qualify the new outputs.
 Reuse unchanged whole results; Dev preview/browser/application acceptance is
 separate. No native child call or wider reference closes.
+
+
+Native activation remains blocked on Dev's binder component and the coordinator's
+exact reviewed release. The existing real `compileCapturedSingleFile` already
+uses `--native-scenario-receipts`; it needs no private artifact bypass. After
+release, activate only the prepared static profile and then qualify real native
+execution, before acceptance. Clean LOCAL4002d808 intake consumes reviewed
+private reference preparation; graph26/26 zero cached passes. Compiler source/
+tests are unchanged, so retain full1356 at its saved6e51 scope.
+
+
+The existing real source/emitter/module call case now proves the defining
+boundary: **16 child edges prepare;17 decline**, with exact root source/site/
+body and omission checks. Owning1/1 and focused strict lint/format pass; no
+handler executes and aggregate200 controls are reused. Pending Dev a2cf89f4
+binder rejects depth16 and globally memoizes visited subtrees independent of
+caller depth. The coordinator has cleared its transaction/authority review and
+routed this exact correction to Dev; activation awaits the corrected release.
+Compiler/State limits remain unchanged and E6008 stays.
