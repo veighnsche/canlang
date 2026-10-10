@@ -50,6 +50,13 @@ against its persisted origin and historical declarations; State independently
 traverses the actual typed values and matches original File facts. Completion
 covers original source inputs, terminal result, duplicate event result and typed
 schema defaults. Raw committed change payloads differ from handler projections.
+Historical sets require complete `valueDefaults` entries (`contract`, `field`,
+`value`) for every original own contract-field literal before schema normalization.
+The genuine original schema binds these exact wires; null/empty/File-free defaults
+remain entries, and `[]` establishes absence only after complete comparison.
+`value-field` projections select that set's exact entry and compare the physically
+retained literal before independent typed File traversal. Canonical nominal field
+reuse still drops defaults; missing evidence refuses, with no current-schema lookup.
 Explicit void and phase-bound no-result projections require positive declaration
 evidence. Judgment persists canonical int64 text and original question order.
 

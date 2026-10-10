@@ -8250,3 +8250,36 @@ The same private seven-handler source now captures the checked nonnull EmailAcce
 ### 2026-10-11 — manual local integration of 1be8fb24
 
 Finite original Compiler1be8fb24 source-projection review CLEAR. The same seven-handler private fixture retains the checked nonnull result guard, captures the original reference in a stable authored let, performs the original ordinary CompletionAudit create or unanchored cohort Entry Set, then applies late-reject refusal. Complete checked five-statement IR order and unchanged routes/census/schema/module/artifact/refusals pass owning2/2 .34s. Exact1291-byte source SHA256317bd50a2f1431a3c9008e0913427c40b18a4ac4154ba68bc777662371d34a5b and original target artifact/catalog supply Dev the actual native consumer prerequisite; no type-narrowing or public E6008 gate weakened. Earlier907 native success and early provider failure remain only at their frozen45621cc source. Dev must now prove genuine successful Email sentinel result reaches real staging before late guard, full row/version/history rollback, canonical ordinary/cohort rejected receipts, frozen membership, resource isolation and no-body/no-effect replay on the new exact source. Remaining changed whole/strict and broader terminal/public/full application/opaque workflow acceptance remain due; preserve all precise holds, original owners/allocations and unadvanced complete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+## 2026-10-11 — Preserve original opaque contract-field defaults
+
+Capability identified a missing original-schema join: canonical nominal field
+reuse intentionally drops defaults, while the actual Work standard-completion
+receipt retains `definition.schema.contracts[*].fields[*].default`. Require
+`valueDefaults` on each historical opaque declaration set, containing unique
+`FrameworkOpaqueValueDefault` entries with original contract, field and exact
+`WireValue` literal before normalization. The actual same-load loader must
+capture and compare every own literal default. Null, empty arrays/text, false
+and File-free defaults remain explicit; an empty collection proves absence only
+after complete original comparison.
+
+A value-field default projection selects that historical pair, compares its
+physically retained raw value, independently validates its owning type and
+constraints, and traverses every nested File. Preserve the original collection
+through reopen/migration. Keep CanonicalNominalLeaf semantics and Values schema
+ownership unchanged; no Contracts-to-Values dependency or full schema clone.
+
+Contracts emission and strict maintained public test noEmit pass0. The focused
+public case passes1/1 in4ms, with12identity pins and six new negative default
+controls while retaining16 prior controls. Explicit empty/null/false/empty-string
+wire shapes compile; omission, incomplete pairs/values, bigint and executable
+defaults refuse at type scope. Finite independent review CLEAR. Unchanged
+consumer/native/producer checks are reused. Coordinator reviews this exact
+follow-up; Dev captures genuine original raw literals and Capability validates
+their complete same-fence runtime/census/reopen/migration correspondence. The
+ABI correction is no source-capture or workflow acceptance; all holds remain.
+
+### 2026-10-11 — selected local integration of original defaultse4a37ee8
+
+Finite original-default ABI source and public type reviews CLEAR. Select only exact Contracts state.ts, existing assembly controls/README and directly related literal-default record/TECH-F02 prerequisite from e4a37ee8. Required historical valueDefaults preserve every genuine original own raw literal contract/field/value before normalization, including null/empty/false/File-free values; unique original pairs and complete same-load schema comparison are required. Projection compares physical retained raw equality before independent type/constraint/File traversal; current normalized schema or missing evidence cannot substitute. Reuse owning Contracts emit0, strict maintained public assembly noEmit0 and affected1/1 4ms, twelve barrel pins/six new negative controls and all sixteen earlier controls. No runtime changes, new table/registry/cycle or nominal Values default semantics changed. Dev must capture genuine original defaults; Capability must validate/persist full original fence/census and conserve through reopen/migration. This releases type evidence only; opaque runtime refusal, actual workflow qualification and every precise hold remain. Preserve existing allocations/complete checkpoint unadvanced; no publication.

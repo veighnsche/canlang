@@ -51,12 +51,13 @@ const opaquePublicIdentities: [
   Equal<barrel.FrameworkOpaquePayloadOrigin, state.FrameworkOpaquePayloadOrigin>,
   Equal<barrel.FrameworkOpaqueDeclaration, state.FrameworkOpaqueDeclaration>,
   Equal<barrel.FrameworkOpaqueDeclarationSet, state.FrameworkOpaqueDeclarationSet>,
+  Equal<barrel.FrameworkOpaqueValueDefault, state.FrameworkOpaqueValueDefault>,
   Equal<barrel.FrameworkOpaqueValueProjection, state.FrameworkOpaqueValueProjection>,
   Equal<barrel.FrameworkOpaqueCallable, state.FrameworkOpaqueCallable>,
   Equal<barrel.FrameworkOpaqueDeliveryContext, state.FrameworkOpaqueDeliveryContext>,
   Equal<barrel.FrameworkOpaqueJudgmentSpec, state.FrameworkOpaqueJudgmentSpec>,
   Equal<barrel.RetainedFinalizedFile, files.RetainedFinalizedFile>,
-] = [true, true, true, true, true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true, true, true, true, true];
 
 // Compile-only declaration controls. No fixture below authenticates an issuer,
 // owning producer, persisted binding or permission to reuse a File.
@@ -66,7 +67,8 @@ function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
   retained: barrel.RetainedFinalizedFile, judgment: barrel.JudgmentSpec,
   judgmentContext: Extract<barrel.FrameworkOpaqueDeliveryContext, { kind: 'judgment' }>,
   committedDescriptor: barrel.ArtifactCommittedChangeDescriptor, change: barrel.CommittedChangeEvent,
-  completion: barrel.FrameworkOpaqueStandardCompletionOrigin) {
+  completion: barrel.FrameworkOpaqueStandardCompletionOrigin,
+  declarationSet: barrel.FrameworkOpaqueDeclarationSet) {
   const legacy: barrel.FrameworkFileReferenceProducer = { models: [], validateRow() {} };
   const synchronous: NonNullable<barrel.FrameworkFileReferenceProducer['resolveOpaqueField']> =
     (_model, _row, _field, context) => ({ binding: context.binding, values: resolution.values });
@@ -126,15 +128,37 @@ function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
   const terminal: barrel.FrameworkOpaqueStandardCompletionOrigin['terminal'] = { ...completion.terminal, status: 'succeeded' };
   // @ts-expect-error Standard completion cannot retain a pending terminal status.
   const pendingTerminal: barrel.FrameworkOpaqueStandardCompletionOrigin['terminal'] = { ...completion.terminal, status: 'pending' };
+  const noValueDefaults: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, valueDefaults: [] };
+  const literalValueDefaults: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, valueDefaults: [
+    { contract: 'Original', field: 'nullable', value: null },
+    { contract: 'Original', field: 'collection', value: [] },
+    { contract: 'Original', field: 'enabled', value: false },
+    { contract: 'Original', field: 'label', value: '' },
+  ] };
+  const { valueDefaults: _defaults, ...withoutDefaults } = declarationSet;
+  // @ts-expect-error Missing historical collection is not complete empty default evidence.
+  const omittedDefaults: barrel.FrameworkOpaqueDeclarationSet = withoutDefaults;
+  // @ts-expect-error A default needs its original owning contract.
+  const noDefaultContract: barrel.FrameworkOpaqueValueDefault = { field: 'label', value: '' };
+  // @ts-expect-error A default needs its original owning field.
+  const noDefaultField: barrel.FrameworkOpaqueValueDefault = { contract: 'Original', value: '' };
+  // @ts-expect-error Omission cannot substitute for an explicit null/empty/false wire literal.
+  const noDefaultValue: barrel.FrameworkOpaqueValueDefault = { contract: 'Original', field: 'label' };
+  // @ts-expect-error Decoded bigint is not the original JSON wire literal.
+  const decodedDefault: barrel.FrameworkOpaqueValueDefault = { contract: 'Original', field: 'count', value: 1n };
+  // @ts-expect-error Executable defaults are not persisted literal wire values.
+  const executableDefault: barrel.FrameworkOpaqueValueDefault = { contract: 'Original', field: 'label', value: () => '' };
   return { legacy, synchronous, asynchronous, declaration, explicitVoid, original, noResult,
     missingScope, missingFiles, missingLifetime, refOnly, genericOrigin, nullOrigin, taggedEvent,
     implicitResult, implicitVoid, implicitAbsence, wireJudgment, orderedJudgment, bigintJudgment,
-    decodedContext, unorderedJudgment, rawCommitted, wrongProjectionName, terminal, pendingTerminal };
+    decodedContext, unorderedJudgment, rawCommitted, wrongProjectionName, terminal, pendingTerminal,
+    noValueDefaults, literalValueDefaults, omittedDefaults, noDefaultContract, noDefaultField,
+    noDefaultValue, decodedDefault, executableDefault };
 }
 
 describe("assembly conflict picks", () => {
   it("pins the synchronous opaque framework public declarations", () => {
-    expect(opaquePublicIdentities).toEqual(Array(11).fill(true));
+    expect(opaquePublicIdentities).toEqual(Array(12).fill(true));
   });
   it("pins interim picks until owners reconcile", () => {
     expect([

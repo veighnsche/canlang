@@ -772,6 +772,16 @@ export interface FrameworkOpaqueDeclaration {
         readonly artifact: { readonly type: 'void' } };
 }
 
+/** One exact original own contract-field literal default, before Values schema
+ * normalization. Null, empty arrays/text, false and File-free defaults remain
+ * explicit entries. A copied pair/value or successful codec proves no source
+ * correspondence; the actual same-load loader binds complete original capture. */
+export interface FrameworkOpaqueValueDefault {
+  readonly contract: string;
+  readonly field: string;
+  readonly value: WireValue;
+}
+
 /** Historical closure stays available after reopen and migration. Compiled
  * source SHA and installed State Revision are distinct facts. New declarations
  * with matching spellings cannot reinterpret a retained original payload. */
@@ -783,6 +793,14 @@ export interface FrameworkOpaqueDeclarationSet {
   readonly canonicalModels: ReadonlyArray<CanonicalModelDescriptor>;
   readonly artifactModels: ReadonlyArray<ArtifactModel>;
   readonly valueTypes: CanonicalValueTypes;
+  /** Complete original own contract-field defaults from the genuine retained
+   * schema. CanonicalNominalLeaf deliberately drops defaults on field reuse.
+   * Exact unique contract/field pairs must resolve within valueTypes; capture
+   * every default, not only File-shaped values, and compare raw wires against
+   * the actual original schema before binding. [] means none only after that
+   * complete comparison. Omission is incomplete, never an empty default set.
+   * Preserve this table with the original closure through reopen/migration. */
+  readonly valueDefaults: ReadonlyArray<FrameworkOpaqueValueDefault>;
   readonly declarations: ReadonlyArray<FrameworkOpaqueDeclaration>;
 }
 
@@ -942,6 +960,10 @@ export type FrameworkOpaqueValueProjection = {
   | { readonly kind: 'default'; readonly owner:
       | { readonly kind: 'input'; readonly declarationId: string; readonly input: string }
       | { readonly kind: 'model-field'; readonly model: ModelName; readonly field: string }
+      /** Select this exact historical set's valueDefaults entry and require the
+       * physically retained value to equal its original raw literal wire, then
+       * independently type/check/traverse it. Current or normalized defaults
+       * cannot replace this evidence; every retained default needs coverage. */
       | { readonly kind: 'value-field'; readonly contract: string; readonly field: string } }
 );
 
