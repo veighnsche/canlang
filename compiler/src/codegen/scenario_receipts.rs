@@ -13,8 +13,8 @@ use crate::source::{Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrGuard, IrItem, IrItemKind, IrProgram, IrStmt,
-    IrType, TypedExpr,
+    IrBinOp, IrCallTarget, IrDefault, IrEffectCallTarget, IrExpr, IrGuard, IrItem, IrItemKind,
+    IrProgram, IrStmt, IrType, TypedExpr,
 };
 use super::js::{JsModel, JsModelField, JsModelFieldType};
 
@@ -888,6 +888,70 @@ fn match_effect_proofs(
         }
         match (&proof.kind, *sites.effects.get(&site)?) {
             (
+                DisclosureEffectKind::Call {
+                    operation,
+                    input_keys,
+                },
+                IrStmt::Call {
+                    target:
+                        IrEffectCallTarget::Operation {
+                            source,
+                            operation: actual,
+                        },
+                    inputs,
+                    binding: None,
+                    result,
+                    ..
+                },
+            ) => {
+                let target = ir.items.get(operation.0 as usize)?;
+                let IrItemKind::Scenario {
+                    trusted: false,
+                    event_source: None,
+                    hook: None,
+                    cohort: None,
+                    read: false,
+                    expose_excluded: false,
+                    result: declared_result,
+                    ..
+                } = &target.kind
+                else {
+                    return None;
+                };
+                let ScenarioDisclosure::Complete(child) = ir.scenario_disclosures.get(operation)?
+                else {
+                    return None;
+                };
+                let IrExpr::Object(entries) = &inputs.expr else {
+                    return None;
+                };
+                if proof.node.kind != SyntaxKind::Call as u8
+                    || operation != actual
+                    || target.id != *operation
+                    || target.id == owner.id
+                    || child.scenario != *operation
+                    || result != declared_result
+                    || !declared_result.as_ref().is_none_or(native_result_type)
+                    || source.file != site.span.file
+                    || source.start < site.span.start
+                    || source.end > site.span.end
+                    || owning_module(ir, *source)?.id != owner.module
+                    || entries.len() != input_keys.len()
+                    || entries
+                        .iter()
+                        .zip(input_keys)
+                        .any(|((key, _), expected)| key != expected)
+                    || entries
+                        .iter()
+                        .map(|(key, _)| key)
+                        .collect::<HashSet<_>>()
+                        .len()
+                        != entries.len()
+                {
+                    return None;
+                }
+            }
+            (
                 DisclosureEffectKind::Set { model, fields },
                 IrStmt::Set {
                     record,
@@ -1132,6 +1196,18 @@ impl<'a> Sites<'a> {
                     IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
+                    IrStmt::Call {
+                        target: IrEffectCallTarget::Operation { .. },
+                        inputs,
+                        binding: None,
+                        span,
+                        ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(inputs));
+                    }
                     IrStmt::Set {
                         record,
                         changes,

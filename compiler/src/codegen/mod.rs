@@ -45,6 +45,7 @@ pub mod ir;
 pub mod js;
 pub mod model_policies;
 pub mod model_policy_profile;
+pub mod scenario_calls;
 mod scenario_receipts;
 pub mod sourcemap;
 
@@ -148,8 +149,11 @@ pub fn emit(
         return (empty_artifact(sources.db), vec![diagnostic]);
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
-    let js_out =
-        js::emit_program_with_native_receipts(&ir, sources.options.native_scenario_receipts);
+    let js_out = js::emit_program_with_native_source_receipts(
+        &ir,
+        sources.options.native_scenario_receipts,
+        sources.db,
+    );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {
         diags.sort_by(Diagnostic::canonical_cmp);
