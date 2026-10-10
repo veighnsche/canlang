@@ -1,6 +1,6 @@
 //! Production source -> unchanged emitted example modules -> actual testkit
-//! load/provision/observe and causal steps through an invocation port. These
-//! checks do not run application operations against a state engine.
+//! load/provision/observe and causal steps. The invocation-port witness and
+//! genuine native D1/Identity qualification have separate scopes.
 
 #[cfg(unix)]
 #[test]
@@ -34,8 +34,8 @@ When
  scenario wire(task:Task,note:text) by=members
   do set task {title=note}
   examples task=one note="changed"
-   as,request.operation_id -> one.title
-   members,"wire-id" -> "changed"
+   as,request.task.version -> one.title
+   members,7 -> "changed"
 Then
 "#,
     )
@@ -82,7 +82,7 @@ const hooks={...createExampleHooks({
    assert.equal(Object.hasOwn(call.inputs,'title'),false,'full business selector root is retained');
   } else {
    assert.equal(call.operation,'RequestBinding.wire');
-   assert.deepEqual(call.request,{operation_id:'wire-id'},'only wire request prefix is stripped');
+   assert.deepEqual(call.request,{task:{version:7n}},'only wire request prefix is stripped');
    assert.equal(Object.hasOwn(call.inputs,'request'),false);
   }
   // This injected invocation port exercises routing, not native State execution.
@@ -131,7 +131,7 @@ for(const test of artifact.tests) {
   if(tableIndex===1) assert.equal(stash.cells[1],activeFixture,'whole business cell is the genuine fixture');
   assert.deepEqual(stash.expectedValues,['changed']);
   if(tableIndex<2) assert.equal(Object.hasOwn(stash,'request'),false);
-  else assert.deepEqual(stash.request,{operation_id:'wire-id'});
+  else assert.deepEqual(stash.request,{task:{version:7n}});
   assert.deepEqual(await row.observe(scope),[expectedInitial],'unchanged emitted fixture observation sees initial row');
   assert.deepEqual(await row.invoke(scope),{ok:true});
   assert.deepEqual(await row.observe(scope),['changed'],'unchanged emitted observation reads the port fixture');
@@ -152,6 +152,101 @@ console.log('CLI emitted selector channels → installed Testkit loader/stash �
         String::from_utf8_lossy(&executed.stdout),
         String::from_utf8_lossy(&executed.stderr)
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn lexical_request_tables_execute_unchanged_artifact_with_native_d1_identity() {
+    use std::{path::PathBuf, process::Command};
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("native-request-binding.can");
+    std::fs::write(
+        &source,
+        r#"app NativeRequestBinding
+Given
+ Task {title:text}
+ policy Task read=members
+ fixture one=Task {title="fixture"}
+When
+ scenario apply(request:Task,note:text) by=members
+  do set request {title=note}
+  examples request=one note="changed"
+   as,request.title -> request.title
+   members,"row" -> "changed"
+  examples seed=[one] note="changed"
+   as,request -> one.title
+   members,one -> "changed"
+Then
+"#,
+    )
+    .unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    let runner = scratch.path().join("native-request-binding.mjs");
+    std::fs::write(
+        &runner,
+        r#"
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=process.argv[2];
+const {loadInstalledExampleTestkit,runCompiledExamples}=await import(
+ pathToFileURL(resolve(root,'packages/cloudflare/dist/dev/example-runner.js')).href
+);
+const artifactBytes=readFileSync(new URL('./artifact.json',import.meta.url));
+const testkit=await loadInstalledExampleTestkit(root);
+// Pass the original compiler stdout and the default D1/Identity adapter.
+// No emitted modules, metadata, dispatch port, or runtime hooks are replaced.
+const result=await runCompiledExamples({
+ artifactBytes,artifactLabel:'native-request-binding.artifact.json',
+ sourceRevision:'native-request-binding-fixture',
+ workerName:`native-request-binding-${randomUUID()}`,
+ worker:{mainModule:'main.mjs',modules:{'main.mjs':'export default {fetch(){return new Response(null,{status:404})}};'}},
+ compatibilityDate:'2026-07-15',d1Binding:'DB',testkit,
+});
+assert.equal(result.ok,true,JSON.stringify(result.report));
+assert.equal(result.executed,2);
+assert.deepEqual(result.report.summary,{total:2,passed:2,failed:0,setupFailed:0,unsupported:0});
+assert.equal(result.report.cases.length,1);
+for(const exampleCase of result.report.cases) {
+ assert.equal(exampleCase.kind,'table');
+ assert.equal(exampleCase.operation,'NativeRequestBinding.apply');
+ assert.equal(exampleCase.rows.length,2);
+ for(const row of exampleCase.rows) assert.equal(row.outcome,'passed',JSON.stringify(exampleCase));
+}
+console.log('Original CLI artifact → released CF runner + installed Testkit → native D1/Identity: dotted and whole request input rows passed');
+"#,
+    )
+    .unwrap();
+    let executed = Command::new("node")
+        .arg(runner)
+        .arg(&root)
+        .current_dir(&root)
+        .output()
+        .expect("Node is required for native BDD qualification");
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&executed.stdout));
 }
 
 #[cfg(unix)]
