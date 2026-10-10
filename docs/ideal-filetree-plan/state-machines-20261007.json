@@ -6,13 +6,13 @@
   "checkpoint_advanced": false,
   "coverage": {
     "commit_count_since_checkpoint": 1758,
-    "net_path_deltas": 10840,
+    "net_path_deltas": 10843,
     "history_touched_paths": 11384,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9337,
-    "scope": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto committed worker source f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd; actual resolved staged merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, strongest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Three actual human-authorized preclaim response files remain registered under implementation ownership with inherited-unallocated target scope and recorded A/B uncertainty; completed advice is separate from source/native/workflow acceptance. Incoming Compiler query producer and Identity MembershipSnapshot source/test paths remain under their defining owners with exact target allocation pending. Reuse the unchanged preclaim unit source147 scope and other recorded finite owner evidence only; no product checks repeat for this bookkeeping. General source/native/query/preclaim/saved-membership/browser/release and full original workflow gates remain open. Complete checkpoint is unadvanced; LOCAL-only holds retained."
+    "inherited_paths_without_prior_target_allocation": 9340,
+    "scope": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto committed worker source f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd; actual resolved staged merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, strongest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Three actual human-authorized preclaim response files remain registered under implementation ownership with inherited-unallocated target scope and recorded A/B uncertainty; completed advice is separate from source/native/workflow acceptance. Incoming Compiler query producer and Identity MembershipSnapshot source/test paths remain under their defining owners with exact target allocation pending. Reuse the unchanged preclaim unit source147 scope and other recorded finite owner evidence only; no product checks repeat for this bookkeeping. General source/native/query/preclaim/saved-membership/browser/release and full original workflow gates remain open. Complete checkpoint is unadvanced; LOCAL-only holds retained. Prepared-only original SEQ048 committed-model source-cardinality advice: three local balanced JEV request bodies are registered under implementation ownership with inherited-unallocated target scope. Responses are absent; no call or egress is authorized or performed, prior preclaim consultation approval does not cover these requests, and no cardinality semantics or workflow acceptance is selected. Historical merge counts retain their prior recorded history scope; the net path register additionally includes these three prepared working paths. Complete checkpoint remains unchanged."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual resolved staged worker merge tree, including final M bookkeeping paths)",
@@ -21582,6 +21582,24 @@
     [
       "A",
       "implementation/capability-roadmap-20261008/authenticated-actor-carrier-facts/map.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/committed-model-source-request-1.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/committed-model-source-request-2.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/committed-model-source-request-3.json",
       "implementation",
       "inherited-unallocated"
     ],
@@ -67676,7 +67694,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9337,
+    "count": 9340,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67690,10 +67708,21 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto committed worker source f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd; actual resolved staged merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, strongest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Three actual human-authorized preclaim response files remain registered under implementation ownership with inherited-unallocated target scope and recorded A/B uncertainty; completed advice is separate from source/native/workflow acceptance. Incoming Compiler query producer and Identity MembershipSnapshot source/test paths remain under their defining owners with exact target allocation pending. Reuse the unchanged preclaim unit source147 scope and other recorded finite owner evidence only; no product checks repeat for this bookkeeping. General source/native/query/preclaim/saved-membership/browser/release and full original workflow gates remain open. Complete checkpoint is unadvanced; LOCAL-only holds retained.",
+  "current_maintenance_summary": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto committed worker source f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd; actual resolved staged merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, strongest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Three actual human-authorized preclaim response files remain registered under implementation ownership with inherited-unallocated target scope and recorded A/B uncertainty; completed advice is separate from source/native/workflow acceptance. Incoming Compiler query producer and Identity MembershipSnapshot source/test paths remain under their defining owners with exact target allocation pending. Reuse the unchanged preclaim unit source147 scope and other recorded finite owner evidence only; no product checks repeat for this bookkeeping. General source/native/query/preclaim/saved-membership/browser/release and full original workflow gates remain open. Complete checkpoint is unadvanced; LOCAL-only holds retained. Prepared-only original SEQ048 committed-model source-cardinality advice: three local balanced JEV request bodies are registered under implementation ownership with inherited-unallocated target scope. Responses are absent; no call or egress is authorized or performed, prior preclaim consultation approval does not cover these requests, and no cardinality semantics or workflow acceptance is selected. Historical merge counts retain their prior recorded history scope; the net path register additionally includes these three prepared working paths. Complete checkpoint remains unchanged.",
   "prepared_consultation_response_paths": [
     "implementation/capability-roadmap-20261008/dispatch-preclaim-response-1.json",
     "implementation/capability-roadmap-20261008/dispatch-preclaim-response-2.json",
     "implementation/capability-roadmap-20261008/dispatch-preclaim-response-3.json"
-  ]
+  ],
+  "prepared_committed_model_source_advice": {
+    "status": "prepared-proposed",
+    "request_paths": [
+      "implementation/capability-roadmap-20261008/committed-model-source-request-1.json",
+      "implementation/capability-roadmap-20261008/committed-model-source-request-2.json",
+      "implementation/capability-roadmap-20261008/committed-model-source-request-3.json"
+    ],
+    "response_paths": [],
+    "egress_authorized": false,
+    "semantics_accepted": false
+  }
 }
