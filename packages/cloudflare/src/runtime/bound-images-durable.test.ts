@@ -142,7 +142,7 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       request: { upload_id: uploadId, operation: `${APP}.generate`, field: '/graph', arguments: {},
         name: 'workflow.txt', type: 'text/plain', size: String(graphBytes.length) } });
     assert.ok(uploaded.status === 'granted' || uploaded.status === 'duplicate');
-    assert.equal(bindings.append(uploaded.intentId, receiver, graphBytes).status, 'appended');
+    assert.equal(bindings.append(uploaded.intentId, receiver, graphBytes, 0).status, 'appended');
     assert.equal(bindings.complete(uploaded.intentId, receiver).status, 'completed');
     const finalized = bindings.finalize({ intentId: uploaded.intentId, retryId: uploadId, bytesDigest: sha256Hex(graphBytes), caller: receiver });
     assert.equal(finalized.status, 'finalized'); assert.ok('result' in finalized);

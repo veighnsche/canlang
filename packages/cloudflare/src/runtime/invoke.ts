@@ -2653,12 +2653,13 @@ function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: Gen
   if (plan === undefined || (!scalar && !query) || loaded.unsupportedHookOperations.has(def.name) ||
       Object.keys(def.inputArrays).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
       Object.keys(def.inputNullableRefs ?? {}).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
-      def.descriptor.inputs.some(field => field.required !== true || field.default !== undefined ||
+      def.descriptor.inputs.some(field => (field.required !== true &&
+        !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) || field.default !== undefined ||
         ('computedDefault' in field && field.computedDefault === true) ||
         (field.kind === 'ref' ? !query || !loaded.models.some(model => model.name === field.model)
           : field.kind === 'delivery' || field.kind === 'enum' || field.kind === 'nominal' || field.valueType === undefined ||
             !NATIVE_CALL_SCALARS.has(field.valueType)))) {
-    throw new loaded.producers.errors('validation', 'Native child calls require a checked scalar scenario or complete read query contract-array with required scalar/protected inputs.');
+    throw new loaded.producers.errors('validation', 'Native child calls require a checked scalar scenario or complete read query contract-array with owning scalar/protected inputs.');
   }
 }
 function prepareNativeScenarioInputs(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef,

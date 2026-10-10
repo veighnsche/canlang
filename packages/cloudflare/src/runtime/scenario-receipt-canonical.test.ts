@@ -1460,7 +1460,7 @@ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): v
   const child = 'Shop.readFacts';
   const inputs = [
     { name: 'record', field: { kind: 'ref' as const, model, requireVersion: true }, required: true },
-    { name: 'targets', field: { kind: 'ref' as const, model, requireVersion: true }, required: true,
+    { name: 'targets', field: { kind: 'ref' as const, model, requireVersion: true }, required: false,
       array: { required: false }, min: 0, max: 3 },
   ];
   const other = 'Shop.Other' as ModelName;
@@ -1487,6 +1487,7 @@ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): v
     : mode === 'wrong-model' ? '{record:input.other,targets:input.targets}'
     : mode === 'malformed-array' ? '{record:input.record,targets:input.record}'
     : mode === 'array-bound' ? '{record:input.record,targets:[...input.targets,input.record]}'
+    : mode === 'omitted-array' ? '{record:input.record}'
     : '{record:input.record,targets:input.targets}';
   const fields = { visible: { type: 'text' }, private: { type: 'text' }, token: { type: 'secret', init: 'random_secret' } };
   const models = Object.fromEntries([model, ...(mode === 'wrong-model' ? [other] : [])].map(name => [name, {
@@ -1602,7 +1603,7 @@ it('checked read child admits ordered repeated protected references at the paren
 });
 
 it('caught protected read child input and write refusals roll back the actual parent stage and close its lifetime', async () => {
-  for(const mode of ['copied-reference','wrong-model','malformed-array','array-bound','read-write']) {
+  for(const mode of ['copied-reference','wrong-model','malformed-array','array-bound','omitted-array','read-write']) {
     const w=await world(false,true,undefined,artifact=>referenceReadChildFixture(artifact,mode),false);
     const second=await seedRow(w.store,model,{id:'rec-2',data:{visible:'second visible',private:'second private',token:'second secret'}});
     const other=mode==='wrong-model'?await seedRow(w.store,'Shop.Other' as ModelName,
