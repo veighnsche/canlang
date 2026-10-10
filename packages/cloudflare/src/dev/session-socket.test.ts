@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import {
@@ -253,6 +254,113 @@ test("transport limits responses and safe errors without exposing handler intern
     await assert.rejects(client.request({ command: "huge", payload: "x".repeat(70_000) }), codeIs("REQUEST_TOO_LARGE"));
   } finally {
     await owner.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("disconnecting an authenticated pending peer aborts only its request and preserves owned cleanup", { timeout: 10_000 }, async () => {
+  const { scratch, root, runtimeDir } = await fixture();
+  let entered!: () => void;
+  const pendingEntered = new Promise<void>(resolve => { entered = resolve; });
+  let requestSignal: AbortSignal | undefined;
+  const owner = await startSessionSocket({
+    checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    requestTimeoutMs: 10_000,
+    handle: async (command, signal) => {
+      if (command.command !== "pending") return "still serving";
+      requestSignal = signal;
+      entered();
+      await once(signal, "abort");
+      return "disconnected response";
+    },
+  });
+  const peer = createConnection(owner.identity.socketPath);
+  try {
+    await once(peer, "connect");
+    const hello = once(peer, "data");
+    peer.write(`${JSON.stringify({ type: "hello", ...owner.identity, nonce: "a".repeat(32) })}\n`);
+    const [reply] = await hello;
+    assert.equal(JSON.parse(String(reply)).type, "hello");
+    peer.write(`${JSON.stringify({ type: "request", id: "disconnected", command: "pending" })}\n`);
+    await pendingEntered;
+    assert.ok(requestSignal);
+    const aborted = once(requestSignal, "abort", { signal: AbortSignal.timeout(1_500) });
+    peer.destroy();
+    await aborted;
+    assert.equal(requestSignal.aborted, true);
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    assert.equal(client.identity.sessionId, owner.identity.sessionId);
+    assert.equal(await client.request({ command: "status" }), "still serving");
+    await owner.stop();
+    await assert.rejects(lstat(owner.descriptorPath), { code: "ENOENT" });
+    await assert.rejects(lstat(owner.identity.socketPath), { code: "ENOENT" });
+  } finally {
+    peer.destroy();
+    await owner.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("disconnected real handshake and response peers cannot crash a separate owner process", { timeout: 20_000 }, async () => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const moduleUrl = new URL("./session-socket.js", import.meta.url).href;
+  // The child has ordinary Node fatal-error behavior. Only client-side peers
+  // handle their own connection errors; no owner/global error handler exists.
+  const childCode = `
+    import assert from 'node:assert/strict';
+    import {createConnection} from 'node:net';
+    import {once} from 'node:events';
+    import {lstat} from 'node:fs/promises';
+    import {startSessionSocket,discoverSessionSocket} from ${JSON.stringify(moduleUrl)};
+    const owner=await startSessionSocket({checkoutRoot:process.argv[1],app:'OfficeSupplies',
+      profile:'local-d1-identity',runtimeDir:process.argv[2],handle:()=> 'alive'});
+    const hello=JSON.stringify({type:'hello',...owner.identity,nonce:'b'.repeat(32)})+'\\n';
+    try {
+      for(let index=0;index<48;index++) {
+        const peer=createConnection(owner.identity.socketPath);
+        peer.on('error',error=>assert.ok(['EPIPE','ECONNRESET'].includes(error.code)));
+        await once(peer,'connect');
+        const closed=new Promise(resolve=>peer.once('close',resolve));
+        if(index<32) {
+          peer.end(hello,()=>peer.destroy());
+        } else {
+          const reply=once(peer,'data'); peer.write(hello); await reply;
+          peer.end(JSON.stringify({type:'request',id:'gone-'+index,command:'status'})+'\\n',()=>peer.destroy());
+        }
+        await closed;
+        const client=await discoverSessionSocket({checkoutRoot:process.argv[1],runtimeDir:process.argv[2]});
+        assert.equal(client.identity.sessionId,owner.identity.sessionId);
+        assert.equal(await client.request({command:'status'}),'alive');
+      }
+      await owner.stop();
+      await assert.rejects(lstat(owner.descriptorPath),{code:'ENOENT'});
+      await assert.rejects(lstat(owner.identity.socketPath),{code:'ENOENT'});
+      process.stdout.write('peers=48 owner=alive cleanup=complete\\n');
+    } finally { await owner.stop(); }
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", childCode, root, runtimeDir],
+    { stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  let errors = "";
+  child.stdout.setEncoding("utf8").on("data", chunk => { output += chunk; });
+  child.stderr.setEncoding("utf8").on("data", chunk => { errors += chunk; });
+  const completed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+  });
+  const deadline = setTimeout(() => { child.kill("SIGKILL"); }, 15_000);
+  try {
+    const exit = await completed;
+    assert.equal(exit.signal, null, "separate socket owner must complete without forced termination");
+    assert.equal(exit.code, 0, errors);
+    assert.equal(errors, "");
+    assert.equal(output, "peers=48 owner=alive cleanup=complete\n");
+  } finally {
+    clearTimeout(deadline);
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGKILL");
+      await completed;
+    }
     await rm(scratch, { recursive: true, force: true });
   }
 });

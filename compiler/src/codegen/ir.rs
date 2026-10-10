@@ -47,7 +47,8 @@ use crate::analysis::resolve::{
     ModuleKind, SymbolId, SymbolKind,
 };
 use crate::analysis::types::{
-    CheckedQuery, CheckedQueryClauseKind, ResolvedType, Scalar, SelectedCallTarget,
+    CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionMapping, ResolvedType, Scalar,
+    SelectedCall, SelectedCallTarget,
 };
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
@@ -286,6 +287,8 @@ pub enum IrItemKind {
         owner: SymbolId,
         index: usize,
         ty: IrType,
+        /// Borrowed array lengths only; the field-only required marker is excluded.
+        array_bounds: Option<IrParameterArrayBounds>,
         /// `=` default, when one is authored (G1/G6/G7).
         default: Option<IrDefault>,
         /// Checked source anchor before grouping is erased by expression lowering.
@@ -355,6 +358,13 @@ pub struct IrRetain {
     pub until: TypedExpr,
     /// Declaration span.
     pub span: Span,
+}
+
+/// Exact descriptor-number length bounds retained for reused array inputs.
+#[derive(Debug, Clone, Default)]
+pub struct IrParameterArrayBounds {
+    pub min: Option<u64>,
+    pub max: Option<u64>,
 }
 
 /// Stored-field modifiers: `trim`, `min=`/`max=` bounds, field `unique`.
@@ -1219,6 +1229,9 @@ pub struct IrQuery {
     /// Actual checked authored query, before lexical clause identities are erased.
     /// Synthetic and example-only queries do not acquire a source proof.
     pub source: Option<CheckedQuery>,
+    /// Exact selected collection call, joined to this query and its external predicate.
+    /// This is source correspondence, not native query admission.
+    pub collection_call: Option<Box<crate::analysis::types::CheckedCollectionCall>>,
     /// Query domain.
     pub domain: IrQueryDomain,
     /// Containment parent value, if any (model domains only).
@@ -2436,7 +2449,9 @@ impl<'a> Cx<'a> {
                         },
                         labels: choice.labels.clone(),
                     });
+                let array_bounds = self.decode_parameter_array_bounds(symbol);
                 IrItemKind::Param {
+                    array_bounds,
                     owner: *owner,
                     index: *index,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
@@ -3209,6 +3224,7 @@ impl<'a> Cx<'a> {
                     // query contract with no clauses.
                     return IrExpr::Query(IrQuery {
                         source: None,
+                        collection_call: None,
                         domain: IrQueryDomain::Model(self.canonical(id)),
                         parent: None,
                         where_pred: None,
@@ -3448,6 +3464,7 @@ impl<'a> Cx<'a> {
             return TypedExpr::new(
                 IrExpr::Query(IrQuery {
                     source: None,
+                    collection_call: None,
                     domain: IrQueryDomain::Model(self.canonical(child)),
                     parent: Some(Box::new(parent)),
                     where_pred: None,
@@ -3575,6 +3592,140 @@ impl<'a> Cx<'a> {
         self.unsupported_expr("member access", "no base expression", ty.clone(), node.span)
     }
 
+    /// Join the actual selected overload and authored predicate to its lowered
+    /// query. An absent fact leaves ordinary lowering unchanged, without proof.
+    fn join_collection_call(
+        &self,
+        node: &SyntaxNode,
+        id: &str,
+        overload: usize,
+        selected: &SelectedCall,
+        args: &mut [TypedExpr],
+    ) -> bool {
+        let Some(fact) = self
+            .program
+            .types
+            .checked_collection_calls
+            .get(&NodeKey::of(node))
+        else {
+            return true;
+        };
+        let has_predicate = matches!(id, "any" | "all");
+        let arity = if has_predicate { 2 } else { 1 };
+        if fact.node != NodeKey::of(node)
+            || fact.builtin != id
+            || fact.overload != overload
+            || (!has_predicate && !matches!(id, "count" | "first"))
+            || selected.slots.len() != arity
+            || args.len() != arity
+        {
+            return false;
+        }
+        let Some(domain_slot) = selected.slots.first().copied().flatten() else {
+            return false;
+        };
+        let Some(TypedExpr {
+            expr: IrExpr::Query(query),
+            ty,
+            ..
+        }) = args.get(domain_slot)
+        else {
+            return false;
+        };
+        let Some(source) = query.source.as_ref() else {
+            return false;
+        };
+        let Some(alias) = source
+            .clauses
+            .iter()
+            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))
+        else {
+            return false;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return false;
+        };
+        if !self
+            .program
+            .symbols
+            .get(fact.model.0 as usize)
+            .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Model { .. }))
+        {
+            return false;
+        }
+        let row = ResolvedType::Record {
+            symbol: fact.model,
+            stored: true,
+        };
+        let domain_matches = match &query.domain {
+            IrQueryDomain::Model(model) => *model == self.canonical(fact.model),
+            IrQueryDomain::Value { base, alias } => {
+                *alias == *name && query_element_ty(&base.ty) == row
+            }
+        };
+        if source.node != fact.query
+            || alias.node != fact.alias
+            || *ty != source.result
+            || query_element_ty(&source.result) != row
+            || query_element_ty(&source.domain_type) != row
+            || !domain_matches
+        {
+            return false;
+        }
+        if has_predicate {
+            let Some(predicate) = fact.predicate.as_ref() else {
+                return false;
+            };
+            let Some(slot) = selected.slots.get(1).copied().flatten() else {
+                return false;
+            };
+            let Some(TypedExpr {
+                expr: IrExpr::Lambda { param, body },
+                ty,
+                ..
+            }) = args.get(slot)
+            else {
+                return false;
+            };
+            let Some(mut predicate_node) = self.node(&predicate.node) else {
+                return false;
+            };
+            for depth in 0..=64 {
+                if predicate_node.kind != SyntaxKind::Group {
+                    break;
+                }
+                if depth == 64 {
+                    return false;
+                }
+                let Some(inner) = kids(predicate_node)
+                    .into_iter()
+                    .find(|child| is_expression(child.kind))
+                else {
+                    return false;
+                };
+                predicate_node = inner;
+            }
+            let boolean = ResolvedType::Scalar(Scalar::Bool);
+            if selected.arguments.get(slot) != Some(&predicate.node)
+                || self.program.types.node_types.get(&predicate.node) != Some(&boolean)
+                || predicate.ty != boolean
+                || *ty != boolean
+                || body.ty != boolean
+                || body.span != predicate_node.span
+                || param != name
+            {
+                return false;
+            }
+        } else if fact.predicate.is_some() {
+            return false;
+        }
+        let IrExpr::Query(query) = &mut args[domain_slot].expr else {
+            return false;
+        };
+        query.collection_call = Some(Box::new(fact.clone()));
+        true
+    }
+
     /// Decode a delivery observation: `record.field.props...` with
     /// compiler-resolved provenance plus the static prop list.
     fn decode_delivery_read(
@@ -3668,7 +3819,7 @@ impl<'a> Cx<'a> {
         {
             return bad_binding();
         }
-        match selected.target {
+        match selected.target.clone() {
             SelectedCallTarget::Builtin { id, overload } => {
                 let Some(entry) = self.catalog.and_then(|catalog| catalog.lookup(&id)) else {
                     return bad_binding();
@@ -3711,7 +3862,7 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 });
                 self.g13_seen.insert(id.clone());
-                let args = selected
+                let mut args: Vec<TypedExpr> = selected
                     .arguments
                     .iter()
                     .enumerate()
@@ -3794,6 +3945,14 @@ impl<'a> Cx<'a> {
                         self.decode_anchored(scope, key, "call argument")
                     })
                     .collect();
+                if !self.join_collection_call(node, &id, overload, &selected, &mut args) {
+                    return IrExpr::Unsupported {
+                        what: "collection call source facts".into(),
+                        why:
+                            "checked query, alias or external predicate disagrees with lowered call"
+                                .into(),
+                    };
+                }
                 Self::selected_call_expr(
                     IrCallTarget::Builtin { id, awaited },
                     args,
@@ -4480,6 +4639,16 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
+        if checked.as_ref().is_some_and(|fact| {
+            fact.projection.is_some()
+                && !self.query_projection_matches(fact, select.as_deref(), select_param.as_deref())
+        }) {
+            return IrExpr::Unsupported {
+                what: "query projection source facts".into(),
+                why: "checked owning fields or row mappings disagree with lowered projection"
+                    .into(),
+            };
+        }
         let _ = ty;
         let domain = match model {
             Some(model) => IrQueryDomain::Model(model),
@@ -4490,6 +4659,7 @@ impl<'a> Cx<'a> {
         };
         IrExpr::Query(IrQuery {
             source: checked,
+            collection_call: None,
             domain,
             parent,
             where_pred,
@@ -4500,6 +4670,129 @@ impl<'a> Cx<'a> {
             select,
             select_param,
         })
+    }
+
+    /// Checked nominal row mappings must match the actual typed select body.
+    /// Merely carrying a projection-shaped fact is not a correspondence proof.
+    fn query_projection_matches(
+        &self,
+        query: &CheckedQuery,
+        projection: Option<&TypedExpr>,
+        parameter: Option<&str>,
+    ) -> bool {
+        let valid = (|| {
+            let proof = query.projection.as_ref()?;
+            let projection = projection?;
+            let parameter = parameter?;
+            let mut active_alias = None;
+            let mut projection_alias = None;
+            for clause in &query.clauses {
+                match &clause.kind {
+                    CheckedQueryClauseKind::As { .. } => active_alias = Some(clause),
+                    CheckedQueryClauseKind::Select => {
+                        if projection_alias.is_some() {
+                            return None;
+                        }
+                        projection_alias = Some(active_alias?);
+                    }
+                    _ => {}
+                }
+            }
+            let alias = projection_alias?;
+            if alias.node != proof.alias
+                || !matches!(&alias.kind, CheckedQueryClauseKind::As {name} if name == parameter)
+                || projection.span != Span::new(proof.node.file, proof.node.start, proof.node.end)
+                || projection.ty
+                    != (ResolvedType::Record {
+                        symbol: proof.contract,
+                        stored: false,
+                    })
+            {
+                return None;
+            }
+            let ResolvedType::Array { element, .. } = &query.domain_type else {
+                return None;
+            };
+            let row_type = ResolvedType::Record {
+                symbol: proof.model,
+                stored: true,
+            };
+            if **element != row_type {
+                return None;
+            }
+            let model = self.program.symbols.get(proof.model.0 as usize)?;
+            if !matches!(model.kind, SymbolKind::Model { .. }) {
+                return None;
+            }
+            let contract = self.program.symbols.get(proof.contract.0 as usize)?;
+            let SymbolKind::Contract { fields: declared } = &contract.kind else {
+                return None;
+            };
+            let IrExpr::Object(entries) = &projection.expr else {
+                return None;
+            };
+            if entries.len() != proof.fields.len()
+                || entries.len() != declared.len()
+                || entries.len() > 200
+            {
+                return None;
+            }
+            let is_row = |value: &TypedExpr| {
+                value.ty == row_type
+                    && matches!(&value.expr, IrExpr::Name(name) if name == parameter)
+            };
+            let mut seen = HashSet::new();
+            for ((name, value), field) in entries.iter().zip(&proof.fields) {
+                let owner = self.program.symbols.get(field.field.0 as usize)?;
+                if !seen.insert(field.field)
+                    || !declared.contains(&field.field)
+                    || owner.name != *name
+                    || !matches!(owner.kind, SymbolKind::Field {owner, ..} if owner == proof.contract)
+                    || value.ty != field.ty
+                    || self.program.types.node_types.get(&field.node) != Some(&field.ty)
+                {
+                    return None;
+                }
+                // Group lowering erases wrappers; shorthand retains its actual
+                // checked key-token anchor rather than an invented expression.
+                let mut node = self.node(&field.node)?;
+                let mut depth = 0;
+                while node.kind == SyntaxKind::Group {
+                    depth += 1;
+                    if depth > 64 {
+                        return None;
+                    }
+                    node = kids(node)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))?;
+                }
+                if node.span != value.span {
+                    return None;
+                }
+                match &field.mapping {
+                    CheckedQueryProjectionMapping::StoredReference if is_row(value) => {}
+                    CheckedQueryProjectionMapping::Version => {
+                        if !matches!(&value.expr, IrExpr::Member {base,field} if field == "version" && is_row(base))
+                            || value.ty != ResolvedType::Scalar(Scalar::Int)
+                        {
+                            return None;
+                        }
+                    }
+                    CheckedQueryProjectionMapping::DirectField { field: source } => {
+                        let source = self.program.symbols.get(source.0 as usize)?;
+                        if !matches!(source.kind, SymbolKind::Field {owner, ..} if owner == proof.model)
+                            || !model.fields_of().contains(&source.id)
+                            || !matches!(&value.expr, IrExpr::Member {base,field} if field == &source.name && is_row(base))
+                        {
+                            return None;
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            Some(())
+        })();
+        valid.is_some()
     }
 
     /// The native mutation query contract orders direct stored fields of
@@ -6056,7 +6349,10 @@ impl<'a> Cx<'a> {
             return;
         }
         let mut chain = Vec::new();
-        let mut current = receiving.id;
+        let mut current = match receiving.kind {
+            SymbolKind::Param { .. } => self.program.types.field_reuse_sources[&receiving.id],
+            _ => receiving.id,
+        };
         let mut seen = HashSet::new();
         loop {
             if !seen.insert(current) || chain.len() >= 128 {
@@ -6085,6 +6381,35 @@ impl<'a> Cx<'a> {
                 ));
                 return;
             };
+            if matches!(receiving.kind, SymbolKind::Param { .. }) {
+                // A scalar field wrapped in [] retains element identity, not
+                // outer cardinality. Stop at that exact checked layer boundary.
+                let array_element = |ty: &ResolvedType| {
+                    let ty = match ty {
+                        ResolvedType::Nullable(inner) => inner.as_ref(),
+                        _ => ty,
+                    };
+                    match ty {
+                        ResolvedType::Array { element, .. } => Some(element.as_ref().clone()),
+                        _ => None,
+                    }
+                };
+                let receiving_element = self
+                    .program
+                    .types
+                    .symbol_types
+                    .get(&receiving.id)
+                    .and_then(array_element);
+                let source_element = self
+                    .program
+                    .types
+                    .symbol_types
+                    .get(&current)
+                    .and_then(array_element);
+                if receiving_element.is_none() || receiving_element != source_element {
+                    break;
+                }
+            }
             let data = self
                 .program
                 .effects
@@ -6178,6 +6503,79 @@ impl<'a> Cx<'a> {
         modifiers.trim = effective.trim;
         modifiers.min = effective.min;
         modifiers.max = effective.max;
+    }
+
+    fn decode_parameter_array_bounds(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<IrParameterArrayBounds> {
+        let SymbolKind::Param { owner, .. } = symbol.kind else {
+            return None;
+        };
+        if !matches!(
+            self.program
+                .symbols
+                .get(owner.0 as usize)
+                .map(|symbol| &symbol.kind),
+            Some(SymbolKind::Scenario { .. } | SymbolKind::CapabilityOp { .. })
+        ) {
+            return None;
+        }
+        let mut ty = self.program.types.symbol_types.get(&symbol.id)?;
+        if let ResolvedType::Nullable(inner) = ty {
+            ty = inner;
+        }
+        if !matches!(ty, ResolvedType::Array { .. }) {
+            return None;
+        }
+        let mut modifiers = IrModifiers::default();
+        self.inherit_field_modifiers(symbol, &mut modifiers);
+        let mut bounds = IrParameterArrayBounds::default();
+        // Generated array aliases retain their already checked intersections.
+        // No normalization, distinctness or required-input claim is projected.
+        if let Some(checked) = self.program.types.value_constraints.get(&symbol.id) {
+            for (minimum, value) in [(true, checked.min), (false, checked.max)] {
+                if let Some(value) = value {
+                    if !(0..=9_007_199_254_740_991).contains(&value) {
+                        self.diags.push(Diagnostic::error("E6008", "cannot lower parameter array length: checked bound has no safe descriptor number".to_string(), symbol.span));
+                        return None;
+                    }
+                    if minimum {
+                        bounds.min = Some(value as u64);
+                    } else {
+                        bounds.max = Some(value as u64);
+                    }
+                }
+            }
+        }
+        for (minimum, expression) in [(true, modifiers.min), (false, modifiers.max)] {
+            let Some(expression) = expression else {
+                continue;
+            };
+            let IrExpr::Int(value) = expression.expr else {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower parameter array length: bound must be a nonnegative safe integer literal".to_string(), expression.span));
+                return None;
+            };
+            if !(0..=9_007_199_254_740_991).contains(&value) {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower parameter array length: bound must be a nonnegative safe integer literal".to_string(), expression.span));
+                return None;
+            }
+            let value = value as u64;
+            if minimum {
+                bounds.min = Some(bounds.min.map_or(value, |prior| prior.max(value)));
+            } else {
+                bounds.max = Some(bounds.max.map_or(value, |prior| prior.min(value)));
+            }
+        }
+        if matches!((bounds.min,bounds.max),(Some(min),Some(max)) if min>max) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower parameter array length: inherited range is empty".to_string(),
+                symbol.span,
+            ));
+            return None;
+        }
+        (bounds.min.is_some() || bounds.max.is_some()).then_some(bounds)
     }
 
     /// Whether `owner` is a child model (computed defaults take `{parent}`).

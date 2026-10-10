@@ -39,6 +39,8 @@ fn nested_delivery_and_nominal_order() {
 #[test]
 fn operation_order_omissions_and_present_empty_metadata() {
     let mut input = JsOperationField {
+        min: None,
+        max: None,
         name: "id".into(),
         value_type: None,
         computed_default: false,

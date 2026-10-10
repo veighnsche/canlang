@@ -2240,3 +2240,178 @@ has producer qualification; actual Values consumption follows exact released
 Packages envelope/model-context intake. Model-containing ordinary contract
 publication and complete original query/policy/runtime joins remain unfinished.
 Whole1356 stays historical at6530; nine references and precise holds remain.
+
+
+**Released schema consumer and original cohort (unfinished), 2026-10-10.**
+Consume reviewed LOCALe5c8b728 and exact clean draft337 by fast-forward,
+preserving local commits/edits. Owning Values dependency build4/4 has zero cached
+tasks. Actual CLI-emitted bounded inventory passes its real Values consumer:
+trimmed nonblank title, exact full-int64/scalar bounds, nullable text, Decimal
+endpoints and array length/refusal controls; ordinary/native contract target3/3.
+The original imports+app-uses29-file check runs once: complete=true, exit10,
+150 diagnostics and **zero in Workbench**. Direct-query/fixture source defects
+are resolved. SKIP original global disclosure: prerequisite owning source/helper
+resolution for Employees8/9 impure active_member in pure staff/can_work and
+CanDo116 nullable user, plus other composed business source errors. Compiler owns the decision-context/source-closure prerequisite; Capability owns
+nullable/business source corrections. No guard removal or pure-rule weakening.
+State/Interfaces loaders require genuine same-load model names
+before Fact.task schema publication; defining owners have exact locations.
+Compiler checked query/projection work continues; no original native/reference
+acceptance or current whole1356 claim follows these finite results.
+
+
+**Checked nominal query projection (unfinished native join), 2026-10-10.**
+The real query checker retains exact contract/model/lexical alias identities and
+ordered owning fields, authored expression anchors/types and stored-reference,
+version or direct-field mappings. Imported two-stage visible/select is covered;
+computed/foreign/mixed projections retain ordinary typing without claiming row
+attribution. IR joins every fact to the actual typed lowered object, active alias,
+source anchors and owning model/contract field bijection. Altered owner/model/
+alias/type/mapping/order/omission controls refuse; unsupported query/read/as
+native disclosure stays withheld. Affected151/151 pass (query5, invocation7,
+disclosure18, codegen121), with final query/invocation12 rechecked after boxed
+optional facts; strict all-target Clippy/format0 and finite independent review.
+Actual any(Employee as e,predicate) needs its external predicate/call association,
+not a fabricated where clause. Original cohort/source/helper, State/Dev policy/
+query/result and current whole qualification remain unfinished; no wider credit.
+
+
+**Decision-context prerequisite (unfinished; advice only), 2026-10-10.**
+Compiler owns exact checked transitive helper/call/default and admission-context
+correspondence for original staff/can_work. Accepted DESIGN314 caller-mode query
+rules and StateRead active_member do not themselves qualify arbitrary StateRead
+in pure derives or dispatch guards. Preserve T06/default/pure gates until the
+bounded current-membership read contract, defining State observer and Dev stage
+association are released. Moving reads before set/create would alter authored
+observation timing. Three independently worded JEV Choice consultations select
+owner_prerequisite (confidence .87/.65/.53; probability .90/.74/.65); bounded
+contract remains the material alternative (.10/.25/.34). The single
+[advice record](decision-context-jev.json) retains uncertainty; it is not language
+acceptance. SKIP gate activation pending exact State/Dev contract, with Compiler
+remaining owner of source/context implementation. Actual any/all currently
+reject async predicates; checked external-predicate correspondence is an
+independent prerequisite, not an authority grant. Original source/reference
+completion and precise BDD3/Task22 holds remain unchanged.
+
+
+**Checked collection predicate join (unfinished native workflow), 2026-10-10.**
+Actual selected any/all/count/first calls retain owning overload, query/model,
+lexical alias and external predicate node/type, independent of Where. IR validates
+that fact against actual canonical slots, typed query and real Lambda body/source;
+named arguments preserve authored evaluation order and grouped predicates retain
+both source and lowered anchors. Skewed owner/model/query/alias/predicate/builtin/
+overload facts refuse without native admission. Affected154/154 pass (query8,
+invocation7, codegen121, disclosure18), strict all-target Clippy/format0; finite
+independent review is clear. Async membership predicates remain unsupported until
+the exact bounded decision contract and sequential runtime consumer join. Next
+ready prerequisite: original reused targets parameter min1/max10 currently drops
+at IR/operation input emission; Compiler owns producer, Packages shared envelopes,
+State per-element private current references, Dev actual frame array correspondence.
+
+
+**Bounded membership decision contract (proposed activation; checked producer), 2026-10-10.**
+The private contract uses the existing checked source identity and exact authored
+site: `source:{path,sha256,module}`, `owner` canonical scenario, `node:{start,end}`
+(actual Bool guard), `statement:{start,end}`, `stage` (`leading-require`,
+`body-require`, `send-dispatch`) and ordered nested statement/branch position.
+Each call occurrence has exact source/node, checked builtin id/overload or
+canonical derive owner, authored argument source/node/type array, canonical slots,
+omitted defining default anchors and full invocation-chain occurrences. Symbols
+and NodeKeys are checked producer identities; any serialized handoff uses owning
+canonical names and source offsets, never a source-file ordinal as authority.
+Missing/recursive/unsupported/bounded-overflow closure withholds the recipe.
+
+The membership observer binding is the exact selected active_member occurrence:
+canonical slot0 is the **actually evaluated user**, slot1 the **actually evaluated
+Team**. These need not be admitted scenario parameters: imported helper arguments,
+lexical values and query predicates retain their checked call-chain origin. The
+trusted emitter passes captured values once to a privately issued site binding;
+metadata or a caller-supplied `{id}` cannot issue that binding. State verifies
+slot1 against the stage's current verified owner Team and reads slot0 through
+that stage's real private Identity reader. It returns the exact Bool to the same
+expression and enrolls both positive and negative current-membership observations.
+Original expressions retain lazy and/or/??, query alias scope, source argument
+order and omitted-default evaluation; an unevaluated branch issues no membership
+observation and is accounted for by its actual decision path. Unknown/stale site,
+source/callee/type/team mismatch, closed lifetime or reader error refuses, never
+substitutes false or actor-role evidence.
+
+Leading/body require bind the active admitted call/store/checkpoint. SEND when is
+later dispatch: State/Dev must issue its genuine current dispatch execution/reader
+with frozen lexical inputs after business closure; an expired root-call observer
+cannot authorize it. Neither guard is hoisted or replayed at commit. State owns
+current-membership guard lifetime/recheck; Dev owns actual private stage issuance;
+Compiler owns source/IR bijection and exact once-only emitter captures. Checked
+facts grant no execution. Allowing StateRead through the bounded derive/when
+recipe remains proposed until accepted semantics and defining observers join;
+current pure/default/when/T06 gates and precise human holds remain enforced.
+
+
+The proposed serial handoff is version1, with no execution authority:
+```ts
+{
+  version: 1,
+  source: { path: string, sha256: string, module: string },
+  owner: string, // canonical scenario
+  node: { start: number, end: number },
+  statement: { start: number, end: number },
+  stage: 'leading-require' | 'body-require' | 'send-dispatch',
+  position: Array<
+    { kind: 'guard' | 'body' | 'then' | 'else' | 'loop', index: number } |
+    { kind: 'match', arm: number, statement: number }
+  >,
+  calls: Array<{
+    source: { path: string, sha256: string, module: string },
+    node: { start: number, end: number },
+    target: { kind: 'builtin', id: string, overload: number } |
+            { kind: 'derive', name: string },
+    arguments: Array<{ node: { start: number, end: number }, type: string }>,
+    slots: Array<number | null>,
+    defaults: Array<{
+      parameter: string, // exact canonical owning parameter
+      source: { path: string, sha256: string, module: string },
+      node: { start: number, end: number }, type: string
+    }>,
+    chain: Array<{
+      source: { path: string, sha256: string, module: string },
+      node: { start: number, end: number }, derive: string
+    }>
+  }>
+}
+```
+Types use the existing owning Can type IDs (`user`, `team`, exact nominal IDs),
+not new primitive spellings. Argument offsets belong to the call's source;
+defaults carry their own source. For active_member the canonical slots map to
+user and Team as defined above. This freezes vocabulary for independent State/
+Dev components; serialization/descriptor transport remains unimplemented until
+the actual checked source/IR bijection is qualified. The issued runtime binding
+is a private identity, never a public descriptor ID or source-offset claim.
+
+
+**Decision source/IR unit (unfinished activation), 2026-10-10.**
+The optional real checked producer now retains leading/body require and SEND
+when sites, exact nested paths and selected builtin/derive typed argument slots,
+omitted defaults and complete imported call chains. The real IR consumer joins
+that immutable original inventory and fresh checked lowering to actual statements,
+controls, operands, reached callee bodies and defaults. Changed Bool/name/operator,
+source/site/slots/default/frame, duplicate guard/proof and preceding lexical
+statement controls refuse. Unsupported special expressions or create/delete/
+transition/call/schedule/cancel/emit statement families decline this finite optional
+recipe. No serial transport, private binding issuance, StateRead admission or native
+workflow is claimed. Owning5/5 and final affected34/34 (including parameter3,
+disclosure18, typed artifact2/descriptor6) pass; unchanged codegen121/invocation7
+results are reused. Strict all-target Clippy/format0. Source-correspondence
+implementation is safe to release ahead of defining observers; current pure/
+default/when/T06 gates remain. Whole changed-source qualification is due.
+
+**Array parameter producer (unfinished native admission), 2026-10-10.**
+Exact checked same-layer array reuse retains compatible inherited numeric min/max
+in IR, operation inputs and actual scenario/capability schemas. Original min1/max10
+and narrower min2/max5, nullability, read-versus-mutation ref versions, valid empty
+default, unbounded and scalar-field[] layer controls pass actual CLI/artifact3/3.
+Symbolic/unsafe lengths refuse E6008/no modules. Direct parameter modifiers already
+refuse parser E1200; they are not an admitted narrowing profile. Field-only !,
+trim, uniqueness/distinctness are not projected. Packages owns released additive
+shared envelope/intake/length validation; State/Dev own real per-element current
+reference/checkpoint/private-view correspondence. Strict all-target lint/format0;
+whole/native array workflow remains unqualified.

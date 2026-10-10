@@ -41,6 +41,14 @@ import type {
 } from '../ports.js';
 import { buildBusinessError } from '../errors/envelope.js';
 
+// The checked inventory identity travels unchanged through MCP fields and
+// the HTTP derived catalog. Names describe reference wire shapes, not grants.
+const inventoryModels = new WeakMap<CanonicalValueTypes, readonly string[]>();
+
+function nominalModelNames(inventory: CanonicalValueTypes): readonly string[] {
+  return inventoryModels.get(inventory) ?? [];
+}
+
 /**
  * Base closed top-level members of handle-mode args. The full per-operation
  * set is `handleModeAllowed(descriptor)`: base members plus every non-ref
@@ -137,15 +145,25 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
 
 /** Render only the same checked declaration inventory used by Values admission. */
 function nominalSchema(name: string, inventory: CanonicalValueTypes): Record<string, unknown> {
-  const { valueSchema } = normalizeValueTypes(inventory);
+  const modelNames = nominalModelNames(inventory);
+  const { valueSchema } = normalizeValueTypes(inventory, modelNames);
+  const models = new Set(modelNames);
   const definitions: Record<string, unknown> = Object.create(null);
   const visited = new Set<string>();
   const shape = (parsed: ReturnType<typeof parseTypeId>, type: string, descriptor?: NormalizedField): Record<string, unknown> => {
     const base = parsed.base;
     let element: Record<string, unknown>;
     if (base.kind === 'nominal') {
-      visit(base.path);
-      element = { $ref: `#/$defs/${base.path.replaceAll('~', '~0').replaceAll('/', '~1')}` };
+      if (models.has(base.path)) {
+        // The declared model selects identity; its row fields are never an
+        // embedded contract. The codec preserves an optional exact version.
+        element = { type: 'object', properties: {
+          id: { type: 'string', minLength: 1 }, version: { type: 'string' },
+        }, required: ['id'], additionalProperties: false };
+      } else {
+        visit(base.path);
+        element = { $ref: `#/$defs/${base.path.replaceAll('~', '~0').replaceAll('/', '~1')}` };
+      }
     } else if (base.kind === 'scalar') {
       if (!['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'email', 'url'].includes(base.name)) {
         failDescriptor('malformed_descriptor', `Unsupported nominal schema scalar ${JSON.stringify(base.name)}.`);
@@ -218,7 +236,11 @@ function hoistDefinitions(root: Record<string, unknown>): void {
  * key — byte-identical to undescribed schemas.
  */
 function propertySchema(named: McpNamedField): Record<string, unknown> {
-  const schema = fieldSchema(named.field);
+  const element = fieldSchema(named.field);
+  const shape = named.field.kind === 'ref' && named.array !== undefined
+    ? { type: 'array', items: element, ...(named.min === undefined ? {} : { minItems: named.min }),
+        ...(named.max === undefined ? {} : { maxItems: named.max }) } : element;
+  const schema = named.field.kind === 'ref' && named.nullable === true ? { anyOf: [shape, { type: 'null' }] } : shape;
   return named.description === undefined ? schema : { ...schema, description: named.description };
 }
 
@@ -365,6 +387,8 @@ export interface CheckedArtifactField {
   readonly nullable?: boolean;
   /** Present exactly for array inputs; `required` is the T09 `!` marker. */
   readonly array?: { readonly required: boolean };
+  readonly min?: number;
+  readonly max?: number;
   /** Source default, pinned verbatim; `server`/`derived` never survive the check. */
   readonly default?: DerivedInputDefault;
   /** Authored `@{desc="..."}` text, verbatim; absent when not authored. */
@@ -388,6 +412,8 @@ export interface CheckedArtifactDeliveryField {
   readonly nullable?: boolean;
   /** Present exactly for array inputs; `required` is the T09 `!` marker. */
   readonly array?: { readonly required: boolean };
+  readonly min?: number;
+  readonly max?: number;
   /** Source default, pinned verbatim; `server`/`derived` never survive the check. */
   readonly default?: DerivedInputDefault;
   /** Authored `@{desc="..."}` text, verbatim; absent when not authored. */
@@ -418,7 +444,7 @@ export interface CheckedArtifactOperation {
 export interface ArtifactOperationSlice {
   readonly artifact_version?: unknown;
   readonly operations?: unknown;
-  /** Required only for full-context choices intake; otherwise left to owning model consumers. */
+  /** Same-load model identities for nominal refs; choices additionally check their fields. */
   readonly models?: unknown;
   /** Actual owning nominal inventory; never inferred from model spelling. */
   readonly valueTypes?: unknown;
@@ -882,6 +908,8 @@ interface CheckedInputChannels {
   readonly valueType?: string;
   readonly nullable?: boolean;
   readonly array?: { readonly required: boolean };
+  readonly min?: number;
+  readonly max?: number;
   readonly default?: DerivedInputDefault;
   readonly description?: string;
 }
@@ -897,14 +925,32 @@ function checkArtifactInputChannels(
   if (typeof value['required'] !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
   }
-  const valueType = `${fieldKind}${value['array'] === undefined ? '' : '[]'}${value['nullable'] === true ? '?' : ''}`;
+  const rawArray = choiceMember(value, 'array', what);
+  const nullable = choiceMember(value, 'nullable', what);
+  const valueType = `${fieldKind}${rawArray === undefined ? '' : '[]'}${nullable === true ? '?' : ''}`;
   const fallback = checkArtifactDefault(value['default'], what, fieldKind, valueType);
   let array: { readonly required: boolean } | undefined;
-  if (value['array'] !== undefined) {
-    if (!isDescriptorRecord(value['array']) || typeof value['array']['required'] !== 'boolean') {
+  if (Object.hasOwn(value, 'array')) {
+    const marker = choiceObject(rawArray, ['required'], what);
+    if (typeof marker['required'] !== 'boolean') {
       failDescriptor('malformed_descriptor', `Invalid ${what}: array markers carry a boolean required.`);
     }
-    array = { required: value['array']['required'] };
+    array = { required: marker['required'] };
+  }
+  if (Object.hasOwn(value, 'nullable') && typeof nullable !== 'boolean') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: nullable must be a boolean.`);
+  }
+  const bounds: { min?: number; max?: number } = {};
+  for (const key of ['min', 'max'] as const) {
+    const bound = choiceMember(value, key, what);
+    if (!Object.hasOwn(value, key)) continue;
+    if (array === undefined || typeof bound !== 'number' || !Number.isSafeInteger(bound) || bound < 0) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: ${key} must be a safe nonnegative array length.`);
+    }
+    bounds[key] = bound;
+  }
+  if (bounds.min !== undefined && bounds.max !== undefined && bounds.min > bounds.max) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: array min exceeds max.`);
   }
   const rawDescription: unknown = value['description'];
   let description: string | undefined;
@@ -960,6 +1006,7 @@ function checkArtifactInputChannels(
     ...(claimedType === undefined ? {} : { valueType: claimedType }),
     ...(value['nullable'] === true ? { nullable: true as const } : {}),
     ...(array === undefined ? {} : { array }),
+    ...bounds,
     ...(fallback === undefined ? {} : { default: fallback }),
     ...(description === undefined ? {} : { description }),
   };
@@ -988,7 +1035,7 @@ function checkArtifactInput(value: unknown, opName: string, inventory?: Canonica
     field.kind === 'nominal' ? field.name : undefined, field.kind === 'enum' ? field.values : undefined);
   if (field.kind === 'nominal' && channels.default?.kind === 'literal') {
     const type = channels.valueType ?? `${field.name}${channels.array === undefined ? '' : channels.array.required ? '[]!' : '[]'}${channels.nullable ? '?' : ''}`;
-    try { validateValue(normalizeValueTypes(field.valueTypes).valueSchema, type, channels.default.value, 'create'); }
+    try { validateValue(normalizeValueTypes(field.valueTypes, nominalModelNames(field.valueTypes)).valueSchema, type, channels.default.value, 'create'); }
     catch { failDescriptor('malformed_descriptor', `Invalid ${what}: nominal literal default fails its owning schema.`); }
   }
   return { name, field, ...channels };
@@ -1320,8 +1367,19 @@ export function checkArtifactOperations(slice: ArtifactOperationSlice): CheckedA
   }
   let inventory: CanonicalValueTypes | undefined;
   if (inventoryDescriptor !== undefined) {
-    try { inventory = normalizeValueTypes(inventoryDescriptor.value).valueTypes; }
+    const rawModels = choiceMember(slice, 'models', 'nominal model slice');
+    const models = rawModels === undefined ? [] : choiceArray(rawModels, 'nominal model slice');
+    const modelNames: string[] = [];
+    for (let index = 0; index < models.length; index += 1) {
+      // Do not call caller-controlled array methods or iterators for context.
+      const model = choiceMember(models, String(index), 'nominal model slice');
+      const name = choiceMember(model, 'name', 'nominal model');
+      if (typeof name !== 'string') failDescriptor('malformed_descriptor', 'Invalid nominal model name.');
+      modelNames.push(name);
+    }
+    try { inventory = normalizeValueTypes(inventoryDescriptor.value, modelNames).valueTypes; }
     catch (error) { failDescriptor('malformed_descriptor', error instanceof Error ? error.message : 'Invalid valueTypes inventory.'); }
+    inventoryModels.set(inventory, Object.freeze(modelNames));
   }
   const raw: unknown = slice.operations;
   if (raw === undefined || raw === null) return [];
@@ -1359,6 +1417,12 @@ export function checkedToMcpInputSchema(checked: CheckedArtifactOperation): McpI
       name: named.name,
       field: named.field,
       required: named.required,
+      ...(named.field.kind !== 'ref' ? {} : {
+        ...(named.array === undefined ? {} : { array: named.array }),
+        ...(named.nullable === undefined ? {} : { nullable: named.nullable }),
+        ...(named.min === undefined ? {} : { min: named.min }),
+        ...(named.max === undefined ? {} : { max: named.max }),
+      }),
       ...(named.valueType === undefined ? {} : { valueType: named.valueType }),
       ...(named.description === undefined ? {} : { description: named.description }),
     });
@@ -1381,8 +1445,9 @@ function checkedPropertySchema(checked: CheckedArtifactField): Record<string, un
   const element = fieldSchema(checked.field);
   const shape: Record<string, unknown> = checked.array === undefined
     ? element
-    : { type: 'array', items: element };
-  const schema = (checked.field.kind === 'user' || checked.field.kind === 'nominal' || checked.field.kind === 'enum') && checked.nullable === true
+    : { type: 'array', items: element, ...(checked.min === undefined ? {} : { minItems: checked.min }),
+        ...(checked.max === undefined ? {} : { maxItems: checked.max }) };
+  const schema = (checked.field.kind === 'ref' || checked.field.kind === 'user' || checked.field.kind === 'nominal' || checked.field.kind === 'enum') && checked.nullable === true
     ? { anyOf: [shape, { type: 'null' }] }
     : shape;
   return checked.description === undefined ? schema : { ...schema, description: checked.description };
@@ -1576,9 +1641,13 @@ function checkBoundElement(
  * concerns, never checked here.
  */
 export function checkBoundArgument(input: DerivedWritableInput, value: unknown): BusinessError | null {
+  if (input.array !== undefined && Array.isArray(value) &&
+      ((input.min !== undefined && value.length < input.min) || (input.max !== undefined && value.length > input.max))) {
+    return bindingError(`/${input.name}`, `Input ${JSON.stringify(input.name)} violates its declared array length bounds.`);
+  }
   if (input.kind === 'nominal') {
     if (input.valueTypes === undefined || input.valueType === undefined) return bindingError(`/${input.name}`, 'Nominal input lacks its checked owning inventory.');
-    try { validateValue(normalizeValueTypes(input.valueTypes).valueSchema, input.valueType, value, 'create'); return null; }
+    try { validateValue(normalizeValueTypes(input.valueTypes, nominalModelNames(input.valueTypes)).valueSchema, input.valueType, value, 'create'); return null; }
     catch (error) { return bindingError(`/${input.name}`, error instanceof Error ? error.message : 'Invalid nominal value.'); }
   }
   const path = `/${input.name}`;

@@ -5463,6 +5463,10 @@ The same browser evaluator now exports per-call ownership and awaits the busines
 
 The actual cohort now passes original browser19/business36/examples2 twice and retained HTTP occurrence/detail after source edit/restoration, with all physical receipt/fence/history/resource/security assertions preserved. Shared r1/sourceRevision b9aa804f/artifact a6981138/epoch146c27bb has4121 admitted inputs and original Office SHAba4a6f00. Awaited in-process stop removes the descriptor and all real observed builds. Remove only the redundant setup status/expected-revision check that raced capture refresh; the original browser settled-current check remains. Native detached stop still has its separate genuine timeout/dead-owner record, not resolved by this success. Failure/rerun/live T11/G2–G3 and exact external holds remain unfinished.
 
+Prepare the existing failure evaluator as a per-call borrowed-owner consumer and invoke it in the same cohort after browser/business source restoration. Keep the actual deliberately wrong compiled expectation, original1-fail/1-pass result, distinct fresh failed reruns before/after restore, retained redacted details and source restoration. Reuse the business snapshot function to compare actual serving Identity/two-owner D1 tables around all three run/rerun controls; original HTTP details must survive the new revisions. Syntax passes, expanded actual cohort is due. This adds evaluator composition without alternate row/application/runtime producers or new proof records.
+
+Actual expanded cohort on f93ee76d passes original browser19/business36/examples2 twice plus deliberately failed1/pass1 and both distinct isolated failed reruns. Every serving Identity/two-owner D1 table stays unchanged around the three controls; original HTTP detail persists r1→r5 and original/rerun assertion refs retain r4 source/artifact. Original Office source/artifact ba4a6f00/b9aa804f/a6981138, current epoch61d506eb; the changed expectation genuinely compiles artifact1c6ebbd3/source4006afce. Exact restoration and awaited in-process descriptor/all-build cleanup pass. Keep withheld actor/trace/row effect-scope fields and separate native shutdown/live T11/G2/G3 gates; serving snapshots are not missing producer evidence. A finite real native create/delete check also reproduces stop timeout without any source promotion, narrowing Dev diagnosis while preserving the failed whole result.
+
 ## 2026-10-10 — retain actual browser refusal records across source revisions (unfinished cleanup)
 
 Compare the actual pre-action failure inventory, preserving the anonymous-page403 recorded during login; the blank-name action adds exactly one400 validation/nonretryable occurrence. Native CLI list/lookup/detail bind exact owner/source/serving identity and closed redacted fields, with operation identity withheld and trace/mapping unavailable. The same full Office browser consumer passes original19 plus new transport/old-ref retention/source-restore assertions at unchanged original Office bytes. Its native stop repeatedly times out and leaves a dead-PID/refused-socket descriptor; whole execution remains failed. Recover only verified own dead roots with the existing daemon API, never delete another owner. Dev investigates the genuine awaited stop boundary through the ready in-process cohort, retaining native daemon creation as a separate obligation and all G2/G3/producer/external holds.
@@ -5475,7 +5479,7 @@ Exact scalar-wire bounds never convert through Number, including full int64 text
 
 Contracts and Values clean emissions pass; the affected maintained schema file passes118/118, zero skips. Finite independent source review is clear. Coordinator manual release and original Compiler/State/Dev source/query/result adoption remain unfinished; schema normalization still establishes no stored existence, sibling-version equality, authority or query association. All precise holds and broader original workflow gates remain.
 
-Coordinator manually reviews69d1cb09 CLEAR and integrates it at LOCAL10e36d3d with its114checks reused. The followup dependent root noEmit passes after targeted State declaration refresh; the initial15diagnostics identified stale dist missing already released child-call exports, with no State source correction. Its refreshed clean emission passes. The nominal wire-bound/trim followup is a separate coherent local unit pending coordinator release.
+Coordinator manually reviews69d1cb09 CLEAR and integrates it at LOCAL10e36d3d with its114checks reused. The followup dependent root noEmit passes after targeted State declaration refresh; the initial15diagnostics identified stale dist missing already released child-call exports, with no State source correction. Its refreshed clean emission passes. Coordinator subsequently manually reviews the exact1c2341af followup CLEAR and integrates it at LOCALee24f435, reusing its unchanged118 and dependent root results. Original consumer adoption remains unfinished.
 
 
 ## 2026-10-10 — preserve exact owning nominal field modifiers (unfinished query join)
@@ -5483,6 +5487,28 @@ Coordinator manually reviews69d1cb09 CLEAR and integrates it at LOCAL10e36d3d wi
 Implement accepted DESIGN field reuse: retain representation/nullability and exact inherited trim/min/max in defining scope; require provable compatible narrowing of receiving ordinary bounds. Do not inherit creation/default/server/required-array/unique/authority metadata. Generated Judgment aliases retain the checker's intersected constraints, including when authored receiving bounds are wider. Emit length bounds as safe descriptor numbers and scalar bounds as owning exact wire literals; unsupported computed/unsafe bounds refuse publication. Explicit generated schema ownership preserves existing Judgment consumers without granting unrelated unsupported ordinary contract closure. Affected140/140 and strict all-target Clippy/format pass; exact Packages released envelope/model context precedes new bounded Values-consumer qualification and model-reference activation. Original source/query/policy/State/Dev and whole current-source qualification remain unfinished; historical1356 at6530 is unchanged.
 
 
+## 2026-10-10 — consume owning nominal bounds and recheck original source (unfinished)
+
+Fast-forward exact coordinator-reviewed LOCALe5c8b728 and clean draft337, including Packages1c2341af/69d1cb09 envelope/model context. Build owning Values dependency4/4 zero cached, then validate real emitted ordinary metadata through the genuine Values API: trim, numeric length bounds, exact scalar wire/int64/Decimal endpoints and nullable/array refusals; owning3/3 passes. Original29-file cohort check is complete=true/exit10/150 diagnostics with zero Workbench diagnostics, resolving direct-query and waiting fixture defects. Preserve global clean-cohort disclosure gate. Existing pure staff/can_work active_member conflict at Employees8/9, nullable user at CanDo116 and wider authored composition errors require owning source/helper resolution; State/Interfaces require genuine same-load model context before model-containing schema activation. No guard pruning, pure-language weakening, native Fact[] or wider acceptance follows.
+
+## 2026-10-10 — consume exact original query facts locally (unfinished execution)
+
+Intake reviewed LOCAL589d64d5 after coherent Office7a9f2853 preparation. Retain checked query/scenario/call facts, direct-query draft pointer337b3739 and actual fixture identity7d43; reuse owning149/283 affected checks/lint/format, preserving Declined/E6008 and separate schema/policy/State/native producer gates. Worker draft remains clean detached5a12eb9e with released337b absent locally; coordinator owns exact object intake, so no original-source/native consumption claim. Office remains independent. Preserve both decision histories/path allocations and reconcile the existing registry without complete checkpoint advance or hold changes.
+
+Consume reviewed LOCAL6c7540a9, retaining own prepared7a9f2853 rerun source. Reuse reviewed unchanged Office9011/fd986 actual cohort and owning Values69d1 schema114/114/clean emission scope. Coordinator supplies exact local draft337b object intake; this worker alone fast-forwards its clean detached5a12 checkout to337b, closing the missing-object prerequisite without remote/foreign mutation. Corrected nominal wire/trim envelope, complete source-policy closure and State/private query/result binding remain separate gates. Reconcile the existing registry/independent decisions; complete checkpoint and precise holds stay unchanged.
+
+Consume reviewed LOCALee24f435/Packages1c2341af exact nominal trim/WireValue envelope, reusing owning schema118/118. Actual local compiler rebuild14.72s, source-current owning Cloudflare graph22/22 zero cached, catalog59/15, root noEmit and final boundaries13/899/1270/zero pass. The initial boundary read overlapped catalog output cleanup; repeat only after settled output, with no shared gate rewrite. State/Interfaces still must pass validated same-load model context in their actual loaders/nominal consumers; Dev ordinary results already use owning loaded.valueSchema. Exact source-policy and genuine private query/nested reference authority remain necessary. Expanded Office rerun work remains prepared and independent; complete checkpoint/precise holds stay unchanged.
+## 2026-10-10 — retain same-load model context through Interfaces (unfinished workflow)
+
+Derive nominal model-reference shapes from the owning ArtifactOperationSlice.models names together with its checked valueTypes inventory. Keep frozen canonical names in private inventory-identity context used by admission, MCP rendering, literal defaults and HTTP bound arguments; the public wire stays unchanged. Read validated own model entries directly, preserving inherited/accessor refusal and avoiding caller-controlled array methods or iterators. Standalone and copied inventories retain no-context dangling refusal; consumers must rederive from the actual full slice after serialization. Full choices model-field/read-result validation remains independent and unchanged.
+
+Render stored refs as closed `{id,version?}` with nonempty string id, optional exact wire-version string and existing nullable/array wrappers. Do not fabricate model definitions or embed row fields. Values owns int64, bound, trim and enum admission; State alone owns row existence, sibling-version equality, authority and query evidence. This Interfaces counterpart follows reviewed Compilerb71cc7a6 at LOCALe5c8b728; actual model-reference native publication stays withheld and State registry corrections stay Capability-owned.
+
+Owning Interfaces clean emission passes. Existing t19a/t19b files pass42/42, zero failures/skips, including6new declaration-labelled Shop component controls through the production APIs. Correct the initial new-test type narrowing and invalid alias fixture to owning contracts; all existing36 controls remain. Finite independent review finds and resolves inherited array-map context substitution with direct own-index extraction; correction review is clear. Reuse unchanged Values/Contracts and native/browser results. This coherent local unit awaits coordinator manual release and original Compiler/State/Dev workflow adoption; all precise human holds and broader original acceptance gates remain.
+
+## 2026-10-10 — join nominal query projection facts to real IR (unfinished native join)
+
+Extend the existing checked query representation with optional exact nominal row mappings: actual contract/model/lexical alias, ordered owning field identity, authored expression/type and reference/version/direct-field attribution. Keep unsupported computed/foreign/mixed mapping absent without changing ordinary query typing. Validate the facts against actual lowered typed select objects, source anchors, active alias and complete owning-field bijection; skewed identity/type/order/mapping/omission refuses. Box optional facts to preserve existing IR layout rather than suppress size lint or change every query variant. Actual imported two-stage visible/select and refusal controls pass; affected151/151 plus final query/invocation12 and strict all-target lint/format0. Native query/read/as disclosure remains withheld; external collection predicates and original policy/source/runtime joins remain unfinished. Unique ordered query clauses already forbid duplicate same-name as declarations; explicit active-declaration matching is defensive, not a claimed valid-source defect.
 ### 2026-10-10 — exact query schema intake and source gates (unfinished)
 
 Intake reviewed LOCALe5c8b728 onto own77dd0a85, preserving all query source and approval-composition work. Consume Packages69/1c optional actual same-load model names and exact wire/length/trim schema, Compiler7d43/b71 actual checked fixture/modifiers; no cloned model schema or query authority. Reconciliation1634commits/10815netdeltas/11359historypaths/513history-only/9312pending, nine new paths registered,79featurepaths/30targetleaves and complete824 checkpoint preserved. One original29-file check is150 diagnostics/zeroWorkbench, not source/native acceptance. At intake, the employee helper and nullable preferences diagnostics were identified; subsequent inspection separates the ready nullable guard correction from the blocked current decision-context producer. State emission/defining tests were pending at intake.
@@ -5501,6 +5527,50 @@ The shared staff/can_work migration is blocked on Compiler checked decision-cont
 
 Local draftd7d0dc686a24e9882d132f8ddb88e7e40d48d31f keeps `row.location==null` first and narrows actor only before the existing can_work call: `row.location==null or (actor!=null and can_work(actor,row.location))`. This preserves the anonymous null-location case and current membership/employment/location requirements for a selected location. No helper hoisting or classification change. A fresh exact released Compiler build passes9.48s; one real20-file CanDo import check passes its attributable correction (1.29s, complete=true, omitted=0, exit10,132 diagnostics, zero CanDo). Employees8/9 StateRead-in-pure E3010 and original runtime/source-policy prerequisites remain open; no whole application acceptance.
 
+
+## 2026-10-10 — preserve decision-read gates pending the owning bounded contract (unfinished proposal)
+
+Compiler owns original staff/can_work checked transitive source/context resolution.
+Preserve accepted pure/default restrictions and current StateRead classification;
+DESIGN314 caller-mode bounded-query rules need a concrete qualified membership
+observer/admission contract before this source can activate. Earlier do hoisting
+changes evaluation timing across set/create/dispatch and is not an equivalent
+implementation. Three equivalent independent JEV Choice requests advise the owner
+prerequisite, with confidence .87/.65/.53 and probability .90/.74/.65; the bounded
+contract alternative retains .10/.25/.34. Save one advice record at
+implementation/compiler-completion/decision-context-jev.json; advice is not
+accepted language design. State/Dev own exact private current-membership and stage
+hooks; Compiler owns checked callee/default/context joins once released. Do not
+admit arbitrary StateRead or Promise predicates through the synchronous Values
+any/all interface. Original policy/source/native joins and precise holds remain.
+
+
+## 2026-10-10 — retain exact external collection predicates (unfinished native join)
+
+Use a separate checked collection-call association on the actual query argument,
+not an invented Where clause. Only real selected any/all/count/first catalog
+calls with checked stored-model query/alias identities qualify. Join canonical
+argument slots and actual typed lowered Query/Lambda anchors; named arguments
+keep authored source order. Missing facts confer no proof; altered owner/model/
+query/alias/predicate/builtin/overload facts refuse. Affected154/154 and strict
+all-target lint/format pass; actual membership async predicates and native
+query/policy/source/result admission remain unfinished.
+
+## 2026-10-10 — contain local control peer failures (unfinished qualification)
+
+Treat an asynchronously failed handshake/response write as the loss of that control connection, not loss of the daemon. Its socket owns a lifetime error listener and aborts only its pending request on error/close; completed work preserves the existing response/security semantics. Skip writes to destroyed peers and close the connection if the bounded fallback response itself cannot be serialized. Do not add a process-wide exception handler, ignore SDK errors, enlarge shutdown timeouts or remove descriptors manually.
+
+The actual native failure trace identifies session-socket hello write EPIPE before any control close; owning source fixes that path. Node12pass/one existing Linux-only skip and the separate48-peer owner check pass. Fresh stock Office check/normal stop and the complete existing native/Chromium browser workflow now pass with source/refusal/retention/restoration assertions and descriptor cleanup intact. Reuse the unchanged expanded business/examples/isolated-rerun scope. Bound the two positive fixture check/admit paths to four attempts, allowing only supersession or REVISION_CONFLICT before execution with unchanged producer count; assert exact authored bytes, runtime artifact provenance and one actual execution. Preserve intentional revision denials and all retention/redaction checks. Final26/26 CLI/example/rerun bodies, root noEmit and owning clean emission pass; boundaries13/899/1274/zero retain their affected runtime scope. Initial long Darwin fixture paths and incremental-only stale-output admission were corrected through short test roots and the existing clean owning build, not runtime/gate relaxation. No OfficeG2/T11/G3 or complete checkpoint advances.
+
+## 2026-10-10 — preserve bounded reference-array inputs (unfinished workflow)
+
+Retain original Scope.targets `todo.Task[] min=1 max=10` through the shared input envelope without inventing distinctness or a default width. Artifact and HTTP-derived inputs carry optional numeric array-length min/max. Canonical refs retain checked array, nullable and required carriers; other canonical array kinds keep their bounds through the existing marker channel. Validate own exact metadata before reading it: safe nonnegative ordered lengths require an actual array, markers have only own boolean required, and contradictory hints refuse. Accessor/inherited/lossy input metadata never establishes a checked carrier. Compiler owns the actual checked declaration and emitter; this unit does not infer authored facts.
+
+Generic State ordinary/prepared input admission checks present outer shape/length, preserves eligible omissions/defaults/updates and singular behavior, then emits ordered repeated PendingRefs with array param `name/index` and error path `/name/index`; singular params remain unchanged. Keep the existing State version domain and extra-ref behavior. Declared nullable containers remain nullable. MCP full/registry schema consumers retain minItems/maxItems/nullability; live/prepared handlers share existing closed element framing and refuse invalid arrays before downstream invocation. Capability alone owns current row admission, checkpoint/authority and array owner-stage adoption; Dev owns actual native private slot/lifetime bindings.
+
+Contracts, Interfaces and final State clean emissions pass. Interfaces maintained affected files pass50/50, zero skips, including production live/prepared MCP parity. Initial State affected files pass86/87 because an older descriptor assertion expected nullable to be omitted; the new carrier assertion corrects it while retaining null/no-ref/omission behavior. Final owned-admission37/37 passes; unchanged admission17/17 and typed metadata33/33 are reused. Finite review corrects hint getter intake and exact marker keys, with zero-call controls and clear correction review. These declaration-labelled component checks qualify the shared carrier only.
+
+The earlier Interfaces model-context unit83305a79 is manually CLEAR at reviewed LOCALa6b4d0b3. Incoming exact LOCALad4ec635 supplies disjoint State same-load model names plus read/query/projection source joins; coordinator must retain those three hunks with this array delta at the coherent intake boundary. Original compiler-emitted Scope/Workbench and actual State/native authority qualification remain unfinished. All precise publication/preparation/payload/security holds stay unchanged.
 
 ### 2026-10-10 — await membership evidence at the actual dispatch guard (unfinished join)
 
@@ -5523,3 +5593,48 @@ State clean emission and35 defining membership plus22 call/24 query Node tests p
 Use a definition-bound State producer with Work's literal live-handle and enrollment ports; open once at actual guard entry and retain that execution privately in the observer closure. Consume each actually evaluated native user/Team pair once before await. Match the exact freshly resolved source-owner Identity Team to the Work checkpoint; an actor-null service owner suffices for this membership tuple and grants no deferred caller identity. Compare both positive and negative observations using privately retained reader/pair/checkpoint after Work closes the handle. Caught malformed inputs, copied source handles, changed Teams, failed readers and pending/concurrent observations refuse before skip or claim; source guards are not replayed.
 
 State/Work clean emissions and25/25 actual MemoryStorage/Work port checks pass with explicitly fixture Identity/native adapters. Reuse unchanged Work20 and State81. Dev's production won-claim admission/native lexical/capture join and Compiler source closure/emission remain necessary; saved-result membership closure and StateRead/pure/default/when activation stay proposed. Component checks do not solve cross-store atomicity or qualify the original application.
+## 2026-10-10 — define private membership decision source and lifetime bindings (proposed activation)
+
+Use the exact checked Bool guard/statement and owning source hash/module, stage
+(leading require, body require or post-close send dispatch), authored branch
+position and complete selected builtin/derive argument-slot/default invocation
+chain. The existing Task39 README defines the minimal contract. Membership binds
+selected active_member slot0 evaluated user and slot1 evaluated current verified
+owner Team through a privately issued actual stage; imported helper/query/lexical
+values retain source origin and need not be admitted parameters. Preserve source
+order, lazy evaluation and once-only captures. Return the actual Identity Bool,
+enrolling positive and negative observations; missing source, wrong lifetime/team
+or reader failure refuses rather than substituting false/role/cache evidence.
+Require can use active scenarioReceiptMemberships; SEND dispatch needs a separately
+issued genuine current reader after business closure, retaining frozen lexical
+inputs. Compiler owns checked source/IR/emitter; State owns private reader/current
+membership guard; Dev owns real stage adapter. Independently safe checked facts
+can ship first, with execution activation and StateRead derive/when admission
+withheld. This is a proposed activation contract, not a purity reclassification or
+native/source/reference acceptance.
+
+
+## 2026-10-10 — qualify bounded decision correspondence without activation (unfinished)
+
+Retain optional exact checked site/selected-call/default/chain facts and join them
+to immutable original inventory plus fresh checked semantic IR. Match actual
+statement/control/operand topology and reached derive/default bodies; source
+anchors/types alone cannot certify altered values or duplicate occurrences.
+Bound traversal and decline unsupported special shapes. Five owning cases and
+34 final affected cases pass; unchanged121/7 reused, strict all-target lint/format0.
+This implements source correspondence at its declared finite scope. Serial
+transport/private issuance/StateRead derive/when admission and native policy/query
+joins remain proposed or owner-dependent.
+
+Use exact source-array layer identity for inherited parameter cardinality;
+scalar-field[] element bounds do not become outer lengths. Preserve original
+min1/max10 and narrowingmin2/max5 in actual operation and generated input schemas,
+with field-only ! and distinctness excluded. Actual CLI3/3 plus strict lint/format
+pass. Direct parameter modifiers are parser-refused E1200; do not implement an
+inferred legal profile. Shared envelopes/intake belong to Packages; native current
+ref-array ownership remains State/Dev.
+
+
+### 2026-10-10 — intake released decision and bounded-ref prerequisites (unfinished consumers)
+
+Intake exact reviewed LOCAL2430 onto coherent451102c1, preserving both parent decisions and source ownership. Use Packagesd559 canonical array/nullable/min/max and ordered generic PendingRef `name/index` emission, Compiler e60/183 exact1..10/decision facts and released Worke100/3771 ports. State owns the actual current per-element original-version/checkpoint and InvocationRef encoding consumer; Dev owns private native element correspondence. Preserve repeated refs and current permissions; no generated distinctness or shared CI/validator rewrite. Contracts/State clean emissions pass; reuse finite owner20 and50/37/3/34 outcomes. Reconciliation1665commits/10824net/11368history/513history-only/9321pending registers four membership paths and preserves79featurepaths/30targetleaves. Complete824 checkpoint remains unadvanced; original workflows/native source gates remain open.

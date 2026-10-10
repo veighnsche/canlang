@@ -248,3 +248,5 @@ fn emit_suites(ir: &IrProgram) -> (Vec<BddModule>, Vec<ReferencedBuiltin>, Vec<D
 pub fn to_json_string(artifact: &CompileArtifact) -> String {
     to_json(artifact)
 }
+
+pub mod scenario_decisions;

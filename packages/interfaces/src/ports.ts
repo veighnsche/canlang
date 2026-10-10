@@ -276,6 +276,11 @@ export interface McpNamedField {
   /** Optional owning compiler claim; a bare string kind cannot establish text. */
   readonly valueType?: CanTypeId;
   readonly required: boolean;
+  /** Checked reference container metadata used by framing and tool schemas. */
+  readonly array?: { readonly required: boolean };
+  readonly nullable?: boolean;
+  readonly min?: number;
+  readonly max?: number;
   /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
   readonly description?: string;
 }

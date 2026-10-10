@@ -70,6 +70,7 @@ import type {
 } from '../src/mcp/schemas.js';
 import {
   registryFromArtifactOperations,
+  toMcpTool,
   toMcpToolFromArtifact,
   toOperationDescriptor,
   toolsFromArtifactOperations,
@@ -908,6 +909,46 @@ test('bound arguments: refs bind shape and canonical versions', () => {
   assert.equal(checkBoundArgument(unversioned, { id: 't-1', version: '9' }), null);
   assert.ok(checkBoundArgument(unversioned, { id: '' }) !== null);
   assert.ok(checkBoundArgument(unversioned, 't-1') !== null);
+});
+
+test('bounded reference-array metadata reaches HTTP and both MCP schema consumers', () => {
+  // Declaration-labelled component control, not native producer acceptance.
+  const original = LEDGER_UPDATE.inputs.fields[0]!;
+  const input = { ...original, name: 'targets', array: { required: false }, nullable: true, min: 1, max: 10 };
+  const operation: ArtifactOperation = { ...LEDGER_UPDATE, inputs: { fields: [input] } };
+  const slice = { artifact_version: ARTIFACT_VERSION, operations: [operation] };
+  const catalog = catalogFromArtifactOperations(slice);
+  const derived = catalog.derivedFor(operation.name)!;
+  assert.deepEqual(derived.inputs[0], { name: 'targets', kind: 'ref', model: 'Ledger.Gadget', versioned: true,
+    required: true, nullable: true, array: { required: false }, min: 1, max: 10 });
+  const full = toolsFromArtifactOperations(slice)[0]!.inputSchema;
+  const registry = registryFromArtifactOperations(slice).list(createTestApp())[0]!;
+  const framing = toMcpTool(registry).inputSchema;
+  const expected = { anyOf: [{ type: 'array', minItems: 1, maxItems: 10, items: {
+    type: 'object', properties: { id: { type: 'string' }, version: { type: 'string' } },
+    required: ['id', 'version'], additionalProperties: false,
+  } }, { type: 'null' }] };
+  assert.deepEqual(propertiesOf(anyOfBranch(full, 0))['targets'], expected);
+  assert.deepEqual(propertiesOf(anyOfBranch(framing, 0))['targets'], expected);
+  assert.equal(JSON.stringify(full).includes('uniqueItems'), false);
+  for (const length of [1, 10]) assert.equal(checkBoundArguments(derived,
+    { targets: Array.from({ length }, () => ({ id: 'repeated', version: '2' })) }), null);
+  for (const length of [0, 11]) assert.notEqual(checkBoundArguments(derived,
+    { targets: Array.from({ length }, () => ({ id: 'repeated', version: '2' })) }), null);
+  assert.equal(checkBoundArguments(derived, { targets: null }), null);
+  assert.notEqual(checkBoundArguments(derived, { targets: { id: 'singular', version: '2' } }), null);
+  let reads = 0;
+  for (const bad of [
+    { ...input, min: -1 }, { ...input, min: 0.5 }, { ...input, max: NaN }, { ...input, max: Infinity },
+    { ...input, max: Number.MAX_SAFE_INTEGER + 1 }, { ...input, min: '1' }, { ...input, min: undefined },
+    { ...input, min: 11 }, { ...input, nullable: 'true' }, { ...input, array: undefined },
+    { ...input, array: { required: false, max: 10 } }, { ...input, array: { required: false, [Symbol('hidden')]: true } },
+    Object.defineProperty({ ...input }, 'min', { get: () => { reads += 1; return 1; } }),
+    Object.defineProperty({ ...input }, 'array', { get: () => { reads += 1; return { required: false }; } }),
+    Object.assign(Object.create({ min: 1 }), { ...original, array: { required: false } }),
+  ]) assert.equal(rejectionReason(() => catalogFromArtifactOperations({ ...slice,
+    operations: [{ ...operation, inputs: { fields: [bad] } }] })), 'malformed_descriptor');
+  assert.equal(reads, 0);
 });
 
 test('bound arguments: enums, files, numerics bind; delivery never binds', () => {
