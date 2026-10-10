@@ -371,6 +371,7 @@ export async function attemptDispatchAsync(deps: AsyncDispatchDeps, attempt: Asy
     } finally {
       guardExecutions.delete(execution);
     }
+    if (typeof result !== 'boolean') throw new TypeError('dispatch guard must return a boolean');
     // Re-read observations even for a false guard before recording its skip.
     for (const revalidate of ledger.revalidations) {
       const current = await revalidate();
