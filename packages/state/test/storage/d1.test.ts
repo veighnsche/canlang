@@ -138,6 +138,34 @@ async function d1Setup(): Promise<ConformanceSetup> {
 storageConformance('d1', d1Setup);
 
 describe('d1 adapter proofs', () => {
+  it('legacy outbox rows remain unstamped through additive schema reopen and ack', async () => {
+    await resetD1();
+    await db.prepare('ALTER TABLE outbox DROP COLUMN committed_revision').run();
+    assert.equal((await db.prepare('PRAGMA table_info(outbox)').all()).results.some(row => row['name'] === 'committed_revision'), false);
+    const legacy = { ...makeIntent({ intentId: 'legacy-d1-outbox' }),
+      dispatchGuard: 'old-allowed', handlerContract: 'shop.old-handler' };
+    await db.prepare('INSERT INTO outbox (intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard, handler_contract, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(legacy.intentId, legacy.operation, legacy.operationId, legacy.target, JSON.stringify(legacy.arguments),
+        legacy.occurrenceIndex, legacy.dispatchGuard, legacy.handlerContract, 'pending', 777).run();
+    await ensureSchema(db); let store = createD1Storage(db);
+    const column = (await db.prepare('PRAGMA table_info(outbox)').all()).results.find(row => row['name'] === 'committed_revision');
+    assert.ok(column); assert.equal(column['notnull'], 0); assert.equal(column['dflt_value'], null);
+    assert.deepEqual(await store.outboxPending(), [legacy]);
+    assert.deepEqual(await store.outboxGet(legacy.intentId), { intent: legacy, status: 'pending' });
+    assert.equal(await db.prepare('SELECT committed_revision FROM outbox WHERE intent_id = ?').bind(legacy.intentId).first('committed_revision'), null);
+    await store.commit({ ...makeBatch(0), outboxAck: [legacy.intentId] });
+    await ensureSchema(db); store = createD1Storage(db);
+    assert.deepEqual(await store.outboxGet(legacy.intentId), { intent: legacy, status: 'dispatched' });
+    assert.deepEqual(await store.outboxPending(), []);
+    const current = makeIntent({ intentId: 'new-after-legacy-d1' });
+    await store.commit(makeBatch(1, { outbox: [current], receipt: makeReceipt({ createdAt: 888, committedRevision: 2 }) }));
+    await ensureSchema(db); store = createD1Storage(db);
+    assert.deepEqual(await store.outboxGet(current.intentId), { intent: current, status: 'pending',
+      originalCommit: { revision: asRevision(2), createdAt: 888 } });
+    assert.deepEqual(await store.outboxGet(legacy.intentId), { intent: legacy, status: 'dispatched' });
+    assert.equal(await db.prepare('SELECT committed_revision FROM outbox WHERE intent_id = ?').bind(legacy.intentId).first('committed_revision'), null);
+  });
+
   it('REAL BATCH ROLLBACK: a failing raw batch persists nothing', async () => {
     await resetD1();
     const batch: Array<ReturnType<D1Database['prepare']>> = [
@@ -147,6 +175,8 @@ describe('d1 adapter proofs', () => {
       db.prepare(
         'INSERT INTO history (model, record_id, version, operation, operation_id, actor, at, change, before, after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       ).bind('t.Doc', 'raw-1', 1, 't.op', 'op-raw', 'u', 1000, 'create', null, '{}'),
+      db.prepare('INSERT INTO outbox (intent_id, operation, operation_id, target, arguments, occurrence_index, status, created_at, committed_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind('raw-rollback-outbox', 't.op', 'op-raw', 'mail.send', '{}', 0, 'pending', 1000, 1),
       // Deliberate PK violation: same (model, id) twice in one batch.
       db.prepare(
         'INSERT INTO records (model, id, version, created, updated, created_by, updated_by, archived_at, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -163,6 +193,7 @@ describe('d1 adapter proofs', () => {
       0,
     );
     assert.deepEqual(await probe.historyFor(asModel('t.Doc'), asId('raw-1')), []);
+    assert.equal(await createD1Storage(db).outboxGet('raw-rollback-outbox'), null);
     assert.equal(await db.prepare('SELECT revision AS r FROM fence WHERE id = 1').first('r'), 0);
   });
 
