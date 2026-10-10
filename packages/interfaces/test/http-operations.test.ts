@@ -14,6 +14,7 @@ import {
 } from '../src/http/formErrors.js';
 import { FORM_REFUSAL_HEADER, catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
 import { NATIVE_BOOLEAN_PRESENCE_PREFIX } from '@canlang/ui';
 import {
   parseCollectionQuery,
@@ -217,6 +218,67 @@ test('malformed, expired, and future operation_ids are validation', async () => 
     assert.equal((await res.json() as { code: string }).code, 'validation');
   }
   assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('expired plain scenarios use only dedicated retained recovery after framing and binding', async () => {
+  // Transport component control; canonical association/disclosure security
+  // remains with the published State/Cloudflare producer.
+  const t = await setup();
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{
+    name: OP, kind: 'scenario', description: '', inputs: { fields: [
+      { name: 'qty', field: { kind: 'integer' }, required: true },
+    ] },
+  }] });
+  const retained: Array<{ envelope: MutationEnvelope; identity: ResolvedIdentity }> = [];
+  let retainedError: 'conflict' | 'not_found' | null = null;
+  const invoker = { ...t.invoker,
+    async invokeRetainedMutation(envelope: MutationEnvelope, identity: ResolvedIdentity) {
+      retained.push({ envelope, identity });
+      return retainedError === null
+        ? { result: { status: 'replayed' as const, operation_id: envelope.operation_id, result: null } }
+        : { error: buildBusinessError(retainedError, 'Saved outcome unavailable.') };
+    },
+  };
+  const deps = { ...t.deps, catalog, invoker };
+  const expired = freshOperationId(Date.now() - 25 * 60 * 60 * 1000);
+  const submit = (operation_id: string, inputs: unknown = { qty: '1' }, extra = {}, selectedInvoker = invoker) =>
+    handleOperationRequest({ ...deps, invoker: selectedInvoker }, opRequest({
+      cookie: t.identity.cookie, csrf: t.csrf, contentType: 'application/json',
+      body: JSON.stringify({ operation_id, inputs, ...extra }),
+    }), OP);
+  const replay = await submit(expired);
+  assert.equal(replay.status, 200);
+  assert.equal((await replay.json() as { status: string }).status, 'replayed');
+  assert.deepEqual(retained[0]!.envelope, { operation: OP, operation_id: expired, inputs: { qty: '1' } });
+  assert.equal(retained[0]!.identity.actor?.user_id, t.identity.userId);
+  assert.equal(t.invoker.mutations.length, 0);
+  for (const [code, status] of [['conflict', 409], ['not_found', 404]] as const) {
+    retainedError = code;
+    const response = await submit(expired);
+    assert.equal(response.status, status);
+    assert.equal((await response.json() as { code: string }).code, code);
+  }
+  const before = retained.length;
+  for (const id of ['not-a-uuid', expired.toUpperCase(), freshOperationId(Date.now() + 10 * 60 * 1000)]) {
+    assert.equal((await submit(id)).status, 400);
+  }
+  for (const inputs of [{}, { qty: 'invalid' }, { qty: '1', extra: true }]) {
+    assert.equal((await submit(expired, inputs)).status, 400);
+  }
+  const signed = await submit(expired, { qty: '1' }, { form_binding: 'held-scenario-binding' });
+  assert.equal(signed.status, 400);
+  assert.equal((await signed.json() as { message: string }).message, 'Expired operation_id.');
+  for (const unavailable of [undefined, null, false, 'not-callable', {}]) {
+    const response = await submit(expired, { qty: '1' }, {},
+      { ...invoker, invokeRetainedMutation: unavailable } as unknown as typeof invoker);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json() as { message: string }).message, 'Expired operation_id.');
+  }
+  assert.equal(retained.length, before);
+  assert.equal(t.invoker.mutations.length, 0);
+  assert.equal((await submit(freshOperationId())).status, 200);
+  assert.equal(t.invoker.mutations.length, 1);
+  assert.equal(retained.length, before);
 });
 
 test('unknown operation name shape and unknown catalog entry are not_found', async () => {
