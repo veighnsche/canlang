@@ -6180,3 +6180,23 @@ Direct manual review CLEAR for Packages3782be10. Existing DESIGN bridge step2 no
 
 
 Compiler intake of reviewed LOCALbb234ad8, 2026-10-10 (unfinished source joins): preserve both committed275b439e ande9a248ba compiler units while consuming exact reviewed Dev948 actual reader, Files/Interfaces4a explicit upload range contract, Packagesf0 State Identity test dependency/lock repair and378 protocol documentation. Reuse all unchanged owning outcomes, including generated public1/1, Dev48, upload168 and boundary0. No independent common repair, remote publication, native read grant, File association fabrication or hold release. Reconcile accumulated staged compiler tree/history preserving all released allocations and unadvanced complete checkpoint.
+
+### 2026-10-10 — prepare protected query child calls without granting partial output (unfinished)
+
+Require a separately Complete acyclic query child and the exact original
+nondefault parent parameters. Preserve authored input order and an unused
+binding; consuming that bound result remains declined until owning provenance
+is implemented. Actual codegen correspondence uses owning model Ref descriptors,
+parent version requirements, read-child version omission and exact finite bounds;
+ordinary reused reference arrays are not nominal value aliases. The immutable
+fresh prepared query recipe alone owns executable/source correspondence.
+
+The current native publication gate withdraws both child and parent recipes;
+genuine full emission reports E6008 for the unsupported call and activates no
+capture helper. Affected320/320 and finite independent review qualify preparation
+only. Setup corrections preserve the actual catalog owner and distinguish
+E3005 cycle rejection from disclosure refusal. Reuse unchanged whole/editor and
+public1/1 results. Actual native publication must retain strict host lifetime and
+select the query return exactly once, then qualify genuine compiled public and
+protected parent execution after reviewed defining Dev/State intake. Full
+references and existing precise holds stay unfinished.
