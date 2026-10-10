@@ -14,13 +14,20 @@ use std {TextGenerationV1 as LLM} from=deployment.llm
 use std {ImagesV1 as Images} from=deployment.images
 Given
  Entry {seen:text}
+ CompletionAudit {delivery:text,reference:text}
 When
  scenario primary_first on=Primary.send.completed
-  do let status=event.status
+  do
+   let status=event.status
+   require event.result!=null
+   create CompletionAudit {delivery=event.delivery_id,reference=event.result.reference} as audit
  scenario secondary on=Secondary.send.completed
   do let status=event.status
  scenario primary_cohort on=Primary.send.completed each=Entry as entry
-  do let status=event.status
+  do
+   let status=event.status
+   require event.result!=null
+   set entry {seen=event.result.reference}
  scenario primary_last on=Primary.send.completed
   do let status=event.status
  scenario cash on=Cash.cancel.completed
@@ -113,13 +120,23 @@ fn standard_completion_projection_keeps_routes_census_and_complete_native_value_
         std::fs::write(path, &module.js).unwrap();
     }
     std::fs::write(scratch.path().join("artifact.json"), &original_artifact).unwrap();
+    std::fs::write(scratch.path().join("completion-projection.can"), SOURCE).unwrap();
     let runner = scratch.path().join("projection.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {pathToFileURL} from 'node:url';
-const {appDefinition:definition,canApp}=await import(pathToFileURL(process.argv[3]).href);
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const artifact=JSON.parse(readFileSync(new URL('./artifact.json',import.meta.url),'utf8'));
+const require=createRequire(resolve(process.argv[2],'package.json'));
+const {assembleModules,importVerifiedAssemblyModule}=await import(pathToFileURL(require.resolve('@canlang/cloudflare/runtime/modules')));
+const asm=await assembleModules({artifact,sourcePath:fileURLToPath(new URL('./completion-projection.can',import.meta.url))},{
+ workDir:fileURLToPath(new URL('./native-modules',import.meta.url)),
+ stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+ uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href,
+});
+const {appDefinition:definition,canApp}=await importVerifiedAssemblyModule(asm,artifact.modules[0].path,artifact);
 const registry=canApp();
 assert.equal(registry.standardCompletions,definition.standardCompletions,'one original census reference');
 assert.deepEqual(definition.standardCompletions,[
@@ -129,12 +146,11 @@ assert.deepEqual(definition.standardCompletions,[
  {source:'std.TextGenerationV1.generate',event:'CompletionProjection.LLM.generate.completed',binding:'CompletionProjection.LLM',from:'deployment.llm',resultType:'TextRun',handlers:['CompletionProjection.text_result']},
  {source:'std.ImagesV1.submit',event:'CompletionProjection.Images.submit.completed',binding:'CompletionProjection.Images',from:'deployment.images',resultType:'ImageRun',handlers:['CompletionProjection.image_result']},
 ]);
-const artifact=JSON.parse(readFileSync(new URL('./artifact.json',import.meta.url),'utf8'));
 const valueTypes=artifact.valueTypes;
 const callables=artifact.callables;
 assert.deepEqual(artifact.tests,[]);
 const {normalizeValueTypes,normalizeSchema}=await import('@canlang/values');
-const {valueSchema}=normalizeValueTypes(valueTypes,['CompletionProjection.Entry']);
+const {valueSchema}=normalizeValueTypes(valueTypes,['CompletionProjection.Entry','CompletionProjection.CompletionAudit']);
 const declarations={contracts:definition.contracts,enums:definition.enums,...(definition.aliases===undefined?{}:{aliases:definition.aliases})};
 const definitionSchema=normalizeSchema(declarations);
 assert.deepEqual(definitionSchema,valueSchema,'emitted declaration and installed value inventory have one complete schema');
