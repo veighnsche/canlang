@@ -6014,6 +6014,7 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
+        self.inherit_field_modifiers(symbol, &mut modifiers);
         let label = data
             .label
             .as_ref()
@@ -6037,6 +6038,146 @@ impl<'a> Cx<'a> {
             label,
             description,
         )
+    }
+
+    /// Fold only representation normalization and value bounds through the
+    /// checked immediate reuse chain. Declaration behavior remains receiving-owned.
+    fn inherit_field_modifiers(
+        &mut self,
+        receiving: &crate::analysis::resolve::Symbol,
+        modifiers: &mut IrModifiers,
+    ) {
+        if !self
+            .program
+            .types
+            .field_reuse_sources
+            .contains_key(&receiving.id)
+        {
+            return;
+        }
+        let mut chain = Vec::new();
+        let mut current = receiving.id;
+        let mut seen = HashSet::new();
+        loop {
+            if !seen.insert(current) || chain.len() >= 128 {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower reused field modifiers: cyclic or oversized checked reuse chain"
+                        .to_string(),
+                    receiving.span,
+                ));
+                return;
+            }
+            let Some(symbol) = self.program.symbols.get(current.0 as usize) else {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower reused field modifiers: missing checked field".to_string(),
+                    receiving.span,
+                ));
+                return;
+            };
+            let SymbolKind::Field { owner, .. } = symbol.kind else {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower reused field modifiers: source is not a declared field"
+                        .to_string(),
+                    receiving.span,
+                ));
+                return;
+            };
+            let data = self
+                .program
+                .effects
+                .models
+                .get(&owner)
+                .and_then(|model| model.fields.iter().find(|field| field.field == current))
+                .or_else(|| {
+                    self.program.effects.records.get(&owner).and_then(|record| {
+                        record.fields.iter().find(|field| field.field == current)
+                    })
+                });
+            let Some(data) = data else {
+                if self
+                    .program
+                    .types
+                    .judgment_generated_symbols
+                    .contains(&current)
+                    && self.program.types.symbol_types.contains_key(&current)
+                {
+                    // Generated fields have no authored modifiers. Their
+                    // owning checked constraints and receiving intersections
+                    // remain in value_constraints, never invented CST nodes.
+                    break;
+                }
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower reused field modifiers: missing owning declaration modifiers"
+                        .to_string(),
+                    receiving.span,
+                ));
+                return;
+            };
+            chain.push((symbol.id, symbol.module, data.modifiers.clone()));
+            let Some(next) = self
+                .program
+                .types
+                .field_reuse_sources
+                .get(&current)
+                .copied()
+            else {
+                break;
+            };
+            current = next;
+        }
+        let mut effective = IrModifiers::default();
+        let mut min_owner = None;
+        let mut max_owner = None;
+        for (field, module, declared) in chain.into_iter().rev() {
+            let scope = Scope::module(module);
+            for modifier in declared {
+                if modifier.name == "trim" {
+                    effective.trim = true;
+                }
+                let slot = match modifier.name.as_str() {
+                    "min" => &mut effective.min,
+                    "max" => &mut effective.max,
+                    _ => continue,
+                };
+                let Some(key) = modifier.value else { continue };
+                let value = self.decode_anchored(&scope, &key, "reused field bound");
+                if let Some(inherited) = slot.as_ref() {
+                    let valid = compare_literal_bounds(&value, inherited).is_some_and(|order| {
+                        if modifier.name == "min" {
+                            order != std::cmp::Ordering::Less
+                        } else {
+                            order != std::cmp::Ordering::Greater
+                        }
+                    });
+                    if !valid {
+                        self.diags.push(Diagnostic::error("E6008", "cannot lower reused field bound: receiving bound must provably narrow its inherited literal bound".to_string(), value.span));
+                        return;
+                    }
+                }
+                *slot = Some(value);
+                if modifier.name == "min" {
+                    min_owner = Some(field);
+                } else {
+                    max_owner = Some(field);
+                }
+            }
+        }
+        if let (Some(min), Some(max)) = (&effective.min, &effective.max) {
+            let order = compare_literal_bounds(min, max);
+            if order == Some(std::cmp::Ordering::Greater)
+                || (min_owner != max_owner && order.is_none())
+            {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower reused field bounds: inherited and receiving bounds need a provably compatible literal range".to_string(), receiving.span));
+                return;
+            }
+        }
+        modifiers.trim = effective.trim;
+        modifiers.min = effective.min;
+        modifiers.max = effective.max;
     }
 
     /// Whether `owner` is a child model (computed defaults take `{parent}`).
@@ -6171,6 +6312,95 @@ impl<'a> Cx<'a> {
 }
 
 /// Whether a default expression stays a literal `default` value.
+/// Exact bounded literal comparison; no floating point rounding or symbolic
+/// evaluation can establish that an override narrows inherited constraints.
+fn compare_literal_bounds(left: &TypedExpr, right: &TypedExpr) -> Option<std::cmp::Ordering> {
+    fn numeric(mut value: &TypedExpr) -> Option<String> {
+        let mut negative = false;
+        for _ in 0..64 {
+            match &value.expr {
+                IrExpr::Unary {
+                    op: IrUnOp::Neg,
+                    operand,
+                } => {
+                    negative = !negative;
+                    value = operand;
+                }
+                IrExpr::Int(number) => {
+                    let text = number.to_string();
+                    return Some(if negative {
+                        if let Some(positive) = text.strip_prefix('-') {
+                            positive.to_owned()
+                        } else {
+                            format!("-{text}")
+                        }
+                    } else {
+                        text
+                    });
+                }
+                IrExpr::Decimal(text) if text.len() <= 128 => {
+                    let text = text.replace('_', "");
+                    return Some(if negative { format!("-{text}") } else { text });
+                }
+                _ => return None,
+            }
+        }
+        None
+    }
+    fn parts(value: &str) -> Option<(bool, String, String)> {
+        let negative = value.starts_with('-');
+        let value = value.strip_prefix('-').unwrap_or(value);
+        let mut halves = value.split('.');
+        let integer = halves.next()?;
+        let fraction = halves.next().unwrap_or("");
+        if halves.next().is_some()
+            || integer.is_empty()
+            || !integer.bytes().all(|byte| byte.is_ascii_digit())
+            || !fraction.bytes().all(|byte| byte.is_ascii_digit())
+        {
+            return None;
+        }
+        let integer = integer.trim_start_matches('0');
+        let fraction = fraction.trim_end_matches('0');
+        Some((
+            negative && !(integer.is_empty() && fraction.is_empty()),
+            integer.into(),
+            fraction.into(),
+        ))
+    }
+    if let (
+        IrExpr::Money {
+            minor: left,
+            currency: lc,
+        },
+        IrExpr::Money {
+            minor: right,
+            currency: rc,
+        },
+    ) = (&left.expr, &right.expr)
+    {
+        return (lc == rc).then(|| left.cmp(right));
+    }
+    let (ln, li, mut lf) = parts(&numeric(left)?)?;
+    let (rn, ri, mut rf) = parts(&numeric(right)?)?;
+    if ln != rn {
+        return Some(if ln {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        });
+    }
+    let length = lf.len().max(rf.len());
+    lf.extend(std::iter::repeat_n('0', length - lf.len()));
+    rf.extend(std::iter::repeat_n('0', length - rf.len()));
+    let order = li
+        .len()
+        .cmp(&ri.len())
+        .then_with(|| li.cmp(&ri))
+        .then_with(|| lf.cmp(&rf));
+    Some(if ln { order.reverse() } else { order })
+}
+
 fn is_literal_default(expr: &TypedExpr) -> bool {
     if super::defaults::money_default_wire(expr).is_some() {
         return true;

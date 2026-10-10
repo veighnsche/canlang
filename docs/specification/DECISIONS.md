@@ -5418,3 +5418,8 @@ Preserve actual checker query domain/types and ordered clause/alias NodeKeys thr
 ## 2026-10-10 — retain the checked capability fixture operation identity
 
 Type an actual resolved CapabilityOp fixture as its own Delivery{op}, preserving the existing checked request/envelope recipes and exact target comparison. Keep scenario/CRUD/bare/unknown/external fixture behavior unchanged. This corrects original Workbench waiting-source attribution without changing held BDD runtime policy or claiming result/error payload certification. Owning checker283/283 and strict all-target Clippy/format pass; original complete source/native query qualification remains required.
+
+
+## 2026-10-10 — preserve exact owning nominal field modifiers (unfinished query join)
+
+Implement accepted DESIGN field reuse: retain representation/nullability and exact inherited trim/min/max in defining scope; require provable compatible narrowing of receiving ordinary bounds. Do not inherit creation/default/server/required-array/unique/authority metadata. Generated Judgment aliases retain the checker's intersected constraints, including when authored receiving bounds are wider. Emit length bounds as safe descriptor numbers and scalar bounds as owning exact wire literals; unsupported computed/unsafe bounds refuse publication. Explicit generated schema ownership preserves existing Judgment consumers without granting unrelated unsupported ordinary contract closure. Affected140/140 and strict all-target Clippy/format pass; exact Packages released envelope/model context precedes new bounded Values-consumer qualification and model-reference activation. Original source/query/policy/State/Dev and whole current-source qualification remain unfinished; historical1356 at6530 is unchanged.
