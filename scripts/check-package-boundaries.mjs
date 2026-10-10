@@ -28,6 +28,8 @@ export const checkoutInputs = [
   { consumer: 'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts', target: 'compiler/tests/fixtures/hook_order_rollback.can', reason: 'The native local-rules test reads the owning Compiler fixture for its actual hook-order and rollback consumer.' },
   { consumer: 'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts', target: 'compiler/tests/fixtures/hook_order_rollback.can', reason: 'The portable D1 local-rules test reads the owning Compiler fixture for its actual hook-order and rollback consumer.' },
   { consumer: 'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts', target: 'compiler/tests/fixtures/anonymous-message-consumer.mjs', reason: 'The portable D1 Node URL test reads the owning Compiler consumer fixture to extract its complete original URL source and verify source-current equality.' },
+  { consumer: 'packages/state/test/file-retirement-storage.test.ts', target: 'packages/cloudflare/test/fixtures/typed-images-progress.can', reason: 'The opaque retirement storage test compiles the complete owning typed Images fixture to check persisted File correspondence.' },
+  { consumer: 'packages/work/test/file-retirement-framework.test.ts', target: 'packages/cloudflare/test/fixtures/typed-images-progress.can', reason: 'The opaque retirement framework test compiles the complete owning typed Images fixture to check Work File correspondence.' },
 ];
 
 function inside(file, directory) {
