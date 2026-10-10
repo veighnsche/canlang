@@ -29,6 +29,7 @@ import type {
   FileRetentionPolicy,
   FinalizedFile,
   FinalizedFileObservation,
+  RetainedFinalizedFile,
   UploadIntentRequest,
 } from '@canlang/contracts';
 import type {
@@ -92,6 +93,12 @@ export type KernelRecordAttachmentOutcome =
   | { readonly status: 'attached'; readonly ref: string }
   | { readonly status: 'failed'; readonly reason: 'foreign' | 'expired' };
 
+/** Structural result of one owning Files validation; it supplies no State grant. */
+export interface KernelCurrentFileSnapshot {
+  readonly facts: RetainedFinalizedFile;
+  readonly bytes: Uint8Array;
+}
+
 /**
  * Injected L4 entry-point table for the full journey: the `FileKernel`
  * core plus provenance/attach/read and retained observation/revalidation.
@@ -120,6 +127,11 @@ export interface FileJourneyBindings extends FilesKernelBindings {
     physicalReceiver: UploadReceiver,
     retention: FileRetentionPolicy,
   ) => Uint8Array | null | Promise<Uint8Array | null>;
+  readonly readCurrentSnapshot: (
+    ref: string,
+    physicalReceiver: UploadReceiver,
+    retention: FileRetentionPolicy,
+  ) => KernelCurrentFileSnapshot | null | Promise<KernelCurrentFileSnapshot | null>;
   readonly observeFile: (
     ref: string,
     caller: UploadReceiver,
@@ -148,6 +160,8 @@ export interface FileJourneyKernel extends FileKernel {
   readBytes(ref: string, caller: UploadReceiver): Promise<Uint8Array | null>;
   /** Same physical snapshot validated under current File policy/lifetime; no row grant. */
   readCurrentBytes(ref: string, physicalReceiver: UploadReceiver, retention: FileRetentionPolicy): Promise<Uint8Array | null>;
+  /** Immutable facts and their same-read detached bytes; no separate provenance read. */
+  readCurrentSnapshot(ref: string, physicalReceiver: UploadReceiver, retention: FileRetentionPolicy): Promise<KernelCurrentFileSnapshot | null>;
   /** Owning live observation identity, or null; facts grant no row authority. */
   observeFile(ref: string, caller: UploadReceiver, retention: FileRetentionPolicy): Promise<FinalizedFileObservation | null>;
   /** Owning physical-file check with the current receiver and receiving policy. */
@@ -161,6 +175,7 @@ const JOURNEY_SEAMS = [
   'recordAttachment',
   'readBytes',
   'readCurrentBytes',
+  'readCurrentSnapshot',
   'observeFile',
   'revalidateFile',
 ] as const;
@@ -244,6 +259,7 @@ export function createFileJourneyKernel(bindings: unknown): FileJourneyKernel {
       bindings.recordAttachment(ref, recordRef, caller),
     readBytes: async (ref, caller) => bindings.readBytes(ref, caller),
     readCurrentBytes: async (ref, physicalReceiver, retention) => bindings.readCurrentBytes(ref, physicalReceiver, retention),
+    readCurrentSnapshot: async (ref, physicalReceiver, retention) => bindings.readCurrentSnapshot(ref, physicalReceiver, retention),
     observeFile: async (ref, caller, retention) => bindings.observeFile(ref, caller, retention),
     revalidateFile: async (saved, caller, retention) => bindings.revalidateFile(saved, caller, retention),
   };

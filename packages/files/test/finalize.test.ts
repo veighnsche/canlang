@@ -22,6 +22,7 @@ import {
   ingestVerifiedEventBytes,
   readFinalizedBytes,
   readCurrentFinalizedBytes,
+  readCurrentFinalizedSnapshot,
   observeFinalizedFile,
   readFinalizedFileObservation,
   revalidateRetainedFinalizedFile,
@@ -105,6 +106,20 @@ describe('admitted finalized file facts from real SQLite storage', () => {
       assert.deepEqual(bytes, PDF_BYTES);
       bytes[0] = bytes[0]! ^ 1;
       assert.deepEqual(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), PDF_BYTES);
+      const snapshot = h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION);
+      assert.ok(snapshot);
+      assert.deepEqual(snapshot.bytes, PDF_BYTES);
+      assert.equal(snapshot.facts.ref, h.ref);
+      assert.equal(snapshot.facts.contentType, original.file.contentType);
+      assert.equal(snapshot.facts.bytesDigest, sha256Hex(snapshot.bytes));
+      assert.equal(snapshot.facts.sizeBytes, snapshot.bytes.byteLength);
+      assert.ok(Object.isFrozen(snapshot));
+      for (const facts of [snapshot.facts, snapshot.facts.receiver, snapshot.facts.provenance, snapshot.facts.retention]) {
+        assert.ok(Object.isFrozen(facts));
+      }
+      assert.equal(readFinalizedFileObservation(snapshot), null);
+      snapshot.bytes[0] = snapshot.bytes[0]! ^ 1;
+      assert.deepEqual(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION)?.bytes, PDF_BYTES);
       assert.deepEqual(h.store().files.get(h.ref), original);
       assert.deepEqual(h.store().intents.listAll(), intents);
       assert.deepEqual(h.store().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
@@ -118,11 +133,13 @@ describe('admitted finalized file facts from real SQLite storage', () => {
       for (const policy of [{ types: ['text/plain'], maxBytes: DEFAULT_FILE_POLICY.maxBytes },
         { types: DEFAULT_FILE_POLICY.types, maxBytes: PDF_BYTES.length - 1 }]) {
         assert.equal(readCurrentFinalizedBytes(h.deps(), h.ref, RECEIVER, { ...OBSERVATION_OPTIONS, policy }), null);
+        assert.equal(readCurrentFinalizedSnapshot(h.deps(), h.ref, RECEIVER, { ...OBSERVATION_OPTIONS, policy }), null);
       }
       h.clock.setNowMs(original.finalizedAtMs + OBSERVATION_RETENTION.unattachedHorizonMs - 1);
       assert.deepEqual(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), PDF_BYTES);
       h.clock.advanceBy(1);
       assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
       assert.deepEqual(h.store().files.get(h.ref), original);
       h.clock.setNowMs(original.finalizedAtMs);
       assert.equal(recordAttachment({ files: h.store().files, clock: h.clock }, h.ref, 'Expense_1/receipt', RECEIVER).status, 'attached');
@@ -131,6 +148,7 @@ describe('admitted finalized file facts from real SQLite storage', () => {
       assert.deepEqual(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), PDF_BYTES);
       h.clock.advanceBy(1);
       assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
       assert.deepEqual(h.store().files.get(h.ref), attached);
       assert.deepEqual(h.store().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
     } finally { h.close(); }
@@ -141,23 +159,28 @@ describe('admitted finalized file facts from real SQLite storage', () => {
     try {
       const original = h.store().files.get(h.ref)!;
       assert.equal(h.binding().readCurrentBytes(h.ref, OTHER_PRINCIPAL, OBSERVATION_RETENTION), null);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, OTHER_PRINCIPAL, OBSERVATION_RETENTION), null);
       h.store().files.put({ ...original, owner: { ...original.owner, owner: 'foreign-owner' } });
       assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
       h.store().files.put(original);
       const key = blobKeyForFile(h.ref);
       h.store().blobs.remove(key);
       assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
       assert.equal(h.store().blobs.read(key), null);
       const corrupt = new Uint8Array(PDF_BYTES);
       corrupt[corrupt.length - 1] = corrupt[corrupt.length - 1]! ^ 1;
       h.store().blobs.write(key, corrupt);
       assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
       assert.deepEqual(h.store().blobs.read(key), corrupt);
       h.store().blobs.write(key, PDF_BYTES);
       for (const state of ['orphaned', 'expired'] as const) {
         const terminal = { ...original, state };
         h.store().files.put(terminal);
         assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+        assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
         assert.deepEqual(h.store().files.get(h.ref), terminal);
         assert.deepEqual(h.store().blobs.read(key), PDF_BYTES);
       }
@@ -174,7 +197,7 @@ describe('admitted finalized file facts from real SQLite storage', () => {
       changed[0] = changed[0]! ^ 1;
       let reads = 0;
       const noWrite = (): never => assert.fail('current byte read must not write');
-      const bytes = readCurrentFinalizedBytes({ ...deps,
+      const result = readCurrentFinalizedSnapshot({ ...deps,
         files: { ...deps.files, put: noWrite },
         blobs: { ...deps.blobs, read: key => {
           assert.equal(key, blobKeyForFile(h.ref));
@@ -182,13 +205,51 @@ describe('admitted finalized file facts from real SQLite storage', () => {
         }, write: noWrite, append: noWrite, remove: noWrite },
       }, h.ref, RECEIVER, OBSERVATION_OPTIONS);
       assert.equal(reads, 1);
-      assert.ok(bytes);
+      assert.ok(result);
+      const { bytes, facts } = result;
+      assert.equal(facts.contentType, original.file.contentType);
+      assert.equal(facts.bytesDigest, sha256Hex(bytes));
+      assert.equal(facts.sizeBytes, bytes.length);
       assert.deepEqual(bytes, PDF_BYTES);
       assert.notEqual(bytes, snapshot);
       snapshot[0] = snapshot[0]! ^ 1;
       assert.deepEqual(bytes, PDF_BYTES);
       assert.deepEqual(deps.files.get(h.ref), original);
       assert.deepEqual(deps.blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+    } finally { h.close(); }
+  });
+
+  it('pairs current facts with same-size changed bytes and refuses mismatched SQLite contents', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      const stale = h.binding().readProvenance(h.ref, RECEIVER)!;
+      const key = blobKeyForFile(h.ref);
+      const text = new Uint8Array(PDF_BYTES.length).fill(97);
+      const changed = { ...original, file: { ...original.file,
+        contentType: 'text/plain', bytesDigest: sha256Hex(text) } };
+      h.store().blobs.write(key, text);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      h.store().files.put(changed);
+      h.reopen();
+      const snapshot = h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION);
+      assert.ok(snapshot);
+      assert.equal(stale.contentType, 'application/pdf');
+      assert.equal(stale.sizeBytes, text.length);
+      assert.equal(snapshot.facts.contentType, 'text/plain');
+      assert.notEqual(snapshot.facts.bytesDigest, stale.bytesDigest);
+      assert.equal(snapshot.facts.bytesDigest, sha256Hex(snapshot.bytes));
+      assert.deepEqual(snapshot.bytes, text);
+      const noWrite = (): never => assert.fail('snapshot denial must not write');
+      const deps = h.deps();
+      assert.equal(readCurrentFinalizedSnapshot({ ...deps, files: { ...deps.files, put: noWrite },
+        blobs: { ...deps.blobs, read: () => { throw new Error('physical read failure'); },
+          write: noWrite, append: noWrite, remove: noWrite },
+      }, h.ref, RECEIVER, OBSERVATION_OPTIONS), null);
+      h.store().blobs.write(key, PDF_BYTES);
+      assert.equal(h.binding().readCurrentSnapshot(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.deepEqual(h.store().files.get(h.ref), changed);
+      assert.deepEqual(h.store().blobs.read(key), PDF_BYTES);
     } finally { h.close(); }
   });
 
