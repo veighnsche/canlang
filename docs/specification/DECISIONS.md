@@ -7355,3 +7355,28 @@ exported Rent remains excluded.58/67/nine open and precise holds unchanged.
 ### 2026-10-10 — manual local integration of 22dbd12b
 
 Finite independent and manual review CLEAR for exact draft8a2f83f six private name/reference edits: receipt to generate_receipt plus all3 action lists and void to void_invoice plus its sole form. Preserve providers/receipt_result, modal and enum identities, complete bodies/grants/effects/order/examples. Reuse owning isolated212 to203 source correspondence,10 removed/1 exposed E2001 void in incomplete isolated state; complete composition resolves it. Owning original25 measured46 to35 removes11Invoice only, but baseline46 includes unfinished Leave producer changes and is not this local-main current count. Complete original25/all52/current whole/lint recomputation remains pending at the related source unit. No original/native application or whole-plan acceptance, source export, generated output or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — define the checked State File-retirement storage extension (unfinished runtime)
+
+Release additive defining types in Contracts state.ts/files.ts for Capability's
+exact State producer handoff. FileReferenceStoragePort requires one immutable
+persisted State/physical-Files authority, full same-load declaration inventory
+bound to installed owner/snapshotId/digest, bounded original-revision retirement
+and original permanent decision readback. Storage derives File occurrences; no
+optional caller reference list enters CommitBatch. Refined publish/flip inputs
+require target inventory and explicit null on removal. Generic ports remain
+unchanged; guarded State adapters must refuse missing legacy evidence and check
+commit, pre-staged migration publication and schema reinterpretation at their
+actual atomic boundary. Initial installation preserves an existing matching
+snapshot's original revision/time. Immutable File identity excludes policy;
+RetainedFinalizedFile retains its existing shape.
+
+Final owning Contracts emission and focused in-memory public consumer/refusal
+controls pass. Two finite contract reviews resolved single-authority lookup and
+lost-reply cleanup: verify persisted physical identity each retry, bytes when
+present, and require the exact original retirementId terminal tombstone to accept
+already-deleted bytes. No runtime test or proof file is added and unchanged checks
+are reused. Types supply no durable issuer or guard. Capability owns the actual
+State implementation; Packages consumes its exact released producer; Dev owns
+real persisted Files store assignment/routing and recovery qualification. Current
+cross-store deletion remains unsupported, provider unreleased and all holds intact.
