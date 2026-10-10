@@ -28,7 +28,9 @@ const APP = 'current-file-slots', bytes = new TextEncoder().encode('genuine SQLi
 let sequence = 100_000;
 const stateError = (error: unknown) => error instanceof StateError;
 function artifact(): ArtifactDescriptorSlice {
-  const fields: ArtifactModel['fields'] = [
+  const fields: Array<Omit<ArtifactModel['fields'][number], 'field' | 'min' | 'max'> & {
+    field: { kind: 'file' | 'user' | 'string' }; min?: number; max?: number;
+  }> = [
     { name: 'file', field: { kind: 'file' }, valueType: 'file' as CanTypeId, required: true, serverOnly: false },
     { name: 'optionalFile', field: { kind: 'file' }, valueType: 'file?' as CanTypeId, nullable: true, required: false, serverOnly: false },
     { name: 'files', field: { kind: 'file' }, valueType: 'file[]' as CanTypeId, array: { required: false }, max: 4, required: false, serverOnly: false },
@@ -43,7 +45,7 @@ function artifact(): ArtifactDescriptorSlice {
   ];
   const operations: ArtifactOperation[] = models.flatMap(model => {
     const inputs = fields.map(({ name, field, valueType, nullable, array, min, max, required }) => ({ name,
-      field: field.kind === 'ref' ? { ...field, requireVersion: true } : field,
+      field,
       ...(valueType === undefined ? {} : { valueType }), ...(nullable === undefined ? {} : { nullable }),
       ...(array === undefined ? {} : { array }), ...(min === undefined ? {} : { min }),
       ...(max === undefined ? {} : { max }), required }));
@@ -252,6 +254,54 @@ test('inventory refuses overflow and malformed committed File wires instead of c
   }
 });
 
+test('complete File inventory requires exact owning declarations and refuses bound schema drift or an unknown embedded File profile', async t => {
+  for (const mode of ['field-disagreement', 'observation-schema', 'read-schema', 'nominal-file'] as const) {
+    const w = await world(t), row = await w.create();
+    const canonicalModels = structuredClone(w.loaded.models), artifactModels = structuredClone(w.slice.models!);
+    if (mode === 'field-disagreement') {
+      artifactModels.find(model => model.name === MODEL)!.fields.find(field => field.name === 'file')!.field = { kind: 'string' };
+      await assert.rejects(async () => createFileReferenceConsumer({ ...w.options, canonicalModels, artifactModels })
+        .observeReferences(w.refs[1]), stateError);
+    } else if (mode === 'nominal-file') {
+      const NOMINAL = asModel('Files.NominalHolder'), PACKET = 'Files.Packet', slice = artifact();
+      slice.valueTypes = { contracts: [{ name: PACKET, fields: [{ name: 'attachment', type: 'file' }] }] };
+      slice.models!.push({ name: NOMINAL, deleteMode: 'remove', fields: [{ name: 'payload',
+        field: { kind: 'nominal', name: PACKET }, valueType: PACKET as CanTypeId, required: true, serverOnly: false }] });
+      slice.operations!.push({ name: `${NOMINAL}.read`, kind: 'read', description: '', inputs: { fields: [] } });
+      const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+      await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [{ kind: 'insert', model: NOMINAL,
+        row: { ...row, id: asId('genuine-nominal-file-holder'), data: { payload: { attachment: { id: w.refs[0] } } } } }] }));
+      const consumer = createFileReferenceConsumer({ ...w.options, canonicalModels: loaded.models,
+        artifactModels: slice.models!, registry: loaded.registry });
+      await assert.rejects(consumer.observeReferences(w.refs[0]), stateError);
+      await assert.rejects(consumer.observeReferences(w.refs[1]), stateError);
+    } else {
+      const consumer = createFileReferenceConsumer({ ...w.options, canonicalModels, artifactModels });
+      const revision = await w.store.readRevision();
+      const changeBoundSchema = () => {
+        Object.assign(canonicalModels.find(model => model.name === MODEL)!.fields['files']!, { max: 3 });
+        Object.assign(artifactModels.find(model => model.name === MODEL)!.fields.find(field => field.name === 'files')!, { max: 3 });
+      };
+      if (mode === 'observation-schema') {
+        const observation = await consumer.observeReferences(w.refs[0]);
+        assert.equal(observation.complete, true); changeBoundSchema();
+        await assert.rejects(observation.revalidate(), stateError);
+        await assert.rejects(consumer.observeReferences(w.refs[1]), stateError);
+      } else {
+        let enter!: () => void, release!: () => void;
+        const entered = new Promise<void>(resolve => { enter = resolve; });
+        const blocked = new Promise<void>(resolve => { release = resolve; });
+        const pending = consumer.read(locator(w, row), w.caller, async slot => {
+          const physical = await w.consume(slot); assert.deepEqual(physical, bytes); enter(); await blocked; return physical;
+        });
+        await entered; changeBoundSchema(); release(); await withheld(() => pending);
+      }
+      assert.equal(await w.store.readRevision(), revision);
+    }
+    assert.equal(w.consumptions(), mode === 'read-schema' ? 1 : 0, mode);
+  }
+});
+
 test('only winning State changes alter current slots; rejected staged replacements and replay preserve the committed inventory', async t => {
   const w = await world(t), row = await w.create();
   const before = await w.consumer.observeReferences(w.refs[0]), revision = await w.store.readRevision();
@@ -277,11 +327,18 @@ test('only winning State changes alter current slots; rejected staged replacemen
 });
 
 test('State revision, source lifetime and full Identity fact drift during the physical await withhold already-read bytes', async t => {
-  for (const mode of ['replacement', 'removal', 'owner', 'revoked', 'full-facts', 'subject-swap'] as const) {
-    const w = await world(t), row = await w.create(); let entered!: () => void, release!: () => void;
+  for (const mode of ['replacement', 'removal', 'owner', 'revoked', 'full-facts', 'subject-swap',
+    'read-removal', 'policy-removal', 'policy-replacement', 'parent-removal', 'parent-owner'] as const) {
+    const w = await world(t), parent = await w.create();
+    const row = mode.startsWith('parent-') ? await w.create(CHILD, w.input(), parent) : parent;
+    const model = row === parent ? MODEL : CHILD;
+    const registry = new Map(w.registry), policy = new Map(w.policy);
+    const consumer = mode === 'read-removal' || mode.startsWith('policy-')
+      ? createFileReferenceConsumer({ ...w.options, registry, policy }) : w.consumer;
+    let entered!: () => void, release!: () => void;
     const started = new Promise<void>(resolve => { entered = resolve; });
     const blocked = new Promise<void>(resolve => { release = resolve; });
-    const pending = w.consumer.read(locator(w, row), w.caller, async slot => {
+    const pending = consumer.read(locator(w, row, 'file', w.refs[0], model), w.caller, async slot => {
       const result = await w.consume(slot); assert.deepEqual(result, bytes); entered(); await blocked; return result;
     });
     await started;
@@ -292,6 +349,15 @@ test('State revision, source lifetime and full Identity fact drift during the ph
     if (mode === 'full-facts') await w.memberships.setMembershipRoles(w.subject.membership_id, [...w.subject.roles,
       { role: 'Files.unrelated', granted_at: w.subject.updated_at, granted_by: w.caller.principal }]);
     if (mode === 'subject-swap') await w.update(MODEL, row.id, { reviewer: { id: 'unprivileged-reviewer' } });
+    if (mode === 'read-removal') registry.delete(`${MODEL}.read`);
+    if (mode === 'policy-removal') policy.delete(MODEL);
+    if (mode === 'policy-replacement') policy.set(MODEL, policies(w.loaded, {
+      fields: ['optionalFile', 'files', 'optionalFiles', 'reviewer', 'label'],
+    }).get(MODEL)!);
+    if (mode === 'parent-removal') await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [
+      { kind: 'remove', model: MODEL, id: parent.id, expectedVersion: parent.version },
+    ] }));
+    if (mode === 'parent-owner') await corrupt(w, MODEL, parent, { createdBy: 'another-parent-owner' });
     release(); await withheld(() => pending); assert.equal(w.consumptions(), 1, mode);
   }
 });
