@@ -7823,3 +7823,27 @@ No whole-source acceptance or58/67/nine/hold change. Local only.
 ### 2026-10-11 — manual local integration of ef186936
 
 Finite private artifact delivery review CLEAR. Existing qualification producer now uses genuine artifact assemble/to_json and unchanged original source/catalog to emit full modules/callables/models/requirements/valueTypes rather than fragments. No reconstructed metadata, shared DTO, public flag or fabricated ABI; source has no examples or orphan recipes. Reuse owning2/2 0.07s; this qualifies delivery of actual producer output, not native State/Work authority or execution. Dev receives the owner target artifact/source/catalog and reviewed containing carrier for actual unchanged-module completion/replay checks. Public terminal E6008, void/anchored/unknown WorkflowField, hook native callback/context/rollback, original apps and every precise hold remain. File State-to-physical/native current-authority qualification continues with existing assigned owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — qualify native hook success (unfinished rejected receipts)
+
+Safe FF ef186936→reviewed containing766e42b7 preserves the open native test.
+Exact released State/Work/Dev/Packages/Files source is consumed; a frozen-lock
+install restores the new declared esbuild link after the first owner build
+failure. Actual owner build22/22 (7cached,11.791s) passes without common fixes.
+Two independent tests use original CLI stdout/modules, real assembly/invoker,
+fresh State/Identity stores and a delegating native guard/commit observer.
+Positive1/1 passes ordered candidate changes, staged Audit, actual native
+ID/version guards, State-owned actor/now omissions/defaults, both histories and
+receipt versions, one commit, target-only disclosure and no-execution replay.
+
+Late-guard rollback executes all six guards in order and leaves Entry/history/
+Audit unchanged, but its rejection is not saved: revision1 remains1 rather
+than2. Owning target1passed/1failed in0.99s; the required receipt/fence/replay
+assertions are retained. Dev/State own the missing failure-to-canonical-receipt
+join: State invoke.ts551 accepts its genuine StateError, while the native
+hook bridge invoke.ts4488 propagates the helper error without adaptation.
+Skip blocked rejection qualification until exact owner repair; continue ready
+producer work. Target strict lint0 (3.34s), prior unchanged all-target44.21s
+reused, fmt/diff0. No current whole, actor/now or terminal E6008 release, broader
+reference/58-of67/nine/precise-hold change. Local only.
