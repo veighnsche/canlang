@@ -30,6 +30,7 @@ import type {
 } from '@canlang/contracts';
 import type { ClaimIdPort, ClockPort, SupersessionPort } from '../ports.js';
 import type { AnyOutboxIntent } from '../intent/index.js';
+import { systemCommandStageRevision, type SystemCommandContext } from '@canlang/state';
 
 /* -- T34-F3 additive imports: F1 fanout vocabulary + F2 row shapes. -- */
 import type {
@@ -207,12 +208,17 @@ export type DispatchGuardRevalidation = () => boolean | Promise<boolean>;
 interface DispatchGuardExecutionLedger {
   readonly context: DispatchGuardExecutionContext;
   readonly revalidations: DispatchGuardRevalidation[];
+  live: boolean;
+  poisoned: boolean;
+  readonly stageStatus?: { poisoned: boolean };
 }
 const guardExecutions = new WeakMap<object, DispatchGuardExecutionLedger>();
 
 /** Internal observer-binding port: copies, fabrications and completed guards refuse. */
 export function assertDispatchGuardExecution(value: unknown): asserts value is DispatchGuardExecution {
-  if (value === null || typeof value !== 'object' || !guardExecutions.has(value)) {
+  const ledger = value !== null && typeof value === 'object' ? guardExecutions.get(value) : undefined;
+  if (ledger === undefined || !ledger.live || ledger.poisoned || ledger.stageStatus?.poisoned) {
+    if (ledger !== undefined) ledger.poisoned = true;
     throw new TypeError('dispatch guard execution is not live');
   }
 }
@@ -228,9 +234,15 @@ export function registerDispatchGuardRevalidation(
   revalidate: DispatchGuardRevalidation,
 ): void {
   assertDispatchGuardExecution(execution);
-  if (typeof revalidate !== 'function') throw new TypeError('dispatch guard revalidation must be a function');
   const ledger = guardExecutions.get(execution)!;
-  if (ledger.revalidations.length >= 200) throw new RangeError('dispatch guard revalidations exceed bounds');
+  if (typeof revalidate !== 'function') {
+    ledger.poisoned = true;
+    throw new TypeError('dispatch guard revalidation must be a function');
+  }
+  if (ledger.revalidations.length >= 200) {
+    ledger.poisoned = true;
+    throw new RangeError('dispatch guard revalidations exceed bounds');
+  }
   ledger.revalidations.push(revalidate);
 }
 
@@ -346,6 +358,8 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
 
 /** Internal guard-only phase, entered after the owning command admits eligibility. */
 export interface DispatchGuardPhaseInput {
+  /** Installed claim path only: the exact active State stage, never cloned. */
+  readonly stage?: SystemCommandContext;
   readonly predicate: string;
   /** Actual source-issued lexical bindings; provider request arguments do not establish these. */
   readonly frozenInputs: unknown;
@@ -362,12 +376,53 @@ export interface DispatchGuardPhase {
   readonly revalidate: () => Promise<boolean>;
 }
 
+export interface DispatchGuardPhaseBinding extends DispatchGuardPhase {
+  readonly context: DispatchGuardExecutionContext;
+  /** Final lifecycle check after current authority has awaited. */
+  readonly assertHealthy: () => void;
+}
+const closedGuardPhases = new WeakMap<object, {
+  readonly stage: SystemCommandContext | undefined;
+  readonly transfer: () => DispatchGuardPhaseBinding;
+  readonly assertHealthy: () => void;
+}>();
+const stageGuardIssuances = new WeakMap<SystemCommandContext, { poisoned: boolean }>();
+
+/** Internal owning-command transfer. Structural copies and repeated transfers
+ * refuse; the original evidence is poisoned even if repeated misuse is caught. */
+export function transferDispatchGuardPhase(phase: DispatchGuardPhase,
+  stage?: SystemCommandContext): DispatchGuardPhaseBinding {
+  const issued = phase !== null && typeof phase === 'object' ? closedGuardPhases.get(phase) : undefined;
+  if (issued === undefined) throw new TypeError('dispatch guard phase was not privately issued');
+  if (stage !== undefined) {
+    systemCommandStageRevision(stage);
+    if (issued.stage !== stage) throw new TypeError('dispatch guard phase belongs to another State stage');
+  }
+  return issued.transfer();
+}
+
 /**
  * Issues the actual guard handle and retains observations independently of claim
  * eligibility. The owning State consumer can transfer the closed one-shot check
  * to its existing commit fence; this phase neither claims nor opens a checkpoint.
  */
 export async function runDispatchGuardPhase(input: DispatchGuardPhaseInput): Promise<DispatchGuardPhase> {
+  const stage = input.stage;
+  let stageStatus: { poisoned: boolean } | undefined;
+  if (stage !== undefined) {
+    const revision = systemCommandStageRevision(stage);
+    const previous = stageGuardIssuances.get(stage);
+    if (previous !== undefined) {
+      previous.poisoned = true;
+      throw new TypeError('dispatch guard already issued for this State stage');
+    }
+    stageStatus = { poisoned: false };
+    stageGuardIssuances.set(stage, stageStatus);
+    if (input.checkpoint?.revision !== revision) {
+      stageStatus.poisoned = true;
+      throw new TypeError('dispatch guard checkpoint must match the actual State stage');
+    }
+  }
   const context: DispatchGuardExecutionContext = Object.freeze({
     predicate: input.predicate,
     frozenInputs: snapshotGuardData(input.frozenInputs),
@@ -376,22 +431,24 @@ export async function runDispatchGuardPhase(input: DispatchGuardPhaseInput): Pro
     intent: snapshotGuardData(input.intent),
   });
   const execution = Object.freeze({}) as DispatchGuardExecution;
-  const ledger: DispatchGuardExecutionLedger = { context, revalidations: [] };
+  const ledger: DispatchGuardExecutionLedger = { context, revalidations: [], live: true, poisoned: false, stageStatus };
   guardExecutions.set(execution, ledger);
   let result: boolean;
   try {
     const verdict = input.evaluateGuard(context.predicate, context.frozenInputs, context.stateSnapshot, execution);
     result = typeof verdict === 'boolean' ? verdict : await verdict;
   } finally {
-    guardExecutions.delete(execution);
+    ledger.live = false;
   }
+  if (ledger.poisoned || stageStatus?.poisoned) throw new TypeError('dispatch guard execution is poisoned');
   if (typeof result !== 'boolean') throw new TypeError('dispatch guard must return a boolean');
   let consumed = false;
   let poisoned = false;
+  let transferred = false;
   const healthy = () => {
-    if (poisoned) throw new TypeError('dispatch guard evidence is poisoned');
+    if (poisoned || ledger.poisoned || stageStatus?.poisoned) throw new TypeError('dispatch guard evidence is poisoned');
   };
-  return Object.freeze({ result, revalidate: async (): Promise<boolean> => {
+  const phase = Object.freeze({ result, revalidate: async (): Promise<boolean> => {
     if (consumed) {
       poisoned = true;
       throw new TypeError('dispatch guard evidence has already been consumed');
@@ -413,6 +470,16 @@ export async function runDispatchGuardPhase(input: DispatchGuardPhaseInput): Pro
       throw error;
     }
   } });
+  closedGuardPhases.set(phase, { stage, assertHealthy: healthy, transfer: () => {
+    healthy();
+    if (transferred || consumed || poisoned) {
+      poisoned = true;
+      throw new TypeError('dispatch guard phase has already been transferred or consumed');
+    }
+    transferred = true;
+    return Object.freeze({ context, result, revalidate: phase.revalidate, assertHealthy: healthy });
+  } });
+  return phase;
 }
 
 /** Await guard and then current authority. This decision still requires fenced persistence. */
@@ -424,8 +491,9 @@ export async function attemptDispatchAsync(deps: AsyncDispatchDeps, attempt: Asy
   // Capture the admitted fence and callback before any user callback can await.
   const fence = attempt.fence;
   const authority = fence?.revalidateAuthority;
+  let phase: DispatchGuardPhase | undefined;
   if (predicate !== null) {
-    const phase = await runDispatchGuardPhase({
+    phase = await runDispatchGuardPhase({
       predicate,
       frozenInputs: attempt.frozenInputs,
       stateSnapshot: attempt.stateSnapshot,
@@ -439,6 +507,7 @@ export async function attemptDispatchAsync(deps: AsyncDispatchDeps, attempt: Asy
   if (authority !== undefined && await authority.call(fence) !== true) {
     return { status: 'refused-revoked', outboxId };
   }
+  if (phase !== undefined) closedGuardPhases.get(phase)!.assertHealthy();
   return issueDispatchClaim(deps, outboxId);
 }
 
