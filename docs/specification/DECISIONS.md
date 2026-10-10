@@ -5704,3 +5704,12 @@ depth64 guard returns its normal refusal before stack exhaustion. Preserve
 source admission, counters and evaluation/path order; retain the original flat
 80-term regression. Existing library154 and decision6 pass on the default stack.
 Do not lower the supported bound, enlarge the stack or skip the crashing case.
+
+
+### Compiler emitter borrowing, 2026-10-10 — implemented, final qualification pending
+
+Use borrowed iteration for read-only whole-program emitter passes. The actual
+scenario3000 native crash trace identifies unnecessary recursive IR clones in
+identity emission; borrowing preserves expression/output order and source gates
+without changing stack limits. Codegen121 passes; owning flat/native and current
+whole qualification remain required.

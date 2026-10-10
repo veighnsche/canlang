@@ -2515,3 +2515,13 @@ masked by collection source-fact joining; a schedule fixture still expects
 model-containing contracts absent after their qualified inventory admission.
 Preserve the complete outcome, correct those exact paths and retain a genuinely
 unsupported contract control. Current whole acceptance remains withheld.
+
+
+**Emitter stack correction (unfinished final qualification), 2026-10-10.**
+The actual scenario3000 crash trace reaches recursive IrItem/IrExpr cloning in
+identity emission. All13 read-only whole-program emitter loops now borrow the
+existing IR through a copied reference; required local metadata copies remain.
+Output order, source admission and expression semantics are unchanged. Owning
+codegen121/121 passes. The new query correspondence case currently declines and
+is being corrected before remaining flat/order/schedule checks and final whole
+qualification; no stack increase, smaller fixture or skipped body.
