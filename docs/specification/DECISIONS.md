@@ -7455,3 +7455,28 @@ arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
 ### 2026-10-10 — manual local integration of a7610b95
 
 Finite manual source review CLEAR. Resolve the same enabled owning CRUD grant before the precommit hook, retain authenticated actor proof only in that checked hook scope, and preserve public, foreign, disabled, unknown and committed-handler nullable/refusal behavior. Reuse owning analysis/hook controls and the exact complete25/catalog source delta35→33 with no new diagnostics or emitted original artifacts. Native actor/now/team/operation lowering remains E6008 until Compiler and Dev connect the genuine private invocation context; current whole/strict validation and original applications remain unfinished. Genuine generated selector/native qualification is independently integrated at a26623d9, not evidence for native hooks. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — classify actual Work rows for File retirement (unfinished join)
+
+Separate Work framework inventory from compiler domain descriptors. The actual
+nine owning RowData interfaces supply closed scalar/ID control fields plus
+explicit opaque retained-result and deferred-input roles. Required
+FileReferenceInventory.frameworkModels persists their exact serializable
+source/shape correspondence; the trusted host binds the actual same-load
+producer validator outside JSON. Tags, copied metadata and successful readers
+confer no issuance or File absence. Unknown/colliding models, extra fields and
+unclassified payloads refuse; no work.* namespace exemption. State supplies its
+own receipt/association/navigation families and backend enforcement.
+
+The Work validator detaches bounded own JSON data before existing codecs, checks
+closed envelopes/fields and identities, includes archived rows, and preserves
+StoredRow pre-S5 missing/undefined parent semantics without mutating input.
+Owning Contracts/State dependency/Work emissions pass; four actual constructor/
+stager and refusal cases pass115.04ms, with public export identity and required
+framework inventory type controls. Finite review CLEAR after parent correction.
+This qualifies owning shape and roles only. State original-revision permanent
+retirement/all-writer migration/activation admission, genuine issuer readback,
+Files physical retry and Dev real host/reopen remain unfinished. Opaque payload
+source/input/result authority and authenticated durable ingress retain their
+owners. No fabricated Compiler model, backend change, synthetic installed map,
+native/publication activation or hold release.
