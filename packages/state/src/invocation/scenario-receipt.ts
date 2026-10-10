@@ -3,12 +3,13 @@
  * Capture is available only during invoke, never from a request envelope.
  * This version supports scalar Values profiles, declared scalar fields and
  * explicitly checked admitted intrinsics (operation id/primitive input/original ref version).
- * Nominal/model/container/File/Delivery, query influence and absent-reference
+ * Changed File fields require genuine live capture and current physical checks.
+ * Nominal/model/container/File results/Delivery, query influence and absent-reference
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
-  Receipt, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
+  Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
@@ -31,6 +32,7 @@ import { isGeneratedOperationDef } from './registry.js';
 import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory, projectReadQueryProjectionWire, queryProjectionWire, checkSavedQueries, savedQueriesReadable } from './scenario-query-plan.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
+import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, scenarioFileWireRefs } from './scenario-file-assignment.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -45,7 +47,7 @@ function dataCopy<T>(value: T, decodedValues = false): T {
     if (decodedValues && typeof part === 'bigint') return part;
     if (typeof part === 'number' && Number.isFinite(part)) return part;
     if (typeof part !== 'object' || part === null || seen.has(part) ||
-        (!Array.isArray(part) && ![Object.prototype, null].includes(Object.getPrototypeOf(part)))) {
+        (Array.isArray(part) ? Object.getPrototypeOf(part) !== Array.prototype : ![Object.prototype, null].includes(Object.getPrototypeOf(part)))) {
       return invalid('own JSON data is required.');
     }
     seen.add(part);
@@ -187,6 +189,69 @@ interface BoundPlan {
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
+
+/** Literal installed Files adapter, bound by the checked owning loader. Saved
+ * facts grant no access; every physical check consumes the current receiver. */
+export interface ScenarioReceiptFileProducer {
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly app: string;
+  readonly revalidate: (retained: RetainedFinalizedFile, receiver: FinalizedFileReceiver) => boolean | Promise<boolean>;
+}
+export interface ScenarioReceiptFileAssignmentLocator {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly field: string;
+}
+export interface ScenarioReceiptFileAssignmentInput extends ScenarioReceiptFileAssignmentLocator {
+  readonly observation: FinalizedFileObservation;
+}
+const fileProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptFileProducer>();
+export function bindScenarioReceiptFileProducer(def: GeneratedOperationDef, producer: ScenarioReceiptFileProducer): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined || invokedPlans.has(def) || fileProducers.has(def)) return invalid('File producer requires one checked source binding before execution.');
+  const own = object(producer, ['source', 'app', 'revalidate']);
+  const source = dataCopy(own['source']); origin(source);
+  if (typeof own['revalidate'] !== 'function' || stableStringify(source) !== stableStringify(bound.plan.source)) {
+    return invalid('File producer differs from its owning checked callable.');
+  }
+  fileProducers.set(def, Object.freeze({ source: deepFreeze(source) as ScenarioResultDisclosurePlan['source'],
+    app: text(own['app']), revalidate: own['revalidate'] as ScenarioReceiptFileProducer['revalidate'] }));
+}
+function fileLocatorKey(locator: ScenarioReceiptFileAssignmentLocator): string {
+  return stableStringify([locator.model, locator.recordId, locator.field]);
+}
+function fileReceiver(app: string, actor: string | null, team: string | null): FinalizedFileReceiver {
+  if (actor === null) return invalid('File receiving identity requires an admitted actor.');
+  return Object.freeze({ app, team: team ?? actor, owner: team ?? actor, principal: actor });
+}
+/** Consume the genuine opaque observation synchronously while the exact root
+ * invocation is active. Neither copied calls nor native File values attest it. */
+export function observeScenarioReceiptFileAssignment(call: AdmittedCall, store: StoragePort,
+  input: ScenarioReceiptFileAssignmentInput): void {
+  let state: Capture | undefined;
+  try {
+    state = capture(call, store);
+    assertScenarioReceiptExecution(call, store);
+    if (activeCalls.has(call) || state.pending !== 0) return invalid('File capture requires the actual active root call.');
+    const own = object(input, ['model', 'recordId', 'field', 'observation']);
+    const locator = { model: text(own['model']) as ModelName, recordId: text(own['recordId']) as RecordId, field: text(own['field']) };
+    scenarioFileField(state.bound, locator.model, locator.field);
+    const producer = fileProducers.get(call.def as GeneratedOperationDef);
+    if (producer === undefined || producer.app !== call.context.app) return invalid('matching installed File producer required.');
+    const receiver = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
+    const file = readLiveScenarioFile(own['observation'], receiver);
+    if (file === null) return invalid('genuine live receiving File observation required.');
+    const key = fileLocatorKey(locator);
+    if (state.files.length >= MAX_ITEMS || state.files.some(entry => fileLocatorKey(entry) === key && entry.file.ref === file.ref)) {
+      return invalid('duplicate or unbounded File capture.');
+    }
+    state.files.push(Object.freeze({ ...locator, file }));
+  } catch (error) {
+    if (state !== undefined) state.poisoned = true;
+    const owner = membershipOwner(call); if (owner !== undefined) owner.capture.poisoned = true;
+    throw error;
+  }
+}
 
 export interface ScenarioReceiptCallSite {
   readonly id: string;
@@ -819,8 +884,15 @@ interface Capture {
   readonly intrinsics: IntrinsicObservation[];
   readonly queries: QueryExecution[];
   queryResult: unknown | undefined;
+  readonly files: Array<ScenarioReceiptFileAssignmentLocator & { readonly file: RetainedFinalizedFile }>;
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
+const captureContexts = new WeakMap<object, Capture>();
+/** Invoke initializes the private capture before source execution so a caught
+ * first copied-call attempt cannot silently become a clean void receipt. */
+export function beginScenarioReceiptExecution(call: AdmittedCall, store: StoragePort): void {
+  if (boundPlans.has(call.def as GeneratedOperationDef)) capture(call, store);
+}
 function capture(call: AdmittedCall, store: StoragePort): Capture {
   try {
     assertScenarioReceiptCallExecution(call, store);
@@ -830,12 +902,15 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
     if (bound === undefined) return invalid('no loader-verified source dependency plan.');
     invokedPlans.add(call.def as GeneratedOperationDef);
     let value = captures.get(call);
-    if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [], queries: [], queryResult: undefined }; captures.set(call, value); }
+    if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [], queries: [], queryResult: undefined, files: [] }; captures.set(call, value); captureContexts.set(call.context, value); }
     if (value.poisoned) return invalid('capture is poisoned.');
     return value;
   } catch (error) {
     const state = captures.get(call); if (state !== undefined) state.poisoned = true;
     const context = typeof call === 'object' && call !== null ? Object.getOwnPropertyDescriptor(call, 'context') : undefined;
+    if (context !== undefined && 'value' in context && typeof context.value === 'object' && context.value !== null) {
+      const original = captureContexts.get(context.value); if (original !== undefined) original.poisoned = true;
+    }
     const owner = ownerSessions.get(call) ?? (context !== undefined && 'value' in context &&
       typeof context.value === 'object' && context.value !== null ? ownerContexts.get(context.value) : undefined);
     if (owner !== undefined) owner.capture.poisoned = true;
@@ -1283,8 +1358,10 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
     }
     if (member.value === undefined && !required.includes(key) && key !== 'fileAssignments') continue;
     if (key === 'fileAssignments') {
-      if (!Array.isArray(member.value) || member.value.length !== 0) return invalid('file assignments require the defining File/lifetime join.');
-      snapshot[key] = dataCopy(member.value);
+      snapshot[key] = list(dataCopy(member.value)).map(entry => {
+        const locator = object(entry, ['model', 'recordId', 'field']);
+        return { model: text(locator['model']) as ModelName, recordId: text(locator['recordId']) as RecordId, field: text(locator['field']) };
+      });
     } else if (key === 'guards') {
       const guards = list(member.value);
       if (Reflect.ownKeys(guards).length !== guards.length + 1) return invalid('own dense guard array required.');
@@ -1304,9 +1381,52 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       });
     } else snapshot[key] = dataCopy(member.value);
   }
+  const fileAssignments = matchScenarioFileAssignments(call, snapshot as unknown as ExecutionEffects);
+  if (fileAssignments.length !== 0) {
+    const producer = fileProducers.get(call.def as GeneratedOperationDef)!;
+    const receiver = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
+    snapshot['guards'] = [...((snapshot['guards'] as NonNullable<ExecutionEffects['guards']> | undefined) ?? []),
+      ...fileAssignments.map(assignment => Object.freeze({ name: `File ${fileLocatorKey(assignment)} ${assignment.file.ref}`,
+        evaluate: async () => (await producer.revalidate(assignment.file, receiver)) === true }))];
+  }
   const owner = ownerSessions.get(call);
   if (owner !== undefined && owner.callGuards.length !== 0) retainedCallGuards.set(call, Object.freeze([...owner.callGuards]));
   return deepFreeze(snapshot) as unknown as ExecutionEffects;
+}
+
+/** Match every captured ref to one final owning field. Null/empty locators
+ * establish a checked field profile without inventing a Files observation. */
+function matchScenarioFileAssignments(call: AdmittedCall, effects: ExecutionEffects): readonly ScenarioReceiptFileAssignment[] {
+  const state = captures.get(call), bound = boundPlans.get(call.def as GeneratedOperationDef)!;
+  const locators = list(effects.fileAssignments ?? []);
+  if (state?.poisoned) return invalid('File capture is poisoned.');
+  const seen = new Set<string>(); const matched = new Set<object>(); const files: ScenarioReceiptFileAssignment[] = [];
+  for (const raw of locators) {
+    const own = object(raw, ['model', 'recordId', 'field']);
+    const locator = { model: text(own['model']) as ModelName, recordId: text(own['recordId']) as RecordId, field: text(own['field']) };
+    const key = fileLocatorKey(locator);
+    if (seen.has(key)) return invalid('duplicate File assignment locator.'); seen.add(key);
+    const producer = fileProducers.get(call.def as GeneratedOperationDef);
+    if (producer === undefined || producer.app !== call.context.app) return invalid('File assignments require their installed owning producer.');
+    const receiver = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
+    const profile = scenarioFileField(bound, locator.model, locator.field);
+    const writes = effects.writes.filter(write => write.model === locator.model &&
+      (write.kind === 'insert' ? write.row.id : write.id) === locator.recordId);
+    if (writes.length !== 1) return invalid('File assignment requires its final net owning write.');
+    const write = writes[0]!;
+    if (write.kind === 'remove') return invalid('removed File assignment.');
+    const row = checkedRow(write.row);
+    if (row.id !== locator.recordId || row.version !== (write.kind === 'insert' ? 1 : write.expectedVersion + 1) || !Object.hasOwn(row.data, locator.field)) return invalid('File assignment differs from its final row.');
+    const refs = new Set(scenarioFileWireRefs(profile, row.data[locator.field]));
+    for (const ref of refs) {
+      const captured = state?.files.filter(entry => fileLocatorKey(entry) === key && entry.file.ref === ref) ?? [];
+      if (captured.length !== 1 || stableStringify(captured[0]!.file.receiver) !== stableStringify(receiver)) return invalid('final File ref omitted its genuine receiving capture.');
+      matched.add(captured[0]!);
+      files.push({ ...locator, rowVersion: row.version, file: captured[0]!.file });
+    }
+  }
+  if ((state?.files ?? []).some(entry => !matched.has(entry)) || files.length > MAX_ITEMS) return invalid('orphan or unbounded File capture.');
+  return Object.freeze(files);
 }
 
 function queryModelDescriptor(bound: BoundPlan, query: ScenarioReceiptQueryPlan) {
@@ -1612,7 +1732,7 @@ function checkedRow(value: unknown): StoredRow {
 
 /** Invoke alone calls this after execution; no executor-supplied association is accepted. */
 export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffects): ScenarioReceiptAssociation | undefined {
-  let state = captures.get(call); captures.delete(call);
+  let state = captures.get(call);
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
   if (owner !== undefined) {
     if (!owner.closed || owner.finalized === null || owner.commitEffects === null || owner.capture.poisoned || owner.capture.pending !== 0) {
@@ -1632,6 +1752,8 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     const owned = effects.schedules.filter(schedule => keys.has(schedule.key));
     if (stableStringify(owned) !== stableStringify(owner.finalized.schedules)) return invalid('executor omitted, changed or overrode an owned schedule.');
   }
+  const files = boundPlans.has(call.def as GeneratedOperationDef) ? matchScenarioFileAssignments(call, effects) : [];
+  captures.delete(call);
   const writes = owner?.finalized?.writes ?? effects.writes, result = effects.result;
   const bound = boundPlans.get(call.def as GeneratedOperationDef);
   if (bound === undefined) return undefined;
@@ -1639,7 +1761,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   // success receipt carries no business result and still saves changed rows.
   if (bound.type === 'void' && bound.plan.returns.length === 1 && bound.plan.returns[0]!.dependencies.length === 0 &&
       (bound.plan.returns[0]!.intrinsics?.length ?? 0) === 0) {
-    state ??= { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [], queries: [], queryResult: undefined };
+    state ??= { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [], queries: [], queryResult: undefined, files: [] };
     state.returnId ??= bound.plan.returns[0]!.id;
   }
   if (state === undefined || state.returnId === null) return invalid('checked scenario omitted its actual return capture.');
@@ -1665,9 +1787,13 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     if (model.fields.size > MAX_ITEMS) return invalid('original field inventory exceeds its finite budget.');
     const row = checkedRow(dataCopy(write.row));
     if (row.id !== id) return invalid('changed snapshot identity disagrees with its net write.');
+    const assigned = (effects.fileAssignments ?? []).filter(raw => (raw as ScenarioReceiptFileAssignmentLocator).model === write.model &&
+      (raw as ScenarioReceiptFileAssignmentLocator).recordId === row.id) as readonly ScenarioReceiptFileAssignmentLocator[];
+    const assignedFields = new Set(assigned.map(locator => locator.field));
     changed.push({ model: write.model, row, secretFields: [...model.secrets],
-      withheldFields: [...new Set([...model.withheld, ...Object.keys(row.data).filter(field => !model.fields.has(field))])],
-      fieldTypes: Object.fromEntries(model.fields) });
+      withheldFields: [...new Set([...model.withheld.filter(field => !assignedFields.has(field)), ...Object.keys(row.data).filter(field => !model.fields.has(field))])],
+      fieldTypes: { ...Object.fromEntries(model.fields), ...Object.fromEntries(assigned.map(locator =>
+        [locator.field, scenarioFileField(bound, write.model, locator.field).type])) } });
   }
   for (const entry of observed) if (!entry.stored && !entry.ownerSession && !changed.some(change => change.model === entry.model &&
       stableStringify(change.row) === stableStringify(entry.row))) {
@@ -1675,8 +1801,18 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   }
   return deepFreeze(dataCopy({ kind: 'scenario-result/v1' as const, plan: bound.plan, resultType: bound.type,
     returnId: state.returnId, observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
+    ...(Object.hasOwn(effects, 'fileAssignments') ? { fileAssignments: files } : {}),
     ...(owner === undefined || owner.calls.length === 0 ? {} : { calls: owner.calls }),
     ...(returned.intrinsics === undefined ? {} : { intrinsics }), ...queryAssociations(state, returned), changed }));
+}
+
+/** Saved type association closes nullable/array wire shapes before any current
+ * declaration or physical Files authority is consulted. */
+function savedFileRefs(type: CanTypeId, wire: unknown): readonly string[] {
+  if (!/^file(\[\])?\??$/.test(type)) return invalid('saved owning File type required.');
+  if (wire === null) return type.endsWith('?') ? [] : invalid('nonnullable saved File field.');
+  const values = type.includes('[]') ? list(wire) : [wire];
+  return values.map(value => text(object(value, ['id'])['id']));
 }
 
 /** Legacy receipts are unassociated; malformed recognized metadata refuses. */
@@ -1686,6 +1822,7 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
   if (receipt.outcome.status !== 'committed') return invalid('association requires a committed outcome.');
   const scenario = dataCopy(receipt.outcome.scenario);
   const value = object(scenario, ['kind', 'plan', 'resultType', 'returnId', 'observations', 'changed',
+    ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'fileAssignments') ? ['fileAssignments'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'calls') ? ['calls'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'intrinsics') ? ['intrinsics'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'queries') ? ['queries'] : [])]);
@@ -1726,19 +1863,52 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
   if (returned.intrinsics?.some(dep => !intrinsics.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) {
     return invalid('missing saved intrinsic.');
   }
-  const changed = list(value['changed']); const identities = new Set<string>();
+  const changed = list(value['changed']); const identities = new Set<string>(); let fileFieldCount = 0;
   for (const entry of changed) {
     const change = object(entry, ['model', 'row', 'secretFields', 'withheldFields', 'fieldTypes']); text(change['model']);
     const row = checkedRow(change['row']); paths(change['secretFields']); paths(change['withheldFields']);
     const types = change['fieldTypes'];
     if (typeof types !== 'object' || types === null || Array.isArray(types) || Object.keys(types).length > MAX_ITEMS) return invalid('bounded original field inventory required.');
-    for (const type of Object.values(types)) if (type !== null) scalarType(type);
+    for (const [field, type] of Object.entries(types)) {
+      if (typeof type === 'string' && /^file(\[\])?\??$/.test(type)) {
+        if (++fileFieldCount > MAX_ITEMS) return invalid('saved File field budget exceeded.');
+        if (!Object.hasOwn(value, 'fileAssignments') || !Object.hasOwn(row.data, field) ||
+            (change['withheldFields'] as string[]).includes(field)) return invalid('saved File field omitted its checked assignment closure.');
+        savedFileRefs(type as CanTypeId, row.data[field]);
+      } else if (type !== null) scalarType(type);
+    }
     const key = `${change['model']}/${row.id}`;
     if (identities.has(key) || !receipt.outcome.recordVersions.some(version => version.model === change['model'] &&
         version.id === row.id && version.version === row.version)) return invalid('changed snapshot disagrees with committed identities.');
     identities.add(key);
   }
   if (changed.length !== receipt.outcome.recordVersions.length) return invalid('incomplete committed changed snapshots.');
+  const assignments = list(value['fileAssignments'] ?? []); const assignmentKeys = new Set<string>();
+  for (const raw of assignments) {
+    const assignment = object(raw, ['model', 'recordId', 'rowVersion', 'field', 'file']);
+    const model = text(assignment['model']), id = text(assignment['recordId']), field = text(assignment['field']);
+    const file = checkRetainedScenarioFile(assignment['file']);
+    const change = changed.find(entry => (entry as Record<string, unknown>)['model'] === model &&
+      ((entry as Record<string, unknown>)['row'] as StoredRow).id === id) as ScenarioReceiptAssociation['changed'][number] | undefined;
+    const type = change?.fieldTypes[field];
+    if (change === undefined || assignment['rowVersion'] !== change.row.version || typeof type !== 'string' ||
+        !/^file(\[\])?\??$/.test(type) || !savedFileRefs(type as CanTypeId, change.row.data[field]).includes(file.ref)) {
+      return invalid('saved File assignment differs from its committed owning field.');
+    }
+    const expected = fileReceiver(receipt.identity.app, receipt.identity.principal === 'public' ? null : receipt.identity.principal,
+      file.receiver.team === receipt.identity.principal && receipt.identity.owner === 'app' ? null : receipt.identity.owner);
+    if (stableStringify(file.receiver) !== stableStringify(expected)) return invalid('saved File receiver differs from its receipt.');
+    const key = stableStringify([model, id, field, file.ref]);
+    if (assignmentKeys.has(key)) return invalid('duplicate saved File assignment.'); assignmentKeys.add(key);
+  }
+  for (const raw of changed) {
+    const change = raw as ScenarioReceiptAssociation['changed'][number];
+    for (const [field, type] of Object.entries(change.fieldTypes)) if (typeof type === 'string' && /^file(\[\])?\??$/.test(type)) {
+      for (const ref of new Set(savedFileRefs(type as CanTypeId, change.row.data[field]))) {
+        if (!assignmentKeys.has(stableStringify([change.model, change.row.id, field, ref]))) return invalid('incomplete saved File assignment closure.');
+      }
+    }
+  }
   for (const entry of list(value['calls'] ?? [])) {
     const saved = object(entry, ['site', 'caller', 'target', 'targetInterface', 'references', 'result',
       ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'scenario') ? ['scenario'] : [])]);
@@ -1778,6 +1948,55 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       receipt.identity.principal !== (actorUserId ?? 'public')) throw new StateError('forbidden', 'Saved scenario scope does not match the caller.');
   const def = input.registry.get(receipt.identity.operation); const currentBound = boundPlans.get(def as GeneratedOperationDef);
   if (def === undefined || def.name !== receipt.identity.operation || currentBound === undefined) return invalid('current checked scenario inventory required.');
+  const fileProducer = fileProducers.get(def as GeneratedOperationDef);
+  const receiver = actorUserId === null ? null : fileReceiver(input.app, actorUserId, teamId);
+  const fileFields = association.changed.flatMap(change => Object.entries(change.fieldTypes)
+    .filter(([, type]) => typeof type === 'string' && /^file(\[\])?\??$/.test(type))
+    .map(([field, type]) => ({ change, field, type: type as CanTypeId,
+      assignments: (association.fileAssignments ?? []).filter(assignment => assignment.model === change.model &&
+        assignment.recordId === change.row.id && assignment.field === field) })));
+  const readableFileFields = async (change: ScenarioReceiptAssociation['changed'][number], current: StoredRow | null): Promise<string[]> => {
+    if (fileProducer === undefined || fileProducer.app !== input.app || receiver === null || current === null ||
+        current.id !== change.row.id || current.version < change.row.version || current.archivedAt !== null ||
+        current.created !== change.row.created || current.createdBy !== change.row.createdBy ||
+        (current.parent?.model ?? null) !== (change.row.parent?.model ?? null) ||
+        (current.parent?.id ?? null) !== (change.row.parent?.id ?? null)) return [];
+    const readable: string[] = [];
+    for (const entry of fileFields.filter(entry => entry.change === change)) {
+      try {
+        const profile = scenarioFileField(currentBound, change.model, entry.field);
+        if (profile.type !== entry.type || !Object.hasOwn(current.data, entry.field) ||
+            stableStringify(current.data[entry.field]) !== stableStringify(change.row.data[entry.field])) continue;
+        scenarioFileWireRefs(profile, current.data[entry.field]);
+        let valid = true;
+        for (const assignment of entry.assignments) {
+          if (stableStringify(assignment.file.receiver) !== stableStringify(receiver) ||
+              (await fileProducer.revalidate(assignment.file, receiver)) !== true) { valid = false; break; }
+        }
+        if (valid) readable.push(entry.field);
+      } catch { /* Current declaration drift or failed physical checks withhold this field. */ }
+    }
+    return readable;
+  };
+  const projectedChanges = new WeakMap<ProjectedRecord, ScenarioReceiptAssociation['changed'][number]>();
+  const finalFileProjection = async (projection: { readonly result: unknown; readonly records: readonly ProjectedRecord[] }) => {
+    if (fileFields.length === 0) return projection;
+    // Complete every State row read before the final external physical checks.
+    const pending: Array<{ readonly record: ProjectedRecord; readonly changed: ScenarioReceiptAssociation['changed'][number] | undefined; readonly current: StoredRow | null }> = [];
+    for (const record of projection.records) {
+      const changed = projectedChanges.get(record);
+      pending.push({ record, changed, current: changed === undefined ? null : await input.store.load(changed.model, changed.row.id) });
+    }
+    const records: ProjectedRecord[] = [];
+    for (const { record, changed, current } of pending) {
+      if (changed === undefined) { records.push(record); continue; }
+      const fields = await readableFileFields(changed, current);
+      const data = { ...record.data };
+      for (const entry of fileFields.filter(entry => entry.change === changed)) if (!fields.includes(entry.field)) delete data[entry.field];
+      records.push({ ...record, data });
+    }
+    return { result: projection.result, records };
+  };
   const revision = await input.store.readRevision();
   const retained = await input.store.readReceipt(receipt.identity);
   if (retained === null || stableStringify(dataCopy(retained)) !== stableStringify(receipt)) return invalid('exact retained receipt required.');
@@ -1835,11 +2054,11 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           (current.parent?.id ?? null) !== (saved.parent?.id ?? null)) return null;
       return current;
     };
-    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = []) => {
+    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = [], fileFields: readonly string[] = []) => {
       const current = await currentSavedRow(model, saved); const inventory = currentBound.models.get(model);
       if (current === null || inventory === undefined) return null;
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
-        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field))] });
+        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field) && !fileFields.includes(field))] });
     };
     const queryAuthority = async (bound: BoundPlan, saved: { readonly plan: ScenarioResultDisclosurePlan;
       readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] }) => {
@@ -1925,10 +2144,12 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {
       const fields = currentBound.models.get(changed.model)?.fields;
-      const drifted = Object.keys(changed.row.data).filter(field =>
-        !Object.hasOwn(changed.fieldTypes, field) || fields?.get(field) !== changed.fieldTypes[field]);
-      const record = await savedProjection(changed.model, changed.row, changed.secretFields, [...changed.withheldFields, ...drifted]);
-      if (record !== null && dependenciesReadable) records.push(record);
+      const current = await currentSavedRow(changed.model, changed.row);
+      const files = await readableFileFields(changed, current);
+      const drifted = Object.keys(changed.row.data).filter(field => !files.includes(field) &&
+        (!Object.hasOwn(changed.fieldTypes, field) || fields?.get(field) !== changed.fieldTypes[field]));
+      const record = await savedProjection(changed.model, changed.row, changed.secretFields, [...changed.withheldFields, ...drifted], [], files);
+      if (record !== null && dependenciesReadable) { projectedChanges.set(record, changed); records.push(record); }
     }
     return { result: dependenciesReadable && association.resultType === currentBound.type && receipt.outcome.status === 'committed'
       ? dataCopy(receipt.outcome.result) : null, records };
@@ -1959,8 +2180,17 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     if (users.some(user => { const key = stableStringify([teamId, user]);
       return stableStringify(final.get(key)) !== stableStringify(observed.get(key)); }) ||
         await input.store.readRevision() !== revision) return withheld;
-    // Identity has no cross-State revision or return-time authority promise.
-    return projected;
+    // The last owning physical read is followed by one retained Identity
+    // statement-time check and State fence. Separate stores do not promise
+    // atomic or return-time authority; source/discovery is never replayed.
+    const finalProjection = await finalFileProjection(projected);
+    if (fileFields.length !== 0) {
+      const postPhysical = checkedAuthoritySnapshot(await readSnapshot.call(input.memberships, teamId, users), teamId, users);
+      if (users.some(user => { const key = stableStringify([teamId, user]);
+        return stableStringify(postPhysical.get(key)) !== stableStringify(observed.get(key)); })) return withheld;
+    }
+    if (await input.store.readRevision() !== revision) return withheld;
+    return finalProjection;
   }
   if (await input.store.readRevision() !== revision) return withheld;
   const secondMembership = await membership();
@@ -1971,6 +2201,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   for (const fact of authorityFacts.values()) {
     if (stableStringify(dataCopy(await input.memberships.findMembership(fact.teamId, fact.userId))) !== fact.snapshot) return withheld;
   }
-  if (authorityDrift || await input.store.readRevision() !== revision) return withheld;
-  return first;
+  if (authorityDrift) return withheld;
+  const finalProjection = await finalFileProjection(first);
+  // Cover an Identity mutation during the awaited last physical read using
+  // the same retained full facts, without another physical/source pass.
+  // This finite check does not promise cross-store atomicity or return-time access.
+  if (fileFields.length !== 0) for (const fact of authorityFacts.values()) {
+    if (stableStringify(dataCopy(await input.memberships.findMembership(fact.teamId, fact.userId))) !== fact.snapshot) return withheld;
+  }
+  if (await input.store.readRevision() !== revision) return withheld;
+  return finalProjection;
 }
