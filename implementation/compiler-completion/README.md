@@ -2427,3 +2427,17 @@ helper source admission is unchanged; no SEND is hoisted, Promise interpreted as
 Bool, or stale root context reused. Compiler owns the genuine lazy guard/capture
 producer; State/Dev own its separately issued dispatch lifetime. Precise Task22
 target/deployment lookup hold stays unchanged. Final strict/whole checks follow.
+
+
+**Model-reference value inventory (unfinished native query join), 2026-10-10.**
+Ordinary contracts now admit exact checked model leaves only when their SymbolId,
+Model declaration and canonical name join the actual emitted model inventory.
+Nested contracts retain whole-closure admission; models remain reference types,
+without copied row schemas or authority. Actual CLI-to-installed Values target
+passes4/4, including ref/version wire/native endpoints, nullable and ordered array
+leaves, bounds and closed/dangling/no-context/namespace/refusal controls. The
+existing codec accepts and normalizes a version spelling such as 07 to 7; the
+initial stricter fixture expectation was corrected against its owning contract.
+Finite independent source review is clear. Same-load State qualification and
+changed-source whole checks follow exact released owner intake; original read/
+query/native policy and result provenance remain unfinished.
