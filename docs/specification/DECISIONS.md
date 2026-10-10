@@ -6572,3 +6572,19 @@ Manual private runtime and schema/canonical-wire review CLEAR for State3ea3b6b9 
 Choose A: one immutable committed-model source per final stored business-record change/final version at the winning owner fence. DESIGN6 defines immutable identities and later current-state handlers; original CanVolunteer reconciles current state rather than observing intermediate row snapshots. Existing owner finalization coalesces stored writes while retaining ordered history. Keep same-value versioned updates and every explicit authored effect; transient create-remove has no stored change/source, and existing update-remove has one delete. Source metadata, complete checked routes, bounded frozen cuts and retained source receipts must all commit with the original business fence; conflicts/rollback/replay emit no duplicate source.
 
 The three JEV answers split; preserve raw advice and the request2 wording uncertainty. B fairly preserves evaluated stage notifications but requires new private pre-net capture/stable ordinals and repeated independent current-state handlers, which the required original workflow does not need. This is a necessary implementation decision, not a majority inference or evidence that producers exist. Capability owns actual State/Work final-net source and routing joins; Packages owns any demonstrated absent common contract, Compiler checked source metadata/lowering and Dev actual native source consumption. Reconsider only if a concrete required transition-occurrence semantics emerges. No new consultation, table, origin carrier, broader acceptance or checkpoint advancement.
+
+Compiler assignment-only File source, 2026-10-10 (unfinished native host join):
+admit only explicit direct required defaultless root File input into its owning
+singular File/file? field. Preserve original TypedFileJourney awaited Set then
+accept guard. Dedicated source proof joins actual owning schema and input with
+verified original value/parameter declaration bytes; mutable agreeing proof/IR
+cannot substitute another valid File input. Genuine finalized observation,
+physical lifetime and final postwrite association remain Files/State-owned;
+no general File scalar/read/result/child/copy/loop admission follows. Affected316,
+strict all-target lint/format0 and finite review CLEAR qualify compiler source
+publication. Dev actual native binding/staging/retained replay and unchanged D1
+journey remain required;58/67 and precise BDD3/Task22 holds stay unchanged.
+
+### 2026-10-10 — manual local integration of 279e0e68
+
+Manual analysis/disclosure and source/IR review CLEAR for Compiler279e0e68 assignment-only original required defaultless File input to actual owning singular file/file? field. Preserve unchanged TypedFileJourney Set-then-require order and actual native void publication, exact original source occurrence/parameter declaration and refusal of paired valid-second-input substitution. No File scalar/read/result, copied values, loop or child grant is introduced. Reuse316 affected outcomes, owning dependency build16 and strict all-target lint/format0. Dev actual finalized File binding/staging/D1 retained replay/current authority remains the required consumer. State stored Input f13 is now integrated in f8ac2994 for the next checked root/member/count task, with separate native contained hydration. Original58/67, BDD3/Task22 and full workflow scopes remain unfinished; preserve all precise holds and owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
