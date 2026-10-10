@@ -5526,3 +5526,32 @@ The shared staff/can_work migration is blocked on Compiler checked decision-cont
 ### 2026-10-10 — preserve CanDo nullable preference evaluation (unfinished workflow)
 
 Local draftd7d0dc686a24e9882d132f8ddb88e7e40d48d31f keeps `row.location==null` first and narrows actor only before the existing can_work call: `row.location==null or (actor!=null and can_work(actor,row.location))`. This preserves the anonymous null-location case and current membership/employment/location requirements for a selected location. No helper hoisting or classification change. A fresh exact released Compiler build passes9.48s; one real20-file CanDo import check passes its attributable correction (1.29s, complete=true, omitted=0, exit10,132 diagnostics, zero CanDo). Employees8/9 StateRead-in-pure E3010 and original runtime/source-policy prerequisites remain open; no whole application acceptance.
+
+
+## 2026-10-10 — preserve decision-read gates pending the owning bounded contract (unfinished proposal)
+
+Compiler owns original staff/can_work checked transitive source/context resolution.
+Preserve accepted pure/default restrictions and current StateRead classification;
+DESIGN314 caller-mode bounded-query rules need a concrete qualified membership
+observer/admission contract before this source can activate. Earlier do hoisting
+changes evaluation timing across set/create/dispatch and is not an equivalent
+implementation. Three equivalent independent JEV Choice requests advise the owner
+prerequisite, with confidence .87/.65/.53 and probability .90/.74/.65; the bounded
+contract alternative retains .10/.25/.34. Save one advice record at
+implementation/compiler-completion/decision-context-jev.json; advice is not
+accepted language design. State/Dev own exact private current-membership and stage
+hooks; Compiler owns checked callee/default/context joins once released. Do not
+admit arbitrary StateRead or Promise predicates through the synchronous Values
+any/all interface. Original policy/source/native joins and precise holds remain.
+
+
+## 2026-10-10 — retain exact external collection predicates (unfinished native join)
+
+Use a separate checked collection-call association on the actual query argument,
+not an invented Where clause. Only real selected any/all/count/first catalog
+calls with checked stored-model query/alias identities qualify. Join canonical
+argument slots and actual typed lowered Query/Lambda anchors; named arguments
+keep authored source order. Missing facts confer no proof; altered owner/model/
+query/alias/predicate/builtin/overload facts refuse. Affected154/154 and strict
+all-target lint/format pass; actual membership async predicates and native
+query/policy/source/result admission remain unfinished.
