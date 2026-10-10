@@ -7332,7 +7332,10 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
     }
     source = { occurrenceId: schedule.occurrenceId, event: schedule.event, payload: schedule.payload, scopeOwner: schedule.scopeOwner };
   }
-  const { inputs: fields, captured } = checkedSourceEvent(definition, source.event, source.payload);
+  const checkedCompletion = loaded.standardCompletions?.get(source.event);
+  const { inputs: fields, captured } = checkedCompletion === undefined
+    ? checkedSourceEvent(definition, source.event, source.payload)
+    : checkedCompletionPayload(checkedCompletion, source.payload);
   const declared = emittedPrivateCohort(definition, opts.handler, source.event, source.scopeOwner, captured, fields);
   const privateDescriptors = loaded.producers.registry.loadArtifactDescriptors(
     { ...opts.artifact, operations: [declared.invocation] }, { by: () => 'owner' });
@@ -7687,7 +7690,10 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     }
   };
   await verifyCommitted();
-  const { inputs: fields, captured } = checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload);
+  const checkedCompletion = loaded.standardCompletions?.get(selector.event);
+  const { inputs: fields, captured } = checkedCompletion === undefined
+    ? checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload)
+    : checkedCompletionPayload(checkedCompletion, retained.occurrence.payload);
   const admittedInputs: Record<string, unknown> = Object.create(null);
   for (const [name, value] of Object.entries(captured)) {
     const field = privateSourceMember(fields, name) as FieldDescriptor;
