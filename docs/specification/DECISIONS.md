@@ -5775,3 +5775,19 @@ Actual injected429/503 streams cover successful, rejected and pending cleanup
 without reads or reader acquisition, plus absent bodies. Transport/ranker12/12,
 clean CF emission, root noEmit and package boundaries pass; unchanged runtime
 results are reused at their recorded scopes.
+
+
+### 2026-10-10 — retain ordered history during bounded loop qualification (unfinished)
+
+Consume the exact reviewed Compiler bounded-reference-loop producer through the
+existing immutable source/artifact and real generated D1 invoker. Derive the
+empty/nonempty return and dependency IDs from its actual plan; retain original
+ordered observation, current-stage, one-commit, receipt/hash, full-table and
+Identity assertions. No private plan is fabricated and no public ABI is added.
+
+The first actual run fails at original A0→1 then1→2 history: State's owner-session
+finalization emits only net A0→2, despite the existing ordered-history contract
+in DESIGN.md503. State owns that correction. Preserve the required history gate
+and distinguish implemented later replay/refusal assertions from reached checks.
+Local native/CF builds, root noEmit and package boundaries pass; native D1 replay
+is not qualified. General loop outputs, query/preclaim and G2/G3 remain open.
