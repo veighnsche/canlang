@@ -6833,8 +6833,15 @@ with127 findings versus138 and emits no artifact. Native behavior/examples
 remain unqualified. Focused corpus table fails three changed source pins:
 CRM144→146,Desk78→74,Event203→202;49 rows, including Affiliate39, unchanged.
 Imported fixture location/fold names explain CRM's isolated-scope increase.
-Preserve expected counts pending the coordinator's narrow review/disposition.
+The coordinator reviewed the six corrections CLEAR and explicitly authorized
+only these three changed-source snapshots. Preserve all52 rows and existing
+diagnostic/context assertions. CRM adds two test_site uses and one earlier case
+while removing the server-owned owner finding (net+2); both imported names are
+unavailable in the isolated source scope. Final affected table passes1/1 in
+2.70s,36 unrelated tests unselected, superseding the initial stale-pin failure.
 Reuse unchanged production compiler/strict/editor results at their prior scope;
-changed draft corpus is not whole qualified. Remaining original diagnostics
-require exact source-owner assignments; Dev owns original native consumption.
+the changed corpus delta is separately qualified. Next assigned source work is
+Desk reply/Event expired/Member revoke operation shadows and actual consumers.
+Other original diagnostics require exact assignments; Dev owns native original
+consumption.
 Original58/67 and precise BDD3/Task22 holds stay unchanged; no remote publication.
