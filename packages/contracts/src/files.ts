@@ -123,6 +123,48 @@ export interface EventProvenance {
 /** Provenance bound at receiving-app finalization. */
 export type FileProvenance = RequestProvenance | EventProvenance;
 
+/** Receiving identities captured at finalization; these facts grant no access. */
+export interface FinalizedFileReceiver {
+  readonly app: string;
+  readonly team: string;
+  readonly owner: string;
+  readonly principal: string;
+}
+
+/** Captured receiving policy; horizons stay anchored to original finalization. */
+export interface FileRetentionPolicy {
+  readonly unattachedHorizonMs: number;
+  readonly retentionMs: number;
+}
+
+/**
+ * JSON-safe facts about an actual finalized file, not attachment or disclosure
+ * authority. Current physical bytes, lifecycle and receiving access must always
+ * be revalidated; saved policy cannot renew the original finalization horizons.
+ */
+export interface RetainedFinalizedFile {
+  readonly ref: FinalizedFileRef;
+  readonly receiver: FinalizedFileReceiver;
+  readonly provenance: Readonly<RequestProvenance> | Readonly<EventProvenance>;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  readonly bytesDigest: string;
+  readonly finalizedAtMs: number;
+  readonly retention: FileRetentionPolicy;
+}
+
+declare const finalizedFileObservationBrand: unique symbol;
+
+/**
+ * Opaque live Files observation. Only the genuine Files private WeakMap identity
+ * extractor authenticates it; copying, serialization or matching this type's
+ * shape supplies no provenance or authority. There is no public constructor or
+ * branding key.
+ */
+export interface FinalizedFileObservation {
+  readonly [finalizedFileObservationBrand]: true;
+}
+
 /**
  * Immutable finalized file record. Content is never overwritten; replacing
  * a reference never overwrites bytes. Timestamps are lane-2 datetime

@@ -25,7 +25,10 @@ import type {
   FilePolicy,
   FinalizeResult,
   FinalizedFile,
+  FinalizedFileObservation,
   FinalizedFileRef,
+  FileRetentionPolicy,
+  RetainedFinalizedFile,
   StoredObjectState,
   UploadIntentId,
   UploadRetryId,
@@ -39,6 +42,7 @@ import type {
   StoredFileRecord,
   UploadIntentRecord,
 } from '../ports.js';
+import { assertSafeBlobKey } from '../ports.js';
 import type { UploadIntentRequest } from '@canlang/contracts';
 import {
   freezeFinalized,
@@ -64,6 +68,179 @@ export interface FinalizeDeps {
   readonly intents: IntentStorePort;
   readonly blobs: BlobStorePort;
   readonly files: FinalizedStorePort;
+}
+
+export interface FinalizedFileObservationOptions {
+  readonly policy: FilePolicy;
+  /** Captured receiving policy; deadlines remain anchored to finalization. */
+  readonly retention: FileRetentionPolicy;
+}
+
+type ObservationDeps = Pick<FinalizeDeps, 'files' | 'blobs' | 'clock'>;
+
+// Identity, rather than an inspectable brand or saved object shape, authenticates
+// live observations. Persistent facts must be joined to the owning receipt and
+// current row authority by State; this module supplies neither of those grants.
+const observations = new WeakMap<object, RetainedFinalizedFile>();
+
+function ownData(value: unknown, keys: readonly string[]): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return null;
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const names = Reflect.ownKeys(descriptors);
+  if (names.length !== keys.length || names.some(key => typeof key !== 'string' || !keys.includes(key))) return null;
+  const result: Record<string, unknown> = {};
+  for (const key of keys) {
+    const descriptor = descriptors[key];
+    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) return null;
+    result[key] = descriptor.value;
+  }
+  return result;
+}
+
+function nonempty(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function milliseconds(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function snapshotReceiver(value: unknown): ReceivingContext | null {
+  const record = ownData(value, ['app', 'team', 'owner', 'principal']);
+  if (record === null || !nonempty(record.app) || !nonempty(record.team) ||
+      !nonempty(record.owner) || !nonempty(record.principal)) return null;
+  return Object.freeze({ app: record.app, team: record.team, owner: record.owner, principal: record.principal });
+}
+
+function snapshotRetention(value: unknown): FileRetentionPolicy | null {
+  const record = ownData(value, ['unattachedHorizonMs', 'retentionMs']);
+  if (record === null || !milliseconds(record.unattachedHorizonMs) || !milliseconds(record.retentionMs)) return null;
+  return Object.freeze({ unattachedHorizonMs: record.unattachedHorizonMs, retentionMs: record.retentionMs });
+}
+
+function snapshotProvenance(value: unknown): RetainedFinalizedFile['provenance'] | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const kind = Object.getOwnPropertyDescriptor(value, 'kind');
+  if (kind === undefined || !('value' in kind)) return null;
+  if (kind.value === 'request') {
+    const record = ownData(value, ['kind', 'app', 'team', 'owner', 'principal', 'adapter', 'deliveryId', 'resultPath']);
+    if (record === null || !nonempty(record.app) || !nonempty(record.team) || !nonempty(record.owner) ||
+        !nonempty(record.principal) || !nonempty(record.adapter) || !nonempty(record.deliveryId) ||
+        !nonempty(record.resultPath)) return null;
+    return Object.freeze({ kind: 'request', app: record.app, team: record.team, owner: record.owner,
+      principal: record.principal, adapter: record.adapter, deliveryId: record.deliveryId, resultPath: record.resultPath });
+  }
+  if (kind.value === 'event') {
+    const record = ownData(value, ['kind', 'source', 'adapter', 'occurrenceId', 'fieldPath', 'itemIndex']);
+    const provenance = record === null ? null : validateEventProvenance(record);
+    return provenance === null ? null : Object.freeze(provenance);
+  }
+  return null;
+}
+
+function snapshotRetained(value: unknown): RetainedFinalizedFile | null {
+  const record = ownData(value, ['ref', 'receiver', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAtMs', 'retention']);
+  if (record === null || !nonempty(record.ref) || !nonempty(record.contentType) ||
+      !milliseconds(record.sizeBytes) || !milliseconds(record.finalizedAtMs) ||
+      typeof record.bytesDigest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(record.bytesDigest)) return null;
+  assertSafeBlobKey(record.ref);
+  assertSafeBlobKey(blobKeyForFile(record.ref));
+  const receiver = snapshotReceiver(record.receiver);
+  const provenance = snapshotProvenance(record.provenance);
+  const retention = snapshotRetention(record.retention);
+  if (receiver === null || provenance === null || retention === null ||
+      (provenance.kind === 'request' && !requestProvenanceMatches(provenance, receiver))) return null;
+  return Object.freeze({ ref: record.ref, receiver, provenance, contentType: record.contentType,
+    sizeBytes: record.sizeBytes, bytesDigest: record.bytesDigest, finalizedAtMs: record.finalizedAtMs, retention });
+}
+
+function withinFileLifetime(stored: StoredFileRecord, now: number, retention: FileRetentionPolicy): boolean {
+  const elapsed = BigInt(now) - BigInt(stored.finalizedAtMs);
+  if (elapsed < 0n || elapsed >= BigInt(retention.retentionMs)) return false;
+  if (elapsed < BigInt(retention.unattachedHorizonMs)) return true;
+  // The marker alone cannot prove a timely attachment. Clockless legacy marks
+  // and marks made at/after the deadline do not revive an expired file profile.
+  return stored.state === 'attached' && milliseconds(stored.attachedAtMs) &&
+    stored.attachedAtMs >= stored.finalizedAtMs && stored.attachedAtMs <= now &&
+    BigInt(stored.attachedAtMs) - BigInt(stored.finalizedAtMs) < BigInt(retention.unattachedHorizonMs);
+}
+
+function currentFileFacts(
+  deps: ObservationDeps,
+  ref: FinalizedFileRef,
+  caller: ReceivingContext,
+  options: FinalizedFileObservationOptions,
+  originalRetention?: FileRetentionPolicy,
+): RetainedFinalizedFile | null {
+  assertSafeBlobKey(ref);
+  assertSafeBlobKey(blobKeyForFile(ref));
+  const receiver = snapshotReceiver(caller);
+  const retention = snapshotRetention(options.retention);
+  const now = deps.clock.nowMs();
+  if (receiver === null || retention === null || !milliseconds(now)) return null;
+  const stored = deps.files.get(ref);
+  if (stored === null || (stored.state !== 'finalized' && stored.state !== 'attached') ||
+      (stored.state === 'attached' && !nonempty(stored.attachedRecord)) ||
+      !milliseconds(stored.finalizedAtMs)) return null;
+  const file = ownData(stored.file, ['id', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAt']);
+  if (file === null || file.id !== ref) return null;
+  const finalizedAt = ownData(file.finalizedAt, ['kind', 'ms']);
+  if (finalizedAt === null || finalizedAt.kind !== 'datetime' || finalizedAt.ms !== BigInt(stored.finalizedAtMs)) return null;
+  const facts = snapshotRetained({ ref, receiver: stored.owner, provenance: file.provenance,
+    contentType: file.contentType, sizeBytes: file.sizeBytes, bytesDigest: file.bytesDigest,
+    finalizedAtMs: stored.finalizedAtMs, retention });
+  if (facts === null || !isSameReceiver(facts.receiver, receiver) || !withinFileLifetime(stored, now, retention) ||
+      (originalRetention !== undefined && !withinFileLifetime(stored, now, originalRetention))) return null;
+  const bytes = deps.blobs.read(blobKeyForFile(ref));
+  if (bytes === null || bytes.byteLength !== facts.sizeBytes || sha256Hex(bytes) !== facts.bytesDigest) return null;
+  const check = checkContent(options.policy, facts.contentType, bytes);
+  if (check.verdict !== 'accepted' || check.detectedType !== facts.contentType || check.sizeBytes !== facts.sizeBytes) return null;
+  return facts;
+}
+
+/** Observe real live bytes and immutable metadata without changing any port. */
+export function observeFinalizedFile(
+  deps: ObservationDeps,
+  ref: FinalizedFileRef,
+  caller: ReceivingContext,
+  options: FinalizedFileObservationOptions,
+): FinalizedFileObservation | null {
+  try {
+    const facts = currentFileFacts(deps, ref, caller, options);
+    if (facts === null) return null;
+    const handle = Object.freeze(Object.create(null)) as FinalizedFileObservation;
+    observations.set(handle, facts);
+    return handle;
+  } catch { return null; }
+}
+
+/** Extract only genuine live identity; never inspect an untrusted handle's shape. */
+export function readFinalizedFileObservation(handle: unknown): RetainedFinalizedFile | null {
+  return typeof handle === 'object' && handle !== null ? observations.get(handle) ?? null : null;
+}
+
+/**
+ * Verify retained nongrant facts against current physical storage and receiving
+ * policy. No handle is minted from saved facts. State must bind these facts to
+ * its own receipt, checked assignment and current row authority before use.
+ */
+export function revalidateRetainedFinalizedFile(
+  deps: ObservationDeps,
+  retained: unknown,
+  caller: ReceivingContext,
+  options: FinalizedFileObservationOptions,
+): boolean {
+  try {
+    const saved = snapshotRetained(retained);
+    if (saved === null) return false;
+    const current = currentFileFacts(deps, saved.ref, caller, options, saved.retention);
+    return current !== null && current.ref === saved.ref && isSameReceiver(current.receiver, saved.receiver) &&
+      JSON.stringify(current.provenance) === JSON.stringify(saved.provenance) &&
+      current.contentType === saved.contentType && current.sizeBytes === saved.sizeBytes &&
+      current.bytesDigest === saved.bytesDigest && current.finalizedAtMs === saved.finalizedAtMs;
+  } catch { return false; }
 }
 
 export interface FinalizeInput {
@@ -382,9 +559,12 @@ export function authorizeAttach(
  * seam for attachment authority: until lane 3 calls this, finalized
  * objects stay unattached and fall to GC after the horizon. Re-marks
  * are last-write-wins; S8 refines this with lane-3 authority rules.
+ * An owning clock stamps the first attachment time; retries never renew it.
+ * Clockless legacy calls retain their old marker behavior but cannot prove a
+ * timely attachment to the retained-file observation profile.
  */
 export function recordAttachment(
-  deps: Pick<FinalizeDeps, 'files'>,
+  deps: Pick<FinalizeDeps, 'files'> & Partial<Pick<FinalizeDeps, 'clock'>>,
   ref: FinalizedFileRef,
   recordRef: string,
   caller: ReceivingContext,
@@ -399,6 +579,16 @@ export function recordAttachment(
   const stored = deps.files.get(decision.ref);
   if (stored === null) {
     return { status: 'failed', reason: 'foreign' };
+  }
+  if (deps.clock !== undefined) {
+    const now = deps.clock.nowMs();
+    if (!milliseconds(now) || !milliseconds(stored.finalizedAtMs) || now < stored.finalizedAtMs ||
+        (stored.attachedAtMs !== undefined && (!milliseconds(stored.attachedAtMs) ||
+          stored.attachedAtMs < stored.finalizedAtMs || stored.attachedAtMs > now))) {
+      return { status: 'failed', reason: 'expired' };
+    }
+    // Retrying or moving a marker cannot renew the first clocked attachment.
+    if (stored.attachedAtMs === undefined) stored.attachedAtMs = now;
   }
   stored.state = 'attached';
   stored.attachedRecord = recordRef;

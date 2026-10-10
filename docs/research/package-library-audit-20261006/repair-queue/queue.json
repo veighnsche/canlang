@@ -2177,7 +2177,7 @@
     {
       "family": "FILES / SOURCE INGRESS",
       "kind": "qualification",
-      "readiness": "partial-bounded-retention-implemented-authority-provider-joins-blocked",
+      "readiness": "partial-retention-and-genuine-file-observation-implemented-consumers-blocked",
       "audit_finding_ids": [
         "LF01",
         "LF04",
@@ -2194,7 +2194,7 @@
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Bounded keyset metadata retention and real SQLite transactional continuation implemented/owning-tested with explicit combined traversal cap and bounded auxiliary lookups. Current operation/field descriptor availability, shared attachment/read/download lifetime and authenticated provider namespace/occurrence age/replay/effect correlation remain unreleased owner joins. Existing security and human holds unchanged; no full-packet acceptance."
+        "Bounded keyset retention and genuine retained finalized-file observation producers plus selected SQLite consumers implemented/owning-tested. State owns active admitted checked final-field/final-write receipt binding and current row authority; Dev owns actual kernel/replay/attachment consumption; Compiler owns checked File source/Set recipe after defining consumer release. Current descriptor availability, shared reference/download lifetime and authenticated provider occurrence/age/replay/effect correlation remain unreleased. Exact human holds unchanged; no full-packet or native acceptance."
       ],
       "intended_deleted_mechanisms": [
         "None. Retain explicit file doubles/public storage seams and signature catalog; new download/retention/backend source names must be proposed only after owner release."
@@ -2316,13 +2316,13 @@
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
-        "state": "coordinator released finite bounded-retention component, with no competing writer on these exact files",
+        "state": "Coordinator released finite bounded-retention and defining Contracts/Files typedFile observation carrier/API; no competing writer on the exact source/test hunks",
         "defining_owners": [
           "cloudflare",
           "files",
           "interfaces"
         ],
-        "release": "Ports.ts,retention/index.ts,host/sqlite.ts and existing retention.test.ts plus directly related README/DECISIONS/existing queue-state only. Cloudflare/native source and other shared lifetime/provider/source contract files remain owning prerequisites."
+        "release": "Existing retention component plus Contracts files.ts/state.ts, Files finalize/index.ts,ports.ts,provenance/index.ts,host/sqlite.ts and existing finalize/contract-shapes tests with directly related docs/records. State/Dev/Compiler defining consumers and other shared lifetime/provider/source files remain owning prerequisites."
       },
       "acceptance_limits": [
         "No runtime acceptance from this planning packet. Source helper, registered Rust and historical fixtures do not certify actual installed/durable/browser consumers.",

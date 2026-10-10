@@ -1,4 +1,5 @@
 import type { CanTypeId, WireValue } from './values.js';
+import type { RetainedFinalizedFile } from './files.js';
 
 /**
  * Lane 03 producer contract: authoritative state boundary (types only).
@@ -185,12 +186,28 @@ export interface ScenarioResultDisclosurePlan {
   }>;
 }
 
+/**
+ * State captures only the actual checked final field and final write together
+ * with a genuine Files observation. Persistent facts grant neither file access
+ * nor row permission; current recovery must revalidate both.
+ */
+export interface ScenarioReceiptFileAssignment {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly rowVersion: RecordVersion;
+  readonly field: string;
+  readonly file: RetainedFinalizedFile;
+}
+
 /** Execution-owned saved values; neither this data nor a plan grants access. */
 export interface ScenarioReceiptAssociation {
   readonly kind: 'scenario-result/v1';
   readonly plan: ScenarioResultDisclosurePlan;
   readonly resultType: CanTypeId;
   readonly returnId: string;
+  /** Optional checked file assignments; legacy omission remains absent and
+   * cannot establish the file recovery profile or grant access. */
+  readonly fileAssignments?: ReadonlyArray<ScenarioReceiptFileAssignment>;
   readonly queries?: readonly ScenarioReceiptQueryObservation[];
   /** Actual same-owner calls, retained privately with the parent receipt.
    * Target metadata identifies the checked interface; it grants no authority.
