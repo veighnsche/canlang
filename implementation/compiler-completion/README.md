@@ -2379,12 +2379,13 @@ The proposed serial handoff is version1, with no execution authority:
   }>
 }
 ```
-Types use the existing owning Can type IDs (`user`, `team`, exact nominal IDs),
+Types use the existing owning Can type IDs (`user`, `Team`, exact nominal IDs),
 not new primitive spellings. Argument offsets belong to the call's source;
 defaults carry their own source. For active_member the canonical slots map to
 user and Team as defined above. This freezes vocabulary for independent State/
-Dev components; serialization/descriptor transport remains unimplemented until
-the actual checked source/IR bijection is qualified. The issued runtime binding
+Dev components; internal version1 conversion is implemented below after the
+actual checked source/IR bijection qualifies. Runtime emission and private binding
+issuance remain separate. The issued runtime binding
 is a private identity, never a public descriptor ID or source-offset claim.
 
 
@@ -2415,3 +2416,67 @@ trim, uniqueness/distinctness are not projected. Packages owns released additive
 shared envelope/intake/length validation; State/Dev own real per-element current
 reference/checkpoint/private-view correspondence. Strict all-target lint/format0;
 whole/native array workflow remains unqualified.
+
+
+**Async dispatch guard refusal (unfinished dispatch join), 2026-10-10.**
+The generic emitter previously put awaited derived calls in synchronous `when`
+callbacks, creating invalid JavaScript. Refuse that async profile E6008 before
+publication until the owning live dispatch observer/frozen lexical transport is
+joined. Actual CLI no-module refusal and existing executed synchronous false/
+ordinary binding behavior pass: binding target3/3 plus codegen121/121. Pure
+helper source admission is unchanged; no SEND is hoisted, Promise interpreted as
+Bool, or stale root context reused. Compiler owns the genuine lazy guard/capture
+producer; State/Dev own its separately issued dispatch lifetime. Precise Task22
+target/deployment lookup hold stays unchanged. Final strict/whole checks follow.
+
+
+**Model-reference value inventory (unfinished native query join), 2026-10-10.**
+Ordinary contracts now admit exact checked model leaves only when their SymbolId,
+Model declaration and canonical name join the actual emitted model inventory.
+Nested contracts retain whole-closure admission; models remain reference types,
+without copied row schemas or authority. Actual CLI-to-installed Values target
+passes4/4, including ref/version wire/native endpoints, nullable and ordered array
+leaves, bounds and closed/dangling/no-context/namespace/refusal controls. The
+existing codec accepts and normalizes a version spelling such as 07 to 7; the
+initial stricter fixture expectation was corrected against its owning contract.
+Finite independent source review is clear. Same-load State qualification and
+changed-source whole checks follow exact released owner intake; original read/
+query/native policy and result provenance remain unfinished.
+
+
+**Released original-source intake, 2026-10-10.**
+Own draft safely fast-forwards to exact CanDo nullable correctiond7d0dc6.
+The actual29-file original imports/app-use closure is checked once with current
+compiler1a033af0: complete=true, omitted0, exit10,149 diagnostics, zero Workbench
+and CanDo. The correction removes one source error; Employees pure membership
+helpers and broader composed business errors still withhold clean disclosure.
+No original native/read/query acceptance is inferred.
+
+
+**Internal decision serial conversion (unfinished runtime transport), 2026-10-10.**
+The real checked source/IR consumer now feeds typed version1 serial sites: exact
+canonical owners, source/path/hash/module, offsets, stages/positions, authored
+arguments, canonical slots, owning omitted defaults and full call frames. Type
+IDs are fallible/bounded and use existing user/Team and genuine nominal/wrapper
+spellings, without unknown or throwing fallbacks. Imported literal defaults join
+their actual checked module; forged module name/file/span cannot publish metadata.
+Owning decision6/6 passes exact JSON, original proof/semantic corruptions and new
+literal-default controls; strict all-target Clippy/format0. No artifact ABI, emitter captures, runtime private
+binding, StateRead admission or native execution is claimed. State/Dev stage/
+occurrence observers and real lazy emitted captures remain next prerequisites.
+
+
+**Released same-load consumer qualification, 2026-10-10.**
+Exact reviewed localmaind8d3cf87 is safely consumed with pending loader assertions
+preserved. Released package sources match the actual uncached22/22 dependency
+build. Actual CLI Fact inventory now passes installed Values and full State
+artifact loading with exact result/ref schemas, missing/duplicate model context
+refusals; final affected13/13 (ordinary4,bounds3,decision6). Earlier unchanged
+strict lint/format results are reused. Changed-source whole checks follow.
+
+The real serial membership join exposes one defining State discrepancy: actual
+Compiler type ID Team is uppercase, while released State special active_member
+intake requires lowercase team. Coordinator assigned the exact correction to
+State. SKIP membership transport activation pending that release and Dev private
+source/frame/stage facade; Compiler will consume exact owning repair. No duplicate
+State patch, purity change, replay or hoist. Precise BDD3/Task22 holds remain.

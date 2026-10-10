@@ -442,9 +442,6 @@ export async function admitOwnerStageCall(input: {
   // Nominal values need their checked owner schema before recursive refs can
   // be discovered. The schema's unknown nominals alone do not prove models.
   for (const field of input.def.descriptor.inputs) {
-    if (field.kind === 'ref' && Object.hasOwn(input.def.inputArrays, field.name)) {
-      throw new StateError('validation', 'Owner calls do not support reference arrays.');
-    }
     if (field.kind === 'ref') continue;
     if (field.kind === 'file' || field.kind === 'delivery') {
       throw new StateError('validation', 'Owner calls do not support file or delivery input provenance.');
