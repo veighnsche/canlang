@@ -332,7 +332,7 @@ export function createFakeFileUseInfo(usesFiles = true): FileUseInfo {
 export function createFakeKernel(handlers: {
   maxBytes?: number;
   createIntent?: (input: { request: UploadIntentRequest; receiver: UploadReceiver; binding: UploadBinding }) => KernelCreateOutcome | Promise<KernelCreateOutcome>;
-  append?: (intentId: string, caller: UploadReceiver, chunk: Uint8Array) => KernelAppendOutcome | Promise<KernelAppendOutcome>;
+  append?: (intentId: string, caller: UploadReceiver, chunk: Uint8Array, expectedOffset: number) => KernelAppendOutcome | Promise<KernelAppendOutcome>;
   complete?: (intentId: string, caller: UploadReceiver) => KernelCompleteOutcome | Promise<KernelCompleteOutcome>;
   finalize?: (input: { intentId: string; retryId: string; bytesDigest: string; caller: UploadReceiver }) => KernelFinalizeOutcome | Promise<KernelFinalizeOutcome>;
 } = {}): FileKernel & {
@@ -347,10 +347,10 @@ export function createFakeKernel(handlers: {
       if (handlers.createIntent === undefined) throw new Error('fake kernel: createIntent not scripted');
       return handlers.createIntent(input);
     },
-    async append(intentId, caller, chunk) {
-      calls.push({ method: 'append', detail: { intentId, caller, bytes: chunk.length } });
+    async append(intentId, caller, chunk, expectedOffset) {
+      calls.push({ method: 'append', detail: { intentId, caller, bytes: chunk.length, expectedOffset } });
       if (handlers.append === undefined) throw new Error('fake kernel: append not scripted');
-      return handlers.append(intentId, caller, chunk);
+      return handlers.append(intentId, caller, chunk, expectedOffset);
     },
     async complete(intentId, caller) {
       calls.push({ method: 'complete', detail: { intentId, caller } });

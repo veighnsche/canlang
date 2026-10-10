@@ -404,7 +404,7 @@ export type KernelCreateOutcome =
 /** Mirror of L4 `AppendOutcome` (upload/index.ts). */
 export type KernelAppendOutcome =
   | { readonly status: 'appended'; readonly receivedBytes: number }
-  | { readonly status: 'failed'; readonly reason: 'foreign' | 'closed' | 'expired' | 'oversized' };
+  | { readonly status: 'failed'; readonly reason: 'foreign' | 'closed' | 'expired' | 'oversized' | 'conflict' };
 
 /** Mirror of L4 `CompleteOutcome` (upload/index.ts). */
 export type KernelCompleteOutcome =
@@ -427,7 +427,8 @@ export interface FileKernel {
     receiver: UploadReceiver;
     binding: UploadBinding;
   }): Promise<KernelCreateOutcome>;
-  append(intentId: string, caller: UploadReceiver, chunk: Uint8Array): Promise<KernelAppendOutcome>;
+  /** Expected byte offset identifies the submitted range, including retries. */
+  append(intentId: string, caller: UploadReceiver, chunk: Uint8Array, expectedOffset: number): Promise<KernelAppendOutcome>;
   complete(intentId: string, caller: UploadReceiver): Promise<KernelCompleteOutcome>;
   finalize(input: {
     intentId: string;

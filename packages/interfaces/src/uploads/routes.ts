@@ -31,13 +31,16 @@
  * 1 MiB default cap); non-object JSON is `validation`. PUT bytes
  * early-reject when `content-length` exceeds the kernel ceiling (kernel
  * untouched), else stream-read capped at `maxBytes + 1` — never an
- * unbounded `arrayBuffer()`.
+ * unbounded `arrayBuffer()`. PUT requires a canonical nonnegative decimal
+ * `upload-offset`, captured after auth/CSRF and before kernel/body awaits.
  *
  * Content completion is stateless: every successful append is followed
  * immediately by `complete` (kernel-cheap). `completed` answers
  * `{received_bytes, complete: true, check}`; `partial` answers
  * `{received_bytes, complete: false}` — a stay-open resume signal, not an
- * error. Kernel outcome reasons map without leaking kernel internals:
+ * error. received_bytes acknowledges the submitted range end; completion
+ * describes the current validated transfer, including a retried range.
+ * Kernel outcome reasons map without leaking kernel internals:
  * foreign/expired hide existence (`not_found`), closed/partial-finalize
  * are state errors (`rule_failed`), oversized is quota (`limit`),
  * malformed/rejected content is `validation`, conflicts stay `conflict`.
@@ -229,6 +232,14 @@ async function handleContent(
   tool: string,
   intentId: string,
 ): Promise<Response> {
+  const offsetHeader = request.headers.get('upload-offset');
+  if (offsetHeader === null || !/^(0|[1-9][0-9]*)$/.test(offsetHeader)) {
+    return deny(deps, buildBusinessError('validation', 'Invalid upload offset.'), tool);
+  }
+  const expectedOffset = Number(offsetHeader);
+  if (!Number.isSafeInteger(expectedOffset)) {
+    return deny(deps, buildBusinessError('validation', 'Invalid upload offset.'), tool);
+  }
   const maxBytes = await deps.kernel.maxBytes();
   // Early reject on a definite over-cap declaration; unparseable values
   // are ignored and the streaming cap below enforces instead.
@@ -240,7 +251,7 @@ async function handleContent(
     }
   }
   const chunk = await readCappedBody(request, maxBytes + 1);
-  const appended = await deps.kernel.append(intentId, receiver, chunk);
+  const appended = await deps.kernel.append(intentId, receiver, chunk, expectedOffset);
   if (appended.status === 'failed') {
     switch (appended.reason) {
       case 'foreign':
@@ -248,6 +259,8 @@ async function handleContent(
         return notFound(deps, tool);
       case 'closed':
         return deny(deps, buildBusinessError('rule_failed', 'Upload is closed.'), tool);
+      case 'conflict':
+        return deny(deps, buildBusinessError('conflict', 'Conflicting upload range.'), tool);
       default:
         return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
       case 'oversized':
