@@ -2505,3 +2505,13 @@ remains38. All52 checks and undocumented-code assertions are retained, total
 4191→4181. Owning analysis37/37 passes. Exact released locala22241b7, including
 State332/f3 Team correction, is safely consumed; actual graph22/22 builds uncached.
 The single real serial consumer join and resumed whole qualification follow.
+
+
+**Complete changed-source run (unfinished corrections), 2026-10-10.**
+Exact07996dbf reaches every target under Node24 and required real completion,
+native and permission bodies, with zero SKIP. Three owning failures remain:
+scenario3000 compile stack overflow; unsupported datetime order refusal is
+masked by collection source-fact joining; a schedule fixture still expects
+model-containing contracts absent after their qualified inventory admission.
+Preserve the complete outcome, correct those exact paths and retain a genuinely
+unsupported contract control. Current whole acceptance remains withheld.
