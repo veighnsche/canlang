@@ -206,4 +206,4 @@ export {
 
 export { transition, type TransitionContext } from './effects/transition.js';
 
-export { projectReadScenarioQueryResult } from './invocation/scenario-query-plan.js';
+export { projectReadScenarioQueryResult } from './invocation/scenario-receipt.js';

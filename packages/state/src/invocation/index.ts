@@ -57,4 +57,4 @@ export { bindScenarioDispatchMembershipProducer,
   type ScenarioDispatchMembershipExecution, type ScenarioDispatchMembershipHandle,
 } from './dispatch-membership.js';
 
-export { projectReadScenarioQueryResult } from './scenario-query-plan.js';
+export { projectReadScenarioQueryResult } from './scenario-receipt.js';

@@ -244,7 +244,7 @@ export function queryProjectionWire(projection: ScenarioReceiptQueryProjection, 
 
 /** Pure fresh-read wire conversion. The caller owns viewer selection and current
  * authorization; this creates no receipt, source evidence or owner authority. */
-export function projectReadScenarioQueryResult(projection: ScenarioReceiptQueryProjection,
+export function projectReadQueryProjectionWire(projection: ScenarioReceiptQueryProjection,
   query: ScenarioReceiptQueryPlan, selected: readonly ProjectedRecord[]): unknown[] {
   const checked = checkQueries([query])[0]!;
   const mapping = checkProjection(projection, [checked]);
