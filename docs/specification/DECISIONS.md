@@ -7023,6 +7023,27 @@ physical bytes, with no State grant, shared-reference retention, authenticated
 provider, durable-host download or original workflow acceptance. Coordinator
 manual local intake is pending; all precise holds remain.
 
+### 2026-10-10 — forward the required current File byte seam
+
+The existing structural Interfaces File journey now requires the released
+Files `readCurrentBytes(ref, physicalReceiver, retention)` binding. Validate it
+upfront and call it as the original binding method, preserving exact arguments,
+returned byte/null identity and synchronous/asynchronous errors. Missing or
+nonfunction bindings refuse by name. No legacy-read fallback, duplicated File
+validator, runtime Files dependency or State authority is introduced.
+
+Final owning Interfaces emission and all15 existing extended adapter cases
+pass. One actual public Files SQLite upload/finalization through the public
+Interfaces journey passes after reopen, including detached bytes, current
+policy/foreign/exact unswept deadline refusal, unchanged stores and a legacy-read
+tripwire. Finite source/test review is clear. Reuse unchanged Files9 and the
+accepted exact portable229 scopes; this adapter result does not qualify State
+grants, protected host download, shared-reference retention or provider ingress.
+Dev consumes this required method and supplies it in its common assembly
+fixture from the genuine Files producer; the current State authority wrapper
+and all precise host/native/provider prerequisites and holds remain separate.
+Coordinator manual local source intake is pending; full TECH-F02 is unfinished.
+
 ### 2026-10-10 — manual local integration of a770ebb5
 
 Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
