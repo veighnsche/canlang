@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Current whole1390 qualifies exact e67 query producer plus State9e intake at72f51295 with required real engines/native/permission bodies and zero skips; strict all-target lint/format and finite coordinator review pass. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1390 qualifies exact e67 query producer plus State9e intake at72f51295 with required real engines/native/permission bodies and zero skips. The subsequent nongrant activation/reference/map correction passes affected140 and strict lint/format; its real Fact[] read consumer remains Dev-codec blocked. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2675,3 +2675,44 @@ Dev's exact eb8aad65 preserved consumer passes1/1 with three ordered histories,
 one commit/receipt and populated/empty/omitted no-effect replay. Reuse that
 unchanged owning result; broader query/general-loop/application dependencies
 and precise BDD3/Task22 holds remain. Original completion stays58/67.
+
+
+**Nongrant query activation and reference predicates (unfinished result join),
+2026-10-10.** Source inventory alone no longer emits private query lifetime
+sites. The final admitted whole-owner receipt must match the genuine source,
+query and selected projection after operation/call validation. Fresh source
+metadata and generic reads remain available without granting disclosure. Real
+execution exposed two adjacent compiler defects: object select arrows emitted
+statement blocks, and model membership/nullable equality called structural
+equality on native views. Parenthesized projection expressions and the existing
+owning `same` facade correct them with null handling, lazy source reads and
+once-only left-to-right operand evaluation intact. Scalar/contract membership
+keeps checked structural equality. No original guard or body is rewritten.
+
+Actual owning build22/22 supplies reviewed Statee22/Dev5d8 installed outputs.
+Affected **140/140** pass (codegen121, checked query8, enum default1, actual
+native4, ordinary contract4, source producer2); strict all-target Clippy/format0
+and finite independent source review CLEAR. The new real CLI/module/Memory
+public-read consumer preserves all three original body statements and exact
+seven-field ordered Fact[] positive. Genuine null and true/false membership
+controls execute; result encoding then fails **0/1**, validation22 violations.
+**SKIP prerequisite: Dev owns public-read nominal contract/array native-to-wire
+conversion**, including genuine original Task view identity/version and current
+authorization under the declared schema. Runtime invoke3633-3636 currently
+handles only top-level model/model[] and sends Fact[] directly to generic
+scenarioResult3619. Preserve the positive; no flattened result, fake reference,
+private frame or ignored test. Compiler1390/134 remains historical72f51295;
+unchanged editor results are reused. Original Complete/pure membership/private
+child joins, completion58/67 and precise BDD3/Task22 holds remain open.
+
+**SKIP committed model-event source — defining payload prerequisite,
+2026-10-10.** Original CanVolunteer46-51 retains the updated source, each Signup,
+cancel and conditional reminders. Checked Effects retains Committed model/action;
+IR has no corresponding event source. Compiler cannot derive private inputs from
+a declared Event for this source. State/Work must release genuine original
+mutation/allroute atomic CommittedChangeEvent enrollment, and Dev must release
+its exact checked source/native payload ABI, explicitly mapping authored
+event.id to recordId and the genuine owner/version/occurrenceId. Compiler then
+owns the checked IR/metadata/callable emission. Existing schedule/cohort selection
+and raw State model change facts do not supply that authority. No guessed
+payload, fabricated declared event, schedule wrapper or source rewrite.
