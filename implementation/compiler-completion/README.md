@@ -2811,3 +2811,24 @@ Compiler then owns checked File input/Set recipe and exact owning source emissio
 Dev owns preserved actual upload/attachment/replay/readback qualification. No
 fabricated disclosure, generated-CRUD substitution, empty assignment or weakened
 assertion. This is a defining prerequisite, not a new human hold.
+
+**Protected query parent preparation (unfinished native publication),
+2026-10-10.** Original direct nondefault parent reference/array parameters can
+prepare an acyclic independently Complete query child, with authored input order
+and an unused `as` binding preserved. Copied/computed/defaulted inputs and bound
+result consumption remain refused; no scalar observations or result authority
+are invented. Codegen joins actual owning Ref descriptors, parent/child version
+requirements, ordinary array omission semantics and exact finite IR bounds.
+Immutable fresh query recipes remain the executable/source authority; the new
+structural helper alone cannot publish a child. A genuine full-emission witness
+retains both Complete proofs and source IDs while withdrawing both disclosures
+and all query/CALL capture helpers. It reports the actual E6008 unsupported call
+under the existing closed gate, rather than claiming usable native output.
+Affected320/320 pass (library161, codegen121, references7, native4,
+sourceproducer4, disclosure23); corrected setup uses the same checked catalog
+owner and tests the cycle's real E3005 rejection stage. Strict lint/format and
+finite independent review qualify only this preparation unit. Unchanged whole,
+editor and Dev public1/1 results are reused. Next is reviewed owner intake,
+exactly-once return selection, immutable recipe publication and the actual
+compiled public/private parent consumer. Original Workbench policy/purity,
+File lifetime, committed event prerequisites and precise human holds remain.

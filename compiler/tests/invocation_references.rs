@@ -95,7 +95,17 @@ Then
         .unwrap();
     for item in [context, parent] {
         let fact = &lowered.scenario_disclosures[&item.id];
-        assert!(matches!(fact, ScenarioDisclosure::Declined(_)));
+        assert!(
+            if item.id == context.id {
+                matches!(fact, ScenarioDisclosure::Complete(_))
+            } else {
+                // Consuming a query child binding remains outside the finite
+                // parent profile, even when the child itself is complete.
+                matches!(fact, ScenarioDisclosure::Declined(_))
+            },
+            "{}: {fact:?}",
+            item.canonical
+        );
         let origin = fact
             .source_facts()
             .expect("checked source survives unsupported native closure");

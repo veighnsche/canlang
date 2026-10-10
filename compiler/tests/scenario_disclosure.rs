@@ -934,6 +934,241 @@ fn static_call_preparation_declines_bound_read_crud_and_reference_profiles() {
     }
 }
 
+fn finite_query_parent_source(parameters: &str, body: &str, parent_first: bool) -> String {
+    let child = " scenario context(location:Location,targets:Scope.targets) read=true -> Fact[] by=members\n  require count(targets)>0\n  do\n   let visible=Task as task where task in targets and task.location==location\n   require count(visible)==count(targets)\n   return visible as task select Fact {task,version=task.version,title=task.title,description=task.description,due=task.due,priority=task.priority,done=task.done}\n";
+    let parent = format!(" scenario parent({parameters}) -> int by=members\n  do\n{body}\n");
+    let declarations = if parent_first {
+        format!("{parent}{child}")
+    } else {
+        format!("{child}{parent}")
+    };
+    format!(
+        "app QueryCalls\nGiven\n Location {{name:text}}\n Task {{location:Location?,title:text,description:text?,due:datetime?,priority:enum(low,normal,high)=normal,done:bool=false}}\n contract Scope {{targets:Task[]! min=1 max=10}}\n contract Fact {{task:Task,version:int min=1,title:Task.title max=2000,description:Task.description max=8000,due:Task.due,priority:Task.priority,done:bool}}\n Holder {{location:Location,targets:Scope.targets}}\n fixture site=Location {{name=\"Site\"}}\n policy Location read=members\n policy Task read=members\n policy Holder read=members\nWhen\n{declarations}Then\n"
+    )
+}
+
+#[test]
+fn query_child_preparation_proves_original_inputs_and_unused_binding_in_source_order() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    for parent_first in [false, true] {
+        for (inputs, keys) in [
+            ("location,targets", vec!["location", "targets"]),
+            ("targets,location", vec!["targets", "location"]),
+        ] {
+            let source = finite_query_parent_source(
+                "location:Location,targets:Scope.targets",
+                &format!("   call context {{{inputs}}} as facts\n   return 1"),
+                parent_first,
+            );
+            let (db, program) = checked(&[("query-call.can", &source)]);
+            let child = complete(&program, "QueryCalls.context");
+            assert_eq!(child.returns[0].influences.len(), 4);
+            let parent = complete(&program, "QueryCalls.parent");
+            origins(&db, parent);
+            assert_eq!(parent.effects.len(), 1);
+            assert!(
+                matches!(&parent.effects[0].kind, DisclosureEffectKind::Call {input_keys,..}
+                if input_keys.iter().map(String::as_str).collect::<Vec<_>>() == keys)
+            );
+            assert!(parent.returns[0].dependencies.is_empty());
+            assert!(parent.returns[0].intrinsics.is_empty());
+            assert!(parent.returns[0].influences.is_empty());
+        }
+    }
+}
+
+#[test]
+fn query_parent_full_emission_withdraws_capture_until_child_publication_is_admitted() {
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   return 1",
+        true,
+    );
+    let mut db = SourceDb::new();
+    let file = db.add("query-call.can".into(), source);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let child = complete(&program, "QueryCalls.context");
+    let parent = complete(&program, "QueryCalls.parent");
+    assert_eq!(parent.effects.len(), 1);
+    let queries = child
+        .source_facts
+        .as_ref()
+        .unwrap()
+        .queries
+        .as_ref()
+        .unwrap();
+    assert_eq!(queries.len(), 1);
+    let query = &queries[0];
+    assert_eq!(child.returns[0].id, query.return_id());
+    assert_eq!(child.returns[0].influences, query.influences);
+
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("query-parent-emission", "1.0", 1);
+    result.complete = true;
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &program,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0].code, "E6008");
+    assert!(diagnostics[0].message.contains("QueryCalls.context"));
+    // The closed native gate leaves the ordinary cross-operation call
+    // unsupported; this is a preparation/refusal witness, not usable output.
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    for name in ["QueryCalls.context", "QueryCalls.parent"] {
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == name)
+            .unwrap();
+        assert!(
+            operation["result"].get("disclosure").is_none(),
+            "{name} published unfinished capture"
+        );
+        assert!(matches!(
+            fact(&program, name),
+            ScenarioDisclosure::Complete(_)
+        ));
+    }
+    let modules = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(modules.contains("export function canScenarioQuerySources()"));
+    assert!(modules.contains(&query.id));
+    assert!(modules.contains(&query.return_id()));
+    for dependency in &query.dependencies {
+        assert!(modules.contains(&dependency.id));
+    }
+    for helper in [
+        "executeScenarioReceiptQuery",
+        "observeScenarioReceiptQueryDependency",
+        "bindScenarioReceiptQueryResult",
+        "selectScenarioReceiptReturn",
+        "invokeScenarioReceiptCall",
+    ] {
+        assert!(
+            !modules.contains(helper),
+            "unfinished read child activated {helper}"
+        );
+    }
+}
+
+#[test]
+fn query_child_preparation_refuses_nonoriginal_inputs_and_bound_result_use() {
+    for (parameters, body) in [
+        (
+            "location:Location,targets:Scope.targets",
+            "   let copied=targets\n   call context {location,targets=copied} as facts\n   return 1",
+        ),
+        (
+            "holder:Holder",
+            "   call context {location=holder.location,targets=holder.targets} as facts\n   return 1",
+        ),
+        (
+            "location:Location,task:Task",
+            "   call context {location,targets=[task]} as facts\n   return 1",
+        ),
+        (
+            // Ordinary array parameters support literal empty defaults. The
+            // owning positive bounds govern admission; the producer refuses
+            // this defaulted operand before claiming original input provenance.
+            "location:Location,targets:Scope.targets=[]",
+            "   call context {location,targets} as facts\n   return 1",
+        ),
+        (
+            "location:Location,targets:Scope.targets",
+            "   call context {location,targets} as facts\n   return count(facts)",
+        ),
+        (
+            "location:Location,targets:Scope.targets",
+            "   call context {location,targets} as facts\n   let copied=facts\n   return 1",
+        ),
+        (
+            "location:Location,targets:Task[]",
+            "   call context {location,targets} as facts\n   return 1",
+        ),
+    ] {
+        let source = finite_query_parent_source(parameters, body, false);
+        let (_, program) = checked(&[("query-call.can", &source)]);
+        assert!(
+            matches!(
+                fact(&program, "QueryCalls.parent"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "{source}"
+        );
+    }
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   return 1",
+        false,
+    )
+    .replace(
+        "count(visible)==count(targets)",
+        "count(visible)>=count(targets)",
+    );
+    let (_, program) = checked(&[("query-call.can", &source)]);
+    assert!(matches!(
+        fact(&program, "QueryCalls.context"),
+        ScenarioDisclosure::Declined(_)
+    ));
+    assert!(matches!(
+        fact(&program, "QueryCalls.parent"),
+        ScenarioDisclosure::Declined(_)
+    ));
+}
+
+#[test]
+fn query_parent_self_call_is_rejected_before_disclosure_admission() {
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call parent {location,targets}\n   call context {location,targets} as facts\n   return 1",
+        false,
+    );
+    let mut db = SourceDb::new();
+    let file = db.add("query-call-cycle.can".into(), source);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (_, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3005"),
+        "{diagnostics:?}"
+    );
+}
+
 #[test]
 fn supplied_reference_array_loop_retains_empty_nonempty_and_exact_ir_correspondence() {
     use canlang_compiler::codegen::{

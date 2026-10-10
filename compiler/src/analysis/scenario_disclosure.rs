@@ -2238,6 +2238,10 @@ impl<'a> Closure<'a> {
                         .cloned()
                         .map(|value| vec![value])
                         .ok_or_else(|| self.fail(key, "unaccounted send binding")),
+                    Some(Binding::CallAs { .. }) => Err(self.fail(
+                        key,
+                        "bound child result consumption needs its owning provenance",
+                    )),
                     Some(Binding::Predicate) => {
                         if self.authorization {
                             Ok(vec![ValuePath::default()])
@@ -2967,6 +2971,12 @@ impl<'a> Closure<'a> {
             Some(Binding::Let { node }) => Local::Let(*node),
             Some(Binding::ForItem { node }) => Local::For(*node),
             Some(Binding::SendAs { node }) => Local::Send(*node),
+            Some(Binding::CallAs { .. }) => {
+                return Err(self.fail(
+                    key,
+                    "bound child result consumption needs its owning provenance",
+                ));
+            }
             None if self.types.resolved_cases.contains(&key) => {
                 return Ok(vec![ValuePath::default()]);
             }
@@ -3381,8 +3391,8 @@ impl<'a> Closure<'a> {
         Ok((paths, effect.binding.as_ref().map(|_| delivery)))
     }
 
-    /// Preparation for the State-owned child lifetime. No result binding or
-    /// protected/reference/composite input provenance is claimed by this slice.
+    /// Preparation for the State-owned child lifetime. Bound query results may
+    /// remain unused; consuming them still requires a separate provenance proof.
     fn static_call(
         &mut self,
         effect: &Effect,
@@ -3390,7 +3400,7 @@ impl<'a> Closure<'a> {
         env: &Env,
         calls: &[NodeKey],
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
-        if effect.binding.is_some() || !calls.is_empty() {
+        if !calls.is_empty() {
             return Err(self.fail(
                 effect.node,
                 "bound or nested operand call outside source profile",
@@ -3411,7 +3421,10 @@ impl<'a> Closure<'a> {
             .get(operation)
             .ok_or_else(|| self.fail(effect.node, "call target is not a mutation scenario"))?
             .clone();
-        if child.read || child.on.is_some() {
+        if child.read && child.on.is_none() {
+            return self.query_child_call(effect, module, &child, *operation);
+        }
+        if effect.binding.is_some() || child.on.is_some() {
             return Err(self.fail(
                 effect.node,
                 "read or trusted child call outside source profile",
@@ -3493,6 +3506,124 @@ impl<'a> Closure<'a> {
             },
         )?;
         Ok(paths)
+    }
+
+    /// Only original caller parameters can prepare this finite read child.
+    /// Candidate dependencies belong to the child's query lifetime, never an
+    /// invented scalar observation on the parent call or its unused binding.
+    fn query_child_call(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        child: &super::effects::ScenarioData,
+        operation: SymbolId,
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if !self.complete_children.contains(&operation) || self.complete_query(child)?.is_none() {
+            return Err(self.fail(
+                effect.node,
+                "read child needs complete acyclic finite query closure",
+            ));
+        }
+        if self.types.effect_call_results.get(&effect.node)
+            != self.types.symbol_results.get(&operation)
+            || effect.args.len() != child.params.len()
+        {
+            return Err(self.fail(effect.node, "read child result or input signature mismatch"));
+        }
+        let mut keys = Vec::new();
+        let mut parent_owner = None;
+        for argument in &effect.args {
+            let parameter = child
+                .params
+                .iter()
+                .find(|parameter| {
+                    self.resolve
+                        .symbols
+                        .get(parameter.param.0 as usize)
+                        .is_some_and(|symbol| symbol.name == argument.key)
+                })
+                .ok_or_else(|| self.fail(argument.key_node, "unowned query child input"))?;
+            if keys.contains(&argument.key) || parameter.default.is_some() {
+                return Err(self.fail(
+                    argument.key_node,
+                    "query child needs explicit unique inputs",
+                ));
+            }
+            let key = argument.value.unwrap_or(argument.key_node);
+            let Some(Binding::Symbol(input)) = self.query_binding(key) else {
+                return Err(self.fail(key, "query child needs original caller parameter operand"));
+            };
+            let input = *input;
+            let Some(SymbolKind::Param { owner, .. }) = self
+                .resolve
+                .symbols
+                .get(input.0 as usize)
+                .map(|symbol| &symbol.kind)
+            else {
+                return Err(self.fail(
+                    key,
+                    "query child rejects copied or computed reference operands",
+                ));
+            };
+            let owner = *owner;
+            let parent =
+                self.effects.scenarios.get(&owner).ok_or_else(|| {
+                    self.fail(key, "query child input lacks owning parent scenario")
+                })?;
+            if parent.read
+                || parent.on.is_some()
+                || parent.cohort.is_some()
+                || parent.scope_authority
+                || parent.module != module
+                || effect.node.file != parent.node.file
+                || effect.node.start < parent.node.start
+                || effect.node.end > parent.node.end
+                || parent_owner.is_some_and(|previous| previous != owner)
+                || !parent
+                    .params
+                    .iter()
+                    .any(|param| param.param == input && param.default.is_none())
+            {
+                return Err(self.fail(
+                    key,
+                    "query child input needs same original nondefault parent",
+                ));
+            }
+            let expected = self
+                .types
+                .symbol_types
+                .get(&parameter.param)
+                .ok_or_else(|| self.fail(key, "missing query child input type"))?;
+            if self.types.node_types.get(&key) != Some(expected)
+                || self.types.symbol_types.get(&input) != Some(expected)
+            {
+                return Err(self.fail(key, "query child input needs exact owning checked type"));
+            }
+            match expected {
+                ResolvedType::Record { stored: true, .. } => {}
+                ResolvedType::Array { .. }
+                    if self.query_parameter_bounds(input).is_some()
+                        && self.query_parameter_bounds(input)
+                            == self.query_parameter_bounds(parameter.param) => {}
+                _ => {
+                    return Err(self.fail(
+                        key,
+                        "query child input lacks exact protected reference or array owner",
+                    ));
+                }
+            }
+            parent_owner = Some(owner);
+            keys.push(argument.key.clone());
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::Call {
+                operation,
+                input_keys: keys,
+            },
+        )?;
+        Ok(vec![ValuePath::default()])
     }
 
     fn transition(
