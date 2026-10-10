@@ -8049,3 +8049,8 @@ Finite genuine guarded effectful original completion source/projection/verified 
 ### 2026-10-11 — check destination button expressions before native rendering
 
 Resolve and typecheck actual target/caption expressions only for the destination profile, preserving lexical provenance, selected calls, purity, original evaluation order and gates. Connect checked string destinations/message captions to the existing UI factory; reject mixed bindings and unsupported shape without changing protected action/panel/submit paths. Accepted Url/File source types remain valid while their emission stays explicit E6008 until defining native evidence exists. Trusted app_url origin/mount prefix must be supplied by Interfaces/Contracts and Dev deployment owners; current request/auth origin gives no such contract. Affected real compiler/native controls pass; current whole and strict lint are unfinished.
+
+
+### 2026-10-11 — reuse one original full contextual hook source across hosts
+
+Extract exactly the already qualified full contextual source into an owning .can fixture and consume it in the existing full/core native cases. Dev can capture the actual unchanged fixture/CLI/catalog instead of duplicating Rust source construction. Update prior context refusals and the reserved-binding host witness to the released bounded three-argument native callback with readonly flat after metadata; exact authenticated-grant and unsupported-whole refusals remain. Native/CLI owning checks pass; portable full-context and current whole/lint remain unfinished.
