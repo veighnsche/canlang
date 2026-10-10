@@ -2080,7 +2080,8 @@ impl<'a> Emitter<'a> {
         }
         let mut inventory = JsValueTypes::default();
         let mut enums = BTreeMap::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             if let Some(constraints) = self.ir.value_constraints.get(&item.id)
                 && constraints.alias == Some(item.id)
             {
@@ -5961,7 +5962,8 @@ impl<'a> Emitter<'a> {
     /// exactly as pages with no preferences declaration do.
     fn admit_preferences_js(&mut self, owner: &str) -> String {
         let mut defaults = Vec::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let module_name = self.ir.module(item.module).name.clone();
             if module_name != owner {
                 continue;
@@ -6297,7 +6299,8 @@ impl<'a> Emitter<'a> {
         out: &mut JsWriter,
         _entry: Option<crate::analysis::resolve::ModuleId>,
     ) {
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let is_callable = matches!(
                 item.kind,
                 IrItemKind::Scenario { .. } | IrItemKind::CrudOp { .. }
@@ -6558,13 +6561,14 @@ impl<'a> Emitter<'a> {
     /// One source-owned descriptor supplies derived judgment schemas and calls.
     fn emit_judgments_member(&mut self) -> Option<String> {
         let mut declarations = Vec::new();
-        for item in self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let IrItemKind::Judgment {
                 source_language,
                 version,
                 questions,
                 ..
-            } = item.kind
+            } = &item.kind
             else {
                 continue;
             };
@@ -6586,13 +6590,14 @@ impl<'a> Emitter<'a> {
                 if question.runtime {
                     fields.push("runtime:true".to_string());
                 }
-                if let Some(yes) = question.yes {
-                    fields.push(format!("yes:{}", self.lower_message(&yes)));
+                if let Some(yes) = &question.yes {
+                    fields.push(format!("yes:{}", self.lower_message(yes)));
                 }
-                if let Some(no) = question.no {
-                    fields.push(format!("no:{}", self.lower_message(&no)));
+                if let Some(no) = &question.no {
+                    fields.push(format!("no:{}", self.lower_message(no)));
                 }
-                for (key, options) in [("options", question.options), ("levels", question.levels)] {
+                for (key, options) in [("options", &question.options), ("levels", &question.levels)]
+                {
                     if options.is_empty() {
                         continue;
                     }
@@ -6614,7 +6619,7 @@ impl<'a> Emitter<'a> {
             declarations.push(format!(
                 "{}:{{sourceLanguage:{},version:{version}n,questions:[{}]}}",
                 js_string(&item.canonical),
-                js_string(&source_language),
+                js_string(source_language),
                 rendered.join(","),
             ));
         }
@@ -6626,7 +6631,8 @@ impl<'a> Emitter<'a> {
     fn emit_records_member(&mut self, member: &str, kinds: &[&str]) -> String {
         let mut records = Vec::new();
         let mut published = BTreeSet::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let (fields, label) = match &item.kind {
                 IrItemKind::Contract { fields, label } if kinds.contains(&"Contract") => {
                     (fields.clone(), label.clone())
@@ -6869,7 +6875,8 @@ impl<'a> Emitter<'a> {
     fn emit_capabilities_member(&mut self) -> String {
         let mut capabilities = Vec::new();
         let mut published = BTreeSet::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let (ops, events, version) = match &item.kind {
                 IrItemKind::Capability {
                     ops,
@@ -7052,7 +7059,8 @@ impl<'a> Emitter<'a> {
     /// retention and full field schemas.
     fn emit_models_member(&mut self) -> String {
         let mut models = Vec::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let (fields, owner, label, grants, invariants, locks, uniques, retain) =
                 match &item.kind {
                     IrItemKind::Model {
@@ -7220,7 +7228,8 @@ impl<'a> Emitter<'a> {
     /// it has any.
     fn emit_derived_member(&mut self, model: crate::analysis::resolve::SymbolId) -> Option<String> {
         let mut entries = Vec::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let (ty, label) = match &item.kind {
                 IrItemKind::DeriveField {
                     model: m,
@@ -7295,7 +7304,8 @@ impl<'a> Emitter<'a> {
         for module in &self.ir.modules.clone() {
             let mut fields = Vec::new();
             let mut validate = None;
-            for item in &self.ir.items.clone() {
+            let ir = self.ir;
+            for item in &ir.items {
                 let (pref_fields, pref_validate) = match &item.kind {
                     IrItemKind::Preferences { fields, validate } if item.module == module.id => {
                         (fields.clone(), validate.clone())
@@ -7435,7 +7445,8 @@ impl<'a> Emitter<'a> {
     /// (handler, kind, model, field allowlists, `when`, captions).
     fn emit_operations_member(&mut self) -> String {
         let mut operations = Vec::new();
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             match &item.kind {
                 // Hooks are reactive, not operations: their descriptor lives
                 // in the `hooks` registry, so they contribute no entry here.
@@ -9424,7 +9435,8 @@ impl<'a> Emitter<'a> {
     fn emit_derives_map(&mut self, out: &mut JsWriter, span: Span) {
         // Derived fields share one map keyed by canonical owning identity.
         let mut derives = Vec::new();
-        for item in self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let IrItemKind::DeriveField { expr, .. } = &item.kind else {
                 continue;
             };
@@ -9433,7 +9445,7 @@ impl<'a> Emitter<'a> {
                 id: item.canonical.clone(),
                 kind: JsCallableKind::Pure,
                 export: key.clone(),
-                member: registry_member(self.ir, &item),
+                member: registry_member(self.ir, item),
                 input_style: None,
                 span: item.span,
             });
@@ -9550,7 +9562,8 @@ impl<'a> Emitter<'a> {
     /// `async`: call sites uniformly `await`. Exported exactly when the
     /// source derive is exported.
     fn emit_derive_fns(&mut self, out: &mut JsWriter) {
-        for item in self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
                 continue;
             };
@@ -9608,7 +9621,8 @@ impl<'a> Emitter<'a> {
     }
 
     fn emit_handler_fns(&mut self, out: &mut JsWriter) {
-        for item in &self.ir.items.clone() {
+        let ir = self.ir;
+        for item in &ir.items {
             match &item.kind {
                 IrItemKind::Scenario {
                     params,

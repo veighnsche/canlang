@@ -3624,6 +3624,14 @@ impl<'a> Cx<'a> {
         let Some(domain_slot) = selected.slots.first().copied().flatten() else {
             return false;
         };
+        // Keep the owning query refusal when its source profile cannot lower.
+        // No query proof or modules can be published from this unsupported node.
+        if args
+            .get(domain_slot)
+            .is_some_and(|domain| matches!(domain.expr, IrExpr::Unsupported { .. }))
+        {
+            return true;
+        }
         let Some(TypedExpr {
             expr: IrExpr::Query(query),
             ty,
@@ -3679,6 +3687,14 @@ impl<'a> Cx<'a> {
             let Some(slot) = selected.slots.get(1).copied().flatten() else {
                 return false;
             };
+            // An async/unsupported predicate keeps its own source-profile
+            // refusal; it cannot publish a collection correspondence proof.
+            if args
+                .get(slot)
+                .is_some_and(|predicate| matches!(predicate.expr, IrExpr::Unsupported { .. }))
+            {
+                return true;
+            }
             let Some(TypedExpr {
                 expr: IrExpr::Lambda { param, body },
                 ty,

@@ -3519,7 +3519,23 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>, receiptFrame?: ScenarioReceiptFrame): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
+  const arraySlots = new Map<string, { readonly elements: unknown[]; readonly index: number }>();
+  const referenceArrays: unknown[][] = [];
   for (const field of def?.descriptor.inputs ?? []) {
+    if (field.kind === 'ref' && Object.hasOwn(def!.inputArrays, field.name)) {
+      const wire = parameters[field.name];
+      // State owns nullable/length/version admission. Hydrate precisely its
+      // indexed slots rather than passing wire claims into authored code.
+      if (wire !== undefined && wire !== null) {
+        if (!Array.isArray(wire)) throw new loaded.producers.errors('validation', 'Admitted native reference array lacks its owning container.');
+        const elements = new Array<unknown>(wire.length);
+        parameters[field.name] = elements;
+        referenceArrays.push(elements);
+        for (let index = 0; index < wire.length; index += 1) {
+          arraySlots.set(`${field.name}/${index}`, { elements, index });
+        }
+      }
+    }
     if (field.kind !== "ref" && field.kind !== "delivery" && field.valueType !== undefined) {
       try {
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
@@ -3540,8 +3556,15 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
   for (const ref of call.recordRefs ?? []) {
     const view = recordView(ref.model, ref.row);
     receiptFrame?.bindAdmittedReference(view, ref);
-    parameters[ref.param] = view;
+    const slot = arraySlots.get(ref.param);
+    if (slot === undefined) parameters[ref.param] = view;
+    else {
+      slot.elements[slot.index] = view;
+      arraySlots.delete(ref.param);
+    }
   }
+  if (arraySlots.size !== 0) throw new loaded.producers.errors('validation', 'Admitted native reference array lacks an original owning slot.');
+  for (const elements of referenceArrays) Object.freeze(elements);
   return parameters;
 }
 
