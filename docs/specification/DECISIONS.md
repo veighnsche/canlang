@@ -8410,3 +8410,8 @@ parent acceptance and preserves all precise human holds.
 ### 2026-10-11 — reviewed local images integration
 
 Select only Packages4a9dac4c two exact State/Work retirement test-to-owning Images asset registrations and defining cases, independently reviewed CLEAR. Generalized controlled test helper populates owning packages; production exact path and import predicates remain unchanged. Reuse allowed1/1 70.213083ms and final refusal1/1 60.830834ms:11canonical reads,12wrong-reader/target refusals and9static/dynamic source/fixture import refusals. Complete original asset remains owning source; no reverse package runtime API cycle, locator invention or copied/pruned fixture. Capability owns actual incoming read hunks/current-source boundary qualification and full persisted opaque assertions. Compiler owns original Images complete inventory producer; six original runtime cases remain skipped/unaccepted. Preserve all allocations, precise holds and unadvanced complete checkpoint; local-only integration.
+
+
+### 2026-10-11 — close the finite original File union witness
+
+Original complete FileProfile declaration witness at Capability7fbfae4a passes1/1 672.48ms after exact reviewed bb owning producer. Remove only its obsolete E6008 skip; source, union transport and every original nested/nullable/constraint/malformed/copy/duplicate/skew assertion remain. This finite typed-traversal criterion is satisfied; reuse it without another intake-only run. Opaque raw-default admission, historical census/current native authority and actual original Images runtime remain separate owner joins; all precise holds and complete checkpoint persist.
