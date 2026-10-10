@@ -1365,7 +1365,7 @@ fn bound_contract_collection_publication_requires_exact_fresh_alias_call_and_pre
         } else {
             let proof = query.contract_collection_call.as_mut().unwrap();
             match corruption {
-                1 => proof.call = proof.alias,
+                1 => proof.call = Some(proof.alias),
                 2 => proof.alias = proof.domain,
                 3 => proof.domain = proof.query,
                 4 => proof.slots.swap(0, 1),
@@ -1932,4 +1932,345 @@ fn file_assignment_paired_proof_and_value_corruption_still_requires_original_sou
         !disclosed(&lowered, &changed_db),
         "changed source bytes cannot qualify the previous checked assignment"
     );
+}
+
+fn stored_input_query_parent_source() -> String {
+    let input = include_str!("../../draft/CanWorkbench.can")
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix("export contract Input "))
+        .expect("actual owning Workbench Input declaration");
+    finite_query_parent_source(
+        "step:Step,location:Location,targets:Scope.targets",
+        "   call context {location,targets} as fresh\n   require count(fresh)==count(step.input.facts) and all(step.input.facts as old,any(fresh as current,current.task==old.task and current.version==old.version))\n   return count(step.input.facts)",
+        false,
+    ).replace(" Holder {", &format!(" contract Input {input}\n Step {{input:Input}}\n policy Step read=members\n Holder {{"))
+}
+
+#[test]
+fn stored_input_fact_comparison_retains_whole_owner_and_complete_query_child() {
+    use canlang_compiler::analysis::{ResolvedType, Scalar};
+    use canlang_compiler::codegen::{js, scenario_decisions::serialize_decision_sources};
+    let source = stored_input_query_parent_source();
+    let mut db = SourceDb::new();
+    let file = db.add("stored-input-facts.can".into(), source.clone());
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    complete(&program, "QueryCalls.context");
+    let parent = complete(&program, "QueryCalls.parent");
+    origins(&db, parent);
+    assert_eq!(parent.effects.len(), 1);
+    assert!(!parent.returns.is_empty());
+    for returned in &parent.returns {
+        assert!(
+            returned
+                .dependencies
+                .iter()
+                .any(|dep| dep.role == DependencyRole::Control)
+        );
+        assert!(
+            returned
+                .dependencies
+                .iter()
+                .any(|dep| dep.role == DependencyRole::Data)
+        );
+        for dependency in &returned.dependencies {
+            assert_eq!(dependency.model_name, "QueryCalls.Step");
+            assert_eq!(dependency.field_name, "input");
+            assert_eq!(dependency.type_id, "QueryCalls.Input");
+            assert_eq!(
+                &source[dependency.node.start as usize..dependency.node.end as usize],
+                "step.input"
+            );
+            assert!(matches!(dependency.ty, ResolvedType::Record { .. }));
+        }
+        assert!(
+            returned.intrinsics.is_empty(),
+            "contract callbacks do not manufacture admitted row observations"
+        );
+        assert!(
+            returned.influences.is_empty(),
+            "the complete child retains its own query influences"
+        );
+    }
+    let proofs = &program.types.checked_contract_collection_calls;
+    assert_eq!(proofs.len(), 2);
+    assert_eq!(
+        proofs.values().filter(|proof| proof.call.is_some()).count(),
+        1
+    );
+    assert_eq!(
+        proofs.values().filter(|proof| proof.call.is_none()).count(),
+        1
+    );
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryCalls.parent")
+        .unwrap()
+        .id;
+    let publish = |lowered: &ir::IrProgram| {
+        serialize_decision_sources(
+            &program,
+            lowered,
+            &lowered.items[owner.0 as usize],
+            &db,
+            catalog.as_ref(),
+        )
+    };
+    assert!(
+        publish(&lowered).is_some(),
+        "original nested checked source/IR correspondence publishes"
+    );
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("stored-input-facts", "1.0", 1);
+    result.complete = true;
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &program,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    for name in ["QueryCalls.context", "QueryCalls.parent"] {
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == name)
+            .unwrap();
+        assert!(
+            operation["result"].get("disclosure").is_some(),
+            "{name} actual prepared disclosure"
+        );
+    }
+    for corruption in 0..5 {
+        let mut changed = lowered.clone();
+        let ir::IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+        else {
+            panic!("parent");
+        };
+        let ir::IrStmt::Require { cond, .. } = &mut effects[1] else {
+            panic!("original guard");
+        };
+        let ir::IrExpr::Binary { right, .. } = &mut cond.expr else {
+            panic!("original count and all");
+        };
+        let ir::IrExpr::Call { args, .. } = &mut right.expr else {
+            panic!("original all");
+        };
+        let ir::IrExpr::Query(query) = &mut args[0].expr else {
+            panic!("stored facts query");
+        };
+        match corruption {
+            0 => query.contract_collection_call = None,
+            1 => {
+                let proof = query.contract_collection_call.as_mut().unwrap();
+                proof.domain = proof.alias;
+            }
+            2 => {
+                let ir::IrQueryDomain::Value { alias, .. } = &mut query.domain else {
+                    panic!("owning contract domain");
+                };
+                *alias = "copied".into();
+            }
+            3 => {
+                let ir::IrQueryDomain::Value { base, .. } = &mut query.domain else {
+                    panic!("owning contract domain");
+                };
+                let ir::IrExpr::Member { base, .. } = &mut base.expr else {
+                    panic!("facts member");
+                };
+                let ir::IrExpr::Member { base, .. } = &mut base.expr else {
+                    panic!("Input root");
+                };
+                base.expr = ir::IrExpr::Name("foreign".into());
+            }
+            4 => {
+                let ir::IrExpr::Lambda { body, .. } = &mut args[1].expr else {
+                    panic!("old predicate");
+                };
+                let ir::IrExpr::Call { args, .. } = &mut body.expr else {
+                    panic!("fresh any");
+                };
+                let ir::IrExpr::Query(query) = &mut args[0].expr else {
+                    panic!("fresh query");
+                };
+                query.contract_collection_call.as_mut().unwrap().call = None;
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            publish(&changed).is_none(),
+            "forged owning contract/fresh proof {corruption} must refuse"
+        );
+    }
+    // Raw IR cannot provide the immutable prepared child receipt used above.
+    // Check whole Input schema matching on the independently supported scalar
+    // count consumer, which has no query child and owns its actual recipe.
+    let count_source=source.replace(
+        "   call context {location,targets} as fresh\n   require count(fresh)==count(step.input.facts) and all(step.input.facts as old,any(fresh as current,current.task==old.task and current.version==old.version))",
+        "   require count(step.input.facts)>0",
+    );
+    let (count_db, count_program, count_ir) =
+        checked_with_ir(&[("stored-input-count.can", &count_source)]);
+    complete(&count_program, "QueryCalls.parent");
+    let native = |lowered: &ir::IrProgram| {
+        js::emit_program_with_native_source_receipts(lowered, true, &count_db)
+            .operations
+            .iter()
+            .find(|operation| operation.name == "QueryCalls.parent")
+            .unwrap()
+            .disclosure
+            .is_some()
+    };
+    assert!(native(&count_ir));
+    assert!(
+        js::emit_program_with_native_receipts(&count_ir, true)
+            .operations
+            .iter()
+            .find(|operation| operation.name == "QueryCalls.parent")
+            .unwrap()
+            .disclosure
+            .is_none(),
+        "whole stored contracts require their actual source"
+    );
+    let mut changed_db = SourceDb::new();
+    changed_db.add(
+        "stored-input-count.can".into(),
+        format!("{count_source}\n## changed schema source\n"),
+    );
+    assert!(
+        js::emit_program_with_native_source_receipts(&count_ir, true, &changed_db)
+            .operations
+            .iter()
+            .find(|operation| operation.name == "QueryCalls.parent")
+            .unwrap()
+            .disclosure
+            .is_none(),
+        "stale owning schema source must refuse"
+    );
+    for (canonical, corruption) in [("QueryCalls.Input.facts", 0), ("QueryCalls.Step.input", 1)] {
+        let mut changed = count_ir.clone();
+        let item = changed
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == canonical)
+            .unwrap();
+        let ir::IrItemKind::Field { ty, .. } = &mut item.kind else {
+            panic!("owning field");
+        };
+        if corruption == 0 {
+            *ty = ir::IrType::Known(ResolvedType::Scalar(Scalar::Bool));
+        } else {
+            item.name = "foreign".into();
+        }
+        assert!(
+            !native(&changed),
+            "owning Input field/schema mismatch {canonical} must refuse native publication"
+        );
+    }
+}
+
+#[test]
+fn stored_input_fact_comparison_refuses_nonowning_and_unsupported_origins() {
+    let original = stored_input_query_parent_source();
+    let mut cases = vec![
+        original
+            .replace("step:Step,location", "input:Input,location")
+            .replace("step.input", "input"),
+        original
+            .replace(
+                "   require count(fresh)",
+                "   let copied=step.input.facts\n   require count(fresh)",
+            )
+            .replace("all(step.input.facts as old", "all(copied as old"),
+        original
+            .replace(
+                "Given\n",
+                "Given\n derive identity(value:Input):Input=value\n",
+            )
+            .replace(
+                "count(step.input.facts)",
+                "count(identity(step.input).facts)",
+            ),
+        original
+            .replace(
+                "Given\n",
+                "Given\n derive identity(value:bool):bool=value\n",
+            )
+            .replace(
+                "current.task==old.task and current.version==old.version",
+                "identity(current.task==old.task and current.version==old.version)",
+            ),
+        original.replace("current.version==old.version", "old.task.title==\"old\""),
+        original.replace(
+            "current.version==old.version",
+            "old.task.version==old.version",
+        ),
+        original.replace(
+            "count(visible)==count(targets)",
+            "count(visible)>=count(targets)",
+        ),
+        original
+            .replace("Step {input:Input}", "Step {input:Input?}")
+            .replace(
+                "   call context",
+                "   require step.input!=null\n   call context",
+            ),
+    ];
+    cases.push(
+        original
+            .replace(
+                "previous:text[] max=8",
+                "previous:text[] max=8,files:file[]",
+            )
+            .replace(
+                "   return count(step.input.facts)",
+                "   require count(step.input.files)>0\n   return count(step.input.facts)",
+            ),
+    );
+    for source in cases {
+        let mut db = SourceDb::new();
+        let file = db.add("stored-input-refusal.can".into(), source.clone());
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(
+            diagnostics.is_empty(),
+            "valid unsupported source {source}\n{diagnostics:?}"
+        );
+        assert!(
+            matches!(
+                fact(&program, "QueryCalls.parent"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "unsupported owning Input closure must decline: {source}"
+        );
+    }
 }

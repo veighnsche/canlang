@@ -6663,3 +6663,24 @@ The shared type is implemented with owning Contracts emission0 and finite source
 ### 2026-10-10 — manual local integration of af731606
 
 Manual finite review CLEAR for the exact agreed additive ArtifactCommittedChangeDescriptor and optional CompileArtifact.committedChanges. Complete canonical source-order handlers reuse actual checked source/callable correspondence, emitted private appDefinition.operations invocation and cohorts; user-invocable artifact operations remain separate. Reuse owning Contracts emission0; this shared type has no runtime/storage/schema/native behavior and is an unfinished prerequisite only. Release exact DTO to Compiler for complete checked producer and private input binding, Capability for original-fence final-net sources/all routes/frozen cuts/receipts, and Dev for actual native consumer. Preserve source permissions, dynamic trusted context, precise recipient holds and all remaining qualification. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — retain whole stored Input provenance through local comparison (unfinished original approve)
+
+Observe owning whole Step.input under the released canonical Contract codec;
+count and nested old/fresh predicates consume its local values without creating
+Fact row grants. Preserve exact inner member source spans, checked aliases/slots
+and genuine Complete child projection. A private bounded declaration/schema
+snapshot joins actual IR, constraints and source before native publication.
+Canonical Contract guards retain owning control dependencies; ordinary scalar
+guard pruning is unchanged. Original Input worker:user joins the actual emitted
+schema. Genuine generated CRUD/native comparison, rollback, stale versions,
+saved replay and revoked authority pass. Broad qualification currently has1408
+passes and two unchanged Dev non-File replay tripwire failures at invoke.ts5810;
+preserve both assertions and consume the exact owner repair. Coordinator
+acceptance and original member/pure/dynamic workflow remain unfinished. Continue
+the agreed committed-model source producer after this coherent local unit;
+BDD3/Task22 holds and58/67 remain unchanged.
+
+### 2026-10-10 — manual local integration of 44abe81f
+
+Manual analyzer/lowering and serializer/source review CLEAR for the finite original stored Input profile. Whole Step.input retains canonical contract controls and count/nested all-old any-fresh reference-version comparisons, exact member spans, immutable bounded schema/IR/source and existing Values identity; model-ref Member authority and unsupported profiles remain refused. Reuse owning source2, actual CLI/native1, owner22, editor/LSP and strict all-target Clippy/fmt0. Required broad qualification is1408 passed and2 unchanged Dev non-File replay File-port tripwire failures; neither ignored nor accepted, preserve assertions and require exact owner correction for the two affected cases. This coherent unfinished integration releases real Step.input producer to Dev while preserving agreed Contracts DTO and all current prerequisites. Original Workbench/member/pure/dynamic and full plans58/67 remain unfinished; precise BDD3/Task22 and other recipient holds preserved. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

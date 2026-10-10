@@ -2928,15 +2928,17 @@ disclosure26/sourceproducer4/actualnative1); relevant boxed-query consumers167
 rerun, unchanged outcomes reused. Strict all-targetClippy/format0 and finite
 source/static-call review CLEAR. No whole-suite/application acceptance claimed.
 
-**Next original prerequisites.** State owns canonical stored Step.input/type
-workbench.Input wire/current-authority observation for count(step.input.facts);
-subsequent contract members remain local values. Dev owns same-private-owner
-current-stage stored singular/array reference hydration for step.parent operands.
-Compiler retains these exact source/provenance joins and the nested old/fresh
-predicate. State File lifetime is released at reviewed LOCALa8de5109; assignment-
-only Compiler File input/Set source and actual Dev staging/replay remain. Continue
-that ready unit after this coherent commit. Full58/67 and precise BDD3/Task22
-holds remain unchanged.
+**Next original prerequisites.** Reviewed State3ea3b6b9/f13c9a69 releases whole
+stored Step.input/type workbench.Input wire/current-authority observation.
+Compiler's finite stored-input count and nested old/fresh comparison now execute
+through that real owner. Dev still owns same-private-owner current-stage stored
+singular/array reference hydration for step.parent operands. Assignment-only
+Compiler File source is qualified; reviewed LOCALd11197ca supplies Dev's genuine
+host component, with actual original D1 journey validation still Dev-owned.
+SEQ048 next needs Compiler's complete checked committed-model handler inventory
+and private id/version source producer against the released Packages DTO, then
+State same-fence enrollment and Dev native consumption. Full58/67 and precise
+BDD3/Task22 holds remain unchanged.
 
 **Assignment-only File source (unfinished native host join), 2026-10-10.**
 The unchanged TypedFileJourney attachment scenario now has Complete disclosure
@@ -2955,3 +2957,23 @@ released State/Files/Interfaces dependencies build16/16 after frozen local
 installation; unchanged whole/editor results are reused. Dev owns actual native
 File binding/staging/retained replay and the unchanged real D1 journey. This
 source unit does not close that workflow or58/67; precise holds remain.
+
+**Stored Input comparison (unfinished original approve), 2026-10-10.**
+The exact original Input declaration, including worker:user, now emits its
+canonical schema. Count and nested all(old)/any(fresh) consume local contract
+values while observing only owning whole Step.input. Inner IR member spans
+retain actual source anchors. A private bounded source/schema join rejects
+changed types, owners, constraints, source and missing source; copied arrays,
+helpers and saved-reference row/version traversal remain declined. Canonical
+contract guards retain their owning control dependencies without changing
+ordinary scalar guard pruning. Owning source2 and genuine CLI/Memory native1
+pass: real CRUD storage, nested short-circuit order, bounds, stale versions,
+rollback, saved no-execution replay and current membership withholding. Editor
+typecheck, actual LSP round-trip, strict all-target Clippy and formatting pass.
+Required broad qualification covers1408 passes, two failures, zero ignored,
+filtered or body skips. Both unchanged non-File replay tripwires fail after the
+released Dev File component touches its port before establishing an assignment
+(invoke.ts5810); Dev owns the exact correction. Passing targets are reused;
+only the two affected native cases require the released repair. Finite source
+review is clear; coordinator acceptance and whole-suite acceptance are pending.
+Original step.parent operands, pure/dynamic approve and owner/held joins remain.
