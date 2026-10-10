@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
-import { cp, mkdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -19,10 +19,14 @@ const descriptorPath = join(runtime, createHash('sha256').update(root).digest('h
 const require = createRequire(join(installed, 'package.json'));
 const { chromium } = require('@playwright/test');
 const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
-const { FORM_REFUSAL_HEADER, isBusinessErrorCode } = await import(pathToFileURL(require.resolve('@canlang/interfaces')).href);
+const { FORM_REFUSAL_HEADER, isBusinessErrorCode, PUBLIC_ERROR_MESSAGES } = await import(pathToFileURL(require.resolve('@canlang/interfaces')).href);
 const { prepareLocalPreviewCapture } = await import(pathToFileURL(join(installed, 'packages/cloudflare/dist/dev/preview-inputs.js')).href);
 const exec = promisify(execFile);
 const facts = { schema: 'office-browser-journey.v1', checks: {} };
+const sourcePath = join(root, 'tests/integration/can-dev-server/OfficeSupplies.can');
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+let ownSession = null;
+let originalSource, originalSourceSha, sourceEdited = false;
 
 async function prepareRoot() {
   const hasDescriptor = await stat(descriptorPath).then(() => true, error => {
@@ -53,14 +57,134 @@ async function prepareRoot() {
 async function control(command, options = []) {
   let stdout;
   try { ({ stdout } = await exec(join(root, 'compiler/target/debug/can'),
-    ['dev', command, ...(command === 'start' ? ['--capture', manifest] : ['--root', root]), ...options],
+    ['dev', command, ...(command === 'start' ? ['--capture', manifest] : ['--root', root]),
+      ...(ownSession === null ? [] : ['--session', ownSession, '--app', 'OfficeSupplies', '--profile', 'local-d1-identity']), ...options],
     { cwd: root, env: { ...process.env, CAN_DEV_BIN: join(installed, 'packages/cloudflare/dist/dev/control-cli.js') },
       timeout: 90000, maxBuffer: 200000 })); }
   catch (error) { if (!error.stdout?.trim()) throw error; stdout = error.stdout; }
   assert.equal(stdout.trimEnd().split('\n').length, 1);
   const envelope = JSON.parse(stdout);
   assert.equal(envelope.ok, true, command + ': ' + (envelope.code ?? 'failed'));
+  if (command === 'start') {
+    ownSession = envelope.session;
+    assert.match(ownSession, /^[A-Za-z0-9_-]+$/);
+  }
+  assert.equal(envelope.session, ownSession, command + ': exact private owner');
   return envelope.result;
+}
+async function settledCheck() {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const checked = await control('check');
+    if (checked.state !== 'superseded' || attempt === 3) return checked;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+function assertReady(checked, status) {
+  assert.equal(checked.session, ownSession);
+  assert.equal(checked.preview, 'ready', 'preview: ' + checked.preview_reason);
+  assert.equal(checked.current, true);
+  assert.equal(checked.state, 'valid');
+  assert.equal(status.session, ownSession);
+  assert.equal(status.revision, checked.revision);
+  assert.equal(status.serving_revision, checked.revision);
+  assert.equal(status.source_revision, checked.source_revision);
+  assert.equal(typeof status.serving_build, 'string');
+  assert.equal(status.stale, false);
+}
+async function changedRevision(previous) {
+  assert.match(previous, /^r[1-9][0-9]*$/);
+  const baseline = Number(previous.slice(1));
+  assert.ok(Number.isSafeInteger(baseline));
+  for (let attempt = 0; attempt < 90; attempt++) {
+    const status = await control('status');
+    if (Number(status.revision?.slice(1)) > baseline) return;
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  throw new Error('private source edit did not advance the session revision');
+}
+async function blankFailure(checked, serving, baseline) {
+  const listed = await control('failures', ['--revision', checked.revision, '--after', '-1', '--limit', '25']);
+  facts.blank_failure_observation = { revision: listed.revision, total: listed.total_retained, count: listed.failures?.length, codes: listed.failures?.map(value => value.code) };
+  assert.equal(listed.schema, 'can.dev.failures.v1');
+  assert.equal(listed.session, ownSession);
+  assert.equal(listed.revision, checked.revision);
+  assert.equal(baseline.session, ownSession);
+  assert.equal(baseline.revision, checked.revision);
+  assert.equal(baseline.next_after, null, 'complete bounded pre-action refusal baseline');
+  assert.equal(listed.next_after, null, 'complete bounded post-action refusal inventory');
+  for (const prior of baseline.failures) assert.deepEqual(listed.failures.find(value => value.ref === prior.ref), prior);
+  const beforeRefs = new Set(baseline.failures.map(value => value.ref));
+  const fresh = listed.failures.filter(value => !beforeRefs.has(value.ref));
+  assert.equal(listed.total_retained, baseline.total_retained + 1);
+  assert.equal(fresh.length, 1, 'exactly the actual blank-name action adds one refusal');
+  const listedFailure = fresh[0];
+  const occurrence = await control('failure.lookup', ['--ref', listedFailure.ref]);
+  assert.deepEqual(occurrence, listedFailure);
+  assert.equal(occurrence.schema, 'can.dev.failure.v1');
+  assert.equal(occurrence.session, ownSession);
+  assert.equal(occurrence.revision, checked.revision);
+  assert.equal(occurrence.source_revision, checked.source_revision);
+  assert.equal(occurrence.serving_build, serving.serving_build);
+  assert.equal(occurrence.origin, 'http');
+  assert.equal(occurrence.phase, 'unknown');
+  assert.equal(occurrence.code, 'validation');
+  assert.equal(occurrence.summary, PUBLIC_ERROR_MESSAGES.validation);
+  assert.equal(occurrence.at, undefined);
+  assert.deepEqual(occurrence.evidence, { state: 'partial',
+    missing: ['source_mapping_unavailable', 'trace_unavailable', 'operation_identity_withheld'] });
+  assert.deepEqual(Object.keys(occurrence).sort(), ['schema', 'ref', 'session', 'revision',
+    'source_revision', 'serving_build', 'origin', 'phase', 'code', 'summary', 'owner_ref', 'evidence', 'detail_ref'].sort());
+  assert.deepEqual(Object.keys(occurrence.owner_ref).sort(), ['request_id', 'status']);
+  assert.equal(occurrence.owner_ref.status, 400);
+  assert.match(occurrence.owner_ref.request_id, /^[A-Za-z0-9_-]+$/);
+  assert.equal(occurrence.ref, `${ownSession}/${checked.revision}/${occurrence.owner_ref.request_id}/f0`);
+  assert.equal(occurrence.detail_ref, `${occurrence.ref}/detail`);
+  const detail = await control('failure.detail', ['--ref', occurrence.ref]);
+  assert.deepEqual(detail, { schema: 'can.dev.failure-detail.v1', ref: occurrence.ref,
+    revision: checked.revision, source_revision: checked.source_revision,
+    detail: { ref: occurrence.ref, status: 400, retryable: false } });
+  assert.ok(Buffer.byteLength(JSON.stringify({ occurrence, detail })) <= 4096, 'bounded redacted failure');
+  const current = await control('status');
+  assertReady(checked, current);
+  assert.equal(current.serving_build, serving.serving_build);
+  facts.blank_failure = { ref: occurrence.ref, session: occurrence.session, revision: occurrence.revision,
+    source_revision: occurrence.source_revision, serving_build: occurrence.serving_build,
+    code: occurrence.code, status: detail.detail.status, retryable: detail.detail.retryable,
+    operation_identity: 'withheld', evidence: occurrence.evidence };
+  facts.checks.blank_business_refusal_session_occurrence = true;
+  return { occurrence, detail };
+}
+async function assertRetainedFailure(saved) {
+  const { occurrence, detail } = saved;
+  const listed = await control('failures', ['--revision', occurrence.revision, '--after', '-1', '--limit', '25']);
+  assert.equal(listed.session, ownSession);
+  assert.equal(listed.revision, occurrence.revision);
+  assert.deepEqual(listed.failures.find(value => value.ref === occurrence.ref), occurrence);
+  assert.deepEqual(await control('failure.lookup', ['--ref', occurrence.ref]), occurrence);
+  assert.deepEqual(await control('failure.detail', ['--ref', occurrence.ref]), detail);
+}
+async function retainAcrossPrivateEdit(saved, initialChecked) {
+  // Only the owned copy changes; finish the shared business journey before resetting its preview.
+  sourceEdited = true;
+  await writeFile(sourcePath, Buffer.concat([originalSource, Buffer.from('\n## Private retained failure continuity check.\n')]));
+  await changedRevision(initialChecked.revision);
+  const edited = await settledCheck();
+  const editedStatus = await control('status');
+  assertReady(edited, editedStatus);
+  assert.notEqual(edited.source_revision, initialChecked.source_revision);
+  assert.notEqual(editedStatus.serving_build, saved.occurrence.serving_build);
+  await assertRetainedFailure(saved);
+  await writeFile(sourcePath, originalSource);
+  sourceEdited = false;
+  assert.equal(sha256(await readFile(sourcePath)), originalSourceSha);
+  await changedRevision(edited.revision);
+  const restored = await settledCheck();
+  assertReady(restored, await control('status'));
+  assert.equal(restored.source_revision, initialChecked.source_revision);
+  assert.notEqual(restored.revision, initialChecked.revision);
+  await assertRetainedFailure(saved);
+  facts.checks.blank_failure_retained_after_private_edit = true;
+  facts.checks.blank_failure_retained_after_source_restore = true;
 }
 async function login(browser, opened, label) {
   const actor = opened.actors.find(item => item.label === label);
@@ -193,13 +317,17 @@ async function tab(page, value) {
 let browser, started = false;
 try {
   await prepareRoot();
+  originalSource = await readFile(sourcePath);
+  originalSourceSha = sha256(originalSource);
+  assert.equal(originalSourceSha, sha256(await readFile(join(installed, 'tests/integration/can-dev-server/OfficeSupplies.can'))));
+  facts.source_original_sha256 = originalSourceSha;
   const session = await control('start'); started = true;
   assert.equal(session.attached, false, 'private root attached elsewhere');
   facts.checks.private_owner = true;
-  const checked = await control('check');
-  assert.equal(checked.preview, 'ready', 'preview: ' + checked.preview_reason);
-  assert.equal(checked.current, true); assert.equal(checked.state, 'valid');
-  const failures = await control('failures', ['--revision', 'r1', '--after', '-1']);
+  const checked = await settledCheck();
+  const serving = await control('status');
+  assertReady(checked, serving);
+  const failures = await control('failures', ['--revision', checked.revision, '--after', '-1']);
   assert.deepEqual(failures.failures, [], 'CLI failures --after -1');
   facts.checks.native_cli_failures_minus_one = true;
   facts.checks.current_artifact = true;
@@ -228,7 +356,9 @@ try {
   assert.equal(await count(page), 0);
   assert.equal(await page.locator('form[action*="Supply.create"] input[name="inputs[quantity]"]').count(), 1);
   facts.checks.source_form = true;
+  const beforeBlankFailure = await control('failures', ['--revision', checked.revision, '--after', '-1', '--limit', '25']);
   await rejectBlankName(page, origin);
+  const savedBlankFailure = await blankFailure(checked, serving, beforeBlankFailure);
   await create(page, origin, 'Paper', '');
   assert.equal(await count(page), 1); facts.checks.paper_optional_blank = true;
   await create(page, origin, 'Pens', '4');
@@ -326,17 +456,41 @@ try {
   assert.equal(await rows(ben.page).filter({ hasText: 'Paper' }).count(), 1);
   assert.equal(await rows(ben.page).filter({ hasText: 'Blue pens' }).count(), 0);
   facts.checks.ben_shared_rows = true;
+  await retainAcrossPrivateEdit(savedBlankFailure, checked);
   }
   facts.result = 'passed';
 } catch (error) {
   facts.result = 'failed'; facts.failure = {
     name: error.name,
     message: String(error.message).split('\n', 1)[0].slice(0, 240),
+    point: String(error.stack).match(/office-browser\.mjs:[0-9]+:[0-9]+/)?.[0] ?? null,
   };
   process.exitCode = 1;
 } finally {
-  await browser?.close();
-  if (started) { try { await control('stop'); } catch (error) { facts.stop_failure = error.message; process.exitCode = 1; } }
-  await writeFile(log, JSON.stringify(facts, null, 2));
+  try {
+    if (sourceEdited) await writeFile(sourcePath, originalSource);
+    if (originalSource !== undefined) {
+      assert.equal(sha256(await readFile(sourcePath)), originalSourceSha);
+      assert.equal(sha256(await readFile(join(installed, 'tests/integration/can-dev-server/OfficeSupplies.can'))), originalSourceSha);
+      facts.checks.source_restored_exactly = true;
+    }
+  } catch (error) { facts.result = 'failed'; facts.source_restore_failure = String(error.message).split('\n', 1)[0].slice(0, 160); process.exitCode = 1; }
+  try { await browser?.close(); }
+  catch (error) { facts.result = 'failed'; facts.browser_cleanup_failure = String(error.message).split('\n', 1)[0].slice(0, 160); process.exitCode = 1; }
+  finally {
+    if (started) {
+      try {
+        const stopped = await control('stop');
+        assert.equal(stopped.schema, 'can.dev.stop.v1');
+        assert.equal(stopped.stopped, true);
+        assert.equal(await stat(descriptorPath).then(() => true, error => {
+          if (error.code === 'ENOENT') return false;
+          throw error;
+        }), false, 'owned stop removes descriptor');
+        facts.checks.owned_stop_descriptor_removed = true;
+      } catch (error) { facts.result = 'failed'; facts.stop_failure = String(error.message).split('\n', 1)[0].slice(0, 160); process.exitCode = 1; }
+    }
+    await writeFile(log, JSON.stringify(facts, null, 2));
+  }
 }
 console.log(JSON.stringify(facts));
