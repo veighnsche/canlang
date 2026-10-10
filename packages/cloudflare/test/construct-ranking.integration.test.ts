@@ -8,6 +8,7 @@ import { compileFunction, constants as vmConstants } from "node:vm";
 import { expect, it } from "vitest";
 import { attachDevSessionService, startDevSessionService, type SessionCheckResponse, type SessionConstructQualification } from "../src/dev/session-service.js";
 import type { CompilerConstructCandidates } from "../src/dev/construct-help.js";
+import { firstProfileConstructIds } from "../src/dev/construct-help.js";
 import { prepareLocalPreviewCapture } from "../src/dev/preview-inputs.js";
 
 const project = resolve(import.meta.dirname, "../../..");
@@ -106,10 +107,19 @@ it("retains released native originating context and keeps unqualified ranking lo
 it("joins only actual current first-profile runtime and example outcomes through the private native session", async () => {
   // Native installed producer imports preserve ESM own-data metadata;
   // Vitest proxies expose export getters instead of the owning carrier.
-  const {createInstalledFirstProfileQualification}=await compileFunction("return import(url)",["url"],{
+  const nativeImport=compileFunction("return import(url)",["url"],{
     importModuleDynamically:vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
-  })(pathToFileURL(join(project,"packages/cloudflare/dist/dev/first-profile-qualification.js")).href
+  });
+  const {createInstalledFirstProfileQualification}=await nativeImport(pathToFileURL(
+    join(project,"packages/cloudflare/dist/dev/first-profile-qualification.js")).href
   ) as typeof import("../src/dev/first-profile-qualification.js");
+  // Optional browser capture also consumes owner-issued Node namespaces.
+  const {startDevSessionService,attachDevSessionService}=await nativeImport(pathToFileURL(
+    join(project,"packages/cloudflare/dist/dev/session-service.js")).href
+  ) as typeof import("../src/dev/session-service.js");
+  const {prepareLocalPreviewCapture}=await nativeImport(pathToFileURL(
+    join(project,"packages/cloudflare/dist/dev/preview-inputs.js")).href
+  ) as typeof import("../src/dev/preview-inputs.js");
   // The qualification fixture remains Compiler-owned. Only this distinct
   // invalid application is temporary, inside the selected actual checkout.
   const appRoot=await mkdtemp(join(project,".can-dev-help-"));
@@ -120,21 +130,32 @@ it("joins only actual current first-profile runtime and example outcomes through
   let qualifications=0, providerCalls=0;
   const observed:SessionConstructQualification[]=[];
   const qualificationFailures:unknown[]=[];
-  const owner=await startDevSessionService({selectedApp:"T",runtimeDir,
+  let owner:Awaited<ReturnType<typeof startDevSessionService>>|undefined;
+  try {
+    owner=await startDevSessionService({selectedApp:"T",runtimeDir,
     capture:prepareLocalPreviewCapture({checkoutRoot:project,appPath,
       compilerPath:join(project,"compiler/target/debug/can"),catalogPath:join(project,"packages/values/dist/catalog.json"),
       helpIndexPath:join(project,"docs/specification/CONSTRUCT-HELP.md")}),
     constructRanking:{qualify:async(request,signal)=>{qualifications++;try{const bundle=await qualify(request,signal);if(bundle)observed.push(bundle);return bundle;}catch(error){qualificationFailures.push(error);throw error;}},
       transport:{choose:async()=>{providerCalls++;throw new Error("no live ranking branch was qualified");}}}});
-  try {
     const client=await attachDevSessionService({checkoutRoot:project,app:"T",profile:"local-d1-identity",runtimeDir});
     const checked=await client.request({command:"check"}) as SessionCheckResponse;
     expect(checked.state).toBe("errors");expect(checked.current).toBe(true);
-    const detail=await client.request({command:"diagnostic.detail",payload:{revision:checked.revision,index:0}}) as {
-      construct_help:{candidateCoverage:string;grammarCoverage:string;classification:{id:string;profile:string;working:string}[]};
+    type Detail={construct_help:{candidateCoverage:string;grammarCoverage:string;classification:{id:string;profile:string;working:string}[]};
       diagnostic:{construct_candidates:CompilerConstructCandidates}};
-    // Production keeps failed qualification unknown; this positive integration
-    // case must report its original producer/runtime failure before card checks.
+    const readDetail=async()=>await client.request({command:"diagnostic.detail",payload:{revision:checked.revision,index:0}}) as Detail;
+    let detail=await readDetail();
+    expect(detail.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.read",profile:"included",working:"unqualified"});
+    // The daemon owns the real complete qualification job. Each bounded
+    // socket request remains useful while pending; consume only its completed
+    // same-revision result, preserving every whole-source proof assertion below.
+    const deadline=Date.now()+150_000;
+    while(!detail.construct_help.classification.some(item=>item.id==="can.v1.when.scenario.read" && item.working==="qualified")) {
+      if(qualificationFailures.length)throw qualificationFailures[0];
+      if(Date.now()>=deadline)throw new Error("whole first-profile qualification did not complete within its finite integration deadline");
+      await new Promise(resolve=>setTimeout(resolve,1000));
+      detail=await readDetail();
+    }
     if(qualificationFailures.length)throw qualificationFailures[0];
     expect(detail.construct_help.grammarCoverage).toBe("complete");
     expect(detail.construct_help.candidateCoverage).toBe("unknown");
@@ -143,8 +164,9 @@ it("joins only actual current first-profile runtime and example outcomes through
     expect(detail.diagnostic.construct_candidates.context).toMatchObject({materialIntentChoice:true,evidenceSufficient:false});
     expect(await client.request({command:"construct.rank",payload:{revision:checked.revision,index:0}}))
       .toMatchObject({result:{state:"candidate_coverage_unknown"}});
-    expect(providerCalls).toBe(0);expect(qualifications).toBe(2);
-    expect(observed[1]).toBe(observed[0]);
+    const repeated=await readDetail();
+    expect(repeated.construct_help).toEqual(detail.construct_help);
+    expect(providerCalls).toBe(0);expect(qualifications).toBe(1);expect(observed).toHaveLength(1);
     const actual=observed[0]!;
     expect(Object.isFrozen(actual)).toBe(true);expect(actual.messageKinds).toEqual([]);
     const proofs=new Map(actual.proofs.map(proof=>[proof.id,proof]));
@@ -155,8 +177,12 @@ it("joins only actual current first-profile runtime and example outcomes through
       expect(proof!.compilerSha256).toBe(actual.compilerSha256);expect(proof!.indexRevision).toBe(actual.indexRevision);
       if(id.includes("examples."))expect(proof!.exampleCheck).toContain("passed");
     }
-    for(const id of ["can.v1.ui.card",
-      "can.v1.ui.table","can.v1.ui.stat","can.v1.then.form","can.v1.then.edit","can.v1.then.delete"])expect(proofs.has(id)).toBe(false);
+    // This positive whole-source case requires the actual installed UI consumer;
+    // optional absence remains a production withholding path, not UI evidence.
+    expect([...proofs.keys()].sort()).toEqual(firstProfileConstructIds());
+    for(const id of ["can.v1.ui.card","can.v1.ui.table","can.v1.ui.stat","can.v1.then.form",
+      "can.v1.then.edit","can.v1.then.delete","can.v1.ui.tabs-selector","can.v1.type.enum"])
+      expect(proofs.get(id)!.runtimeCheck).toContain("Chromium");
     expect(await client.request({command:"preview.status"})).toMatchObject({state:"unavailable"});
-  } finally {await owner.stop();await rm(appRoot,{recursive:true,force:true});await rm(runtimeDir,{recursive:true,force:true});}
-}, 120_000);
+  } finally {await owner?.stop();await rm(appRoot,{recursive:true,force:true});await rm(runtimeDir,{recursive:true,force:true});}
+}, 180_000);
