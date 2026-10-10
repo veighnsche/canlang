@@ -972,7 +972,7 @@
       }
     },
     "TECH-F01": {
-      "planning_status": "blocked",
+      "planning_status": "implementing",
       "state": "Independently accepted joined completion/finalization size correction at98c1e811/d450130f; broader lifecycle open",
       "files": [
         "packages/files/src/ports.ts",
@@ -1027,8 +1027,139 @@
       },
       "commit": "d450130f",
       "remaining_prerequisite": {
-        "prerequisite": "Append staging/count drift now refuses before another write; retry identity and durable atomic/recoverable append/count/blob and separate finalization publication phases still need owning contracts/producer plus mounted/provider qualification.",
-        "owner": "Files durable storage/finalization owner; Interfaces upload consumer"
+        "prerequisite": "Packages finalization publication/reopen/retention repair implemented with direct affected checks; offset retry consultation specifically held awaiting exact human approval. Packages owns append/Interfaces consumer implementation after choice; actual mounted/native/provider qualification remains owning host dependency.",
+        "owner": "Packages defining Files/Interfaces contract; human exact three-request approval; Dev actual native consumer"
+      },
+      "append_retry_consultation": {
+        "status": "held: automatic approval review rejected export of summarized internal upload/storage facts; exact three requests awaiting human approval; not sent",
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "problem": "Choose an explicit idempotent chunk contract for a bounded, authenticated, append-only binary upload API. This is an abstract programming design question, without code, identifiers, deployment locations, credentials or application data.",
+              "required_outcomes": [
+                "A lost reply after committed partial or complete upload can be retried without appending duplicate bytes.",
+                "Identical bytes intentionally sent at the next offset append normally.",
+                "Wrong offset, gaps, partially overlapping ranges and changed bytes under an earlier range refuse without effects.",
+                "Retry correctness survives reopening storage and serialized competing clients.",
+                "A retry of a complete transfer can recover completion evidence before finalization. Terminal rejected, expired or finalized uploads remain closed.",
+                "No unbounded per-request metadata growth, implicit current-offset inference or weakening actual byte count/digest checks."
+              ],
+              "available_mechanisms": [
+                "The selected durable binding runs synchronous blob and upload metadata mutations within one real SQLite transaction. Separate external filesystem and metadata ports cannot share that transaction.",
+                "Uploads are bounded by an existing byte ceiling. The current byte port can read a copied bounded staging buffer and its size.",
+                "The API can require a canonical nonnegative safe integer byte offset. Content length comes from the actual chunk bytes."
+              ],
+              "candidates": {
+                "range_identity": "Require offset. New bytes append only when offset equals the committed length. A fully covered prior range succeeds only when its exact stored bytes match the supplied bytes; its deterministic acknowledgment is the range end. Gap, partial overlap or mismatch refuses. Intent plus offset/length/exact bytes defines retry identity; no nonce history. Empty chunk is a zero-effect request. Current completion status is distinct from range acknowledgment. Transaction serializes validation and writes.",
+                "nonce_ledger": "Require stable chunk nonce and offset. Persist every nonce with offset, length, digest and original acknowledgment in the same transaction as bytes/count. Matching nonce replay returns stored acknowledgment; conflicting reuse refuses. New identical bytes at the next offset use a new nonce. Impose an explicit maximum ledger size or minimum chunk size so zero-byte/tiny chunks cannot cause unbounded metadata.",
+                "defer": "Do not release retry-safe upload until an independently required producer or storage capability is identified. Preserve existing duplicate-unsafe append only with an explicit limitation; does not satisfy the requested full retry outcome now."
+              }
+            },
+            "questions": {
+              "retry_contract": {
+                "type": "choice",
+                "instructions": "Which candidate best satisfies all required outcomes using only the available mechanisms, while keeping the public contract and retained metadata simple? Treat deterministic range acknowledgment and current completion status separately; do not credit implicit offsets or partial-overlap healing.",
+                "criteria": {
+                  "range_identity": "Require offset. New bytes append only when offset equals the committed length. A fully covered prior range succeeds only when its exact stored bytes match the supplied bytes; its deterministic acknowledgment is the range end. Gap, partial overlap or mismatch refuses. Intent plus offset/length/exact bytes defines retry identity; no nonce history. Empty chunk is a zero-effect request. Current completion status is distinct from range acknowledgment. Transaction serializes validation and writes.",
+                  "nonce_ledger": "Require stable chunk nonce and offset. Persist every nonce with offset, length, digest and original acknowledgment in the same transaction as bytes/count. Matching nonce replay returns stored acknowledgment; conflicting reuse refuses. New identical bytes at the next offset use a new nonce. Impose an explicit maximum ledger size or minimum chunk size so zero-byte/tiny chunks cannot cause unbounded metadata.",
+                  "defer": "Do not release retry-safe upload until an independently required producer or storage capability is identified. Preserve existing duplicate-unsafe append only with an explicit limitation; does not satisfy the requested full retry outcome now."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "problem": "Choose an explicit idempotent chunk contract for a bounded, authenticated, append-only binary upload API. This is an abstract programming design question, without code, identifiers, deployment locations, credentials or application data.",
+              "required_outcomes": [
+                "A lost reply after committed partial or complete upload can be retried without appending duplicate bytes.",
+                "Identical bytes intentionally sent at the next offset append normally.",
+                "Wrong offset, gaps, partially overlapping ranges and changed bytes under an earlier range refuse without effects.",
+                "Retry correctness survives reopening storage and serialized competing clients.",
+                "A retry of a complete transfer can recover completion evidence before finalization. Terminal rejected, expired or finalized uploads remain closed.",
+                "No unbounded per-request metadata growth, implicit current-offset inference or weakening actual byte count/digest checks."
+              ],
+              "available_mechanisms": [
+                "The selected durable binding runs synchronous blob and upload metadata mutations within one real SQLite transaction. Separate external filesystem and metadata ports cannot share that transaction.",
+                "Uploads are bounded by an existing byte ceiling. The current byte port can read a copied bounded staging buffer and its size.",
+                "The API can require a canonical nonnegative safe integer byte offset. Content length comes from the actual chunk bytes."
+              ],
+              "candidates": {
+                "range_identity": "Require offset. New bytes append only when offset equals the committed length. A fully covered prior range succeeds only when its exact stored bytes match the supplied bytes; its deterministic acknowledgment is the range end. Gap, partial overlap or mismatch refuses. Intent plus offset/length/exact bytes defines retry identity; no nonce history. Empty chunk is a zero-effect request. Current completion status is distinct from range acknowledgment. Transaction serializes validation and writes.",
+                "nonce_ledger": "Require stable chunk nonce and offset. Persist every nonce with offset, length, digest and original acknowledgment in the same transaction as bytes/count. Matching nonce replay returns stored acknowledgment; conflicting reuse refuses. New identical bytes at the next offset use a new nonce. Impose an explicit maximum ledger size or minimum chunk size so zero-byte/tiny chunks cannot cause unbounded metadata.",
+                "defer": "Do not release retry-safe upload until an independently required producer or storage capability is identified. Preserve existing duplicate-unsafe append only with an explicit limitation; does not satisfy the requested full retry outcome now."
+              }
+            },
+            "questions": {
+              "retry_contract": {
+                "type": "choice",
+                "instructions": "Select the smallest complete retry contract for this bounded append-only upload. Compare offset plus exact covered-range equality against a persisted nonce ledger under the same reopen, conflict, identical-next-chunk and completion requirements; defer only for a concrete unavailable capability.",
+                "criteria": {
+                  "range_identity": "Require offset. New bytes append only when offset equals the committed length. A fully covered prior range succeeds only when its exact stored bytes match the supplied bytes; its deterministic acknowledgment is the range end. Gap, partial overlap or mismatch refuses. Intent plus offset/length/exact bytes defines retry identity; no nonce history. Empty chunk is a zero-effect request. Current completion status is distinct from range acknowledgment. Transaction serializes validation and writes.",
+                  "nonce_ledger": "Require stable chunk nonce and offset. Persist every nonce with offset, length, digest and original acknowledgment in the same transaction as bytes/count. Matching nonce replay returns stored acknowledgment; conflicting reuse refuses. New identical bytes at the next offset use a new nonce. Impose an explicit maximum ledger size or minimum chunk size so zero-byte/tiny chunks cannot cause unbounded metadata.",
+                  "defer": "Do not release retry-safe upload until an independently required producer or storage capability is identified. Preserve existing duplicate-unsafe append only with an explicit limitation; does not satisfy the requested full retry outcome now."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "problem": "Choose an explicit idempotent chunk contract for a bounded, authenticated, append-only binary upload API. This is an abstract programming design question, without code, identifiers, deployment locations, credentials or application data.",
+              "required_outcomes": [
+                "A lost reply after committed partial or complete upload can be retried without appending duplicate bytes.",
+                "Identical bytes intentionally sent at the next offset append normally.",
+                "Wrong offset, gaps, partially overlapping ranges and changed bytes under an earlier range refuse without effects.",
+                "Retry correctness survives reopening storage and serialized competing clients.",
+                "A retry of a complete transfer can recover completion evidence before finalization. Terminal rejected, expired or finalized uploads remain closed.",
+                "No unbounded per-request metadata growth, implicit current-offset inference or weakening actual byte count/digest checks."
+              ],
+              "available_mechanisms": [
+                "The selected durable binding runs synchronous blob and upload metadata mutations within one real SQLite transaction. Separate external filesystem and metadata ports cannot share that transaction.",
+                "Uploads are bounded by an existing byte ceiling. The current byte port can read a copied bounded staging buffer and its size.",
+                "The API can require a canonical nonnegative safe integer byte offset. Content length comes from the actual chunk bytes."
+              ],
+              "candidates": {
+                "range_identity": "Require offset. New bytes append only when offset equals the committed length. A fully covered prior range succeeds only when its exact stored bytes match the supplied bytes; its deterministic acknowledgment is the range end. Gap, partial overlap or mismatch refuses. Intent plus offset/length/exact bytes defines retry identity; no nonce history. Empty chunk is a zero-effect request. Current completion status is distinct from range acknowledgment. Transaction serializes validation and writes.",
+                "nonce_ledger": "Require stable chunk nonce and offset. Persist every nonce with offset, length, digest and original acknowledgment in the same transaction as bytes/count. Matching nonce replay returns stored acknowledgment; conflicting reuse refuses. New identical bytes at the next offset use a new nonce. Impose an explicit maximum ledger size or minimum chunk size so zero-byte/tiny chunks cannot cause unbounded metadata.",
+                "defer": "Do not release retry-safe upload until an independently required producer or storage capability is identified. Preserve existing duplicate-unsafe append only with an explicit limitation; does not satisfy the requested full retry outcome now."
+              }
+            },
+            "questions": {
+              "retry_contract": {
+                "type": "choice",
+                "instructions": "For the stated upload requirements, which implementation choice provides explicit lost-reply safety and bounded resources with the least unnecessary state? Evaluate both the range-based identity and nonce-history design fairly, including old ranges, empty chunks and complete-transfer retries.",
+                "criteria": {
+                  "range_identity": "Require offset. New bytes append only when offset equals the committed length. A fully covered prior range succeeds only when its exact stored bytes match the supplied bytes; its deterministic acknowledgment is the range end. Gap, partial overlap or mismatch refuses. Intent plus offset/length/exact bytes defines retry identity; no nonce history. Empty chunk is a zero-effect request. Current completion status is distinct from range acknowledgment. Transaction serializes validation and writes.",
+                  "nonce_ledger": "Require stable chunk nonce and offset. Persist every nonce with offset, length, digest and original acknowledgment in the same transaction as bytes/count. Matching nonce replay returns stored acknowledgment; conflicting reuse refuses. New identical bytes at the next offset use a new nonce. Impose an explicit maximum ledger size or minimum chunk size so zero-byte/tiny chunks cannot cause unbounded metadata.",
+                  "defer": "Do not release retry-safe upload until an independently required producer or storage capability is identified. Preserve existing duplicate-unsafe append only with an explicit limitation; does not satisfy the requested full retry outcome now."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [],
+        "scope": "Necessary defining append retry choice only; does not authorize other held payloads or certify production hosts."
+      },
+      "finalization_recovery": {
+        "state": "implemented and directly tested; parent TECH-F01 unfinished",
+        "contract": "Optional persisted pendingFinalization ref/time precedes final-byte publication. Verify exact staged count/declared count/digest, prior final bytes, file/provenance/owner/time and claim; never overwrite changed immutable bytes or revive orphaned/expired pending publication. Persist finalized intent before staging deletion; repeats settle staging cleanup and retain immutable tombstone metadata.",
+        "storage_scope": "Selected actual Node SQLite binding serializes blob+metadata in its existing real transaction. Actual FS+SQLite metadata checks prove serial persisted-phase reopen recovery or refusal, not concurrent external-store serialization or power-loss fsync/R2 qualification.",
+        "validation": {
+          "build": "Final clean owning Files emission passed with Node24.19/Bun1.4.2, after correcting explicit types in two new persisted replay snapshots.",
+          "affected_tests": "99 distinct affected cases pass: initial83 completed81 directly and exact two local provider server cases with listener permission; timestamp correction rechecks33 finalization cases including1 new actual SQLite corruption/reopen control; affected retention15/15 pass including7 new real FS+SQLite phase/cleanup controls. Other unchanged completion/FS/provider outcomes reused.",
+          "logs": [
+            "/private/tmp/can-packages-file-finalization-build.log",
+            "/private/tmp/can-packages-file-finalization-tests.log",
+            "/private/tmp/can-packages-file-provider-socket-tests.log",
+            "/private/tmp/can-packages-file-finalization-replay-tests.log",
+            "/private/tmp/can-packages-file-finalization-retention-tests.log"
+          ]
+        },
+        "remaining": "Retry Choice trio remains specifically held awaiting exact human approval; no requests sent. Actual mounted new transport/native/provider qualification remains owning-host work; serial FS protocol does not establish concurrent external-store serialization or power-loss/R2 acceptance.",
+        "review": "Finite source review returned immutable timestamp/claim replay gap; corrected and actual persisted regression passes. Exact retention/timestamp extension review CLEAR; no other concrete defect. No whole packet/source-host acceptance."
       }
     },
     "TECH-F02": {
