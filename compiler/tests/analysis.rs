@@ -1086,7 +1086,9 @@ fn draft_outcome_table() {
         ("draft/CanPropose.can", 127),
         ("draft/CanPurchase.can", 143),
         ("draft/CanReception.can", 179),
-        ("draft/CanRefer.can", 79),
+        // The nonexported join_program retains its input scope without
+        // redeclaring closed builtin join; only its four cascades disappear.
+        ("draft/CanRefer.can", 75),
         ("draft/CanRent.can", 538),
         ("draft/CanReport.can", 16),
         ("draft/CanShift.can", 100),
