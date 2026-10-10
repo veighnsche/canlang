@@ -53,9 +53,10 @@
  *   Worker/MCP/HTTP entries resolve through package exports, so installed
  *   consumers use the same build artifacts as checkout consumers.
  *   Nonliteral dynamic imports remain checked behaviorally by with-DB boot
- *   tests. The optional state receipt observer is still absent; its exact
- *   absence permits the Node/dev work producer fallback, while deployed
- *   receipt serving continues to require the injected/worker-safe observer.
+ *   tests. The optional State receipt observer is still absent; its exact
+ *   absence selects the genuine public Work receipt producer in Node/dev.
+ *   Its portable receipt/observation closure is staged from owning exports;
+ *   actual serving tests must qualify each host's absence/failure behavior.
  *
  * `instanceof IdentityError` invariant (mirrors the fixture header in
  * `tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js`): bundling duplicates

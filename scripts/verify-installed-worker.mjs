@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -119,6 +119,72 @@ async function verifyConsumer(checkout) {
   const receipt = await import(ownerModule('@canlang/state/receipt'));
   await assert.rejects(receipt.loadReceiptObserver(), error => error.code === 'ERR_MODULE_NOT_FOUND' && error.message.includes(fileURLToPath(receipt.receiptObserverModuleUrl)));
 
+  // The public Work producer and its real relative cycle must survive packing.
+  // Optional State observer absence remains distinct from this present producer.
+  const workReceiptEntry = ownerModule('@canlang/work/receipt');
+  const workReceipt = await import(workReceiptEntry);
+  const workObservation = await import(ownerModule('@canlang/work/observation/observation'));
+  const workAssociation = await import(ownerModule('@canlang/work/observation/association'));
+  const workFns = await workReceipt.loadWorkReceiptFns();
+  assert.equal(workFns.observeSelectedReceipt, workObservation.observeSelectedReceipt);
+  assert.equal(workFns.applyReceiptProgress, workAssociation.applyReceiptProgress);
+  assert.equal(workFns.isConsistentCompletion, workReceipt.isConsistentCompletion);
+  const workClosure = ['vendor/work/receipt/index.js', 'vendor/work/observation/observation.js', 'vendor/work/observation/association.js'];
+  for (const key of workClosure) {
+    assert.ok(first.modules[key], key);
+    const missing = { ...first.modules }; delete missing[key];
+    assert.throws(() => api.assertLinksResolve(missing), /no such staged module/, `missing ${key}`);
+  }
+  assert.ok(first.modules['runtime/invoke.js'].includes('../vendor/work/receipt/index.js'));
+  assert.ok(!first.modules['runtime/invoke.js'].includes('@canlang/work/receipt'));
+  api.assertLinksResolve(first.modules); api.assertWorkerdLoadable(first.modules);
+
+  // Reuse the actual serving control at a new installed location. This child
+  // cannot read checkout source and exercises the uninjected Node fallback
+  // through genuine Identity, State receipt rows and the public Work producer.
+  const invokeEntry = ownerModule('@canlang/cloudflare/runtime/invoke');
+  const servingControl = join(dirname(fileURLToPath(invokeEntry)), 'd3b-observer-seam.test.js');
+  installedFile(pathToFileURL(servingControl));
+  execFileSync(process.execPath, ['--permission', `--allow-fs-read=${process.env.TMPDIR}`, `--allow-fs-write=${process.env.TMPDIR}`,
+    '--test', '--test-name-pattern=serves deep-equal output', servingControl],
+  { cwd: consumer, env: process.env, stdio: 'inherit' });
+
+  // Stale direct-emission residue in isolated installed copies must not enter
+  // the Worker map. Production bytes are untouched, and exclusions stay live.
+  const staleFiles = [
+    new URL('fanout/work-loader.js', distributions.state.modules),
+    new URL('receipt/work-loader.js', distributions.state.modules),
+    new URL('receipt/stale.test.js', distributions.state.modules),
+    new URL('sessions/comparison-node.js', distributions.identity.modules),
+    new URL('stale-node-only.js', new URL('../observation/', workReceiptEntry)),
+    new URL('stale.test.js', new URL('../observation/', workReceiptEntry)),
+  ].map(fileURLToPath);
+  const staleSaved = staleFiles.map(file => existsSync(file) ? readFileSync(file) : null);
+  try {
+    for (const file of staleFiles) {
+      assert.ok(inside(file, consumer)); mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, 'import { readFileSync } from "node:fs"; export { readFileSync };\n');
+    }
+    const stale = api.buildDeployBundle(artifact, { verdict: options.verdict });
+    assert.deepEqual(stale, plain, 'stale excluded bytes cannot change the ordinary bundle');
+    api.assertLinksResolve(stale.modules); api.assertWorkerdLoadable(stale.modules);
+  } finally {
+    for (let index = 0; index < staleFiles.length; index++) {
+      const saved = staleSaved[index];
+      if (saved === null) rmSync(staleFiles[index]); else writeFileSync(staleFiles[index], saved);
+    }
+  }
+
+  // Mutate only isolated producer files, never the checkout's shared outputs.
+  for (const specifier of ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association']) {
+    const file = fileURLToPath(ownerModule(specifier)); const saved = readFileSync(file);
+    try {
+      rmSync(file);
+      assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }),
+        error => error.message.includes(file) && /not built|ENOENT/.test(error.message), `missing real ${specifier}`);
+    } finally { writeFileSync(file, saved); }
+  }
+
   // Boot the actual installed production entry, including its assembly and D1
   // producer graph. A credential-free initialize request reaches the auth seam.
   installedFile(import.meta.resolve('@canlang/cloudflare/dev/local-run'));
@@ -187,7 +253,7 @@ async function verifyConsumer(checkout) {
       writeFileSync(file, saved);
     }
   }
-  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: 'exact missing producer remains fail-closed' };
+  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 } };
   writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 }
