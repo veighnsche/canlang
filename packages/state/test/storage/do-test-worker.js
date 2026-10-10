@@ -16,6 +16,7 @@
  * - POST /exec  { sql, params? } -> { ok, rows } for probe SELECTs.
  */
 import { createDOStorage, ensureSchema } from '../../dist/src/storage/durable-object.js';
+import { STATE_FILE_REFERENCE_PRODUCER } from '../../dist/src/storage/file-reference-inventory.js';
 
 const TABLES = [
   'records',
@@ -74,7 +75,8 @@ export class TestDO {
       if (request.method === 'POST' && url.pathname === '/reopen') {
         const body = await request.json();
         await ensureSchema(this.state.storage);
-        this.store = body.authority === undefined ? createDOStorage(this.state.storage) : createDOStorage(this.state.storage, body.authority);
+        const producers = body.framework === 'state' ? [STATE_FILE_REFERENCE_PRODUCER] : [];
+        this.store = body.authority === undefined ? createDOStorage(this.state.storage, undefined, producers) : createDOStorage(this.state.storage, body.authority, producers);
         return Response.json({ ok: true });
       }
       if (request.method === 'POST' && url.pathname === '/exec') {
