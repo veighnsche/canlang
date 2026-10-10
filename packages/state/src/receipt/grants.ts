@@ -35,7 +35,7 @@ import type { ReceiptProperty } from '@canlang/contracts';
 import type { ModelName, StoredRow } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import {
-  matchGrants,
+  observeMatchingGrants,
   type ByContext,
   type PolicyTable,
 } from '../policy/grants.js';
@@ -150,7 +150,7 @@ export interface JoinCaller {
 /**
  * Resolve the union of granted dot paths for one owning record: the
  * caller's membership is resolved once, then `matchGrants` evaluates
- * each grant's row-independent `by` plus its row-level `when` against
+ * each grant's owning-row `by` plus its row-level `when` against
  * the CURRENT stored row. A model with no policy entry grants nothing
  * (deny, never error — the engine precedent).
  */
@@ -161,9 +161,22 @@ export async function resolveLeafGrantPaths(input: {
   readonly memberships: MembershipReader;
   readonly row: StoredRow;
 }): Promise<ReadonlySet<string>> {
+  const authority = await observeLeafGrantPaths(input);
+  await authority.revalidate?.();
+  return authority.paths;
+}
+
+/** Internal selected-disclosure join; final check follows actual receipt loads. */
+export async function observeLeafGrantPaths(input: {
+  readonly policy: PolicyTable;
+  readonly model: ModelName;
+  readonly caller: JoinCaller;
+  readonly memberships: MembershipReader;
+  readonly row: StoredRow;
+}): Promise<{ readonly paths: ReadonlySet<string>; readonly revalidate?: () => Promise<void> }> {
   const found = input.policy.get(input.model);
   if (found === undefined) {
-    return new Set();
+    return { paths: new Set() };
   }
   const membership =
     input.caller.actorUserId !== null && input.caller.teamId !== null
@@ -175,14 +188,14 @@ export async function resolveLeafGrantPaths(input: {
     membership,
     memberships: input.memberships,
   };
-  const matched = await matchGrants(found, byCtx, input.row);
+  const authority = await observeMatchingGrants(found, byCtx, input.row);
   const paths = new Set<string>();
-  for (const grant of matched) {
+  for (const grant of authority.grants) {
     for (const field of grant.fields) {
       paths.add(field);
     }
   }
-  return paths;
+  return { paths, ...(authority.revalidate === undefined ? {} : { revalidate: authority.revalidate }) };
 }
 
 /**

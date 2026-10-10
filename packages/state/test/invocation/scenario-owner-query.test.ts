@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ArtifactModel, CanTypeId, ClosedInputs, Receipt, StoredRow } from '@canlang/contracts';
+import { createFrozenClock, createMemoryIdentityStore as createIdentityMemoryStore } from '@canlang/identity/testing';
+import type { MembershipReader } from '../../src/policy/roles.js';
 import { normalizeValueTypes } from '@canlang/values';
 import { checkQueryInventory } from '../../src/invocation/scenario-query-plan.js';
 import { projectReadScenarioQueryResult } from '../../src/invocation/index.js';
@@ -18,7 +20,7 @@ import { beginScenarioReceiptMutation, bindScenarioReceiptCallProducer, bindScen
   invokeScenarioReceiptCall, executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency,
   bindScenarioReceiptQueryResult, selectScenarioReceiptReturn, readScenarioReceiptAssociation,
   projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
-import { FIXED_NOW, asModel, createMemoryIdentityStore, makeEnvelope, makeIdentity, seedMember, seedRow, uuidv7 } from './fixtures.js';
+import { FIXED_NOW, asModel, createMemoryIdentityStore, makeEnvelope, makeIdentity, seedMember, seedRow, updateRow, uuidv7 } from './fixtures.js';
 import { field, modelDef } from '../mutation/fixtures.js';
 
 const MODEL = asModel('Query.Task'), ROOT = 'Query.review', READ = 'Query.facts';
@@ -68,11 +70,14 @@ function artifact(child = false): ArtifactDescriptorSlice {
       result: { type: 'Fact[]' as CanTypeId, disclosure: disclosure() } }] : [])],
   };
 }
-async function world(options: { child?: boolean; empty?: boolean; lazy?: boolean; constrainedRead?: boolean } = {}) {
+async function world(options: { child?: boolean; empty?: boolean; lazy?: boolean; constrainedRead?: boolean; reviewer?: string } = {}) {
   const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
   const member = await seedMember(memberships, { isOwner: false });
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
   const slice = artifact(options.child);
+  if (options.reviewer !== undefined) slice.models![0]!.fields.push({ name: 'reviewer',
+    field: { kind: 'user' }, valueType: 'user' as CanTypeId, required: true, serverOnly: false });
+  const reviewerData = options.reviewer === undefined ? {} : { reviewer: { id: options.reviewer } };
   if (options.constrainedRead) {
     const key = slice.valueTypes!.contracts![0]!.fields.find(field => field.name === 'key')!;
     Object.assign(key, { trim: true, max: 1 });
@@ -90,19 +95,23 @@ async function world(options: { child?: boolean; empty?: boolean; lazy?: boolean
   const read = loaded.registry.get(READ);
   if (options.child) assert.ok(read && isGeneratedOperationDef(read));
   const rows: StoredRow[] = options.empty ? [] : await Promise.all([
-    seedRow(store, MODEL, { id: 'task-c', data: { key: 'c', done: true, approved: false } }),
+    seedRow(store, MODEL, { id: 'task-c', data: { key: 'c', done: true, approved: false, ...reviewerData } }),
   ]);
   if (!options.empty) {
-    rows.push(await seedRow(store, MODEL, { id: 'task-a', data: { key: 'a', done: true, approved: false } }));
-    rows.push(await seedRow(store, MODEL, { id: 'task-b', data: { key: 'b', done: false, approved: false } }));
+    rows.push(await seedRow(store, MODEL, { id: 'task-a', data: { key: 'a', done: true, approved: false, ...reviewerData } }));
+    rows.push(await seedRow(store, MODEL, { id: 'task-b', data: { key: 'b', done: false, approved: false, ...reviewerData } }));
   }
   const table = buildModelTable([modelDef(MODEL, { fields: { key: field({ required: true }),
-    done: field({ required: true }), approved: field({ default: false }) } })]);
-  const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['key', 'done', 'approved'] }] }]);
+    done: field({ required: true }), approved: field({ default: false }),
+    ...(options.reviewer === undefined ? {} : { reviewer: field({ required: true }) }) } })]);
+  const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{
+    by: options.reviewer === undefined ? 'members' : { roleSubject: { role: 'Query.reviewer',
+      person: { model: MODEL, field: 'reviewer' } } }, fields: ['key', 'done', 'approved'],
+  }] }], loaded.models);
   const queryDef = options.child ? read : parent;
   assert.ok(queryDef && isGeneratedOperationDef(queryDef));
   bindScenarioReceiptQueryProducer(queryDef, { source: source(), app: APP, policy });
-  return { store, memberships, member, identity, parent, read, table, rows, policy, registry: loaded.registry,
+  return { store, memberships, member, identity, parent, read, table, rows, policy, models: loaded.models, registry: loaded.registry,
     app: APP, source: 'test', clock: { nowMs: () => FIXED_NOW },
     envelope: makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), {}) };
 }
@@ -127,7 +136,7 @@ function select(call: AdmittedCall, w: World, result: Query, value = wire(result
   selectScenarioReceiptReturn(call, w.store, 'facts-return');
   return value;
 }
-async function domain(w: World) { return { rows: await w.store.query({ model: MODEL, authority: 'owner', limit: 10 }),
+async function domain(w: Pick<World, 'store' | 'rows'>) { return { rows: await w.store.query({ model: MODEL, authority: 'owner', limit: 10 }),
   history: await Promise.all(w.rows.map(row => w.store.historyFor(MODEL, row.id))), outbox: await w.store.outboxPending() }; }
 
 for (const vacant of [false, true]) test(`actual ordered query retains ${vacant ? 'empty domain' : 'false predicate candidates'} and replays without predicate evaluation`, async () => {
@@ -651,4 +660,80 @@ test('fresh bound read validates complete owning wire without a receipt frame', 
   output[0]!.key = 'changed output';
   assert.equal(selected[0]!.data['key'], 'a');
   assert.deepEqual(await domain(w), before);
+});
+
+async function savedRowSubjectQuery() {
+  const base = await world({ reviewer: 'historical-reviewer' });
+  const memberships = createIdentityMemoryStore({ clock: createFrozenClock(FIXED_NOW) });
+  const roles = [{ role: 'Query.reviewer', granted_at: new Date(FIXED_NOW).toISOString(),
+    granted_by: base.member.user.user_id }];
+  const caller = await memberships.createMembership({ team_id: base.member.team.team_id,
+    user_id: base.member.user.user_id, is_owner: false, roles });
+  const historical = await memberships.createMembership({ team_id: caller.team_id,
+    user_id: 'historical-reviewer', is_owner: false, roles });
+  const identity = makeIdentity({ userId: caller.user_id, team: base.member.team, membership: caller });
+  let receipt: Receipt | undefined, executions = 0;
+  const seen: string[] = [];
+  const invocation = { ...base, memberships, identity, execute: async (call: AdmittedCall) => {
+    executions++;
+    const session = await beginScenarioReceiptMutation(call, base.store, { table: base.table, bounds });
+    const selected = select(call, base, await query(call, base, seen));
+    const final = await session.finalize();
+    return { ...final, outbox: final.outbox ?? [], result: selected };
+  }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
+  assert.equal((await invoke(invocation)).status, 'committed'); assert.ok(receipt);
+  assert.equal(executions, 1); assert.equal(seen.length, 3); assert.equal(new Set(seen).size, 3);
+  for (const saved of base.rows) {
+    const current = await base.store.load(MODEL, saved.id); assert.ok(current);
+    await updateRow(base.store, MODEL, current, { data: { ...current.data,
+      reviewer: { id: caller.user_id }, key: `current-${current.id}`, done: false } });
+  }
+  // Historical authority is gone. Current row authority uses the same caller,
+  // whose role remains explicit; projection must not consult the historical id.
+  await memberships.removeMembership(historical.membership_id);
+  return { ...base, memberships, identity, caller, historical, receipt, seen,
+    executions: () => executions };
+}
+
+test('saved owner query uses current row subjects and returns original selected wire and versions with a singular caller reader', async () => {
+  const w = await savedRowSubjectQuery(); const lookedUp: string[] = [];
+  const memberships: MembershipReader = { findMembership: async (team, user) => {
+    lookedUp.push(user);
+    assert.equal(user, w.caller.user_id, 'historical query subject is not current authority');
+    return w.memberships.findMembership(team, user);
+  } };
+  const before = { revision: await w.store.readRevision(), domain: await domain(w),
+    receipt: await w.store.readReceipt(w.receipt.identity) };
+  const projected = await projectScenarioReceipt({ ...w, memberships });
+  assert.deepEqual(projected, { result: [
+    { task: { id: 'task-a', version: '1' }, version: '1', key: 'a' },
+    { task: { id: 'task-c', version: '1' }, version: '1', key: 'c' },
+  ], records: [] });
+  assert.ok(lookedUp.length > 0); assert.ok(lookedUp.every(user => user === w.caller.user_id));
+  assert.equal(w.executions(), 1); assert.equal(w.seen.length, 3);
+  assert.deepEqual({ revision: await w.store.readRevision(), domain: await domain(w),
+    receipt: await w.store.readReceipt(w.receipt.identity) }, before);
+});
+
+test('saved owner query withholds current unrelated or revoked subjects and expired row lifetime without reexecution', async () => {
+  for (const control of ['unrelated', 'revoked', 'archived', 'recreated-lifetime'] as const) {
+    const w = await savedRowSubjectQuery();
+    if (control === 'unrelated') {
+      const row = await w.store.load(MODEL, w.rows[0]!.id); assert.ok(row);
+      await updateRow(w.store, MODEL, row, { data: { ...row.data, reviewer: { id: 'unrelated-reviewer' } } });
+    }
+    if (control === 'revoked') await w.memberships.setMembershipRoles(w.caller.membership_id, []);
+    if (control === 'archived' || control === 'recreated-lifetime') {
+      const row = await w.store.load(MODEL, w.rows[0]!.id); assert.ok(row);
+      await updateRow(w.store, MODEL, row, control === 'archived'
+        ? { archivedAt: FIXED_NOW } : { created: row.created + 1, createdBy: 'new-lifetime' });
+    }
+    const before = { revision: await w.store.readRevision(), domain: await domain(w),
+      receipt: await w.store.readReceipt(w.receipt.identity) };
+    assert.deepEqual(await projectScenarioReceipt({ ...w, memberships: w.memberships }),
+      { result: null, records: [] }, control);
+    assert.equal(w.executions(), 1); assert.equal(w.seen.length, 3);
+    assert.deepEqual({ revision: await w.store.readRevision(), domain: await domain(w),
+      receipt: await w.store.readReceipt(w.receipt.identity) }, before);
+  }
 });

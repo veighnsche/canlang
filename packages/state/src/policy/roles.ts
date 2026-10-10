@@ -8,7 +8,9 @@
  * never coerced to false.
  */
 
-import type { Membership, MembershipSnapshot } from '@canlang/contracts';
+import type { Membership, MembershipSnapshot, ModelName } from '@canlang/contracts';
+import type { ByContext } from './grants.js';
+import { resolvePolicyRowSubject } from './row-subject.js';
 
 /**
  * Structural subset of the L6 IdentityStore consumed by admission. The L6
@@ -21,14 +23,14 @@ export interface MembershipReader {
   findMembershipsSnapshot?(teamId: string, userIds: readonly string[]): Promise<MembershipSnapshot>;
 }
 
-/** Actor predicate AST: built-ins, declared roles, subject form, combinators. */
+/** Actor predicate AST; row subjects select one owning top-level user field. */
 export type ByPredicate =
   | 'members'
   | 'owner'
   | 'authenticated'
   | 'public'
   | { role: string }
-  | { roleSubject: { role: string; person: string } }
+  | { roleSubject: { role: string; person: string | { model: ModelName; field: string } } }
   | { and: ByPredicate[] }
   | { or: ByPredicate[] }
   | { not: ByPredicate };
@@ -59,16 +61,12 @@ export async function hasRole(
  * Evaluate a `by` predicate. `membership` is the caller's membership in the
  * resolved team (null when there is no actor, no team, or no membership);
  * declared-role checks re-resolve through `memberships` so subject and
- * caller forms observe the same current admission state.
+ * caller forms observe the same current admission state. Row subjects require
+ * a context bound by withPolicyRow to the validated owning model policy.
  */
 export async function evaluateBy(
   by: ByPredicate,
-  ctx: {
-    actorUserId: string | null;
-    teamId: string | null;
-    membership: Membership | null;
-    memberships: MembershipReader;
-  },
+  ctx: ByContext,
 ): Promise<boolean> {
   if (by === 'public') return true;
   if (by === 'authenticated') return ctx.actorUserId !== null;
@@ -96,11 +94,24 @@ export async function evaluateBy(
       by.role,
     );
   }
+  const subject = by.roleSubject.person;
+  const person = typeof subject === 'string' ? subject : resolvePolicyRowSubject(ctx, subject);
+  // A nullable row subject is absent; it never substitutes the caller.
+  if (person === null) return false;
   return hasRole(
     { actorUserId: ctx.actorUserId, teamId: ctx.teamId, memberships: ctx.memberships },
     by.roleSubject.role,
-    by.roleSubject.person,
+    person,
   );
+}
+
+/** Classify recursively without evaluating or resolving any subjects. */
+export function byDependsOnRow(by: ByPredicate): boolean {
+  if (typeof by === 'string') return false;
+  if ('and' in by) return by.and.some(byDependsOnRow);
+  if ('or' in by) return by.or.some(byDependsOnRow);
+  if ('not' in by) return byDependsOnRow(by.not);
+  return 'roleSubject' in by && typeof by.roleSubject.person !== 'string';
 }
 
 /**
@@ -170,8 +181,20 @@ export function validateByPredicate(by: ByPredicate, what: string): void {
       throw new Error(`Invalid ${what}: roleSubject needs { role, person }.`);
     }
     const { role, person } = subject as { role: unknown; person: unknown };
-    if (typeof role !== 'string' || role === '' || typeof person !== 'string' || person === '') {
+    if (typeof role !== 'string' || role === '' || person === '') {
       throw new Error(`Invalid ${what}: roleSubject needs non-empty role and person.`);
+    }
+    if (typeof person === 'string') return;
+    if (typeof person !== 'object' || person === null || Array.isArray(person)) {
+      throw new Error(`Invalid ${what}: roleSubject person needs a static user id or { model, field }.`);
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(person);
+    const model = descriptors['model'];
+    const field = descriptors['field'];
+    if (Reflect.ownKeys(person).length !== 2 || model === undefined || !('value' in model) ||
+      typeof model.value !== 'string' || model.value === '' || field === undefined || !('value' in field) ||
+      typeof field.value !== 'string' || field.value === '' || field.value.includes('.')) {
+      throw new Error(`Invalid ${what}: row subject needs own non-empty model and top-level field data.`);
     }
     return;
   }
