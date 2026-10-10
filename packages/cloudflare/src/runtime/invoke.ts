@@ -45,6 +45,7 @@
  */
 import type {
   ArtifactCohortDescriptor,
+  ArtifactCommittedChangeDescriptor,
   BoundCapabilityRequest,
   CanTypeId,
   CanValue,
@@ -119,8 +120,9 @@ import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioRece
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
+import { createCommittedModelSourceStager } from '@canlang/work';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
-import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, ModelTable } from '@canlang/state/mutation';
+import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
 import type { BoundReadPageInvoker } from '@canlang/state/ports/transact';
 import type {
@@ -351,7 +353,7 @@ async function invokeWith(
   // Source claims must gate the first import, before unverified exports can
   // strip their carrier or run a module initializer.
   const claimedRowSource = requiresRowReadCorrespondence(artifact);
-  let checkedSource = hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || claimedRowSource;
+  let checkedSource = requiresVerifiedAssemblyImports(asm, artifact);
   if (checkedSource) await verifyCheckedAssembly(asm, artifact);
   if (claimedRowSource) rowPolicyAssemblies.set(artifact, asm);
   // Preserve legacy actor-only components without an issued source carrier.
@@ -2126,6 +2128,7 @@ async function assertReadScenarioPair(
  */
 export interface LoadedCanonicalDescriptors {
   readonly registry: ReadonlyMap<string, unknown>;
+  readonly committedChanges: ReadonlyMap<string, CheckedCommittedChange>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   /** Defining State attachments retain reference/containment identity without field tags. */
   readonly refs: ReadonlyMap<string, readonly { readonly field: string; readonly model: string }[]>;
@@ -2160,15 +2163,16 @@ const canonicalCache = new WeakMap<CompileArtifact, {
   loaded: LoadedCanonicalDescriptors;
   scenarioAssembly?: AssembledModules;
   rowPolicyAssembly?: AssembledModules;
+  committedAssembly?: AssembledModules;
 }>();
 
-const rowReadSourceClaims = new WeakMap<object, { readonly source: string; readonly claimed: boolean }>();
+const emittedSourceClaims = new WeakMap<object, Map<string, { readonly source: string; readonly claimed: boolean }>>();
 
 /** Nonexecuting presence gate from captured producer source. Parsing a literal
  * property (including escaped/computed literal keys) establishes no grant or
  * Compiler acceptance; State still validates the actual owning metadata. */
-function claimsRowReadSource(artifact: CompileArtifact): boolean {
-  const where = 'Row read source correspondence';
+function claimsEmittedSourceProperty(artifact: CompileArtifact, property: string): boolean {
+  const where = `${property} source correspondence`;
   try {
     const modules = readMetadataMember(artifact, 'modules', where);
     if (modules === undefined) return false; // Historical actor-only component.
@@ -2178,7 +2182,9 @@ function claimsRowReadSource(artifact: CompileArtifact): boolean {
       if (sourceMember === undefined) continue; // Legacy metadata-only carrier.
       const source = sourceMember.value;
       if (typeof source !== 'string') throw new Error(`${where}: own source text required.`);
-      let claim = rowReadSourceClaims.get(module);
+      let claims = emittedSourceClaims.get(module);
+      if (claims === undefined) { claims = new Map(); emittedSourceClaims.set(module, claims); }
+      let claim = claims.get(property);
       if (claim?.source !== source) {
         let claimed = false;
         try {
@@ -2190,8 +2196,8 @@ function claimsRowReadSource(artifact: CompileArtifact): boolean {
             const value = node as Record<string, unknown>;
             if (value.type === 'Property' && value.key !== null && typeof value.key === 'object') {
               const key = value.key as Record<string, unknown>;
-              claimed = key.type === 'Identifier' && key.name === 'roleSubject' ||
-                key.type === 'Literal' && key.value === 'roleSubject';
+              claimed = key.type === 'Identifier' && key.name === property ||
+                key.type === 'Literal' && key.value === property;
             }
             for (const child of Object.values(value)) if (child !== null && typeof child === 'object') pending.push(child);
           }
@@ -2201,7 +2207,7 @@ function claimsRowReadSource(artifact: CompileArtifact): boolean {
           claimed = true;
         }
         claim = { source, claimed };
-        rowReadSourceClaims.set(module, claim);
+        claims.set(property, claim);
       }
       if (claim.claimed) return true;
     }
@@ -2211,13 +2217,23 @@ function claimsRowReadSource(artifact: CompileArtifact): boolean {
   }
 }
 
+function claimsRowReadSource(artifact: CompileArtifact): boolean {
+  return claimsEmittedSourceProperty(artifact, 'roleSubject');
+}
+
+function requiresCommittedSourceCorrespondence(artifact: CompileArtifact): boolean {
+  return readMetadataMember(artifact, 'committedChanges', 'Committed model source') !== undefined ||
+    claimsEmittedSourceProperty(artifact, 'committedChanges') || canonicalCache.get(artifact)?.committedAssembly !== undefined;
+}
+
 function requiresRowReadCorrespondence(artifact: CompileArtifact): boolean {
   return claimsRowReadSource(artifact) || rowPolicyAssemblies.has(artifact) ||
     canonicalCache.get(artifact)?.rowPolicyAssembly !== undefined;
 }
 
 function requiresVerifiedAssemblyImports(asm: AssembledModules, artifact: CompileArtifact): boolean {
-  return hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact);
+  return hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact) ||
+    requiresCommittedSourceCorrespondence(artifact);
 }
 
 /** Presence gate only: State still owns descriptor/claim schema validation. */
@@ -3078,6 +3094,7 @@ export async function loadCanonicalDescriptors(
 ): Promise<LoadedCanonicalDescriptors> {
   const claimedScenario = claimsScenarioDisclosure(artifact);
   const claimedRowSource = requiresRowReadCorrespondence(artifact);
+  const claimedCommitted = requiresCommittedSourceCorrespondence(artifact);
   // An issued assembly must still match its captured artifact and complete
   // closure when a caller strips the visible policy/source claim.
   if (hasAssemblerModuleCapability(asm)) await verifyCheckedAssembly(asm, artifact);
@@ -3085,8 +3102,12 @@ export async function loadCanonicalDescriptors(
     await verifyCheckedAssembly(asm, artifact);
     rowPolicyAssemblies.set(artifact, asm);
   }
+  if (claimedCommitted) await verifyCheckedAssembly(asm, artifact);
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
+    if (claimedCommitted && cached.committedAssembly !== asm) {
+      throw new AssemblyCorrespondenceError('Committed model sources require their original checked assembly.');
+    }
     if (claimedRowSource && cached.rowPolicyAssembly === undefined) {
       throw new AssemblyCorrespondenceError('Row read source differs from its cached policy plan.');
     }
@@ -3106,6 +3127,7 @@ export async function loadCanonicalDescriptors(
     assertStateMachineProducerCapability(artifact, catalog);
   }
   const producers = await loadCanonicalStateProducers();
+  const committedChanges = claimedCommitted ? await loadCheckedCommittedChanges(asm, artifact, producers) : new Map<string, CheckedCommittedChange>();
   const unsupportedHookOperations = await collectUnsupportedHookOperations(asm, artifact);
   const ops = readPreloadOperations(artifact);
   const crudBy = new Map<string, CanonicalByPredicate>();
@@ -3221,6 +3243,7 @@ export async function loadCanonicalDescriptors(
     }));
   }
   const canonical: LoadedCanonicalDescriptors = {
+    committedChanges,
     registry: loaded.registry,
     models: loaded.models,
     refs: loaded.refs,
@@ -3244,7 +3267,8 @@ export async function loadCanonicalDescriptors(
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
-    ...(rowPolicyAssembly === undefined ? {} : { rowPolicyAssembly }) });
+    ...(rowPolicyAssembly === undefined ? {} : { rowPolicyAssembly }),
+    ...(claimedCommitted ? { committedAssembly: asm } : {}) });
   return canonical;
 }
 
@@ -4466,17 +4490,18 @@ async function runScenarioExecution(
     readonly refInput: string; readonly bind: string | null },
   receiptStore?: StoragePort,
   child?: ScenarioReceiptCallFrame,
+  stageSources?: OwnerMutationSourceStager,
 ): Promise<{ readonly effects: CanonicalExecutionEffects } | { readonly wire: unknown }> {
   const scenarioDef = generatedScenarioDef(call);
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
-  const useOwnerSession = receiptAware;
+  const useOwnerSession = receiptAware || stageSources !== undefined;
   const ownerControl = localOwnerPolicyControls.get(loaded);
   const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
   const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
-  if (useOwnerSession && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || due !== undefined || cohort !== undefined)) {
+  if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || due !== undefined || cohort !== undefined)) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
   }
-  if (useOwnerSession && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
+  if (receiptAware && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
       field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name))) {
     throw new loaded.producers.errors('validation', 'Saved scenario computed input defaults require their installed State contribution producer.');
   }
@@ -4571,11 +4596,22 @@ async function runScenarioExecution(
   };
   // State derives context, trigger, archive gate and provenance from the exact
   // admitted call/physical receiptStore. A host overlay never enters this API.
-  const rootOwnerSession = useOwnerSession && child === undefined ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, {
+  if (useOwnerSession && receiptStore === undefined) {
+    throw new StateError('validation', 'Committed scenario sources require the actual admitted owner store.');
+  }
+  const ownerOptions = {
     table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
     ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
-    encodeField: (type, value) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
-  }) : undefined;
+    encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
+    ...(stageSources === undefined ? {} : { stageSources }),
+  };
+  const rootOwnerSession = !useOwnerSession || child !== undefined ? undefined : receiptAware
+    ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, ownerOptions)
+    : await (requireProducerFn(await loadProducerModule('@canlang/state/mutation', 'committed scenario owner finalizer'),
+      'beginOwnerMutation', 'committed scenario owner finalizer') as typeof import('@canlang/state/mutation').beginOwnerMutation)({
+      ...ownerOptions, context: call.context, store: receiptStore!, gateArchivedTargets: true,
+      ...(seamTriggerPoint(call) === undefined ? {} : { trigger: seamTriggerPoint(call)! }),
+    });
   const ownerSession: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> | undefined = child?.session ?? rootOwnerSession;
   let ownerPolicyFrame: { close(): void } | undefined;
   let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
@@ -4626,7 +4662,9 @@ async function runScenarioExecution(
   // never select owner authority or turn an ordinary scenario into a handler.
   const trustedOwnerReads = callable?.kind === 'handler' && (due !== undefined || cohort !== undefined) &&
     call.context.kind === 'trusted' && call.context.actor === null && call.context.source === 'schedule' &&
-    typeof call.context.trustedSource === 'string' && call.context.trustedSource.startsWith('schedule:') &&
+    typeof call.context.trustedSource === 'string' && (call.context.trustedSource.startsWith('schedule:') ||
+      call.context.trustedSource.startsWith('committed:') && loaded.committedChanges.get(call.context.trustedSource.slice(10))?.routes
+        .some(route => route.handler === opts.operation) === true) &&
     call.checkpoint !== undefined && call.checkpoint.owner === (call.context.team?.teamId ?? call.context.app);
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
@@ -5354,7 +5392,7 @@ async function runScenarioExecution(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
-  if (receiptStore !== undefined) {
+  if (receiptAware && receiptStore !== undefined) {
     // This is the unchanged call pointer supplied by actual State.invoke.
     // State verifies the lifetime and selected store before opening the frame.
     const actualCall = call as AdmittedCall;
@@ -5419,7 +5457,7 @@ async function runScenarioExecution(
     : due !== undefined
     ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame) }
     : callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, loaded, recordView, ownerSession === undefined ? resolvedDefaults : undefined, scenarioReceiptFrame)
+    ? scenarioParameters(call, loaded, recordView, receiptAware ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
   const defaultDef = generatedScenarioDef(call);
@@ -5468,7 +5506,7 @@ async function runScenarioExecution(
         if (field.valueType === undefined) throw new StateError('validation', 'Computed default lacks its owning value type.');
         wire = encodeValue(field.valueType, value as CanValue);
       }
-      if (ownerSession === undefined) resolvedDefaults[field.name] = wire;
+      if (!receiptAware) resolvedDefaults[field.name] = wire;
       else observeReceiptDefault!(call as AdmittedCall, receiptStore!, { name: field.name, wire });
       observedDefaults.add(field.name);
     } catch (error) {
@@ -5513,25 +5551,32 @@ async function runScenarioExecution(
   }
   scenarioReceiptFrame?.assertCompleted();
   if (ownerSession !== undefined) {
-    const result = scenarioReceiptFrame?.queryResult(outcome.value)?.wire ?? scenarioResult(call, loaded, outcome.value);
     if (child !== undefined) {
       if (fileAssignments.size !== 0 || deferredEffects.length !== 0 || servedReadings.length !== 0) {
         return refuseRecordBinding('Child scenario effect profile requires an unreleased join.');
       }
-      return { wire: result };
+      return { wire: scenarioReceiptFrame?.queryResult(outcome.value)?.wire ?? scenarioResult(call, loaded, outcome.value) };
     }
     const finalized = await rootOwnerSession!.finalize();
+    const returned = isUnknownRecord(outcome.value) ? recordBindings.get(outcome.value) : undefined;
+    const target = returned === undefined ? undefined : finalized.writes.find(write => write.model === returned.model &&
+      (write.kind === 'remove' ? write.id : write.row.id) === returned.id);
+    const modelReference = receiptAware || returned === undefined ? undefined : makeRecordRef(returned.model, returned.id,
+      BigInt(target === undefined ? returned.version : target.kind === 'remove' ? target.expectedVersion : target.row.version));
+    const result = scenarioReceiptFrame?.queryResult(outcome.value)?.wire ?? scenarioResult(call, loaded, outcome.value, modelReference);
     const ownedScheduleKeys = new Set(finalized.schedules.map(schedule => schedule.key));
     const extraSchedules = deferredEffects.flatMap(effects => effects.schedules ?? []);
     if (extraSchedules.some(schedule => ownedScheduleKeys.has(schedule.key))) {
       throw new StateError('validation', 'Saved scenario deferred schedule overrides an actual finalized owner schedule.');
     }
+    const outbox = 'outbox' in finalized ? finalized.outbox : [];
+    if (!Array.isArray(outbox)) throw new StateError('validation', 'Owning finalized outbox must be an array.');
     return { effects: {
       writes: finalized.writes, history: finalized.history,
       uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
-      resolvedDefaults: finalized.resolvedDefaults,
+      resolvedDefaults: { ...finalized.resolvedDefaults, ...resolvedDefaults },
       schedules: [...finalized.schedules, ...extraSchedules],
-      outbox: finalized.outbox ?? [], result,
+      outbox, result,
       fileAssignments: [...fileAssignments.values()].filter(assignment => finalized.writes.some(write =>
         (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
         write.row.id === assignment.recordId)),
@@ -5582,8 +5627,9 @@ async function runScenarioSeam(
   occurrenceIds: string[], due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId },
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null }, receiptStore?: StoragePort,
+  stageSources?: OwnerMutationSourceStager,
 ): Promise<CanonicalExecutionEffects> {
-  const result = await runScenarioExecution(loaded, opts, call, occurrenceIds, due, cohort, receiptStore);
+  const result = await runScenarioExecution(loaded, opts, call, occurrenceIds, due, cohort, receiptStore, undefined, stageSources);
   if (!('effects' in result)) throw new loaded.producers.errors('validation', 'Root scenario returned child wire.');
   return result.effects;
 }
@@ -5668,6 +5714,43 @@ async function bindNativeScenarioFiles(loaded: LoadedCanonicalDescriptors,
   nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate: currentFile, prepareObservation }));
 }
 
+/** Opaque source ordinals belong to the actual admitted operation. A cohort
+ * body may serve several children; only retries of the same child reuse IDs. */
+async function canonicalCommittedSourceStage(loaded: LoadedCanonicalDescriptors): Promise<{
+  readonly stageSources?: OwnerMutationSourceStager;
+}> {
+  if (loaded.committedChanges.size === 0) return {};
+  const state = await loadProducerModule('@canlang/state/mutation', 'committed model source lifetime');
+  const readStage = requireProducerFn(state, 'readOwnerMutationSourceStage', 'committed model source lifetime') as
+    typeof import('@canlang/state/mutation').readOwnerMutationSourceStage;
+  const memo = new Map<string, OccurrenceId[]>();
+  const stageSources: OwnerMutationSourceStager = async token => {
+    const { context } = readStage(token);
+    const key = `${context.operation}\0${context.operationId}`;
+    let ids = memo.get(key);
+    if (ids === undefined) { ids = []; memo.set(key, ids); }
+    let ordinal = 0;
+    return createCommittedModelSourceStager({
+    occurrenceIds: { nextOccurrenceId: () => {
+      const index = ordinal++;
+      return ids[index] ??= crypto.randomUUID() as OccurrenceId;
+    } },
+    bounds: { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 },
+    routesForChange: (change, context) => {
+      const owner = context.team?.teamId ?? context.app;
+      const checked = loaded.committedChanges.get(`${change.model}.${change.kind}`);
+      if (checked === undefined) return { scope: { app: context.app, owner, ownerPackage: context.app }, handlers: [] };
+      return { scope: { app: context.app, owner, ownerPackage: checked.ownerPackage },
+        handlers: checked.routes.map(route => ({ handler: route.handler,
+          ...(route.cohort ? { cohort: resolveEmittedFanoutCohort({ handler: route.handler, owner,
+            cohorts: privateSourceMember(route.definition, 'cohorts'), models: privateSourceMember(route.definition, 'models'),
+            event: { id: change.recordId, version: change.version } }) } : {}) })) };
+    },
+    })(token);
+  };
+  return { stageSources };
+}
+
 async function invokeCanonicalMutation(
   opts: CanonicalMutationOpts,
   receiptOnly: boolean,
@@ -5713,6 +5796,7 @@ async function invokeCanonicalMutation(
     // State invoke owns fence retries; retain the native storage exception.
     return opts.store.commit(batch);
   } });
+  const committedSource: Awaited<ReturnType<typeof canonicalCommittedSourceStage>> = receiptOnly ? {} : await canonicalCommittedSourceStage(loaded);
   let crudExecute: ((call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>) | undefined;
   if (!receiptOnly) {
     const ownerControl = localOwnerPolicyControls.get(loaded);
@@ -5721,6 +5805,10 @@ async function invokeCanonicalMutation(
       store: receiptStore,
       secretFields: loaded.secretFields,
       encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
+      ...(committedSource.stageSources === undefined ? {} : {
+        stageSources: committedSource.stageSources,
+        ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
+      }),
     };
     if (ownerControl === undefined) {
       crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
@@ -5790,7 +5878,7 @@ async function invokeCanonicalMutation(
           effects = { ...effects, fileAssignments: assignments };
         }
       } else if (kind === "scenario") {
-        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds, undefined, undefined, receiptStore);
+        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds, undefined, undefined, receiptStore, committedSource.stageSources);
       } else {
         throw new StateError("validation", `Operation ${JSON.stringify(opts.operation)} cannot execute here.`);
       }
@@ -6096,14 +6184,180 @@ async function resolvePrivateSourceOwner(identities: IdentityStore, scope: impor
   const resolve = requireProducerFn(producer, 'resolveIdentity', 'private source identity') as
     typeof import('@canlang/identity').resolveIdentity;
   const identity = await resolve(identities,
-    scope.owner === 'app' ? {} : { team_id: scope.owner }, { clock: { nowMs: () => now } });
-  if (identity.actor !== null || (identity.team?.team_id ?? 'app') !== scope.owner) {
+    scope.owner === 'app' || scope.owner === scope.app ? {} : { team_id: scope.owner }, { clock: { nowMs: () => now } });
+  if (identity.actor !== null || (identity.team?.team_id ?? (scope.owner === 'app' ? 'app' : scope.app)) !== scope.owner) {
     throw new Error('Private source has no current verified owner.');
   }
   return identity;
 }
 
+interface CheckedCommittedChange {
+  readonly descriptor: ArtifactCommittedChangeDescriptor;
+  readonly routes: readonly { handler: string; definition: unknown; invocation: Record<string, unknown>; cohort: boolean }[];
+  readonly ownerPackage: string;
+}
+
+function committedSourceData(value: unknown): unknown {
+  let nodes = 0;
+  const active = new Set<object>();
+  const copy = (value: unknown, depth: number): unknown => {
+    if (++nodes > 20_000 || depth > 32) throw new AssemblyCorrespondenceError('Committed source metadata exceeds its finite bound.');
+    if (value === null || value === undefined || typeof value === 'string' || typeof value === 'boolean' ||
+        typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value !== 'object' || active.has(value)) throw new AssemblyCorrespondenceError('Committed source metadata requires own data.');
+    active.add(value);
+    const result = Array.isArray(value) ? nativeCallArray(value, 20_000).map(member => copy(member, depth + 1))
+      : Object.fromEntries(Object.entries(localPolicyObject(value)).map(([key, member]) => [key, copy(member, depth + 1)]));
+    active.delete(value);
+    return Object.freeze(result);
+  };
+  return copy(value, 0);
+}
+
+/** Source routing consumes declaration data, not executable model defaults or
+ * unrelated public operation closures in the same verified app definition. */
+function committedSourceDefinition(raw: unknown): Record<string, unknown> {
+  const definition = localPolicyObject(raw);
+  const operations = localPolicyObject(localPolicyMember(definition, 'operations'));
+  const privateOperations = Object.fromEntries(Object.keys(operations).flatMap(name => {
+    const operation = localPolicyObject(localPolicyMember(operations, name));
+    const event = localPolicyMember(operation, 'event');
+    return typeof event === 'string' ? [[name, { event,
+      invocation: localPolicyMember(operation, 'invocation') }]] : [];
+  }));
+  const models = localPolicyObject(localPolicyMember(definition, 'models'));
+  const containment = Object.fromEntries(Object.keys(models).map(name => [name, {
+    parent: localPolicyMember(localPolicyObject(localPolicyMember(models, name)), 'parent'),
+  }]));
+  const packages = localPolicyObject(localPolicyMember(definition, 'packages'));
+  return localPolicyObject(committedSourceData({
+    committedChanges: localPolicyMember(definition, 'committedChanges'),
+    operations: privateOperations, models: containment,
+    packages: Object.fromEntries(Object.keys(packages).map(name => [name, true])),
+    cohorts: localPolicyMember(definition, 'cohorts'),
+  }));
+}
+
+async function loadCheckedCommittedChanges(asm: AssembledModules, artifact: CompileArtifact,
+  producers: CanonicalStateProducers): Promise<ReadonlyMap<string, CheckedCommittedChange>> {
+  const where = 'Committed model source';
+  const census = nativeCallArray(committedSourceData(readMetadataMember(artifact, 'committedChanges', where)?.value ?? []), 200)
+    .map(value => localPolicyObject(value, ['source', 'model', 'change', 'handlers']));
+  const definitions = new Map<string, Record<string, unknown>>();
+  for (const module of artifact.modules) {
+    const imported = await importVerifiedAssemblyModule(asm, module.path, artifact);
+    const raw = readMetadataMember(imported as object, 'appDefinition', where)?.value;
+    if (raw === undefined) continue;
+    const definition = committedSourceDefinition(raw);
+    const published = nativeCallArray(localPolicyMember(definition, 'committedChanges') ?? [], 200);
+    if (stableStringify(published) !== stableStringify(census)) {
+      throw new AssemblyCorrespondenceError('Committed source artifact and module census differ.');
+    }
+    definitions.set(module.path, definition);
+  }
+  const result = new Map<string, CheckedCommittedChange>();
+  const listed = new Set<string>();
+  for (const raw of census) {
+    const model = localPolicyMember(raw, 'model'), change = localPolicyMember(raw, 'change');
+    const source = localPolicyMember(raw, 'source');
+    const suffix = change === 'create' ? 'created' : change === 'update' ? 'updated' : change === 'delete' ? 'deleted' : undefined;
+    if (typeof source !== 'string' || typeof model !== 'string' || !artifact.models?.some(value => value.name === model) || suffix === undefined ||
+        source !== `${model}.${suffix}` || result.has(source)) throw new AssemblyCorrespondenceError('Committed source lacks its checked model/change identity.');
+    const ownerPackage = model.slice(0, model.lastIndexOf('.'));
+    if (ownerPackage === '') throw new AssemblyCorrespondenceError('Committed source lacks its declaring package.');
+    const handlers = nativeCallArray(localPolicyMember(raw, 'handlers'), 200);
+    if (handlers.length === 0) throw new AssemblyCorrespondenceError('Committed source has an empty handler inventory.');
+    const routes: CheckedCommittedChange['routes'][number][] = [];
+    for (const handler of handlers) {
+      if (typeof handler !== 'string' || listed.has(handler)) throw new AssemblyCorrespondenceError('Committed source repeats or lacks a handler identity.');
+      const matches = artifact.callables.filter(value => value.kind === 'handler' && value.id === handler);
+      const callable = matches[0];
+      if (matches.length !== 1 || callable === undefined || callable.member.length !== 1 || callable.member[0] !== handler) {
+        throw new AssemblyCorrespondenceError('Committed source handler lacks its exact callable.');
+      }
+      const definition = definitions.get(callable.module);
+      if (definition === undefined || localPolicyMember(localPolicyObject(localPolicyMember(definition, 'packages')), ownerPackage) === undefined) {
+        throw new AssemblyCorrespondenceError('Committed source handler lacks its checked package/module.');
+      }
+      const operations = localPolicyObject(localPolicyMember(definition, 'operations'));
+      const operation = localPolicyObject(localPolicyMember(operations, handler));
+      const invocation = localPolicyObject(localPolicyMember(operation, 'invocation'));
+      if (localPolicyMember(operation, 'event') !== source || invocation.name !== handler || invocation.kind !== 'scenario') {
+        throw new AssemblyCorrespondenceError('Committed source handler has a different private invocation.');
+      }
+      const loaded = producers.registry.loadArtifactDescriptors({ ...artifact, operations: [invocation] }, { by: () => 'owner' });
+      const def = generatedScenarioDef({ def: loaded.registry.get(handler) });
+      const fields = def?.descriptor.inputs;
+      if (fields === undefined || !fields.some(field => field.name === 'id' && field.kind === 'string' && field.valueType === 'text' && field.required === true) ||
+          !fields.some(field => field.name === 'version' && field.kind === 'integer' && field.valueType === 'int' && field.required === true)) {
+        throw new AssemblyCorrespondenceError('Committed source requires checked required id:text and version:int.');
+      }
+      const registry = await importPolicyRegistry(asm, callable.module, callable.id, artifact);
+      if (typeof privateSourceMember(registry, handler) !== 'function') throw new AssemblyCorrespondenceError('Committed source has no assembled handler.');
+      const cohorts = localPolicyMember(definition, 'cohorts');
+      const cohort = isUnknownRecord(cohorts) && Object.hasOwn(cohorts, handler);
+      if (cohort) {
+        assertDeclaredCohortVersion(artifact);
+        const descriptor = localPolicyObject(localPolicyMember(localPolicyObject(cohorts), handler));
+        if (!['model', 'anchored-collection'].includes(String(localPolicyMember(descriptor, 'kind'))) ||
+            !artifact.models?.some(value => value.name === localPolicyMember(descriptor, 'model'))) {
+          throw new AssemblyCorrespondenceError('Committed source lacks its checked cohort model.');
+        }
+        const bind = localPolicyMember(descriptor, 'bind');
+        const reference = fields.find(field => field.name === (bind ?? '$cohort'));
+        if (fields.length !== 3 || bind !== null && (typeof bind !== 'string' || bind === '') ||
+            reference?.kind !== 'ref' || reference.model !== descriptor.model || reference.required !== true || reference.versioned ||
+            def === undefined || Object.hasOwn(def.inputArrays, reference.name)) {
+          throw new AssemblyCorrespondenceError('Committed cohort lacks its exact singular private member input.');
+        }
+        if (descriptor.kind === 'anchored-collection' && (descriptor.parent !== 'event.id' ||
+            privateSourceMember(privateSourceMember(localPolicyMember(definition, 'models'), String(descriptor.model)), 'parent') !== model)) {
+          throw new AssemblyCorrespondenceError('Committed cohort anchor differs from its source model identity.');
+        }
+      } else if (fields.length !== 2) {
+        throw new AssemblyCorrespondenceError('Committed ordinary handler has unexpected private inputs.');
+      }
+      routes.push(Object.freeze({ handler, definition, invocation, cohort })); listed.add(handler);
+    }
+    result.set(source, Object.freeze({ descriptor: freezeScenarioSnapshot({ source, model, change, handlers: [...handlers] }) as ArtifactCommittedChangeDescriptor,
+      routes: Object.freeze(routes), ownerPackage }));
+  }
+  for (const definition of definitions.values()) {
+    const operations = localPolicyObject(localPolicyMember(definition, 'operations'));
+    for (const handler of Object.keys(operations)) {
+      const event = localPolicyMember(localPolicyObject(localPolicyMember(operations, handler)), 'event');
+      if (typeof event === 'string' && artifact.models?.some(model => ['created', 'updated', 'deleted'].some(kind => event === `${model.name}.${kind}`)) &&
+          (!result.has(event) || !listed.has(handler))) throw new AssemblyCorrespondenceError('Committed source census omitted a matching handler.');
+    }
+  }
+  return result;
+}
+
 function checkedSourceEvent(definition: unknown, event: string, payload: unknown) {
+  const changes = privateSourceMember(definition, 'committedChanges');
+  if (changes !== undefined && nativeCallArray(changes, 200).some(value => privateSourceMember(value, 'source') === event)) {
+    const own = localPolicyObject(payload, ['recordId', 'owner', 'version', 'occurrenceId']);
+    if (Object.keys(own).length !== 4 || typeof own.recordId !== 'string' || own.recordId === '' ||
+        typeof own.owner !== 'string' || own.owner === '' || typeof own.occurrenceId !== 'string' || own.occurrenceId === '' ||
+        !Number.isSafeInteger(own.version) || Number(own.version) < 1) throw new Error('Committed source lost its immutable payload.');
+    const descriptor = nativeCallArray(changes, 200).find(value => privateSourceMember(value, 'source') === event);
+    const handler = nativeCallArray(privateSourceMember(descriptor, 'handlers'), 200)[0];
+    if (typeof handler !== 'string') throw new Error('Committed source lost its checked handler inputs.');
+    const invocation = privateSourceMember(privateSourceMember(privateSourceMember(definition, 'operations'), handler), 'invocation');
+    const fields = nativeCallArray(privateSourceMember(privateSourceMember(invocation, 'inputs'), 'fields'), 200);
+    const inputs: Record<string, FieldDescriptor> = {};
+    for (const name of ['id', 'version']) {
+      const field = fields.find(value => privateSourceMember(value, 'name') === name);
+      const type = privateSourceMember(field, 'valueType');
+      if (typeof type !== 'string' || type !== (name === 'id' ? 'text' : 'int') || privateSourceMember(field, 'required') !== true) {
+        throw new Error('Committed source lost its owning required input type.');
+      }
+      inputs[name] = { type };
+    }
+    const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+    const captured = validateOperationInput(schema, event, { id: own.recordId, version: String(own.version) });
+    return { inputs, captured };
+  }
   const inputs = privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), event), 'inputs');
   if (!isUnknownRecord(inputs)) throw new Error('Private cohort lacks its declared event inputs.');
   const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
@@ -6121,8 +6375,10 @@ function emittedPrivateCohort(definition: unknown, handler: string, event: strin
       (descriptor.bind !== null && (typeof descriptor.bind !== 'string' || descriptor.bind === ''))) {
     throw new Error('Private cohort lacks its exact handler/event/child declaration.');
   }
+  const committed = privateSourceMember(definition, 'committedChanges');
+  const isCommitted = committed !== undefined && nativeCallArray(committed, 200).some(value => privateSourceMember(value, 'source') === event);
   const cohort = resolveEmittedFanoutCohort({ cohorts, handler, owner, event: captured,
-    models: privateSourceMember(definition, 'models'), eventInputs: inputs });
+    models: privateSourceMember(definition, 'models'), ...(isCommitted ? {} : { eventInputs: inputs }) });
   return { invocation, cohort, bind: descriptor.bind as string | null, refInput: descriptor.bind ?? '$cohort' };
 }
 
@@ -6205,6 +6461,16 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
 async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app'>,
   loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope) {
   if (scope.app !== opts.app) throw new Error('Private source scope disagrees with its deployment.');
+  const committed = loaded.committedChanges.get(event);
+  if (committed !== undefined) {
+    if (committed.ownerPackage !== scope.ownerPackage) throw new Error('Committed source differs from its checked declaring package.');
+    for (const route of committed.routes) {
+      const callable = opts.artifact.callables.find(value => value.kind === 'handler' && value.id === route.handler);
+      if (callable === undefined) throw new AssemblyCorrespondenceError('Committed source lost its handler.');
+      await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+    }
+    return committed.routes;
+  }
   const definitions = new Map<string, unknown>();
   const routes: Array<{ handler: string; definition: unknown; invocation: Record<string, unknown>; cohort: boolean }> = [];
   let eventInputs: string | undefined;
@@ -6241,6 +6507,36 @@ async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, '
   }
   if (routes.length === 0) throw new Error('Private source event has no checked assembled handlers.');
   return routes.sort((left, right) => left.handler.localeCompare(right.handler));
+}
+
+async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, store: StoragePort,
+  occurrenceId: string, event: string, scope: import('@canlang/contracts').WorkScope) {
+  const checked = loaded.committedChanges.get(event);
+  if (checked === undefined || checked.ownerPackage !== scope.ownerPackage) throw new Error('Committed source lacks its checked route.');
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'committed source receipt');
+  const read = requireProducerFn(tables, 'readOccurrenceRow', 'committed source receipt') as
+    typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+  const row = await store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, occurrenceId as RecordId);
+  if (row === null) throw new Error('Committed source has no physical occurrence receipt.');
+  const receipt = read(row);
+  const result = localPolicyObject(receipt.result);
+  const change = localPolicyObject(localPolicyMember(result, 'change'));
+  const payload = localPolicyObject(localPolicyMember(result, 'payload'));
+  const handlers = nativeCallArray(localPolicyMember(result, 'handlers'), 200);
+  const expectedKind = checked.descriptor.change === 'create' ? 'created' : checked.descriptor.change === 'update' ? 'updated' : 'deleted';
+  if (receipt.status !== 'completed' || receipt.occurrenceId !== occurrenceId || result.kind !== 'committed-model-source' ||
+      result.event !== event || stableStringify(result.scope) !== stableStringify(scope) || change.model !== checked.descriptor.model ||
+      change.kind !== expectedKind || change.recordId !== payload.recordId || change.version !== payload.version ||
+      payload.owner !== scope.owner || payload.occurrenceId !== occurrenceId || handlers.length !== checked.routes.length ||
+      handlers.some((value, index) => privateSourceMember(value, 'handler') !== checked.routes[index]!.handler ||
+        privateSourceMember(value, 'kind') !== (checked.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
+    throw new Error('Committed source receipt differs from its immutable checked routing facts.');
+  }
+  checkedSourceEvent(checked.routes[0]!.definition, event, payload);
+  const bounds = localPolicyObject(localPolicyMember(result, 'bounds'));
+  if (!Number.isSafeInteger(bounds.maxMembers) || Number(bounds.maxMembers) < 1 ||
+      !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) throw new Error('Committed source lost its saved bounds.');
+  return { receipt, result, payload, handlers, bounds };
 }
 
 /** Freeze every declared route at one source cut; ordinary bodies run later. */
@@ -6313,15 +6609,25 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
 }
 
 /** Rehydrate a private child only from its retained authoritative source and frozen intent. */
+export interface CanonicalCommittedCohortOpts extends Omit<CanonicalDueScheduleOpts, 'due' | 'cohortBounds'> {
+  readonly source: { readonly occurrenceId: string; readonly event: string; readonly scope: import('@canlang/contracts').WorkScope };
+}
+export async function createCanonicalCommittedCohortBody(opts: CanonicalCommittedCohortOpts) {
+  return createCanonicalSourceCohortBody(opts, opts.source);
+}
 export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpts) {
+  return createCanonicalSourceCohortBody(opts, opts.due, opts.due);
+}
+async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOpts, 'due'>,
+  selectedSource: CanonicalCommittedCohortOpts['source'], due?: CanonicalDueScheduleOpts['due']) {
   assertCanonicalStore(opts.store, opts.handler);
   assertDeclaredCohortVersion(opts.artifact);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const callable = opts.artifact.callables.find(entry => entry.kind === 'handler' && entry.id === opts.handler);
   const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
   if (moduleUrl === undefined) throw new Error('Private cohort has no owning assembled handler.');
-  const definition = privateSourceMember(await import(moduleUrl), 'appDefinition');
-  if (opts.due.scope.app !== opts.app || privateSourceMember(privateSourceMember(definition, 'packages'), opts.due.scope.ownerPackage) === undefined) {
+  const definition = privateSourceMember(await importVerifiedAssemblyModule(opts.asm, callable!.module, opts.artifact), 'appDefinition');
+  if (selectedSource.scope.app !== opts.app || privateSourceMember(privateSourceMember(definition, 'packages'), selectedSource.scope.ownerPackage) === undefined) {
     throw new Error('Private cohort source scope disagrees with its deployment.');
   }
   const tables = await loadProducerModule('@canlang/work/kernel/tables', 'cohort retained source');
@@ -6329,16 +6635,27 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
     typeof import('@canlang/work/kernel/tables').readScheduleRow;
   const readReceipt = requireProducerFn(tables, 'readOccurrenceRow', 'cohort retained source') as
     typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
-  const row = await opts.store.load(tables['WORK_SCHEDULE_MODEL'] as ModelName, opts.due.occurrenceId as RecordId);
-  const receiptRow = await opts.store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, opts.due.occurrenceId as RecordId);
-  if (row === null || receiptRow === null) throw new Error('Private cohort has no admitted source receipt.');
-  const source = readSchedule(row);
-  const receipt = readReceipt(receiptRow);
-  if (source.occurrenceId !== opts.due.occurrenceId || source.key !== opts.due.key || source.at !== opts.due.at ||
-      source.event !== opts.due.event || source.scopeApp !== opts.app || source.scopeOwner !== opts.due.scope.owner ||
-      source.scopeOwnerPackage !== opts.due.scope.ownerPackage || source.state !== 'admitted' || receipt.status !== 'completed' ||
-      receipt.occurrenceId !== source.occurrenceId || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts)) {
-    throw new Error('Private cohort lacks its exact admitted Work source.');
+  const committed = due === undefined
+    ? await readCheckedCommittedSource(loaded, opts.store, selectedSource.occurrenceId, selectedSource.event, selectedSource.scope) : undefined;
+  let source: { occurrenceId: string; event: string; payload: unknown; scopeOwner: string };
+  let receipt: ReturnType<typeof readReceipt>;
+  if (committed !== undefined) {
+    receipt = committed.receipt;
+    source = { occurrenceId: selectedSource.occurrenceId, event: selectedSource.event,
+      payload: committed.payload, scopeOwner: selectedSource.scope.owner };
+  } else {
+    const row = await opts.store.load(tables['WORK_SCHEDULE_MODEL'] as ModelName, selectedSource.occurrenceId as RecordId);
+    const receiptRow = await opts.store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, selectedSource.occurrenceId as RecordId);
+    if (row === null || receiptRow === null || due === undefined) throw new Error('Private cohort has no admitted source receipt.');
+    const schedule = readSchedule(row);
+    receipt = readReceipt(receiptRow);
+    if (schedule.occurrenceId !== due.occurrenceId || schedule.key !== due.key || schedule.at !== due.at ||
+        schedule.event !== due.event || schedule.scopeApp !== opts.app || schedule.scopeOwner !== due.scope.owner ||
+        schedule.scopeOwnerPackage !== due.scope.ownerPackage || schedule.state !== 'admitted' || receipt.status !== 'completed' ||
+        receipt.occurrenceId !== schedule.occurrenceId || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts)) {
+      throw new Error('Private cohort lacks its exact admitted Work source.');
+    }
+    source = { occurrenceId: schedule.occurrenceId, event: schedule.event, payload: schedule.payload, scopeOwner: schedule.scopeOwner };
   }
   const { inputs: fields, captured } = checkedSourceEvent(definition, source.event, source.payload);
   const declared = emittedPrivateCohort(definition, opts.handler, source.event, source.scopeOwner, captured, fields);
@@ -6352,7 +6669,8 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
   }
   const producers = await loadFanoutStateProducers();
   const fanoutId = producers.tables.fanoutIntentRowId(source.occurrenceId, opts.handler, declared.cohort.kind);
-  if (!receipt.result.fanouts.some((entry: unknown) => isUnknownRecord(entry) && entry.handler === opts.handler && entry.fanoutId === fanoutId)) {
+  const inventory = committed?.handlers ?? (receipt.result as { fanouts: unknown[] }).fanouts;
+  if (!inventory.some((entry: unknown) => isUnknownRecord(entry) && entry.handler === opts.handler && entry.fanoutId === fanoutId)) {
     throw new Error('Private cohort is absent from its committed source receipt.');
   }
   const intent = await opts.store.load(T34F7_FANOUT_INTENT_MODEL, fanoutId as RecordId);
@@ -6361,7 +6679,16 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
   if (frozen.handler !== opts.handler || frozen.sourceOccurrence !== source.occurrenceId || frozen.cohort !== declared.cohort.kind) {
     throw new Error('Private cohort source and frozen intent disagree.');
   }
-  const bounds = privateSourceMember(receipt.result, 'bounds');
+  if (committed !== undefined) {
+    const retained = committed.handlers.find(entry => privateSourceMember(entry, 'handler') === opts.handler);
+    if (privateSourceMember(retained, 'kind') !== 'fanout' ||
+        stableStringify(privateSourceMember(retained, 'members')) !== stableStringify(frozen.members) ||
+        privateSourceMember(retained, 'memberCount') !== frozen.memberCount ||
+        stableStringify(privateSourceMember(retained, 'cohort')) !== stableStringify(declared.cohort)) {
+      throw new Error('Committed cohort differs from its original frozen source cut.');
+    }
+  }
+  const bounds = committed === undefined ? privateSourceMember(receipt.result, 'bounds') : { pageLimit: committed.bounds.maxMembers, chunkSize: committed.bounds.chunkSize };
   if (!isUnknownRecord(bounds) || !Number.isSafeInteger(bounds.pageLimit) || Number(bounds.pageLimit) < 1 ||
       !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) throw new Error('Cohort source lost its admission bounds.');
   const admittedInputs: Record<string, unknown> = Object.create(null);
@@ -6375,9 +6702,10 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
     admittedInputs[field.name] = encodeValue(field.model, makeRecordRef(field.model, ref.id));
   }
   freezeScenarioSnapshot(admittedInputs);
-  const identity = await resolveDueOwner(opts, opts.now());
-  const trustedSource = `schedule:${source.event}`;
+  const identity = await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, opts.now());
+  const trustedSource = `${committed === undefined ? 'schedule' : 'committed'}:${source.event}`;
   const privateLoaded = { ...loaded, registry: privateDescriptors.registry };
+  const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
   const guards = await loadProducerModule('@canlang/state/effects/guards', 'private child require');
   const isRequireFailure = requireProducerFn(guards, 'isAuthoredRequireFailure', 'private child require') as
     typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure;
@@ -6387,7 +6715,7 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
         call.context.operationId !== attempt.operationId || call.context.operation !== opts.handler ||
         call.context.app !== opts.app || call.context.source !== 'schedule' ||
         call.context.trustedSource !== trustedSource || call.context.actor !== null ||
-        (call.context.team?.teamId ?? 'app') !== source.scopeOwner ||
+        (call.context.team?.teamId ?? (committed === undefined ? 'app' : call.context.app)) !== source.scopeOwner ||
         child.parentOccurrence !== source.occurrenceId || child.handler !== opts.handler ||
         !frozen.members.includes(child.recordId) || !call.recordRefs?.some(ref => ref.param === declared.refInput && ref.row.id === child.recordId)) {
       throw new loaded.producers.errors('forbidden', 'Private child cannot borrow another source, owner or admitted record.');
@@ -6397,13 +6725,18 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
         throw new loaded.producers.errors('validation', 'Private child event arguments differ from the retained source.');
       }
     }
-    await resolveDueOwner(opts, call.context.now);
+    await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, call.context.now);
+    if (committed !== undefined) {
+      const current = await readCheckedCommittedSource(loaded, opts.store, source.occurrenceId, source.event, selectedSource.scope);
+      if (stableStringify(current.result) !== stableStringify(committed.result)) throw new Error('Committed cohort source changed before its child execution.');
+    }
     let effects: CanonicalExecutionEffects;
     try {
       effects = await runScenarioSeam(privateLoaded, { ...opts, operation: opts.handler, operationId: attempt.operationId,
         inputs: call.inputs, identity, memberships: opts.identities, source: 'schedule', now: () => call.context.now },
       call, attempt.occurrenceIds, undefined, { occurrenceId: source.occurrenceId as OccurrenceId,
-        eventFields: Object.keys(fields), refInput: declared.refInput as string, bind: declared.bind });
+        eventFields: Object.keys(fields), refInput: declared.refInput as string, bind: declared.bind },
+      opts.store, committedSourceStage.stageSources);
     } catch (error) {
       // Private handlers retain authored-require markers for their source
       // driver. A child uses State's existing rejected-receipt/outcome path.
@@ -6413,7 +6746,14 @@ export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpt
     const stagedFiles = await stageFileReferences({ artifact: opts.artifact, effects, store: opts.store, identity, app: opts.app,
       refuse: text => { throw new loaded.producers.errors('validation', text); } });
     return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards,
-      { name: 'cohort.owner', evaluate: async () => { await resolveDueOwner(opts, call.context.now); return true; } }],
+      { name: 'cohort.owner', evaluate: async () => {
+        await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, call.context.now);
+        if (committed !== undefined) {
+          const current = await readCheckedCommittedSource(loaded, opts.store, source.occurrenceId, source.event, selectedSource.scope);
+          if (stableStringify(current.result) !== stableStringify(committed.result)) throw new Error('Committed cohort source changed before commit.');
+        }
+        return true;
+      } }],
       operationResult: effects.result, result: { kind: 'completed' } } as FanoutSchedulerBodyEffects;
   };
   return { registry: privateDescriptors.registry, body, identity, cohort: declared.cohort, fanoutId,
@@ -6634,11 +6974,25 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   const mintOperationId = requireProducerFn(ui, 'mintOperationId', 'retained handler operation identity') as
     typeof import('@canlang/ui').mintOperationId;
   const now = opts.now();
-  const trustedSource = `schedule:${selector.event}`;
+  const trustedSource = `${loaded.committedChanges.has(selector.event) ? 'committed' : 'schedule'}:${selector.event}`;
   const context = workStageContext(opts.store, { actor: trustedSource, now, operation: selector.handler });
   const identity = await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
   const retained = await stageRetained(selector, context);
   if (retained.status !== 'ready') return retained;
+  const committed = loaded.committedChanges.has(selector.event)
+    ? await readCheckedCommittedSource(loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope) : undefined;
+  const verifyCommitted = async (): Promise<void> => {
+    if (committed === undefined) return;
+    const current = await readCheckedCommittedSource(loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope);
+    const route = current.handlers.find(entry => privateSourceMember(entry, 'handler') === selector.handler);
+    if (stableStringify(current.result) !== stableStringify(committed.result) ||
+        stableStringify(current.payload) !== stableStringify(retained.occurrence.payload) ||
+        privateSourceMember(route, 'kind') !== 'ordinary' ||
+        privateSourceMember(route, 'occurrenceId') !== retained.occurrence.occurrenceId) {
+      throw new Error('Retained handler differs from its original committed source receipt.');
+    }
+  };
+  await verifyCommitted();
   const { inputs: fields, captured } = checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload);
   const admittedInputs: Record<string, unknown> = Object.create(null);
   for (const [name, value] of Object.entries(captured)) {
@@ -6658,6 +7012,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   let commitGuards: ReadonlyArray<CanonicalGuardRevalidation> = [];
   const guardedStore: StoragePort = { ...opts.store, commit: async batch => {
     await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+    await verifyCommitted();
     for (const guard of commitGuards) {
       if (await guard.evaluate() !== true) {
         throw new Error(`Retained private handler guard ${JSON.stringify(guard.name)} no longer holds.`);
@@ -6667,6 +7022,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   } };
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: selector.handler, operationId,
     identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now };
+  const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
   try {
     const outcome = await loaded.producers.invoke.invoke({ registry: descriptors.registry,
       envelope: { operation: selector.handler, operation_id: operationId, inputs: admittedInputs },
@@ -6682,17 +7038,20 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         if (current.row.version !== retained.row.version ||
             JSON.stringify(current.occurrence.payload) !== JSON.stringify(retained.occurrence.payload) ||
             call.context.actor !== null || call.context.app !== opts.app || call.context.source !== 'schedule' ||
-            call.context.trustedSource !== trustedSource || (call.context.team?.teamId ?? 'app') !== selector.scope.owner) {
+            call.context.trustedSource !== trustedSource ||
+            (call.context.team?.teamId ?? (committed === undefined ? 'app' : call.context.app)) !== selector.scope.owner) {
           throw new Error('Retained private handler changed its captured source or admitted owner.');
         }
         await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
+        await verifyCommitted();
         let business: CanonicalExecutionEffects;
         let refusal: { code: string; message: string } | undefined;
         try {
           // This existing seam slot supplies origin effects/identity, not a
           // Work due gate: the derived retained handler occurrence is origin.
           business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
-            { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId });
+            { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId }, undefined,
+            guardedStore, committedSourceStage.stageSources);
         } catch (error) {
           if (!isRequireFailure(error)) throw new Error('Retained handler execution failed.', { cause: error });
           refusal = closedDispatchErrorForCause({ kind: 'handler-require-false', require: error.message });
@@ -12423,14 +12782,30 @@ export async function maintainFanoutNavigationCanonical(opts: {
       intent.sourceOccurrence as RecordId);
     const receiptRow = await store.load(requireProducerString(work, 'WORK_OCCURRENCE_MODEL', 'fanout maintenance source') as ModelName,
       intent.sourceOccurrence as RecordId);
-    if (sourceRow === null || receiptRow === null) throw new Error('Fanout maintenance lost its admitted source.');
-    const source = readSchedule(sourceRow);
+    if (receiptRow === null) throw new Error('Fanout maintenance lost its admitted source.');
     const receipt = readReceipt(receiptRow);
-    if (source.scopeApp !== scope.app || source.scopeOwner !== scope.owner || source.scopeOwnerPackage !== scope.ownerPackage ||
-        receipt.status !== 'completed' || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts) ||
-        !receipt.result.fanouts.some((entry: unknown) => isUnknownRecord(entry) &&
-          entry.handler === intent.handler && entry.fanoutId === intent.fanoutId)) {
-      throw new Error('Fanout maintenance source receipt disagrees with its actual owner or retained route.');
+    if (sourceRow !== null) {
+      const source = readSchedule(sourceRow);
+      if (source.scopeApp !== scope.app || source.scopeOwner !== scope.owner || source.scopeOwnerPackage !== scope.ownerPackage ||
+          receipt.status !== 'completed' || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts) ||
+          !receipt.result.fanouts.some((entry: unknown) => isUnknownRecord(entry) &&
+            entry.handler === intent.handler && entry.fanoutId === intent.fanoutId)) {
+        throw new Error('Fanout maintenance source receipt disagrees with its actual owner or retained route.');
+      }
+    } else {
+      const result = receipt.result;
+      const savedScope = privateSourceMember(result, 'scope');
+      const payload = privateSourceMember(result, 'payload');
+      const routes = privateSourceMember(result, 'handlers');
+      if (receipt.status !== 'completed' || privateSourceMember(result, 'kind') !== 'committed-model-source' ||
+          privateSourceMember(savedScope, 'app') !== scope.app || privateSourceMember(savedScope, 'owner') !== scope.owner ||
+          privateSourceMember(savedScope, 'ownerPackage') !== scope.ownerPackage ||
+          privateSourceMember(payload, 'occurrenceId') !== intent.sourceOccurrence || privateSourceMember(payload, 'owner') !== scope.owner ||
+          !Array.isArray(routes) || !routes.some(route => privateSourceMember(route, 'kind') === 'fanout' &&
+            privateSourceMember(route, 'handler') === intent.handler && privateSourceMember(route, 'fanoutId') === intent.fanoutId &&
+            stableStringify(privateSourceMember(route, 'members')) === stableStringify(intent.members))) {
+        throw new Error('Fanout maintenance committed receipt disagrees with its actual owner or frozen route.');
+      }
     }
     const navigationModel = requireProducerString(module, 'FANOUT_NAVIGATION_MODEL', 'state fanout maintenance') as ModelName;
     const navigationId = requireProducerFn(module, 'fanoutNavigationRowId', 'state fanout maintenance') as

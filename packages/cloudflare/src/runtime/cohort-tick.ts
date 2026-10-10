@@ -2,13 +2,14 @@ import type { CompileArtifact, ModelName, RecordId, WorkScope } from '@canlang/c
 import type { IdentityStore } from '@canlang/identity';
 import type { AssembledModules } from './modules.js';
 import type { CohortTickBinding, TeamOwnerStorageBoundary } from '../worker/assembly.js';
-import { WORK_SCHEDULE_MODEL, readScheduleRow } from '@canlang/work/kernel/tables';
+import { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readScheduleRow, readOccurrenceRow } from '@canlang/work/kernel/tables';
 import { handlerOccurrencePendingQuery, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
 import { FANOUT_OWNER_SCAN_MODEL, fanoutOwnerScanRowId, fanoutOwnerIntentQuery } from '@canlang/state/fanout/navigation';
 import { admitRetainedFanoutChunk } from '@canlang/state/fanout/membership';
 import { mintOperationId } from '@canlang/ui';
+import { hasAssemblerModuleCapability, importVerifiedAssemblyModule } from './assembly-verification.js';
 import {
-  createCanonicalDueCohortBody, invokeDueSourceRoutingCanonical,
+  createCanonicalDueCohortBody, createCanonicalCommittedCohortBody, invokeDueSourceRoutingCanonical, loadCanonicalDescriptors,
   invokeRetainedHandlerOccurrenceCanonical, loadFanoutStateProducers,
   maintainFanoutNavigationCanonical, runRetainedFanoutSchedulerTurn, T34F7_FANOUT_CHECKPOINT_MODEL,
 } from './invoke.js';
@@ -31,7 +32,11 @@ export async function createBoundCohortTick(input: {
   const { artifact, asm, identities, ownerStorage, now: clock } = input;
   const scope = Object.freeze({ ...input.scope });
   if (scope.app !== ownerStorage.app) throw new Error('Cohort tick app disagrees with its owner boundary.');
-  const entry: unknown = await import(asm.entryUrl);
+  await loadCanonicalDescriptors(asm, artifact);
+  const verified = hasAssemblerModuleCapability(asm);
+  const importSource = async (path: string): Promise<unknown> => verified
+    ? importVerifiedAssemblyModule(asm, path, artifact) : import(asm.moduleUrls[path]!);
+  const entry: unknown = verified ? await importSource(artifact.modules[0]!.path) : await import(asm.entryUrl);
   const definition = (entry as { appDefinition?: { id?: string; packages?: Record<string, unknown> } }).appDefinition;
   if (definition?.id !== scope.app || definition.packages === undefined ||
       !Object.hasOwn(definition.packages, scope.ownerPackage)) {
@@ -55,7 +60,7 @@ export async function createBoundCohortTick(input: {
       let handler: string | undefined;
       for (const callable of artifact.callables) {
         if (callable.kind !== 'handler') continue;
-        const module: unknown = await import(asm.moduleUrls[callable.module]!);
+        const module: unknown = await importSource(callable.module);
         const operation = (module as { appDefinition?: { operations?: Record<string, { event?: string }> } })
           .appDefinition?.operations?.[callable.id];
         if (operation?.event === source.event) { handler = callable.id; break; }
@@ -83,14 +88,26 @@ export async function createBoundCohortTick(input: {
     const producers = await loadFanoutStateProducers();
     const intent = producers.tables.readFanoutIntentRow(intentRow);
     const sourceRow = await store.load(WORK_SCHEDULE_MODEL, intent.sourceOccurrence as RecordId);
-    if (sourceRow === null) throw new Error('Cohort tick retained intent lost its authoritative source.');
-    const source = readScheduleRow(sourceRow);
-    if (source.scopeApp !== scope.app || source.scopeOwner !== scope.owner || source.scopeOwnerPackage !== scope.ownerPackage) {
-      throw new Error('Cohort tick retained source disagrees with its selected owner.');
+    let body;
+    if (sourceRow !== null) {
+      const source = readScheduleRow(sourceRow);
+      if (source.scopeApp !== scope.app || source.scopeOwner !== scope.owner || source.scopeOwnerPackage !== scope.ownerPackage) {
+        throw new Error('Cohort tick retained source disagrees with its selected owner.');
+      }
+      body = await createCanonicalDueCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
+        due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
+        store, identities, now: () => now });
+    } else {
+      const row = await store.load(WORK_OCCURRENCE_MODEL, intent.sourceOccurrence as RecordId);
+      if (row === null) throw new Error('Cohort tick retained intent lost its authoritative source.');
+      const receipt = readOccurrenceRow(row);
+      const result = receipt.result as { kind?: unknown; event?: unknown } | null;
+      if (receipt.status !== 'completed' || result?.kind !== 'committed-model-source' || typeof result.event !== 'string') {
+        throw new Error('Cohort tick retained intent lacks a committed source receipt.');
+      }
+      body = await createCanonicalCommittedCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
+        source: { occurrenceId: intent.sourceOccurrence, event: result.event, scope }, store, identities, now: () => now });
     }
-    const body = await createCanonicalDueCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
-      due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
-      store, identities, now: () => now });
     const checkpoint = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, intentRow.id);
     if (checkpoint === null) throw new Error('Cohort tick retained intent lost its checkpoint.');
     const admissionStore = { ...store, async commit(batch: Parameters<typeof store.commit>[0]) {
