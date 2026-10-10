@@ -105,7 +105,6 @@ import type { AssembledModules } from "../runtime/modules.js";
 import type { InputChoiceLookup, PagePreferenceStore } from '@canlang/interfaces';
 import type { IdentityStore } from '@canlang/identity';
 import type { WorkScope } from '@canlang/contracts';
-import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { HandlerContext } from "../runtime/context.js";
 import type { CanonicalFileBinding } from '../runtime/file-staging.js';
 import type { PageReadsBinding } from '../runtime/page-cursor.js';
@@ -951,24 +950,24 @@ async function loadSiblingFn<T>(specifier: string, file: string, binding: string
  * direct path is retired, so every artifact either routes canonical
  * or refuses — there is no third path).
  */
-export interface TeamOwnerStorageBoundary {
+export interface TeamOwnerStorageBoundary<TStore extends StoragePort = StoragePort> {
   readonly app: string;
-  readonly forIdentity: (identity: ResolvedIdentity) => Promise<StoragePort>;
+  readonly forIdentity: (identity: ResolvedIdentity) => Promise<TStore>;
   /** Trusted host only; a Work scope is not a public identity credential. */
   readonly forTrustedScope: (scope: WorkScope, now: number) => Promise<{
     readonly identity: ResolvedIdentity;
-    readonly store: StoragePort;
+    readonly store: TStore;
   }>;
 }
 
 /** Selected team-only fixture boundary; no app/global storage fallback. */
-export async function createTeamOwnerStorageBoundary(input: {
+export async function createTeamOwnerStorageBoundary<TStore extends StoragePort = StoragePort>(input: {
   readonly artifact: CompileArtifact;
   readonly asm: AssembledModules;
   readonly app: string;
   readonly identities: IdentityStore;
-  readonly router: ReturnType<typeof createD1OwnerRouter>;
-}): Promise<TeamOwnerStorageBoundary> {
+  readonly router: { readonly ownerScopedStoragePort: (scope: { readonly app: string; readonly owner: string }) => Promise<TStore> };
+}): Promise<TeamOwnerStorageBoundary<TStore>> {
   const { app, identities, router } = input;
   const models = input.artifact.models;
   if (models === undefined || models.length === 0) throw new Error('assembly: owner routing requires declared team models');
@@ -997,7 +996,7 @@ export async function createTeamOwnerStorageBoundary(input: {
   }
   const packages = new Set(Object.keys(definition['packages']));
   const { StateError } = await import('@canlang/state/errors');
-  const storeForTeam = async (teamId: string): Promise<StoragePort> => {
+  const storeForTeam = async (teamId: string): Promise<TStore> => {
     if (await identities.findTeamById(teamId) === null) {
       throw new StateError('forbidden', 'A current team is required.');
     }
@@ -1009,7 +1008,7 @@ export async function createTeamOwnerStorageBoundary(input: {
       throw new StateError('forbidden', 'Team storage is unavailable.');
     }
   };
-  const forIdentity = async (identity: ResolvedIdentity): Promise<StoragePort> => {
+  const forIdentity = async (identity: ResolvedIdentity): Promise<TStore> => {
     const team = identity.team;
     if (team === null || typeof team?.team_id !== 'string' || team.team_id === '') {
       throw new StateError('forbidden', 'A current team is required.');

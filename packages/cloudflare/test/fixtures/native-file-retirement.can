@@ -1,0 +1,14 @@
+app NativeFileRetirement
+Given
+ contract Metadata {note:text}
+ Entry {label:text="Uploaded",attachment:file?,metadata:Metadata?}
+ policy Entry read=owner fields=label,attachment,metadata
+ policy Entry read=members fields=label
+When
+ crud Entry by=owner fields=label
+ scenario attach(entry:Entry,attachment:file,accept:bool) -> bool by=owner
+  do
+   set entry {attachment=attachment}
+   require accept
+   return accept
+Then

@@ -69,3 +69,30 @@ Cloudflare's local row runtime. An absent installation reports
 `missing-producer`; module initialization failures and malformed producer
 exports retain their own errors. Source capture, activation, compiled rows,
 and the portable Worker prerequisites still apply.
+
+## Trusted local File maintenance
+
+The internal Node host `src/dev/file-retirement.ts` composes
+`createNativeFileRetirementBinding` from an original verified assembly,
+current Identity team, trusted owner D1 database and State store ID, and the
+actual SQLite File store. Supply explicit retention and complete census bounds.
+Its original `store` and `ownerStorage` route participating canonical writers;
+`bindings` supplies the actual Files kernel. A physical store has one permanent
+receiver/State assignment. Additional State databases require atomic guard
+participation and are outside this profile.
+
+Installation requires the complete checked canonical, artifact and value-type
+inventory plus the actual same-load State/Work framework producers. Missing
+value declarations, mixed migrations, changed assignments and opaque framework
+payloads without original checked correspondence refuse. Current zero-contract
+artifacts omit `valueTypes` and do not qualify this installation.
+
+Trusted maintenance calls `retireAndDelete(ref, disposition)` explicitly. State
+fences permanent retirement against the complete installed census; Files checks
+the original decision before atomically journaling the terminal metadata and
+deleting bytes. Interrupted physical deletion retains the State decision for
+retry. Reopen the same physical store and original State database with a freshly
+verified host assembly; retry returns the original decision and eventually
+`already-deleted` without advancing State. An existing assembly cannot replace
+its installed receiving port. Installation performs no automatic deletion and
+exposes no public maintenance route.
