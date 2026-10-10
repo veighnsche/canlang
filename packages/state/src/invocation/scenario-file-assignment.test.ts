@@ -32,12 +32,13 @@ const bytes = new TextEncoder().encode('actual finalized bytes\n');
 const origin = () => ({ path: 'files.can', sha256: 'c'.repeat(64), module: 'files.mjs' });
 const stateError = (error: unknown) => error instanceof StateError;
 let sequence = 40_000;
-type FileField = 'file' | 'optionalFile' | 'files';
-function artifact(): ArtifactDescriptorSlice {
+type FileField = 'file' | 'optionalFile' | 'files' | 'optionalFiles';
+function artifact(deleteMode: 'archive' | 'remove' = 'archive'): ArtifactDescriptorSlice {
   const fields = [
     { name: 'file', field: { kind: 'file' as const }, valueType: 'file' as CanTypeId, required: false, serverOnly: false },
     { name: 'optionalFile', field: { kind: 'file' as const }, valueType: 'file?' as CanTypeId, nullable: true, required: false, serverOnly: false },
-    { name: 'files', field: { kind: 'file' as const }, valueType: 'file[]' as CanTypeId, array: { required: false }, max: '4', required: false, serverOnly: false },
+    { name: 'files', field: { kind: 'file' as const }, valueType: 'file[]' as CanTypeId, array: { required: false }, max: 4, required: false, serverOnly: false },
+    { name: 'optionalFiles', field: { kind: 'file' as const }, valueType: 'file[]?' as CanTypeId, nullable: true, array: { required: false }, max: 4, required: false, serverOnly: false },
     { name: 'visible', field: { kind: 'string' as const }, valueType: 'text' as CanTypeId, required: false, serverOnly: false },
     { name: 'secret', field: { kind: 'secret' as const }, required: false, serverOnly: true },
   ];
@@ -45,7 +46,7 @@ function artifact(): ArtifactDescriptorSlice {
     modules: [{ path: 'files.mjs', js: 'export const identity="Files.assign";',
       map: { version: 3, file: 'files.mjs', sources: ['files.can'], sourcesContent: [null], names: [], mappings: '' } }],
     callables: [{ id: OP, kind: 'operation', module: 'files.mjs', export: 'identity', member: ['assign'] }],
-    models: [{ name: MODEL, deleteMode: 'archive', fields }, { name: OTHER, deleteMode: 'archive', fields }],
+    models: [{ name: MODEL, deleteMode, fields }, { name: OTHER, deleteMode: 'archive', fields }],
     operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [
       { name: 'record', field: { kind: 'ref', model: MODEL, requireVersion: true }, required: true },
     ] }, result: { type: 'void' as CanTypeId, disclosure: { version: 1, source: origin(), returns: [
@@ -56,13 +57,13 @@ function artifact(): ArtifactDescriptorSlice {
 const empty = (): ExecutionEffects => ({ result: null, writes: [], history: [], outbox: [], schedules: [],
   uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
 
-async function world(bind = true, producerApp = APP) {
+async function world(bind = true, producerApp = APP, deleteMode: 'archive' | 'remove' = 'archive') {
   const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
   const member = await seedMember(memberships, { isOwner: false, roles: [] });
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
   const receiver: FinalizedFileReceiver = { app: APP, team: member.team.team_id,
     owner: member.team.team_id, principal: member.user.user_id };
-  const loaded = loadArtifactDescriptors(artifact(), { by: 'members' });
+  const loaded = loadArtifactDescriptors(artifact(deleteMode), { by: 'members' });
   const def = loaded.registry.get(OP) as GeneratedOperationDef; assert.ok(def);
   const table = buildModelTableFromCanonical(loaded.models, {
     refs: loaded.refs, serverInits: loaded.serverInits, nullableFields: loaded.nullableFields,
@@ -96,7 +97,7 @@ async function world(bind = true, producerApp = APP) {
   };
   if (bind) bindScenarioReceiptFileProducer(def, { source: origin(), app: producerApp, revalidate });
   const policyTable = buildPolicyTable([{ model: MODEL, secretFields: ['secret'], grants: [
-    { by: 'members', fields: ['file', 'optionalFile', 'files', 'visible', 'secret'] },
+    { by: 'members', fields: ['file', 'optionalFile', 'files', 'optionalFiles', 'visible'] },
   ] }]);
   return { store, memberships, identity, member, receiver, registry: loaded.registry, def, table, row,
     envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { record: { id: row.id, version: String(row.version) } }),
@@ -200,6 +201,76 @@ test('null and empty assignments retain exact checked closure without inventing 
   }
 });
 
+test('genuine owner net insert binds a finalized File to its issued version-one row and retained receipt', async () => {
+  const w = await world();
+  try {
+    const original = await w.store.load(MODEL, w.row.id);
+    const id = asId(`inserted-file-${++sequence}`), assignment = { model: MODEL, recordId: id, field: 'file' };
+    let receipt: Receipt | undefined, admitted: AdmittedCall | undefined;
+    const result = await invoke({ ...w, execute: async call => {
+      admitted = call;
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      await session.stage({ op: 'create', model: MODEL, id,
+        data: { file: { id: w.refs[0] }, visible: 'inserted visible' } }, cause);
+      observeScenarioReceiptFileAssignment(call, w.store, { ...assignment, observation: w.observe(w.refs[0]) });
+      selectScenarioReceiptReturn(call, w.store, 'assigned');
+      const output = await session.finalize();
+      assert.equal(output.writes.length, 1);
+      assert.equal(output.writes[0]!.kind, 'insert');
+      if (output.writes[0]!.kind !== 'insert') throw new Error('expected actual owner insert');
+      assert.equal(output.writes[0]!.row.id, id); assert.equal(output.writes[0]!.row.version, 1);
+      return { ...output, result: null, outbox: [], fileAssignments: [assignment] };
+    }, observeCommittedReceipt: value => { receipt = value; } });
+    assert.equal(result.status, 'committed'); assert.ok(receipt); assert.ok(admitted);
+    const inserted = await w.store.load(MODEL, id); assert.ok(inserted); assert.equal(inserted.version, 1);
+    const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+    assert.equal(association.changed.length, 1); assert.deepEqual(association.changed[0]!.row, inserted);
+    assert.equal(association.changed[0]!.fieldTypes['file'], 'file');
+    assert.equal(association.fileAssignments!.length, 1);
+    assert.deepEqual(association.fileAssignments![0], { ...assignment, rowVersion: 1,
+      file: readFinalizedFileObservation(w.observe(w.refs[0])) });
+    const retained = await w.store.readReceipt(receiptIdentityFor(admitted.context)); assert.deepEqual(retained, receipt);
+    w.reopen();
+    const projected = await savedProjection(w, JSON.parse(JSON.stringify(retained)) as Receipt);
+    assert.equal(projected.result, null); assert.equal(projected.records.length, 1);
+    assert.equal(projected.records[0]!.id, id); assert.equal(projected.records[0]!.version, 1);
+    assert.deepEqual(projected.records[0]!.data, { file: { id: w.refs[0] }, visible: 'inserted visible' });
+    assert.deepEqual(await w.store.load(MODEL, w.row.id), original);
+  } finally { w.close(); }
+});
+
+test('nullable bounded File arrays preserve null, empty and ordered duplicate closure through saved recovery', async () => {
+  for (const mode of ['null', 'empty', 'ordered', 'over-bound'] as const) {
+    const w = await world();
+    try {
+      const before = await domain(w);
+      const wire = mode === 'null' ? null : mode === 'empty' ? [] : mode === 'over-bound'
+        ? Array.from({ length: 5 }, () => ({ id: w.refs[0] }))
+        : [{ id: w.refs[1] }, { id: w.refs[0] }, { id: w.refs[1] }];
+      if (mode === 'over-bound') {
+        await assert.rejects(originalCommit(w, 'optionalFiles', wire), stateError);
+        assert.deepEqual(await domain(w), before);
+        continue;
+      }
+      const refs = mode === 'ordered' ? [w.refs[1], w.refs[0]] : [];
+      const { receipt, admitted } = await originalCommit(w, 'optionalFiles', wire, refs);
+      const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+      assert.equal(association.changed[0]!.fieldTypes['optionalFiles'], 'file[]?');
+      assert.deepEqual(association.changed[0]!.row.data['optionalFiles'], wire);
+      assert.deepEqual(association.fileAssignments!.map(item => item.file.ref), refs);
+      for (const item of association.fileAssignments!) assert.equal(item.rowVersion, w.row.version + 1);
+      const retained = await w.store.readReceipt(receiptIdentityFor(admitted.context)); assert.deepEqual(retained, receipt);
+      w.reopen();
+      const projected = await savedProjection(w, JSON.parse(JSON.stringify(retained)) as Receipt);
+      assert.deepEqual(projected.records[0]!.data, { visible: 'assigned visible', optionalFiles: wire });
+      const after = await domain(w), revision = await w.store.readRevision(); let executed = 0;
+      assert.equal((await invokeRetainedReceiptOnly({ ...w, execute: async () => { executed++; return empty(); } })).status, 'replayed');
+      assert.equal(executed, 0); assert.deepEqual(await domain(w), after);
+      assert.equal(await w.store.readRevision(), revision);
+    } finally { w.close(); }
+  }
+});
+
 test('only genuine active receiving observations can establish the owner File capture', async () => {
   for (const mode of ['raw', 'copy', 'json', 'foreign', 'call', 'store', 'getter', 'fact', 'duplicate'] as const) {
     const w = await world(); let getters = 0;
@@ -233,7 +304,7 @@ test('only genuine active receiving observations can establish the owner File ca
 test('File locator claims require complete genuine capture and the exact finalized owner field/write', async () => {
   for (const mode of ['missing', 'orphan', 'duplicate-locator', 'orphan-locator', 'wrong-field', 'nonfile', 'foreign-model',
     'ref', 'final-write', 'removal', 'version', 'supplied-fact', 'null-orphan', 'empty-orphan'] as const) {
-    const w = await world();
+    const w = await world(true, APP, mode === 'removal' ? 'remove' : 'archive');
     try {
       const before = await domain(w);
       await assert.rejects(invoke({ ...w, execute: async call => {
@@ -255,7 +326,7 @@ test('File locator claims require complete genuine capture and the exact finaliz
         if (mode === 'version') output.writes = output.writes.map(write => write.kind === 'remove' ? write :
           { ...write, row: { ...write.row, version: asVersion(write.row.version + 1) } });
         return output;
-      } }), stateError);
+      } }), stateError, mode);
       assert.deepEqual(await domain(w), before);
     } finally { w.close(); }
   }
