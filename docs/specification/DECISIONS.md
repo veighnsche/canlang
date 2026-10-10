@@ -6942,3 +6942,96 @@ Manual source/authority and genuine two-owner native fixture reviews are CLEAR f
 ### 2026-10-10 — current File slot authority and complete reference facts (unfinished)
 
 Choose the existing State read/fence/policy semantics for a current exact model/record/field/File locator, wrapping the Packages-owned physical byte reader. A whole current field grant and available owning model/parent read are necessary; actual full Identity facts, row lifetime/wire and original State revision are retained through the byte await and checked before disclosure. Return detached bytes, never a copied File observation as a grant. Enumerate every supported committed slot independently by row/field/array occurrence, including archived retained rows until disposal; actual committed replacements/removals naturally preserve every surviving relationship. Bounds, malformed wires and unsupported nominal inventory refuse complete absence. No new common DTO, Files marker/retention duplication, source gate widening or cross-store atomicity claim. Packages verified-byte producer and Dev principal/host serialization remain exact external joins; embedded File census remains unfinished State implementation using already available same-load Values metadata. Original seven defining groups/owning clean emission/strict boundary qualify at the existing physical callback; eight groups now include pending declaration/policy/parent drift coverage. Current verified byte-reader adoption and manual release remain pending. Existing reviewed f87 worker intake preserves both full histories/strongest allocations and the incomplete living-plan checkpoint; no remote or main mutation.
+
+### 2026-10-10 — child hydration preserves validation error ownership
+
+Private pre-suspension stored-reference hydration must keep the existing child shape refusal contract. Convert only local own-object/dense-array metadata failures to State validation; preserve genuine State errors and leave physical awaited storage exceptions unchanged. The original two caught malformed/copy child cases expose the regression and then pass2/2 unchanged, retaining exact rejected receipts, rollback, guard revocation and terminal lifetimes. Reuse56 unchanged component outcomes and the finite native stored-reference pass. CF emission/root noEmit/boundary0 pass. The overlapping Office continuity attempt refused capture_incomplete after partial business/browser observations without identifying a changed input. Freeze all producer inputs for its affected retry. That complete unchanged cohort now passes25 browser checks,36 business observations, examples2/2 twice, retained deliberate assertion failure and both isolated reruns, with unchanged serving resources, exact source restoration and full owner/build/descriptor cleanup. Keep one existing mode600 result and the joined tuple in PLAN; no duplicate proof packet or whole58 rerun. T04/T11 eligible branch/exact external packet, A5/G2 and G3 remain unfinished. No acceptance or hold changes follow.
+
+### 2026-10-10 — manual local intake of exact Devd61a3efe
+
+Manual finite d61 source review CLEAR. Convert only synchronous pre-hydration plain-own object/member and dense-array shape faults through genuine State validation; preserve existing State errors and leave all awaited target reads, admission, lifetime and invocation exceptions outside conversion. Intake exact owning invoke source and related existing PLAN/DEC, with no Dev branch ancestry or active worktree mutation. Reuse the two previously failed unchanged cases2/2 in539.83ms plus56 unchanged successes:58 distinct outcomes, not a fresh whole58 run. Changed CF emission/root noEmit/boundary0 pass. Earlier native1/1 is retained at its exact scope. Preserve the failed overlapping Office capture result; Dev separately owns frozen current Office qualification and cleanup. No rebuild merely for local visibility, no original application/full-plan acceptance, no hold change or remote publication.
+
+### 2026-10-10 — manual local intake of frozen Office5c55 qualification
+
+Manual review of exact existing mode600 Office result confirms overall pass,25 browser checks,36 business observations,4154 captured inputs, both example attempts2/2 with unchanged tables, matching original/restored source, and owned stop/descriptor removal. Owner also retains genuine deliberate failing assertion and both isolated reruns at unchanged serving resource scope. Reuse the frozen changed-input run; do not repeat tests or create proof files. Select only5c55 qualification changes in maintained PLAN/DEC; source correction d61 remains exact and no unreviewed worker ancestry is merged. This closes the earlier capture_incomplete retry only. T04/T11 live witness/packet, A5/G2, G3 and all recipient-specific holds remain open. No complete checkpoint advance or remote publication.
+
+### 2026-10-10 — finite File host correspondence handoff (broader join unfinished)
+
+The host consumes actual verified descriptor/operation/field availability, current committed whole-field File identity and State current row/parent/Identity authorization in the genuine physical owner store, with a second current check after the physical callback. The current authenticated reader and original physical receiving principal are separate facts; retained provenance grants no read authority. State owns the current authorized-read wrapper and reference/removal/replacement facts; Packages owns the same-byte-snapshot Files lifetime reader, store and Interfaces upload kernel. Those exact producers must be released before their Dev consumer is implemented. Do not use the current ref/caller-only reader, one overwritten attachment marker or an asynchronous census followed by an independent sweep to claim shared-reference authority or atomic retention.
+
+Existing native scalar File owner-download/reopen/revocation results remain at their finite scope. Dev owns host descriptor/locator/owner routing and callback consumption; explicit host files.fetch injection is required today. Actual provider namespace/key/age verification, deployment binding and persistent authenticated delivery/digest/receiving-effect/replay correlation remain absent owning host/deployment prerequisites. Fail-closed assembly stubs, pure verified-envelope mapping and separate Work occurrence replay do not implement those joins. This handoff releases requirements and observed facts only, proposes no replacement public API, authorizes no provider activation and changes no precise human hold; keep the exact blockers in the existing PLAN.
+
+### 2026-10-10 — manual local intake of File hostb666 correspondence
+
+Manual exact current bound-files.ts and provider ingress source inspection agrees with Devb666 observed facts: scalar model/record/field route repeats canonical read/current credentials after physical awaits and checks original file/version/revision, but fixed store/current-reader physical principal and explicit host injection leave wider routing/shared-reader/reference and provider qualification open. Interfaces verifier is injected and mapping is pure; assembly ingress remains fail-closed. Release only observed facts and required host correspondence, not an implemented wrapper/provider or replacement public API. Packages solely implements the same validated byte snapshot producer; Capability owns State current locator/grants and complete reference/removal facts; Dev owns physical routing/current versus receiving principal and exact callback consumption. Actual cross-store deletion serialization and provider configuration remain explicit host/deployment prerequisites. Preserve each precise hold; no unrelated implementation, complete checkpoint advance or publication.
+
+### 2026-10-10 — current physical File reads return their verified snapshot
+
+Reuse the genuine Files observation validator for `readCurrentFinalizedBytes`,
+with explicit physical receiver, current File policy and retention. Read once,
+check size and copy before digest/type validation, then return those verified
+bytes. The actual SQLite `readCurrentBytes` binding runs it in the existing
+metadata/byte transaction. Keep observation identity, retained captured/current
+horizons, provenance, original finalization time and legacy physical reads.
+This avoids a validate/discard/second-read gap without inventing row authority.
+
+Final owning Files emission passes; actual SQLite affected suite9/9 passes
+with four new snapshot/reopen/no-write/policy/deadline/foreign/corruption/terminal
+controls and five unchanged observation/revalidation controls. Independent
+finite source/test review is clear. Reuse unchanged upload/finalization/bounded
+retention results and the exact prior common229 scope; no protected download or
+current whole-head installed qualification follows.
+
+Capability/State owns canonical current committed File slots, independent
+row/field occurrences, removal/replacement/shared references and whole-field,
+parent and Identity checks before/after physical reads. Dev's released b666953d
+host contract owns exact scalar locator/verified descriptor/available operation,
+selected owner store and current reader versus physical original receiver.
+Packages owns Files retention/bytes and the Interfaces kernel. A complete
+owner/revision census must remain serialized through physical deletion; an
+asynchronous scan followed by a separate sweep cannot prove atomic retention.
+Deployment/provider namespace/key/age verification and persistent authenticated
+occurrence/delivery/digest/operation/receiving-effect replay correlation are
+still absent defining prerequisites. The single attachment marker grants
+neither shared-reference lifetime nor row reads. Parent scope is unfinished;
+coordinator manual source intake remains due and all precise holds persist.
+
+### 2026-10-10 — manual local integration of 520cc55b
+
+Manually reviewed exact owning Files producer520cc55b: one physical read copied before digest/type/size checks, current receiver/lifecycle/configured policy and explicit retention preserved, actual SQLite transaction, no metadata writes or legacy fallback. Reuse the nine affected SQLite passes and existing Files emission result; unchanged prior qualifications stay at their original scopes. Public root/finalize export and SQLite readCurrentBytes are released for separate State authority and physical-owner host joins. TECH-F02 shared-reference fence, protected business-field authority, native host integration and actual provider delivery remain unfinished. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — typed File download selects the genuine owner (unfinished broader join)
+
+Use the existing TeamOwnerStorageBoundary for download authorization just as canonical invocation does. Require its app to match the host and select its actual State store for each read, without fallback. After the awaited physical byte read, require the original authenticated principal/team before the second canonical read; matching row/file/version/revision facts cannot transfer the pending response to another selected owner. Retain the existing fixed-store host and its current grant checks.
+
+The genuine compiled unchanged typed-File source, actual Identity, two pinned D1 owners and SQLite Files consumer passes1/1, including identical actual CRUD IDs/versions/revisions, each owner's distinct byte result, zero fallback and all-table/no-effect refusals, and an actual session-team switch with zero routing to the new owner. The full unchanged legacy File journey passes1/1; clean CF emission, final root noEmit and boundary0 pass. Reuse the earlier affected Office and native lifecycle results at their recorded scopes. This finite source/test unit does not implement the pending State current-slot wrapper, Packages lifetime byte producer, shared-reader/shared-reference retention or absent provider join, and changes no hold or whole-plan acceptance.
+
+### 2026-10-10 — manual local intake of exact Dev60b2108b
+
+Manually reviewed exact Dev60b2108b finite owner-routing source and genuine compiled two-owner D1/Identity/SQLite fixture: configured TeamOwnerStorageBoundary selects the physical team store without fallback, app mismatch refuses, and actor/team continuity is checked before a second State read after physical awaits. Intake only two owning source/test paths and their existing PLAN/DEC record; no unreviewed branch ancestry. Reuse actual strengthened owner-routing1/1 in7.926s, unchanged full legacy File1/1, clean CF emission/root noEmit and boundary13/931/1388/zero. Existing fixed-store mode remains explicit; current reader still equals physical receiving principal. Packages520 reader is now independently reviewed/released in mainca8, but State current-slot authority, exact snapshot callback consumption, shared reader/reference retention and actual provider joins remain open. Preserve precise holds, living coverage and complete checkpoint; no publication.
+
+### 2026-10-10 — qualify the portable current File byte producer
+
+Extend the maintained isolated installed workerd probe to call the actual
+staged current reader after genuine Files finalization. Controlled explicitly
+non-durable ports are fixture storage; fixed assertions require original
+verified bytes, one physical read, detached snapshot and foreign/corrupt/exact
+unswept expiry refusal. Preserve every existing production, producer-loss,
+syntax, Work/State identity, Acorn, WASM and browser/integrity control.
+
+Changed Cloudflare emission and the genuine Files body/closure case pass;
+reuse the owning Files520 emission and unchanged graph outputs. The fresh
+isolated229 install passes on Node24.19 with checkout reads denied and only
+Cloudflare directly bound. Actual production workerd401 and every old control
+remain. Finite independent script review is clear. This qualifies portable
+physical bytes, with no State grant, shared-reference retention, authenticated
+provider, durable-host download or original workflow acceptance. Coordinator
+manual local intake is pending; all precise holds remain.
+
+### 2026-10-10 — manual local integration of a770ebb5
+
+Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — Capability intake of current File prerequisites (unfinished)
+
+Merge only coordinator-released LOCAL a22d44870f662806a3a4bdf39910e62738361699 into committed worker85898195, preserving both complete histories and existing source. Files520 supplies the genuine current policy/lifetime/digest-validated copied byte snapshot; Dev60b supplies actual physical-owner routing without fallback. Reuse those owning qualifications. State adopts this exact current physical reader inside its current-slot authority wrapper; native authenticated reader versus original receiver and cross-store deletion serialization remain Dev joins. Preserve both decision append histories, strongest living allocations, complete824934 checkpoint and draft checkout. No main mutation, remote publication or broadened workflow acceptance.

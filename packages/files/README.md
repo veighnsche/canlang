@@ -133,6 +133,21 @@ final field/write and receipt; recovery must recheck current row authority.
 Dev and Compiler own the actual typed-file source/replay consumers. Shared
 reference lifetime and authenticated provider ingress remain separate.
 
+`readCurrentFinalizedBytes` returns the exact physical byte snapshot checked
+by that same validator under explicit current File and retention policies.
+The SQLite binding exposes it as `readCurrentBytes(ref, physicalReceiver,
+retention)` inside its metadata/byte transaction. It refuses missing,
+corrupt, terminal, foreign or logically expired files before a retention
+sweep, and performs no second byte read or metadata write. Legacy
+`readFinalizedBytes`/`readBytes` retain their physical receiver checks.
+
+The protected read consumer must obtain State's current whole-field grant
+and exact File occurrence, then recheck State and Identity after asynchronous
+physical reads before disclosing bytes. Dev supplies the actual compiled
+locator and current caller/physical receiver correspondence. Shared reference
+retention additionally needs complete committed slots and a host fence through
+byte deletion; the single attachment marker cannot establish that contract.
+
 ## Scripts
 
 From the repository root, after `bun install --frozen-lockfile`:
