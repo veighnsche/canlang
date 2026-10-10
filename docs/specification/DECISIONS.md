@@ -6530,6 +6530,12 @@ The existing real Files/Interfaces assembly fixture must supply required observe
 
 Root typecheck passes. Initial affected journeys reveal missing-offset refusal and consequent incomplete-transfer failure; correct those actual request/binding inputs, preserving the original digest-conflict request. Final root typecheck and both existing journeys pass, with19 unrelated cases filtered and finite source reviewCLEAR. Reuse unchanged owning forwarding/Files and installed results. This qualifies the common fixture gate using its explicit memory test stores, without native File/current-authority/replay/durable or whole-parent acceptance.
 
+### 2026-10-10 — require the released runtime's actual Acorn consumer
+
+After reviewed694 includes Dev's real parser consumer, the maintained Acorn checks must require that source import. Remove the temporary copied-runtime/synthetic-import fallback and installed synthetic link consumer; absence of the actual static edge now fails. Missing Acorn is checked against the ordinary real Worker graph, preserving all exact pinned ESM, parser, producer and security controls.
+
+Changed State/Cloudflare owners emit0. The changed existing bundle case passes1/1; current226-module installed tarballs pass the complete existing verifier, including genuine Acorn/State Files edges and missing-producer refusals. Reuse unchanged root typecheck, assembly journeys and other producer outcomes. This strengthens the common gate and does not qualify Dev's current G1, native SEND/File, broader source/authority/replay or whole-plan acceptance.
+
 ### 2026-10-10 — manual local integration of 8db96e6d
 
 Manual review CLEAR for genuine pinned Acorn ESM staging and released State Files ports/finalizer mapping. Preserve real parser bytes, one canonical module identity and meaningful missing producer refusals. Reuse owning build22, selected bundle3, isolated225-module workerd parser and existing production checks; changed-input production emission of exact reviewed Dev55 also resolves actual Acorn import and boots217-module workerd to expected authentication401. This closes the common import prerequisite only. Dev owns current G1 rerun, source/native workflow qualification and uninjected workerd Receipt.read; preserve precise native preparation, timezone and publication holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
