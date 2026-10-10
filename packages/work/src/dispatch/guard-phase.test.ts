@@ -23,10 +23,10 @@ test('closed guard evidence transfers without source replay for positive and neg
       return result;
     });
     assert.ok(Object.isFrozen(pending)); assert.equal(pending.result, result);
-    assert.throws(() => readDispatchGuardExecution(execution), /not live/);
     current = !result;
     assert.equal(await pending.revalidate(), false);
     assert.equal(evaluations, 1); assert.equal(checks, 1);
+    assert.throws(() => readDispatchGuardExecution(execution), /not live/);
     await assert.rejects(pending.revalidate(), /already been consumed/);
     assert.equal(checks, 1);
   }
@@ -49,4 +49,25 @@ test('failed evidence cannot be consumed again and reader failures remain exact'
   });
   await assert.rejects(pending.revalidate(), error => error === failure);
   await assert.rejects(pending.revalidate(), /already been consumed/);
+});
+
+test('caught invalid enrollment and budget exhaustion poison the actual live guard', async () => {
+  for (const invalid of ['function', 'bounds']) {
+    await assert.rejects(phase((_predicate, _inputs, _state, execution) => {
+      if (invalid === 'function') {
+        assert.throws(() => registerDispatchGuardRevalidation(execution, null as unknown as () => boolean), /must be a function/);
+      } else {
+        for (let index = 0; index < 200; index++) registerDispatchGuardRevalidation(execution, () => true);
+        assert.throws(() => registerDispatchGuardRevalidation(execution, () => true), /exceed bounds/);
+      }
+      return true;
+    }), /poisoned/);
+  }
+});
+
+test('late registration on the actual closed handle poisons retained evidence even when caught', async () => {
+  let execution!: DispatchGuardExecution;
+  const pending = await phase((_predicate, _inputs, _state, issued) => { execution = issued; return false; });
+  assert.throws(() => registerDispatchGuardRevalidation(execution, () => true), /not live/);
+  await assert.rejects(pending.revalidate(), /poisoned/);
 });
