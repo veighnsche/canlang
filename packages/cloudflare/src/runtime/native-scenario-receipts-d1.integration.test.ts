@@ -4,12 +4,16 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { it } from 'node:test';
-import type { ActivationVerdict, ArtifactModelField, ClosedInputs, CompileArtifact, ModelName, RecordId } from '@canlang/contracts';
+import type { ActivationVerdict, ArtifactModelField, ClosedInputs, CompileArtifact, ModelName, RecordId, ReceiptIdentity } from '@canlang/contracts';
 import type { D1Database } from '@cloudflare/workers-types';
 import { createD1IdentityStore, deriveCsrfToken } from '@canlang/identity';
 import { hashInputs } from '@canlang/state/invocation/replay';
+import { readScenarioReceiptAssociation } from '@canlang/state/invocation';
+import { assembleModules } from './modules.js';
+import { importVerifiedAssemblyModule } from './assembly-verification.js';
 import { createD1Storage } from '@canlang/state/storage/d1';
 import { distribution } from '@canlang/values/distribution';
 import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
@@ -783,5 +787,191 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       finally { try { await provisioning?.dispose(); }
         finally { if (persistence) await rm(persistence,{recursive:true,force:true});
           if (capture) assert.equal(await captureIsCurrent(capture),true,'finish source-current'); } } }
+  }
+});
+
+/** Actual compiled static-call profile only. An E6008/no-artifact outcome is
+ * a failing prerequisite, never a skipped or hand-built business fixture. */
+it('consumes native static scalar and void children through the actual model-free global D1 worker and retains one root receipt', { timeout: 180000 }, async () => {
+  const app = 'NativeStaticCalls', operation = `${app}.parent`;
+  let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
+  let persistence: string | undefined;
+  let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
+  try {
+    capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
+      appPath: join(root,'tests/integration/can-dev-server/NativeStaticCalls.can'),
+      compilerPath: join(root,'compiler/target/debug/can'), catalogPath: fileURLToPath(distribution.catalog),
+      helpIndexPath: join(root,'docs/specification/CONSTRUCT-HELP.md') }));
+    assert.equal(await captureIsCurrent(capture),true);
+    const compiled = await compileCapturedSingleFile(capture);
+    assert.equal(compiled.kind,'artifact',compiled.kind==='diagnostics'?JSON.stringify(compiled.envelope.diagnostics):compiled.kind);
+    if (compiled.kind!=='artifact') throw new Error('Native static calls require the released compiler activation, including removal of E6008 for this exact profile');
+    const artifact = compiled.artifact;
+    assert.equal(verifyCompilerSources(capture,{complete:true,sources:artifact.sources}).ok,true);
+    assert.deepEqual(artifact.sources,[{path:capture.compilerOperand,sha256:capture.sourceSha256}]);
+    assert.deepEqual(artifact.models??[],[]); assert.deepEqual(artifact.pages,[]);
+    assert.deepEqual(artifact.operations?.map(item=>item.name).sort(),[`${app}.child`,`${app}.finish`,operation].sort());
+    const parent = artifact.operations!.find(item=>item.name===operation)!;
+    const child = artifact.operations!.find(item=>item.name===`${app}.child`)!;
+    const finish = artifact.operations!.find(item=>item.name===`${app}.finish`)!;
+    assert.equal(parent.result?.type,'int'); assert.equal(child.result?.type,'int'); assert.equal(finish.result?.type,'void');
+    for (const declaration of [parent,child,finish]) {
+      const plan = declaration.result?.disclosure; assert.ok(plan,'actual compiled complete result closure');
+      const callable = artifact.callables.find(item=>item.id===declaration.name); assert.ok(callable);
+      assert.equal(callable.kind,'operation'); assert.equal(callable.inputStyle,'parameters');
+      assert.equal(plan.source.module,callable.module);
+      assert.equal(plan.source.path,capture.compilerOperand); assert.equal(plan.source.sha256,capture.sourceSha256);
+      assert.ok(artifact.modules.some(item=>item.path===callable.module));
+    }
+    // Read the actual checked source carrier through the owning assembler,
+    // rather than extracting metadata from source spelling or fabricating it.
+    persistence = await mkdtemp(join(tmpdir(),'can-native-static-d1-'));
+    const asm = await assembleModules({artifact,sourcePath:capture.compilerOperand},{workDir:join(persistence,'checked-modules'),
+      stdlibUrl:pathToFileURL(createRequire(import.meta.url).resolve('@canlang/cloudflare/runtime/stdlib')).href});
+    const actualModule = object(await importVerifiedAssemblyModule(asm,parent.result!.disclosure!.source.module,artifact));
+    const declarations = object(object(actualModule.appDefinition).operations);
+    const sites = object(declarations[operation]).callSites;
+    assert.ok(Array.isArray(sites)); assert.equal(sites.length,2);
+    const checkedSites = sites.map(object);
+    assert.deepEqual(checkedSites.map(site=>site.kind),['operation','operation']);
+    assert.deepEqual(checkedSites.map(site=>site.targets),[[`${app}.child`],[`${app}.finish`]]);
+    assert.deepEqual(checkedSites.map(site=>site.resultType),['int','void']);
+    assert.equal(new Set(checkedSites.map(site=>word(site.id))).size,2);
+    for (const site of checkedSites) assert.deepEqual(site.source,parent.result!.disclosure!.source);
+    const parentModule = artifact.modules.find(item=>item.path===parent.result!.disclosure!.source.module)!;
+    assert.match(parentModule.js,/await[^;]*invokeScenarioReceiptCall/,'actual emitted awaited child body');
+    const preflight = await preflightLocalPreviewActivation(artifact,capture);
+    assert.equal(preflight.active,true,'actual activation must admit this finite native profile');
+    if (!preflight.active) throw new Error('Native static-call activation refused');
+    const evidence = await produceInstalledPortableBundle({artifact,capture,
+      verdict:preflight as ActivationVerdict & {active:true},assets:{browser:true,valuesWasm:true}});
+    assert.equal(evidence.captureEpochMaterial,capture.epochMaterial); assert.equal(evidence.artifactJsonSha256,digest(artifact));
+    assert.equal(await captureIsCurrent(capture),true);
+    bridge = await startProtectedPreview({dispatchUrl:(url,init)=>worker
+      ? worker.dispatchUrl(url,init) : Promise.reject(new Error('actual static-call worker is starting'))});
+    const origin = bridge.url, databaseId = `native-static-${randomUUID()}`;
+    provisioning = await startLocalDev({workerName:`native-static-provision-${randomUUID()}`,
+      compatibilityDate:PINNED_COMPATIBILITY_DATE,mainModule:'provision.js',
+      modules:{'provision.js':'export default {fetch(){return new Response(null,{status:404})}};'},
+      d1Databases:[{binding:'DB',id:databaseId}],d1Persist:persistence});
+    const seed = await seedLocalPreviewActors(await provisioning.getD1Database('DB'));
+    await provisioning.dispose(); provisioning=undefined;
+    // No models means the actual existing global DB path. No owner router,
+    // per-team databases or business/test-host implementation is supplied.
+    worker = await startLocalDev({workerName:`native-static-${randomUUID()}`,compatibilityDate:PINNED_COMPATIBILITY_DATE,
+      mainModule:'worker/main.js',modules:evidence.bundle.modules,binaryModules:evidence.bundle.binaries,
+      d1Databases:[{binding:'DB',id:databaseId}],d1Persist:persistence,
+      vars:selectPreviewWorkerVars({resources:{d1:{binding:'DB',availability:'real_local'},
+        identity:{backingBinding:'DB',availability:'real_local'}}},origin)});
+    const db = await worker.getD1Database('DB'), store = createD1Storage(db);
+    assert.equal((await localPreviewActivationVerdict(artifact,capture,db,databaseId)).active,true);
+    const bootstrap = await fetch(bridge.issueOpenUrl(),{redirect:'manual'}); assert.equal(bootstrap.status,303);
+    const bridgeCookie = bootstrap.headers.getSetCookie().find(value=>value.startsWith('can_dev_preview='))?.split(';',1)[0];
+    assert.ok(bridgeCookie);
+    const request = (actor:Actor|null,path:string,body?:unknown,token?:string) => fetch(new URL(path,origin),{
+      method:body===undefined?'GET':'POST',redirect:'manual',headers:{origin,cookie:[bridgeCookie,actor?.cookie].filter(Boolean).join('; '),
+        ...(body===undefined?{}:{'content-type':'application/json'}),...(actor?.csrf?{'x-csrf-token':actor.csrf}:{}),
+        ...(path==='/mcp'?{accept:'application/json, text/event-stream'}:{}),
+        ...(token?{authorization:`Bearer ${token}`}:{})},
+      ...(body===undefined?{}:{body:JSON.stringify(body)})});
+    async function login(label:string):Promise<Actor> {
+      const seeded=seed.actors.find(item=>item.label===label); assert.ok(seeded);
+      const descriptor=await request(null,'/auth/login'); assert.equal(descriptor.status,200);
+      const response=await request(null,'/auth/login',{email:seeded.email,password:seeded.password,
+        _presession:word(object(await descriptor.json()).preSessionToken)}); assert.equal(response.status,200);
+      const cookie=response.headers.getSetCookie().find(value=>value.startsWith('can_session='))?.split(';',1)[0]; assert.ok(cookie);
+      const principal=await db.prepare('SELECT user_id FROM identity_users WHERE email_lc=?').bind(seeded.email.toLowerCase())
+        .first<{user_id:string}>(); assert.ok(principal);
+      const actor:Actor={cookie,csrf:await deriveCsrfToken(decodeURIComponent(cookie.slice('can_session='.length))),
+        principal:word(principal.user_id),owner:null};
+      const listing=await request(actor,'/auth/teams'); assert.equal(listing.status,200);
+      const teams=object(await listing.json()).teams; assert.ok(Array.isArray(teams));
+      if(teams.length) { actor.owner=word(object(teams[0]).team_id);
+        assert.equal((await request(actor,'/auth/select-team',{team:actor.owner,_csrf:actor.csrf})).status,200); }
+      return actor;
+    }
+    const ava=await login('Ava'),ben=await login('Ben'),dee=await login('Dee');
+    assert.ok(ava.owner); assert.equal(ben.owner,ava.owner); assert.equal(dee.owner,null);
+    // Provision the actual MCP grant before resource snapshots. Its Identity
+    // bookkeeping is separate from the subsequent mutation/replay assertions.
+    const granted=await request(ben,'/mcp/grants',{client_id:'native-static-calls-d1-test'});
+    assert.equal(granted.status,200); ben.grant=word(object(await granted.json()).token); assert.ok(ben.grant);
+    async function deliver(actor:Actor,envelope:{operation_id:string;inputs:ClosedInputs}):Promise<Record<string,unknown>> {
+      if(actor===ben) {
+        const response=await request(actor,'/mcp',{jsonrpc:'2.0',id:envelope.operation_id,method:'tools/call',
+          params:{name:operation,arguments:{operation_id:envelope.operation_id,...envelope.inputs}}},actor.grant);
+        assert.equal(response.status,200); const rpc=object(await response.json());
+        assert.equal(rpc.error,undefined); const result=object(rpc.result); assert.notEqual(result.isError,true);
+        return object(result.structuredContent);
+      }
+      const response=await request(actor,`/api/operations/${operation}`,{operation_id:envelope.operation_id,inputs:envelope.inputs});
+      assert.equal(response.status,200); return object(await response.json());
+    }
+
+    async function snapshot():Promise<DatabaseSnapshot> {
+      const names=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        .all<{name:string}>()).results.map(row=>row.name).filter(name=>!name.startsWith('_cf_'));
+      const result:DatabaseSnapshot={};
+      for(const name of names) { assert.match(name,/^[A-Za-z_][A-Za-z0-9_]*$/);
+        const rows=(await db.prepare(`SELECT * FROM "${name}"`).all()).results;
+        result[name]={count:rows.length,digest:digest(rows.map(row=>JSON.stringify(row)).sort())}; }
+      return result;
+    }
+    for(const [actor,value] of [[ava,'17'],[ben,'9223372036854775807']] as const) {
+      const before=await snapshot(),revision=await store.readRevision();
+      const envelope={operation,operation_id:operationId(),inputs:{value}};
+      const wire=await deliver(actor,envelope);
+      assert.equal(wire.status,'committed'); assert.equal(wire.result,'1'); assert.deepEqual(wire.records,[]);
+      // The global physical DB owns the actual receipt key. A selected team
+      // for member admission does not imply a team-specific storage namespace.
+      const key=await db.prepare('SELECT app,owner,principal,operation,operation_id FROM receipts WHERE operation_id=?')
+        .bind(envelope.operation_id).first<Pick<ReceiptRow,'app'|'owner'|'principal'|'operation'|'operation_id'>>();
+      assert.ok(key); assert.equal(key.app,app); assert.equal(key.principal,actor.principal);
+      assert.equal(key.operation,operation); assert.equal(key.operation_id,envelope.operation_id);
+      const identity:ReceiptIdentity={app:key.app,owner:word(key.owner),principal:key.principal,
+        operation:key.operation as ReceiptIdentity['operation'],operationId:key.operation_id as ReceiptIdentity['operationId']};
+      const physical=await store.readReceipt(identity); assert.ok(physical);
+      assert.equal(physical.inputHash,await hashInputs(envelope.inputs)); assert.deepEqual(physical.resolvedDefaults,{});
+      assert.equal(physical.outcome.status,'committed');
+      if(physical.outcome.status!=='committed') throw new Error('expected actual static-call commit');
+      assert.equal(physical.outcome.result,'1'); assert.deepEqual(physical.outcome.recordVersions,[]);
+      const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+      assert.deepEqual(association.plan,parent.result!.disclosure); assert.deepEqual(association.changed,[]);
+      assert.deepEqual(association.observations,[]); assert.equal(association.calls?.length,2);
+      assert.deepEqual(association.calls?.map(call=>[call.site,call.caller,call.target,call.result]),
+        [[checkedSites[0]!.id,operation,child.name,value],[checkedSites[1]!.id,operation,finish.name,null]]);
+      for(const [index,call] of association.calls!.entries()) {
+        const target=index===0?child:finish; assert.deepEqual(call.references,[]); assert.ok(call.scenario);
+        assert.deepEqual(call.scenario.plan,target.result!.disclosure); assert.equal(call.scenario.resultType,target.result!.type);
+      }
+      const savedInput=association.calls![0]!.scenario!.intrinsics?.find(item=>item.kind==='admitted-input');
+      assert.ok(savedInput); assert.equal(savedInput.wire,value,'actual child scalar parameter was admitted, evaluated and captured');
+      const after=await snapshot(); assert.deepEqual(Object.keys(after),Object.keys(before));
+      assert.equal(await store.readRevision(),revision+1);
+      assert.equal(after.receipts!.count,before.receipts!.count+1,'only the root writes a physical receipt');
+      assert.equal(after.fence_log!.count,before.fence_log!.count+1);
+      for(const [table,state] of Object.entries(before)) if(!['fence','fence_log','receipts'].includes(table)) {
+        assert.deepEqual(after[table],state,`${table}: no domain/history/unique/work/Identity effects`);
+      }
+      const replayWire=await deliver(actor,envelope);
+      assert.equal(replayWire.status,'replayed'); assert.equal(replayWire.result,'1'); assert.deepEqual(replayWire.records,[]);
+      assert.deepEqual(await snapshot(),after); assert.deepEqual(await store.readReceipt(identity),physical);
+      assert.equal(await captureIsCurrent(capture),true);
+    }
+    for(const actor of [dee,null]) {
+      const before=await snapshot(),id=operationId();
+      const response=await request(actor,`/api/operations/${operation}`,{operation_id:id,inputs:{value:'17'}});
+      assert.equal(response.status,403); const denial=object(await response.json());
+      assert.equal(denial.code,'forbidden');
+      assert.deepEqual(await snapshot(),before,'nonmember/public refusal leaves every global State and Identity table unchanged');
+      assert.equal(await db.prepare('SELECT COUNT(*) AS count FROM receipts WHERE operation_id=?').bind(id).first<number>('count'),0);
+    }
+    assert.equal(await captureIsCurrent(capture),true);
+  } finally {
+    try { await bridge?.close(); }
+    finally { try { await worker?.dispose(); }
+      finally { try { await provisioning?.dispose(); }
+        finally { if(persistence) await rm(persistence,{recursive:true,force:true});
+          if(capture) assert.equal(await captureIsCurrent(capture),true,'static-call finish source-current'); } } }
   }
 });
