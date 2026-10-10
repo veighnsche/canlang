@@ -310,7 +310,11 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
   ].includes(key))) {
     fail("RESOURCE_INVALID", "preview Worker vars cannot replace D1, owner or selected auth origin bindings");
   }
-  return Object.freeze({ ...(vars ?? {}), CAN_AUTH_ORIGIN: origin });
+  const base = vars === undefined ? undefined : Object.getOwnPropertyDescriptor(vars, 'CAN_DEPLOYMENT_BASE');
+  if (base !== undefined && (!('value' in base) || base.value !== origin)) {
+    fail("RESOURCE_INVALID", "preview deployment base must be the selected protected root loopback origin");
+  }
+  return Object.freeze({ ...(vars ?? {}), CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin });
 }
 
 async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: string, seed: LocalPreviewSeed): Promise<void> {

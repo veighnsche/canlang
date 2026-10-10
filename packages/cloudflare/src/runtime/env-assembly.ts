@@ -59,6 +59,7 @@ import type {
 import type { D1Database } from '@cloudflare/workers-types';
 import type { HttpAuthConfiguration } from '../worker/assembly.js';
 import type { PagePreferenceStore } from '@canlang/interfaces';
+import { app_url } from '@canlang/values';
 import { createD1AuthRateLimiter } from './auth-rate-limiter.js';
 import { createD1PagePreferenceStore, ensurePagePreferencesSchema } from './page-preferences.js';
 
@@ -371,6 +372,17 @@ async function loadIdentityD1(): Promise<IdentityD1Producer> {
 /* Constructor (PINNED contract: P-A dynamic-imports this shape).       */
 /* ------------------------------------------------------------------ */
 
+/** Explicit trusted deployment configuration; no auth/request-derived fallback. */
+export function validateDeploymentBase(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE must be an explicit http(s) base string');
+  try { app_url('/', value); }
+  catch (cause) { throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE is not a valid trusted deployment base', { cause }); }
+  if (new URL(value).pathname !== '/') {
+    throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE nonroot mount is unsupported until mounted routing is joined');
+  }
+  return value;
+}
+
 /**
  * Build the production serving deps from the worker environment.
  *
@@ -392,7 +404,10 @@ async function loadIdentityD1(): Promise<IdentityD1Producer> {
  */
 export async function buildProductionDeps(
   env: Record<string, unknown>,
-): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration }> {
+): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
+  const configuredBase = Object.getOwnPropertyDescriptor(env, 'CAN_DEPLOYMENT_BASE');
+  if (configuredBase !== undefined && !('value' in configuredBase)) throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE requires own configuration data');
+  const deploymentBase = configuredBase === undefined ? undefined : validateDeploymentBase(configuredBase.value);
   const db: unknown = env["DB"];
   if (!isD1Binding(db)) {
     // Self-identifying (module + function): P-A's worker main surfaces
@@ -428,7 +443,7 @@ export async function buildProductionDeps(
     await ensurePagePreferencesSchema(db as D1Database);
     const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
       limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
-    return { ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(),
+    return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(),
       identityStore: identity.createD1IdentityStore(db), preferences: createD1PagePreferenceStore(db as D1Database),
       stateTeams };
   }
@@ -449,7 +464,7 @@ export async function buildProductionDeps(
     await ensurePagePreferencesSchema(db as D1Database);
     const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
       limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
-    return { ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
+    return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
       preferences: createD1PagePreferenceStore(db as D1Database),
       stateTeam: { owner: selectedOwner, db: stateDb as unknown as D1Database,
         ...(fresh === undefined ? {} : { initializeFresh: true }) } };
@@ -462,6 +477,7 @@ export async function buildProductionDeps(
   const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
     limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
   return {
+    ...(deploymentBase === undefined ? {} : { deploymentBase }),
     ...(auth === undefined ? {} : { auth }),
     store: state.createD1Storage(db),
     identityStore: identity.createD1IdentityStore(db),

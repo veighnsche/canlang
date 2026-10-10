@@ -16,7 +16,7 @@ import { uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { assertLinksResolve, assertWorkerdLoadable, buildDeployBundle } from '../deploy/bundle.js';
 import { activate } from '../deploy/activate.js';
 import { probeInstalledRuntime } from '../deploy/installed.js';
-import { buildProductionDeps } from '../runtime/env-assembly.js';
+import { buildProductionDeps, validateDeploymentBase } from '../runtime/env-assembly.js';
 
 // The normal shipped main and production dependency loader consume trusted host vars.
 test('installed bundled auth joins real local D1 sessions, teams and canonical operations', async () => {
@@ -28,13 +28,31 @@ test('installed bundled auth joins real local D1 sessions, teams and canonical o
     script: 'export default { fetch() { return new Response("ok"); } }', d1Databases: { DB: 'auth-join' } });
   try {
     let db = await mf.getD1Database('DB') as unknown as D1Database;
+    assert.equal(validateDeploymentBase('http://127.0.0.1:43217'), 'http://127.0.0.1:43217');
+    assert.equal(validateDeploymentBase('https://DEPLOY.example/'), 'https://DEPLOY.example/');
+    // Open Miniflare's own D1 bookkeeping before capturing all physical tables.
+    await db.prepare('SELECT 1').first();
+    const pristine = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all()).results;
+    for (const invalid of [undefined, 42, 'not-a-url', 'ftp://deployment.example',
+      'https://user:password@deployment.example', 'https://deployment.example?query=1',
+      'https://deployment.example#fragment', 'https://deployment.example/mounted/']) {
+      await assert.rejects(buildProductionDeps({ DB: db, CAN_DEPLOYMENT_BASE: invalid }),
+        invalid === 'https://deployment.example/mounted/' ? /nonroot mount is unsupported/ : /CAN_DEPLOYMENT_BASE/);
+      assert.deepEqual((await db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all()).results, pristine,
+        'invalid explicit deployment configuration precedes schema writes');
+    }
+    let baseGetterReads = 0;
+    await assert.rejects(buildProductionDeps({ DB: db, get CAN_DEPLOYMENT_BASE() { baseGetterReads++; return 'https://deployment.example'; } }), /own configuration data/);
+    assert.equal(baseGetterReads, 0);
     let production = await buildProductionDeps({ DB: db });
+    assert.equal(production.deploymentBase, undefined, 'no request or auth fallback');
     let identities = createD1IdentityStore(db);
     for (const invalid of ['not-an-origin', 'ftp://auth.example', 'http://localhost/', 'http://localhost/path',
       'http://localhost?query=1', 'http://user:password@localhost', 'http://localhost#fragment']) {
       await assert.rejects(buildProductionDeps({ DB: db, CAN_AUTH_ORIGIN: invalid }), /CAN_AUTH_ORIGIN/);
     }
-    const configured = await buildProductionDeps({ DB: db, CAN_AUTH_ORIGIN: 'https://auth.example' });
+    const configured = await buildProductionDeps({ DB: db, CAN_AUTH_ORIGIN: 'https://auth.example', CAN_DEPLOYMENT_BASE: 'https://DEPLOY.example/' });
+    assert.equal(configured.deploymentBase, 'https://DEPLOY.example/', 'the original validated host string survives unchanged');
     assert.equal(configured.auth?.origin, 'https://auth.example');
     assert.equal(configured.auth?.secureCookies, true);
     assert.equal(configured.auth?.mail, undefined);
