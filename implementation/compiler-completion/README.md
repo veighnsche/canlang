@@ -3238,3 +3238,45 @@ publication boundaries; coordinator intake and native ingress remain separate.
 Original69/nine references/precise BDD3/Task22 holds remain. Ready assigned next:
 CanRefer join→join_program plus button/comment/spec, then nonexported CanPropose
 held→hold_result; no Purchase or exported Rent expansion.
+
+
+### 2026-10-10 — retain Refer join input scope (unfinished composition)
+
+Assigned draftf887678 renames only nonexported join→join_program, its sole button,
+explanatory comment and owning specification reference. Verified email/active
+program/no-own-Advocate admission, unique code, creation fields/order and all
+neighboring permission/replay/attribution examples remain. Actual original25/
+catalog69→65 removes exactly the closed-builtin E2002 and three unresolved-program
+E2001 cascades; Refer4→0, no additions, complete/omitted0/all25 hashes/no artifact.
+Isolated Refer79→75; only its corpus pin/comment moves, retaining all52 rows/full
+assertions/51 unchanged expectations. Owning table1/1 passes3.30s,36 unrelated
+tests unselected, diff0. Reuse unchanged compiler production whole1422/138 and
+strict lint1m02s/fmt0 at the frozen preceding source; no fresh whole-head/native
+application acceptance. Next assigned Propose held→hold_result proceeds locally.
+Maintain100/109 original cancellation author needs exact Compiler hook-context/
+attribution and Dev source identity transfer; trusted null actor cannot supply
+manager attribution. Preserve its author/time/continuation and original examples.
+DatetimeValue facade, Employees purity/Volunteer bindings, Purchase unassigned,
+exported Rent exclusion and precise BDD3/Task22 holds retain their owners.58/67.
+
+
+### 2026-10-10 — retain Propose held cases (unfinished composition)
+
+Assigned draftc97f409 changes only the nonexported handler held→hold_result.
+No actual handler-name caller/form/import/spec consumer exists. Keep the exact
+Rooms.hold_offer.completed binding, correlation/version/deadline/current-state
+guards, authority, complete body/effects/order and every held value/example.
+Actual original25/catalog65→56 removes exactly seven E3001 and two E3002 captures;
+Propose9→0, no additions, complete/omitted0/all25 current hashes/no artifact.
+Isolated Propose127→118; only its corpus pin/comment moves, all52 rows/full
+assertions/51 other expectations retained. Owning table1/1 passes5.37s,36 unrelated
+tests unselected, diff0. Prior Refer f887 remains qualified. Reuse unchanged
+compiler production whole1422/138/strict lint1m02s; no new native completion or
+whole application acceptance. Leave5 require a binding-aware Compiler example
+observation correction: its declared request:Request fixture is already admitted
+on the input side, while observation root spelling is unconditionally rejected.
+No source/API rename is accepted; exact consumer alignment remains prerequisite.
+Keep BDD3 disclosure/input-policy and S9-Q07 runtime request-forwarding/as/returned
+qualification separate. Maintain initiating-author and DatetimeValue facade
+contracts, Purchase unassigned/exported Rent excluded and other owners remain.
+58/67 and precise holds unchanged. Local only.
