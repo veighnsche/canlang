@@ -8621,6 +8621,8 @@ impl<'a> Emitter<'a> {
         if facts.handlers.is_empty() && current.is_empty() {
             return None;
         }
+        let claimed_ids: std::collections::HashSet<_> =
+            facts.handlers.iter().map(|fact| fact.id).collect();
         let valid = db.is_some_and(|db| {
             !facts.sources.is_empty()
                 && facts.sources.iter().all(|(id, path, hash)| {
@@ -8628,6 +8630,8 @@ impl<'a> Emitter<'a> {
                         .is_some_and(|source| source.path == *path && source.sha256 == *hash)
                 })
         }) && current.len() == facts.handlers.len()
+            && claimed_ids.len() == facts.handlers.len()
+            && current.iter().all(|item| claimed_ids.contains(&item.id))
             && facts.handlers.iter().all(|fact| {
                 let completion = &fact.completion;
                 let Some(item) = self.ir.items.get(fact.id.0 as usize) else {
@@ -11034,6 +11038,64 @@ mod string_tests {
         assert_eq!(
             js_string("'\"\\/é😀\u{7f}\u{2028}\u{2029}"),
             "\"'\\\"\\\\/é😀\u{7f}\u{2028}\u{2029}\"",
+        );
+    }
+}
+
+#[cfg(test)]
+mod completion_census_tests {
+    use super::emit_program_with_native_source_receipts;
+    use crate::{
+        analysis::{
+            catalog::{CatalogRequest, load_catalog},
+            check_program,
+        },
+        codegen::ir,
+        source::{SourceDb, Span},
+    };
+
+    #[test]
+    fn duplicate_completion_fact_cannot_replace_an_original_handler() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let mut db = SourceDb::new();
+        let file = db.add("completion-census.can".into(), "app Census\nuse std {EmailV1 as Mail} from=deployment.mail\nGiven\nWhen\n scenario observed_a on=Mail.send.completed\n  do let status=event.status\n scenario observed_b on=Mail.send.completed\n  do let status=event.status\nThen\n".into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (mut ir, _) = ir::build(&checked, &db, catalog.as_ref());
+        assert_eq!(ir.standard_completion_sources.handlers.len(), 2);
+        let original = emit_program_with_native_source_receipts(&ir, false, &db);
+        assert!(
+            original.diagnostics.is_empty(),
+            "{:?}",
+            original.diagnostics
+        );
+        assert!(original.entry.js.contains("standardCompletions:"));
+        // Equal lengths still conceal an omitted source handler without a bijection.
+        ir.standard_completion_sources.handlers[1] =
+            ir.standard_completion_sources.handlers[0].clone();
+        let output = emit_program_with_native_source_receipts(&ir, false, &db);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic.message.contains("standardCompletions")),
+            "{:?}",
+            output.diagnostics
+        );
+        assert!(
+            !output.entry.js.contains("standardCompletions:"),
+            "duplicate substitution cannot publish a partial census"
         );
     }
 }
