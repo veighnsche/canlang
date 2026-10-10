@@ -2033,13 +2033,20 @@ fn t30_whole_payload_readonly() {
     assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
 }
 
-/// (T30) Opaque handler payloads fail closed: `set` into a committed
-/// change-event member is `E3009`, never silently accepted.
+/// (T30) Committed payloads expose only immutable id/version. Unknown
+/// snapshots refuse member lookup, and the whole payload remains read-only.
 #[test]
-fn t30_opaque_payload_fail_closed() {
+fn t30_committed_payload_fail_closed() {
     let catalog = fixture();
     let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n scenario h on=M.created\n  do\n   set event.snapshot {t=\"x\"}\nThen\n";
     let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+    assert!(diags[0].message.contains("snapshot"), "{diags:?}");
+    let src = src.replace(
+        "set event.snapshot {t=\"x\"}",
+        "set event {id=\"changed\",version=2}",
+    );
+    let diags = check(&src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3009"], "{diags:?}");
 }
 
