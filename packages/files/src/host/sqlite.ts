@@ -3,20 +3,20 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import type { DatetimeValue, FilePolicy } from '@canlang/contracts';
 import { decodeValue, encodeValue } from '@canlang/values';
-import type { BlobStorePort, ClockPort, FinalizedStorePort, IntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
+import type { BlobStorePort, ClockPort, PagedFinalizedStorePort, PagedIntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
 import { assertSafeBlobKey } from '../ports.js';
 import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
-import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContent, completeUploadContent } from '../upload/index.js';
+import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContentAtOffset, completeUploadContent } from '../upload/index.js';
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
 import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes } from '../finalize/index.js';
 import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
-import { runRetention, describeForReceipt } from '../retention/index.js';
-import type { RetentionConfig } from '../retention/index.js';
+import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt } from '../retention/index.js';
+import type { RetentionConfig, RetentionBatchOptions } from '../retention/index.js';
 
 export interface SqliteFileStore {
-  readonly intents: IntentStorePort;
-  readonly files: FinalizedStorePort;
+  readonly intents: PagedIntentStorePort;
+  readonly files: PagedFinalizedStorePort;
   readonly blobs: BlobStorePort;
   /** Wrap the existing synchronous kernel call; a thrown error rolls back every port. */
   transaction<T>(body: () => T): T;
@@ -45,6 +45,13 @@ function text(row: Record<string, unknown> | undefined): string | null {
   return row.json;
 }
 
+function checkRetentionPage(after: string | null, limit: number): void {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_RETENTION_BATCH_ROWS) {
+    throw new RangeError(`Retention page limit must be a safe integer between 1 and ${MAX_RETENTION_BATCH_ROWS}.`);
+  }
+  if (after !== null) assertSafeBlobKey(after);
+}
+
 /** Node 24 SQLite leaf; not imported by the portable Files root or Worker. */
 export function createSqliteFileStore(path: string): SqliteFileStore {
   const db = new DatabaseSync(path);
@@ -66,7 +73,7 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
     throw error;
   }
   let inTransaction = false;
-  const intents: IntentStorePort = {
+  const intents: PagedIntentStorePort = {
     get(id) {
       const json = text(db.prepare('SELECT json FROM files_upload_intents WHERE id = ?').get(id));
       return json === null ? null : JSON.parse(json) as UploadIntentRecord;
@@ -80,12 +87,19 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
         ON CONFLICT(id) DO UPDATE SET retry_id = excluded.retry_id, json = excluded.json`)
         .run(record.intentId, record.retryId, JSON.stringify(record));
     },
+    listAfter(after, limit) {
+      checkRetentionPage(after, limit);
+      const rows = after === null
+        ? db.prepare('SELECT json FROM files_upload_intents ORDER BY id LIMIT ?').all(limit)
+        : db.prepare('SELECT json FROM files_upload_intents WHERE id > ? ORDER BY id LIMIT ?').all(after, limit);
+      return rows.map(row => JSON.parse(text(row)!) as UploadIntentRecord);
+    },
     listAll() {
       return db.prepare('SELECT json FROM files_upload_intents ORDER BY id').all()
         .map(row => JSON.parse(text(row)!) as UploadIntentRecord);
     },
   };
-  const files: FinalizedStorePort = {
+  const files: PagedFinalizedStorePort = {
     get(id) {
       const json = text(db.prepare('SELECT json FROM files_finalized WHERE id = ?').get(id));
       return json === null ? null : decodeFile(json);
@@ -93,6 +107,13 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
     put(record) {
       db.prepare(`INSERT INTO files_finalized (id, json) VALUES (?, ?)
         ON CONFLICT(id) DO UPDATE SET json = excluded.json`).run(record.file.id, encodeFile(record));
+    },
+    listAfter(after, limit) {
+      checkRetentionPage(after, limit);
+      const rows = after === null
+        ? db.prepare('SELECT json FROM files_finalized ORDER BY id LIMIT ?').all(limit)
+        : db.prepare('SELECT json FROM files_finalized WHERE id > ? ORDER BY id LIMIT ?').all(after, limit);
+      return rows.map(row => decodeFile(text(row)!));
     },
     listAll() {
       return db.prepare('SELECT json FROM files_finalized ORDER BY id').all().map(row => decodeFile(text(row)!));
@@ -181,8 +202,8 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
   return {
     maxBytes: policy.maxBytes,
     createIntent: (input: CreateIntentInput) => store.transaction(() => createUploadIntent(upload, input)),
-    append: (intentId: string, caller: ReceivingContext, chunk: Uint8Array) =>
-      store.transaction(() => appendUploadContent(upload, intentId, caller, chunk)),
+    append: (intentId: string, caller: ReceivingContext, chunk: Uint8Array, expectedOffset: number) =>
+      store.transaction(() => appendUploadContentAtOffset(upload, intentId, caller, chunk, expectedOffset)),
     complete: (intentId: string, caller: ReceivingContext) =>
       store.transaction(() => completeUploadContent(upload, intentId, caller)),
     finalize: (input: FinalizeInput) => store.transaction(() => finalizeUpload(finalize, input)),
@@ -197,6 +218,10 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     runRetention: (config: RetentionConfig) => store.transaction(() => runRetention({
       clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
     }, config)),
+    /** Bounded retention shares the same metadata and byte transaction. */
+    runRetentionBatch: (config: RetentionConfig, batch: RetentionBatchOptions) => store.transaction(() => runRetentionBatch({
+      clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
+    }, config, batch)),
     describeForReceipt: (ref: string) => describeForReceipt({ files: store.files, blobs: store.blobs }, ref),
   };
 }

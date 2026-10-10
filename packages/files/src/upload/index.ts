@@ -82,7 +82,7 @@ export type CreateIntentOutcome =
 
 export type AppendOutcome =
   | { readonly status: 'appended'; readonly receivedBytes: number }
-  | { readonly status: 'failed'; readonly reason: 'foreign' | 'closed' | 'expired' | 'oversized' };
+  | { readonly status: 'failed'; readonly reason: 'foreign' | 'closed' | 'expired' | 'oversized' | 'conflict' };
 
 export type CompleteOutcome =
   | { readonly status: 'completed'; readonly check: ContentCheck }
@@ -408,9 +408,41 @@ export function appendUploadContent(
   caller: ReceivingContext,
   chunk: Uint8Array,
 ): AppendOutcome {
+  return appendContent(deps, intentId, caller, chunk);
+}
+
+/**
+ * Retry-safe range transfer. The owning intent, explicit offset, actual
+ * length and exact bytes identify a range; there is no nonce ledger.
+ * A fully retained matching range acknowledges its end without writing.
+ * Gaps, partial overlaps and different bytes conflict. New bytes append
+ * only at the committed end. Hosts must serialize this check and write;
+ * the SQLite binding owns their atomic transaction. The metadata-free
+ * legacy entry point above does not provide retry safety.
+ */
+export function appendUploadContentAtOffset(
+  deps: UploadDeps,
+  intentId: UploadIntentId,
+  caller: ReceivingContext,
+  chunk: Uint8Array,
+  expectedOffset: number,
+): AppendOutcome {
+  return appendContent(deps, intentId, caller, chunk, { offset: expectedOffset });
+}
+
+function appendContent(
+  deps: UploadDeps,
+  intentId: UploadIntentId,
+  caller: ReceivingContext,
+  chunk: Uint8Array,
+  range?: { readonly offset: number },
+): AppendOutcome {
   const record = deps.intents.get(intentId);
   if (record === null || !callerOwnsIntent(record, caller)) {
     return { status: 'failed', reason: 'foreign' };
+  }
+  if (record.state === 'finalized' || record.state === 'rejected') {
+    return { status: 'failed', reason: 'closed' };
   }
   if (record.state === 'expired' || deps.clock.nowMs() >= record.expiresAtMs) {
     if (record.state !== 'expired') {
@@ -418,12 +450,23 @@ export function appendUploadContent(
     }
     return { status: 'failed', reason: 'expired' };
   }
-  if (record.state !== 'open') {
+  if (record.state !== 'open' && !(range !== undefined && record.state === 'complete')) {
     return { status: 'failed', reason: 'closed' };
   }
+  if (range !== undefined && (!Number.isSafeInteger(range.offset) || range.offset < 0)) {
+    return { status: 'failed', reason: 'conflict' };
+  }
+  const end = range === undefined ? record.receivedBytes + chunk.length : range.offset + chunk.length;
+  if (range !== undefined && (
+    !Number.isSafeInteger(end) || range.offset > record.receivedBytes ||
+    (range.offset < record.receivedBytes && end > record.receivedBytes) ||
+    (record.state === 'complete' && end > record.receivedBytes)
+  )) {
+    return { status: 'failed', reason: 'conflict' };
+  }
   if (
-    record.receivedBytes + chunk.length > deps.policy.maxBytes ||
-    record.receivedBytes + chunk.length > record.declaredSize
+    end > deps.policy.maxBytes ||
+    end > record.declaredSize
   ) {
     record.state = 'rejected';
     record.receivedBytes = 0;
@@ -435,6 +478,7 @@ export function appendUploadContent(
   }
   const stagingKey = stagingKeyForIntent(record.intentId);
   if ((deps.blobs.sizeOf(stagingKey) ?? 0) !== record.receivedBytes) {
+    if (record.state === 'complete') return { status: 'failed', reason: 'closed' };
     record.state = 'rejected';
     record.receivedBytes = 0;
     record.bytesDigest = null;
@@ -442,6 +486,18 @@ export function appendUploadContent(
     deps.blobs.remove(stagingKey);
     deps.intents.put(record);
     return { status: 'failed', reason: 'closed' };
+  }
+  if (range !== undefined && end <= record.receivedBytes) {
+    const staged = deps.blobs.read(stagingKey) ?? new Uint8Array(0);
+    if (staged.length !== record.receivedBytes) {
+      return { status: 'failed', reason: 'closed' };
+    }
+    for (let index = 0; index < chunk.length; index += 1) {
+      if (staged[range.offset + index] !== chunk[index]) {
+        return { status: 'failed', reason: 'conflict' };
+      }
+    }
+    return { status: 'appended', receivedBytes: end };
   }
   if (chunk.length > 0) {
     deps.blobs.append(stagingKey, chunk);
@@ -466,11 +522,29 @@ export function completeUploadContent(
   if (record === null || !callerOwnsIntent(record, caller)) {
     return { status: 'failed', reason: 'foreign' };
   }
+  if (record.state === 'finalized' || record.state === 'rejected') {
+    return { status: 'failed', reason: 'closed' };
+  }
   if (record.state === 'expired' || deps.clock.nowMs() >= record.expiresAtMs) {
     if (record.state !== 'expired') {
       sweepExpiredIntent(deps, record);
     }
     return { status: 'failed', reason: 'expired' };
+  }
+  if (record.state === 'complete') {
+    // Recover a lost completion reply only from unchanged validated
+    // content. A later read must never replace the original digest.
+    const bytes = deps.blobs.read(stagingKeyForIntent(record.intentId));
+    if (bytes === null || bytes.length !== record.receivedBytes ||
+        record.receivedBytes !== record.declaredSize ||
+        sha256Hex(bytes) !== record.bytesDigest) {
+      return { status: 'failed', reason: 'closed' };
+    }
+    const check = checkContent(deps.policy, record.claimedType, bytes);
+    if (check.verdict !== 'accepted' || check.detectedType !== record.detectedType) {
+      return { status: 'failed', reason: 'closed' };
+    }
+    return { status: 'completed', check };
   }
   if (record.state !== 'open') {
     return { status: 'failed', reason: 'closed' };

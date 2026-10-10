@@ -1039,7 +1039,7 @@ fn match_effect_proofs(
                             operation: actual,
                         },
                     inputs,
-                    binding: None,
+                    binding,
                     result,
                     ..
                 },
@@ -1050,7 +1050,7 @@ fn match_effect_proofs(
                     event_source: None,
                     hook: None,
                     cohort: None,
-                    read: false,
+                    read,
                     expose_excluded: false,
                     result: declared_result,
                     ..
@@ -1065,13 +1065,39 @@ fn match_effect_proofs(
                 let IrExpr::Object(entries) = &inputs.expr else {
                     return None;
                 };
+                let query_child =
+                    *read && super::scenario_calls::complete_read_query_child(ir, target).is_some();
+                let source_call = checked
+                    .source_facts
+                    .as_deref()?
+                    .calls
+                    .iter()
+                    .find(|call| call.node == proof.node)?;
                 if proof.node.kind != SyntaxKind::Call as u8
                     || operation != actual
                     || target.id != *operation
                     || target.id == owner.id
                     || child.scenario != *operation
                     || result != declared_result
-                    || !declared_result.as_ref().is_none_or(native_result_type)
+                    || (!query_child
+                        && (*read
+                            || binding.is_some()
+                            || !declared_result.as_ref().is_none_or(native_result_type)))
+                    || source_call.operation != *operation
+                    || source_call.binding != *binding
+                    || source_call.result != *result
+                    || source_call.inputs.len() != entries.len()
+                    || source_call
+                        .inputs
+                        .iter()
+                        .zip(entries)
+                        .any(|(fact, (name, value))| {
+                            fact.name != *name
+                                || fact.ty != value.ty
+                                || fact.node.file != value.span.file
+                                || fact.node.start != value.span.start
+                                || fact.node.end != value.span.end
+                        })
                     || source.file != site.span.file
                     || source.start < site.span.start
                     || source.end > site.span.end
@@ -1399,12 +1425,21 @@ impl<'a> Sites<'a> {
                         extend!(body.iter().map(Visit::Statement));
                     }
                     IrStmt::Call {
-                        target: IrEffectCallTarget::Operation { .. },
+                        target: IrEffectCallTarget::Operation { operation, .. },
                         inputs,
-                        binding: None,
+                        binding,
                         span,
                         ..
                     } => {
+                        if binding.is_some()
+                            && super::scenario_calls::complete_read_query_child(
+                                ir,
+                                ir.items.get(operation.0 as usize)?,
+                            )
+                            .is_none()
+                        {
+                            return None;
+                        }
                         if out.effects.insert(context.site(*span), statement).is_some() {
                             return None;
                         }

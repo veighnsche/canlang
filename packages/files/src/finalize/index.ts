@@ -49,7 +49,7 @@ import {
   type RequestProvenanceBinding,
 } from '../provenance/index.js';
 import {
-  appendUploadContent,
+  appendUploadContentAtOffset,
   checkContent,
   completeUploadContent,
   createUploadIntent,
@@ -223,13 +223,20 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
     return { status: 'failed', reason: 'conflict' };
   }
   if (record.pendingFinalization === undefined) {
+    const finalizedAtMs = deps.clock.nowMs();
+    if (!Number.isSafeInteger(finalizedAtMs) || finalizedAtMs < 0) {
+      return { status: 'failed', reason: 'conflict' };
+    }
     record.pendingFinalization = {
       ref: deps.fileIds.nextFileId(),
-      finalizedAtMs: deps.clock.nowMs(),
+      finalizedAtMs,
     };
     deps.intents.put(record);
   }
   const { ref, finalizedAtMs } = record.pendingFinalization;
+  if (!Number.isSafeInteger(finalizedAtMs) || finalizedAtMs < 0) {
+    return { status: 'failed', reason: 'conflict' };
+  }
   const provenance = record.provenance;
   if (provenance.kind !== 'request') {
     return { status: 'failed', reason: 'foreign' };
@@ -666,11 +673,12 @@ export function finalizeProviderOutput(
         // closed without touching the record; expiry settles the slot.
         return { status: 'failed', reason: 'conflict' };
       }
-      const appended = appendUploadContent(
+      const appended = appendUploadContentAtOffset(
         upload,
         record.intentId,
         input.receiver,
         input.bytes.slice(received),
+        received,
       );
       if (appended.status === 'failed') {
         if (appended.reason === 'expired') {
