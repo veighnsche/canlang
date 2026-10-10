@@ -3132,3 +3132,20 @@ rows/full assertions and51 unchanged rows retained. Affected table1/1 passes2.03
 compiler/strict/editor results reused. No artifact/native original qualification,
 new semantics, common gate repair, held source guesses or publication. Exact
 next source assignment and original owner contracts remain;58/67 unchanged.
+
+### 2026-10-10 — retain required File array metadata (unfinished full workflow)
+
+Consume exact reviewed5a7c4ac2 containing own Invoice/Field and released State11fe.
+Its defining loader/profile require file[]! for required File fields. Preserve
+that field-owned identity in emitted model and generated CRUD create/update
+metadata, retaining independent array.required:true; ordinary/nullable/scalar/
+parameter/return and other element profiles remain unchanged. Existing actual
+compiler/artifact→State loader/File profile→Values codec test1/1 passes0.71s with
+all old identity controls and new type/marker/nullable/canonical skew refusals.
+Supplied empty array is allowed; missing and null refuse. Changed State graph
+clean12/12/cache0 passes8.03s onNode24. The attempted required-array event witness
+hits existing E6008 before this path and is removed; no event admission change.
+Required current whole/lint validation follows this coherent producer checkpoint;
+prior whole success is historical. Dev owns protected native host/download and
+remaining defining deletion/provider contracts; original109 findings,58/67 and
+precise BDD3/Task22 holds remain. Local only; no native application acceptance.
