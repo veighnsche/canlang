@@ -3,6 +3,7 @@ export * from './dispatch/index.js';
 export * from './event/index.js';
 export * from './intent/index.js';
 export * from './kernel/commands.js';
+export * from './kernel/committed-model-source.js';
 export * from './kernel/tables.js';
 export * from './observation/association.js';
 export * from './observation/observation.js';
