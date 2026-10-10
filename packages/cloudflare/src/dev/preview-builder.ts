@@ -178,8 +178,8 @@ function admitPreviewInputs(artifact: CompileArtifact, capture: SingleFileCaptur
   if (!capture.inputs.some(input => input.name.startsWith("package:") && input.state === "present")) {
     fail("INPUT_UNAVAILABLE", "preview requires captured package outputs");
   }
-  if (artifact.pages.length === 0 || (artifact.operations?.length ?? 0) === 0) {
-    fail("PROFILE_UNSUPPORTED", "preview profile requires a page and business operations");
+  if (artifact.pages.length === 0) {
+    fail("PROFILE_UNSUPPORTED", "preview profile requires at least one page");
   }
   if (artifact.callables.some(callable => callable.kind === "handler" || callable.kind === "migration")) {
     fail("PROFILE_UNSUPPORTED", "preview profile does not admit scheduled handlers or migrations");
@@ -317,7 +317,7 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
   return Object.freeze({ ...(vars ?? {}), CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin });
 }
 
-async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: string, seed: LocalPreviewSeed): Promise<void> {
+async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: string, seed: LocalPreviewSeed, artifact: CompileArtifact): Promise<void> {
   const db = await dev.getD1Database("DB");
   const row = await db.prepare("SELECT 1 AS ready").first<{ ready: number }>();
   if (row?.ready !== 1) fail("D1_UNAVAILABLE", "real local DB binding did not answer a query");
@@ -377,8 +377,10 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
     ? (discovered as Record<string, unknown>)["result"] : undefined;
   const listed = typeof tools === "object" && tools !== null && !Array.isArray(tools)
     ? (tools as Record<string, unknown>)["tools"] : undefined;
-  if (discovery.status !== 200 || !Array.isArray(listed) || listed.length === 0) {
-    fail("MCP_UNAVAILABLE", `seeded member business MCP discovery returned HTTP ${discovery.status} without tools`);
+  const hasBusinessOperations = (artifact.operations?.length ?? 0) > 0;
+  if (discovery.status !== 200 || !Array.isArray(listed) ||
+      (hasBusinessOperations ? listed.length === 0 : listed.length !== 0)) {
+    fail("MCP_UNAVAILABLE", `seeded member business MCP discovery returned HTTP ${discovery.status} with tools inconsistent with the checked operation inventory`);
   }
   const mcp = await dev.dispatchUrl(`${origin}/mcp`, {
     method: "POST",
@@ -396,7 +398,13 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
       fail("RESOURCE_INVALID", `installed Worker did not serve packaged ${key} bytes`);
     }
   }
-  const page = await dev.dispatchUrl(`${origin}/`, { method: "GET", headers: { cookie: sessionCookie } });
+  const declaredPage = artifact.pages.find(page => page.path === "/") ?? artifact.pages[0];
+  if (declaredPage === undefined || typeof declaredPage.path !== "string" || !declaredPage.path.startsWith("/")) {
+    fail("PAGE_UNAVAILABLE", "preview requires an actual declared app-relative page route");
+  }
+  const pageUrl = new URL(declaredPage.path, origin);
+  if (pageUrl.origin !== origin) fail("PAGE_UNAVAILABLE", "declared page route escapes the protected preview origin");
+  const page = await dev.dispatchUrl(pageUrl.href, { method: "GET", headers: { cookie: sessionCookie } });
   if (page.status !== 200 || !(page.headers.get("content-type") ?? "").startsWith("text/html")) {
     fail("PAGE_UNAVAILABLE", `installed page route returned HTTP ${page.status}`);
   }
@@ -497,7 +505,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           fail("ACTIVATION_REFUSED", "serving owner D1 activation gates refused this preview build");
         }
       }
-      await probeWorker(worker, bundle, bridge.url, seed);
+      await probeWorker(worker, bundle, bridge.url, seed, artifact);
       if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during startup");
       const protectedBridge = bridge;
       const builtWorker = worker;

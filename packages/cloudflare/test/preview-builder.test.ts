@@ -17,8 +17,8 @@ import { createLocalPreviewBuilder } from '../src/dev/preview-builder.js';
 const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 afterEach(() => vi.clearAllMocks());
 
-async function setup(models: unknown[] | undefined, active = true) {
-  const artifact = { ...(models === undefined ? {} : { models }), sources: [], operations: [{}], pages: [{}], callables: [], requires: [] } as unknown as CompileArtifact;
+async function setup(models: unknown[] | undefined, active = true, operations: unknown[] = [{}], pages: unknown[] = [{}]) {
+  const artifact = { ...(models === undefined ? {} : { models }), sources: [], operations, pages, callables: [], requires: [] } as unknown as CompileArtifact;
   const capture = { profile: 'local-d1-identity', epochMaterial: 'epoch', inputs:
     ['compiler', 'catalog', 'help-index', 'package:worker'].map(name => ({ name, state: 'present', canonicalPath: '/fixture', sha256: hash('input'), bytes: 5 }))
   } as unknown as SingleFileCapture;
@@ -150,6 +150,34 @@ it.each([
 ])('malformed containment refuses before activation or Worker allocation: %j', async models => {
   const result = await setup(models);
   expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'MODEL_OWNERSHIP_INVALID' });
+  expect(mocks.activate).not.toHaveBeenCalled();
+  expect(mocks.start).not.toHaveBeenCalled();
+  expect(result.confirm).not.toHaveBeenCalled();
+});
+
+
+it('page-only preview with no models or operations reaches the existing global activation and D1 probe', async () => {
+  const result = await setup([], true, []);
+  expect(result.failure).toBe(result.probeReached);
+  const options = mocks.start.mock.calls[1]![0];
+  expect(options.d1Databases).toHaveLength(1);
+  expect(options.vars).not.toHaveProperty('CAN_STATE_OWNERS');
+  expect(options.vars.CAN_DEPLOYMENT_BASE).toBe('http://127.0.0.1:43217');
+  expect(result.confirm).toHaveBeenCalledTimes(1);
+  expect(result.confirm.mock.calls[0]![2]).toBe(result.dbs.get('DB'));
+});
+
+it('page-only preview still refuses inactive serving global D1', async () => {
+  const result = await setup([], false, []);
+  expect(result.failure.code).toBe('ACTIVATION_REFUSED');
+  expect(result.failure.message).toContain('global D1');
+  expect(result.confirm).toHaveBeenCalledTimes(1);
+});
+
+it('an app without any page still refuses before activation or Worker allocation', async () => {
+  const result = await setup([], true, [], []);
+  expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'PROFILE_UNSUPPORTED' });
+  expect(result.failure.message).toContain('at least one page');
   expect(mocks.activate).not.toHaveBeenCalled();
   expect(mocks.start).not.toHaveBeenCalled();
   expect(result.confirm).not.toHaveBeenCalled();
