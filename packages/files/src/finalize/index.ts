@@ -36,6 +36,7 @@ import type {
   FileIdPort,
   FinalizedStorePort,
   IntentStorePort,
+  StoredFileRecord,
   UploadIntentRecord,
 } from '../ports.js';
 import type { UploadIntentRequest } from '@canlang/contracts';
@@ -113,6 +114,35 @@ function callerOwnsIntent(record: UploadIntentRecord, caller: ReceivingContext):
   );
 }
 
+function publishedFileMatchesIntent(
+  stored: StoredFileRecord,
+  record: UploadIntentRecord,
+  ref: FinalizedFileRef,
+  caller: ReceivingContext,
+): boolean {
+  const provenance = stored.file.provenance;
+  return (
+    record.provenance.kind === 'request' &&
+    provenance.kind === 'request' &&
+    stored.file.id === ref &&
+    stored.file.sizeBytes === record.declaredSize &&
+    stored.file.sizeBytes === record.receivedBytes &&
+    stored.file.bytesDigest === record.bytesDigest &&
+    stored.file.contentType === record.detectedType &&
+    Number.isSafeInteger(stored.finalizedAtMs) &&
+    stored.finalizedAtMs >= 0 &&
+    stored.file.finalizedAt.ms === BigInt(stored.finalizedAtMs) &&
+    (record.pendingFinalization === undefined ||
+      (record.pendingFinalization.ref === ref &&
+        record.pendingFinalization.finalizedAtMs === stored.finalizedAtMs)) &&
+    requestProvenanceMatches(provenance, caller) &&
+    isSameReceiver(stored.owner, caller) &&
+    provenance.adapter === record.provenance.adapter &&
+    provenance.deliveryId === record.provenance.deliveryId &&
+    provenance.resultPath === record.provenance.resultPath
+  );
+}
+
 function sweepExpiredIntent(deps: FinalizeDeps, record: UploadIntentRecord): void {
   record.state = 'expired';
   record.receivedBytes = 0;
@@ -129,6 +159,11 @@ function sweepExpiredIntent(deps: FinalizeDeps, record: UploadIntentRecord): voi
  * fail with no file. Repeating after retention still returns the same
  * reference (byte availability is a separate concern for reads and
  * receipt projections).
+ * Save the publication reference/time before final bytes, publish the
+ * immutable row and intent pointer before removing staging, and reuse
+ * that identity after interruption. These ordered phases recover serial
+ * calls with separately persisted ports; hosts must serialize competing
+ * callers. The SQLite binding wraps all phases in its own transaction.
  */
 export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): FinalizeOutcome {
   const record = deps.intents.get(input.intentId);
@@ -144,6 +179,13 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
     if (stored === null) {
       return { status: 'failed', reason: 'expired' };
     }
+    if (!publishedFileMatchesIntent(stored, record, record.finalizedRef!, input.caller)) {
+      return { status: 'failed', reason: 'conflict' };
+    }
+    // The durable pointer may have committed before staging cleanup.
+    // A repeat settles that cleanup, including after byte collection;
+    // it must never republish final bytes from the retained staging copy.
+    deps.blobs.remove(stagingKeyForIntent(record.intentId));
     return {
       status: 'repeated',
       result: { file: stored.file.id },
@@ -180,8 +222,14 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
   if (record.detectedType === null) {
     return { status: 'failed', reason: 'conflict' };
   }
-  const ref = deps.fileIds.nextFileId();
-  const finalizedAtMs = deps.clock.nowMs();
+  if (record.pendingFinalization === undefined) {
+    record.pendingFinalization = {
+      ref: deps.fileIds.nextFileId(),
+      finalizedAtMs: deps.clock.nowMs(),
+    };
+    deps.intents.put(record);
+  }
+  const { ref, finalizedAtMs } = record.pendingFinalization;
   const provenance = record.provenance;
   if (provenance.kind !== 'request') {
     return { status: 'failed', reason: 'foreign' };
@@ -194,9 +242,33 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
     bytesDigest: actualDigest,
     finalizedAt: { kind: 'datetime', ms: BigInt(finalizedAtMs) },
   });
-  deps.blobs.write(blobKeyForFile(ref), staging);
-  deps.blobs.remove(stagingKeyForIntent(record.intentId));
-  deps.files.put({
+  const prior = deps.files.get(ref);
+  if (prior !== null) {
+    if (prior.state === 'orphaned' || prior.state === 'expired') {
+      return { status: 'failed', reason: 'expired' };
+    }
+    if (
+      !publishedFileMatchesIntent(prior, record, ref, input.caller) ||
+      prior.finalizedAtMs !== finalizedAtMs ||
+      prior.file.finalizedAt.ms !== file.finalizedAt.ms
+    ) {
+      return { status: 'failed', reason: 'conflict' };
+    }
+  }
+  const finalKey = blobKeyForFile(ref);
+  const published = deps.blobs.read(finalKey);
+  if (published !== null && !bytesEqual(published, staging)) {
+    // Never overwrite bytes under an immutable publication identity.
+    return { status: 'failed', reason: 'conflict' };
+  }
+  if (published === null) {
+    if (prior !== null) {
+      // Missing bytes behind a published row are not a resumable write.
+      return { status: 'failed', reason: 'expired' };
+    }
+    deps.blobs.write(finalKey, staging);
+  }
+  if (prior === null) deps.files.put({
     file,
     owner: {
       app: provenance.app,
@@ -211,6 +283,7 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
   record.state = 'finalized';
   record.finalizedRef = ref;
   deps.intents.put(record);
+  deps.blobs.remove(stagingKeyForIntent(record.intentId));
   return { status: 'finalized', result: { file: ref }, file };
 }
 

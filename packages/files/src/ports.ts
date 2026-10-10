@@ -9,13 +9,16 @@
  * - Identity mint (`IntentIdPort`, `FileIdPort`): the real binding mints
  *   unguessable runtime identities. Counter doubles are predictable and
  *   TEST-ONLY.
- * - `BlobStorePort`: the journey implementation is the FS-backed store in
- *   `upload/fs-blob-store.ts` (scoped local directory, no live R2). The
- *   R2 binding behind this same port is an S8 join through the L7 runner.
- * - `IntentStorePort` / `FinalizedStorePort`: the real binding stages
- *   intent/finalized rows in the lane-3 commit kernel (atomic with the
- *   owner fence); the memory doubles below are single-owner, non-durable,
- *   non-atomic and unbounded.
+ * - `host/sqlite.ts` stores bytes and intent/finalized metadata in one
+ *   real transaction, serializing each synchronous journey mutation.
+ *   That transaction does not include another State database or provider.
+ * - `upload/fs-blob-store.ts` stores scoped local bytes separately from
+ *   metadata. Append drift refuses; finalization uses a saved publication
+ *   identity to recover serial interrupted calls. Concurrent callers need
+ *   a host serialization contract; these ports alone do not provide it.
+ *   Neither binding qualifies a live R2 deployment.
+ * - The memory doubles below are single-owner, non-durable, non-atomic
+ *   and unbounded.
  * - `PrincipalResolverPort`: the real binding resolves the L6 identity
  *   context (same-principal/team); the fixed double stands in for tests.
  *
@@ -79,6 +82,17 @@ export interface UploadIntentRecord {
   detectedType: string | null;
   /** Immutable reference; set once the intent finalizes. */
   finalizedRef: FinalizedFileRef | null;
+  /**
+   * Durable publication identity, saved before touching final bytes. A
+   * separate byte store can resume interrupted publication using this same
+   * reference and time. Absence on a legacy complete intent mints it once.
+   * This is not finalization acceptance; staging remains authoritative
+   * until the finalized file and intent pointer have both been saved.
+   */
+  pendingFinalization?: {
+    readonly ref: FinalizedFileRef;
+    readonly finalizedAtMs: number;
+  };
 }
 
 /**

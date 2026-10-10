@@ -319,9 +319,10 @@ test('query predicate observes every actual positive/negative candidate through 
   assert.equal((await invoke({ ...w, execute: async call => {
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
     const result = await executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot, record }) => {
+      const person = record.data['person'];
       observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'person-control' });
-      assert.equal(typeof record.data['person'], 'string');
-      const decision = await producer.evaluate(call, record.data['person'] as string); decisions.push(decision); return decision;
+      assert.equal(typeof person, 'string');
+      const decision = await producer.evaluate(call, person as string); decisions.push(decision); return decision;
     } });
     assert.equal(result.count, 1); assert.deepEqual(decisions.sort(), [false, true]);
     return finish(call, w, session);

@@ -15,7 +15,7 @@ import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import type { PolicyTable } from '../policy/grants.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import { queryRecordsObserved, projectSavedRecordForViewer } from '../query/engine.js';
-import type { ResolvedIdentity } from '@canlang/contracts';
+import { MAX_MEMBERSHIP_SNAPSHOT_USERS, type Membership, type MembershipSnapshot, type ResolvedIdentity } from '@canlang/contracts';
 import { admitOwnerStageCall, type AdmittedCall } from './admission.js';
 import { assertScenarioReceiptExecution, scenarioReceiptMemberships, type ExecutionEffects } from './invoke.js';
 import { beginOwnerMutation, type OwnerMutationInput, type OwnerMutationReadView,
@@ -286,20 +286,50 @@ function membershipOwner(call: AdmittedCall): ReceiptOwnerSession | undefined {
   return ownerSessions.get(call) ?? (context !== undefined && 'value' in context && typeof context.value === 'object' &&
     context.value !== null ? ownerContexts.get(context.value) : undefined);
 }
-/** Internal observer join shared with the separate genuine dispatch lifetime.
- * Intentionally absent from public barrels; this grants no execution frame. */
-export async function readScenarioCurrentMembership(reader: MembershipReader, team: string, person: string): Promise<boolean> {
-  const found = await reader.findMembership(team, person);
-  if (found === null) return false;
-  const row = object(dataCopy(found), ['membership_id', 'team_id', 'user_id', 'is_owner', 'roles', 'status', 'created_at', 'updated_at']);
+/** Complete detached Identity facts, shared by execution and saved authority. */
+function checkedMembershipFact(value: unknown, team: string, person: string): Membership | null {
+  if (value === null) return null;
+  const row = object(dataCopy(value), ['membership_id', 'team_id', 'user_id', 'is_owner', 'roles', 'status', 'created_at', 'updated_at']);
   text(row['membership_id']); text(row['created_at']); text(row['updated_at']);
   if (row['team_id'] !== team || row['user_id'] !== person || typeof row['is_owner'] !== 'boolean' ||
-      !['active', 'removed'].includes(String(row['status']))) return invalid('Identity reader returned a foreign pair or unknown membership state.');
-  for (const value of list(row['roles'])) {
+      (row['status'] !== 'active' && row['status'] !== 'removed')) return invalid('Identity reader returned a foreign pair or unknown membership state.');
+  if (!Array.isArray(row['roles'])) return invalid('Identity roles must be an array.');
+  for (const value of row['roles']) {
     const role = object(value, ['role', 'granted_at', 'granted_by']);
     text(role['role']); text(role['granted_at']); text(role['granted_by']);
   }
-  return row['status'] === 'active';
+  return deepFreeze(row) as unknown as Membership;
+}
+/** Internal observer join shared with the separate genuine dispatch lifetime.
+ * Intentionally absent from public barrels; this grants no execution frame. */
+export async function readScenarioCurrentMembership(reader: MembershipReader, team: string, person: string): Promise<boolean> {
+  const found = checkedMembershipFact(await reader.findMembership(team, person), team, person);
+  if (found === null) return false;
+  // Preserve this execution observer's existing separate enrollment budget.
+  list(found.roles);
+  return found.status === 'active';
+}
+
+function checkedAuthoritySnapshot(value: MembershipSnapshot, team: string,
+  users: readonly string[]): ReadonlyMap<string, Membership | null> {
+  const snapshot = object(value, ['team_id', 'entries']);
+  if (snapshot.team_id !== team) return invalid('Identity snapshot crossed its requested Team.');
+  const entries = snapshot.entries;
+  if (!Array.isArray(entries) || Object.getPrototypeOf(entries) !== Array.prototype ||
+      entries.length !== users.length || Reflect.ownKeys(entries).length !== users.length + 1) {
+    return invalid('Identity snapshot must preserve every requested position.');
+  }
+  const facts = new Map<string, Membership | null>();
+  for (let index = 0; index < users.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(entries, String(index));
+    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) {
+      return invalid('Identity snapshot entries require own data.');
+    }
+    const entry = object(descriptor.value, ['user_id', 'membership']);
+    if (entry.user_id !== users[index]) return invalid('Identity snapshot user order or identity changed.');
+    facts.set(stableStringify([team, users[index]]), checkedMembershipFact(entry.membership, team, users[index]!));
+  }
+  return facts;
 }
 
 /** Evaluate at the authored expression point, using only Dev's actual capture
@@ -1761,8 +1791,18 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   if (retained === null || stableStringify(dataCopy(retained)) !== stableStringify(receipt)) return invalid('exact retained receipt required.');
   const authorityFacts = new Map<string, { teamId: string; userId: string; snapshot: string }>();
   let authorityDrift = false;
+  let coherentFacts: ReadonlyMap<string, Membership | null> | undefined;
+  let unseenAuthority = false;
   const memberships: MembershipReader = {
     async findMembership(team, user) {
+      if (coherentFacts !== undefined) {
+        const key = stableStringify([team, user]);
+        if (!coherentFacts.has(key)) {
+          unseenAuthority = true;
+          throw new StateError('forbidden', 'Saved scenario authority was absent from the coherent snapshot.');
+        }
+        return coherentFacts.get(key)!;
+      }
       const current = await input.memberships.findMembership(team, user);
       const key = stableStringify([team, user]), snapshot = stableStringify(dataCopy(current));
       const previous = authorityFacts.get(key);
@@ -1877,10 +1917,34 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       ? dataCopy(receipt.outcome.result) : null, records };
   };
   const first = await project(live);
-  // Individual Identity reads cannot certify a jointly authorized point for
-  // different subjects, even when repeated snapshots compare equal (ABA).
-  // Keep that profile unavailable until its owning coherent snapshot join.
-  if (authorityFacts.size > 1) return withheld;
+  if (authorityFacts.size > 1) {
+    // Discovery never authorizes this conjunction. One installed statement-time
+    // snapshot must contain every same-Team fact; never chunk or replay source.
+    const snapshotMethod = Object.getOwnPropertyDescriptor(input.memberships, 'findMembershipsSnapshot');
+    if (snapshotMethod === undefined || !('value' in snapshotMethod) || typeof snapshotMethod.value !== 'function' ||
+        teamId === null || authorityFacts.size > MAX_MEMBERSHIP_SNAPSHOT_USERS || authorityDrift ||
+        [...authorityFacts.values()].some(fact => fact.teamId !== teamId) ||
+        await input.store.readRevision() !== revision) return withheld;
+    const readSnapshot = snapshotMethod.value as NonNullable<MembershipReader['findMembershipsSnapshot']>;
+    const users = Object.freeze([...authorityFacts.values()].map(fact => fact.userId));
+    const observed = checkedAuthoritySnapshot(await readSnapshot.call(input.memberships, teamId, users), teamId, users);
+    if (await input.store.readRevision() !== revision || [...authorityFacts].some(([key, fact]) =>
+      stableStringify(observed.get(key)) !== fact.snapshot)) return withheld;
+    coherentFacts = observed;
+    const coherentCaller = actorUserId === null ? null : observed.get(stableStringify([teamId, actorUserId]));
+    if (coherentCaller === undefined) return withheld;
+    let projected: Awaited<ReturnType<typeof project>>;
+    try { projected = await project(coherentCaller); }
+    catch (error) { if (unseenAuthority) return withheld; throw error; }
+    if (unseenAuthority || stableStringify(projected) !== stableStringify(first) ||
+        await input.store.readRevision() !== revision) return withheld;
+    const final = checkedAuthoritySnapshot(await readSnapshot.call(input.memberships, teamId, users), teamId, users);
+    if (users.some(user => { const key = stableStringify([teamId, user]);
+      return stableStringify(final.get(key)) !== stableStringify(observed.get(key)); }) ||
+        await input.store.readRevision() !== revision) return withheld;
+    // Identity has no cross-State revision or return-time authority promise.
+    return projected;
+  }
   if (await input.store.readRevision() !== revision) return withheld;
   const secondMembership = await membership();
   if (stableStringify(dataCopy(secondMembership)) !== membershipSnapshot ||
