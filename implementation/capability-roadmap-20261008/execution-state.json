@@ -909,9 +909,9 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "source_preparation_ready_execution_prerequisites_open",
-        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker’s task."
+        "state": "original_source_prepared_canonical_call_producer_and_transaction_join_blocked",
+        "prerequisite": "Original draft/CanWorkbench.can110-115 calls context, then step.proposal.call and checks the post-call workplace invariant before approval; target effects and approval must roll back together. Compiler codegen/ir.rs1412-1419 explicitly declares canonical calls unlowered; Invocation effect_operation5263 reduces target names without retaining the executable value expression; codegen/js.rs4609-4627 discards inputs/binding and refuses every IrStmt::Call with missing section13 lowering. Compiler must release the checked operand/allowlist and genuine canonical call emission; Dev/State must admit exact target arguments/observed versions as the current caller under the same enclosing owner transaction. Existing Values InvocationRef arguments do not establish owner-schema completeness/current target authority. Task44 Send/Set capture and native success do not supply this distinct producer. Existing Task11 source rules/current context remain required; no surrogate fixture or string dispatcher.",
+        "owner": "Compiler checked Invocation operand/allowlist and canonical call emission; Dev/State genuine current target admission within the enclosing owner transaction; roadmap original source/consumer. Recipient-specific human holds remain with their owners."
       }
     },
     {
