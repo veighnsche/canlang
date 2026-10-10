@@ -80,7 +80,7 @@ function records(result: { readonly records?: readonly unknown[] }): readonly Pr
   assert.ok(Array.isArray(result.records));
   return result.records as readonly ProjectedRecord[];
 }
-async function world(copiedObservation = false, interruptRetention = false) {
+async function world(copiedObservation = false, interruptRetention = false, swapRevalidator = false) {
   const dir = await mkdtemp(join(tmpdir(), 'can-scenario-files-'));
   const physical = createSqliteFileStore(join(dir, 'files.sqlite'));
   try {
@@ -112,10 +112,12 @@ async function world(copiedObservation = false, interruptRetention = false) {
       clock: fileClock, intentTtlMs: 60000, urlBase: 'https://scenario-files.invalid',
     }));
     const genuineObserve = kernel.observeFile;
+    let substituteRevalidations = 0;
     const observedKernel = { ...kernel, observeFile: async (...args: Parameters<typeof genuineObserve>) => {
       observations++;
       const observation = await genuineObserve(...args);
       assert.ok(observation); assert.ok(readFinalizedFileObservation(observation));
+      if (swapRevalidator) files.revalidate = async () => { substituteRevalidations++; return true; };
       if (!copiedObservation) return observation;
       const copied = { ...observation };
       assert.equal(readFinalizedFileObservation(copied), null);
@@ -150,6 +152,7 @@ async function world(copiedObservation = false, interruptRetention = false) {
     return { compiled, asm, physical, refs, receiver, files, store, row, identities, identity, membership, envelope,
       invoker, receiptIdentity, snapshot, counters: () => ({ executions: executionCount(), attemptedCommits, observations }),
       retentions: () => retentions,
+      substituteRevalidations: () => substituteRevalidations,
       setNow: (value: number) => { now = value; },
       close: async () => { physical.close(); await rm(dir, { recursive: true, force: true }); } };
   } catch (error) { physical.close(); await rm(dir, { recursive: true, force: true }); throw error; }
@@ -215,6 +218,22 @@ test('a copied genuine opaque File observation refuses and poisons the canonical
     assert.deepEqual(after.files, before.files); assert.deepEqual(after.bytes, before.bytes);
     assert.equal(w.counters().observations, 1); assert.equal(w.counters().executions, 1);
     if (after.receipt !== null) assert.equal(after.receipt.outcome.status, 'rejected');
+  } finally { await w.close(); }
+});
+
+test('an awaited genuine observation cannot replace the originally pinned host File revalidator', async () => {
+  const w = await world(false, false, true);
+  try {
+    const env = w.envelope('file', { id: w.refs[0] }), before = await w.snapshot(env);
+    let commits = 0;
+    const store: StoragePort = { ...w.store, commit: async batch => { commits++; return w.store.commit(batch); } };
+    const invoker = buildInvoker(w.compiled, w.asm, store, { appId: app, memberships: w.identities,
+      now: () => FIXED_NOW, files: w.files });
+    const denied = await invoker.invokeMutation(env, w.identity);
+    assert.ok('error' in denied, JSON.stringify(denied));
+    assert.equal(w.substituteRevalidations(), 0, 'an accepting replacement is never selected after observation awaits');
+    assert.equal(commits, 0); assert.deepEqual(await w.snapshot(env), before);
+    assert.equal(w.retentions(), 0); assert.equal(w.counters().observations, 1); assert.equal(w.counters().executions, 1);
   } finally { await w.close(); }
 });
 
