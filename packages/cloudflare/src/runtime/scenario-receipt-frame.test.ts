@@ -19,6 +19,7 @@ import { FIXED_NOW, asModel, createMemoryIdentityStore, makeIdentity, makeEnvelo
 import { createContext, type HandlerContext } from './context.js';
 import { bindNativeRecord } from './native-records.js';
 import { invokeScenarioReceiptCall, openScenarioReceiptFrame } from './scenario-receipt-frame.js';
+import type { ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn } from './stdlib.js';
 
 const MODEL = asModel('Bridge.Record'), OP = 'Bridge.saved', APP = 'bridge-component';
@@ -129,6 +130,116 @@ it('captures once without reading c.store or native getters again; unrelated con
   assert.ok(escaped); assert.ok(escapedRow);
   await assert.rejects(observeScenarioReceiptDependency(escaped, MODEL, escapedRow, 'visible', 'visible'), validation);
   assert.throws(() => selectScenarioReceiptReturn(escaped!, 'literal'), validation);
+});
+
+it('prepares the exact current protected reference while State suspends its genuine parent; copied and closed references roll back', async () => {
+  const CHILD = 'Bridge.preparedChild';
+  const foreign = await foreignView();
+  for (const mode of ['positive', 'copied', 'closed', 'foreign', 'wrong-model'] as const) {
+    const w = await world(slice => {
+      intrinsicFixture(slice);
+      slice.operations!.push({ ...structuredClone(slice.operations![0]!), name: CHILD });
+      slice.callables!.push({ ...structuredClone(slice.callables![0]!), id: CHILD, member: ['preparedChild'] });
+    });
+    const parent = w.registry.get(OP), child = w.registry.get(CHILD);
+    assert.ok(parent && isGeneratedOperationDef(parent)); assert.ok(child && isGeneratedOperationDef(child));
+    const table = buildModelTable([modelDef(MODEL, { fields: { visible: field({ required: true }) } })]);
+    const privateParents = new WeakMap<Parameters<typeof beginScenarioReceiptMutation>[0], ScenarioReceiptFrame>();
+    const baseline = await w.store.readRevision(), failures: unknown[] = [];
+    let first: unknown, receipt: Receipt | undefined, childExecutions = 0, rootExecutions = 0, preparations = 0;
+    bindScenarioReceiptCallProducer(parent, { source: origin, app: APP, registry: w.registry,
+      sites: [{ id: 'prepared-site', source: origin, kind: 'operation',
+        targets: [{ operation: CHILD, interface: child.descriptor }], resultType: child.descriptor.result!.type }],
+      prepare: (def, inputs, actualParent) => {
+        preparations++; assert.equal(actualParent.def, parent); assert.equal(def, child);
+        const frame = privateParents.get(actualParent); assert.ok(frame, 'only the exact private parent pointer selects preparation authority');
+        assert.equal(privateParents.get({ ...actualParent }), undefined);
+        if (mode === 'closed') frame.close();
+        const reference = frame.prepareReference(inputs['record'], mode === 'wrong-model' ? 'Foreign.Record' : MODEL);
+        assert.deepEqual(reference, { id: w.row.id, version: String(w.row.version + 1) });
+        assert.ok(Object.isFrozen(reference));
+        return { record: reference, prompt: inputs['prompt'] } as ClosedInputs;
+      },
+      execute: async issued => {
+        childExecutions++;
+        const original = issued.call.recordRefs[0]!;
+        assert.equal(original.row.version, w.row.version + 1, 'child admission must use the current staged version');
+        assert.equal(original.row.data['visible'], 'parent intermediate');
+        const c = context(w, issued.call.context), frame = openScenarioReceiptFrame(c, issued.call, w.store, error => failures.push(error));
+        let current = original.row;
+        const view = native(current); frame.bind(view, MODEL, () => current); frame.bindAdmittedReference(view, original);
+        try {
+          await issued.session.stage({ op: 'update', model: MODEL, id: current.id, data: { visible: 'child final' } }, { cause: 'scenario' });
+          const staged = await issued.session.read(MODEL, current.id); assert.ok(staged); current = staged;
+          await observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
+          await observeScenarioReceiptIntrinsic(c, 'operation-id', 'operation-id', issued.call.context.operationId);
+          await observeScenarioReceiptIntrinsic(c, 'original-version', 'admitted-reference-version', BigInt(original.row.version), view);
+          await observeScenarioReceiptIntrinsic(c, 'prompt-input', 'admitted-input', issued.call.inputs['prompt']);
+          selectScenarioReceiptReturn(c, 'selected'); frame.assertCompleted();
+          return current.data['visible'];
+        } finally { frame.close(); }
+      },
+    });
+    const execute: Parameters<typeof invoke>[0]['execute'] = async call => {
+      rootExecutions++;
+      const session = await beginScenarioReceiptMutation(call, w.store, { table, bounds: { maxRows: 10, maxWork: 1000 } });
+      const original = call.recordRefs[0]!, c = context(w, call.context);
+      const frame = openScenarioReceiptFrame(c, call, w.store, error => failures.push(error),
+        (site, target, inputs) => invokeStateCall(call, w.store, { site, target, inputs }));
+      privateParents.set(call, frame);
+      let current = original.row;
+      const view = Object.freeze({ version: BigInt(original.row.version) });
+      bindNativeRecord(view, MODEL, original.row.id, original.row.version);
+      frame.bind(view, MODEL, () => current); frame.bindAdmittedReference(view, original);
+      try {
+        await session.stage({ op: 'update', model: MODEL, id: current.id, data: { visible: 'parent intermediate' } }, { cause: 'scenario' });
+        const staged = await session.read(MODEL, current.id); assert.ok(staged); current = staged;
+        assert.equal(current.version, w.row.version + 1); assert.equal(view.version, BigInt(w.row.version));
+        const operand = mode === 'copied' ? { ...view } : mode === 'foreign' ? foreign : view;
+        let result: unknown;
+        try { result = await invokeScenarioReceiptCall(c, 'prepared-site', CHILD, { record: operand, prompt: call.inputs['prompt'] }); }
+        catch (error) { first = error; }
+        if (mode !== 'positive') {
+          assert.ok(validation(first));
+          assert.throws(() => frame.prepareReference(view, MODEL), error => error === first);
+          assert.throws(() => frame.assertCompleted(), error => error === first);
+          assert.deepEqual(failures, [first]);
+          frame.assertCompleted(); return effects('must not commit');
+        }
+        assert.equal(result, 'child final');
+        const final = await session.read(MODEL, current.id); assert.ok(final); current = final;
+        assert.equal(call.recordRefs[0]!.row.version, w.row.version, 'root admitted reference stays original');
+        assert.equal(view.version, BigInt(w.row.version), 'public native version stays original');
+        await observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
+        await observeScenarioReceiptIntrinsic(c, 'operation-id', 'operation-id', call.context.operationId);
+        await observeScenarioReceiptIntrinsic(c, 'original-version', 'admitted-reference-version', view.version, view);
+        await observeScenarioReceiptIntrinsic(c, 'prompt-input', 'admitted-input', call.inputs['prompt']);
+        selectScenarioReceiptReturn(c, 'selected'); frame.assertCompleted();
+        const finalized = await session.finalize(); return { ...finalized, result, outbox: finalized.outbox ?? [] };
+      } finally { frame.close(); privateParents.delete(call); }
+    };
+    const input = { ...w, execute, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
+    if (mode === 'positive') {
+      assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
+      assert.equal(w.batches.length, 1); assert.equal(w.batches[0]!.writes.length, 1); assert.equal(w.batches[0]!.history.length, 1);
+      assert.deepEqual(w.batches[0]!.outbox, []); assert.deepEqual(w.batches[0]!.schedules, []);
+      const association = readScenarioReceiptAssociation(receipt)!;
+      assert.equal(association.intrinsics!.find(value => value.dependencyId === 'original-version')!.wire, String(w.row.version));
+      assert.equal(association.calls!.length, 1);
+      assert.equal(association.calls![0]!.references[0]!.row.version, w.row.version + 1);
+      assert.equal(association.calls![0]!.scenario!.intrinsics!.find(value => value.dependencyId === 'original-version')!.wire, String(w.row.version + 1));
+      const stored = await w.store.load(MODEL, w.row.id); assert.ok(stored);
+      assert.equal(stored.version, w.row.version + 1); assert.equal(stored.data['visible'], 'child final');
+      const revision = await w.store.readRevision();
+      assert.equal((await invoke(input)).status, 'replayed'); assert.equal(await w.store.readRevision(), revision);
+      assert.deepEqual(await w.store.load(MODEL, w.row.id), stored);
+      assert.equal(w.batches.length, 1); assert.equal(rootExecutions, 1); assert.equal(childExecutions, 1); assert.equal(preparations, 1);
+    } else {
+      await assert.rejects(invoke(input), error => error === first);
+      assert.deepEqual(await w.store.load(MODEL, w.row.id), w.row); rejectedFence(w, baseline, first);
+      assert.equal(childExecutions, 0); assert.equal(preparations, 1);
+    }
+  }
 });
 
 async function foreignView(): Promise<object> {
