@@ -210,6 +210,37 @@ test('equal sizes retain digest conflict before effects', () => {
   assert.deepEqual(o.writes, []);
 });
 
+for (const time of [-1, 0.5, NaN, Number.MAX_SAFE_INTEGER + 1]) {
+  test(`invalid new finalization time ${time} conflicts before mint or publication`, () => {
+    const { h, record, input } = completed();
+    let reads = 0;
+    const o = observed({ ...h.finalize, clock: { nowMs() {
+      // Keep expiry's observation valid; independently exercise claim time.
+      return reads++ === 0 ? h.clock.nowMs() : time;
+    } } });
+    const before = h.intents.get(record.intentId);
+    assert.deepEqual(finalizeUpload(o.deps, input), { status: 'failed', reason: 'conflict' });
+    assert.equal(reads, 2);
+    assert.deepEqual(o.writes, []);
+    assert.deepEqual(h.intents.get(record.intentId), before);
+    assert.deepEqual(h.blobs.read(stagingKeyForIntent(record.intentId)), BYTES);
+    assert.deepEqual(h.files.listAll(), []);
+  });
+
+  test(`invalid persisted finalization time ${time} conflicts without publication`, () => {
+    const { h, record, input } = completed();
+    h.intents.put({ ...record, pendingFinalization: { ref: 'invalid-time-file', finalizedAtMs: time } });
+    const before = h.intents.get(record.intentId);
+    const o = observed(h.finalize);
+    assert.deepEqual(finalizeUpload(o.deps, input), { status: 'failed', reason: 'conflict' });
+    assert.deepEqual(o.writes, []);
+    assert.deepEqual(h.intents.get(record.intentId), before);
+    assert.deepEqual(h.blobs.read(stagingKeyForIntent(record.intentId)), BYTES);
+    assert.deepEqual(h.files.listAll(), []);
+    assert.equal(h.blobs.read(blobKeyForFile('invalid-time-file')), null);
+  });
+}
+
 /** Copy-returning persisted metadata fixture; actual byte storage is the defining FS store. */
 function persistedIntents(path: string): IntentStorePort {
   const rows = (): UploadIntentRecord[] => existsSync(path) ? deserialize(readFileSync(path)) as UploadIntentRecord[] : [];

@@ -42,6 +42,7 @@ import type {
 } from './upload/index.js';
 import {
   appendUploadContent,
+  appendUploadContentAtOffset,
   completeUploadContent,
   createUploadIntent,
 } from './upload/index.js';
@@ -196,6 +197,20 @@ export function handleAppend(
     return { status: 'failed', reason: 'foreign' };
   }
   return appendUploadContent(files, intentId, receiver, chunk);
+}
+
+/** Explicit range transfer; metadata-free handleAppend has no retry guarantee. */
+export function handleAppendAtOffset(
+  bridge: BridgeDeps,
+  files: UploadDeps,
+  caller: unknown,
+  intentId: UploadIntentId,
+  chunk: Uint8Array,
+  expectedOffset: number,
+): AppendOutcome {
+  const receiver = bridge.principals.resolve(caller);
+  if (receiver === null) return { status: 'failed', reason: 'foreign' };
+  return appendUploadContentAtOffset(files, intentId, receiver, chunk, expectedOffset);
 }
 
 /**
