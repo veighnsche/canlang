@@ -7521,3 +7521,57 @@ join qualification.58/67/nine and precise holds unchanged. Local only.
 ### 2026-10-10 — manual local integration of 0fc015ca
 
 Finite manual review CLEAR. Internal checked completion facts retain actual selected canonical operation/result, owning module/alias and exact std import span with optional original binding/from. Unique matching authored import is required; duplicate/mismatched/unknown sources do not acquire a fact, and unbound imports gain no deployment binding. Reuse owning delivery_error_shapes9/9 in1.14s, including genuine original native observer and route/ambiguity/unknown controls, plus fmt/diff0. Runtime E6008 remains; schema/census/IR/JS producer and matching private native consumer are still required. Changed production source does not inherit current whole acceptance from the prior frozen1429/138/strict tuple. Original source32/noartifact and all exact recipient holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
+
+### 2026-10-10 — manual local integration of a7610b95
+
+Finite manual source review CLEAR. Resolve the same enabled owning CRUD grant before the precommit hook, retain authenticated actor proof only in that checked hook scope, and preserve public, foreign, disabled, unknown and committed-handler nullable/refusal behavior. Reuse owning analysis/hook controls and the exact complete25/catalog source delta35→33 with no new diagnostics or emitted original artifacts. Native actor/now/team/operation lowering remains E6008 until Compiler and Dev connect the genuine private invocation context; current whole/strict validation and original applications remain unfinished. Genuine generated selector/native qualification is independently integrated at a26623d9, not evidence for native hooks. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — classify actual Work rows for File retirement (unfinished join)
+
+Separate Work framework inventory from compiler domain descriptors. The actual
+nine owning RowData interfaces supply closed scalar/ID control fields plus
+explicit opaque retained-result and deferred-input roles. Required
+FileReferenceInventory.frameworkModels persists their exact serializable
+source/shape correspondence; the trusted host binds the actual same-load
+producer validator outside JSON. Tags, copied metadata and successful readers
+confer no issuance or File absence. Unknown/colliding models, extra fields and
+unclassified payloads refuse; no work.* namespace exemption. State supplies its
+own receipt/association/navigation families and backend enforcement.
+
+The Work validator detaches bounded own JSON data before existing codecs, checks
+closed envelopes/fields and identities, includes archived rows, and preserves
+StoredRow pre-S5 missing/undefined parent semantics without mutating input.
+Owning Contracts/State dependency/Work emissions pass; four actual constructor/
+stager and refusal cases pass115.04ms, with public export identity and required
+framework inventory type controls. Finite review CLEAR after parent correction.
+This qualifies owning shape and roles only. State original-revision permanent
+retirement/all-writer migration/activation admission, genuine issuer readback,
+Files physical retry and Dev real host/reopen remain unfinished. Opaque payload
+source/input/result authority and authenticated durable ingress retain their
+owners. No fabricated Compiler model, backend change, synthetic installed map,
+native/publication activation or hold release.
+
+### 2026-10-10 — manual local integration of bfee7848
+
+Finite manual source/contract reviews CLEAR. Required serializable frameworkModels is separate from actual same-load owning producer validation. Work root export covers all9 actual RowData shapes via required-key mapping, closed detached bounded own-data/envelope/control checks, owning codecs/identity and explicit retained-result/deferred-input roles. Reuse owning4/4 constructor/handler-stage/refusal cases115.04ms, Contracts/State dependency/Work clean emissions, public root/type required-framework controls and diff0. Copied tags/descriptors/callbacks are not an issuer; successful row validation supplies no opaque File absence or current authority. Capability must join actual State framework families, new inventory schema, genuine producer/source correspondence and all-writer/migration/activation barriers; backend/Files/native workflow remains unqualified. Packages separately owns finite DO test-loader bundling prerequisite, preserving all genuine State protocol/reopen assertions and every recipient-specific hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
