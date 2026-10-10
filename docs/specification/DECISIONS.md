@@ -6478,3 +6478,13 @@ Exact reviewed Packagesb156 dependency is selected locally as eaf925c0, with mat
 ### 2026-10-10 — manual local integration of d21cd1e0
 
 Manually review exact State4b15ce79+d21cd1e active-root Files observation capture, canonical owning field/full wire and final net postwrite association. Saved disclosure retains current row/grant/receiver/physical-policy authority and same original full Identity facts after final awaited physical checks before State revision, without cross-store atomicity or return-time promise. Reuse12 genuine SQLite File groups and116 affected existing checks; preserve scalar permission order. Packages State Files dependency was already integrated and portable806 plus Interfacesbf58 remain intact. Dev real native host/current-auth/replay and Compiler checked File/Set/source remain defining consumers; scalar/child File and pending cardinality/precise holds stay closed. Preserve distinct decisions once and existing physical allocations; no whole workflow acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — align HTTP scratch-cleanup fixture with real handlers
+
+The owning entry-write cleanup correction2b750a6e already covers both builders; duplicate production changes are unnecessary. Existing HTTP cleanup-success output/independent expected literals omitted five current required handler markers. Restore all seven actual marker names in those two literals, preserving the production refusal and every write/process/read/cleanup order, primary failure and scalar/error identity assertion.
+
+At reviewed LOCALe9fe1891 the existing suite passes15 and refuses the single stale HTTP success fixture for missing handlePageRequest. The corrected selected success passes1/1; reuse15 unchanged outcomes for16distinct affected lifecycle controls. An initial incorrect selector skipped all and qualifies nothing. No production change or build/dependency rerun; wider command resources, sidecars, returned URL lifetime, native preparation and publication remain open/held at their existing owners.
+
+### 2026-10-10 — manual local integration of 6b0e6d64
+
+Review only the two existing HTTP cleanup-success literals against the real seven required handler markers. Preserve production checks and all lifecycle/error-identity/order assertions. Reuse15 unchanged outcomes and the corrected selected success for16 distinct affected controls. No runtime/build rerun or broader resource/native acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

@@ -1597,7 +1597,7 @@
         "packages/cloudflare/test/preparation-shared-phases.test.ts": "26919e33f67b84ae80318c5eba405502bf56803811945300bb5558878d6c39f8"
       },
       "residuals": [
-        "Pre-existing entry-file write failure before try leaves temporary directory in old/new owners; DEL-D03 lifecycle gate remains",
+        "Entry-write scratch cleanup is already corrected by DEL-D03 owning2b750a6e; current16 distinct affected lifecycle controls qualified after stale HTTP success marker fixture alignment. Broader command/resource gates remain.",
         "Function aliases now share defining function identity/name, explicitly compatible type/call contract only",
         "DD009 current producer/consumer archive controls are qualified; frozen earlier phase/CLI profile is not expanded into whole assembly/native acceptance."
       ],
@@ -1970,6 +1970,12 @@
         "behavior": "Resolve the actual exported Testkit entry from the invoking application manifest/root and import its file URL; keep structural port and real Testkit-to-Cloudflare dependency without reverse build edge. CLI forwards captured root. Application explicitly installs both packages; absent installation, malformed exports and import-time faults stay distinct.",
         "validation": "Private strict Cloudflare emit and53/53 focused loader/CLI checks. Clean private Cloudflare emit with no Testkit dist, then Testkit emit, both pass; actual source-emitted Testkit resolves from application and retains identical module identity.",
         "limits": "No packed installed compiled-row/whole command/native acceptance; existing complete execution producer unchanged, broader installed/resource gates remain open."
+      },
+      "entry_cleanup_fixture_alignment": {
+        "source_base": "Clean exact reviewed LOCALe9fe18918942e9a7c9eccdf69cd839778e1d2b16 fast-forward preserves all completed local units. Own upstream ff-only/no-submodules pull already up-to-date.",
+        "source": "Entry-write cleanup source correction2b750a6e is already present in both real builders; do not duplicate it. Only two literal hunks in existing bundle-entry-cleanup.test.ts were stale: HTTP output/independent expected output omitted five real current handler markers. Restore handlePageRequest,handlePagePreferencePost,handleAuthRequest,SESSION_EXPIRES_MS,createSourceFormBindings alongside existinghandleOperationRequest/IdentityError. Production marker checks and all failure/cleanup/error identity/order assertions stay unchanged.",
+        "verification": "Existing current Vitest file initially15pass/1fail, actual HTTP success fixture refused missinghandlePageRequest. Correct only its two HTTP literals; changed success1/1pass,15unchanged outcomes reused:16distinct affected controls pass,0fail. One initial incorrect test-name selection skipped all and qualified nothing; corrected selection runs the intended case. Actual entry/partial/scalar/write+cleanup/process/missingBun/output-read lifecycle outcomes retained. No production dependency/build/source change; prior current build and installed scopes reused. Diffcheck0.",
+        "status": "Implemented/tested finite common fixture correction for coordinator manual source review; no whole DEL-D03 resource/sidecar/returnedURL/native acceptance."
       }
     },
     "DEL-D04": {
