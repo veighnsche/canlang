@@ -263,6 +263,154 @@ fn assert_runnable(rows: &[Vec<String>]) {
 
 const HEADER_SRC: &str = "app Probe\nGiven\n Task { title:text, state:enum(open,done)=open }\n policy Task read=members\n fixture one=Task { title=\"a\", state=open }\nWhen\n scenario close(task:Task,state:Task.state) by=members\n  require task.state==open\n  do set task {state=done}\n  examples seed=[one] task=one state=done\n   as,task.state -> task.state\n   members,open -> done\n   members,done -> error(rule_failed)\nThen\n";
 
+#[test]
+fn lexical_request_model_preserves_fixture_observation_and_input_channel() {
+    use canlang_compiler::analysis::examples::SelectorChannel;
+    let catalog = fixture_catalog();
+    for name in ["task", "request"] {
+        let src = HEADER_SRC.replace("task", name);
+        let mut db = SourceDb::new();
+        let id = db.add("test.can".to_string(), src);
+        let (mut program, diagnostics) = check_program(&db, &[id], Some(&catalog));
+        assert!(
+            !diagnostics.iter().any(|d| d.code == "E5002"),
+            "bound model observation: {diagnostics:?}"
+        );
+        assert_eq!(
+            program.examples.tables[0].selector_channels(),
+            Some([SelectorChannel::Caller, SelectorChannel::Input].as_slice())
+        );
+        let (artifact, emitted) = emit_test_only(&program, &db, &diagnostics, Some(&catalog));
+        assert!(
+            !emitted.iter().any(|d| d.code == "E6008"),
+            "same fixture identity lowers: {emitted:?}"
+        );
+        let js = &artifact.tests[0].module.js;
+        assert!(
+            js.contains(&format!(
+                "selectors:[\"as\",\"{name}.state\"],selectorChannels:[\"caller\",\"input\"]"
+            )),
+            "full lexical selector: {js}"
+        );
+        assert!(
+            js.contains(&format!("inputs:async(c,s)=>({{{name}:s.one,state:")),
+            "original fixture-bound input: {js}"
+        );
+        assert!(
+            js.contains("observations:[async(c,s)=>s.one.state]"),
+            "observation retains exact fixture identity: {js}"
+        );
+
+        program.examples.tables[0].inputs[1] = "request.record.version".to_string();
+        assert!(program.examples.tables[0].selector_channels().is_none());
+        let (_, emitted) = emit_test_only(&program, &db, &diagnostics, Some(&catalog));
+        assert!(
+            emitted
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains("selector channels disagree")),
+            "modified metadata cannot promote a channel: {emitted:?}"
+        );
+    }
+}
+
+#[test]
+fn lexical_request_whole_row_input_is_not_a_wire_envelope() {
+    use canlang_compiler::analysis::examples::SelectorChannel;
+    let src = HEADER_SRC.replace("task", "request").replace(
+        "examples seed=[one] request=one state=done\n   as,request.state -> request.state\n   members,open -> done\n   members,done -> error(rule_failed)",
+        "examples seed=[one] state=done\n   as,request -> one.state\n   members,one -> done",
+    );
+    let catalog = fixture_catalog();
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), src.clone());
+    let (program, diagnostics) = check_program(&db, &[id], Some(&catalog));
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d.code == "E5002" || d.code == "E5001"),
+        "row supplies declared input: {diagnostics:?}"
+    );
+    assert_eq!(
+        program.examples.tables[0].selector_channels(),
+        Some([SelectorChannel::Caller, SelectorChannel::Input].as_slice())
+    );
+    let (artifact, emitted) = emit_test_only(&program, &db, &diagnostics, Some(&catalog));
+    assert!(
+        !emitted.iter().any(|d| d.code == "E6008"),
+        "whole row input lowers: {emitted:?}"
+    );
+    let js = &artifact.tests[0].module.js;
+    assert!(
+        js.contains("selectors:[\"as\",\"request\"],selectorChannels:[\"caller\",\"input\"]"),
+        "whole input retains full declared root: {js}"
+    );
+
+    let input_only = src.replace("-> one.state", "-> request.state");
+    let (_, diagnostics) = check_src(&input_only, None);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "E5002" && d.message.contains("input, not an observation")),
+        "row-only model input is not a fixture observation: {diagnostics:?}"
+    );
+}
+
+#[test]
+fn lexical_request_fixture_observation_keeps_declared_fixture_identity() {
+    let src = HEADER_SRC
+        .replace("fixture one=", "fixture request=")
+        .replace("seed=[one] task=one", "seed=[request] task=request")
+        .replace("-> task.state", "-> request.state");
+    let catalog = fixture_catalog();
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), src);
+    let (program, diagnostics) = check_program(&db, &[id], Some(&catalog));
+    assert!(
+        !diagnostics.iter().any(|d| d.code == "E5002"),
+        "lexical model fixture is observable: {diagnostics:?}"
+    );
+    let (artifact, emitted) = emit_test_only(&program, &db, &diagnostics, Some(&catalog));
+    assert!(
+        !emitted.iter().any(|d| d.code == "E6008"),
+        "fixture observation lowers: {emitted:?}"
+    );
+    assert!(
+        artifact.tests[0]
+            .module
+            .js
+            .contains("observations:[async(c,s)=>s.request.state]")
+    );
+}
+
+#[test]
+fn request_observation_preserves_wire_scalar_and_unknown_field_refusals() {
+    let wire = HEADER_SRC.replace("-> task.state", "-> request.record.version");
+    let (_, diagnostics) = check_src(&wire, None);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "E5002" && d.message.contains("input, not an observation")),
+        "unbound wire request remains input-only: {diagnostics:?}"
+    );
+    let scalar = "app Probe\nGiven\nWhen\n scenario noop(request:text) by=members\n  do let seen=1\n  examples request=\"a\"\n   as -> request\n   members -> \"a\"\nThen\n";
+    let (_, diagnostics) = check_src(scalar, None);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "E5002" && d.message.contains("input, not an observation")),
+        "scalar request does not acquire a fixture observation: {diagnostics:?}"
+    );
+    let neutral = HEADER_SRC.replace("-> task.state", "-> task.missing");
+    let named = neutral.replace("task", "request");
+    let (_, neutral_diagnostics) = check_src(&neutral, None);
+    let (_, named_diagnostics) = check_src(&named, None);
+    assert_eq!(
+        codes(&named_diagnostics),
+        codes(&neutral_diagnostics),
+        "unknown field behavior stays lexical: {neutral_diagnostics:?} / {named_diagnostics:?}"
+    );
+}
+
 /// A header case elides exactly like the same case in a fixture value:
 /// neither position reports `E2001`.
 #[test]

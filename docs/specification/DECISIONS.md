@@ -7277,6 +7277,7 @@ All ordinary routes, complete frozen cohorts, first children and consumption rec
 
 Work emission passes; five real producer groups pass1020.07ms and added generic Email1/1 passes257.92ms, reusing five unchanged outcomes. Six cases have zero failure/cancellation/skip; boundaries13/938/1400/0 pass and State25/106.78ms is reused. Focused review's repeated-object codec and replay-budget defects were corrected before tests. Coordinator finite acceptance remains pending. Preserve complete workflows, named dependencies and all human holds; no publication/provider activation follows.
 
+
 ### 2026-10-10 — manual local integration of 3000bc8c
 
 Finite independent and manual review CLEAR for original retained outbox access through the private actual stage ledger and existing tracked owner-store outboxGet. Reuse owning State clean emission and25 affected checks106.78ms, zero failures/skips. Five-key context/canonical-send shape, copied/foreign/closed/pending reader refusal, original revision commit fence and retained publication facts remain. This releases a State source prerequisite only; Work issuer, checked Compiler executable projection, Dev native intake and real provider authentication/correlation remain unfinished. Included physical deletion prerequisite is an observed absent cross-store authority, not a wrapper or runtime acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
@@ -7334,3 +7335,104 @@ All parent statuses and precise holds remain unchanged; manual integration pendi
 Finite independent and manual review CLEAR for the necessary TECH-F02 durable retirement direction. Preserve D1 plus separate files.sqlite and explicitly unsupported current shared-reference deletion. Capability State must release persisted retirement at the same atomic census/original revision/installed declaration fence and guard every writer, pre-staged migration publication and schema activation. Packages consumes authentic reopened issuer and immutable physical identity in terminal Files metadata/bytes transaction; Dev owns same-authoritative-store routing and genuine contention/interruption/reopen checks. Three preauthorized Jev calls are completed advice, not runtime acceptance. No runtime checks repeated, new API fabricated, provider activation or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
 Worker intake of exact1c4eadf1 onto unfinished Workdc7e6ce1 preserves both append histories and actual draft checkout. Full staged-tree/both-parent registration since824934 is2004commits/10883net/11427history/513history-only/9380pending, with two new Work paths; direct consistency retains every prior allocation tuple, owner/scope/retirement/task,79features/30leaves and unadvanced complete checkpoint. Reuse unchanged finite results. Packages owns the pending exact common state.ts/files.ts retirement/declaration/physical identity contract; State must not fabricate it while preparing the backend/migration/activation producer. Files consumer and actual Dev owner topology remain separate. All human holds persist.
+
+
+
+
+**2026-10-10 — Dev consumes checked example selector channels (unfinished generated-source qualification).** Use the defining Compiler/Testkit optional aligned input/request/caller metadata at the Dev preparation port; only input channels materialize genuine privately bound stored fixture fields. Preserve legacy preparation when absent, canonical current-row reload/Identity/resources and existing admission/cancellation, without guessed input shapes, a duplicated metadata validator or static Testkit dependency. Exact reviewed Testkit ecc46d57 source/tests/README is consumed; owning37 checks are reused. The real compiled/default-adapter two-operation consumer component passes1/1 in4974.29ms, distinguishing identical request.seen cells by actual stored-row/revision/resource effects and canonical outcomes. Clean Testkit/CF emits, root noEmit0 and boundaries13/935/1393/zero pass. Compiler's actual generated metadata/native producer qualification remains a named dependency; authored consumer modules establish no generated-source, original application or whole-plan acceptance. No publication or hold change.
+
+### 2026-10-10 — selected local integration of Dev selector consumer94e27958
+
+Finite independent/manual review CLEAR; integrate only the two leased CF source/test files and directly related records, excluding divergent carrier ancestry. Reuse genuine compiled consumer1/1 at4974.29ms, owning clean emissions/noEmit0/boundary13/935/1393/zero and unchanged Testkit37. The metadata is hand-authored for consumer validation; actual Compiler generated-source/native qualification remains pending. Preserve original fixture identity/current rows, wire/caller separation and deliberate legacy absence. Existing owners, checkpoint and all precise holds remain; no remote push.
+
+
+### 2026-10-10 — preserve Invoice receipt and void identities (unfinished composition)
+
+Assigned draft8a2f83f renames only private receipt→generate_receipt and
+void→void_invoice, plus three actual action lists and one form. Preserve
+Documents.receipt/receipt_result, enum/modal identities, guards, permissions,
+complete bodies/order/effects and every example. Same current CLI original25/
+catalog46→35 removes exactly11 Invoice findings, adds none, complete/omitted0
+and all25 current hashes/no artifact. Baseline46 already includes the separately
+unfinished Leave observation producer's10 reductions from prior qualified56;
+no native acceptance or attribution of those10 to Invoice.
+
+Actual isolated212→203 removes10 prior findings and adds unresolved void at707,
+where the isolated source lacks its owning state. Full composition resolves it.
+Only Invoice pin203 changes here; all52/full assertions remain. Full table
+qualification awaits the separate Leave/Purchase pin correction. Current new
+production whole/lint remains pending, Purchase source rename is unassigned and
+exported Rent remains excluded.58/67/nine open and precise holds unchanged.
+
+### 2026-10-10 — manual local integration of 22dbd12b
+
+Finite independent and manual review CLEAR for exact draft8a2f83f six private name/reference edits: receipt to generate_receipt plus all3 action lists and void to void_invoice plus its sole form. Preserve providers/receipt_result, modal and enum identities, complete bodies/grants/effects/order/examples. Reuse owning isolated212 to203 source correspondence,10 removed/1 exposed E2001 void in incomplete isolated state; complete composition resolves it. Owning original25 measured46 to35 removes11Invoice only, but baseline46 includes unfinished Leave producer changes and is not this local-main current count. Complete original25/all52/current whole/lint recomputation remains pending at the related source unit. No original/native application or whole-plan acceptance, source export, generated output or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — preserve checked selector channels (unfinished native join)
+
+Checked lexical fixture-backed request model observations retain the same
+fixture identity as neutral names. Private table evidence binds exact node,
+module, operation and full selector correspondence; IR rechecks source headers.
+Generated tables emit dense optional selectorChannels input/request/caller;
+legacy handbuilt None omits it. Input retains the full path, wire request strips
+its prefix in the owning consumer, and as remains caller. Malformed alignment
+refuses E6008 before table closure lowering. Wire/scalar/row-only observations
+still refuse E5002. No authority/disclosure/input-policy change.
+
+Owning150 distinct outcomes pass (codegen121/B4 examples29); corrected mechanical
+emitter API/diagnostic-code failures are superseded. Finite independent review
+is CLEAR. Real CLI→installed Testkit→invocation-port witness is added but UNTESTED
+pending exact ecc consumer intake/build; it explicitly claims no State execution.
+Dev94e materializer and actual generated native joint qualification remain.
+Source-only original25 drops56→46 by10 Leave/Purchase E5002, then assigned Invoice
+46→35; no artifact. Observed corpus Leave79→74/Purchase143→138, retaining all52
+full assertions; joined full-table and changed whole/lint remain pending.
+Original58/67/nine references and precise BDD3/S9-Q07/Task22 holds remain.
+
+### 2026-10-10 — manual local integration of 6870dcef
+
+Finite independent and manual review CLEAR for checked lexical input/request/caller producer tied to exact owner/node/module/operation/selectors, dense source IR channels and BDD malformed E6008 refusal. Actual stored-model fixture request observations admitted; unbound wire/scalar/row-only E5002 retained. Reuse150 owning codegen/B4 passing outcomes. Exact integrated Testkitecc and Dev94 are consumer prerequisites; actual generated CLI-to-installed-Testkit/native witness, joined all52 and current whole/strict lint remain unfinished. The source-only complete original25 tuple35 has no artifact and is not native/full-plan acceptance. Preserve all source witnesses, existing opaque/ingress refusals and precise BDD3/S9Q07/other human holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — retained standard completion issuer (implemented/tested; native join unfinished)
+
+Use installed immutable Work wiring over the genuine State original-stage reader, accepting only deliveryId. Derive actual retained publication, canonical dispatch origin, bound request and persisted decisive receipt; schema shape or event deduplication alone never issues a source. Validate original declared return separately from the nullable four-field envelope. Preserve terminal-before-ack and publication-after-stage-clock order, operator/run versus true Work origin and owning generation correlation. Without a content resolver, separately retained/expired results refuse fresh issuance.
+
+All ordinary routes, complete frozen cohorts, first children and consumption receipt share the original expectedRevision commit. Full rows are detached and bounded identically at creation/replay; replay checks original inventory, allows later progress and never queries fresh membership. Overflow, copied/closed contexts, partial/colliding effects and fence races refuse atomically. Export through existing commands/root only. Installed source/schema/model/scope/declarations do not establish Compiler correspondence, current native owner/source authority or authenticated ingress. Executable projection/private nested nullable admission stays E6008-blocked; Dev owns actual loaded correspondence and enrollment.
+
+Work emission passes; five real producer groups pass1020.07ms and added generic Email1/1 passes257.92ms, reusing five unchanged outcomes. Six cases have zero failure/cancellation/skip; boundaries13/938/1400/0 pass and State25/106.78ms is reused. Focused review's repeated-object codec and replay-budget defects were corrected before tests. Coordinator finite acceptance remains pending. Preserve complete workflows, named dependencies and all human holds; no publication/provider activation follows.
+
+### 2026-10-10 — manual local integration of dc7e6ce1
+
+Finite independent and manual review CLEAR for original issued-stage retained outbox/dispatch/terminal receipt correspondence, original declared R before nullable envelope, all ordinary routes, complete frozen cohorts, initial child chunks and source consumption under ONE original revision fence. Replay validates retained route/inventory without recensus. Reuse actual owning6 distinct producer groups with clean Work emission and boundary13/938/1400/zero, and unchanged State25. Exact installed source config is now a released producer prerequisite; Compiler actual same-load checked alias/from/owner/schema/complete handler projection and closed nested nullable private operation admission, Dev genuine native intake and provider authentication remain unfinished. No synthetic source authority, native/provider/whole-plan acceptance or human hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — define the checked State File-retirement storage extension (unfinished runtime)
+
+Release additive defining types in Contracts state.ts/files.ts for Capability's
+exact State producer handoff. FileReferenceStoragePort requires one immutable
+persisted State/physical-Files authority, full same-load declaration inventory
+bound to installed owner/snapshotId/digest, bounded original-revision retirement
+and original permanent decision readback. Storage derives File occurrences; no
+optional caller reference list enters CommitBatch. Refined publish/flip inputs
+require target inventory and explicit null on removal. Generic ports remain
+unchanged; guarded State adapters must refuse missing legacy evidence and check
+commit, pre-staged migration publication and schema reinterpretation at their
+actual atomic boundary. Initial installation preserves an existing matching
+snapshot's original revision/time. Immutable File identity excludes policy;
+RetainedFinalizedFile retains its existing shape.
+
+Final owning Contracts emission and focused in-memory public consumer/refusal
+controls pass. Two finite contract reviews resolved single-authority lookup and
+lost-reply cleanup: verify persisted physical identity each retry, bytes when
+present, and require the exact original retirementId terminal tombstone to accept
+already-deleted bytes. No runtime test or proof file is added and unchanged checks
+are reused. Types supply no durable issuer or guard. Capability owns the actual
+State implementation; Packages consumes its exact released producer; Dev owns
+real persisted Files store assignment/routing and recovery qualification. Current
+cross-store deletion remains unsupported, provider unreleased and all holds intact.
+
+### 2026-10-10 — manual local integration of 679cb253
+
+Finite independent and manual review CLEAR for additive REQUIRED FileReferenceStoragePort and immutable finalized identity, preserving generic StoragePort/CommitBatch/migration and RetainedFinalizedFile shape compatibility. Permanent authority separates State owner/store from physical receiver/store; install/read/retire/readback binds full declarations and original revision, publication/activation requires complete target evidence. Reuse owning clean Contracts emission and public compatibility/refusal controls. Types supply no issuer, atomic guard, stored pin, tombstone, cross-store deletion or native recovery. Capability State actual backend guards and persisted retirement, then Packages genuine reopened Files consumer and Dev complete host routing/contention/interruption/reopen remain required. Legacy omitted evidence cannot bypass guards. All precise holds unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Worker exact8b0768ee intake ontof2fc9dd3 preserves Workdc7e6ce1 and common679cb253. Mandatory actual staged-tree/both-parent registration since824934 is2013commits/10883net/11427history/513history-only/9380pending, no new paths; every prior tuple/owner/strongest scope/retirement/task,79features/30leaves and unadvanced checkpoint preserved. Direct consistency passes; unchanged results reused. State actual durable retirement is the next ready producer; Files/Dev consumers remain gated and all holds precise.
