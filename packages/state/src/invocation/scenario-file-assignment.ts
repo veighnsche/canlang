@@ -53,6 +53,9 @@ function copyData(value: unknown): unknown {
   catch (error) { if (error instanceof StateError) throw error; return invalid('own JSON data required.'); }
 }
 
+// State's current committed-slot consumer shares this same own-data boundary.
+export { copyData as copyScenarioFileData };
+
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) ||
       Object.keys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) {
