@@ -5981,7 +5981,12 @@
         "change": "Register only packages/cloudflare/src/runtime/native-local-rules.integration.test.ts -> compiler/tests/fixtures/hook_order_rollback.can, beside the existing committed_change.can registration. Original owning Compiler fixture is present and unchanged. Exact consumer/target predicate and all package API/source-import checks unchanged.",
         "validation": "Two affected maintained checker cases2/2 pass264.95ms total,0fail/cancel/skip. Three previous canonical registrations plus both new exact reads accepted; four wrong-target/wrong-consumer reads and three sibling JS imports refuse with no registrations. Policy/diff inspection0; no unchanged full workspace, producer emit or native checks repeated.",
         "remaining_owner": "Coordinator finite source review and Dev reviewed-path intake, then actual new consumer source boundary and owning HookOrder assertions. Incoming Dev two boundary failures are not qualified away by controlled policy cases.",
-        "limits": "Common fixture-read registration only; no sibling source export, arbitrary fixture/directory grant, business-body/metadata modification, native workflow acceptance or human hold release. Local coherent commit only/no push."
+        "limits": "Common fixture-read registration only; no sibling source export, arbitrary fixture/directory grant, business-body/metadata modification, native workflow acceptance or human hold release. Local coherent commit only/no push.",
+        "portable_consumer": {
+          "change": "Add only exact packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts -> compiler/tests/fixtures/hook_order_rollback.can. Existing Memory registration/predicate and original Compiler fixture unchanged; no API/source exemption.",
+          "validation": "Both affected maintained policy cases2/2 pass254.53ms total,0fail/cancel/skip. Six canonical reads accepted; five wrong-consumer/other-target paths and four sibling source imports refuse with no registrations. No unchanged producer/native/full workspace rerun.",
+          "scope": "Exact D1 consumer/fixture policy manually reviewed and integrated; actual new portable native consumer and workflow qualification remain Dev-owned. Existing Memory registration status and prior evidence preserved."
+        }
       }
     },
     "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
