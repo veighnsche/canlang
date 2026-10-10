@@ -3057,15 +3057,18 @@ An earlier entry-first native precheck had the same127; the final recorded check
 uses the subsequently supplied original ordinary invocation. No artifact,
 committedChanges, executed examples or native original acceptance follows.
 
-The affected standalone corpus table fails only changed pins: CRM144→146,
-Desk78→74,Event203→202;49 rows, including Affiliate39, are unchanged. CRM's added
-purchased fixture has genuine imported location/fold names unavailable to the
-single-file corpus check. Expectations remain untouched pending the coordinator's
-narrow source-review/pin disposition. Prior compiler1418/139, strict/editor
-results are reused for unchanged compiler production; that whole result does
-not qualify this changed draft corpus. Remaining127 source diagnostics require
-exact further owner assignment, including Desk reply/Event expired/Member revoke
-operation shadows, Volunteer unresolved tabs and Employees pure authority claims.
-Dev owns actual original native qualification and the private source/runtime
-joins. No broad source rewrite, common gate repair or hold change;58/67 and
-precise BDD3/Task22 remain unchanged.
+The coordinator reviewed the six corrections CLEAR and authorized only the
+three changed source snapshots: CRM144→146,Desk78→74,Event203→202. All52 rows
+and diagnostic/context assertions remain;49 unchanged rows include Affiliate39.
+CRM adds two test_site uses and the owning earlier fold case while removing one
+server-owned owner input finding (net+2); these imported names are unavailable
+to the isolated-file corpus check. Final affected table passes1/1 in2.70s,
+36 unrelated tests unselected, superseding the initial stale-pin failure.
+Unchanged compiler1418/139, strict/editor results are reused at their original
+scope with this separately qualified corpus delta. Remaining127 source findings
+still prevent an artifact. The next exact assigned source unit is Desk reply,
+Event expired and Member revoke operation shadows with actual consumers;
+Volunteer unresolved tabs, Employees pure authority claims and other findings
+remain outside that lease. Dev owns actual original native qualification and
+private source/runtime joins. No broad source rewrite/common gate repair or
+hold change;58/67 and precise BDD3/Task22 remain unchanged.

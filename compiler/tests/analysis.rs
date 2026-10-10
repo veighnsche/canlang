@@ -1014,12 +1014,18 @@ fn draft_outcome_table() {
     // single source change; CanDo remains38. All52 rows total4181.
     // Historical attribution above describes earlier corpus/checker snapshots;
     // these aggregate pins do not establish full draft/runtime qualification.
+    // Reviewed draft3efd895 source corrections preserve all 52 rows. CRM's
+    // purchased hours add two isolated test_site uses and the owning earlier
+    // case, while removing one server-owned owner input finding (net +2).
+    // Desk note and Event change operation renames remove four and one
+    // lexical-shadow findings respectively. The actual 25-file composition
+    // clears all six corrections but retains 127 other analysis findings.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
         ("draft/CanBoard.can", 3),
         ("draft/CanBook.can", 154),
-        ("draft/CanCRM.can", 144),
+        ("draft/CanCRM.can", 146),
         ("draft/CanCatch.can", 53),
         ("draft/CanChat.can", 1),
         ("draft/CanCheck.can", 38),
@@ -1029,11 +1035,11 @@ fn draft_outcome_table() {
         // event.id text; the unchanged source still has 49 other findings.
         ("draft/CanCustomer.can", 49),
         ("draft/CanDecide.can", 4),
-        ("draft/CanDesk.can", 78),
+        ("draft/CanDesk.can", 74),
         ("draft/CanDiscover.can", 60),
         ("draft/CanDo.can", 38),
         ("draft/CanEnrich.can", 8),
-        ("draft/CanEvent.can", 203),
+        ("draft/CanEvent.can", 202),
         ("draft/CanExpense.can", 92),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
