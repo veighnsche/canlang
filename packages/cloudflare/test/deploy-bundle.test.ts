@@ -329,10 +329,13 @@ describe("deploy bundle (P-B)", () => {
       "handleCsvRequest",
       "handlePageRequest",
       "handlePagePreferencePost",
+      "receiverFromIdentity",
       "IdentityError",
     ]) {
       expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);
     }
+    // A body occurrence alone cannot satisfy the runtime's named import.
+    expect(ops).toMatch(/\bexport\s*\{[^}]*\breceiverFromIdentity\b[^}]*\}/s);
     // Real bundle, not a stub: the op chain + identity closure is
     // tens of KB (no MCP SDK weight).
     expect(ops.length).toBeGreaterThan(10_000);
