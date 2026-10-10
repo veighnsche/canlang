@@ -19,8 +19,12 @@ export class ValueTypesError extends Error {
   }
 }
 
-/** Fold declarations once without losing duplicate names; codecs own the resulting schema. */
-export function normalizeValueTypes(inventory: unknown): {
+/**
+ * Fold declarations once without losing duplicate names; codecs own the resulting schema.
+ * Model names come from the loader's same-load model declarations, never value contracts.
+ * They permit reference shape validation only; the loader retains identity and authority checks.
+ */
+export function normalizeValueTypes(inventory: unknown, modelNames: readonly string[] = []): {
   readonly valueTypes: CanonicalValueTypes;
   readonly valueSchema: NormalizedSchema;
 } {
@@ -41,16 +45,27 @@ export function normalizeValueTypes(inventory: unknown): {
   const contracts: Record<string, { fields: Record<string, FieldDescriptor> }> = Object.create(null);
   const enums: Record<string, { cases: readonly string[] }> = Object.create(null);
   const names = new Set<string>();
+  const models = new Set<string>();
+  const canonicalNominal = (name: unknown): name is string => {
+    if (typeof name !== "string") return false;
+    try {
+      const type = parseTypeId(name);
+      return type.base.kind === "nominal" && !type.array && !type.nullable && printTypeId(type) === name;
+    } catch { return false; }
+  };
+  if (!Array.isArray(modelNames)) return fail("malformed", "valueTypes model context requires a model-name array.");
+  for (const name of modelNames) {
+    if (!canonicalNominal(name)) return fail("malformed", "valueTypes model context requires canonical bare nominal names.");
+    if (models.has(name)) return fail("duplicate", `Duplicate valueTypes model ${JSON.stringify(name)}.`);
+    models.add(name);
+  }
   for (const declaration of [...contractEntries, ...enumEntries, ...aliasEntries]) {
     if (!record(declaration) || typeof declaration["name"] !== "string" || !Object.hasOwn(declaration, "name")) {
       return fail("malformed", "valueTypes requires own declaration names.");
     }
     const name = declaration["name"];
-    try {
-      const type = parseTypeId(name);
-      if (type.base.kind !== "nominal" || type.array || type.nullable || printTypeId(type) !== name) throw new Error();
-    } catch { return fail("malformed", "valueTypes requires canonical bare nominal names."); }
-    if (names.has(name)) return fail("duplicate", `Duplicate valueTypes declaration ${JSON.stringify(name)}.`);
+    if (!canonicalNominal(name)) return fail("malformed", "valueTypes requires canonical bare nominal names.");
+    if (names.has(name) || models.has(name)) return fail("duplicate", `Duplicate valueTypes declaration ${JSON.stringify(name)}.`);
     names.add(name);
   }
   const copiedContracts: CanonicalValueTypes["contracts"][number][] = [];
@@ -70,7 +85,7 @@ export function normalizeValueTypes(inventory: unknown): {
         parsed = parseTypeId(field["type"]);
         if (printTypeId(parsed) !== field["type"]) throw new Error();
       } catch { return fail("malformed", `Noncanonical valueTypes field ${JSON.stringify(field["name"])}.`); }
-      if (parsed.base.kind === "nominal" && !names.has(parsed.base.path)) {
+      if (parsed.base.kind === "nominal" && !names.has(parsed.base.path) && !models.has(parsed.base.path)) {
         return fail("dangling", `Undeclared valueTypes nominal ${JSON.stringify(parsed.base.path)}.`);
       }
       if (["min", "max"].some(key => Object.hasOwn(field, key) && typeof field[key] !== "number") ||
@@ -86,7 +101,16 @@ export function normalizeValueTypes(inventory: unknown): {
         ...(Object.hasOwn(field, "distinctBy") ? { distinctBy: "id" as const } : {}),
         ...(Object.hasOwn(field, "excludedIds") ? { excludedIds: Object.freeze(Array.from(field["excludedIds"] as string[])) } : {}),
       };
-      fields[field["name"]] = { type: field["type"], ...constraints };
+      // Checked artifact int bounds are numbers; the exact scalar codec takes
+      // decimal wire strings. Refuse already-lossy bounds before conversion.
+      const valueBounds: { min?: string; max?: string } = {};
+      if (!parsed.array && parsed.base.kind === "scalar" && parsed.base.name === "int") {
+        for (const key of ["min", "max"] as const) if (Object.hasOwn(field, key)) {
+          if (!Number.isSafeInteger(field[key])) return fail("malformed", "valueTypes int bounds require exact safe integers.");
+          valueBounds[key] = String(field[key]);
+        }
+      }
+      fields[field["name"]] = { type: field["type"], ...constraints, ...valueBounds };
       copied.push(Object.freeze({ name: field["name"], type: field["type"], ...constraints }));
     }
     contracts[name] = { fields };
