@@ -6496,3 +6496,20 @@ contained operands need current-stage Dev hydration, and old/fresh two-domain
 closure remains Compiler-owned after those releases. State File lifetime at
 LOCALa8de5109 releases the next assignment-only File source unit; broader original
 workflow/58 of67 and precise BDD3/Task22 holds remain open.
+
+### 2026-10-10 — retain whole stored Input provenance through local comparison (unfinished original approve)
+
+Observe owning whole Step.input under the released canonical Contract codec;
+count and nested old/fresh predicates consume its local values without creating
+Fact row grants. Preserve exact inner member source spans, checked aliases/slots
+and genuine Complete child projection. A private bounded declaration/schema
+snapshot joins actual IR, constraints and source before native publication.
+Canonical Contract guards retain owning control dependencies; ordinary scalar
+guard pruning is unchanged. Original Input worker:user joins the actual emitted
+schema. Genuine generated CRUD/native comparison, rollback, stale versions,
+saved replay and revoked authority pass. Broad qualification currently has1408
+passes and two unchanged Dev non-File replay tripwire failures at invoke.ts5810;
+preserve both assertions and consume the exact owner repair. Coordinator
+acceptance and original member/pure/dynamic workflow remain unfinished. Continue
+the agreed committed-model source producer after this coherent local unit;
+BDD3/Task22 holds and58/67 remain unchanged.

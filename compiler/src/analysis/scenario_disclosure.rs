@@ -230,6 +230,38 @@ pub struct CheckedScenarioSource {
     pub decision_sites: Option<Vec<CheckedDecisionSite>>,
     /// Complete bounded query lineage only; absence is not an empty proof.
     pub queries: Option<Vec<DisclosureQuery>>,
+    /// Private source snapshot for singular stored contract fields reachable
+    /// from this scenario's model parameters. This grants no admission.
+    pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedStoredContractSchema {
+    pub id: SymbolId,
+    pub canonical: String,
+    pub module: ModuleId,
+    pub span: crate::source::Span,
+    pub source: DisclosureSource,
+    pub model: bool,
+    pub field_order: Vec<SymbolId>,
+    pub fields: Vec<CheckedStoredContractField>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedStoredContractField {
+    pub id: SymbolId,
+    pub canonical: String,
+    pub name: String,
+    pub owner: SymbolId,
+    pub span: crate::source::Span,
+    pub source: DisclosureSource,
+    pub ty: ResolvedType,
+    pub required_array: bool,
+    pub declared: String,
+    pub constraints: Option<super::resolve::CheckedValueConstraints>,
+    pub trim: bool,
+    pub min: Option<(NodeKey, i64, DisclosureSource)>,
+    pub max: Option<(NodeKey, i64, DisclosureSource)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -651,6 +683,23 @@ enum Local {
 }
 type Env = HashMap<Local, ValuePath>;
 
+/// Canonical stored Contract values retain their whole owning-field read.
+/// These are local wire values, never stored record receivers or grants.
+#[derive(Debug, Clone, Copy)]
+enum ContractValue {
+    Singular(SymbolId),
+    Array(SymbolId),
+    Reference,
+}
+
+#[derive(Debug, Clone)]
+struct ContractPredicateAlias {
+    node: NodeKey,
+    contract: SymbolId,
+    ty: ResolvedType,
+    projection: Option<DisclosureQueryProjection>,
+}
+
 #[derive(Debug, Clone, Default)]
 struct ValuePath {
     reads: Vec<DisclosureDependency>,
@@ -666,6 +715,7 @@ struct ValuePath {
     /// Exact Complete query child whose actual call occurrence owns this wire.
     /// This marker admits only direct cardinality consumption, never a row view.
     query_child: Option<SymbolId>,
+    contract_value: Option<ContractValue>,
 }
 
 impl ValuePath {
@@ -1051,7 +1101,195 @@ impl<'a> Closure<'a> {
             calls,
             decision_sites: self.checked_decision_sites(scenario),
             queries: self.checked_query_sources(scenario),
+            stored_contracts: self.checked_stored_contracts(scenario),
         })
+    }
+
+    fn checked_stored_contracts(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedStoredContractSchema>> {
+        let is_contract = |id: SymbolId| {
+            self.resolve
+                .symbols
+                .get(id.0 as usize)
+                .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. }))
+        };
+        let mut pending = Vec::new();
+        for parameter in &scenario.params {
+            let Some(ResolvedType::Record { symbol, .. }) =
+                self.types.symbol_types.get(&parameter.param)
+            else {
+                continue;
+            };
+            if matches!(
+                self.resolve.symbols.get(symbol.0 as usize)?.kind,
+                SymbolKind::Model { .. }
+            ) {
+                pending.push((*symbol, true));
+            }
+        }
+        let mut seen = HashSet::new();
+        let mut inventory = Vec::new();
+        let mut field_count = 0usize;
+        while let Some((id, model)) = pending.pop() {
+            if !seen.insert(id) {
+                continue;
+            }
+            if seen.len() > 200 {
+                return None;
+            }
+            let declaration = self.resolve.symbols.get(id.0 as usize)?;
+            let (order, node) = match &declaration.kind {
+                SymbolKind::Model { fields, .. } if model => {
+                    (fields, self.effects.models.get(&id)?.node)
+                }
+                SymbolKind::Contract { fields } if !model => {
+                    (fields, self.effects.records.get(&id)?.node)
+                }
+                _ => return None,
+            };
+            if declaration.id != id || order.len() > 200 {
+                return None;
+            }
+            let source = self.source(declaration.module, node).ok()?;
+            let mut fields = Vec::new();
+            for field in order {
+                let ty = self.types.symbol_types.get(field)?;
+                if model
+                    && !matches!(ty, ResolvedType::Record { symbol, .. } if is_contract(*symbol))
+                {
+                    continue;
+                }
+                field_count += 1;
+                if field_count > 4096 {
+                    return None;
+                }
+                let member = self.resolve.symbols.get(field.0 as usize)?;
+                let SymbolKind::Field { owner, .. } = &member.kind else {
+                    return None;
+                };
+                if member.id != *field || *owner != id || member.module != declaration.module {
+                    return None;
+                }
+                let data = self
+                    .effects
+                    .models
+                    .get(&id)
+                    .and_then(|record| record.fields.iter().find(|data| data.field == *field))
+                    .or_else(|| {
+                        self.effects.records.get(&id).and_then(|record| {
+                            record.fields.iter().find(|data| data.field == *field)
+                        })
+                    })?;
+                let member_source = self.source(member.module, data.node).ok()?;
+                let mut trim = false;
+                let mut min = None;
+                let mut max = None;
+                let mut current = *field;
+                let mut reused = HashSet::new();
+                loop {
+                    if !reused.insert(current) || reused.len() > 64 {
+                        return None;
+                    }
+                    let symbol = self.resolve.symbols.get(current.0 as usize)?;
+                    let SymbolKind::Field { owner, .. } = &symbol.kind else {
+                        return None;
+                    };
+                    let data = self
+                        .effects
+                        .models
+                        .get(owner)
+                        .and_then(|record| record.fields.iter().find(|data| data.field == current))
+                        .or_else(|| {
+                            self.effects.records.get(owner).and_then(|record| {
+                                record.fields.iter().find(|data| data.field == current)
+                            })
+                        })?;
+                    for modifier in &data.modifiers {
+                        if modifier.name == "trim" {
+                            trim = true;
+                        }
+                        let slot = match modifier.name.as_str() {
+                            "min" => &mut min,
+                            "max" => &mut max,
+                            _ => continue,
+                        };
+                        if slot.is_none() {
+                            let key = modifier.value?;
+                            let text = &self.db.get(key.file)?.text;
+                            let value = text
+                                .get(key.start as usize..key.end as usize)?
+                                .trim()
+                                .parse()
+                                .ok()?;
+                            *slot = Some((key, value, self.source(symbol.module, key).ok()?));
+                        }
+                    }
+                    let Some(next) = self.types.field_reuse_sources.get(&current) else {
+                        break;
+                    };
+                    current = *next;
+                }
+                let constraints = self.types.value_constraints.get(field).cloned();
+                let mut declared = checked_stored_contract_type_id(
+                    ty,
+                    constraints.as_ref().and_then(|value| value.alias),
+                    self.resolve,
+                    0,
+                )?;
+                if data.required_array {
+                    declared.push('!');
+                }
+                fields.push(CheckedStoredContractField {
+                    id: *field,
+                    canonical: member.canonical.clone(),
+                    name: member.name.clone(),
+                    owner: id,
+                    span: member.span,
+                    source: member_source,
+                    ty: ty.clone(),
+                    required_array: data.required_array,
+                    declared,
+                    constraints,
+                    trim,
+                    min,
+                    max,
+                });
+                let mut base = ty;
+                let mut depth = 0;
+                while let ResolvedType::Nullable(inner)
+                | ResolvedType::Array { element: inner, .. } = base
+                {
+                    depth += 1;
+                    if depth > 64 {
+                        return None;
+                    }
+                    base = inner;
+                }
+                if let ResolvedType::Record { symbol, .. } = base
+                    && is_contract(*symbol)
+                {
+                    pending.push((*symbol, false));
+                    if pending.len() > 4096 {
+                        return None;
+                    }
+                }
+            }
+            if !model || !fields.is_empty() {
+                inventory.push(CheckedStoredContractSchema {
+                    id,
+                    canonical: declaration.canonical.clone(),
+                    module: declaration.module,
+                    span: declaration.span,
+                    source,
+                    model,
+                    field_order: order.clone(),
+                    fields,
+                });
+            }
+        }
+        Some(inventory)
     }
 
     /// Prove the finite whole read declaration separately from its source inventory.
@@ -1730,10 +1968,30 @@ impl<'a> Closure<'a> {
         Some(selected.arguments[0])
     }
 
-    /// These predicates consume the already retained child projection. Their
-    /// local short-circuit sites must not become once-per-parent observations:
-    /// Values evaluates them separately for each visited element.
-    fn query_child_collection(&mut self, key: NodeKey, env: &Env) -> Option<()> {
+    /// Each predicate is evaluated by Values at its existing per-element site.
+    /// The parent retains only whole stored Contract reads and Complete child
+    /// associations; local short-circuit choices never become parent decisions.
+    fn query_child_collection(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+    ) -> Option<ValuePath> {
+        self.contract_collection(key, module, env, &[], 0, &mut 0)
+    }
+
+    fn contract_collection(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        aliases: &[ContractPredicateAlias],
+        depth: usize,
+        visits: &mut usize,
+    ) -> Option<ValuePath> {
+        if aliases.len() >= 2 || depth > 64 {
+            return None;
+        }
         let fact = self
             .types
             .checked_contract_collection_calls
@@ -1753,7 +2011,6 @@ impl<'a> Closure<'a> {
             || fact.predicate.ty != boolean
             || self.types.node_types.get(&key) != Some(&boolean)
             || self.types.node_types.get(&fact.predicate.node) != Some(&boolean)
-            || !matches!(self.query_binding(fact.domain), Some(Binding::CallAs {node}) if *node == fact.call)
         {
             return None;
         }
@@ -1764,12 +2021,14 @@ impl<'a> Closure<'a> {
         if checked.node != fact.query
             || checked.domain != fact.domain
             || alias.node != fact.alias
+            || aliases.iter().any(|prior| prior.node == fact.alias)
             || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
             || !alias.expressions.is_empty()
             || checked.projection.is_some()
             || checked.result != checked.domain_type
             || !matches!(&checked.result, ResolvedType::Array {element, ordered:true,nonempty:false}
                 if matches!(element.as_ref(), ResolvedType::Record {symbol,..} if *symbol == fact.contract))
+            || self.types.node_types.get(&fact.domain) != Some(&checked.domain_type)
         {
             return None;
         }
@@ -1777,56 +2036,91 @@ impl<'a> Closure<'a> {
             return None;
         };
         let alias_ty = element.as_ref().clone();
-        let child = env.get(&Local::Call(fact.call))?.query_child?;
-        if !self.complete_children.contains(&child)
-            || self.types.effect_call_results.get(&fact.call)
-                != self.types.symbol_results.get(&child)
-            || self
-                .types
-                .effect_call_results
-                .get(&fact.call)
-                .and_then(Option::as_ref)
-                != Some(&checked.domain_type)
-            || self.types.node_types.get(&fact.domain) != Some(&checked.domain_type)
+        let domain_ty = checked.domain_type.clone();
+        let (mut value, projection) = if let Some(call) = fact.call {
+            if !matches!(self.query_binding(fact.domain), Some(Binding::CallAs {node}) if *node == call)
+                || aliases.iter().any(|prior| prior.projection.is_some())
+            {
+                return None;
+            }
+            let child = env.get(&Local::Call(call))?.query_child?;
+            if !self.complete_children.contains(&child)
+                || self.types.effect_call_results.get(&call)
+                    != self.types.symbol_results.get(&child)
+                || self
+                    .types
+                    .effect_call_results
+                    .get(&call)
+                    .and_then(Option::as_ref)
+                    != Some(&domain_ty)
+            {
+                return None;
+            }
+            let scenario = self.effects.scenarios.get(&child)?.clone();
+            self.complete_query(&scenario).ok()??;
+            let queries = self.checked_query_sources(&scenario)?;
+            let [query] = queries.as_slice() else {
+                return None;
+            };
+            if query.projection.contract != fact.contract {
+                return None;
+            }
+            (ValuePath::default(), Some(query.projection.clone()))
+        } else {
+            // The root stored Contract is observed once at its actual field
+            // occurrence. Copies, helper results and unrelated queries cannot
+            // supply this direct Contract-member array domain.
+            if !aliases.is_empty() || self.nodes.get(&fact.domain)?.kind != SyntaxKind::Member {
+                return None;
+            }
+            let mut values = self.expr(fact.domain, module, env, &[]).ok()?;
+            if values.len() != 1 {
+                return None;
+            }
+            let value = values.pop()?;
+            if !matches!(value.contract_value, Some(ContractValue::Array(contract)) if contract == fact.contract)
+                || value.reads.is_empty()
+            {
+                return None;
+            }
+            (value, None)
+        };
+        let mut local_aliases = aliases.to_vec();
+        local_aliases.push(ContractPredicateAlias {
+            node: fact.alias,
+            contract: fact.contract,
+            ty: alias_ty,
+            projection,
+        });
+        if self.query_child_predicate(
+            fact.predicate.node,
+            (module, env, &local_aliases),
+            depth + 1,
+            visits,
+            &mut value,
+        )? != boolean
         {
             return None;
         }
-        let scenario = self.effects.scenarios.get(&child)?.clone();
-        self.complete_query(&scenario).ok()??;
-        let queries = self.checked_query_sources(&scenario)?;
-        let [query] = queries.as_slice() else {
-            return None;
-        };
-        if query.projection.contract != fact.contract {
-            return None;
-        }
-        let mut visits = 0;
-        (self.query_child_predicate(
-            fact.predicate.node,
-            fact.alias,
-            &query.projection,
-            &alias_ty,
-            0,
-            &mut visits,
-        )? == boolean)
-            .then_some(())
+        value.contract_value = None;
+        Some(value)
     }
 
     fn query_child_predicate(
-        &self,
+        &mut self,
         key: NodeKey,
-        alias: NodeKey,
-        projection: &DisclosureQueryProjection,
-        alias_ty: &ResolvedType,
+        scope: (ModuleId, &Env, &[ContractPredicateAlias]),
         depth: usize,
         visits: &mut usize,
+        value: &mut ValuePath,
     ) -> Option<ResolvedType> {
+        let (module, env, aliases) = scope;
         *visits += 1;
         if depth > 64 || *visits > 4096 {
             return None;
         }
         let grouped = self.query_group(key)?;
-        let node = self.nodes.get(&grouped)?;
+        let node = *self.nodes.get(&grouped)?;
         let ty = self.types.node_types.get(&grouped)?.clone();
         if self.types.node_types.get(&key) != Some(&ty) {
             return None;
@@ -1843,10 +2137,14 @@ impl<'a> Closure<'a> {
             SyntaxKind::Member => {
                 let mut children = node.children.iter().filter(|child| expression(child.kind));
                 let base = NodeKey::of(children.next()?);
-                if children.next().is_some()
-                    || !matches!(self.query_binding(base), Some(Binding::QueryAlias {node}) if *node == alias)
-                    || self.types.node_types.get(&base) != Some(alias_ty)
-                {
+                if children.next().is_some() {
+                    return None;
+                }
+                let Some(Binding::QueryAlias { node: bound }) = self.query_binding(base) else {
+                    return None;
+                };
+                let alias = aliases.iter().find(|alias| alias.node == *bound)?;
+                if self.types.node_types.get(&base) != Some(&alias.ty) {
                     return None;
                 }
                 let name = node
@@ -1859,18 +2157,29 @@ impl<'a> Closure<'a> {
                     .get(name.span.file)?
                     .text
                     .get(name.span.start as usize..name.span.end as usize)?;
-                let projected = projection.fields.iter().find(|field| self.resolve.symbols.get(field.field.0 as usize)
-                    .is_some_and(|symbol| symbol.name == name
-                        && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == projection.contract)))?;
-                if ty != projected.ty
-                    || self.types.symbol_types.get(&projected.field) != Some(&ty)
-                    || !(scalar(&ty)
-                        || matches!((&ty, &projected.mapping),
-                        (ResolvedType::Record {symbol,stored:true}, CheckedQueryProjectionMapping::StoredReference)
-                        if *symbol == projection.model))
+                let field = self.contract_member(alias.contract, name, &ty)?;
+                if let Some(projection) = &alias.projection {
+                    let projected = projection
+                        .fields
+                        .iter()
+                        .find(|member| member.field == field)?;
+                    if projected.ty != ty
+                        || !(scalar(&ty)
+                            || matches!((&ty, &projected.mapping),
+                            (ResolvedType::Record {symbol,stored:true}, CheckedQueryProjectionMapping::StoredReference)
+                            if *symbol == projection.model))
+                    {
+                        return None;
+                    }
+                } else if !(scalar(&ty) || matches!(ty, ResolvedType::Record { stored: true, .. }))
                 {
                     return None;
                 }
+            }
+            SyntaxKind::Call if ty == boolean => {
+                let nested =
+                    self.contract_collection(grouped, module, env, aliases, depth + 1, visits)?;
+                value.join(&nested);
             }
             SyntaxKind::Unary => {
                 let mut children = node.children.iter().filter(|child| expression(child.kind));
@@ -1878,14 +2187,8 @@ impl<'a> Closure<'a> {
                 if children.next().is_some() {
                     return None;
                 }
-                let child_ty = self.query_child_predicate(
-                    child,
-                    alias,
-                    projection,
-                    alias_ty,
-                    depth + 1,
-                    visits,
-                )?;
+                let child_ty =
+                    self.query_child_predicate(child, scope, depth + 1, visits, value)?;
                 let operator = node
                     .children
                     .iter()
@@ -1910,22 +2213,8 @@ impl<'a> Closure<'a> {
                         self.query_binary(grouped, operator)
                             .map(|(left, right)| (operator, left, right))
                     })?;
-                let left = self.query_child_predicate(
-                    left,
-                    alias,
-                    projection,
-                    alias_ty,
-                    depth + 1,
-                    visits,
-                )?;
-                let right = self.query_child_predicate(
-                    right,
-                    alias,
-                    projection,
-                    alias_ty,
-                    depth + 1,
-                    visits,
-                )?;
+                let left = self.query_child_predicate(left, scope, depth + 1, visits, value)?;
+                let right = self.query_child_predicate(right, scope, depth + 1, visits, value)?;
                 if left != right
                     || !(match operator {
                         "and" | "or" => left == boolean,
@@ -1942,6 +2231,29 @@ impl<'a> Closure<'a> {
             _ => return None,
         }
         Some(ty)
+    }
+
+    fn contract_member(
+        &self,
+        contract: SymbolId,
+        name: &str,
+        ty: &ResolvedType,
+    ) -> Option<SymbolId> {
+        let owner = self.resolve.symbols.get(contract.0 as usize)?;
+        let SymbolKind::Contract { fields } = &owner.kind else {
+            return None;
+        };
+        fields.iter().copied().find(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|symbol| {
+                    symbol.name == name
+                        && symbol.module == owner.module
+                        && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == contract)
+                        && self.types.symbol_types.get(field) == Some(ty)
+                })
+        })
     }
 
     fn query_dependency(
@@ -2612,6 +2924,50 @@ impl<'a> Closure<'a> {
         }
         let mut values = self.expr(base_key, module, env, calls)?;
         for value in &mut values {
+            if let Some(origin) = value.contract_value {
+                let ContractValue::Singular(contract) = origin else {
+                    return Err(self.fail(key, "canonical wire is not a record receiver"));
+                };
+                if !matches!(self.types.node_types.get(&base_key),
+                    Some(ResolvedType::Record {symbol,..}) if *symbol == contract)
+                    || self.contract_member(contract, field_name, ty).is_none()
+                {
+                    return Err(self.fail(key, "canonical Contract member identity mismatch"));
+                }
+                value.contract_value = match ty {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } if matches!(
+                        self.resolve
+                            .symbols
+                            .get(symbol.0 as usize)
+                            .map(|symbol| &symbol.kind),
+                        Some(SymbolKind::Model { .. })
+                    ) =>
+                    {
+                        Some(ContractValue::Reference)
+                    }
+                    ResolvedType::Array {
+                        element,
+                        ordered: true,
+                        nonempty: false,
+                    } if matches!(element.as_ref(), ResolvedType::Record {symbol, ..}
+                            if matches!(self.resolve.symbols.get(symbol.0 as usize).map(|symbol| &symbol.kind),
+                                Some(SymbolKind::Contract { .. }))) =>
+                    {
+                        let ResolvedType::Record { symbol, .. } = element.as_ref() else {
+                            unreachable!();
+                        };
+                        Some(ContractValue::Array(*symbol))
+                    }
+                    ty if result_type(ty) => None,
+                    _ => return Err(self.fail(key, "unsupported canonical Contract member value")),
+                };
+                // Selecting a local member consumes the already observed whole
+                // owning field. It must never synthesize a dotted stored read.
+                continue;
+            }
             if let Some(members) = &value.members {
                 let ResolvedType::Object(fields) = self
                     .types
@@ -2698,7 +3054,45 @@ impl<'a> Closure<'a> {
             if !matches!(field.kind, SymbolKind::Field { owner, .. } if owner == model) {
                 return Err(self.fail(key, "derived field requires its complete body closure"));
             }
-            let type_id = self.field_type_id(key, field.id, field_ty)?;
+            if field_ty != ty || field.module != owner.module {
+                return Err(self.fail(key, "stored field schema identity mismatch"));
+            }
+            let type_id = if let ResolvedType::Record {
+                symbol: contract, ..
+            } = field_ty
+            {
+                let contract = self
+                    .resolve
+                    .symbols
+                    .get(contract.0 as usize)
+                    .filter(|contract| {
+                        matches!(contract.kind, SymbolKind::Contract { .. })
+                            && contract.module == owner.module
+                    })
+                    .ok_or_else(|| {
+                        self.fail(key, "missing owning canonical Contract declaration")
+                    })?;
+                let declaration = self
+                    .effects
+                    .models
+                    .get(&model)
+                    .and_then(|model| {
+                        model
+                            .fields
+                            .iter()
+                            .find(|candidate| candidate.field == field.id)
+                    })
+                    .ok_or_else(|| {
+                        self.fail(key, "missing checked stored Contract field declaration")
+                    })?;
+                if declaration.required_array || !calls.is_empty() {
+                    return Err(self.fail(key, "unsupported stored Contract field occurrence"));
+                }
+                value.contract_value = Some(ContractValue::Singular(contract.id));
+                contract.canonical.clone()
+            } else {
+                self.field_type_id(key, field.id, field_ty)?
+            };
             value.reads.push(DisclosureDependency {
                 id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
                 source: self.source(module, key)?,
@@ -2884,6 +3278,7 @@ impl<'a> Closure<'a> {
                 merged.record = None;
                 merged.reference = None;
                 merged.input = None;
+                merged.contract_value = None;
                 out.push(merged);
             }
         }
@@ -2924,12 +3319,47 @@ impl<'a> Closure<'a> {
         {
             return Ok(vec![ValuePath::default()]);
         }
-        if calls.is_empty() && self.query_child_collection(key, env).is_some() {
-            return Ok(vec![ValuePath::default()]);
+        if calls.is_empty()
+            && let Some(argument) = self.query_count(key)
+            && self
+                .nodes
+                .get(&self.query_group(argument).unwrap_or(argument))
+                .is_some_and(|node| node.kind == SyntaxKind::Member)
+            && matches!(self.types.node_types.get(&argument),
+                Some(ResolvedType::Array {element, ordered:true, nonempty:false})
+                if matches!(element.as_ref(), ResolvedType::Record {symbol, ..}
+                    if matches!(self.resolve.symbols.get(symbol.0 as usize).map(|symbol| &symbol.kind),
+                        Some(SymbolKind::Contract { .. }))))
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            let mut values = self.expr(argument, module, env, calls)?;
+            for value in &mut values {
+                if !matches!(value.contract_value, Some(ContractValue::Array(_)))
+                    || value.reads.is_empty()
+                {
+                    return Err(self.fail(key, "count needs its whole stored Contract origin"));
+                }
+                value.contract_value = None;
+            }
+            return Ok(values);
+        }
+        if calls.is_empty()
+            && let Some(value) = self.query_child_collection(key, module, env)
+        {
+            return Ok(vec![value]);
         }
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
             let alternatives = self.expr(*argument, module, env, calls)?;
+            if alternatives
+                .iter()
+                .any(|value| value.contract_value.is_some())
+            {
+                return Err(self.fail(
+                    key,
+                    "canonical Contract wire needs its direct local consumer",
+                ));
+            }
             let mut next = Vec::new();
             for (evaluated, supplied) in argument_paths {
                 for alternative in &alternatives {
@@ -4552,6 +4982,15 @@ impl<'a> Closure<'a> {
                             let mut path = flow.clone();
                             let admitted_guard = self.control(ValuePath {
                                 intrinsics: value.intrinsics.clone(),
+                                // Whole canonical contract authority belongs
+                                // to the successful stored-value comparison,
+                                // including void/effect returns. Keep existing
+                                // ordinary scalar authorization pruning.
+                                reads: value.reads.iter().filter(|dependency| {
+                                    matches!(&dependency.ty, ResolvedType::Record {symbol,..}
+                                        if self.resolve.symbols.get(symbol.0 as usize)
+                                            .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
+                                }).cloned().collect(),
                                 ..ValuePath::default()
                             })?;
                             path.effect_guards.join(&admitted_guard);
@@ -4841,6 +5280,37 @@ fn result_type(ty: &ResolvedType) -> bool {
     primitive_type(base)
         || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
         || matches!(base, ResolvedType::Array { element, .. } if primitive_type(element))
+}
+
+fn checked_stored_contract_type_id(
+    ty: &ResolvedType,
+    alias: Option<SymbolId>,
+    resolve: &ResolveTables,
+    depth: usize,
+) -> Option<String> {
+    if depth > 64 {
+        return None;
+    }
+    match ty {
+        ResolvedType::Nullable(inner) => Some(format!(
+            "{}?",
+            checked_stored_contract_type_id(inner, alias, resolve, depth + 1)?
+        )),
+        ResolvedType::Array { element, .. } => Some(format!(
+            "{}[]",
+            checked_stored_contract_type_id(element, alias, resolve, depth + 1)?
+        )),
+        _ if alias.is_some() => Some(resolve.symbols.get(alias?.0 as usize)?.canonical.clone()),
+        ResolvedType::Scalar(scalar) => Some(scalar.as_str().into()),
+        ResolvedType::Record { symbol, .. } => {
+            Some(resolve.symbols.get(symbol.0 as usize)?.canonical.clone())
+        }
+        ResolvedType::Enum {
+            owner: Some(owner), ..
+        } => Some(resolve.symbols.get(owner.0 as usize)?.canonical.clone()),
+        ResolvedType::Enum { owner: None, cases } => Some(format!("enum({})", cases.join(","))),
+        _ => None,
+    }
 }
 
 fn exact_type_id(ty: &ResolvedType, resolve: &ResolveTables) -> Option<String> {
