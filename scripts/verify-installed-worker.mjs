@@ -171,7 +171,12 @@ async function verifyConsumer(checkout) {
   const acornKey = 'vendor/acorn/acorn.js';
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/acorn/')), [acornKey]);
   assert.equal(first.modules[acornKey], readFileSync(acornFile, 'utf8'));
-  const missingAcorn = { ...first.modules, 'installed-acorn-link-control.js': `export { parse } from ${JSON.stringify('./' + acornKey)};` };
+  const acornRuntime = first.modules['runtime/invoke.js'];
+  assert.match(acornRuntime, /^\s*import\s*\{\s*parse\s+as\s+parseJavaScript\s*\}\s*from\s*['"]\.\.\/vendor\/acorn\/acorn\.js['"]/m,
+    'actual released runtime parser must import the canonical staged Acorn producer');
+  assert.doesNotMatch(acornRuntime, /^\s*import\b[^\n]*\bfrom\s*['"]acorn['"]/m,
+    'actual runtime must not retain a bare Acorn import');
+  const missingAcorn = { ...first.modules };
   delete missingAcorn[acornKey];
   assert.throws(() => api.assertLinksResolve(missingAcorn), /no such staged module/, 'missing actual Acorn ESM key');
 
