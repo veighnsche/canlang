@@ -7028,6 +7028,27 @@ physical bytes, with no State grant, shared-reference retention, authenticated
 provider, durable-host download or original workflow acceptance. Coordinator
 manual local intake is pending; all precise holds remain.
 
+### 2026-10-10 — forward the required current File byte seam
+
+The existing structural Interfaces File journey now requires the released
+Files `readCurrentBytes(ref, physicalReceiver, retention)` binding. Validate it
+upfront and call it as the original binding method, preserving exact arguments,
+returned byte/null identity and synchronous/asynchronous errors. Missing or
+nonfunction bindings refuse by name. No legacy-read fallback, duplicated File
+validator, runtime Files dependency or State authority is introduced.
+
+Final owning Interfaces emission and all15 existing extended adapter cases
+pass. One actual public Files SQLite upload/finalization through the public
+Interfaces journey passes after reopen, including detached bytes, current
+policy/foreign/exact unswept deadline refusal, unchanged stores and a legacy-read
+tripwire. Finite source/test review is clear. Reuse unchanged Files9 and the
+accepted exact portable229 scopes; this adapter result does not qualify State
+grants, protected host download, shared-reference retention or provider ingress.
+Dev consumes this required method and supplies it in its common assembly
+fixture from the genuine Files producer; the current State authority wrapper
+and all precise host/native/provider prerequisites and holds remain separate.
+Coordinator manual local source intake is pending; full TECH-F02 is unfinished.
+
 ### 2026-10-10 — manual local integration of a770ebb5
 
 Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
@@ -7039,3 +7060,7 @@ Merge only coordinator-released LOCAL a22d44870f662806a3a4bdf39910e62738361699 i
 ### 2026-10-10 — manual local integration of 11fe6689
 
 Manually reviewed exact Capability11fe current File authority wrapper, complete finite owning Values/schema/profile census and exact required File array loader markers. Genuine current model/record/whole-field/ref, available model and parent read, same whole-field by+when grants, coherent full Identity, original row/declaration/policy/operation and State revision are checked before and after the physical callback; returned bytes are detached and current reader is distinct from the original physical receiver. Complete reference facts preserve independent nested/duplicate/nullable/union/recursive/archived/hook-materialized occurrences without model target loads or disclosure. Reuse13 original defining passes, two corrected required-array/recursive/derived-hook groups and seven affected intake checks:22 distinct outcomes, owning State/Files emission0 and boundary13/934/1391/zero. Public State root/ports createFileReferenceConsumer is released to Dev/Packages. Native protected download, Interfaces actual adoption, deletion serialization and provider deployment remain separate unfinished owner scopes; no cross-store lock or return-time/full-workflow guarantee. Preserve prior canonical task acceptance and every human hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — manual local integration of aba83b95
+
+Manually reviewed exact Packagesaba83b required FileJourney current-byte forwarding over the actual Files520 same-snapshot producer. Required seam validates upfront and preserves exact ref/physicalReceiver/retention/method receiver/bytes-or-null and sync/async error identity, with no legacy or second-read fallback and no runtime Files dependency/State grant. Reuse affected Interfaces15/15/emission0 and genuine public SQLite upload-finalize/reopen/policy/expiry/detachment/no-writes/no-fallback qualification; no host/full-workflow claim. State11fe is now independently reviewed/integrated at a71 and its current authority API released to Dev. Packages separately owns only the existing typed CF assembly fixture compatibility literal; Dev owns actual protected native host consumption. Keep deletion serialization/provider deployment and all precise holds open; retain authoritative prior scopes and complete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
