@@ -8,7 +8,7 @@ fn checked_file_profiles_reach_public_metadata_and_values_codec() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let input = scratch.path().join("files.can");
-    let mut source = "app Files\nGiven\n Asset {single:file,optional:file?,many:file[],optionalMany:file[]?}\n policy Asset read=members\nWhen\n".to_string();
+    let mut source = "app Files\nGiven\n Asset {single:file,optional:file?,many:file[],optionalMany:file[]?,requiredMany:file[]!}\n policy Asset read=members\nWhen\n crud Asset by=members fields=single,optional,many,optionalMany,requiredMany\n".to_string();
     for (name, ty) in [
         ("single", "file"),
         ("optional", "file?"),
@@ -47,6 +47,9 @@ import assert from 'node:assert/strict';
 export function hasRole(context,role){assert.equal(context,globalThis.context);return role==='members';}
 function check(value){assert.equal(value,true);}
 export {check as require};
+export function create(){throw new Error('CRUD execution is outside this metadata/codec witness');}
+export function set(){throw new Error('CRUD execution is outside this metadata/codec witness');}
+export function deleteRecord(){throw new Error('CRUD execution is outside this metadata/codec witness');}
 "#).unwrap();
     let runner = scratch.path().join("execute.mjs");
     std::fs::write(&runner, r#"
@@ -55,6 +58,8 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const {decodeValue,encodeValue}=await import(pathToFileURL(resolve(process.argv[2],'packages/values/dist/src/index.js')));
+const {loadArtifactDescriptors}=await import(pathToFileURL(resolve(process.argv[2],'packages/state/dist/src/invocation/registry.js')));
+const {bindFileReferenceProfile,fileReferenceOccurrences}=await import(pathToFileURL(resolve(process.argv[2],'packages/state/dist/src/ports/file-reference-profile.js')));
 const base=dirname(new URL(import.meta.url).pathname);
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
 for(const module of artifact.modules){const path=resolve(base,module.path);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,module.js);}
@@ -66,6 +71,10 @@ for(const [name,type] of [['single','file'],['optional','file?'],['many','file[]
  const nullable=type.endsWith('?'),array=type.includes('[]');
  const expected={field:{kind:'file'},valueType:type,required:!nullable&&!array,...(nullable?{nullable:true}:{}),...(array?{array:{required:false}}:{})};
  assert.deepEqual(model.fields.find(field=>field.name===name),{name,...expected,serverOnly:false});
+ for(const kind of ['create','update']){
+  const crud=artifact.operations.find(operation=>operation.name===`Files.Asset.${kind}`);assert(crud);
+  assert.deepEqual(crud.inputs.fields.find(field=>field.name===name),{name,...expected,required:kind==='create'&&expected.required});
+ }
  const operation=artifact.operations.find(operation=>operation.name===`Files.${name}`);assert(operation);
  assert.deepEqual(operation.inputs,{fields:[{name:'value',...expected}]});
  assert.deepEqual(operation.result,{type});
@@ -82,7 +91,39 @@ for(const [name,type] of [['single','file'],['optional','file?'],['many','file[]
  if(nullable){assert.equal(decodeValue(type,null),null);assert.equal(encodeValue(type,null),null);assert.equal(await fn(context,{value:null}),null);}
  else assert.throws(()=>decodeValue(type,null));
 }
-console.log('checked File metadata, native returns and owning identity-only codecs passed');
+const requiredField=model.fields.find(field=>field.name==='requiredMany');
+assert.deepEqual(requiredField,{name:'requiredMany',field:{kind:'file'},valueType:'file[]!',required:true,array:{required:true},serverOnly:false});
+for(const kind of ['create','update']){
+ const operation=artifact.operations.find(operation=>operation.name===`Files.Asset.${kind}`);assert(operation);
+ const field=operation.inputs.fields.find(field=>field.name==='requiredMany');assert(field);
+ assert.deepEqual(field,{name:'requiredMany',field:{kind:'file'},valueType:'file[]!',required:kind==='create',array:{required:true}});
+}
+const loaded=loadArtifactDescriptors(artifact,{by:'members'});
+const bound={artifactModels:new Map(artifact.models.map(model=>[model.name,model])),canonicalModels:loaded.models,
+ ...(loaded.valueSchema===undefined?{}:{valueSchema:loaded.valueSchema}),...(loaded.valueTypes===undefined?{}:{valueTypes:loaded.valueTypes})};
+for(const [name,type] of [['single','file'],['optional','file?'],['many','file[]'],['optionalMany','file[]?'],['requiredMany','file[]!']]){
+ const profile=bindFileReferenceProfile(bound,'Files.Asset',name);
+ assert.equal(profile.type,type);assert.equal(profile.fileBearing,true);
+ const wire=profile.array?[{id:'asset'}]:{id:'asset'};
+ assert.deepEqual(fileReferenceOccurrences(profile,wire),[{ref:'asset',path:profile.array?[0]:[]}]);
+ const value=decodeValue(type,wire);assert.deepEqual(encodeValue(type,value),wire);
+ assert.throws(()=>fileReferenceOccurrences(profile,profile.array?[{id:'asset',url:'https://invalid.test'}]:{id:'asset',url:'https://invalid.test'}));
+ if(profile.nullable) assert.deepEqual(fileReferenceOccurrences(profile,null),[]);
+ else assert.throws(()=>fileReferenceOccurrences(profile,null));
+}
+const requiredProfile=bindFileReferenceProfile(bound,'Files.Asset','requiredMany');
+assert.deepEqual(fileReferenceOccurrences(requiredProfile,[]),[],'required presence does not imply nonempty');
+assert.throws(()=>fileReferenceOccurrences(requiredProfile,undefined));
+for(const select of [copy=>copy.models.find(model=>model.name==='Files.Asset').fields.find(field=>field.name==='requiredMany'),
+ ...['create','update'].map(kind=>copy=>copy.operations.find(operation=>operation.name===`Files.Asset.${kind}`).inputs.fields.find(field=>field.name==='requiredMany'))]){
+ for(const patch of [{valueType:'file[]'},{array:{required:false}},{valueType:'file[]?'}]){
+  const copy=structuredClone(artifact);Object.assign(select(copy),patch);
+  assert.throws(()=>loadArtifactDescriptors(copy,{by:'members'}));
+ }
+}
+const skewedModels=structuredClone(loaded.models);skewedModels.find(model=>model.name==='Files.Asset').fields.requiredMany.array.required=false;
+assert.throws(()=>bindFileReferenceProfile({...bound,canonicalModels:skewedModels},'Files.Asset','requiredMany'));
+console.log('checked File metadata, native returns, released State profiles and owning identity-only codecs passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(
