@@ -255,10 +255,24 @@ export const OUTBOX_COLUMNS =
   'intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard, ' +
   'handler_contract';
 
-export type RetainedOutboxRow = OutboxRow & { readonly status: RetainedOutboxIntent['status'] };
+export type RetainedOutboxRow = OutboxRow & {
+  readonly status: RetainedOutboxIntent['status'];
+  readonly committed_revision: number | null;
+  readonly created_at: number;
+};
 
 export function toRetainedOutboxIntent(row: RetainedOutboxRow): RetainedOutboxIntent {
-  return { intent: toOutboxIntent(row), status: row.status };
+  // A pre-provenance row retains its creation time but has no original
+  // publication revision. Never infer one from the later store fence.
+  if (row.committed_revision !== null &&
+      (!Number.isInteger(row.committed_revision) || row.committed_revision < 1 || !Number.isFinite(row.created_at))) {
+    throw new Error('Retained outbox original commit provenance is invalid.');
+  }
+  return { intent: toOutboxIntent(row), status: row.status,
+    ...(row.committed_revision === null ? {} : {
+      originalCommit: { revision: row.committed_revision as Revision, createdAt: row.created_at },
+    }) };
+
 }
 
 export function toOutboxIntent(row: OutboxRow): OutboxIntent {

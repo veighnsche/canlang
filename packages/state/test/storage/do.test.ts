@@ -28,6 +28,7 @@ import {
   asId,
   asModel,
   asOperation,
+  asRevision,
   captureFailure,
   makeBatch,
   makeHistory,
@@ -223,6 +224,33 @@ async function doSetup(): Promise<ConformanceSetup> {
 storageConformance('do', doSetup);
 
 describe('do adapter proofs', () => {
+  it('legacy outbox rows remain unstamped through additive schema reopen and ack', async () => {
+    await resetDO();
+    await exec('ALTER TABLE outbox DROP COLUMN committed_revision');
+    assert.equal((await exec('PRAGMA table_info(outbox)')).some(row => row['name'] === 'committed_revision'), false);
+    const legacy = { ...makeIntent({ intentId: 'legacy-do-outbox' }),
+      dispatchGuard: 'old-allowed', handlerContract: 'shop.old-handler' };
+    await exec('INSERT INTO outbox (intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard, handler_contract, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [legacy.intentId, legacy.operation, legacy.operationId, legacy.target, JSON.stringify(legacy.arguments),
+        legacy.occurrenceIndex, legacy.dispatchGuard, legacy.handlerContract, 'pending', 777]);
+    const reopen = (await doSetup()).reopen!; let store = await reopen();
+    const column = (await exec('PRAGMA table_info(outbox)')).find(row => row['name'] === 'committed_revision');
+    assert.ok(column); assert.equal(column['notnull'], 0); assert.equal(column['dflt_value'], null);
+    assert.deepEqual(await store.outboxPending(), [legacy]);
+    assert.deepEqual(await store.outboxGet(legacy.intentId), { intent: legacy, status: 'pending' });
+    assert.deepEqual(await exec('SELECT committed_revision FROM outbox WHERE intent_id = ?', [legacy.intentId]), [{ committed_revision: null }]);
+    await store.commit({ ...makeBatch(0), outboxAck: [legacy.intentId] }); store = await reopen();
+    assert.deepEqual(await store.outboxGet(legacy.intentId), { intent: legacy, status: 'dispatched' });
+    assert.deepEqual(await store.outboxPending(), []);
+    const current = makeIntent({ intentId: 'new-after-legacy-do' });
+    await store.commit(makeBatch(1, { outbox: [current], receipt: makeReceipt({ createdAt: 888, committedRevision: 2 }) }));
+    store = await reopen();
+    assert.deepEqual(await store.outboxGet(current.intentId), { intent: current, status: 'pending',
+      originalCommit: { revision: asRevision(2), createdAt: 888 } });
+    assert.deepEqual(await store.outboxGet(legacy.intentId), { intent: legacy, status: 'dispatched' });
+    assert.deepEqual(await exec('SELECT committed_revision FROM outbox WHERE intent_id = ?', [legacy.intentId]), [{ committed_revision: null }]);
+  });
+
   it('reset clears migration failures for a reused Durable Object and migration id', async () => {
     await resetDO();
     const store = doProxy(), migrationId = 'do-reset-reused';

@@ -670,6 +670,8 @@ export function storageConformance(
       );
       assert.equal(result.revision, 1);
       assert.deepEqual(await store.readReceipt(receipt.identity), receipt);
+      assert.deepEqual(await store.outboxGet(intent.intentId), { intent, status: 'pending',
+        originalCommit: { revision: asRevision(1), createdAt: receipt.createdAt } });
       assert.equal(await store.readReceipt(makeIdentity({ operationId: 'op-unknown' })), null);
       if (probe !== undefined) {
         assert.deepEqual(await probe.historyFor(asModel('shop.Order'), asId('ord-1')), [entry]);
@@ -1256,6 +1258,7 @@ export function storageConformance(
       assert.equal(failed.kind, 'unique');
       assert.equal(await store.readRevision(), 0);
       assert.equal(await store.load(asModel('t.Doc'), asId('ob-1')), null);
+      assert.equal(await store.outboxGet('intent-dup-1'), null);
       if (probe !== undefined) {
         assert.deepEqual(await probe.outboxAll(), []);
       }
@@ -1522,44 +1525,49 @@ export function storageConformance(
       };
       const original = structuredClone(intent);
       const sibling = makeIntent({ intentId: 'retained-sibling', operationId: 'op-retained' });
+      const receipt = makeReceipt({ operationId: 'op-retained', createdAt: 1_234_567 });
+      const originalCommit = { revision: asRevision(1), createdAt: receipt.createdAt };
       assert.equal(await store.outboxGet(intent.intentId), null);
-      await store.commit(makeBatch(0, { outbox: [intent, sibling] }));
+      await store.commit(makeBatch(0, { outbox: [intent, sibling], receipt }));
       // Input aliases cannot alter the committed original carrier.
       intent.arguments.principal.userId = 'changed-input';
       intent.arguments.payload.values.push(9);
-      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'pending' });
+      (receipt as unknown as { createdAt: number }).createdAt = 9_999_999;
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'pending', originalCommit });
       assert.equal(await store.outboxGet("retained-exact' OR 1=1 --"), null);
       assert.equal(await store.outboxGet('retained-unknown'), null);
       const read = await store.outboxGet(original.intentId);
       assert.ok(read !== null);
-      const mutable = read as unknown as { intent: typeof intent; status: string };
+      const mutable = read as unknown as { intent: typeof intent; status: string; originalCommit: { revision: number; createdAt: number } };
       mutable.intent.arguments.principal.userId = 'changed-output';
       mutable.intent.arguments.payload.values.push(8);
       mutable.intent.target = 'changed-target';
       mutable.status = 'skipped';
-      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'pending' });
+      mutable.originalCommit.revision = 999; mutable.originalCommit.createdAt = 999;
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'pending', originalCommit });
       await store.commit({ ...makeBatch(1), outboxAck: [original.intentId] });
-      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'dispatched' });
-      assert.deepEqual(await store.outboxGet(sibling.intentId), { intent: sibling, status: 'pending' });
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'dispatched', originalCommit });
+      assert.deepEqual(await store.outboxGet(sibling.intentId), { intent: sibling, status: 'pending', originalCommit });
       assert.deepEqual(await store.outboxPending(), [sibling]);
       const retained = await store.outboxGet(original.intentId);
       assert.ok(retained !== null);
       (retained.intent.arguments as typeof intent.arguments).payload.values.push(7);
       if (reopen !== undefined) {
         const reopened = await reopen();
-        assert.deepEqual(await reopened.outboxGet(original.intentId), { intent: original, status: 'dispatched' });
-        assert.deepEqual(await reopened.outboxGet(sibling.intentId), { intent: sibling, status: 'pending' });
+        assert.deepEqual(await reopened.outboxGet(original.intentId), { intent: original, status: 'dispatched', originalCommit });
+        assert.deepEqual(await reopened.outboxGet(sibling.intentId), { intent: sibling, status: 'pending', originalCommit });
         assert.equal(await reopened.outboxGet('retained-unknown'), null);
       }
-      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'dispatched' });
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'dispatched', originalCommit });
       assert.equal(await store.readRevision(), 2);
     });
 
-    it('acking an id staged in the same batch marks it dispatched', async () => {
+    it('outboxGet preserves original provenance when acked in the same batch', async () => {
       const { store, reset } = await setup();
       await reset();
       await store.commit({
         ...makeBatch(0, {
+          receipt: makeReceipt({ operationId: 'op-sb-ack', createdAt: 4321 }),
           outbox: [
             makeIntent({ intentId: 'sb-keep', operationId: 'op-sb-ack' }),
             makeIntent({ intentId: 'sb-ack', operationId: 'op-sb-ack' }),
@@ -1572,6 +1580,53 @@ export function storageConformance(
         ['sb-keep'],
       );
       assert.equal(await store.readRevision(), 1);
+      assert.deepEqual(await store.outboxGet('sb-ack'), {
+        intent: makeIntent({ intentId: 'sb-ack', operationId: 'op-sb-ack' }), status: 'dispatched',
+        originalCommit: { revision: asRevision(1), createdAt: 4321 },
+      });
+    });
+
+    it('original outbox provenance uses its creation clock without a receipt and never renews', async () => {
+      const { store, reset, reopen } = await setup(); await reset();
+      await store.commit(makeBatch(0));
+      const intent = makeIntent({ intentId: 'original-no-receipt' });
+      const before = Date.now();
+      await store.commit(makeBatch(1, { outbox: [intent] }));
+      const after = Date.now(); const retained = await store.outboxGet(intent.intentId);
+      assert.ok(retained?.originalCommit); assert.equal(retained.originalCommit.revision, 2);
+      assert.ok(retained.originalCommit.createdAt >= before && retained.originalCommit.createdAt <= after);
+      await store.commit({ ...makeBatch(2), outboxAck: [intent.intentId],
+        receipt: makeReceipt({ createdAt: after + 1_000_000, committedRevision: 3 }) });
+      const expected = { intent, status: 'dispatched', originalCommit: retained.originalCommit };
+      assert.deepEqual(await store.outboxGet(intent.intentId), expected);
+      if (reopen !== undefined) assert.deepEqual(await (await reopen()).outboxGet(intent.intentId), expected);
+    });
+
+    it('original outbox provenance cannot leak from duplicate, failed-write or stale-fence commits', async () => {
+      const { store, reset, reopen } = await setup(); await reset();
+      const original = makeIntent({ intentId: 'original-before-failure' });
+      const row = makeRow({ id: 'original-row' }); const model = asModel('t.Doc');
+      await store.commit(makeBatch(0, { outbox: [original], receipt: makeReceipt({ createdAt: 123, committedRevision: 91 }),
+        writes: [{ kind: 'insert', model, row }] }));
+      const expected = { intent: original, status: 'pending', originalCommit: { revision: asRevision(1), createdAt: 123 } };
+      for (const failure of ['duplicate', 'failed-write', 'stale-fence']) {
+        const intent = makeIntent({ intentId: `original-rejected-${failure}` });
+        const rejected = await captureFailure(store.commit(makeBatch(failure === 'stale-fence' ? 0 : 1, {
+          outbox: failure === 'duplicate' ? [intent, original] : [intent],
+          receipt: makeReceipt({ operationId: `rejected-${failure}`, createdAt: 999, committedRevision: 2 }),
+          ...(failure === 'failed-write' ? { writes: [{ kind: 'insert' as const, model, row }] } : {}),
+        })));
+        assert.ok(rejected instanceof (failure === 'stale-fence' ? FenceConflictError : StorageConstraintError));
+        assert.equal(await store.outboxGet(intent.intentId), null);
+        assert.equal(await store.readReceipt(makeIdentity({ operationId: `rejected-${failure}` })), null);
+        assert.equal(await store.readRevision(), 1);
+        assert.deepEqual(await store.outboxGet(original.intentId), expected);
+        if (reopen !== undefined) {
+          const reopened = await reopen();
+          assert.equal(await reopened.outboxGet(intent.intentId), null);
+          assert.deepEqual(await reopened.outboxGet(original.intentId), expected);
+        }
+      }
     });
 
     it('outboxPending returns full intents ordered by creation then id', async () => {
@@ -2310,8 +2365,10 @@ export function storageConformance(
       const skip2 = `skip-2-${migrationId}`;
       const keep = `keep-1-${migrationId}`;
       const skippedIntent = { ...makeIntent({ intentId: skip1 }), handlerContract: 'shop.oldHandler' };
+      const originalCommit = { revision: asRevision(1), createdAt: 7654 };
       await store.commit(
         makeBatch(0, {
+          receipt: makeReceipt({ createdAt: originalCommit.createdAt }),
           outbox: [
             skippedIntent,
             makeIntent({ intentId: skip2 }),
@@ -2371,15 +2428,15 @@ export function storageConformance(
         installedRevision: flipped.revision,
       });
       assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
-      assert.deepEqual(await store.outboxGet(skip1), { intent: skippedIntent, status: 'skipped' });
+      assert.deepEqual(await store.outboxGet(skip1), { intent: skippedIntent, status: 'skipped', originalCommit });
       assert.equal(await store.outboxGet(`unknown-${migrationId}`), null);
       // A dispatcher retry cannot rewrite a migration skip into dispatched.
       await store.commit({ ...makeBatch(4), outboxAck: [skip1, keep] });
-      assert.deepEqual(await store.outboxGet(skip1), { intent: skippedIntent, status: 'skipped' });
+      assert.deepEqual(await store.outboxGet(skip1), { intent: skippedIntent, status: 'skipped', originalCommit });
       assert.equal((await store.outboxGet(keep))?.status, 'dispatched');
       assert.deepEqual(await store.outboxPending(), []);
       if (reopen !== undefined) {
-        assert.deepEqual(await (await reopen()).outboxGet(skip1), { intent: skippedIntent, status: 'skipped' });
+        assert.deepEqual(await (await reopen()).outboxGet(skip1), { intent: skippedIntent, status: 'skipped', originalCommit });
       }
     });
 
