@@ -12,6 +12,7 @@
 import type {
   EventProvenance,
   FinalizedFile,
+  FinalizedFileReceiver,
   RequestProvenance,
 } from '@canlang/contracts';
 
@@ -22,12 +23,7 @@ import type {
  * This shape is typed resolution, not invented auth: no tokens, passwords
  * or caller-supplied identity strings flow through it.
  */
-export interface ReceivingContext {
-  readonly app: string;
-  readonly team: string;
-  readonly owner: string;
-  readonly principal: string;
-}
+export interface ReceivingContext extends FinalizedFileReceiver {}
 
 /** Adapter/delivery/result-path binding for request provenance. */
 export interface RequestProvenanceBinding {
