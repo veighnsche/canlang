@@ -180,14 +180,19 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
         serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
     std::fs::write(&artifact_path, serde_json::to_vec(&artifact).unwrap()).unwrap();
     let module = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(module.contains("await executeScenarioReceiptQuery(c,"));
-    assert!(module.contains("bindScenarioReceiptQueryResult(c,"));
-    assert_eq!(
-        module
-            .matches("observeScenarioReceiptQueryDependency(c,")
-            .count(),
-        6
-    );
+    // Nongrant source data cannot enter a private runtime frame. In particular,
+    // a declined read must keep its existing generic viewer query lowering.
+    for helper in [
+        "executeScenarioReceiptQuery",
+        "bindScenarioReceiptQueryResult",
+        "observeScenarioReceiptQueryDependency",
+        "selectScenarioReceiptReturn",
+    ] {
+        assert!(
+            !module.contains(helper),
+            "nongrant source activated {helper}"
+        );
+    }
     for dependency in emitted["queries"][0]["dependencies"].as_array().unwrap() {
         assert!(module.contains(dependency["id"].as_str().unwrap()));
     }
