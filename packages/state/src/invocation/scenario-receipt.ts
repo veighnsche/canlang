@@ -2144,8 +2144,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {
       const fields = currentBound.models.get(changed.model)?.fields;
-      const current = await currentSavedRow(changed.model, changed.row);
-      const files = await readableFileFields(changed, current);
+      const files = fileFields.some(entry => entry.change === changed)
+        ? await readableFileFields(changed, await currentSavedRow(changed.model, changed.row)) : [];
       const drifted = Object.keys(changed.row.data).filter(field => !files.includes(field) &&
         (!Object.hasOwn(changed.fieldTypes, field) || fields?.get(field) !== changed.fieldTypes[field]));
       const record = await savedProjection(changed.model, changed.row, changed.secretFields, [...changed.withheldFields, ...drifted], [], files);
