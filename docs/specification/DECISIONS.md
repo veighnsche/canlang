@@ -7889,3 +7889,22 @@ Final owning State emission including its normal DO asset passes. Four distinct 
 ### 2026-10-11 — selected local integration of 55c49a0e
 
 Finite original D1 option capture/receipt-owner/registered-adapter/API and actual persisted router/nonempty migration assertion reviews CLEAR. Integrate exact three State paths and directly related existing Capability records only, excluding unrelated branch ancestry. Reuse four distinct genuine D1 router cases: three passed plus only corrected failed nonempty activation1/1 1657.01ms, final State/DO build0, downstream CF noEmit0 and boundaries0; unchanged broader results are reused. The original adapter retains private framework correspondence; fresh, pinned and same-owner-race paths capture immutable authority/producers before awaits and preserve receipt guards. Permanent persisted assignment/census/revision remain issuance authority. Dev native all-writer/currentowner/store/interruption/reopen and opaque source/current File authority remain required. Packages genuine physical consumer is already integrated at0a2dc940. Preserve holds and allocations; reconcile existing living plan/coverage/decisions with complete checkpoint unadvanced. No remote publication.
+
+
+### 2026-10-11 — register the exact HookOrder fixture read
+
+The native local-rules consumer may read the unchanged owning Compiler
+hook_order_rollback.can fixture through one exact checkoutInputs pair. Follow
+the existing committed-model fixture policy; package exports and sibling
+JavaScript import refusals remain unchanged. Both affected maintained checker
+cases2/2 pass264.95ms total: previous canonical reads and the two new exact
+reads are accepted, while wrong-consumer/other-fixture reads and sibling
+source imports refuse. No unchanged workspace or native checks repeated.
+Dev's new genuine consumer is not yet published in this tree, so these cases
+qualify only the common registration policy. Coordinator source review and
+Dev actual consumer boundary/native assertions remain due. No behavior,
+metadata, fixture, acceptance or precise human hold change; local commit only.
+
+### 2026-10-11 — selected local integration of aff26352
+
+Finite exact fixture-read policy/test review CLEAR. Integrate only the two owning checker paths and related existing shared-gate record; preserve every other accepted source and package task. Exactly native-local-rules.integration.test.ts reading compiler/tests/fixtures/hook_order_rollback.can is registered, with the original literal consumer/target predicate retained. Wrong consumer/fixture and sibling source imports remain refused. Reuse two affected checker cases264.95ms, zero failure/cancel/skip; current joined-root boundary qualification follows. No runtime/provider/full-plan acceptance is inferred. Preserve allocations/holds and reconcile the existing living plan/coverage/decisions with complete checkpoint unadvanced; no publication.

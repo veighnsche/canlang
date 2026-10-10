@@ -119,12 +119,22 @@ test('allows only registered canonical fixture reads from exact Cloudflare consu
       const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
       readFileSync(join(repo, 'compiler/tests/fixtures/committed_change.can'));
     `,
+    'src/runtime/native-local-rules.integration.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+      readFileSync(join(root, 'compiler/tests/fixtures/hook_order_rollback.can'));
+      readFileSync(join(root, 'compiler/tests/fixtures/hook_order_rollback.can'));
+    `,
   };
   const f = fixture(t, { cloudflareConsumers: consumers });
   const result = f.check();
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
     'packages/cloudflare/src/dev/session-service.test.ts',
+    'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
+    'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
     'packages/cloudflare/test/committed-model-consumer.test.ts',
     'packages/cloudflare/test/compiler-check.integration.test.ts',
   ]);
@@ -139,6 +149,7 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       import '../../a/src/index.js';
       const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
       readFileSync(join(repo, 'tests/integration/can-dev-server/Another.can'));
+      readFileSync(join(repo, 'compiler/tests/fixtures/hook_order_rollback.can'));
     `,
     'test/committed-model-consumer.test.ts': `
       import { readFileSync } from 'node:fs';
@@ -148,10 +159,18 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
       readFileSync(join(repo, 'compiler/tests/fixtures/Another.can'));
     `,
+    'src/runtime/native-local-rules.integration.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      import '../../../a/src/index.js';
+      const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+      readFileSync(join(root, 'compiler/tests/fixtures/Another.can'));
+    `,
   } });
   const result = f.check();
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 2);
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 2);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 4);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 3);
   assert.deepEqual(result.registered, []);
 });
 

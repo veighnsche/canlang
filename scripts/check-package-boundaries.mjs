@@ -25,6 +25,7 @@ export const checkoutInputs = [
   { consumer: 'packages/cloudflare/src/dev/session-service.test.ts', target: 'tests/integration/can-dev-server/OfficeSupplies.can', reason: 'The dev-session integration test reads this declared compiled example fixture.' },
   { consumer: 'packages/cloudflare/test/compiler-check.integration.test.ts', target: 'tests/integration/can-dev-server/OfficeSupplies.can', reason: 'The compiler integration test reads this declared example fixture.' },
   { consumer: 'packages/cloudflare/test/committed-model-consumer.test.ts', target: 'compiler/tests/fixtures/committed_change.can', reason: 'The native committed-model test reads the owning Compiler fixture for its explicitly derived CRUD composition.' },
+  { consumer: 'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts', target: 'compiler/tests/fixtures/hook_order_rollback.can', reason: 'The native local-rules test reads the owning Compiler fixture for its actual hook-order and rollback consumer.' },
 ];
 
 function inside(file, directory) {
