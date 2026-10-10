@@ -40,6 +40,213 @@ fn type_at<'a>(checked: &'a CheckedProgram, source: &str, expression: &str) -> &
         .unwrap_or_else(|| panic!("missing checked expression: {expression}"))
 }
 
+fn standard_completion_source(capability: &str, op: &str) -> String {
+    let result = if capability == "EmailV1" {
+        r#"{reference="accepted"}"#
+    } else {
+        r#"{reference="accepted",revision=1,provider_reference=null,amount=money("1.00","EUR"),status=pending,checkout_url=null,failure=null}"#
+    };
+    format!(
+        r#"app StandardCompletion
+use std {{{capability} as Wire}} from=deployment.wire
+Given
+When
+ scenario observe on=Wire.{op}.completed
+  do
+   let id=event.delivery_id
+   let terminal=event.status==succeeded
+   let status=event.status
+   let result=event.result
+   let reference=event.result?.reference
+   let message=event.error?.message
+   let error=event.error
+   if event.result!=null
+    let present=event.result.reference
+   if event.error!=null
+    let code=event.error.code
+  examples event={{delivery_id="delivery",status=succeeded,result={result},error=null}}
+   event.result.reference -> event.status
+   "accepted" -> succeeded
+Then
+"#
+    )
+}
+
+#[test]
+fn standard_completions_keep_declared_nullable_results_and_checked_source_identity() {
+    use canlang_compiler::analysis::effects::HandlerSource;
+    use canlang_compiler::analysis::types::Scalar;
+    let catalog = catalog();
+    for (capability, op) in [
+        ("EmailV1", "send"),
+        ("PaymentsV1", "collect"),
+        ("PaymentsV1", "refund"),
+        ("PaymentsV1", "cancel"),
+        ("PaymentsV1", "reconcile"),
+    ] {
+        let source = standard_completion_source(capability, op);
+        let (checked, diagnostics) = check(&source, &catalog);
+        assert!(diagnostics.is_empty(), "{capability}.{op}: {diagnostics:?}");
+        assert_eq!(
+            type_at(&checked, &source, "event.delivery_id"),
+            &ResolvedType::Scalar(Scalar::Text)
+        );
+        assert!(
+            matches!(type_at(&checked, &source, "event.status"), ResolvedType::Enum {cases,owner:None}
+            if cases == &["succeeded","failed","unknown","skipped"])
+        );
+        let ResolvedType::Nullable(result) = type_at(&checked, &source, "event.result") else {
+            panic!("completion result must stay nullable: {capability}.{op}");
+        };
+        let ResolvedType::Object(fields) = result.as_ref() else {
+            panic!("completion result must retain its declared schema: {result:?}");
+        };
+        let names: Vec<_> = fields.iter().map(|(name, _)| name.as_str()).collect();
+        if capability == "EmailV1" {
+            assert_eq!(names, ["reference"]);
+        } else {
+            assert_eq!(
+                names,
+                [
+                    "reference",
+                    "revision",
+                    "provider_reference",
+                    "amount",
+                    "status",
+                    "checkout_url",
+                    "failure"
+                ]
+            );
+            assert!(matches!(&fields[4].1, ResolvedType::Enum {cases,owner:None}
+                if cases == &["pending","unknown","succeeded","failed"]));
+            let start = source.find("status=pending").unwrap() + "status=".len();
+            assert!(
+                checked
+                    .types
+                    .resolved_cases
+                    .iter()
+                    .any(|key| key.start <= start as u32 && (start as u32) < key.end)
+            );
+        }
+        assert!(
+            matches!(type_at(&checked, &source, "event.error"), ResolvedType::Nullable(inner)
+            if matches!(inner.as_ref(), ResolvedType::Object(fields)
+                if fields == &vec![("code".into(),ResolvedType::Scalar(Scalar::Text)),("message".into(),ResolvedType::Scalar(Scalar::Text))]))
+        );
+        assert!(
+            matches!(type_at(&checked, &source, "event.result?.reference"), ResolvedType::Nullable(inner)
+            if inner.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+        );
+        let start =
+            source.find("let present=event.result.reference").unwrap() + "let present=".len();
+        assert!(
+            checked
+                .types
+                .node_types
+                .iter()
+                .any(|(key, ty)| key.start <= start as u32
+                    && (start as u32) < key.end
+                    && source[key.start as usize..key.end as usize].trim()
+                        == "event.result.reference"
+                    && ty == &ResolvedType::Scalar(Scalar::Text)),
+            "explicit nullable-result guard must narrow the body reference"
+        );
+        let scenario = checked
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == "StandardCompletion.observe")
+            .unwrap();
+        assert!(matches!(&checked.effects.scenarios[&scenario.id].on,
+            Some(HandlerSource::StdDeliveryCompleted {capability:canonical,op:operation,source:identity})
+                if canonical == &format!("std.{capability}") && operation == op
+                    && identity == &format!("StandardCompletion.Wire.{op}.completed")));
+    }
+}
+
+#[test]
+fn standard_completion_checks_reject_unknown_targets_unsafe_reads_and_wrong_examples() {
+    let catalog = catalog();
+    let original = standard_completion_source("EmailV1", "send");
+    for (before, after, code) in [
+        ("Wire.send.completed", "Wire.missing.completed", "E3010"),
+        ("Wire.send.completed", "Wire.send.finished", "E3010"),
+        ("Wire.send.completed", "Wire.send.progressed", "E3010"),
+        ("use std", "use vendor", "E3010"),
+        ("EmailV1 as Wire", "MissingV1 as Wire", "E3010"),
+        ("EmailV1 as Wire", "PaymentState as Wire", "E3010"),
+        ("event.status==succeeded", "event.status==pending", "E2001"),
+        ("event.result?.reference", "event.result.reference", "E3003"),
+        ("event.error?.message", "event.error.message", "E3003"),
+        ("event.result?.reference", "event.result?.unknown", "E2013"),
+        ("event.error?.message", "event.error?.details", "E2013"),
+        (
+            "if event.result!=null",
+            "if event.status==succeeded",
+            "E3003",
+        ),
+        ("if event.error!=null", "if event.status==failed", "E3003"),
+        (
+            "let terminal=event.status==succeeded",
+            "let succeeded=\"shadow\"\n   let terminal=event.status==succeeded",
+            "E3002",
+        ),
+        (
+            "status=succeeded,result=",
+            "status=pending,result=",
+            "E2001",
+        ),
+        (
+            "event.result.reference ->",
+            "event.result.unknown ->",
+            "E5002",
+        ),
+    ] {
+        let source = original.replace(before, after);
+        assert_ne!(source, original, "control must change the source: {before}");
+        let (_, diagnostics) = check(&source, &catalog);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic.code == code),
+            "{after}: expected {code}, got {diagnostics:?}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.code.starts_with("E1")),
+            "semantic negative must parse: {after}: {diagnostics:?}"
+        );
+    }
+
+    // Source typing does not fabricate the unreleased private terminal transport.
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("standard-completion.can");
+    std::fs::write(&path, original).unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(path)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        !output.status.success(),
+        "unreleased terminal transport must not compile"
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        value["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008"
+                && diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("handler triggers")),
+        "{value}"
+    );
+}
+
 #[test]
 fn delivery_errors_are_closed_nullable_values_and_completions_exclude_pending() {
     let catalog = catalog();
@@ -106,6 +313,64 @@ fn delivery_errors_are_closed_nullable_values_and_completions_exclude_pending() 
                 .all(|diagnostic| !diagnostic.code.starts_with("E1")),
             "semantic negative must parse: {after}: {diagnostics:?}"
         );
+    }
+    for result in [" -> Ack", " -> Ack?"] {
+        let source = SOURCE
+            .replace("invoice() -> Ack", &format!("invoice(){result}"))
+            .replace(
+                "let status=event.status",
+                "let status=event.status\n   let got=event.result",
+            );
+        let (checked, diagnostics) = check(&source, &catalog);
+        assert!(diagnostics.is_empty(), "{result}: {diagnostics:?}");
+        let ty = type_at(&checked, &source, "event.result");
+        let ack = checked
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == "producer.Ack")
+            .unwrap();
+        assert!(
+            matches!(ty, ResolvedType::Nullable(inner)
+            if matches!(inner.as_ref(), ResolvedType::Record {symbol,..} if *symbol==ack.id)),
+            "local result must retain its owning declaration with one nullable wrapper: {ty:?}"
+        );
+        for op in ["reply", "reconcile"] {
+            let source = format!(
+                r#"app MailboxCompletion
+use std {{MailboxV1 as Box}} from=deployment.box
+Given
+When
+ scenario observe on=Box.{op}.completed
+  do
+   let result=event.result
+   if event.result!=null
+    let accepted=event.result.state==accepted
+    let reference=event.result.reference
+Then
+"#
+            );
+            let (checked, diagnostics) = check(&source, &catalog);
+            assert!(diagnostics.is_empty(), "MailboxV1.{op}: {diagnostics:?}");
+            assert!(
+                matches!(type_at(&checked, &source, "event.result"), ResolvedType::Nullable(inner)
+            if matches!(inner.as_ref(), ResolvedType::Object(fields)
+                if fields.iter().map(|(name,_)| name.as_str()).eq(["source","state","reference","detail"])))
+            );
+            assert!(
+                matches!(type_at(&checked, &source, "event.result.state"), ResolvedType::Enum {cases,owner:None}
+            if cases == &["accepted","not_sent","unknown"])
+            );
+            let (_, diagnostics) = check(
+                &source.replace("event.result.reference", "event.result.unknown"),
+                &catalog,
+            );
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E2013"),
+                "{diagnostics:?}"
+            );
+        }
     }
     // Receipt status remains the published five-case vocabulary.
     let source = SOURCE
