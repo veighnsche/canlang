@@ -566,6 +566,16 @@ const carrier=positive.appDefinition.operations['CallProfile.parent'].callSites;
 assert.deepEqual(carrier,expected,'actual emitted registry retains checked call order and identity');
 const owning=positive.canApp().operations;
 const parent=owning.find(op=>op.name==='CallProfile.parent');
+const body=positive.canApp()['CallProfile.parent'].toString();
+assert.equal((body.match(/await invokeScenarioReceiptCall\(c,/g)||[]).length,2,'prepared static occurrences each await one real facade call');
+assert.equal((body.match(/note:"first",value:/g)||[]).length,1,'authored object retains note then shorthand value exactly once');
+assert.equal((body.match(/"first"/g)||[]).length,1,'literal argument is not reconstructed or reevaluated');
+let previous=-1;
+for(const site of carrier){
+ const occurrence=`await invokeScenarioReceiptCall(c,${JSON.stringify(site.id)},${JSON.stringify(site.targets[0])},`;
+ const at=body.indexOf(occurrence);assert.ok(at>previous,'real body and metadata retain checked source call order');
+ assert.equal(body.indexOf(occurrence,at+1),-1,'one source site lowers once');previous=at;
+}
 for(const site of carrier){
  assert.deepEqual(Object.keys(site).sort(),['id','kind','resultType','source','targets']);
  assert.deepEqual(Object.keys(site.source).sort(),['module','path','sha256']);
@@ -577,6 +587,7 @@ assert.notEqual(carrier[0].id,carrier[1].id);
 for(const file of ['no-source','target-skew','input-skew','duplicate-skew']){
  const module=await import(`./${file}.mjs`);
  assert.equal(Object.hasOwn(module.appDefinition.operations['CallProfile.parent'],'callSites'),false,'unproved source/target/ordered inputs have no public callSites carrier');
+ assert.equal(module.canApp()['CallProfile.parent'].toString().includes('invokeScenarioReceiptCall'),false,'unmatched call profiles retain refusal bodies');
 }
 // Refused call handlers are deliberately never invoked.
 "#;
