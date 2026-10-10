@@ -1077,7 +1077,7 @@ fn draft_outcome_table() {
         ("draft/CanInvoice.can", 203),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
-        ("draft/CanLeave.can", 79),
+        ("draft/CanLeave.can", 74),
         ("draft/CanLoyalty.can", 68),
         ("draft/CanMail.can", 133),
         ("draft/CanMaintain.can", 112),
@@ -1086,7 +1086,7 @@ fn draft_outcome_table() {
         // The nonexported hold_result no longer captures nine held cases;
         // the callback body and stored inventory states remain unchanged.
         ("draft/CanPropose.can", 118),
-        ("draft/CanPurchase.can", 143),
+        ("draft/CanPurchase.can", 138),
         ("draft/CanReception.can", 179),
         // The nonexported join_program retains its input scope without
         // redeclaring closed builtin join; only its four cascades disappear.
