@@ -139,8 +139,48 @@ pub enum DisclosureEffectKind {
     },
 }
 
+/// Clean checked source structure only; these facts establish neither
+/// provenance completeness nor eligibility for native execution.
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioSource {
+    pub scenario: SymbolId,
+    pub node: NodeKey,
+    pub source: DisclosureSource,
+    pub read: bool,
+    pub parameters: Vec<CheckedScenarioParameter>,
+    pub result: Option<ResolvedType>,
+    pub calls: Vec<CheckedScenarioSourceCall>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioParameter {
+    pub parameter: SymbolId,
+    pub node: NodeKey,
+    pub type_node: NodeKey,
+    pub ty: ResolvedType,
+    pub default: Option<NodeKey>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioSourceCall {
+    pub node: NodeKey,
+    pub target_node: NodeKey,
+    pub operation: SymbolId,
+    pub inputs: Vec<CheckedScenarioCallInput>,
+    pub binding: Option<String>,
+    pub result: Option<ResolvedType>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedScenarioCallInput {
+    pub name: String,
+    pub node: NodeKey,
+    pub ty: ResolvedType,
+}
+
 #[derive(Debug, Clone)]
 pub struct CheckedScenarioDisclosure {
+    pub source_facts: Option<Box<CheckedScenarioSource>>,
     pub scenario: SymbolId,
     pub node: NodeKey,
     pub source: DisclosureSource,
@@ -150,6 +190,7 @@ pub struct CheckedScenarioDisclosure {
 
 #[derive(Debug, Clone)]
 pub struct DisclosureDecline {
+    pub source_facts: Option<Box<CheckedScenarioSource>>,
     pub node: NodeKey,
     pub reason: &'static str,
     pub influences: Vec<DisclosureInfluence>,
@@ -159,6 +200,15 @@ pub struct DisclosureDecline {
 pub enum ScenarioDisclosure {
     Complete(CheckedScenarioDisclosure),
     Declined(DisclosureDecline),
+}
+
+impl ScenarioDisclosure {
+    pub fn source_facts(&self) -> Option<&CheckedScenarioSource> {
+        match self {
+            Self::Complete(value) => value.source_facts.as_deref(),
+            Self::Declined(value) => value.source_facts.as_deref(),
+        }
+    }
 }
 
 /// Invoke only for a clean checked cohort. Missing anchors/facts decline;
@@ -385,6 +435,7 @@ pub fn analyze_scenario_disclosure(
                     );
                 }
                 Ok(CheckedScenarioDisclosure {
+                    source_facts: None,
                     scenario: scenario.scenario,
                     node: scenario.node,
                     source,
@@ -409,7 +460,45 @@ pub fn analyze_scenario_disclosure(
             break;
         }
     }
+    // Source facts are collected once, independently of closure waves and
+    // runtime admission. Declined read/composite/bound-call plans retain them.
+    for scenario in effects.scenarios.values() {
+        let facts = cx.checked_source_facts(scenario).map(Box::new);
+        match out.get_mut(&scenario.scenario) {
+            Some(ScenarioDisclosure::Complete(value)) => value.source_facts = facts,
+            Some(ScenarioDisclosure::Declined(value)) => value.source_facts = facts,
+            None => {}
+        }
+    }
     out
+}
+
+fn checked_source_type(ty: &ResolvedType) -> bool {
+    let mut pending = vec![(ty, 0usize)];
+    let mut steps = 0usize;
+    while let Some((ty, depth)) = pending.pop() {
+        steps += 1;
+        if steps > 4096 || depth > 64 {
+            return false;
+        }
+        match ty {
+            ResolvedType::Unknown | ResolvedType::Error | ResolvedType::Opaque(_) => return false,
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                pending.push((inner, depth + 1));
+            }
+            ResolvedType::Object(fields) => {
+                if fields.len() > 4096 {
+                    return false;
+                }
+                pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)));
+            }
+            _ => {}
+        }
+        if pending.len() > 4096 {
+            return false;
+        }
+    }
+    true
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -671,10 +760,149 @@ impl<'a> Closure<'a> {
 
     fn fail(&self, node: NodeKey, reason: &'static str) -> DisclosureDecline {
         DisclosureDecline {
+            source_facts: None,
             node,
             reason,
             influences: Vec::new(),
         }
+    }
+
+    fn checked_source_facts(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<CheckedScenarioSource> {
+        let source = self.source(scenario.module, scenario.node).ok()?;
+        let authored = self.db.get(scenario.node.file)?;
+        if source.path.is_empty()
+            || source.sha256 != sha256_hex(authored.text.as_bytes())
+            || self
+                .db
+                .iter()
+                .filter(|(_, value)| value.path == source.path)
+                .count()
+                != 1
+            || scenario.params.len() > 200
+        {
+            return None;
+        }
+        let anchor = |node: NodeKey| {
+            node.file == scenario.node.file
+                && node.start >= scenario.node.start
+                && node.end <= scenario.node.end
+                && node.start <= node.end
+                && self.nodes.contains_key(&node)
+        };
+        if !anchor(scenario.node) {
+            return None;
+        }
+        let result = self.types.symbol_results.get(&scenario.scenario)?.clone();
+        if result.as_ref().is_some_and(|ty| !checked_source_type(ty)) {
+            return None;
+        }
+        let mut parameters = Vec::new();
+        for param in &scenario.params {
+            let ty = self.types.symbol_types.get(&param.param)?;
+            if !anchor(param.node)
+                || !anchor(param.type_node)
+                || param.default.is_some_and(|node| !anchor(node))
+                || !checked_source_type(ty)
+            {
+                return None;
+            }
+            parameters.push(CheckedScenarioParameter {
+                parameter: param.param,
+                node: param.node,
+                type_node: param.type_node,
+                ty: ty.clone(),
+                default: param.default,
+            });
+        }
+        let mut pending: Vec<_> = scenario
+            .guards
+            .iter()
+            .chain(&scenario.effects)
+            .map(|effect| (effect, 0usize))
+            .collect();
+        pending.reverse();
+        let mut calls = Vec::new();
+        let mut steps = 0usize;
+        while let Some((effect, depth)) = pending.pop() {
+            steps += 1;
+            if steps > 16384 || depth > 64 || !anchor(effect.node) {
+                return None;
+            }
+            if effect.verb == EffectVerb::Call {
+                if calls.len() >= 200 || effect.args.len() > 200 {
+                    return None;
+                }
+                let Some(EffectTarget::Operation(operation)) = effect.target.as_ref() else {
+                    return None;
+                };
+                let target_node = effect.target_node?;
+                if !anchor(target_node)
+                    || self.types.node_types.get(&target_node)
+                        != Some(&ResolvedType::Operation(*operation))
+                    || self.resolve.symbols.get(operation.0 as usize).is_none()
+                {
+                    return None;
+                }
+                let result = self.types.effect_call_results.get(&effect.node)?.clone();
+                if result.as_ref().is_some_and(|ty| !checked_source_type(ty)) {
+                    return None;
+                }
+                let mut inputs = Vec::new();
+                let mut names = HashSet::new();
+                for argument in &effect.args {
+                    let node = argument.value.unwrap_or(argument.key_node);
+                    let ty = self.types.node_types.get(&node)?;
+                    if !anchor(argument.key_node)
+                        || !anchor(node)
+                        || !names.insert(argument.key.as_str())
+                        || !checked_source_type(ty)
+                    {
+                        return None;
+                    }
+                    inputs.push(CheckedScenarioCallInput {
+                        name: argument.key.clone(),
+                        node,
+                        ty: ty.clone(),
+                    });
+                }
+                calls.push(CheckedScenarioSourceCall {
+                    node: effect.node,
+                    target_node,
+                    operation: *operation,
+                    inputs,
+                    binding: effect.binding.clone(),
+                    result,
+                });
+            }
+            // Preorder follows authored statement/branch/arm order, not hash
+            // table iteration. This records source structure, not execution.
+            for arm in effect.match_arms.iter().rev() {
+                for child in arm.effects.iter().rev() {
+                    pending.push((child, depth + 1));
+                }
+            }
+            for child in effect.else_effects.iter().rev() {
+                pending.push((child, depth + 1));
+            }
+            for child in effect.then_effects.iter().rev() {
+                pending.push((child, depth + 1));
+            }
+            if pending.len() > 16384 {
+                return None;
+            }
+        }
+        Some(CheckedScenarioSource {
+            scenario: scenario.scenario,
+            node: scenario.node,
+            source,
+            read: scenario.read,
+            parameters,
+            result,
+            calls,
+        })
     }
 
     fn source(

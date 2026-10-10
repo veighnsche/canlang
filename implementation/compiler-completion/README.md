@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. The exact changed-source whole passes1356 with zero skips; genuine Dev native child execution remains required. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. The exact changed-source whole passes1356 with zero skips; genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2187,3 +2187,40 @@ changed compiler source qualification. Genuine Dev native child execution remain
 required before finite execution acceptance; original Workbench/protected/read
 profiles and T11 evidence contract are distinct dependencies. Original **58/67**,
 nine open refs and precise human holds remain. No remote publication follows.
+
+
+**Checked query/source prerequisite (unfinished), 2026-10-10.** The actual
+type checker retains query domain/types, authored ordered clauses and lexical
+alias NodeKeys. IR validates the source join and consumes the checked alias.
+Clean scenario source facts retain required owning signatures and static
+read/reference/composite/as calls even when runtime disclosure is Declined;
+the actual body consumer requires a whole authored-order call bijection and
+exact input/result/binding correspondence. These structural facts grant no
+disclosure, descriptor schema completeness or native admission. Existing
+Complete/static/native refusals remain. Affected **149/149** and strict all-target
+Clippy/format pass, including skew/duplicate/order/binding controls. Whole1356
+remains historical at6530; current full qualification is not claimed.
+
+Reviewed LOCALdf394 consumes genuine Dev CLI→portable global D1→ordinary
+Identity/member HTTP and granted MCP child execution **1/1 in22.00s**, with
+physical child associations, scalar/void results, one root receipt/replay,
+forbidden403 and cleanup. Reuse its owning [native record](../can-dev-server/PLAN.md);
+this does not close original Workbench or wider references. The original
+imports-only21file probe has135 diagnostics; complete actual imports+app-uses
+closure has29files and no missing owner. Capability owns the direct-query
+source correction; Compiler owns checked capability-delivery fixture typing.
+Fact.task canonical Values/schema handoff, complete staff/can_work closure,
+State viewer-query/result attestation and genuine Dev read/as execution remain
+prerequisites before original context admission. Dynamic protected calls,
+T11 evidence and BDD3/Task22 holds keep their precise scopes. **58/67** remains.
+
+
+**Capability delivery fixture attribution (unfinished original source), 2026-10-10.**
+A checked operation fixture retains `Delivery{op}` only for its exact resolved
+CapabilityOp declaration. This resolves the original waiting fixture's opaque
+attribution gap; scenario/CRUD/bare/unknown/external operation fixtures keep
+existing behavior. Owning checker **283/283**, strict all-target Clippy/format
+pass; target identity, wrong target, malformed request/envelope, opaque target
+and forged-handle controls run. Result/error payload certification is unchanged.
+Original29-file check follows exact reviewed direct-query source intake; no
+original clean source/native or wider reference acceptance follows this unit.

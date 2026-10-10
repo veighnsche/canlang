@@ -46,7 +46,9 @@ use crate::analysis::resolve::{
     CheckedJudgmentKind, CheckedValueConstraints, CrudOp, FixtureTarget, ModelOwner, ModuleId,
     ModuleKind, SymbolId, SymbolKind,
 };
-use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+use crate::analysis::types::{
+    CheckedQuery, CheckedQueryClauseKind, ResolvedType, Scalar, SelectedCallTarget,
+};
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
 use crate::diagnostic::Diagnostic;
@@ -1214,6 +1216,9 @@ pub enum IrQueryDomain {
 /// for model domains, array combinators for value domains.
 #[derive(Debug, Clone)]
 pub struct IrQuery {
+    /// Actual checked authored query, before lexical clause identities are erased.
+    /// Synthetic and example-only queries do not acquire a source proof.
+    pub source: Option<CheckedQuery>,
     /// Query domain.
     pub domain: IrQueryDomain,
     /// Containment parent value, if any (model domains only).
@@ -3203,6 +3208,7 @@ impl<'a> Cx<'a> {
                     // A bare model domain lowers through the shared
                     // query contract with no clauses.
                     return IrExpr::Query(IrQuery {
+                        source: None,
                         domain: IrQueryDomain::Model(self.canonical(id)),
                         parent: None,
                         where_pred: None,
@@ -3441,6 +3447,7 @@ impl<'a> Cx<'a> {
             let parent = self.decode_expr(scope, parent);
             return TypedExpr::new(
                 IrExpr::Query(IrQuery {
+                    source: None,
                     domain: IrQueryDomain::Model(self.canonical(child)),
                     parent: Some(Box::new(parent)),
                     where_pred: None,
@@ -4215,6 +4222,60 @@ impl<'a> Cx<'a> {
                 why: "no domain".to_string(),
             };
         };
+        let checked = self
+            .program
+            .types
+            .checked_queries
+            .get(&NodeKey::of(node))
+            .cloned();
+        if let Some(fact) = &checked {
+            let clauses: Vec<_> = parts
+                .iter()
+                .filter(|part| part.kind == SyntaxKind::QueryClause)
+                .collect();
+            if fact.node != NodeKey::of(node)
+                || fact.domain != NodeKey::of(head)
+                || fact.result != *ty
+                || self.program.types.node_types.get(&fact.domain) != Some(&fact.domain_type)
+                || fact.clauses.len() != clauses.len()
+                || fact.clauses.iter().zip(&clauses).any(|(fact, clause)| {
+                    let parts = kids(clause);
+                    let keyword = parts
+                        .iter()
+                        .find_map(|part| name_text(self.db, part))
+                        .unwrap_or_default();
+                    let kind_matches = match &fact.kind {
+                        CheckedQueryClauseKind::As { name } => {
+                            keyword == "as"
+                                && parts
+                                    .iter()
+                                    .rev()
+                                    .find_map(|part| name_text(self.db, part))
+                                    .as_ref()
+                                    == Some(name)
+                        }
+                        CheckedQueryClauseKind::Where => keyword == "where",
+                        CheckedQueryClauseKind::Order => keyword == "order",
+                        CheckedQueryClauseKind::Limit => keyword == "limit",
+                        CheckedQueryClauseKind::Archived => keyword == "archived",
+                        CheckedQueryClauseKind::Select => keyword == "select",
+                    };
+                    !kind_matches
+                        || fact.node != NodeKey::of(clause)
+                        || fact.expressions
+                            != kids(clause)
+                                .iter()
+                                .filter(|part| is_expression(part.kind))
+                                .map(|part| NodeKey::of(part))
+                                .collect::<Vec<_>>()
+                })
+            {
+                return IrExpr::Unsupported {
+                    what: "query source facts".into(),
+                    why: "checked domain, result or ordered clauses disagree with source".into(),
+                };
+            }
+        }
         // A model head lowers through `records(c, model, ...)`; any other
         // head lowers as an in-memory value.
         let containment = self.contained_collection_head(head);
@@ -4235,17 +4296,29 @@ impl<'a> Cx<'a> {
             .collect();
         // The `as` alias binds every clause scope, wherever it appears.
         let mut alias: Option<String> = None;
-        for clause in &clauses {
+        for (index, clause) in clauses.iter().enumerate() {
             let clause_parts = kids(clause);
             let keyword = clause_parts
                 .iter()
                 .find_map(|n| name_text(self.db, n))
                 .unwrap_or_default();
             if keyword == "as" {
-                alias = clause_parts
-                    .iter()
-                    .rev()
-                    .find_map(|n| name_text(self.db, n));
+                alias = match checked.as_ref().and_then(|fact| fact.clauses.get(index)) {
+                    Some(crate::analysis::types::CheckedQueryClause {
+                        kind: CheckedQueryClauseKind::As { name },
+                        ..
+                    }) => Some(name.clone()),
+                    Some(_) => {
+                        return IrExpr::Unsupported {
+                            what: "query alias".into(),
+                            why: "checked clause kind disagrees with source".into(),
+                        };
+                    }
+                    None => clause_parts
+                        .iter()
+                        .rev()
+                        .find_map(|n| name_text(self.db, n)),
+                };
             }
         }
         let mut where_pred = None;
@@ -4416,6 +4489,7 @@ impl<'a> Cx<'a> {
             },
         };
         IrExpr::Query(IrQuery {
+            source: checked,
             domain,
             parent,
             where_pred,
