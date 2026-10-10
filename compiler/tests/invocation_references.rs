@@ -44,10 +44,23 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }
 fn compile(dir: &Path, name: &str, source: &str) -> std::process::Output {
+    compile_with_receipts(dir, name, source, false)
+}
+fn compile_with_receipts(
+    dir: &Path,
+    name: &str,
+    source: &str,
+    native: bool,
+) -> std::process::Output {
     let path = dir.join(format!("{name}.can"));
     std::fs::write(&path, source).unwrap();
-    Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
+    let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
+    command.args(["compile", "--format=json"]);
+    if native {
+        command.arg("--native-scenario-receipts");
+    }
+    command
+        .arg("--catalog")
         .arg(root().join("packages/values/dist/catalog.json"))
         .arg(path)
         .current_dir(root())
@@ -308,30 +321,33 @@ fn mutation_call_invalidates_nullable_member_proof_before_dynamic_invocation() {
 }
 
 #[test]
-fn statement_calls_refuse_publication_until_owner_transaction_consumer_exists() {
+fn unprepared_statement_calls_refuse_publication_in_both_emission_modes() {
     let scratch = tempfile::tempdir().unwrap();
-    let output = compile(scratch.path(), "statement-calls", STATEMENT_CALLS);
-    assert!(!output.status.success());
-    let value = decoded(&output);
-    assert!(value.get("modules").is_none(), "{value}");
-    assert!(
-        value["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"
-                && diagnostic["message"].as_str().is_some_and(|message| message
-                    .contains("canonical cross-operation invocation of CallFacts.context"))),
-        "{value}"
-    );
-    assert!(
-        value["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|diagnostic| diagnostic["code"] != "E6006"),
-        "checked target/value facts must not leave generic decode gaps: {value}"
-    );
+    for native in [false, true] {
+        let output =
+            compile_with_receipts(scratch.path(), "statement-calls", STATEMENT_CALLS, native);
+        assert!(!output.status.success());
+        let value = decoded(&output);
+        assert!(value.get("modules").is_none(), "{value}");
+        assert!(
+            value["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008"
+                    && diagnostic["message"].as_str().is_some_and(|message| message
+                        .contains("canonical cross-operation invocation of CallFacts.context"))),
+            "{value}"
+        );
+        assert!(
+            value["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|diagnostic| diagnostic["code"] != "E6006"),
+            "checked target/value facts must not leave generic decode gaps: {value}"
+        );
+    }
 }
 
 #[test]
@@ -358,15 +374,88 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
     assert!(
-        emitted
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic
-                    .message
-                    .contains("canonical cross-operation invocation")),
-        "execution remains unactivated: {:?}",
+        emitted.diagnostics.is_empty(),
+        "exact native static profile: {:?}",
         emitted.diagnostics
+    );
+    let cli_dir = tempfile::tempdir().unwrap();
+    let assert_refused =
+        |name: &str, source: &str| {
+            let output = compile_with_receipts(cli_dir.path(), name, source, true);
+            let value = decoded(&output);
+            assert!(!output.status.success(), "{name}: {value}");
+            assert!(value.get("modules").is_none(), "{name}: {value}");
+            assert!(
+                value["diagnostics"].as_array().unwrap().iter().any(
+                    |diagnostic| diagnostic["code"] == "E6008"
+                        && diagnostic["message"].as_str().is_some_and(
+                            |message| message.contains("canonical cross-operation invocation")
+                        )
+                ),
+                "{name}: {value}"
+            );
+        };
+    let generic = compile(cli_dir.path(), "static-generic", source);
+    assert!(!generic.status.success());
+    assert!(decoded(&generic).get("modules").is_none());
+    assert!(
+        decoded(&generic)["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008")
+    );
+    for (name, refused) in [
+        (
+            "read-child",
+            source.replace(
+                "child(value:int,note:text) -> int",
+                "child(value:int,note:text) read=true -> int",
+            ),
+        ),
+        (
+            "bound-child",
+            source.replace(
+                "call child {note=\"first\",value}",
+                "call child {note=\"first\",value} as ignored",
+            ),
+        ),
+        (
+            "default-child",
+            source.replace("child(value:int,note:text)", "child(value:int=1,note:text)"),
+        ),
+        (
+            "array-child",
+            source
+                .replace(
+                    "child(value:int,note:text) -> int",
+                    "child(value:int,note:text) -> int[]",
+                )
+                .replace("do return value", "do return [value]"),
+        ),
+    ] {
+        assert_refused(name, &refused);
+    }
+    let native = compile_with_receipts(cli_dir.path(), "static-native", source, true);
+    assert!(native.status.success(), "{}", decoded(&native));
+    let artifact = decoded(&native);
+    let native_js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_eq!(
+        native_js
+            .matches("await invokeScenarioReceiptCall(c,")
+            .count(),
+        2
+    );
+    assert!(
+        native_js.contains("callSites:")
+            && native_js.contains("\"targets\":[\"CallProfile.child\"]"),
+        "{native_js}"
     );
     for name in [
         "CallProfile.parent",
@@ -566,7 +655,7 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
             " scenario step{edges}() by=members\n  do require true\nThen\n"
         ));
         let mut db = SourceDb::new();
-        let file = db.add(format!("call-depth-{edges}.can"), source);
+        let file = db.add(format!("call-depth-{edges}.can"), source.clone());
         let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
@@ -601,16 +690,19 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
             edges == 16,
             "prepared parent depth {edges}"
         );
-        assert!(
-            emitted
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == "E6008"
-                    && diagnostic
-                        .message
-                        .contains("canonical cross-operation invocation")),
-            "depth preparation must not activate canonical execution"
-        );
+        if edges == 16 {
+            assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+            let output = compile_with_receipts(cli_dir.path(), "depth-16", &source, true);
+            assert!(output.status.success(), "{}", decoded(&output));
+        } else {
+            assert_refused("depth-17", &source);
+            assert!(
+                emitted
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008")
+            );
+        }
         if let Some(sites) = sites {
             assert_eq!(sites.len(), 1);
             assert_eq!(sites[0].target, "CallDepth.step1");
@@ -631,6 +723,7 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
     // Send remains supported for its standalone native receipt, but the
     // finite nested-call consumer cannot admit a framework-sending child.
     let framework_source = "app CallFramework\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\nWhen\n scenario child() by=members\n  do send LLM.cancel {revision=1,source=\"fixed\"} as stop\n scenario parent() by=members\n  do call child {}\nThen\n";
+    assert_refused("framework-child", framework_source);
     let mut framework_db = SourceDb::new();
     let framework_file = framework_db.add("call-framework.can".into(), framework_source.into());
     let (checked, diagnostics) = check_program(&framework_db, &[framework_file], catalog.as_ref());
@@ -762,11 +855,17 @@ assert.ok(frameworkOperations.find(op=>op.name==='CallFramework.child').result.d
             "   call leaf {}\n".repeat(leaves)
         );
         let mut db = SourceDb::new();
-        let file = db.add("call-limit.can".into(), source);
+        let file = db.add("call-limit.can".into(), source.clone());
         let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        if leaves == 199 {
+            let output = compile_with_receipts(cli_dir.path(), "aggregate-200", &source, true);
+            assert!(output.status.success(), "{}", decoded(&output));
+        } else {
+            assert_refused("aggregate-201", &source);
+        }
         let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
         let parent = ir
             .items

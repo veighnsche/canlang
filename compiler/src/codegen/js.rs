@@ -4675,16 +4675,8 @@ impl<'a> Emitter<'a> {
                     .map(|id| self.ir.items[id.0 as usize].canonical.as_str())
                     .collect::<Vec<_>>()
                     .join(",");
-                self.unsupported(
-                    "call effect",
-                    &format!(
-                        "canonical cross-operation invocation of {operation} has no §13 lowering"
-                    ),
-                    *span,
-                );
-                // Prepare only the exact active parent's checked static
-                // occurrence. Publication remains refused until the genuine
-                // verified owner-transaction producer is released.
+                // Admit only the exact active parent's checked static
+                // occurrence joined to the native owner-transaction producer.
                 if self.receipt_capture.is_some()
                     && self.hook.is_none()
                     && binding.is_none()
@@ -4718,6 +4710,13 @@ impl<'a> Emitter<'a> {
                         )];
                     }
                 }
+                self.unsupported(
+                    "call effect",
+                    &format!(
+                        "canonical cross-operation invocation of {operation} has no §13 lowering"
+                    ),
+                    *span,
+                );
                 vec![(
                     format!(
                         "{pad}throw new Error({});",
