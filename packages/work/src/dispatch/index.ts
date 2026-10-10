@@ -347,9 +347,12 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
 /** Internal guard-only phase, entered after the owning command admits eligibility. */
 export interface DispatchGuardPhaseInput {
   readonly predicate: string;
+  /** Actual source-issued lexical bindings; provider request arguments do not establish these. */
   readonly frozenInputs: unknown;
   readonly stateSnapshot: unknown;
+  /** Original owning execution checkpoint; the guard phase does not open or certify it. */
   readonly checkpoint: DispatchFence['checkpoint'] | undefined;
+  /** Original committed intent, joined to the eligible row by its owning producer. */
   readonly intent: AnyOutboxIntent;
   readonly evaluateGuard: AsyncGuardEvaluator;
 }
