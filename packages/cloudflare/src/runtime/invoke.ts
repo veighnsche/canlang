@@ -104,6 +104,7 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
+import { parse as parseJavaScript } from 'acorn';
 import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
@@ -130,7 +131,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { AssemblyCorrespondenceError, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -346,14 +347,34 @@ async function invokeWith(
   args?: unknown[],
   preserveThrown = false,
 ): Promise<InvokeResult> {
-  const checkedScenario = requiresScenarioCorrespondence(artifact);
-  if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+  // Source claims must gate the first import, before unverified exports can
+  // strip their carrier or run a module initializer.
+  const claimedRowSource = requiresRowReadCorrespondence(artifact);
+  let checkedSource = hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || claimedRowSource;
+  if (checkedSource) await verifyCheckedAssembly(asm, artifact);
+  if (claimedRowSource) rowPolicyAssemblies.set(artifact, asm);
+  // Preserve legacy actor-only components without an issued source carrier.
+  // An unexpected object carrier still refuses rather than granting policy.
+  if (!checkedSource) {
+    const callable = artifact.callables.find(entry => entry.id === id);
+    const url = callable === undefined ? undefined : asm.moduleUrls[callable.module];
+    if (url !== undefined) {
+      let module: unknown;
+      try { module = await import(url); } catch { /* Existing callable import reports legacy failure below. */ }
+      if (hasRowReadCarrier(module)) {
+        await verifyCheckedAssembly(asm, artifact);
+        rowPolicyAssemblies.set(artifact, asm);
+        checkedSource = true;
+      }
+    }
+  }
+  if (checkedSource) await verifyCheckedAssembly(asm, artifact);
   try {
-    return await invokeAssembledCallable(asm, artifact, id, ctx, args, preserveThrown, checkedScenario);
+    return await invokeAssembledCallable(asm, artifact, id, ctx, args, preserveThrown, checkedSource);
   } finally {
     // Qualify every exit, including import/registry refusals and throwing handlers.
     // Infrastructure drift must escape the business rejected-receipt path.
-    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+    if (checkedSource) await verifyCheckedAssembly(asm, artifact);
   }
 }
 
@@ -364,7 +385,7 @@ async function invokeAssembledCallable(
   ctx: HandlerContext,
   args: unknown[] | undefined,
   preserveThrown: boolean,
-  checkedScenario: boolean,
+  checkedSource: boolean,
 ): Promise<InvokeResult> {
   const callable = artifact.callables.find((entry) => entry.id === id);
   if (callable === undefined) {
@@ -378,7 +399,7 @@ async function invokeAssembledCallable(
   }
   const moduleUrl = asm.moduleUrls[callable.module];
   if (moduleUrl === undefined) {
-    if (checkedScenario) throw new AssemblyCorrespondenceError('Verified scenario callable lost its assembled module URL.');
+    if (checkedSource) throw new AssemblyCorrespondenceError('Verified source callable lost its assembled module URL.');
     return {
       ok: false,
       error:
@@ -388,7 +409,7 @@ async function invokeAssembledCallable(
   }
   let mod: Record<string, unknown>;
   try {
-    mod = (checkedScenario
+    mod = (checkedSource
       ? await importVerifiedAssemblyModule(asm, callable.module, artifact)
       : await import(moduleUrl)) as Record<string, unknown>;
   } catch (error) {
@@ -471,7 +492,7 @@ async function invokeAssembledCallable(
     current = next;
   }
   const fn = current as (ctx: HandlerContext, ...args: unknown[]) => unknown;
-  if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+  if (checkedSource) await verifyCheckedAssembly(asm, artifact);
   try {
     const value = await fn(ctx, ...(args ?? []));
     return { ok: true, value };
@@ -620,7 +641,7 @@ export type CanonicalByPredicate =
   | "authenticated"
   | "public"
   | { readonly role: string }
-  | { readonly roleSubject: { readonly role: string; readonly person: string } }
+  | { readonly roleSubject: { readonly role: string; readonly person: string | { readonly model: ModelName; readonly field: string } } }
   | { readonly and: ReadonlyArray<CanonicalByPredicate> }
   | { readonly or: ReadonlyArray<CanonicalByPredicate> }
   | { readonly not: CanonicalByPredicate };
@@ -854,7 +875,7 @@ interface ReadPolicyFacts {
 interface ReadSelectorFacts {
   readonly fields: ReadonlyArray<string>;
   readonly grants: ReadonlyMap<string, ReadonlyArray<string> | undefined>;
-  readonly by: ReadonlyMap<string, ReadonlyArray<string>>;
+  readonly by: ReadonlyMap<string, CanonicalByPredicate>;
 }
 
 /** Emitted metadata owns data properties; accessor execution is not provenance. */
@@ -925,6 +946,7 @@ function readPolicyFacts(entry: unknown, where: string): ReadPolicyFacts {
 }
 
 function readSelectorFacts(
+  owningModel: string,
   policy: ReadPolicyFacts,
   declaredFields: ReadonlyArray<string>,
   provenance: ReadPolicyProvenance | undefined,
@@ -956,7 +978,7 @@ function readSelectorFacts(
   const rules = new Set(policy.read ?? []);
   const fieldNames = new Set(declaredFields);
   const selectors = new Map<string, ReadonlyArray<string> | undefined>();
-  const predicates = new Map<string, ReadonlyArray<string>>();
+  const predicates = new Map<string, CanonicalByPredicate>();
   for (const grant of declarations) {
     const id = isUnknownRecord(grant) ? readMetadataMember(grant, "rule", where)?.value : undefined;
     if (!isUnknownRecord(grant) || typeof id !== "string" || !rules.has(id) || selectors.has(id)) {
@@ -986,12 +1008,40 @@ function readSelectorFacts(
       throw new Error(`${where}: inherited read predicate on ${JSON.stringify(id)}.`);
     }
     if (by !== undefined) {
-      const spellings = readMetadataStrings(by.value, where, `read predicate on ${JSON.stringify(id)}`);
-      if (spellings.length !== 1) throw new Error(`${where}: malformed read predicate on ${JSON.stringify(id)}; one checked actor role is required.`);
-      if (policy.public?.includes(id) && (spellings.length !== 1 || spellings[0] !== "public")) {
+      const terms = readMetadataArray(by.value, where, `read predicate on ${JSON.stringify(id)}`);
+      if (Object.getPrototypeOf(by.value) !== Array.prototype || Reflect.ownKeys(by.value as object).length !== terms.length + 1) {
+        throw new Error(`${where}: read predicate requires a closed dense own-data array.`);
+      }
+      if (terms.length !== 1) throw new Error(`${where}: one checked read predicate is required.`);
+      const term = terms[0];
+      let predicate: CanonicalByPredicate;
+      if (typeof term === 'string' && term !== '') {
+        predicate = mapCrudPolicyToBy(`${where}:${id}`, { by: [term] });
+      } else {
+        const closed = (value: unknown, keys: readonly string[]): Record<string, unknown> => {
+          if (!isUnknownRecord(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+              Reflect.ownKeys(value).length !== keys.length || keys.some(key => readMetadataMember(value, key, where) === undefined)) {
+            throw new Error(`${where}: malformed own-data row read predicate.`);
+          }
+          return value;
+        };
+        const outer = closed(term, ['roleSubject']);
+        const subject = closed(readMetadataMember(outer, 'roleSubject', where)!.value, ['role', 'person']);
+        const role = readMetadataMember(subject, 'role', where)!.value;
+        const person = closed(readMetadataMember(subject, 'person', where)!.value, ['model', 'field']);
+        const owner = readMetadataMember(person, 'model', where)!.value;
+        const field = readMetadataMember(person, 'field', where)!.value;
+        if (typeof role !== 'string' || role === '' || owner !== owningModel ||
+            typeof field !== 'string' || field === '' || field.includes('.') || !fieldNames.has(field)) {
+          throw new Error(`${where}: row read predicate disagrees with its owning model/field.`);
+        }
+        predicate = Object.freeze({ roleSubject: Object.freeze({ role,
+          person: Object.freeze({ model: owner as ModelName, field }) }) });
+      }
+      if (policy.public?.includes(id) && predicate !== 'public') {
         throw new Error(`${where}: public mark disagrees with owning read predicate on ${JSON.stringify(id)}.`);
       }
-      predicates.set(id, spellings);
+      predicates.set(id, predicate);
     }
   }
   if (selectors.size !== rules.size) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
@@ -1018,7 +1068,7 @@ function sameReadSelectors(left: ReadSelectorFacts | undefined, right: ReadSelec
     if (!right.grants.has(id) || !sameReadStrings(fields, right.grants.get(id))) return false;
   }
   for (const [id, by] of left.by) {
-    if (!sameReadStrings(by, right.by.get(id))) return false;
+    if (JSON.stringify(by) !== JSON.stringify(right.by.get(id))) return false;
   }
   return true;
 }
@@ -1041,13 +1091,13 @@ function transcribeReadFacts(
       }
       const selected = selectors.grants.get(id);
       const spellings = selectors.by.get(id);
-      const by = spellings === undefined ? "public" : mapCrudPolicyToBy(`${model}:${id}`, { by: spellings });
+      const by = spellings ?? "public";
       return { by, fields: [...(selected ?? declaredFields.filter((field) => !secrets.has(field)))] };
     }),
   } };
 }
 
-/** Transcribe owning actor-only rules and legacy public marks with their exact selectors. */
+/** Transcribe owning checked read predicates and legacy public marks with exact selectors. */
 export function mapReadRulesToPolicy(
   model: string,
   entry: unknown,
@@ -1057,7 +1107,7 @@ export function mapReadRulesToPolicy(
   const where = `t17b: model ${JSON.stringify(model)} cannot serve reads in the T17 core scope (T04b carries generated policy)`;
   const policy = readPolicyFacts(entry, where);
   const fields = readMetadataStrings(declaredFields, where, "declared fields");
-  const selectors = readSelectorFacts(policy, fields, provenance, where);
+  const selectors = readSelectorFacts(model, policy, fields, provenance, where);
   const secretFields = provenance === undefined ? undefined : readMetadataMember(provenance, "secretFields", where)?.value;
   const secrets = readMetadataStrings(secretFields ?? [], where, "secret fields");
   return transcribeReadFacts(model, policy, fields, secrets, selectors);
@@ -1370,7 +1420,7 @@ export interface CanonicalModelPolicyInput {
  * `by`, bad dot paths, or grants over secrets fail loud at preload.
  */
 interface StateGrantsProducer {
-  buildPolicyTable(policies: ReadonlyArray<CanonicalModelPolicyInput>): unknown;
+  buildPolicyTable(policies: ReadonlyArray<CanonicalModelPolicyInput>, declarations?: ReadonlyArray<CanonicalModelDescriptor>): unknown;
   /**
    * D3b: REAL `matchGrants` (structural subset — the engine reads
    * `grants[].by/when` only). The receipt pre-load authZ evaluates
@@ -1931,6 +1981,7 @@ async function importPolicyRegistry(
   asm: AssembledModules,
   module: string,
   opName: string,
+  artifact?: CompileArtifact,
 ): Promise<unknown> {
   const where = `operation ${JSON.stringify(opName)} module ${JSON.stringify(module)}`;
   const url: unknown = Object.hasOwn(asm.moduleUrls, module)
@@ -1941,8 +1992,10 @@ async function importPolicyRegistry(
   }
   let mod: unknown;
   try {
-    mod = await import(url);
+    mod = hasAssemblerModuleCapability(asm) || artifact !== undefined && (requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact))
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
   } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`t16b: ${where} failed to import (${reason})`);
   }
@@ -1963,7 +2016,8 @@ async function assertComputedDefaultsPair(
 ): Promise<void> {
   const url = asm.moduleUrls[callable.module];
   if (url === undefined) throw new Error('Computed default has no owning assembled module.');
-  const module: unknown = await import(url);
+  const module: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+    ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(url);
   const where = `Computed defaults for ${JSON.stringify(operation.name)}`;
   const own = (value: unknown, key: string) =>
     isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
@@ -1990,7 +2044,8 @@ async function assertReadScenarioPair(
   artifact: CompileArtifact, asm: AssembledModules, op: PreloadOperation,
   callable: PreloadCallable, registry: unknown,
 ): Promise<void> {
-  const module: unknown = await import(asm.moduleUrls[callable.module]!);
+  const module: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+    ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(asm.moduleUrls[callable.module]!);
   const where = `Read scenario ${JSON.stringify(op.name)}`;
   const own = (value: unknown, key: string): unknown =>
     isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
@@ -2089,10 +2144,72 @@ export interface LoadedCanonicalDescriptors {
  * Assembly preloads (failing before serving); standalone invokers
  * load lazily on first canonical call.
  */
+// Direct callable entry can establish the same row-source lifetime before
+// canonical descriptors exist; cache preload must retain that exact assembly.
+const rowPolicyAssemblies = new WeakMap<CompileArtifact, AssembledModules>();
 const canonicalCache = new WeakMap<CompileArtifact, {
   loaded: LoadedCanonicalDescriptors;
   scenarioAssembly?: AssembledModules;
+  rowPolicyAssembly?: AssembledModules;
 }>();
+
+const rowReadSourceClaims = new WeakMap<object, { readonly source: string; readonly claimed: boolean }>();
+
+/** Nonexecuting presence gate from captured producer source. Parsing a literal
+ * property (including escaped/computed literal keys) establishes no grant or
+ * Compiler acceptance; State still validates the actual owning metadata. */
+function claimsRowReadSource(artifact: CompileArtifact): boolean {
+  const where = 'Row read source correspondence';
+  try {
+    const modules = readMetadataMember(artifact, 'modules', where);
+    if (modules === undefined) return false; // Historical actor-only component.
+    for (const module of readMetadataArray(modules.value, where, 'modules')) {
+      if (!isUnknownRecord(module)) throw new Error(`${where}: module data required.`);
+      const sourceMember = readMetadataMember(module, 'js', where);
+      if (sourceMember === undefined) continue; // Legacy metadata-only carrier.
+      const source = sourceMember.value;
+      if (typeof source !== 'string') throw new Error(`${where}: own source text required.`);
+      let claim = rowReadSourceClaims.get(module);
+      if (claim?.source !== source) {
+        let claimed = false;
+        try {
+          const pending: unknown[] = [parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module' })];
+          while (pending.length > 0 && !claimed) {
+            const node = pending.pop();
+            if (node === null || typeof node !== 'object') continue;
+            if (Array.isArray(node)) { for (const entry of node) pending.push(entry); continue; }
+            const value = node as Record<string, unknown>;
+            if (value.type === 'Property' && value.key !== null && typeof value.key === 'object') {
+              const key = value.key as Record<string, unknown>;
+              claimed = key.type === 'Identifier' && key.name === 'roleSubject' ||
+                key.type === 'Literal' && key.value === 'roleSubject';
+            }
+            for (const child of Object.values(value)) if (child !== null && typeof child === 'object') pending.push(child);
+          }
+        } catch {
+          // Unsupported/malformed syntax cannot justify importing unchecked
+          // source. Its genuine issuer and exact closure must verify first.
+          claimed = true;
+        }
+        claim = { source, claimed };
+        rowReadSourceClaims.set(module, claim);
+      }
+      if (claim.claimed) return true;
+    }
+    return false;
+  } catch (error) {
+    throw new AssemblyCorrespondenceError(error instanceof Error ? error.message : 'Malformed row read source metadata.');
+  }
+}
+
+function requiresRowReadCorrespondence(artifact: CompileArtifact): boolean {
+  return claimsRowReadSource(artifact) || rowPolicyAssemblies.has(artifact) ||
+    canonicalCache.get(artifact)?.rowPolicyAssembly !== undefined;
+}
+
+function requiresVerifiedAssemblyImports(asm: AssembledModules, artifact: CompileArtifact): boolean {
+  return hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact);
+}
 
 /** Presence gate only: State still owns descriptor/claim schema validation. */
 function claimsScenarioDisclosure(artifact: CompileArtifact): boolean {
@@ -2140,6 +2257,31 @@ async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileAr
   await verifyAssemblerModuleCapability(asm, artifact);
 }
 
+async function verifyCheckedAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void> {
+  const cached = canonicalCache.get(artifact);
+  const original = rowPolicyAssemblies.get(artifact) ?? cached?.rowPolicyAssembly ?? cached?.scenarioAssembly;
+  if (original !== undefined && asm !== original) throw new AssemblyCorrespondenceError('Checked source requires its original verified assembly.');
+  await verifyAssemblerModuleCapability(asm, artifact);
+}
+
+/** Presence only, never an authority parser: malformed object carriers also require verification. */
+function hasRowReadCarrier(module: unknown): boolean {
+  if (!isUnknownRecord(module)) return false;
+  const definition = readMetadataMember(module, 'appDefinition', 'read source')?.value;
+  const models = isUnknownRecord(definition) ? readMetadataMember(definition, 'models', 'read source')?.value : undefined;
+  if (!isUnknownRecord(models)) return false;
+  for (const key of Object.keys(models)) {
+    const model = readMetadataMember(models, key, 'read source')?.value;
+    const grants = isUnknownRecord(model) ? readMetadataMember(model, 'readGrants', 'read source')?.value : undefined;
+    if (grants === undefined) continue;
+    for (const grant of readMetadataArray(grants, 'read source', 'readGrants')) {
+      const by = isUnknownRecord(grant) ? readMetadataMember(grant, 'by', 'read source')?.value : undefined;
+      if (by !== undefined && readMetadataArray(by, 'read source', 'by').some(term => typeof term === 'object' && term !== null)) return true;
+    }
+  }
+  return false;
+}
+
 function assertServableModelRules(where: string, metadata: unknown, verifiedOwner = false): void {
   if (!isUnknownRecord(metadata)) return;
   for (const kind of ["invariants", "locks"] as const) {
@@ -2165,6 +2307,8 @@ async function collectModelPolicyManifests(
   asm: AssembledModules,
   modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
   verifiedOwnerModels: ReadonlySet<string>,
+  artifact: CompileArtifact,
+  onRowPolicy: () => void,
 ): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>> {
   const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>();
   for (const module of Object.keys(asm.moduleUrls)) {
@@ -2172,88 +2316,113 @@ async function collectModelPolicyManifests(
     if (typeof url !== "string" || url.length === 0) continue;
     let mod: unknown;
     try {
-      mod = await import(url);
+      mod = requiresVerifiedAssemblyImports(asm, artifact)
+        ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
     } catch (error) {
+      if (error instanceof AssemblyCorrespondenceError) throw error;
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
         `t17b: module ${JSON.stringify(module)} failed to import while establishing read policy (${reason})`,
       );
     }
-    if (!isUnknownRecord(mod) || typeof mod["canApp"] !== "function") continue;
-    let registry: unknown;
+    // Every import in a row-bearing artifact is checked, but unrelated page
+    // and asset modules do not become model policy factories.
+    let checkedRow = hasRowReadCarrier(mod);
+    if (checkedRow) {
+      await verifyCheckedAssembly(asm, artifact);
+      mod = await importVerifiedAssemblyModule(asm, module, artifact);
+      rowPolicyAssemblies.set(artifact, asm);
+      onRowPolicy();
+    }
     try {
-      registry = (mod["canApp"] as () => unknown)();
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `t17b: module ${JSON.stringify(module)} canApp() threw while establishing read policy (${reason})`,
-      );
-    }
-    if (!isUnknownRecord(registry)) {
-      throw new Error(
-        `t17b: module ${JSON.stringify(module)} canApp() returned a non-object while establishing read policy`,
-      );
-    }
-    const moduleWhere = `t17b: module ${JSON.stringify(module)}`;
-    const definition = mod["appDefinition"];
-    const declaredModels = isUnknownRecord(definition) ? readMetadataMember(definition, "models", moduleWhere)?.value : undefined;
-    if (isUnknownRecord(declaredModels)) {
-      for (const model of modelFields.keys()) {
-        const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
-        assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model));
+      if (!isUnknownRecord(mod) || typeof mod["canApp"] !== "function") {
+        if (checkedRow) throw new Error('Checked row read policy lacks its owning canApp factory.');
+        continue;
       }
-    }
-    const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
-    if (policy === undefined || policy === null) continue;
-    if (!isUnknownRecord(policy)) {
-      throw new Error(
-        `t17b: module ${JSON.stringify(module)} carries a malformed policy member (not an object)`,
-      );
-    }
-    const models = readMetadataMember(policy, "models", moduleWhere)?.value;
-    if (models === undefined || models === null) continue;
-    if (!isUnknownRecord(models)) {
-      throw new Error(
-        `t17b: module ${JSON.stringify(module)} carries a malformed policy.models map (not an object)`,
-      );
-    }
-    for (const model of Object.keys(models)) {
-      const where = `t17b: model ${JSON.stringify(model)}`;
-      const entry = readMetadataMember(models, model, where)?.value;
-      const facts = readPolicyFacts(entry, where);
-      const declaration = isUnknownRecord(declaredModels) ? readMetadataMember(declaredModels, model, where)?.value : undefined;
-      // Policy and owning declarations both retain their constraints even
-      // if the other representation is omitted.
-      assertServableModelRules(where, facts, verifiedOwnerModels.has(model));
-      const readRules = readMetadataMember(registry, "read", where)?.value;
-      if ((facts.public?.length ?? 0) > 0) {
-        const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
-        const definitionModels = isUnknownRecord(definitionPolicy) ? readMetadataMember(definitionPolicy, "models", where)?.value : undefined;
-        const definitionEntry = isUnknownRecord(definitionModels) ? readMetadataMember(definitionModels, model, where) : undefined;
-        if (definitionEntry === undefined || !sameReadPolicies(readPolicyFacts(definitionEntry.value, where), facts)) {
-          throw new Error(`${where} appDefinition/canApp policy disagreement.`);
+      let registry: unknown;
+      try {
+        registry = (mod["canApp"] as () => unknown)();
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `t17b: module ${JSON.stringify(module)} canApp() threw while establishing read policy (${reason})`,
+        );
+      }
+      if (!isUnknownRecord(registry)) {
+        throw new Error(
+          `t17b: module ${JSON.stringify(module)} canApp() returned a non-object while establishing read policy`,
+        );
+      }
+      // A factory cannot introduce an object carrier after the initial
+      // presence scan and thereby evade the original-assembly requirement.
+      if (!checkedRow && hasRowReadCarrier(mod)) {
+        await verifyCheckedAssembly(asm, artifact);
+        rowPolicyAssemblies.set(artifact, asm);
+        onRowPolicy(); checkedRow = true;
+      }
+      const moduleWhere = `t17b: module ${JSON.stringify(module)}`;
+      const definition = mod["appDefinition"];
+      const declaredModels = isUnknownRecord(definition) ? readMetadataMember(definition, "models", moduleWhere)?.value : undefined;
+      if (isUnknownRecord(declaredModels)) {
+        for (const model of modelFields.keys()) {
+          const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
+          assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model));
         }
       }
-      const fields = modelFields.get(model);
-      if (fields === undefined && (facts.public?.length ?? 0) > 0) {
-        throw new Error(`${where}: public selector names no loaded model.`);
+      const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
+      if (policy === undefined || policy === null) continue;
+      if (!isUnknownRecord(policy)) {
+        throw new Error(
+          `t17b: module ${JSON.stringify(module)} carries a malformed policy member (not an object)`,
+        );
       }
-      const selectors = readSelectorFacts(facts, fields ?? [], { secretFields: [], declaration, readRules }, where);
-      const declaredFields = isUnknownRecord(declaration) ? declaration["fields"] : undefined;
-      const fieldTypes = new Map<string, string>();
-      if (isUnknownRecord(declaredFields)) {
-        for (const field of fields ?? []) {
-          const fieldDeclaration = readMetadataMember(declaredFields, field, where)?.value;
-          const type = isUnknownRecord(fieldDeclaration) ? readMetadataMember(fieldDeclaration, "type", where)?.value : undefined;
-          if (typeof type === "string" && type !== "") fieldTypes.set(field, type);
+      const models = readMetadataMember(policy, "models", moduleWhere)?.value;
+      if (models === undefined || models === null) continue;
+      if (!isUnknownRecord(models)) {
+        throw new Error(
+          `t17b: module ${JSON.stringify(module)} carries a malformed policy.models map (not an object)`,
+        );
+      }
+      for (const model of Object.keys(models)) {
+        const where = `t17b: model ${JSON.stringify(model)}`;
+        const entry = readMetadataMember(models, model, where)?.value;
+        const facts = readPolicyFacts(entry, where);
+        const declaration = isUnknownRecord(declaredModels) ? readMetadataMember(declaredModels, model, where)?.value : undefined;
+        // Policy and owning declarations both retain their constraints even
+        // if the other representation is omitted.
+        assertServableModelRules(where, facts, verifiedOwnerModels.has(model));
+        const readRules = readMetadataMember(registry, "read", where)?.value;
+        if (checkedRow || (facts.public?.length ?? 0) > 0) {
+          const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
+          const definitionModels = isUnknownRecord(definitionPolicy) ? readMetadataMember(definitionPolicy, "models", where)?.value : undefined;
+          const definitionEntry = isUnknownRecord(definitionModels) ? readMetadataMember(definitionModels, model, where) : undefined;
+          if (definitionEntry === undefined || !sameReadPolicies(readPolicyFacts(definitionEntry.value, where), facts)) {
+            throw new Error(`${where} appDefinition/canApp policy disagreement.`);
+          }
+        }
+        const fields = modelFields.get(model);
+        if (fields === undefined && (facts.public?.length ?? 0) > 0) {
+          throw new Error(`${where}: public selector names no loaded model.`);
+        }
+        const selectors = readSelectorFacts(model, facts, fields ?? [], { secretFields: [], declaration, readRules }, where);
+        const declaredFields = isUnknownRecord(declaration) ? declaration["fields"] : undefined;
+        const fieldTypes = new Map<string, string>();
+        if (isUnknownRecord(declaredFields)) {
+          for (const field of fields ?? []) {
+            const fieldDeclaration = readMetadataMember(declaredFields, field, where)?.value;
+            const type = isUnknownRecord(fieldDeclaration) ? readMetadataMember(fieldDeclaration, "type", where)?.value : undefined;
+            if (typeof type === "string" && type !== "") fieldTypes.set(field, type);
+          }
+        }
+        const previous = merged.get(model);
+        if (previous === undefined) {
+          merged.set(model, { policy: facts, selectors, fieldTypes });
+        } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors) || JSON.stringify([...previous.fieldTypes]) !== JSON.stringify([...fieldTypes])) {
+          throw new Error(`${where} carries contradictory read policy across assembled modules (refusing an incoherent set)`);
         }
       }
-      const previous = merged.get(model);
-      if (previous === undefined) {
-        merged.set(model, { policy: facts, selectors, fieldTypes });
-      } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors) || JSON.stringify([...previous.fieldTypes]) !== JSON.stringify([...fieldTypes])) {
-        throw new Error(`${where} carries contradictory read policy across assembled modules (refusing an incoherent set)`);
-      }
+    } finally {
+      if (checkedRow) await verifyAssemblerModuleCapability(asm, artifact);
     }
   }
 
@@ -2586,7 +2755,8 @@ async function collectUnsupportedHookOperations(asm: AssembledModules, artifact:
     const where = `Canonical hooks module ${JSON.stringify(module)}`;
     const url = readMetadataMember(asm.moduleUrls, module, where)?.value;
     if (typeof url !== 'string' || url === '') throw new Error(`${where} has no owning module URL.`);
-    const imported: unknown = await import(url);
+    const imported: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
     const factory = isUnknownRecord(imported) ? readMetadataMember(imported, 'canApp', where)?.value : undefined;
     if (factory === undefined) continue;
     if (typeof factory !== 'function') throw new Error(`${where} has no callable canApp.`);
@@ -2898,8 +3068,20 @@ export async function loadCanonicalDescriptors(
   artifact: CompileArtifact,
 ): Promise<LoadedCanonicalDescriptors> {
   const claimedScenario = claimsScenarioDisclosure(artifact);
+  const claimedRowSource = requiresRowReadCorrespondence(artifact);
+  // An issued assembly must still match its captured artifact and complete
+  // closure when a caller strips the visible policy/source claim.
+  if (hasAssemblerModuleCapability(asm)) await verifyCheckedAssembly(asm, artifact);
+  if (claimedRowSource) {
+    await verifyCheckedAssembly(asm, artifact);
+    rowPolicyAssemblies.set(artifact, asm);
+  }
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
+    if (claimedRowSource && cached.rowPolicyAssembly === undefined) {
+      throw new AssemblyCorrespondenceError('Row read source differs from its cached policy plan.');
+    }
+    if (cached.rowPolicyAssembly !== undefined) await verifyCheckedAssembly(asm, artifact);
     if (cached.scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, cached.scenarioAssembly);
     else if (claimedScenario) throw new Error('Scenario disclosure differs from its cached source plan.');
     const ownerControl = localOwnerPolicyControls.get(cached.loaded);
@@ -2921,14 +3103,14 @@ export async function loadCanonicalDescriptors(
   for (const op of ops) {
     if (op.kind === "create" || op.kind === "update" || op.kind === "delete") {
       const callable = resolvePreloadCallable(artifact, op);
-      const registry = await importPolicyRegistry(asm, callable.module, op.name);
+      const registry = await importPolicyRegistry(asm, callable.module, op.name, artifact);
       crudBy.set(op.name, mapCrudPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
     } else if (op.kind === "scenario" ||
         (op.kind === "read" && artifact.callables.some(candidate => candidate.id === op.name))) {
       // B7: scenarios join admission transcription (absent -> deny;
       // their leading require guards stay handler-enforced inside).
       const callable = resolvePreloadCallable(artifact, op);
-      const registry = await importPolicyRegistry(asm, callable.module, op.name);
+      const registry = await importPolicyRegistry(asm, callable.module, op.name, artifact);
       if (op.kind === "read") await assertReadScenarioPair(artifact, asm, op, callable, registry);
       else await assertComputedDefaultsPair(artifact, asm, op, callable);
       crudBy.set(op.name, mapScenarioPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
@@ -2992,8 +3174,11 @@ export async function loadCanonicalDescriptors(
     native: { models: loaded.models, refs: loaded.refs, containment: loaded.containment,
       producers, ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) },
   });
+  let rowPolicyAssembly: AssembledModules | undefined = rowPolicyAssemblies.get(artifact);
+  if (rowPolicyAssembly !== undefined) await verifyCheckedAssembly(asm, artifact);
   const manifests = await collectModelPolicyManifests(asm, modelFields,
-    new Set(ownerPolicyControl === undefined ? [] : loaded.modelPolicies!.map(policy => policy.model)));
+    new Set(ownerPolicyControl === undefined ? [] : loaded.modelPolicies!.map(policy => policy.model)),
+    artifact, () => { rowPolicyAssembly = asm; });
   const policyInputs: CanonicalModelPolicyInput[] = [];
   const ruledModels = new Set<string>();
   for (const [index, model] of loaded.models.entries()) {
@@ -3015,7 +3200,7 @@ export async function loadCanonicalDescriptors(
       policyInputs.push(transcribed.input);
     }
   }
-  const policy = producers.grants.buildPolicyTable(policyInputs);
+  const policy = producers.grants.buildPolicyTable(policyInputs, loaded.models);
   const collectionColumns = new Map<string, readonly ColumnMeta[]>();
   for (const [index, model] of loaded.models.entries()) {
     const name = canonicalModelName(model, index);
@@ -3048,7 +3233,9 @@ export async function loadCanonicalDescriptors(
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioQueries(asm, artifact, canonical);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
-  canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }) });
+  if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
+  canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
+    ...(rowPolicyAssembly === undefined ? {} : { rowPolicyAssembly }) });
   return canonical;
 }
 
@@ -8911,19 +9098,168 @@ async function runFenceGate(input: {
   return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };
 }
 
-/**
- * T24b: drive ONE dispatch attempt for one L3 intent: fenced claim,
- * claim-time guard re-evaluation against a CURRENT snapshot, exactly
- * one provider call, and one fenced record-attempt. Single-shot
- * throughout: fence conflicts (`busy`) and evaluator throws propagate
- * (NO retry — callers decide; the held claim ages out through the
- * stale-claim path). A throwing or incoherent provider records
- * `uncertain` (it may have acted — unknown stays unknown instead of
- * retrying blind). Delivered and terminal outcomes ack the L3 intent;
- * transient and uncertain outcomes leave it for the sweeper. The row's
- * stage-time guard pin is recorded history: only the claim-time
- * re-eval verdict gates this attempt.
- */
+import type { DispatchClaimGuard } from '@canlang/work/kernel/commands';
+
+/** Detach trusted host inputs before any asynchronous producer/read can yield.
+ * This data capture establishes no Compiler source or dispatch authority. */
+function captureDispatchPreclaimData<T>(value: T): T {
+  let remaining = 10_000, textRemaining = 1_000_000;
+  const active = new Set<object>();
+  const copy = (input: unknown, depth: number): unknown => {
+    if (--remaining < 0 || depth > 64) throw new RangeError('Preclaim input exceeds bounds.');
+    if (input === null || typeof input !== 'object') {
+      if (typeof input === 'undefined' || typeof input === 'symbol' || typeof input === 'function' ||
+          typeof input === 'number' && !Number.isFinite(input)) throw new TypeError('Preclaim requires plain data.');
+      if ((typeof input === 'string' || typeof input === 'bigint') &&
+          (textRemaining -= String(input).length) < 0) throw new RangeError('Preclaim input exceeds bounds.');
+      return input;
+    }
+    if (active.has(input)) throw new TypeError('Preclaim input cannot be cyclic.');
+    active.add(input);
+    try {
+      const array = Array.isArray(input);
+      if (array ? Object.getPrototypeOf(input) !== Array.prototype :
+          ![Object.prototype, null].includes(Object.getPrototypeOf(input))) throw new TypeError('Preclaim requires plain data.');
+      const keys = Reflect.ownKeys(input);
+      const output: Record<string, unknown> | unknown[] = array ? [] : Object.create(Object.getPrototypeOf(input)) as Record<string, unknown>;
+      if (array && keys.length !== input.length + 1) throw new TypeError('Preclaim requires a dense plain array.');
+      for (const key of keys) {
+        if (array && key === 'length') continue;
+        if (typeof key !== 'string' || array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= input.length)) {
+          throw new TypeError('Preclaim requires own data fields.');
+        }
+        if ((textRemaining -= key.length) < 0) throw new RangeError('Preclaim input exceeds bounds.');
+        const descriptor = Object.getOwnPropertyDescriptor(input, key);
+        if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) {
+          throw new TypeError('Preclaim requires own data fields.');
+        }
+        Object.defineProperty(output, key, { value: copy(descriptor.value, depth + 1), enumerable: true });
+      }
+      return Object.freeze(output);
+    } finally { active.delete(input); }
+  };
+  return copy(value, 0) as T;
+}
+
+/** Framework-only host component entry. Work owns eligibility, allocation,
+ * phase transfer and the original physical claim/false-ACK fence. This does
+ * not activate a native SEND or certify supplied lexical source provenance. */
+export async function driveDispatchIntentWithPreclaim(
+  opts: Omit<DriveDispatchIntentOpts, 'registry'>,
+  createRegistry: (guard: DispatchClaimGuard, claimIdAllocator: () => ClaimId) => DispatchSystemRegistry,
+): Promise<DriveDispatchOutcome> {
+  const intent = captureDispatchPreclaimData(opts.intent);
+  const suppliedFence = opts.fence;
+  const fence = suppliedFence === undefined ? undefined : suppliedFence.asyncGuard === undefined
+    ? Object.freeze({ ...suppliedFence })
+    : Object.freeze({ ...suppliedFence, asyncGuard: Object.freeze({ ...suppliedFence.asyncGuard }) });
+  const asyncGuard = fence?.asyncGuard;
+  const owner = fence?.owner;
+  const triggerRevision = fence?.triggerRevision?.revision;
+  const evaluator = asyncGuard?.evaluateGuard;
+  const readSnapshot = opts.readStateSnapshot;
+  const authority = fence?.revalidateAuthority;
+  const allocate = opts.nextClaimId;
+  const store = opts.store;
+  const predicate = Object.getOwnPropertyDescriptor(intent, 'dispatchGuard')?.value as unknown;
+  if (typeof createRegistry !== 'function' || typeof owner !== 'string' || owner === '' ||
+      typeof predicate !== 'string' || predicate === '' || asyncGuard === undefined ||
+      typeof evaluator !== 'function' || typeof readSnapshot !== 'function' ||
+      typeof authority !== 'function' || typeof allocate !== 'function' ||
+      !Object.hasOwn(asyncGuard, 'frozenInputs') || fence?.attemptDispatch !== undefined ||
+      triggerRevision !== undefined && (!Number.isSafeInteger(triggerRevision) || triggerRevision < 0)) {
+    throw new Error('Preclaim needs one complete installed async guard and owner fence.');
+  }
+  const lexical = captureDispatchPreclaimData(asyncGuard.frozenInputs);
+  const pinned = Object.freeze({ ...opts, intent });
+  const now = pinned.nowMs();
+  if (!['intentId', 'operation', 'operationId', 'target', 'arguments', 'occurrenceIndex']
+      .every(key => Object.hasOwn(intent, key)) ||
+      typeof intent.intentId !== 'string' || intent.intentId === '' || !Number.isFinite(now) || now < 0 ||
+      !Number.isFinite(pinned.maxClaimAgeMs) || pinned.maxClaimAgeMs < 0) {
+    throw new Error('Preclaim needs an original intent and finite claim times.');
+  }
+  const work = await loadProducerModule('@canlang/work/dispatch', 'preclaim guard producer');
+  const runPhase = requireProducerFn(work, 'runDispatchGuardPhase', 'preclaim guard producer') as
+    typeof import('@canlang/work/dispatch').runDispatchGuardPhase;
+  let active = true, entered = false, verdict: boolean | undefined;
+  let stageRevision: Revision | undefined, minted: string | undefined;
+  let failed = false, terminal: unknown;
+  const refuse = (error: unknown): never => {
+    if (!failed) { failed = true; terminal = error; }
+    throw terminal;
+  };
+  const guard: DispatchClaimGuard = async input => {
+    if (!active || entered) return refuse(new Error('Preclaim guard crossed its single owning drive.'));
+    entered = true;
+    try {
+      const data = input.data;
+      stageRevision = input.revision;
+      if (input.row.id !== intent.intentId ||
+          input.row.archivedAt !== null || data.intentId !== intent.intentId || data.source !== intent.target ||
+          data.occurrenceIndex !== intent.occurrenceIndex ||
+          !Number.isSafeInteger(input.revision) || input.revision < 0 || triggerRevision === input.revision) {
+        throw new Error('Preclaim lost its eligible source, owner checkpoint or original intent.');
+      }
+      const retained = captureDispatchPreclaimData(await store.outboxGet(intent.intentId));
+      if (retained === null || !['status', 'intent', 'originalCommit'].every(key => Object.hasOwn(retained, key)) ||
+          retained.status !== 'pending' || retained.originalCommit === undefined ||
+          !['revision', 'createdAt'].every(key => Object.hasOwn(retained.originalCommit!, key)) ||
+          stableStringify(retained.intent) !== stableStringify(intent) ||
+          !Number.isSafeInteger(retained.originalCommit.revision) || retained.originalCommit.revision < 1 ||
+          retained.originalCommit.revision > input.revision || !Number.isFinite(retained.originalCommit.createdAt) ||
+          retained.originalCommit.createdAt < 0) {
+        throw new Error('Preclaim needs exact persisted original outbox publication facts.');
+      }
+      const snapshot = await readSnapshot.call(pinned, intent);
+      if (await store.readRevision() !== input.revision) throw new Error('Preclaim original owner revision changed.');
+      const phase = await runPhase({ stage: input.context, predicate, frozenInputs: lexical, stateSnapshot: snapshot,
+        checkpoint: { revision: input.revision, owner }, intent: {
+          item: { id: intent.intentId as OutboxId, operationId: data.operationId, source: data.source,
+            occurrenceIndex: data.occurrenceIndex, request: retained.intent.arguments,
+            originOccurrence: data.originOccurrence as OccurrenceId | null, attempts: data.attempts, state: 'pending' },
+          commit: { revision: retained.originalCommit.revision, committedAtMs: retained.originalCommit.createdAt },
+        }, evaluateGuard: evaluator });
+      verdict = phase.result;
+      return { phase, currentAuthority: () => authority.call(fence) };
+    } catch (error) { return refuse(error); }
+  };
+  const allocator = (): ClaimId => {
+    if (!active || !entered || verdict !== true || minted !== undefined || failed) {
+      return refuse(new Error('Preclaim allocator crossed its eligible true guard.'));
+    }
+    try {
+      const value = allocate.call(pinned);
+      if (typeof value !== 'string' || value === '') throw new Error('Preclaim needs a non-empty allocated claim ID.');
+      minted = value;
+      return value as ClaimId;
+    } catch (error) { return refuse(error); }
+  };
+  try {
+    const registry = createRegistry(guard, allocator);
+    const runBase = { actor: pinned.actor, now, operation: pinned.operation };
+    const claimed = await registry.run('work.dispatch.claim',
+      { intentId: intent.intentId, claimedAtMs: now, maxClaimAgeMs: pinned.maxClaimAgeMs },
+      { ...runBase, operationId: pinned.claimOperationId }, { store });
+    active = false;
+    if (failed) throw terminal;
+    const claim = checkClaimResult(claimed.result);
+    if (!claim.claimed) {
+      if (minted !== undefined || entered && (verdict !== false || claim.reason !== 'guard-false')) {
+        throw new Error('Preclaim command returned an incoherent unclaimed outcome.');
+      }
+      return { status: 'not-claimed', intentId: intent.intentId, reason: claim.reason ?? 'unknown' };
+    }
+    if (!entered || verdict !== true || minted === undefined || claim.claimId !== minted ||
+        stageRevision === undefined || claimed.revision !== stageRevision + 1) {
+      throw new Error('Preclaim command did not commit its own eligible guarded claim.');
+    }
+    return await recordDispatchProviderAttempt({ ...pinned, registry }, intent.intentId, minted, now, runBase);
+  } finally { active = false; }
+}
+
+/** Legacy claim-first compatibility path. Guard/evaluator throws leave its
+ * held claim for recovery; the original provider/record behavior is shared. */
 export async function driveDispatchIntent(
   opts: DriveDispatchIntentOpts,
 ): Promise<DriveDispatchOutcome> {
@@ -9007,6 +9343,17 @@ export async function driveDispatchIntent(
     });
     if (fenced !== null) return fenced;
   }
+  return recordDispatchProviderAttempt(opts, intentId, heldClaimId, now, runBase);
+}
+
+/** Shared ordinary provider/record tail; neither path re-evaluates a guard. */
+async function recordDispatchProviderAttempt(
+  opts: DriveDispatchIntentOpts,
+  intentId: string,
+  heldClaimId: string,
+  now: number,
+  runBase: { readonly actor: string; readonly now: number; readonly operation: string },
+): Promise<DriveDispatchOutcome> {
   const held: DispatchClaim = {
     outboxId: intentId as OutboxId,
     claimId: heldClaimId as ClaimId,
