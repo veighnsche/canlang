@@ -10,6 +10,9 @@ import type { ArtifactModel, CanTypeId, FileReferenceInventory, FileReferenceSto
   FileRetirementAuthority, FinalizedFileIdentity, InstalledSnapshot, MigrationProgress,
   RetireFinalizedFile, StagedRow, StoragePort } from '@canlang/contracts';
 import { createTestMemoryStorage } from '../src/storage/memory.js';
+import { STATE_FILE_REFERENCE_PRODUCER } from '../src/storage/index.js';
+import { newAssociationRow, newReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../src/receipt/tables.js';
+import { stageFanoutOwnerScanWrite, FANOUT_OWNER_SCAN_MODEL } from '../src/fanout/navigation.js';
 import { FenceConflictError, StorageConstraintError, type StorageConstraintKind } from '../src/storage/port.js';
 import { createD1Storage, ensureSchema } from '../src/storage/d1.js';
 import { loadArtifactDescriptors } from '../src/invocation/registry.js';
@@ -126,7 +129,7 @@ const backends: Backend[] = [
   } },
   { name: 'do', setup: async () => {
     doMf ??= new Miniflare({ modules: true,
-      scriptPath: fileURLToPath(new URL('../../test/storage/do-test-worker.js', import.meta.url)),
+      scriptPath: fileURLToPath(new URL('./storage/do-test-worker.js', import.meta.url)),
       modulesRules: [{ type: 'ESModule', include: ['**/*.js'] }], compatibilityDate: '2025-01-01',
       durableObjects: { TEST_DO: { className: 'TestDO', useSQLite: true, unsafePreventEviction: true } } });
     await doPost('/reset', {}); await doPost('/reopen', { authority }); return doProxy();
@@ -377,6 +380,77 @@ for (const backend of backends) describe(`File retirement storage: ${backend.nam
       await noEffects(legacy, () => legacy.commit({ ...writer, expectedRevision: asRevision(2) }));
       assert.equal(await legacy.load(MODEL, asId('racing')), null); assert.equal(await legacy.scheduleGet('race-effect'), null);
     }
+  });
+});
+
+describe('actual DO framework File admission', () => {
+  const declarations = () => ({ ...inventory(), frameworkModels: STATE_FILE_REFERENCE_PRODUCER.models });
+  async function setupFramework(): Promise<FileReferenceStoragePort> {
+    await backends.find(backend => backend.name === 'do')!.setup();
+    await doPost('/reopen', { authority, framework: 'state' });
+    const store = doProxy(); await install(store, declarations()); return store;
+  }
+  it('joins real State controls and domain File census, reopens the actual issuer, and guards legacy writes', async () => {
+    const store = await setupFramework(), meta = { nowMs: 100, actor: 'alice' };
+    const association = newAssociationRow({ recordModel: MODEL, recordId: 'row', field: 'delivery',
+      deliveryId: 'delivery', source: 'Documents.send', revision: 0 }, meta);
+    const scan = stageFanoutOwnerScanWrite({ owner: 'team', row: null, visitedIntentRow: null, meta });
+    assert.equal(scan.kind, 'insert');
+    if (scan.kind !== 'insert') throw new Error('expected owning scan insert');
+    await store.commit(makeBatch(1, { writes: [
+      { kind: 'insert', model: MODEL, row: makeRow({ id: 'row', data: { attachment: { id: 'shared' } } }) },
+      { kind: 'insert', model: asModel(RECEIPT_ASSOCIATION_MODEL), row: association }, scan,
+    ] }));
+    await noEffects(store, () => store.retireFinalizedFile(request(2, declarations(), { file: file('shared') })));
+    const fact = await store.retireFinalizedFile(request(2, declarations()));
+    await doPost('/reopen', { authority });
+    await assert.rejects(() => doProxy().readFileReferenceInventory(snapshot.owner));
+    await doPost('/reopen', {});
+    await noEffects(doProxy(), () => doProxy().commit(makeBatch(3, { writes: [{ kind: 'insert', model: MODEL,
+      row: makeRow({ id: 'missing-bound', data: {} }) }], schedules: [{ op: 'replace', key: 'missing-bound', at: 1,
+      event: asOperation('Documents.due'), payload: {} }] })));
+    await doPost('/reopen', { authority, framework: 'state' });
+    assert.deepEqual(await store.readFinalizedFileRetirement(file().ref), fact);
+    assert.deepEqual(await store.retireFinalizedFile(request(2, declarations(), { atMs: 99_999 })), fact);
+    assert.equal(await store.load(MODEL, asId('missing-bound')), null);
+    assert.equal(await store.scheduleGet('missing-bound'), null);
+    assert.ok(await store.load(asModel(FANOUT_OWNER_SCAN_MODEL), scan.row.id));
+    assert.equal(await store.readRevision(), 3);
+  });
+  it('rolls back actual SQL effects for owning opaque receipts, unknown fields and target correspondence drift', async () => {
+    const store = await setupFramework();
+    const receipt = newReceiptRow({ deliveryId: 'opaque', revision: 0, status: 'succeeded', result: { id: file().ref },
+      error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: 100, actor: 'alice' });
+    STATE_FILE_REFERENCE_PRODUCER.validateRow(asModel(RECEIPT_MODEL), receipt);
+    const scan = stageFanoutOwnerScanWrite({ owner: 'team', row: null, visitedIntentRow: null,
+      meta: { nowMs: 100, actor: 'alice' } });
+    assert.equal(scan.kind, 'insert');
+    if (scan.kind !== 'insert') throw new Error('expected owning scan insert');
+    for (const write of [ { kind: 'insert' as const, model: asModel(RECEIPT_MODEL), row: receipt },
+      { ...scan, row: { ...scan.row, data: { ...scan.row.data, unknown: 'extra' } } } ]) {
+      await noEffects(store, () => store.commit(makeBatch(1, { writes: [write], schedules: [{ op: 'replace',
+        key: 'rollback', at: 1, event: asOperation('Documents.due'), payload: {} }] })));
+      assert.equal(await store.load(write.model, write.row.id), null);
+      assert.equal(await store.scheduleGet('rollback'), null);
+    }
+    await store.commit(makeBatch(1, { writes: [scan] }));
+    const target = { ...declarations(), snapshotId: 'target', digest: 'target' }, migrationId = 'framework-target';
+    const staged = { targetModel: scan.model, recordId: scan.row.id, version: asVersion(2), data: scan.row.data,
+      parent: null, converted: true, created: scan.row.created, createdBy: scan.row.createdBy };
+    await store.stageMigrationRows({ expectedRevision: asRevision(2), migrationId, rows: [staged],
+      progress: progress(migrationId, 3, 'staged') });
+    const publish = { expectedRevision: asRevision(3), migrationId, rows: [staged], history: [], drops: [],
+      progress: progress(migrationId, 4, 'publishing') };
+    await noEffects(store, () => store.publishMigrationChunk({ ...publish,
+      fileReferenceInventory: { ...target, frameworkModels: [] } }));
+    await store.publishMigrationChunk({ ...publish, fileReferenceInventory: target });
+    const flip = { expectedRevision: asRevision(4), migrationId, owner: snapshot.owner,
+      snapshot: { ...snapshot, snapshotId: 'target', digest: 'target' }, renameFromOwner: null,
+      invalidatedIntentIds: [], outcomes: [], fileReferenceInventory: target };
+    await noEffects(store, () => store.flipInstalledSnapshot({ ...flip,
+      fileReferenceInventory: { ...target, frameworkModels: [] } }));
+    assert.deepEqual(await store.flipInstalledSnapshot(flip), { flipped: true, revision: 5 });
+    assert.deepEqual((await store.readFileReferenceInventory(snapshot.owner))?.inventory, target);
   });
 });
 
