@@ -2474,9 +2474,84 @@ artifact loading with exact result/ref schemas, missing/duplicate model context
 refusals; final affected13/13 (ordinary4,bounds3,decision6). Earlier unchanged
 strict lint/format results are reused. Changed-source whole checks follow.
 
-The real serial membership join exposes one defining State discrepancy: actual
-Compiler type ID Team is uppercase, while released State special active_member
-intake requires lowercase team. Coordinator assigned the exact correction to
-State. SKIP membership transport activation pending that release and Dev private
-source/frame/stage facade; Compiler will consume exact owning repair. No duplicate
-State patch, purity change, replay or hoist. Precise BDD3/Task22 holds remain.
+The defining State Team discrepancy is corrected by exact released State332/f3
+on reviewed locala22241b7. After the real22/22 uncached owner build, the single
+actual compiler serialization is accepted unchanged by installed State's checker:
+source, stages, positions, slots, defaults and frames survive; native user/Team
+IDs retain their spellings and lowercase team refuses. Owning decision6/6 passes.
+This qualifies structural transport only. SKIP runtime activation pending Dev's
+private source/frame/stage capture facade and accepted bounded decision context;
+no duplicate State patch, purity change, replay or hoist. Precise BDD3/Task22
+holds remain.
+
+
+**Owning disclosure depth correction, 2026-10-10.**
+The first changed-source full run exposes a real SIGABRT in the existing flat
+80-term depth test. The debug expression match retained about32KB per recursion,
+overflowing before its depth64 guard. Extract Member/Array/Binary bodies into
+smaller helpers; preserve the guard, counters, source admission, left-to-right
+path traversal and exact expression closure depth bound refusal. All existing
+library154 and decision6 cases pass with the default test stack. No stack-size
+bypass or skipped body. Strict all-target Clippy/format0; full checks follow coherent save.
+
+
+**Exact corpus expectation correction (unfinished whole qualification), 2026-10-10.**
+The resumed full run reaches the real52-file table and exposes five stale counts.
+Existing capability fixture identity7d43c017 removes exactly nine E3015 findings
+(Decide2, Enrich3, Inbox1, Sync2, Workbench1); wrong-operation fixture controls
+remain. Draft337b373's direct Workbench query removes one unresolved collect
+E2001. Same-checker old/new source comparisons isolate those changes; CanDo
+remains38. All52 checks and undocumented-code assertions are retained, total
+4191→4181. Owning analysis37/37 passes. Exact released locala22241b7, including
+State332/f3 Team correction, is safely consumed; actual graph22/22 builds uncached.
+The single real serial consumer join and resumed whole qualification follow.
+
+
+**Complete changed-source run (unfinished corrections), 2026-10-10.**
+Exact07996dbf reaches every target under Node24 and required real completion,
+native and permission bodies, with zero SKIP. Three owning failures remain:
+scenario3000 compile stack overflow; unsupported datetime order refusal is
+masked by collection source-fact joining; a schedule fixture still expects
+model-containing contracts absent after their qualified inventory admission.
+Preserve the complete outcome, correct those exact paths and retain a genuinely
+unsupported contract control. Current whole acceptance remains withheld.
+
+
+**Emitter stack correction (unfinished final qualification), 2026-10-10.**
+The actual scenario3000 crash trace reaches recursive IrItem/IrExpr cloning in
+identity emission. All13 read-only whole-program emitter loops now borrow the
+existing IR through a copied reference; required local metadata copies remain.
+Output order, source admission and expression semantics are unchanged. Owning
+codegen121/121 and the existing native flat6/6, including scenario3000, pass.
+Original query-order2/2 and disclosure18/18 also pass after preserving the owning
+unsupported-query refusal. Final whole qualification follows; no stack increase,
+smaller fixture or skipped body.
+
+
+**Schedule fixture correction (unfinished whole qualification), 2026-10-10.**
+Model references are now qualified ordinary contract leaves. Keep the existing
+unsupported event contract control by including the still-unsupported email leaf,
+retaining whole-descriptor/inventory withholding and every actual schedule/cancel
+payload, declaring-owner, carrier, authored-order and failure assertion. Owning
+schedule2/2 passes; unchanged real model-reference positives are reused.
+
+
+**Query-aware decision correspondence (unfinished runtime activation), 2026-10-10.**
+The real decision consumer now joins Query facts to the immutable checker and
+fresh complete IR: domain, lexical aliases, operands, ordering, async marker,
+optional clauses and collection attribution. External predicate Lambda admission
+requires its exact checked any/all slot, alias and type. Imported staff→abs→any
+source order/call chain, direct where, serialization and11 corruption controls
+pass. Awaited derive predicates retain their exact synchronous-predicate E6008;
+unsupported query/predicate refusals are preserved instead of masked by the
+collection-fact join. Owning decision7/7, flat6/6, order2/2, schedule2/2 and
+disclosure18/18 pass; unchanged affected codegen121 and query8 are reused. Strict
+all-target Clippy/format0 and finite source review clear. No StateRead/async/native
+activation or original-reference completion follows; final whole checks run next.
+
+SKIP general array/loop receipt activation: Dev's reported NativeRefArrays source
+is not yet released, and existing static dependency presence cannot prove ordered
+reference-array domains, zero iterations or conditionally skipped per-element
+reads. State/Contracts must release actual domain/order/duplicate/zero/conditional
+coverage and Dev genuine capture lifetime. Existing row markers already support
+repeated observations; do not invent index markers or relabel query recipes.
