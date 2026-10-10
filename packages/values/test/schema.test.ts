@@ -1060,6 +1060,72 @@ describe("B1 L3 creation agreement", () => {
 });
 
 
+describe("checked value inventory model references", () => {
+  const inventory = () => ({
+    contracts: [{ name: "Snapshot", fields: [
+      { name: "record", type: "shop.Customer" },
+      { name: "version", type: "int", min: 1 },
+      { name: "note", type: "text", max: 3 },
+      { name: "when", type: "date?" },
+      { name: "status", type: "OrderStatus" },
+    ] }],
+    enums: [{ name: "OrderStatus", cases: ["open", "paid"] }],
+  });
+
+  it("decodes named contract arrays with exact stored reference and scalar versions", () => {
+    const { valueTypes, valueSchema } = normalizeValueTypes(inventory(), ["shop.Customer"]);
+    const wire = [
+      { record: { id: "second", version: "9007199254740993" }, version: "9007199254740993", note: "abc", when: null, status: "open" },
+      { record: { id: "first", version: "2" }, version: "2", note: "", when: null, status: "paid" },
+    ];
+    const native = validateValue(valueSchema, "Snapshot[]", wire, "create");
+    assert.deepEqual(native, [
+      { record: makeRecordRef("shop.Customer", "second", 9007199254740993n), version: 9007199254740993n, note: "abc", when: null, status: "open" },
+      { record: makeRecordRef("shop.Customer", "first", 2n), version: 2n, note: "", when: null, status: "paid" },
+    ]);
+    assert.deepEqual(encodeValue("Snapshot[]", native), wire);
+    assert.deepEqual(validateValue(valueSchema, "Snapshot[]", [], "create"), []);
+    assert.equal(valueTypes.contracts[0]!.fields[1]!.min, 1);
+    assert.equal(valueSchema.contracts["Snapshot"]!.fields["version"]!.valueMin, 1n);
+    assert.equal(valueSchema.contracts["shop.Customer"], undefined, "model identity is never a structural contract");
+    assert.ok(Object.isFrozen(native));
+    assert.ok(Object.isFrozen((native as readonly ContractValue[])[0]!.record));
+  });
+
+  it("retains closed field, model reference, bound and enum validation", () => {
+    const { valueSchema } = normalizeValueTypes(inventory(), ["shop.Customer"]);
+    const wire = { record: { id: "customer", version: "1" }, version: "1", note: "abc", when: null, status: "open" };
+    for (const changed of [
+      { ...wire, extra: "hidden" },
+      { ...wire, record: { ...wire.record, data: { note: "copied row" } } },
+      { ...wire, record: { id: "customer", version: 1 } },
+      { ...wire, version: "0" },
+      { ...wire, note: "abcd" },
+      { ...wire, status: "shipped" },
+    ]) assertSchemaError(() => validateValue(valueSchema, "Snapshot[]", [changed], "create"));
+    assert.throws(() => encodeValue("shop.Customer", makeRecordRef("Other", "customer", 1n)), ValueError);
+  });
+
+  it("requires a canonical same-load model name without changing no-context dangling refusal", () => {
+    const dangling = (fn: () => unknown) => assert.throws(fn,
+      (error: unknown) => error instanceof ValueTypesError && error.code === "dangling");
+    dangling(() => normalizeValueTypes(inventory()));
+    dangling(() => normalizeValueTypes(inventory(), ["Other"]));
+    for (const names of [["shop.Customer[]"], ["shop.Customer?"], ["int"], ["shop.Customer", "shop.Customer"], ["Snapshot"], ["OrderStatus"]]) {
+      assert.throws(() => normalizeValueTypes(inventory(), names), ValueTypesError);
+    }
+    assert.throws(() => normalizeValueTypes(inventory(), "shop.Customer" as never), ValueTypesError);
+  });
+
+  it("refuses lossy integer bound metadata", () => {
+    for (const min of [1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN]) {
+      const raw = inventory(); raw.contracts[0]!.fields[1]!.min = min;
+      assert.throws(() => normalizeValueTypes(raw, ["shop.Customer"]),
+        (error: unknown) => error instanceof ValueTypesError && error.code === "malformed");
+    }
+  });
+});
+
 function candidateInventory() {
   const choice = "Review.pick.choice";
   const candidate = "Review.pick.option";

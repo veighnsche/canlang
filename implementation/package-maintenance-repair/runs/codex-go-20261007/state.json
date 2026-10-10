@@ -4072,6 +4072,65 @@
       "limits": "Common type graph prerequisite only, no actual Dev feature/current-browser qualification, whole parent acceptance, relaxed import/cycle/type gate, ordinary-preview browser requirement or native/local/payload hold release.",
       "writer_released": true,
       "counts_unchanged": true
+    },
+    "task39_model_reference_value_types": {
+      "stage": "Finite Values model-reference inventory prerequisite implemented and tested; independent source review clear. Coordinator manual review/release and original Compiler/State/Dev consumer adoption remain unfinished.",
+      "source_base": "df394abbaa7ab60a79079e667e8d3889f9546e73",
+      "assignment": "Coordinator original Task39 Fact[] schema prerequisite; Compiler owns exact checked declaration/IR modifier inventory, Capability/Dev own canonical query slots and native result/authority correspondence.",
+      "api": "normalizeValueTypes(inventory, modelNames: readonly string[] = []) returns the existing frozen {valueTypes,valueSchema}. Explicit same-load canonical model names resolve nested nominal reference fields without structural model copies. No-context dangling refusal, canonical names, duplicate and model/value namespace collisions remain strict.",
+      "constraints": "CanonicalNominalLeaf shape is unchanged. The normalizer converts only safe integer scalar min/max metadata from checked JSON numbers to exact decimal wire strings for schema validation; copied valueTypes retain numeric bounds. Arrays retain length bounds. Lossy integer bounds refuse. Required original version:int min1 now reaches the actual exact codec.",
+      "original_declarations": {
+        "source_status": "Compiler supplied frozen ORIGINAL declaration facts through coordinator; full29file source cohort is not clean/native. Capability direct-query source edit will supersede Workbench bytes. SymbolIds remain cohort-local, never portable IDs.",
+        "workbench_sha256": "c25965b58d7347a4fbdcc645494cac4056117ca6096e15a64ff656ef204288ba",
+        "task_source_sha256": "b8e591a94e55526615515370d3113f991740f57549d47e7e0ecacf30b8e4f248",
+        "contract": "workbench.Fact",
+        "model": "todo.Task",
+        "result_type": "workbench.Fact[]",
+        "fields": [
+          {
+            "name": "task",
+            "type": "todo.Task"
+          },
+          {
+            "name": "version",
+            "type": "int",
+            "min": 1
+          },
+          {
+            "name": "title",
+            "type": "text",
+            "max": 2000
+          },
+          {
+            "name": "description",
+            "type": "text?",
+            "max": 8000
+          },
+          {
+            "name": "due",
+            "type": "datetime?"
+          },
+          {
+            "name": "priority",
+            "type": "todo.Task.priority"
+          },
+          {
+            "name": "done",
+            "type": "bool"
+          }
+        ],
+        "enum": {
+          "name": "todo.Task.priority",
+          "cases": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "producer_gap": "Compiler alone must retain actual checked ordinary IR Field.modifiers because TypeTable.value_constraints is absent for the original Fact fields. No inferred/default bounds or field-reuse paths are resolved by Values."
+      },
+      "verification": "Owning clean Values build exits0. Entire existing schema file114/114 passes, zero failures/skips,116.46ms including4new direct controls. Initial compile rejected a nonexistent test helper; changed assertion corrected before successful build/check. Existing leaf codec/model-ref results reused; independent finite source review clear, no extra checks or proof files.",
+      "limits": "Schema/codec only: genuine native RecordRef preserves model/id/optional bigint version; wire is closed id/optional decimal version. Sibling version equality, row existence, current projection/authority, exact ordered/empty query association and original source/lifetime provenance remain State/Dev owner checks. No original native Fact[]/Task39/Workbench/T11/Office/whole48 acceptance or preparation/publication/payload/security hold release."
     }
   },
   "live_finite_packets": [],
