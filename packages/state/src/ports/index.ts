@@ -26,6 +26,7 @@ export {
 export {
   createSystemRegistry,
   systemCommandStageRevision,
+  readSystemCommandRetainedOutbox,
   enrollSystemCommandCommitCheck,
   defineSystemCommand,
   outboxAckCommand,
