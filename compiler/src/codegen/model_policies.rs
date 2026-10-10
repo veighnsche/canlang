@@ -1,8 +1,10 @@
 //! Checked local model-policy descriptors for the defining State owner ABI.
 //! Unsupported declarations never acquire an empty dependency certificate.
-use crate::analysis::resolve::SymbolId;
+use crate::analysis::resolve::{CrudOp, SymbolId};
 use crate::codegen::ir::{IrItemKind, IrModelRuleKind, IrProgram, IrType, TypedExpr};
-use crate::codegen::model_policy_profile::{local_rule_fields, local_stored_field_type};
+use crate::codegen::model_policy_profile::{
+    local_hook_supported, local_rule_fields, local_stored_field_type,
+};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -58,6 +60,16 @@ pub(crate) struct PredicateBinding {
 pub(crate) struct LocalPolicies {
     pub descriptors: Vec<ModelPolicies>,
     pub bindings: Vec<PredicateBinding>,
+    pub hook_bindings: Vec<HookBinding>,
+}
+
+/// Link the descriptor to the original emitted hooks[operation].run function.
+#[derive(Debug, Clone)]
+pub(crate) struct HookBinding {
+    pub id: String,
+    pub model: SymbolId,
+    pub owner_package: String,
+    pub operation: String,
 }
 
 /// A missing result preserves activation refusal for the entire source unit.
@@ -66,15 +78,28 @@ pub(crate) fn collect_local_policies(
     ir: &IrProgram,
     emitted_module: &str,
 ) -> Option<LocalPolicies> {
-    if ir
-        .items
-        .iter()
-        .any(|item| matches!(item.kind, IrItemKind::Scenario { hook: Some(_), .. }))
-    {
-        return None;
+    let mut checked_hooks = Vec::new();
+    let mut operations = std::collections::HashSet::new();
+    for item in &ir.items {
+        let IrItemKind::Scenario {
+            hook: Some(hook), ..
+        } = &item.kind
+        else {
+            continue;
+        };
+        if !local_hook_supported(ir, item.id) {
+            return None;
+        }
+        let model = ir.items.get(hook.model.0 as usize)?;
+        let operation = format!("{}.{}", model.canonical, hook.op.as_str());
+        if !operations.insert(operation.clone()) {
+            return None;
+        }
+        checked_hooks.push((item, *hook, operation));
     }
     let mut descriptors = Vec::new();
     let mut bindings = Vec::new();
+    let mut hook_bindings = Vec::new();
     for model in &ir.items {
         let IrItemKind::Model {
             invariants, locks, ..
@@ -82,7 +107,11 @@ pub(crate) fn collect_local_policies(
         else {
             continue;
         };
-        if invariants.is_empty() && locks.is_empty() {
+        let model_hooks: Vec<_> = checked_hooks
+            .iter()
+            .filter(|(_, hook, _)| hook.model == model.id)
+            .collect();
+        if invariants.is_empty() && locks.is_empty() && model_hooks.is_empty() {
             continue;
         }
         let owner_package = ir.module(model.module).name.clone();
@@ -157,13 +186,32 @@ pub(crate) fn collect_local_policies(
             return None;
         }
         rules.sort_by_key(|(ordinal, _)| *ordinal);
+        let mut hooks = Vec::new();
+        for (item, hook, operation) in model_hooks {
+            hooks.push(ModelHook {
+                id: item.canonical.clone(),
+                op: match hook.op {
+                    CrudOp::Create => "create",
+                    CrudOp::Update => "update",
+                    CrudOp::Delete => "remove",
+                }
+                .to_string(),
+                operation: operation.clone(),
+            });
+            hook_bindings.push(HookBinding {
+                id: item.canonical.clone(),
+                model: model.id,
+                owner_package: owner_package.clone(),
+                operation: operation.clone(),
+            });
+        }
         descriptors.push(ModelPolicies {
             abi: "state.owner-model-policies@1",
             model: model.canonical.clone(),
             owner_package,
             module: emitted_module.to_string(),
             rules: rules.into_iter().map(|(_, rule)| rule).collect(),
-            hooks: Vec::new(),
+            hooks,
         });
     }
     if descriptors.is_empty() {
@@ -172,6 +220,7 @@ pub(crate) fn collect_local_policies(
         Some(LocalPolicies {
             descriptors,
             bindings,
+            hook_bindings,
         })
     }
 }

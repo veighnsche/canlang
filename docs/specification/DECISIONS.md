@@ -7777,3 +7777,29 @@ All exact holds are preserved; no unchanged Work/DO/native tests or publication.
 ### 2026-10-10 — manual local integration of 08fcff8d
 
 Finite retention/SQLite/ports and defining mechanics/test manual reviews CLEAR. Durable random physical identity, permanent first State/receiver pin and original complete retirement decision are preserved; original State lookup/physical policy-row snapshot precede awaits, then exact metadata, current horizons/clock/content/bytes and assignment are checked in one SQLite transaction. Original decision journal, terminal tombstone and byte deletion roll back together; reopened missing-byte retries require the exact original decision. Pinned legacy finalize/delete/overwrite/append/revival/attachment regressions refuse, public transaction provides no cleanup authority. Reuse owning115 affected Files cases695.76ms and final corrected7 retirement controls192.31ms with109 other unchanged results, final emissions/boundary0. Controlled issuers qualify physical mechanics only. Actual reviewed State032 source is now available: Packages must qualify genuine persisted State-to-Files/reopen; Dev owns one authoritative native State store/current owner/physical routing/contention/interruption/reopen; opaque source/current File authority/provider/original full apps and precise holds remain. Preserve all allocation tuples and reconcile current tree/history without advancing complete checkpoint or publishing. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — bind checked precommit hooks (unfinished native qualification)
+
+Emit nonempty State owner-hook claims only for the bounded checked own create/update
+profile: ordered scalar guards/lets/branches, candidate adjustments and same-module
+other-model staging. Preserve State omissions/defaults and readonly trigger ID/version.
+The exact synthetic event.after target is intentionally Unknown in checked IR;
+its owning hook and every supplied writable field establish the narrow association.
+Unknown values, metadata writes, foreign/same-trigger staging, delete, queries,
+opaque calls and unjoined effects acquire no claim. Original hooks[operation].run
+is reused by modelPolicyBindings; checked callbacks receive the native before/after
+views and owning context, with State-assigned after.version. Existing unsupported
+timer/transitive profiles retain their meaningful legacy engine assertions.
+
+Owning profile6/6, rule profile6/6, actual CLI/module projection4/4 (0.64s)
+and codegen121/121 (0.27s) pass;
+source syntax/IR mismatch and native stdlib fixture corrections supersede the
+intermediate failures. Strict all-target Clippy0 (44.21s), fmt/diff0. Native
+ordered execution, late-guard rollback, replay and server defaults follow exact
+reviewed adapter intake; no current whole or typed contextual source acceptance.
+Actor/now E6008, terminal E6008,58/67/nine and precise holds remain. Local only.
+
+### 2026-10-11 — manual local integration of 898833a1
+
+Finite classifier and descriptor/emitter source reviews CLEAR. Complete checked own create/update ordered guard/let/branch/candidate and same-module staged-create profiles only; unsupported delete/cohort/parameterized/foreign/metadata/result-dependent profiles withhold the entire certificate. Existing create/update/remove vocabulary maps to canonical operations; delete remains refused at profile scope. Module binding references the original hooks operation run and callable, uses exactly three arguments, flat native before/after and actual State after.version, original ordered candidate/stage/guard lowering. Reuse owning hook6/rule6/actual CLI-module4/codegen121 and strict all-target44.21s/fmt/diff0 at the frozen producer scope. Tests establish mapping, not callback execution. Dev must assess its changed unclaimed-hook premise and qualify supported native ordered staging/context/rollback; public terminal E6008, void/anchored/WorkflowField and precise consultation/publication holds remain. Genuine State-to-Files, native/provider/original application acceptance stay separate. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
