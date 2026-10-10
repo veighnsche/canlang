@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createSqliteFileStore } from '../src/host/sqlite.js';
+import { DatabaseSync } from 'node:sqlite';
+import { createSqliteFileStore, createSqliteFileBindings } from '../src/host/sqlite.js';
 import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
 import {
   appendUploadContent,
@@ -24,7 +25,7 @@ import {
   blobKeyForFile,
   storedState,
 } from '../src/finalize/index.js';
-import { describeForReceipt, runRetention } from '../src/retention/index.js';
+import { describeForReceipt, runRetention, runRetentionBatch } from '../src/retention/index.js';
 import { handleCreateIntent } from '../src/bridge.js';
 import {
   BINDING,
@@ -71,6 +72,198 @@ function durablePending(dir: string, phase: 'bytes' | 'row' | 'pointer', ttl = I
 }
 
 const DURABLE_POLICY = { unattachedHorizonMs: HORIZON_MS, retentionMs: RETENTION_MS };
+
+function sqliteRetentionHarness(store: ReturnType<typeof createSqliteFileStore>) {
+  const h = makeHarness();
+  return { ...h, intents: store.intents, files: store.files, blobs: store.blobs,
+    upload: { ...h.upload, intents: store.intents, blobs: store.blobs },
+    finalize: { ...h.finalize, intents: store.intents, files: store.files, blobs: store.blobs },
+    retention: { clock: h.clock, intents: store.intents, files: store.files, blobs: store.blobs },
+  };
+}
+
+describe('bounded retention with real SQLite pages', () => {
+  it('shares the row budget across ordered collections, resumes after reopen and restarts with fresh time', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-retention-pages-'));
+    const path = join(dir, 'metadata.sqlite');
+    let store = createSqliteFileStore(path);
+    const h = sqliteRetentionHarness(store);
+    try {
+      const refs = [finalizedRef(h), finalizedRef(h), finalizedRef(h)];
+      assert.equal(recordAttachment(h.finalize, refs[1]!, 'Expense_shared', RECEIVER).status, 'attached');
+      h.clock.advanceBy(HORIZON_MS + 1);
+      const created = handleCreateIntent(h.bridge, h.upload, {}, uploadRequest(), BINDING);
+      assert.equal(created.status, 'granted');
+      if (created.status !== 'granted') throw new Error('setup: intent refused');
+      const expectedIntents = store.intents.listAll().map(row => row.intentId).sort();
+      const visits: string[] = [];
+      let clockReads = 0;
+      const deps = () => ({ clock: { nowMs() { clockReads++; return h.clock.nowMs(); } }, blobs: store.blobs,
+        intents: { ...store.intents, listAll() { throw new Error('unbounded intent read'); },
+          listAfter(after: string | null, limit: number) { const rows = store.intents.listAfter(after, limit); visits.push(...rows.map(row => `intent:${row.intentId}`)); return rows; } },
+        files: { ...store.files, listAll() { throw new Error('unbounded file read'); },
+          listAfter(after: string | null, limit: number) { const rows = store.files.listAfter(after, limit); visits.push(...rows.map(row => `file:${row.file.id}`)); return rows; } },
+      });
+      let cursor: ReturnType<typeof runRetentionBatch>['next'] = null;
+      const orphaned: string[] = [];
+      const processed: number[] = [];
+      do {
+        const before = visits.length;
+        const report = runRetentionBatch(deps(), DURABLE_POLICY, { limit: 2, cursor });
+        assert.equal(report.processed, visits.length - before);
+        assert.ok(report.processed <= 2);
+        assert.equal(report.metadataReads, report.processed);
+        assert.deepEqual(report.expired, []);
+        assert.deepEqual(report.sweptIntents, []);
+        orphaned.push(...report.orphaned); processed.push(report.processed); cursor = report.next;
+        store.close(); store = createSqliteFileStore(path);
+      } while (cursor !== null);
+      assert.deepEqual(processed, [2, 2, 2, 1]);
+      assert.equal(clockReads, 4);
+      assert.deepEqual(visits, [...expectedIntents.map(id => `intent:${id}`), ...refs.slice().sort().map(id => `file:${id}`)]);
+      assert.deepEqual(orphaned.sort(), [refs[0], refs[2]].sort());
+      assert.equal(store.intents.get(created.intentId)?.state, 'open');
+      assert.equal(store.files.get(refs[1]!)?.state, 'attached');
+      assert.equal(store.files.get(refs[1]!)?.attachedRecord, 'Expense_shared');
+      assert.deepEqual(store.blobs.read(blobKeyForFile(refs[1]!)), PDF_BYTES);
+      const original = store.intents.get(created.intentId)!;
+      store.intents.put({ ...original, intentId: '000-earlier', retryId: 'earlier-retry' });
+      h.clock.advanceBy(RETENTION_MS);
+      const restarted = runRetentionBatch(deps(), DURABLE_POLICY, { limit: 1000, cursor: null });
+      assert.equal(restarted.next, null);
+      assert.equal(restarted.processed, 8);
+      assert.deepEqual(restarted.sweptIntents.sort(), ['000-earlier', created.intentId].sort());
+      assert.deepEqual(restarted.expired.sort(), refs.slice().sort());
+      assert.equal(clockReads, 5);
+    } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('does not decode an untouched malformed tail or look ahead past an exact full page', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-retention-tail-'));
+    const path = join(dir, 'metadata.sqlite');
+    const store = createSqliteFileStore(path);
+    const h = sqliteRetentionHarness(store);
+    try {
+      const created = handleCreateIntent(h.bridge, h.upload, {}, uploadRequest(), BINDING);
+      assert.equal(created.status, 'granted');
+      if (created.status !== 'granted') throw new Error('setup: intent refused');
+      const db = new DatabaseSync(path);
+      try { db.prepare('INSERT INTO files_upload_intents (id, retry_id, json) VALUES (?, ?, ?)').run('zzzz-tail', 'tail-retry', '{'); }
+      finally { db.close(); }
+      const first = runRetentionBatch(h.retention, DURABLE_POLICY, { limit: 1 });
+      assert.equal(first.processed, 1);
+      assert.deepEqual(first.next, { phase: 'intents', after: created.intentId });
+      assert.equal(store.intents.get(created.intentId)?.state, 'open');
+      assert.throws(() => runRetentionBatch(h.retention, DURABLE_POLICY, { limit: 1, cursor: first.next }), SyntaxError);
+    } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('rolls back interrupted SQLite cleanup and retries the same cursor after reopen', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-retention-rollback-'));
+    const path = join(dir, 'metadata.sqlite');
+    let store = createSqliteFileStore(path);
+    const h = sqliteRetentionHarness(store);
+    try {
+      const ref = finalizedRef(h);
+      assert.equal(recordAttachment(h.finalize, ref, 'Expense_saved', RECEIVER).status, 'attached');
+      const original = store.files.get(ref);
+      h.clock.advanceBy(RETENTION_MS);
+      const cursor = { phase: 'files' as const, after: null };
+      const fault = new Error('SQLite cleanup interrupted');
+      const broken = { ...store, blobs: { ...store.blobs, remove(key: string) {
+        assert.equal(store.files.get(ref)?.state, 'expired');
+        store.blobs.remove(key); throw fault;
+      } } };
+      const options = { clock: h.clock, intentTtlMs: INTENT_TTL_MS, urlBase: 'https://app.example.test' };
+      assert.throws(() => createSqliteFileBindings(broken, options).runRetentionBatch(DURABLE_POLICY, { limit: 1, cursor }), error => error === fault);
+      store.close(); store = createSqliteFileStore(path);
+      assert.deepEqual(store.files.get(ref), original);
+      assert.deepEqual(store.blobs.read(blobKeyForFile(ref)), PDF_BYTES);
+      const bindings = createSqliteFileBindings(store, options);
+      const retried = bindings.runRetentionBatch(DURABLE_POLICY, { limit: 1, cursor });
+      assert.deepEqual(retried.expired, [ref]);
+      assert.equal(retried.processed, 1);
+      assert.deepEqual(retried.next, { phase: 'files', after: ref });
+      assert.equal(store.files.get(ref)?.state, 'expired');
+      assert.equal(store.files.get(ref)?.attachedRecord, 'Expense_saved');
+      assert.deepEqual(store.files.get(ref)?.file, original?.file);
+      assert.equal(store.blobs.read(blobKeyForFile(ref)), null);
+      assert.equal(bindings.runRetentionBatch(DURABLE_POLICY, { limit: 1, cursor: retried.next }).next, null);
+    } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('retries separate FS cleanup from the old cursor without repeating a terminal transition', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-retention-page-fs-'));
+    const h = durablePending(dir, 'bytes');
+    try {
+      h.clock.advanceBy(INTENT_TTL_MS + 1);
+      const deps = h.retention();
+      const fault = new Error('FS batch cleanup interrupted');
+      assert.throws(() => runRetentionBatch({ ...deps, blobs: { ...deps.blobs,
+        read: deps.blobs.read.bind(deps.blobs), sizeOf: deps.blobs.sizeOf.bind(deps.blobs),
+        write: deps.blobs.write.bind(deps.blobs), append: deps.blobs.append.bind(deps.blobs),
+        remove(key: string) { assert.equal(deps.intents.get(h.input.intentId)?.state, 'expired'); deps.blobs.remove(key); throw fault; },
+      } }, DURABLE_POLICY, { limit: 1 }), error => error === fault);
+      h.reopen();
+      const retried = runRetentionBatch(h.retention(), DURABLE_POLICY, { limit: 1 });
+      assert.equal(retried.processed, 1);
+      assert.deepEqual(retried.sweptIntents, []);
+      assert.equal(h.retention().blobs.read(stagingKeyForIntent(h.input.intentId)), null);
+      assert.equal(h.retention().blobs.read(blobKeyForFile(h.ref)), null);
+      assert.equal(h.retention().intents.get(h.input.intentId)?.state, 'expired');
+      assert.equal(h.retention().files.get(h.ref), null);
+    } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('bounds and reports the auxiliary metadata lookup that protects a published pending file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-retention-page-published-'));
+    const h = durablePending(dir, 'row');
+    try {
+      h.clock.advanceBy(INTENT_TTL_MS + 1);
+      const deps = h.retention();
+      const original = deps.files.get(h.ref);
+      let pageRows = 0;
+      let lookups = 0;
+      const report = runRetentionBatch({ ...deps,
+        intents: { ...deps.intents, listAfter(after, limit) {
+          const rows = deps.intents.listAfter(after, limit); pageRows += rows.length; return rows;
+        } },
+        files: { ...deps.files, get(ref) { lookups++; return deps.files.get(ref); },
+          listAfter() { throw new Error('file page read past the combined traversal budget'); } },
+      }, DURABLE_POLICY, { limit: 1 });
+      assert.equal(report.processed, 1);
+      assert.equal(pageRows, 1);
+      assert.equal(lookups, 1);
+      assert.equal(report.metadataReads, pageRows + lookups);
+      assert.equal(report.metadataReads, 2);
+      assert.deepEqual(report.sweptIntents, [h.input.intentId]);
+      assert.deepEqual(report.next, { phase: 'intents', after: h.input.intentId });
+      assert.equal(deps.intents.get(h.input.intentId)?.state, 'expired');
+      assert.deepEqual(deps.files.get(h.ref), original);
+      assert.deepEqual(deps.blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+      assert.equal(deps.blobs.read(stagingKeyForIntent(h.input.intentId)), null);
+    } finally { h.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('refuses invalid limits and cursors before paged or legacy collection reads', () => {
+    const h = makeHarness();
+    let reads = 0;
+    const refuse = () => { reads++; throw new Error('storage read before validation'); };
+    const deps = { ...h.retention,
+      intents: { get: h.intents.get.bind(h.intents), getByRetryId: h.intents.getByRetryId.bind(h.intents),
+        put: h.intents.put.bind(h.intents), listAll: refuse, listAfter: refuse },
+      files: { get: h.files.get.bind(h.files), put: h.files.put.bind(h.files), listAll: refuse, listAfter: refuse } };
+    type Options = Parameters<typeof runRetentionBatch>[2];
+    for (const limit of [0, -1, 1.5, NaN, Infinity, 1001]) {
+      assert.throws(() => runRetentionBatch(deps, DURABLE_POLICY, { limit }));
+    }
+    for (const cursor of [{ phase: 'other', after: null }, { phase: 'files' },
+      { phase: 'intents', after: 3 }, 'files', []]) {
+      assert.throws(() => runRetentionBatch(deps, DURABLE_POLICY, { limit: 1, cursor } as unknown as Options));
+    }
+    assert.equal(reads, 0);
+  });
+});
 
 describe('real SQLite metadata and FS publication retention', () => {
   for (const interrupted of [false, true]) {
