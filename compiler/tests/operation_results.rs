@@ -322,6 +322,31 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
             assert_eq!(input["valueType"], ty, "{operation_name}: {input}");
         }
     }
+    // Contextual stored codecs do not widen the legacy public input profile.
+    for (name, ty) in [
+        ("address", "email"),
+        ("addresses", "email[]"),
+        ("zone", "timezone"),
+    ] {
+        let field = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
+        assert_eq!(field["valueType"], ty, "{field}");
+        assert_eq!(field.get("array").is_some(), ty.contains("[]"));
+        for operation_name in ["Client.Item.create", "Client.Item.update"] {
+            assert!(
+                operation(&artifact, operation_name)["inputs"]["fields"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|input| input["name"] != name),
+                "{operation_name}: {name} remains outside public input admission"
+            );
+        }
+    }
     for field in model["fields"].as_array().unwrap().iter().filter(|field| {
         ![
             "title",
@@ -332,6 +357,9 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
             "optionalDay",
             "days",
             "maybeDays",
+            "address",
+            "addresses",
+            "zone",
         ]
         .iter()
         .any(|name| field["name"] == *name)
