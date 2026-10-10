@@ -7381,3 +7381,24 @@ Original58/67/nine references and precise BDD3/S9-Q07/Task22 holds remain.
 ### 2026-10-10 — manual local integration of 6870dcef
 
 Finite independent and manual review CLEAR for checked lexical input/request/caller producer tied to exact owner/node/module/operation/selectors, dense source IR channels and BDD malformed E6008 refusal. Actual stored-model fixture request observations admitted; unbound wire/scalar/row-only E5002 retained. Reuse150 owning codegen/B4 passing outcomes. Exact integrated Testkitecc and Dev94 are consumer prerequisites; actual generated CLI-to-installed-Testkit/native witness, joined all52 and current whole/strict lint remain unfinished. The source-only complete original25 tuple35 has no artifact and is not native/full-plan acceptance. Preserve all source witnesses, existing opaque/ingress refusals and precise BDD3/S9Q07/other human holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
