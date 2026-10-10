@@ -130,21 +130,32 @@ it("joins only actual current first-profile runtime and example outcomes through
   let qualifications=0, providerCalls=0;
   const observed:SessionConstructQualification[]=[];
   const qualificationFailures:unknown[]=[];
-  const owner=await startDevSessionService({selectedApp:"T",runtimeDir,
+  let owner:Awaited<ReturnType<typeof startDevSessionService>>|undefined;
+  try {
+    owner=await startDevSessionService({selectedApp:"T",runtimeDir,
     capture:prepareLocalPreviewCapture({checkoutRoot:project,appPath,
       compilerPath:join(project,"compiler/target/debug/can"),catalogPath:join(project,"packages/values/dist/catalog.json"),
       helpIndexPath:join(project,"docs/specification/CONSTRUCT-HELP.md")}),
     constructRanking:{qualify:async(request,signal)=>{qualifications++;try{const bundle=await qualify(request,signal);if(bundle)observed.push(bundle);return bundle;}catch(error){qualificationFailures.push(error);throw error;}},
       transport:{choose:async()=>{providerCalls++;throw new Error("no live ranking branch was qualified");}}}});
-  try {
     const client=await attachDevSessionService({checkoutRoot:project,app:"T",profile:"local-d1-identity",runtimeDir});
     const checked=await client.request({command:"check"}) as SessionCheckResponse;
     expect(checked.state).toBe("errors");expect(checked.current).toBe(true);
-    const detail=await client.request({command:"diagnostic.detail",payload:{revision:checked.revision,index:0}}) as {
-      construct_help:{candidateCoverage:string;grammarCoverage:string;classification:{id:string;profile:string;working:string}[]};
+    type Detail={construct_help:{candidateCoverage:string;grammarCoverage:string;classification:{id:string;profile:string;working:string}[]};
       diagnostic:{construct_candidates:CompilerConstructCandidates}};
-    // Production keeps failed qualification unknown; this positive integration
-    // case must report its original producer/runtime failure before card checks.
+    const readDetail=async()=>await client.request({command:"diagnostic.detail",payload:{revision:checked.revision,index:0}}) as Detail;
+    let detail=await readDetail();
+    expect(detail.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.read",profile:"included",working:"unqualified"});
+    // The daemon owns the real complete qualification job. Each bounded
+    // socket request remains useful while pending; consume only its completed
+    // same-revision result, preserving every whole-source proof assertion below.
+    const deadline=Date.now()+150_000;
+    while(!detail.construct_help.classification.some(item=>item.id==="can.v1.when.scenario.read" && item.working==="qualified")) {
+      if(qualificationFailures.length)throw qualificationFailures[0];
+      if(Date.now()>=deadline)throw new Error("whole first-profile qualification did not complete within its finite integration deadline");
+      await new Promise(resolve=>setTimeout(resolve,1000));
+      detail=await readDetail();
+    }
     if(qualificationFailures.length)throw qualificationFailures[0];
     expect(detail.construct_help.grammarCoverage).toBe("complete");
     expect(detail.construct_help.candidateCoverage).toBe("unknown");
@@ -153,8 +164,9 @@ it("joins only actual current first-profile runtime and example outcomes through
     expect(detail.diagnostic.construct_candidates.context).toMatchObject({materialIntentChoice:true,evidenceSufficient:false});
     expect(await client.request({command:"construct.rank",payload:{revision:checked.revision,index:0}}))
       .toMatchObject({result:{state:"candidate_coverage_unknown"}});
-    expect(providerCalls).toBe(0);expect(qualifications).toBe(2);
-    expect(observed[1]).toBe(observed[0]);
+    const repeated=await readDetail();
+    expect(repeated.construct_help).toEqual(detail.construct_help);
+    expect(providerCalls).toBe(0);expect(qualifications).toBe(1);expect(observed).toHaveLength(1);
     const actual=observed[0]!;
     expect(Object.isFrozen(actual)).toBe(true);expect(actual.messageKinds).toEqual([]);
     const proofs=new Map(actual.proofs.map(proof=>[proof.id,proof]));
@@ -172,5 +184,5 @@ it("joins only actual current first-profile runtime and example outcomes through
       "can.v1.then.edit","can.v1.then.delete","can.v1.ui.tabs-selector","can.v1.type.enum"])
       expect(proofs.get(id)!.runtimeCheck).toContain("Chromium");
     expect(await client.request({command:"preview.status"})).toMatchObject({state:"unavailable"});
-  } finally {await owner.stop();await rm(appRoot,{recursive:true,force:true});await rm(runtimeDir,{recursive:true,force:true});}
+  } finally {await owner?.stop();await rm(appRoot,{recursive:true,force:true});await rm(runtimeDir,{recursive:true,force:true});}
 }, 180_000);
