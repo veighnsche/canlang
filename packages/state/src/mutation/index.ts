@@ -39,6 +39,7 @@ export {
   crudDefs,
   crudExecute,
   generatedCrudExecuteOwnerSession,
+  stageGeneratedCrudOwnerCall,
   type CrudDefs,
   type CrudDefsOptions,
   type CrudExecuteInput,
