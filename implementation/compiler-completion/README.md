@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Current whole1381 qualifies exact96fa source with required real engines/native/permission bodies and zero skips; strict all-target lint/format pass. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Last whole1381 qualifies exact96fa source with required real engines/native/permission bodies and zero skips; the changed bounded-loop unit has focused qualification and awaits its whole run. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2567,3 +2567,24 @@ formatting pass. The three failures at07996dbf are corrected and their original
 meaningful controls remain. Coordinator manual review integrates those compiler
 units at LOCALd0828a56. This qualifies the current compiler scope; original
 58/67, broader owner joins and precise BDD3/Task22 human holds remain open.
+
+
+**Bounded admitted reference-array loop (unfinished final native qualification),
+2026-10-10.** Exact reviewed LOCAL5fa/Dev2a source and private indexed input
+lifetime are consumed at23d9, preserving both histories; actual graph22/22
+builds uncached. The real step(Item[]) limit3 unconditional current-item Set
+now retains checked For/parameter/model/domain/literal/item/ordered-body facts
+and empty/nonempty private return paths. Existing native row markers repeat at
+the actual current stage; domain fetch/order/duplicates and pre-body bound check
+are unchanged. Repeated observations/executions retain200 limits. Library157,
+codegen121 and final native4/disclosure19 pass, total301; finite source review
+clear. Actual public native Memory A/B/A captures0/0/1, versions1/1/2, final
+A2/B1 atversion2, one commit and no-effect replay. Empty/omitted, genuine
+nonmember/stale/malformed/overlimit refusals, nine IRskews and source budget/general
+profile controls pass. Initial new test setups reused a different catalog owner
+and incorrectly assumed cross-team isolation from policy=members; use the exact
+cohort and actual same-team nonmember control, preserving production gates.
+Strict all-target Clippy/format pass; current-source whole follows the coherent
+unit. Dev alone qualifies
+its changed D1 consumer. General query/computed/nullable/nested/conditional loops,
+original Workbench, broader references and precise human holds remain open.

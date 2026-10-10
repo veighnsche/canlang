@@ -5746,3 +5746,18 @@ Use the actual loaded State descriptor and its admitted `parameter/index` slots 
 The actual component4/4 and captured native D1 consumer1/1 pass at their scopes. Genuine qualified scalar replay with ref-array inputs succeeds through the private native frame; original array-loop mutation replay correctly refuses its absent Compiler association with all effects unchanged. Fresh compiled stages preserve the three original slots, A+2/B+1, history and one commit; malformed/current-access refusals retain table and Identity assertions. Use storage's actual normalized baseline and omit only D1's prohibited private metadata table from snapshots. Literal array defaults/nullable omission are not claimed.
 
 Keep static child reference-array and frozen-invocation source calls gated until Compiler releases their real source/call producer. Direct root reference-array input emission is available; observed array computations and native model-array return retention still lack a complete capture producer. These are distinct from the existing field/view input consumer and cannot be qualified by a handbuilt component or narrow browser success. The original preclaim dispatch/checkpoint, native query facade and G2/G3 prerequisites remain open.
+
+
+### 2026-10-10 — capture a bounded admitted reference-array loop (unfinished native qualification)
+
+Use the existing source-derived dependency/return transport for the exact direct
+admitted model-array, positive literal-bound and unconditional current-item Set
+profile. Preserve order and repetitions; record private empty/nonempty selection
+after the existing once-only fetch and pre-body bound check, and observe the
+actual current stage at each original field read. Join exact For/parameter/model/
+domain/limit/item/ordered-body source facts before native emission. Bound actual
+repeated observations and executions at200, decline unsupported per-element
+choices/query/helper/version/nested/computed profiles, and retain prior controls.
+No public array/index authority carrier is needed for this finite source. Owning
+301 checks and actual native Memory pass; current-source whole and Dev owning D1
+qualification remain before final acceptance. Broader loop workflows stay open.

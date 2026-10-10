@@ -125,6 +125,15 @@ pub struct DisclosureEffect {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisclosureEffectKind {
+    For {
+        domain: NodeKey,
+        limit: NodeKey,
+        maximum: u16,
+        item: String,
+        parameter: SymbolId,
+        model: SymbolId,
+        body: Vec<NodeKey>,
+    },
     Call {
         operation: SymbolId,
         input_keys: Vec<String>,
@@ -296,6 +305,7 @@ pub fn analyze_scenario_disclosure(
         authorization: false,
         effect_proofs: Vec::new(),
         effect_visits: 0,
+        loop_node: None,
         complete_children: HashSet::new(),
     };
     let mut out = HashMap::new();
@@ -317,6 +327,7 @@ pub fn analyze_scenario_disclosure(
             cx.steps = 0;
             cx.stack.clear();
             cx.effect_proofs.clear();
+            cx.loop_node = None;
             cx.effect_visits = 0;
             let result = (|| {
                 if scenario.on.is_some() {
@@ -562,6 +573,7 @@ fn checked_source_type(ty: &ResolvedType) -> bool {
 enum Local {
     Symbol(SymbolId),
     Let(NodeKey),
+    For(NodeKey),
     Send(NodeKey),
 }
 type Env = HashMap<Local, ValuePath>;
@@ -614,6 +626,7 @@ struct Flow {
     writes: ValuePath,
     effect_guards: ValuePath,
     executed_effect: bool,
+    repeated_observations: usize,
     evaluated: Vec<DisclosureDecision>,
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
 }
@@ -632,6 +645,7 @@ struct Closure<'a> {
     authorization: bool,
     effect_proofs: Vec<DisclosureEffect>,
     effect_visits: usize,
+    loop_node: Option<NodeKey>,
 }
 
 impl<'a> Closure<'a> {
@@ -1389,6 +1403,11 @@ impl<'a> Closure<'a> {
                             .ok_or_else(|| self.fail(key, "unaccounted symbol value"))?;
                         Ok(vec![self.input_value(key, module, calls, value)?])
                     }
+                    Some(Binding::ForItem { node }) => env
+                        .get(&Local::For(*node))
+                        .cloned()
+                        .map(|value| vec![value])
+                        .ok_or_else(|| self.fail(key, "unaccounted loop item")),
                     Some(Binding::Let { node }) => env
                         .get(&Local::Let(*node))
                         .cloned()
@@ -2126,6 +2145,7 @@ impl<'a> Closure<'a> {
         let local = match self.resolve.node_binding.get(&key) {
             Some(Binding::Symbol(id)) => Local::Symbol(*id),
             Some(Binding::Let { node }) => Local::Let(*node),
+            Some(Binding::ForItem { node }) => Local::For(*node),
             Some(Binding::SendAs { node }) => Local::Send(*node),
             None if self.types.resolved_cases.contains(&key) => {
                 return Ok(vec![ValuePath::default()]);
@@ -2832,7 +2852,13 @@ impl<'a> Closure<'a> {
                 .position(|entry| entry.0 == intrinsic.node && entry.1 == intrinsic.calls)
                 .unwrap_or(usize::MAX)
         });
-        if merged.reads.len() + merged.intrinsics.len() > 200 {
+        if merged
+            .reads
+            .len()
+            .saturating_add(merged.intrinsics.len())
+            .saturating_add(flow.repeated_observations)
+            > 200
+        {
             return Err(self.fail(node, "return dependency bound"));
         }
         let mut decisions = flow.evaluated;
@@ -2851,6 +2877,278 @@ impl<'a> Closure<'a> {
             intrinsics: merged.intrinsics,
             influences: Vec::new(),
         })
+    }
+
+    /// One bounded, straight-line loop over the actual admitted reference
+    /// array. This is source closure, not an array/query authority claim.
+    fn bounded_input_loop(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        flow: Flow,
+        calls: &[NodeKey],
+    ) -> Result<Vec<Flow>, DisclosureDecline> {
+        if !calls.is_empty()
+            || self.loop_node.is_some_and(|node| node != effect.node)
+            || !effect.else_effects.is_empty()
+            || !effect.match_arms.is_empty()
+            || effect.then_effects.is_empty()
+            || effect.then_effects.len() > 200
+            || effect.then_effects.iter().any(|child| {
+                child.verb != EffectVerb::Set
+                    || !child.then_effects.is_empty()
+                    || !child.else_effects.is_empty()
+                    || !child.match_arms.is_empty()
+            })
+        {
+            return Err(self.fail(effect.node, "unsupported bounded loop body"));
+        }
+        let mut domain = effect
+            .domain
+            .ok_or_else(|| self.fail(effect.node, "missing loop domain"))?;
+        for _ in 0..65 {
+            let node = self
+                .nodes
+                .get(&domain)
+                .ok_or_else(|| self.fail(domain, "missing loop domain anchor"))?;
+            if node.kind != SyntaxKind::Group {
+                break;
+            }
+            let children: Vec<_> = node
+                .children
+                .iter()
+                .filter(|child| expression(child.kind))
+                .collect();
+            if children.len() != 1 {
+                return Err(self.fail(domain, "unsupported grouped loop domain"));
+            }
+            domain = NodeKey::of(children[0]);
+        }
+        let node = self
+            .nodes
+            .get(&domain)
+            .ok_or_else(|| self.fail(domain, "missing loop domain"))?;
+        if node.kind != SyntaxKind::NameRef {
+            return Err(self.fail(domain, "loop needs direct admitted array input"));
+        }
+        let binding = self.resolve.node_binding.get(&domain).or_else(|| {
+            node.children
+                .iter()
+                .find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child)))
+        });
+        let Some(Binding::Symbol(parameter)) = binding else {
+            return Err(self.fail(domain, "unestablished loop input"));
+        };
+        let parameter = *parameter;
+        let declared = self
+            .resolve
+            .symbols
+            .get(parameter.0 as usize)
+            .ok_or_else(|| self.fail(domain, "missing loop parameter"))?;
+        let SymbolKind::Param { owner, .. } = declared.kind else {
+            return Err(self.fail(domain, "loop domain is not a parameter"));
+        };
+        let scenario = self
+            .effects
+            .scenarios
+            .get(&owner)
+            .ok_or_else(|| self.fail(domain, "loop domain is not a scenario input"))?;
+        if declared.module != module
+            || !flow.env.contains_key(&Local::Symbol(parameter))
+            || scenario
+                .params
+                .iter()
+                .find(|param| param.param == parameter)
+                .is_none_or(|param| param.default.is_some())
+        {
+            return Err(self.fail(domain, "loop needs original admitted array input"));
+        }
+        let Some(ResolvedType::Array { element, .. }) = self.types.symbol_types.get(&parameter)
+        else {
+            return Err(self.fail(domain, "loop needs nonnullable stored-reference array"));
+        };
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return Err(self.fail(domain, "loop needs stored-reference elements"));
+        };
+        let model = *model;
+        if self.types.node_types.get(&domain) != self.types.symbol_types.get(&parameter)
+            || !matches!(self.resolve.symbols.get(model.0 as usize), Some(symbol) if symbol.module == module && matches!(symbol.kind, SymbolKind::Model {..}))
+        {
+            return Err(self.fail(domain, "loop stored model correspondence"));
+        }
+        let limit = effect
+            .limit
+            .ok_or_else(|| self.fail(effect.node, "loop needs literal finite limit"))?;
+        let limit_node = self
+            .nodes
+            .get(&limit)
+            .ok_or_else(|| self.fail(limit, "missing loop limit"))?;
+        let maximum = self
+            .db
+            .get(limit.file)
+            .and_then(|file| file.text.get(limit.start as usize..limit.end as usize))
+            .and_then(|text| text.trim().parse::<u16>().ok());
+        let Some(maximum) = maximum.filter(|maximum| (1..=200).contains(maximum)) else {
+            return Err(self.fail(limit, "loop limit exceeds observation bound"));
+        };
+        if limit_node.kind != SyntaxKind::Literal
+            || self.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return Err(self.fail(limit, "loop needs typed literal limit"));
+        }
+        if usize::from(maximum).saturating_mul(effect.then_effects.len()) > 200 {
+            return Err(self.fail(effect.node, "loop Set execution bound"));
+        }
+        let item = effect
+            .item
+            .clone()
+            .ok_or_else(|| self.fail(effect.node, "missing loop item binding"))?;
+        self.loop_node = Some(effect.node);
+        let mut env = flow.env.clone();
+        env.insert(
+            Local::For(effect.node),
+            ValuePath {
+                record: Some(model),
+                ..ValuePath::default()
+            },
+        );
+        let mut body = ValuePath::default();
+        for child in &effect.then_effects {
+            let node = self
+                .nodes
+                .get(&child.node)
+                .ok_or_else(|| self.fail(child.node, "missing loop Set"))?;
+            let receiver = node
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Path)
+                .ok_or_else(|| self.fail(child.node, "missing loop Set receiver"))?;
+            let receiver_binding = self
+                .resolve
+                .node_binding
+                .get(&NodeKey::of(receiver))
+                .or_else(|| {
+                    receiver
+                        .children
+                        .iter()
+                        .find_map(|node| self.resolve.node_binding.get(&NodeKey::of(node)))
+                });
+            if !matches!(receiver_binding, Some(Binding::ForItem {node}) if *node == effect.node) {
+                return Err(self.fail(child.node, "loop Set must target its exact item"));
+            }
+            let mut pending = vec![*node];
+            let mut visits = 0usize;
+            while let Some(part) = pending.pop() {
+                visits += 1;
+                if visits > 4096 || matches!(part.kind, SyntaxKind::Call | SyntaxKind::Query) {
+                    return Err(self.fail(child.node, "unsupported per-element expression"));
+                }
+                if part.kind == SyntaxKind::Member {
+                    let mut base = part
+                        .children
+                        .iter()
+                        .find(|child| expression(child.kind))
+                        .ok_or_else(|| self.fail(child.node, "missing loop field receiver"))?;
+                    for _ in 0..65 {
+                        if base.kind != SyntaxKind::Group {
+                            break;
+                        }
+                        base = base
+                            .children
+                            .iter()
+                            .find(|child| expression(child.kind))
+                            .ok_or_else(|| {
+                                self.fail(child.node, "missing grouped loop receiver")
+                            })?;
+                    }
+                    let binding = self
+                        .resolve
+                        .node_binding
+                        .get(&NodeKey::of(base))
+                        .or_else(|| {
+                            base.children.iter().find_map(|child| {
+                                self.resolve.node_binding.get(&NodeKey::of(child))
+                            })
+                        });
+                    if base.kind != SyntaxKind::NameRef
+                        || !matches!(binding, Some(Binding::ForItem {node}) if *node == effect.node)
+                    {
+                        return Err(self.fail(child.node, "loop field must read its exact item"));
+                    }
+                }
+                pending.extend(part.children.iter());
+            }
+            let mut alternatives = self.set(child, module, &env, calls)?;
+            if alternatives.len() != 1 {
+                return Err(self.fail(child.node, "per-element loop alternatives unsupported"));
+            }
+            let value = alternatives
+                .pop()
+                .ok_or_else(|| self.fail(child.node, "missing loop body alternative"))?;
+            if !value.decisions.is_empty() || !value.intrinsics.is_empty() {
+                return Err(self.fail(
+                    child.node,
+                    "per-element loop decisions or intrinsics unsupported",
+                ));
+            }
+            body.join(&value);
+        }
+        let repeated = (usize::from(maximum) - 1).saturating_mul(body.reads.len());
+        if body.reads.len().saturating_add(repeated) > 200 {
+            return Err(self.fail(effect.node, "loop observation bound"));
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::For {
+                domain,
+                limit,
+                maximum,
+                item,
+                parameter,
+                model,
+                body: effect.then_effects.iter().map(|child| child.node).collect(),
+            },
+        )?;
+        let mut empty = flow.clone();
+        empty.writes.join(&empty.controls);
+        empty.evaluated.push(DisclosureDecision {
+            node: effect.node,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Else,
+        });
+        let mut populated = flow;
+        populated.evaluated.push(DisclosureDecision {
+            node: effect.node,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Then,
+        });
+        populated.executed_effect = true;
+        populated.writes.join(&populated.controls);
+        populated.writes.join(&populated.effect_guards);
+        populated.writes.join(&body);
+        populated.repeated_observations = populated.repeated_observations.saturating_add(repeated);
+        for read in body.observed {
+            if !populated.observed.contains(&read) {
+                populated.observed.push(read);
+            }
+        }
+        if populated
+            .writes
+            .reads
+            .len()
+            .saturating_add(populated.writes.intrinsics.len())
+            .saturating_add(populated.repeated_observations)
+            > 200
+        {
+            return Err(self.fail(effect.node, "loop total observation bound"));
+        }
+        self.effect_visits += 1;
+        Ok(vec![empty, populated])
     }
 
     fn statements(
@@ -3157,12 +3455,7 @@ impl<'a> Closure<'a> {
                         }
                     }
                     EffectVerb::For => {
-                        return Err(self.influence(
-                            effect.node,
-                            module,
-                            &[InfluenceKind::QueryMembership, InfluenceKind::QueryOrder],
-                            "loop closure",
-                        ));
+                        next.extend(self.bounded_input_loop(effect, module, flow, calls)?);
                     }
                     _ => return Err(self.fail(effect.node, "mutation or external effect closure")),
                 }
@@ -3876,5 +4169,146 @@ mod tests {
             panic!("depth limit must decline additive facts")
         };
         assert_eq!(reason.reason, "expression closure depth bound");
+    }
+
+    #[test]
+    fn finite_reference_loop_has_exact_empty_and_populated_write_paths() {
+        let source = "app Bounds\nGiven\n Item {value:int=0}\n policy Item read=members\nWhen\n scenario probe(items:Item[]) by=members\n  do\n   for item in (items) limit=3\n    set item {value=item.value+1}\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("finite original reference array loop must qualify")
+        };
+        assert_eq!(plan.returns.len(), 2);
+        let empty = plan
+            .returns
+            .iter()
+            .find(|path| {
+                path.decisions
+                    .iter()
+                    .any(|decision| decision.choice == DisclosureChoice::Else)
+            })
+            .unwrap();
+        let populated = plan
+            .returns
+            .iter()
+            .find(|path| {
+                path.decisions
+                    .iter()
+                    .any(|decision| decision.choice == DisclosureChoice::Then)
+            })
+            .unwrap();
+        assert!(empty.dependencies.is_empty());
+        assert!(empty.intrinsics.is_empty());
+        assert_eq!(populated.dependencies.len(), 1);
+        let read = &populated.dependencies[0];
+        assert_eq!(
+            (
+                read.model_name.as_str(),
+                read.field_name.as_str(),
+                read.type_id.as_str()
+            ),
+            ("Bounds.Item", "value", "int")
+        );
+        assert_eq!(read.role, DependencyRole::Data);
+        assert!(read.calls.is_empty());
+        assert_eq!(
+            source[read.node.start as usize..read.node.end as usize].trim(),
+            "item.value"
+        );
+        let proof = plan
+            .effects
+            .iter()
+            .find_map(|proof| match &proof.kind {
+                DisclosureEffectKind::For {
+                    domain,
+                    limit,
+                    maximum,
+                    item,
+                    parameter,
+                    model,
+                    body,
+                } => Some((domain, limit, maximum, item, parameter, model, body)),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(
+            source[proof.0.start as usize..proof.0.end as usize].trim(),
+            "items"
+        );
+        assert_eq!(
+            source[proof.1.start as usize..proof.1.end as usize].trim(),
+            "3"
+        );
+        assert_eq!(*proof.2, 3);
+        assert_eq!(proof.3, "item");
+        assert_eq!(*proof.5, read.model);
+        assert_eq!(proof.6.len(), 1);
+        assert_eq!(
+            plan.effects
+                .iter()
+                .filter(|proof| matches!(proof.kind, DisclosureEffectKind::Set { .. }))
+                .count(),
+            1
+        );
+        assert_ne!(empty.id, populated.id);
+    }
+
+    #[test]
+    fn finite_loop_declines_dynamic_per_element_paths_and_excess_observations() {
+        let prefix = "app Bounds\nGiven\n Item {value:int=0,other:int=0}\n policy Item read=members\nWhen\n scenario probe(items:Item[],maximum:int) by=members\n  do\n";
+        for body in [
+            "   for item in items limit=maximum\n    set item {value=item.value+1}\n",
+            "   for item in items limit=3\n    if item.value>0\n     set item {value=1}\n",
+            "   for item in items limit=3\n    set item {value=item.version}\n",
+            "   for item in items limit=101\n    set item {value=item.value+1,other=item.other+1}\n",
+            "   for item in items limit=101\n    set item {value=1}\n    set item {other=2}\n",
+            "   for item in items limit=3\n    set item {value=1}\n   for item in items limit=3\n    set item {value=2}\n",
+        ] {
+            assert!(
+                matches!(
+                    checked(&format!("{prefix}{body}Then\n")),
+                    ScenarioDisclosure::Declined(_)
+                ),
+                "unexpected loop closure: {body}"
+            );
+        }
+        let allowed = format!(
+            "{prefix}   for item in items limit=100\n    set item {{value=item.value+1,other=item.other+1}}\nThen\n"
+        );
+        assert!(matches!(checked(&allowed), ScenarioDisclosure::Complete(_)));
+    }
+
+    #[test]
+    fn guarded_loop_retains_private_selector_even_on_empty_or_skipped_paths() {
+        let source = "app Bounds\nGiven\n Item {value:int=0}\n policy Item read=members\nWhen\n scenario probe(owner:Item,items:Item[]) by=members\n  do\n   if owner.value>0\n    for item in items limit=3\n     set item {value=item.value+1}\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("guarded bounded loop")
+        };
+        assert_eq!(plan.returns.len(), 3);
+        for path in &plan.returns {
+            let controls = path
+                .dependencies
+                .iter()
+                .filter(|dependency| dependency.role == DependencyRole::Control)
+                .collect::<Vec<_>>();
+            assert_eq!(controls.len(), 1);
+            assert_eq!(
+                source[controls[0].node.start as usize..controls[0].node.end as usize].trim(),
+                "owner.value"
+            );
+        }
+        assert_eq!(
+            plan.returns
+                .iter()
+                .filter(|path| path.dependencies.len() == 1)
+                .count(),
+            2
+        );
+        assert_eq!(
+            plan.returns
+                .iter()
+                .filter(|path| path.dependencies.len() == 2)
+                .count(),
+            1
+        );
     }
 }
