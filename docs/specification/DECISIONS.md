@@ -5472,3 +5472,32 @@ Fast-forward exact coordinator-reviewed LOCALe5c8b728 and clean draft337, includ
 ## 2026-10-10 — join nominal query projection facts to real IR (unfinished native join)
 
 Extend the existing checked query representation with optional exact nominal row mappings: actual contract/model/lexical alias, ordered owning field identity, authored expression/type and reference/version/direct-field attribution. Keep unsupported computed/foreign/mixed mapping absent without changing ordinary query typing. Validate the facts against actual lowered typed select objects, source anchors, active alias and complete owning-field bijection; skewed identity/type/order/mapping/omission refuses. Box optional facts to preserve existing IR layout rather than suppress size lint or change every query variant. Actual imported two-stage visible/select and refusal controls pass; affected151/151 plus final query/invocation12 and strict all-target lint/format0. Native query/read/as disclosure remains withheld; external collection predicates and original policy/source/runtime joins remain unfinished. Unique ordered query clauses already forbid duplicate same-name as declarations; explicit active-declaration matching is defensive, not a claimed valid-source defect.
+
+
+## 2026-10-10 — preserve decision-read gates pending the owning bounded contract (unfinished proposal)
+
+Compiler owns original staff/can_work checked transitive source/context resolution.
+Preserve accepted pure/default restrictions and current StateRead classification;
+DESIGN314 caller-mode bounded-query rules need a concrete qualified membership
+observer/admission contract before this source can activate. Earlier do hoisting
+changes evaluation timing across set/create/dispatch and is not an equivalent
+implementation. Three equivalent independent JEV Choice requests advise the owner
+prerequisite, with confidence .87/.65/.53 and probability .90/.74/.65; the bounded
+contract alternative retains .10/.25/.34. Save one advice record at
+implementation/compiler-completion/decision-context-jev.json; advice is not
+accepted language design. State/Dev own exact private current-membership and stage
+hooks; Compiler owns checked callee/default/context joins once released. Do not
+admit arbitrary StateRead or Promise predicates through the synchronous Values
+any/all interface. Original policy/source/native joins and precise holds remain.
+
+
+## 2026-10-10 — retain exact external collection predicates (unfinished native join)
+
+Use a separate checked collection-call association on the actual query argument,
+not an invented Where clause. Only real selected any/all/count/first catalog
+calls with checked stored-model query/alias identities qualify. Join canonical
+argument slots and actual typed lowered Query/Lambda anchors; named arguments
+keep authored source order. Missing facts confer no proof; altered owner/model/
+query/alias/predicate/builtin/overload facts refuse. Affected154/154 and strict
+all-target lint/format pass; actual membership async predicates and native
+query/policy/source/result admission remain unfinished.

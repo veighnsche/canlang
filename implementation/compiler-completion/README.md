@@ -2252,9 +2252,9 @@ The original imports+app-uses29-file check runs once: complete=true, exit10,
 150 diagnostics and **zero in Workbench**. Direct-query/fixture source defects
 are resolved. SKIP original global disclosure: prerequisite owning source/helper
 resolution for Employees8/9 impure active_member in pure staff/can_work and
-CanDo116 nullable user, plus other composed business source errors. Capability/
-design owns these existing source contracts; no guard removal or pure-rule
-weakening. State/Interfaces loaders still require genuine same-load model names
+CanDo116 nullable user, plus other composed business source errors. Compiler owns the decision-context/source-closure prerequisite; Capability owns
+nullable/business source corrections. No guard removal or pure-rule weakening.
+State/Interfaces loaders require genuine same-load model names
 before Fact.task schema publication; defining owners have exact locations.
 Compiler checked query/projection work continues; no original native/reference
 acceptance or current whole1356 claim follows these finite results.
@@ -2274,3 +2274,36 @@ optional facts; strict all-target Clippy/format0 and finite independent review.
 Actual any(Employee as e,predicate) needs its external predicate/call association,
 not a fabricated where clause. Original cohort/source/helper, State/Dev policy/
 query/result and current whole qualification remain unfinished; no wider credit.
+
+
+**Decision-context prerequisite (unfinished; advice only), 2026-10-10.**
+Compiler owns exact checked transitive helper/call/default and admission-context
+correspondence for original staff/can_work. Accepted DESIGN314 caller-mode query
+rules and StateRead active_member do not themselves qualify arbitrary StateRead
+in pure derives or dispatch guards. Preserve T06/default/pure gates until the
+bounded current-membership read contract, defining State observer and Dev stage
+association are released. Moving reads before set/create would alter authored
+observation timing. Three independently worded JEV Choice consultations select
+owner_prerequisite (confidence .87/.65/.53; probability .90/.74/.65); bounded
+contract remains the material alternative (.10/.25/.34). The single
+[advice record](decision-context-jev.json) retains uncertainty; it is not language
+acceptance. SKIP gate activation pending exact State/Dev contract, with Compiler
+remaining owner of source/context implementation. Actual any/all currently
+reject async predicates; checked external-predicate correspondence is an
+independent prerequisite, not an authority grant. Original source/reference
+completion and precise BDD3/Task22 holds remain unchanged.
+
+
+**Checked collection predicate join (unfinished native workflow), 2026-10-10.**
+Actual selected any/all/count/first calls retain owning overload, query/model,
+lexical alias and external predicate node/type, independent of Where. IR validates
+that fact against actual canonical slots, typed query and real Lambda body/source;
+named arguments preserve authored evaluation order and grouped predicates retain
+both source and lowered anchors. Skewed owner/model/query/alias/predicate/builtin/
+overload facts refuse without native admission. Affected154/154 pass (query8,
+invocation7, codegen121, disclosure18), strict all-target Clippy/format0; finite
+independent review is clear. Async membership predicates remain unsupported until
+the exact bounded decision contract and sequential runtime consumer join. Next
+ready prerequisite: original reused targets parameter min1/max10 currently drops
+at IR/operation input emission; Compiler owns producer, Packages shared envelopes,
+State per-element private current references, Dev actual frame array correspondence.
