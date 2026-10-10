@@ -1512,6 +1512,31 @@ fn emit_program_with_sources(
     >,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    if ir.committed_sources.has_empty_value_inventory_fact() {
+        // An edited nonempty collector cannot override the sealed absence
+        // evidence. Raw emission has no source-backed inventory claim.
+        emitter.value_types = None;
+        if let Some(db) = db {
+            if ir
+                .committed_sources
+                .has_complete_empty_value_inventory(ir, db)
+            {
+                emitter.value_types = Some(JsValueTypes::default());
+            } else {
+                let span = ir
+                    .modules
+                    .first()
+                    .map_or(Span::new(crate::source::SourceId(0), 0, 0), |module| {
+                        module.span
+                    });
+                emitter.diags.push(Diagnostic::error(
+                    "E6008",
+                    "complete empty value inventory no longer matches its checked source cohort or declaration census".to_string(),
+                    span,
+                ));
+            }
+        }
+    }
     emitter.committed_changes = emitter.collect_committed_changes(db);
     emitter.standard_completions = emitter.collect_standard_completions(db);
     emitter.validate_model_field_bounds();
