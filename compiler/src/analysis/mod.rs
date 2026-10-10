@@ -110,7 +110,23 @@ pub struct CheckedProgram {
     pub catalog_version: String,
     scenario_disclosures:
         std::collections::HashMap<SymbolId, scenario_disclosure::ScenarioDisclosure>,
+    pub(crate) committed_handlers: Vec<CheckedCommittedHandler>,
     cohort: cohort::CheckedCohort,
+}
+
+/// Source declarations retained before the public analysis tables can be
+/// edited. This census supports complete source publication, not authority.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedCommittedHandler {
+    pub id: SymbolId,
+    pub module: resolve::ModuleId,
+    pub canonical: String,
+    pub model: SymbolId,
+    pub model_canonical: String,
+    pub event: String,
+    pub cohort: Option<effects::CohortData>,
+    pub cohort_model: Option<String>,
+    pub span: crate::source::Span,
 }
 
 impl CheckedProgram {
@@ -172,6 +188,7 @@ pub fn check_program(
                     examples: ExampleTables::default(),
                     catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
                     scenario_disclosures: std::collections::HashMap::new(),
+                    committed_handlers: Vec::new(),
                     cohort: cohort::CheckedCohort::new(db, files, catalog),
                 },
                 diagnostics,
@@ -212,6 +229,38 @@ pub fn check_program(
             &effects,
         )
     };
+    let committed_handlers = if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        Vec::new()
+    } else {
+        resolve_tables
+            .symbols
+            .iter()
+            .filter_map(|symbol| {
+                let data = effects.scenarios.get(&symbol.id)?;
+                let Some(effects::HandlerSource::Committed { model, event }) = &data.on else {
+                    return None;
+                };
+                Some(CheckedCommittedHandler {
+                    id: symbol.id,
+                    module: symbol.module,
+                    canonical: symbol.canonical.clone(),
+                    model: *model,
+                    model_canonical: resolve_tables.symbols[model.0 as usize].canonical.clone(),
+                    event: event.clone(),
+                    cohort: data.cohort.clone(),
+                    cohort_model: data.cohort.as_ref().map(|cohort| {
+                        resolve_tables.symbols[cohort.model.0 as usize]
+                            .canonical
+                            .clone()
+                    }),
+                    span: symbol.span,
+                })
+            })
+            .collect()
+    };
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),
@@ -220,6 +269,7 @@ pub fn check_program(
         examples,
         catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
         scenario_disclosures,
+        committed_handlers,
         cohort: cohort::CheckedCohort::new(db, files, catalog),
     };
     (program, diagnostics)

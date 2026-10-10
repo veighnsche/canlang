@@ -6627,3 +6627,18 @@ preserve both assertions and consume the exact owner repair. Coordinator
 acceptance and original member/pure/dynamic workflow remain unfinished. Continue
 the agreed committed-model source producer after this coherent local unit;
 BDD3/Task22 holds and58/67 remain unchanged.
+
+
+### 2026-10-10 — retain complete checked committed-model declarations (unfinished native join)
+
+Derive agreed optional committedChanges metadata from immutable clean checked
+source declarations, independently of editable analysis tables and lowered IR.
+Retain canonical imported model/source identity, complete declaration-order
+ordinary/cohort handlers and actual cohort correspondence; emit the same census
+in artifact and appDefinition. Reuse existing callables/private invocation and
+source maps. Private id is required text, version is int; deletion grants no row
+reference or snapshot. Refuse missing/skewed/raw/stale source rather than claim a
+partial inventory. Affected148, strict release checks and finite corrected review
+qualify the compiler component. State/Work final-net source is separately
+released; Dev actual native activation/original Volunteer remains unfinished.
+No new shared DTO, origin issuer, event wrapper, wider acceptance or hold change.

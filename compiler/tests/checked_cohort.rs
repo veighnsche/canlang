@@ -333,3 +333,282 @@ fn catalog_absence_is_part_of_the_checked_owner_contract() {
     assert!(diagnostics.iter().any(|d| d.code == "E6007"));
     assert!(diagnostics.iter().all(|d| d.code != "E6011"));
 }
+
+#[test]
+fn committed_handlers_type_only_id_and_version_from_checked_local_and_imported_models() {
+    use canlang_compiler::analysis::effects::HandlerSource;
+    use canlang_compiler::analysis::{ResolvedType, Scalar};
+
+    for change in ["created", "updated", "deleted"] {
+        let source = format!(
+            "app Changes uses=[observer]\npackage records\n Given\n  export Payment {{amount:int}}\n When\n Then\npackage observer\n use records {{Payment as ImportedPayment}}\n Given\n  LocalPayment {{amount:int}}\n When\n  scenario local on=LocalPayment.{change}\n   do require event.id==\"local-id\" and event.version>=1\n  scenario imported on=ImportedPayment.{change}\n   do require event.id==\"imported-id\" and event.version==2\n Then\n"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("committed-types.can".into(), source.clone());
+        let (program, diagnostics) = check_program(&db, &[file], None);
+        assert!(diagnostics.is_empty(), "{change}: {diagnostics:?}");
+        for (handler, model_name) in [
+            ("observer.local", "observer.LocalPayment"),
+            ("observer.imported", "records.Payment"),
+        ] {
+            let symbol = program
+                .symbols
+                .iter()
+                .find(|symbol| symbol.canonical == handler)
+                .unwrap();
+            let Some(HandlerSource::Committed { model, event }) =
+                &program.effects.scenarios[&symbol.id].on
+            else {
+                panic!("validated committed source for {handler}");
+            };
+            assert_eq!(program.symbols[model.0 as usize].canonical, model_name);
+            assert_eq!(event, change);
+        }
+        for (member, expected) in [
+            ("event.id", ResolvedType::Scalar(Scalar::Text)),
+            ("event.version", ResolvedType::Scalar(Scalar::Int)),
+        ] {
+            let types: Vec<_> = program
+                .types
+                .node_types
+                .iter()
+                .filter(|(node, _)| {
+                    node.file == file
+                        && source[node.start as usize..node.end as usize].trim() == member
+                })
+                .map(|(_, ty)| ty)
+                .collect();
+            assert!(!types.is_empty(), "checked {member}");
+            assert!(
+                types.iter().all(|ty| **ty == expected),
+                "{member}: {types:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn committed_payload_refuses_unknown_members_and_stored_record_traversal() {
+    for member in [
+        "after",
+        "before",
+        "owner",
+        "occurrenceId",
+        "recordId",
+        "unknown",
+        "id.amount",
+        "version.id",
+    ] {
+        let source = format!(
+            "app Changes\nGiven\n Payment {{amount:int}}\nWhen\n scenario changed on=Payment.deleted\n  do require event.{member}==null\nThen\n"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("committed-closed-payload.can".into(), source);
+        let (_, diagnostics) = check_program(&db, &[file], None);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E2013"),
+            "unsupported committed member {member}: {diagnostics:?}"
+        );
+    }
+    for (declaration, trigger) in [
+        ("Payment {amount:int}", "Payment.changed"),
+        ("Payment {amount:int}", "Missing.created"),
+        ("contract Payment {amount:int}", "Payment.updated"),
+        ("event Payment {amount:int}", "Payment.deleted"),
+    ] {
+        let source = format!(
+            "app Changes\nGiven\n {declaration}\nWhen\n scenario changed on={trigger}\n  do require event.id==\"record-id\" and event.version>=1\nThen\n"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("committed-invalid-source.can".into(), source);
+        let (_, diagnostics) = check_program(&db, &[file], None);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E3010"),
+            "invalid committed source {trigger}: {diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn declared_event_cohort_keeps_its_own_record_payload() {
+    use canlang_compiler::analysis::effects::{CohortKind, HandlerSource};
+
+    let source = "app Changes\nGiven\n Payment {amount:int}\n event PaymentChanged {payment:Payment,version:int}\nWhen\n scenario changed on=PaymentChanged each=Payment as payment_row\n  do require event.payment.id==payment_row.id and event.version>=1\nThen\n";
+    let mut db = SourceDb::new();
+    let file = db.add("declared-event-cohort-types.can".into(), source.into());
+    let (program, diagnostics) = check_program(&db, &[file], None);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let handler = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "Changes.changed")
+        .unwrap();
+    let scenario = &program.effects.scenarios[&handler.id];
+    assert!(matches!(scenario.on, Some(HandlerSource::Event(_))));
+    let cohort = scenario
+        .cohort
+        .as_ref()
+        .expect("existing checked model cohort");
+    assert_eq!(cohort.kind, CohortKind::Model);
+    assert_eq!(cohort.bind.as_deref(), Some("payment_row"));
+}
+
+#[test]
+fn committed_inventory_refuses_missing_duplicate_or_skewed_checked_declarations() {
+    use canlang_compiler::codegen::ir::{IrCommittedChange, IrEventSource, IrItemKind};
+    use canlang_compiler::codegen::js::{emit_program, emit_program_with_native_source_receipts};
+
+    let mut db = SourceDb::new();
+    let file = db.add("committed-inventory.can".into(),
+        "app Changes\nGiven\n Payment {amount:int}\n Entry {amount:int}\nWhen\n scenario first on=Payment.updated\n  do let id=event.id\n scenario second on=Payment.updated each=Entry as entry\n  do let version=event.version\nThen\n".into());
+    let (program, diagnostics) = check_program(&db, &[file], None);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (original, diagnostics) = ir::build(&program, &db, None);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let valid = emit_program_with_native_source_receipts(&original, false, &db);
+    assert!(valid.diagnostics.is_empty(), "{:?}", valid.diagnostics);
+    assert_eq!(
+        valid.committed_changes.as_ref().unwrap()[0].handlers,
+        ["Changes.first", "Changes.second"]
+    );
+    let first = original
+        .items
+        .iter()
+        .position(|item| item.canonical == "Changes.first")
+        .unwrap();
+    let second = original
+        .items
+        .iter()
+        .position(|item| item.canonical == "Changes.second")
+        .unwrap();
+    let model = original
+        .items
+        .iter()
+        .position(|item| item.canonical == "Changes.Payment")
+        .unwrap();
+    let child = original
+        .items
+        .iter()
+        .position(|item| item.canonical == "Changes.Entry")
+        .unwrap();
+    for mode in [
+        "missing",
+        "duplicate",
+        "source",
+        "handler",
+        "model",
+        "cohort",
+        "child",
+        "raw",
+        "invalid-model",
+    ] {
+        let mut changed = original.clone();
+        match mode {
+            "duplicate" => changed.items.push(changed.items[first].clone()),
+            "handler" => changed.items[first].canonical = "Changes.other".into(),
+            "model" => changed.items[model].canonical = "Changes.Other".into(),
+            "child" => changed.items[child].canonical = "Changes.OtherChild".into(),
+            "raw" => changed.committed_sources = Default::default(),
+            "cohort" => {
+                let IrItemKind::Scenario {
+                    cohort: Some(cohort),
+                    ..
+                } = &mut changed.items[second].kind
+                else {
+                    panic!("cohort");
+                };
+                cohort.bind = Some("other".into());
+            }
+            _ => {
+                let IrItemKind::Scenario { event_source, .. } = &mut changed.items[first].kind
+                else {
+                    panic!("handler");
+                };
+                if mode == "missing" {
+                    *event_source = None;
+                } else {
+                    *event_source = Some(IrEventSource::Committed {
+                        model: if mode == "invalid-model" {
+                            canlang_compiler::analysis::resolve::SymbolId(u32::MAX)
+                        } else {
+                            original.items[model].id
+                        },
+                        change: IrCommittedChange::Delete,
+                    });
+                }
+            }
+        }
+        let refused = emit_program_with_native_source_receipts(&changed, false, &db);
+        assert!(refused.committed_changes.is_none(), "{mode}");
+        assert!(!refused.entry.js.contains("committedChanges:"), "{mode}");
+        assert!(
+            refused
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: {:?}",
+            refused.diagnostics
+        );
+    }
+    let no_source = emit_program(&original);
+    assert!(no_source.committed_changes.is_none());
+    assert!(
+        no_source
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    let mut stale = SourceDb::new();
+    stale.add(
+        "committed-inventory.can".into(),
+        db.get(file)
+            .unwrap()
+            .text
+            .replace("Payment.updated", "Payment.deleted"),
+    );
+    let refused = emit_program_with_native_source_receipts(&original, false, &stale);
+    assert!(refused.committed_changes.is_none());
+    assert!(
+        refused
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    for mode in ["missing-source", "changed-source", "changed-cohort"] {
+        let (mut editable, diagnostics) = check_program(&db, &[file], None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let data = editable
+            .effects
+            .scenarios
+            .get_mut(&original.items[second].id)
+            .unwrap();
+        match mode {
+            "missing-source" => data.on = None,
+            "changed-source" => {
+                data.on = Some(
+                    canlang_compiler::analysis::effects::HandlerSource::Committed {
+                        model: original.items[model].id,
+                        event: "deleted".into(),
+                    },
+                )
+            }
+            _ => data.cohort.as_mut().unwrap().bind = Some("other".into()),
+        }
+        let (changed, diagnostics) = ir::build(&editable, &db, None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let refused = emit_program_with_native_source_receipts(&changed, false, &db);
+        assert!(refused.committed_changes.is_none(), "{mode}");
+        assert!(
+            refused
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: {:?}",
+            refused.diagnostics
+        );
+    }
+}

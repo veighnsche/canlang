@@ -3766,8 +3766,9 @@ impl<'a> Typer<'a> {
             let ty = self.expr(&cx, by, None);
             self.expect_bool(&cx, tight_span(text, by), &ty, "`by=`");
         }
-        let hook =
-            attribute_value(node, "on", text).map(|on| self.check_scenario_on(&cx, node, id, on));
+        let mut committed_event = false;
+        let hook = attribute_value(node, "on", text)
+            .map(|on| self.check_scenario_on(&cx, node, id, on, &mut committed_event));
         let read = self.check_scenario_read(&cx, node, id);
         if let Some(label) = attribute_value(node, "label", text) {
             self.check_scalar_caption(&cx, label, "label");
@@ -3795,6 +3796,23 @@ impl<'a> Typer<'a> {
                     symbol: event,
                     stored: false,
                 },
+            );
+        }
+        // Only the validated model-source branch admits these immutable
+        // identities. The id stays text even for deletion; no stored record
+        // or before/after snapshot is granted by a committed event.
+        if committed_event {
+            let payload = ResolvedType::Object(vec![
+                ("id".to_string(), ResolvedType::Scalar(Scalar::Text)),
+                ("version".to_string(), ResolvedType::Scalar(Scalar::Int)),
+            ]);
+            example_event = Some(payload.clone());
+            env.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                payload,
             );
         }
         // A validated delivery completion types the handler payload
@@ -4612,13 +4630,15 @@ impl<'a> Typer<'a> {
     /// `instrumentation.error`, capability events (`Cap.event`),
     /// delivery completions (`Cap.op.completed`,
     /// `Scenario.completed`) and declared queues (`E3010`). Returns
-    /// the hook identity for pre-commit model hooks.
+    /// the hook identity for pre-commit model hooks; `committed_event` is
+    /// set only by the validated model-source branch.
     fn check_scenario_on(
         &mut self,
         cx: &Ctx<'_, '_>,
         _node: &SyntaxNode,
         _id: SymbolId,
         on: &SyntaxNode,
+        committed_event: &mut bool,
     ) -> Option<(SymbolId, CrudOp)> {
         if on.kind == SyntaxKind::Call {
             return self.check_on_every(cx, on);
@@ -4634,7 +4654,7 @@ impl<'a> Typer<'a> {
         let segments = path_segments(on, cx.text);
         match segments.len() {
             1 => self.check_on_event(cx, on, &segments),
-            2 => self.check_on_two_seg(cx, on, &segments),
+            2 => self.check_on_two_seg(cx, on, &segments, committed_event),
             3 => self.check_on_completed(cx, on, &segments),
             _ => {
                 self.diags.push(Diagnostic::error(
@@ -4740,6 +4760,7 @@ impl<'a> Typer<'a> {
         cx: &Ctx<'_, '_>,
         on: &SyntaxNode,
         segments: &[&str],
+        committed_event: &mut bool,
     ) -> Option<(SymbolId, CrudOp)> {
         if segments == ["teams", "member_removed"] || segments == ["instrumentation", "error"] {
             return None;
@@ -4757,7 +4778,9 @@ impl<'a> Typer<'a> {
             return None;
         };
         match &self.tables.symbols[head.0 as usize].kind {
-            SymbolKind::Model { .. } => self.check_on_model_source(cx, on, head, segments),
+            SymbolKind::Model { .. } => {
+                self.check_on_model_source(cx, on, head, segments, committed_event)
+            }
             SymbolKind::Capability { ops, events } => {
                 let (ops, events) = (ops.clone(), events.clone());
                 if events
@@ -4807,12 +4830,16 @@ impl<'a> Typer<'a> {
         on: &SyntaxNode,
         model: SymbolId,
         segments: &[&str],
+        committed_event: &mut bool,
     ) -> Option<(SymbolId, CrudOp)> {
         let hook_op = match segments[1] {
             "create" => Some(CrudOp::Create),
             "update" => Some(CrudOp::Update),
             "delete" => Some(CrudOp::Delete),
-            "created" | "updated" | "deleted" => None,
+            "created" | "updated" | "deleted" => {
+                *committed_event = true;
+                None
+            }
             _ => {
                 self.diags.push(Diagnostic::error(
                     "E3010",
