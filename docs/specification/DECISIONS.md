@@ -7049,6 +7049,25 @@ fixture from the genuine Files producer; the current State authority wrapper
 and all precise host/native/provider prerequisites and holds remain separate.
 Coordinator manual local source intake is pending; full TECH-F02 is unfinished.
 
+### 2026-10-10 — bind the current reader in the genuine assembly fixture
+
+The existing typed File journey fixture supplies its new required method
+through genuine `readCurrentFinalizedBytes`, using the same finalized/blob
+stores, owning clock, upload policy and forwarded physical receiver/retention.
+Only that literal and its public Files import change. Cloudflare noEmit and
+both affected actual journey cases pass;19 unrelated cases are unselected.
+Preserve every original auth/CSRF/offset/digest/provenance/attachment/bytes and
+refusal assertion. Reuse Interfaces15 and its real SQLite consumer result;
+no new producer build or protected native read qualification is claimed.
+
+Coordinator has separately reviewed/released State11fe at local maina71.
+Its complete canonical slot census and guarded whole-field/Identity read API
+are available for safe intake; revision revalidation supplies no deletion lock.
+Dev owns actual protected host/native adoption and credential/session freshness;
+physical deletion serialization and actual provider ingress retain their
+defining owners. This finite common fixture correction awaits manual intake,
+with full TECH-F02 and every precise hold unchanged.
+
 ### 2026-10-10 — manual local integration of a770ebb5
 
 Manually reviewed exact Packagesa770 maintained installed workerd consumer of the genuine staged current File reader after production finalization. Explicitly non-durable fixture ports qualify one-read copied original bytes, detachment and foreign/corrupt/exact unswept expiry refusal, retaining existing producer-loss, real State identity, WASM, parser/browser/integrity and checkout-denial controls. Reuse actual isolated229 module Node24.19 verifier success, production workerd401 and owning bundle1/1, with changed CF emission at exact4572+Files520 tuple. This is portable physical-producer qualification only, not later Dev60b routing, State grants, durable protected downloads, shared-reference/provider or whole-plan acceptance. Preserve Files520 manually integrated status, exact owners and recipient holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
@@ -7064,3 +7083,7 @@ Manually reviewed exact Capability11fe current File authority wrapper, complete 
 ### 2026-10-10 — manual local integration of aba83b95
 
 Manually reviewed exact Packagesaba83b required FileJourney current-byte forwarding over the actual Files520 same-snapshot producer. Required seam validates upfront and preserves exact ref/physicalReceiver/retention/method receiver/bytes-or-null and sync/async error identity, with no legacy or second-read fallback and no runtime Files dependency/State grant. Reuse affected Interfaces15/15/emission0 and genuine public SQLite upload-finalize/reopen/policy/expiry/detachment/no-writes/no-fallback qualification; no host/full-workflow claim. State11fe is now independently reviewed/integrated at a71 and its current authority API released to Dev. Packages separately owns only the existing typed CF assembly fixture compatibility literal; Dev owns actual protected native host consumption. Keep deletion serialization/provider deployment and all precise holds open; retain authoritative prior scopes and complete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — manual local integration of 3dc40fc6
+
+Manually reviewed exact Packages3dc40fc6 finite three-line existing assembly fixture correction: actual public Files readCurrentFinalizedBytes over the same finalized/blob stores and clock, upload.policy, exact original physical receiver and forwarded retention. No assertion, host implementation or fake/legacy reader changed. Reuse owning CF noEmit0 and two actual finalized-file journey passes in241ms; nineteen unrelated cases were unselected, not newly qualified. Retain earlier Interfaces15 and public SQLite forwarding results at their finite scopes. Both State11fe current authority and Interfacesaba83b same-snapshot forwarding are reviewed/released, clearing producer blockers for Dev actual protected native read; full original workflows, complete deletion serialization and actual provider ingress remain unfinished. Reconcile authoritative prerequisite owners without advancing complete824 checkpoint or altering any human hold; no publication. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
