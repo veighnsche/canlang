@@ -1124,6 +1124,51 @@ describe("checked value inventory model references", () => {
         (error: unknown) => error instanceof ValueTypesError && error.code === "malformed");
     }
   });
+
+  it("preserves exact scalar wire bounds and receiving text normalization", () => {
+    const raw = { contracts: [{ name: "Bounded", fields: [
+      { name: "count", type: "int", min: "9007199254740993", max: "9223372036854775807" },
+      { name: "note", type: "text", trim: true, min: 1, max: 3 },
+      { name: "description", type: "text?", max: 8 },
+      { name: "when", type: "datetime?", min: "2026-01-01T00:00:00.000Z" },
+    ] }] };
+    const { valueTypes, valueSchema } = normalizeValueTypes(raw);
+    const wire = { count: "9007199254740993", note: "  abc  ", description: null, when: null };
+    const native = validateValue(valueSchema, "Bounded", wire, "create");
+    assert.deepEqual(encodeValue("Bounded", native), { ...wire, note: "abc" });
+    assert.deepEqual(valueTypes.contracts[0]!.fields, raw.contracts[0]!.fields);
+    assert.equal(valueSchema.contracts["Bounded"]!.fields["count"]!.valueMin, 9007199254740993n);
+    for (const changed of [{ ...wire, count: "9007199254740992" }, { ...wire, note: "   " },
+      { ...wire, note: "  abcd  " }, { ...wire, description: "123456789" },
+      { ...wire, when: "2025-12-31T23:59:59.999Z" }]) {
+      assertSchemaError(() => validateValue(valueSchema, "Bounded", changed, "create"));
+    }
+  });
+
+  it("delegates type-appropriate bound and trim refusals to the core", () => {
+    for (const constraints of [
+      { type: "int", min: "1.5" }, { type: "int", max: "9223372036854775808" },
+      { type: "text", min: "1" }, { type: "int[]", min: "1" },
+      { type: "int", trim: true }, { type: "shop.Customer", trim: true },
+      { type: "text?", trim: "true" }, { type: "datetime?", min: "yesterday" },
+      { type: "money", min: { minor: 1, currency: "USD" } },
+      { type: "money", min: { minor: "1", currency: "USD", extra: "ignored" } },
+      { type: "text", default: "unsupported" },
+    ]) assert.throws(() => normalizeValueTypes({ contracts: [{ name: "Bounded", fields: [{ name: "value", ...constraints }] }] }, ["shop.Customer"]), ValueTypesError);
+  });
+
+  it("detaches and freezes admitted object bounds without weakening the typed codec", () => {
+    const min = { minor: "9007199254740993", currency: "USD" };
+    const raw = { contracts: [{ name: "Bounded", fields: [{ name: "amount", type: "money", min }] }] };
+    const { valueTypes, valueSchema } = normalizeValueTypes(raw);
+    min.minor = "0"; min.currency = "EUR";
+    const captured = valueTypes.contracts[0]!.fields[0]!.min;
+    assert.deepEqual(captured, { minor: "9007199254740993", currency: "USD" });
+    assert.ok(Object.isFrozen(captured));
+    const wire = { amount: { minor: "9007199254740993", currency: "USD" } };
+    assert.deepEqual(encodeValue("Bounded", validateValue(valueSchema, "Bounded", wire, "create")), wire);
+    assertSchemaError(() => validateValue(valueSchema, "Bounded", { amount: { minor: "1", currency: "USD" } }, "create"));
+  });
 });
 
 function candidateInventory() {
@@ -1147,6 +1192,15 @@ function candidateInventory() {
 const candidateValue = (id: string, description = "An alternative") => ({ id, description });
 
 describe("checked runtime candidate value constraints", () => {
+  it("carries receiving alias trim through the checked nominal envelope", () => {
+    const raw = candidateInventory();
+    Object.assign(raw.contracts[0]!.fields[0]!, { trim: true });
+    const { valueTypes, valueSchema } = normalizeValueTypes(raw);
+    assert.equal(valueTypes.contracts[0]!.fields[0]!.trim, true);
+    assert.deepEqual(validateValue(valueSchema, "Review.pick.option", candidateValue("  change_a  "), "create"), candidateValue("change_a"));
+    assertSchemaError(() => validateValue(valueSchema, "Review.pick.option", candidateValue("  bad-id  "), "create"));
+  });
+
   it("reuses candidate-array constraints and one bounded TEXT alias for every result key", () => {
     const { valueSchema } = normalizeValueTypes(candidateInventory());
     const choices = [candidateValue("change_b"), candidateValue("change_a")];

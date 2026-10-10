@@ -4074,11 +4074,11 @@
       "counts_unchanged": true
     },
     "task39_model_reference_value_types": {
-      "stage": "Finite Values model-reference inventory prerequisite implemented and tested; independent source review clear. Coordinator manual review/release and original Compiler/State/Dev consumer adoption remain unfinished.",
+      "stage": "Model-name prerequisite69d1cb09 coordinator manually reviewed CLEAR and integrated at LOCAL10e36d3dc1bcb437525f1414e941d9e081e4fee0 with original114results reused. Nominal wire-bound/trim followup implemented/tested and independently reviewed clear; its coordinator release and original Compiler/State/Dev consumer adoption remain unfinished.",
       "source_base": "df394abbaa7ab60a79079e667e8d3889f9546e73",
       "assignment": "Coordinator original Task39 Fact[] schema prerequisite; Compiler owns exact checked declaration/IR modifier inventory, Capability/Dev own canonical query slots and native result/authority correspondence.",
       "api": "normalizeValueTypes(inventory, modelNames: readonly string[] = []) returns the existing frozen {valueTypes,valueSchema}. Explicit same-load canonical model names resolve nested nominal reference fields without structural model copies. No-context dangling refusal, canonical names, duplicate and model/value namespace collisions remain strict.",
-      "constraints": "CanonicalNominalLeaf shape is unchanged. The normalizer converts only safe integer scalar min/max metadata from checked JSON numbers to exact decimal wire strings for schema validation; copied valueTypes retain numeric bounds. Arrays retain length bounds. Lossy integer bounds refuse. Required original version:int min1 now reaches the actual exact codec.",
+      "constraints": "CanonicalNominalLeaf min/max now use the existing WireValue bound shape and trim?:boolean; ArtifactNominalLeaf reuses the same interface. Exact scalar-wire bounds never route through Number; numeric length bounds stay numeric. Existing schema-core validates bound type/range/order, nullable containers and receiving text/alias trim. Legacy safe numeric int metadata retains69 compatibility, unsafe numbers refuse. Flat admitted object bounds detach/freeze; malformed/nested bounds never publish.",
       "original_declarations": {
         "source_status": "Compiler supplied frozen ORIGINAL declaration facts through coordinator; full29file source cohort is not clean/native. Capability direct-query source edit will supersede Workbench bytes. SymbolIds remain cohort-local, never portable IDs.",
         "workbench_sha256": "c25965b58d7347a4fbdcc645494cac4056117ca6096e15a64ff656ef204288ba",
@@ -4094,12 +4094,14 @@
           {
             "name": "version",
             "type": "int",
-            "min": 1
+            "min": "1"
           },
           {
             "name": "title",
             "type": "text",
-            "max": 2000
+            "max": 2000,
+            "trim": true,
+            "min": 1
           },
           {
             "name": "description",
@@ -4127,10 +4129,16 @@
             "high"
           ]
         },
-        "producer_gap": "Compiler alone must retain actual checked ordinary IR Field.modifiers because TypeTable.value_constraints is absent for the original Fact fields. No inferred/default bounds or field-reuse paths are resolved by Values."
+        "producer_gap": "Compiler alone must retain actual checked ordinary IR Field.modifiers and reuse normalization/value bounds because TypeTable.value_constraints is absent for the original Fact fields. Fact.title inherits actual Task.title trim/min1 plus receiving max2000. No guessed bounds, defaults, authority or source field-reuse paths are resolved by Values."
       },
       "verification": "Owning clean Values build exits0. Entire existing schema file114/114 passes, zero failures/skips,116.46ms including4new direct controls. Initial compile rejected a nonexistent test helper; changed assertion corrected before successful build/check. Existing leaf codec/model-ref results reused; independent finite source review clear, no extra checks or proof files.",
-      "limits": "Schema/codec only: genuine native RecordRef preserves model/id/optional bigint version; wire is closed id/optional decimal version. Sibling version equality, row existence, current projection/authority, exact ordered/empty query association and original source/lifetime provenance remain State/Dev owner checks. No original native Fact[]/Task39/Workbench/T11/Office/whole48 acceptance or preparation/publication/payload/security hold release."
+      "limits": "Schema/codec only: genuine native RecordRef preserves model/id/optional bigint version; wire is closed id/optional decimal version. Sibling version equality, row existence, current projection/authority, exact ordered/empty query association and original source/lifetime provenance remain State/Dev owner checks. No original native Fact[]/Task39/Workbench/T11/Office/whole48 acceptance or preparation/publication/payload/security hold release.",
+      "nominal_constraint_followup": {
+        "source_base": "69d1cb0987531f6cee6d32f0e7e91db20c379e09",
+        "assignment": "Coordinator/Compiler precise original reused trim and type-appropriate wire-bound correction; source inventory/emitter stays Compiler-owned.",
+        "verification": "Contracts clean build0, Values clean build0. Affected maintained schema file118/118 passes, zero failures/skips,90.10ms including4additional direct controls. Root noEmit initially failed15diagnostics from stale State dist lacking current child-call exports; actual source index27/28 has the released symbols. Targeted owning State clean emission0 refreshes declarations, then failed root noEmit rerun0. No foreign source edit or test/native/browser repetition. Prior114 result retains historical69 scope; relevant envelope edit and actual stale-output failure justify these direct checks. Finite independent source review clear.",
+        "api": "CanonicalNominalLeaf and ArtifactNominalLeaf share trim?:boolean, min/max?:WireValue plus unchanged format/distinctBy/excludedIds. Exact preferred original version bound is min:\"1\"; title trim:true/min:1/max:2000 uses numeric scalar-length bounds. normalizeValueTypes(inventory, sameLoadCanonicalModelNames) remains unchanged."
+      }
     }
   },
   "live_finite_packets": [],
