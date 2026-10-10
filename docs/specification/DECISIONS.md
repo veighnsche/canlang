@@ -6315,3 +6315,25 @@ public1/1 results. Actual native publication must retain strict host lifetime an
 select the query return exactly once, then qualify genuine compiled public and
 protected parent execution after reviewed defining Dev/State intake. Full
 references and existing precise holds stay unfinished.
+
+### 2026-10-10 — publish immutable Complete queries through genuine runtime lifetimes (unfinished original application)
+
+Only the private immutable CheckedProgram/fresh-executable recipe set can
+publish nominal read disclosure; require exact typed-plan/source equality.
+Raw IR Complete and source inventory alone remain nongrant. Bind the evaluated
+projection before the owning Return's single selection; preserve the strict
+public/private host marker and lifetime contracts rather than tolerating a
+duplicate. Direct original protected parent inputs and unused child bindings now
+join the actual installed runtime.
+
+Affected154/154 pass, including genuine compiled public and private parent
+consumers with original scan/count/select, full false/selected domain, lazy
+reads, exact ordered Fact[]/original versions, one parent commit, rollback and
+effect-free replay/current membership checks. Existing saved identity replay
+withholds null after revocation; explicit retained admission refuses forbidden.
+Fresh released package emissions and strict all-target lint/format pass; finite
+activation review CLEAR. Setup-only path/replay expectations were corrected,
+with no host or behavioral assertion weakened. Whole/editor and unchanged
+owner results are reused. Bound result consumption and original application
+purity/row-policy/File/event contracts remain distinct dependencies;58/67 and
+precise human holds are unchanged. Local coherent commit for coordinator review.
