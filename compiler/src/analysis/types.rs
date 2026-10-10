@@ -11952,6 +11952,14 @@ impl<'a> Typer<'a> {
                 },
                 FixtureTarget::User => ResolvedType::Scalar(Scalar::User),
                 FixtureTarget::File => ResolvedType::Scalar(Scalar::File),
+                FixtureTarget::Operation(Some(op))
+                    if matches!(
+                        self.tables.symbols[op.0 as usize].kind,
+                        SymbolKind::CapabilityOp { .. }
+                    ) =>
+                {
+                    ResolvedType::Delivery { op: *op }
+                }
                 FixtureTarget::Operation(_) => ResolvedType::Opaque("operation fixture"),
                 FixtureTarget::Unknown => ResolvedType::Error,
             },

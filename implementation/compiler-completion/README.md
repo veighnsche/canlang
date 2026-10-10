@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. The exact changed-source whole passes1356 with zero skips; genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1356 qualifies exact6530 source; later query/schema source has focused qualification only. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2213,3 +2213,30 @@ Fact.task canonical Values/schema handoff, complete staff/can_work closure,
 State viewer-query/result attestation and genuine Dev read/as execution remain
 prerequisites before original context admission. Dynamic protected calls,
 T11 evidence and BDD3/Task22 holds keep their precise scopes. **58/67** remains.
+
+
+**Capability delivery fixture attribution (unfinished original source), 2026-10-10.**
+A checked operation fixture retains `Delivery{op}` only for its exact resolved
+CapabilityOp declaration. This resolves the original waiting fixture's opaque
+attribution gap; scenario/CRUD/bare/unknown/external operation fixtures keep
+existing behavior. Owning checker **283/283**, strict all-target Clippy/format
+pass; target identity, wrong target, malformed request/envelope, opaque target
+and forged-handle controls run. Result/error payload certification is unchanged.
+Original29-file check follows exact reviewed direct-query source intake; no
+original clean source/native or wider reference acceptance follows this unit.
+
+
+**Owning nominal field modifiers (unfinished original query), 2026-10-10.**
+IR follows exact checked field-reuse edges in defining module scope and retains
+trim/min/max only; receiving ordinary bounds must provably narrow compatible
+inherited ranges. Defaults, server initialization, required-array input,
+uniqueness and authority remain receiving-declaration behavior. Generated alias
+bounds retain their authoritative checked intersection. The actual artifact
+producer emits numeric length bounds, exact scalar wire bounds and trim; an
+unrelated Judgment cannot grant an unsupported ordinary schema closure.
+Affected140/140 pass with strict all-target Clippy/format; the reviewed generated
+alias correction is rechecked through its actual consumer. New bounded metadata
+has producer qualification; actual Values consumption follows exact released
+Packages envelope/model-context intake. Model-containing ordinary contract
+publication and complete original query/policy/runtime joins remain unfinished.
+Whole1356 stays historical at6530; nine references and precise holds remain.

@@ -1,4 +1,4 @@
-import type { CanonicalOwnerModelPolicies, CanonicalValueTypes, FieldMachine, ScenarioResultDisclosurePlan } from "./state.js";
+import type { CanonicalNominalLeaf, CanonicalOwnerModelPolicies, CanonicalValueTypes, FieldMachine, ScenarioResultDisclosurePlan } from "./state.js";
 import type { CanTypeId, WireValue } from "./values.js";
 import type { InputChoiceBinding } from "./wire.js";
 
@@ -96,7 +96,7 @@ export interface ArtifactCallable {
  * ratifies any structured leaf vocabulary; verbatim leaves derive it
  * without loss.
  */
-export interface ArtifactNominalLeaf {
+export interface ArtifactNominalLeaf extends CanonicalNominalLeaf {
   /** Leaf field name in producer order. */
   name: string;
   /** Verbatim T13c declared kind spelling. */

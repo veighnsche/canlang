@@ -119,8 +119,7 @@ export function checkQueryProjection(returned: Record<string, unknown>, queries:
   const projection = object(copy(returned.projection), ['kind', 'queryId', 'source', 'fields']);
   if (projection.kind !== 'query-contract-array') fail('unsupported query projection.');
   source(projection.source);
-  const query = queries.find(query => query.id === projection.queryId);
-  if (query === undefined) fail('projection must name its checked query.');
+  const query = queries.find(query => query.id === projection.queryId) ?? fail('projection must name its checked query.');
   const names: string[] = []; const kinds = new Set<string>();
   for (const value of list(projection.fields)) {
     const kind = typeof value === 'object' && value !== null ? (value as Record<string, unknown>).kind : undefined;
@@ -178,8 +177,7 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   for (const model of models) unique(model.fields.map(field => fieldName(field.name)));
   const queries = checkQueries(plan.queries ?? []);
   for (const query of queries) {
-    const model = models.find(model => model.name === query.model);
-    if (model === undefined) fail('query requires its owning model inventory.');
+    const model = models.find(model => model.name === query.model) ?? fail('query requires its owning model inventory.');
     for (const dependency of query.dependencies) {
       const field = model.fields.find(field => field.name === dependency.field);
       if (field === undefined || artifactType(field, models, schema) !== dependency.type) fail('query dependency disagrees with owning field.');
@@ -192,7 +190,7 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   if (!plan.returns.some(returned => returned.projection !== undefined)) return;
   disclosureType(type, plan);
   const parsed = parseTypeId(type);
-  if (parsed.base.kind !== 'nominal' || schema === undefined || !Object.hasOwn(schema.contracts, parsed.base.path)) fail('actual normalized result contract required.');
+  if (parsed.base.kind !== 'nominal' || schema === undefined || !Object.hasOwn(schema.contracts, parsed.base.path)) return fail('actual normalized result contract required.');
   const fields = schema.contracts[parsed.base.path]!.fields;
   for (const returned of plan.returns) {
     checkQueryProjection(returned as unknown as Record<string, unknown>, queries);
@@ -257,6 +255,10 @@ function subset(projected: unknown, original: unknown): boolean {
 }
 function canonicalWire(type: CanTypeId, value: unknown, schema?: NormalizedSchema): void {
   try {
+    // Transport reading has no owning enum registry. Preserve its string
+    // observation for exact current-schema validation at disclosure time.
+    const parsed = parseTypeId(type);
+    if (schema === undefined && parsed.base.kind === 'nominal' && !parsed.array && typeof value === 'string') return;
     const decoded = schema === undefined ? decodeValue(type, value) : validateValue(schema, type, value, 'create');
     if (!same(encodeValue(type, decoded), value)) fail('saved wire is not canonical.');
   } catch (error) { if (error instanceof StateError) throw error; fail('invalid saved canonical wire.'); }
@@ -266,7 +268,8 @@ function orderValue(record: ProjectedRecord, field: string): unknown {
     ? (record as unknown as Record<string, unknown>)[field] : record.data[field];
 }
 function compare(left: Candidate, right: Candidate, query: ScenarioReceiptQueryPlan): number {
-  for (const term of query.order) {
+  const order = query.order.length === 0 ? [{ field: 'created', direction: 'asc' }] : query.order;
+  for (const term of order) {
     const a = orderValue(left.record, term.field), b = orderValue(right.record, term.field);
     let compared = 0;
     if (a === null || a === undefined || b === null || b === undefined) compared = a == null && b == null ? 0 : a == null ? -1 : 1;
@@ -288,13 +291,13 @@ function compare(left: Candidate, right: Candidate, query: ScenarioReceiptQueryP
 }
 
 export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
-  returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown): void {
+  returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema): void {
   if (returned.projection === undefined) { if (value !== undefined && list(copy(value)).length !== 0) fail('scalar return has foreign query observations.'); return; }
   const queries = list(copy(value));
   if (queries.length !== 1) fail('exact selected query association required, including empty domains.');
   const observed = object(queries[0], ['queryId', 'revision', 'candidates', 'selectedIndices']);
-  const query = plan.queries?.find(query => query.id === returned.projection!.queryId);
-  if (query === undefined || observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
+  const query = plan.queries?.find(query => query.id === returned.projection!.queryId) ?? fail('saved query identity differs.');
+  if (observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
   const candidates = list(observed.candidates); const identities: string[] = [];
   for (const value of candidates) {
     const candidate = object(value, ['row', 'record', 'secretFields', 'matched', 'dependencies']);
@@ -311,7 +314,7 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
       const required = dependency.role === 'control' || candidate.matched;
       if (!required) continue;
       if (!ids.includes(dependency.id) || !Object.hasOwn(projected.data, dependency.field)) fail('complete false-domain control and selected data observations required.');
-      canonicalWire(dependency.type, projected.data[dependency.field]);
+      canonicalWire(dependency.type, projected.data[dependency.field], schema);
     }
   }
   unique(identities);
@@ -328,7 +331,7 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
 }
 
 export async function savedQueriesReadable(bound: {
-  readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly valueSchema?: NormalizedSchema;
+  readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly valueSchema?: NormalizedSchema | undefined;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
 }, association: { readonly plan: ScenarioResultDisclosurePlan; readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] },
 result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: readonly string[], blocked: readonly string[]) => Promise<ProjectedRecord | null>): Promise<boolean> {
@@ -338,7 +341,7 @@ result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: re
   try {
     if (!same(bound.plan, association.plan)) return false;
     checkQueryInventory(bound.plan, bound.type, [...bound.artifactModels.values()], bound.valueSchema);
-    checkSavedQueries(association.plan, returned, association.queries, result);
+    checkSavedQueries(association.plan, returned, association.queries, result, bound.valueSchema);
     canonicalWire(bound.type, result, bound.valueSchema);
     const query = bound.plan.queries!.find(query => query.id === returned.projection!.queryId)!;
     const observed = association.queries![0]!;
