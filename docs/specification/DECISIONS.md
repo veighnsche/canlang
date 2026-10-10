@@ -7647,3 +7647,48 @@ Use the existing State live owner hook carrier and the original admitted CRUD fr
 ### 2026-10-10 — selected local integration of live native hooks234ac92d
 
 Finite manual hook adapter and assembly/test reviews CLEAR. Integrate exact three owning CF paths and directly related native hook record only, excluding divergent Dev ancestry and unrelated File paragraph changes. Reuse genuine Memory7/7 in33419.27ms, zero failure/cancel/skip, and owning CF emission/root types0. Exact original live hook carrier/root frame, native projected before/after versions, candidate codecs and existing context are retained; original callback occurrence coverage and caught-refusal latch protect State staging. Assembly drift validation remains distinct from StateError/business receipt authority. Actual D1 awaits Dev portable Work leaf repair; positive checked Compiler hook/native Maintain, File current-contract/DO/physical issuer, authenticated provider and whole plans remain unfinished. Preserve every precise hold and allocation tuple; reconcile existing living coverage without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — emit checked private standard completions (unfinished native join)
+
+Seal the original checked declaration/header, operation/import route and full
+ordered handler census, then carry it into StandardCompleted IR and the existing
+private standardCompletions carrier. canApp reuses the original appDefinition
+array. Retain complete selected input/raw-result/DeliveryError schemas, required
+four-field private envelopes and real callable/cohort identities; no synthetic
+symbols or public artifact extension. Completion-bearing definitions use the same
+complete value inventory as the installed loader, avoiding unrelated legacy
+operation records. Programs without completions retain their existing behavior.
+
+Owning codegen121/121 (0.37s), delivery_error_shapes9/9 (1.19s, actual existing
+native observer), new projection2/2 (0.12s) and IR2/2 (0.01s) pass. The positive
+checks unchanged emitted modules against installed Values and the exact released
+Dev321 consumer shape, including nested Text/Image and original array reference;
+analysis/IR/route/census/source-owner/unknown-closure controls refuse. Corrected
+whole-declaration versus name-token spans and actual test API/path assumptions
+supersede intermediate failures. CLI terminal E6008 remains. Capability must
+release the genuine readonly State runner and factored Work.read before Dev can
+qualify retained-source execution/replay; no fake occurrence or source authority.
+Void, anchored completion and unknown WorkflowField remain refused. Strict all-target Clippy0 (28.79s), fmt/diff0 follow the earlier provenance
+question-mark and raw-IR fixture census corrections; related typed_bdd2/2
+pass0.00s,136 distinct affected checks total. Current whole follows
+related ready work; historical1429/138 stays frozen.58/67/nine and all exact
+holds remain. Local only.
+
+
+### 2026-10-10 — require unique completion census (unfinished native join)
+
+JS private publication now requires unique sealed handler IDs and exact coverage
+of all lowered handlers. Equal-length duplicate substitution cannot omit an
+original handler. The actual checked two-handler source emits first; its edited
+sealed census then refuses E6008 with no partial carrier. Owning mutation1/1
+(0.02s) and existing projection2/2 (0.08s) pass; fmt/diff0. Reuse unrelated136 and
+strict28.79s at their frozen scope. Hook profile/registry work remains separately
+unfinished; no current whole or native terminal acceptance. Capability's genuine
+readonly State/Work a8e source and Dev's live hook234ac adapter are released through
+coordinator carriers, pending safe exact intake and actual consuming qualification.
+E6008/void/anchored/WorkflowField and every precise hold remain. Local only.
+
+### 2026-10-10 — manual local integration of f36d6fc2
+
+Finite analysis/IR and combined JS manual reviews CLEAR after f36 closes the equal-length duplicate-fact/omitted-handler census gap. Integrate the checked92 producer plus exact uniqueness correction. Original declaration/import/header/R/event/binding/from correspondence and same-reference ordered private standardCompletions with complete four-input/type inventory remain owning source facts, not native authority. Reuse prior136 affected checks and strict28.79s only at their frozen scope; changed census defining test1/1 0.02s and existing emitter2/2 0.08s, fmt/diff0 qualify the correction. Original publication E6008, void/anchored/unknown WorkflowField refusal,32 original diagnostics,58of67/nine and precise holds remain. Dev owns actual unchanged-module positive native completion/retained replay/D1 join using reviewed private adapter and State readonly runner; positive hook producer remains a separate ready unit. Preserve source and related records, all physical owners/allocations and unadvanced complete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
