@@ -7823,3 +7823,46 @@ No whole-source acceptance or58/67/nine/hold change. Local only.
 ### 2026-10-11 — manual local integration of ef186936
 
 Finite private artifact delivery review CLEAR. Existing qualification producer now uses genuine artifact assemble/to_json and unchanged original source/catalog to emit full modules/callables/models/requirements/valueTypes rather than fragments. No reconstructed metadata, shared DTO, public flag or fabricated ABI; source has no examples or orphan recipes. Reuse owning2/2 0.07s; this qualifies delivery of actual producer output, not native State/Work authority or execution. Dev receives the owner target artifact/source/catalog and reviewed containing carrier for actual unchanged-module completion/replay checks. Public terminal E6008, void/anchored/unknown WorkflowField, hook native callback/context/rollback, original apps and every precise hold remain. File State-to-physical/native current-authority qualification continues with existing assigned owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-11 — qualify genuine persisted retirement consumer (unfinished host join)
+
+Consume coordinator-reviewed State032 through exact released0e565796 and local
+2c3e60ea without resetting divergent Files08fc history. Relevant State, Work
+source and Files bytes equal reviewed containingc8bd0490. Existing Work
+file-retirement-framework.test.ts gains only a genuine consumer group and
+imports; every original Capability assertion remains unchanged. Work's Files
+devDependency and exact lock importer avoid a production dependency cycle.
+Use actual public State/Work producers, persisted Miniflare D1 and separate
+Files SQLite, genuine upload/finalization, original receiving provenance and
+physical fileStoreId. No callback, copied port or DTO supplies retirement.
+
+Multiple live/archived references prevent orphaning until real State removal;
+expiry retains original committed references. The permanent State decision
+survives real physical DELETE rollback and both-store reopen. Exact original
+journal and full terminal tombstone permit missing-byte retry; omitted issuer,
+repin, legacy reference commit with secondary effects, public byte revival,
+metadata revival, missing journal and changed retirement policy/disposition
+refuse with full accessible State-owned and Files tables unchanged. Original
+metadata, attachment and receipt redaction survive physical cleanup. D1's
+reserved _cf_* metadata is provider-owned and read-protected by its public API.
+
+Final Work emission0 and two genuine cases2/2 pass5443.37ms (5755.42ms total),
+zero fail/cancel/skip. Two fixture type errors and the initial protected-provider
+snapshot failure were corrected without weakening behavior. Final execution
+follows the complete tombstone assertion; existing State032 backend/framework/
+error and Files08fc controls are reused. Frozen offline install0, package
+boundaries13packages/946JS-TS/1403runtime-context/0violations; finite source fix
+review CLEAR. No old Work/DO/native rerun or new proof records.
+
+Finite consumer source awaits coordinator review. Dev still owns the actual
+single-authoritative-owner/store binding for every writer/deleter and the
+original/generated native lifecycle/interruption/reopen workflow. Opaque
+retained/deferred source/input/result/current File authority and authenticated
+provider/deployment verification plus durable ingress correlation remain
+separate dependencies. No complete host/TECH-F02/parent acceptance or hold
+release; local coherent implementation only, no push.
+
+### 2026-10-11 — selected local integration of genuine retirement consumer6aee0bef
+
+Finite original-producer, actual D1/SQLite consumer and assertion review CLEAR. Integrate only the exact owning consumer test group, direct Work Files devDependency/lock importer, Files README and related authoritative task records; exclude divergent branch ancestry. Original State/Work/Files production already equals reviewed main. Reuse final two genuine cases2/2 in5443.37ms (5755.42ms total), zero failure/cancel/skip, actual State/Work emissions and package boundaries0. Permanent original State issuance, complete journal/tombstone, SQL rollback, both-store reopen, exact retry and legacy refusal qualify this explicit physical consumer join. Dev all-writer/current-owner routing, actual native/original lifecycle/interruption/reopen, opaque source/current File authority and authenticated ingress remain unfinished, with every precise hold preserved. Reconcile the existing living tree/coverage/decisions while retaining allocations and the unadvanced complete checkpoint. No remote push or publication.
