@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T03:38:49.940041+00:00",
+  "updated_utc": "2026-10-10T04:38:02.336654+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Finite native static CALL activation is implemented, actual CLI/artifact6/6 tested, manually reviewed and integrated LOCAL2ee246ab. Exact compiler source6530a74e completes129targets1356/0failed/0ignored/0filtered with real required completion engines/native/permission bodies and zero body skips; strict all-target lint/fmt0. Reviewed-main intake leaves compiler/receipt runtime core unchanged; fresh graph26/26 zero cached and owning actual CLI/module1/1 pass. Genuine Dev native child execution and broader original owner joins/precise holds remain; nine refs stay open.",
+  "current_source_work": "Exact compiler96fa42834dc0c5d12724b1c877f639a35b379439 passes the complete current-source required run:133targets1381passed/0failed/0ignored/0filtered/0SKIP on Node24.19 with actual installed graph22/22 at reviewedlocala22241b7. Strict all-targetClippy/fmt0; coordinator manual review integrated compiler corrections at LOCALd0828a56. Original58/67 and precise owner dependencies/holds remain. Exact Dev2a1a07a1 NativeRefArrays input is released at LOCAL5fa76b27; its bounded loop producer/consumer join is the next ready compiler unit.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -440,24 +440,24 @@
     "completion_header": "types.rs reuses the exact checked handler completion envelope for example event literals; enum claim machinery accepts succeeded with declared Outcome.state=unavailable. Nullable generic Object field expectation reuses imported std OperationOutcome schema. b4_check::completion_example_headers_claim_status_and_declared_result_enum_cases final1/1(0.06s), with actual installed schema and CLI positive local/std fixtures, anchored foreign HEADER status/state E2001, null/omission and equal/ancestor input replacement preserving Error/unclaimed. General foreign ROW remains diagnostic-free/unclaimed; no refusal claim. t10_examples_event_claims_nested_cases1/1(0.00s) reused. Earlier0/1(0.42s) was false row-diagnostic expectation; same case passed after correction. Later0/1(0.01s) added inadmissible trusted-handler sequence E1210; removed to restore original DoBlock scope/no sequence policy change. Final focused build0(7.04s); focused lib/bin Clippy0(3.33s) preceded temporary control; scoped formatting passes. Coordinator's single Roadmap CanBook check reports complete=true, omitted0, exit10 overall: CanBook0 diagnostics, 437 transitive files present, no E2005. No BDD3 carrier/runtime/disclosure, guard/send invalidation/full-task credit; count58/67 unchanged."
   },
   "current_whole_qualification": {
-    "source_commit": "6530a74e3225ce3b599927519e78241c680c1fb3",
-    "passed": 1356,
+    "source_commit": "96fa42834dc0c5d12724b1c877f639a35b379439",
+    "passed": 1381,
     "failed": 0,
     "ignored": 0,
     "filtered": 0,
-    "targets": 129,
+    "targets": 133,
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
-    "current_head_is_qualified": false,
+    "current_head_is_qualified": true,
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
     "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
-    "remaining_dependencies": "Original Workbench read/query Fact[], protected dynamic/as/CRUD/default/framework/composite source/schema/State/Dev joins, T11 evidence contract and exact human holds remain. New source facts are nongrant structural correspondence; changed-source whole qualification follows the next coherent compiler units.",
+    "remaining_dependencies": "Original Workbench read/query Fact[], protected dynamic/as/CRUD/default/framework/composite source/schema/State/Dev joins, T11 evidence contract and precise BDD3/Task22 human holds remain. New facts are nongrant structural correspondence. Released exact Dev array fixture/lifetime enables the next finite bounded straight-line loop source join; general loop coverage remains separate.",
     "subsequent_focused_qualification": "Clean fast-forward to reviewed LOCAL2ee246ab adds owner Dev qualification sources but leaves compiler/tests/receipt runtime core unchanged. Fresh actual graph26/26 zero cached builds on Node24; owning actual CLI/emitter/imported-module1/1 passes with current outputs. Unchanged whole1356 and other five cases reused.",
-    "scope": "Historical whole1356 at6530 retained. Current core units have affected qualification and strict all-target lint/fmt0. Exact released locala22241b7 including State332/f3 safely consumed; actual graph22/22 zero cached. Current changed-source whole resumes after precise corpus correction; no original Workbench/native acceptance.",
-    "changed_source_failure": "Complete actual07996dbf whole run reaches every target with required Node24 completion/native/permission bodies and zero SKIP. Three owning failures remain: existing scenario3000 compile stack overflow (flat_expression_runtime); unsupported datetime query diagnostic replaced by collection-fact mismatch (query_order); model-containing contract negative is stale after qualified model-reference inventory (schedule_binding_runtime). No current whole qualification. Fix actual compiler paths and retain meaningful unsupported fixture control; do not bypass."
+    "scope": "Exact96fa source and actual installed releaseda22241b7 outputs qualify all compiler/corpus/LSP/completion/native/permission targets; strict all-targetClippy/fmt0. Earlier6530 whole1356 remains historical in the existing record. No original Workbench/application or broader-reference acceptance.",
+    "changed_source_failure": "Historical07996dbf whole:133targets1377passed/3failed, zero ignored/filtered/SKIP. Actual emitter clone stack overflow and masked unsupported query refusal are repaired; stale schedule negative retains unsupported email control. All three owning targets and the complete96fa run now pass."
   },
   "construct_help_first_profile": {
     "state": "compiler_prerequisite_and_selected_native_core_qualified_full_profile_open",
@@ -658,7 +658,7 @@
       "behavior": "Actual reused array parameter source layer retains exact compatible min/max inclusive JS-safe integer lengths in IR, top-level operation input metadata and generated scenario/capability schemas; field-only !, normalization, uniqueness/distinctness are not borrowed. Outer scalar-field[] wrapper does not promote element bounds to cardinality.",
       "validation": "Owning actual IR/CLI/artifact/generated-schema target3/3: imported Task[] min1/max10, narrowed min2/max5, nullable/read-versus-mutation versions, legal default[] and unbounded/scalar-element wrapper controls; unsafe/symbolic no modules. Direct parameter modifiers already refuse parser E1200; no new unsupported-syntax inference. Strict all-target and changed-source whole due after decision consumer stable. Strict all-target Clippy/fmt0 at coherent decision/parameter source; changed-source whole due.",
       "owner_release": "Packages exact shared envelope top-level min/max:number for safe nonnegative array lengths, existing array/nullable/ref requireVersion. State per-element current reference/outer checkpoint; Dev private input-array view/slot correspondence. Native array admission remains withheld.",
-      "remaining": "General loop/native association blocked on exact released Dev NativeRefArrays fixture plus State/Contracts ordered admitted ref-array domain/duplicates/zero/conditional per-element coverage and Dev genuine capture lifetime. Existing repeated-row dependency marker is sufficient for repeated occurrences; static dep presence alone is not loop completeness. No invented index/authority recipe."
+      "remaining": "Exact Dev2a1a07a1 fixture/private indexed input lifetime is released at LOCAL5fa76b27. Next ready finite compiler unit: immutable admitted model-array domain, positive literal limit, unconditional supported Set, empty/nonempty return selection and exact source/IR join. Existing repeated static row markers suffice. General query/computed/nullable/nested/conditional loops still require complete defining coverage; no new human hold."
     },
     "nominal_model_references": {
       "state": "implemented_real_values_and_state_loader_tested_native_query_unfinished",
