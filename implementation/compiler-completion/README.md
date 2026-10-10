@@ -2474,12 +2474,15 @@ artifact loading with exact result/ref schemas, missing/duplicate model context
 refusals; final affected13/13 (ordinary4,bounds3,decision6). Earlier unchanged
 strict lint/format results are reused. Changed-source whole checks follow.
 
-The real serial membership join exposes one defining State discrepancy: actual
-Compiler type ID Team is uppercase, while released State special active_member
-intake requires lowercase team. Coordinator assigned the exact correction to
-State. SKIP membership transport activation pending that release and Dev private
-source/frame/stage facade; Compiler will consume exact owning repair. No duplicate
-State patch, purity change, replay or hoist. Precise BDD3/Task22 holds remain.
+The defining State Team discrepancy is corrected by exact released State332/f3
+on reviewed locala22241b7. After the real22/22 uncached owner build, the single
+actual compiler serialization is accepted unchanged by installed State's checker:
+source, stages, positions, slots, defaults and frames survive; native user/Team
+IDs retain their spellings and lowercase team refuses. Owning decision6/6 passes.
+This qualifies structural transport only. SKIP runtime activation pending Dev's
+private source/frame/stage capture facade and accepted bounded decision context;
+no duplicate State patch, purity change, replay or hoist. Precise BDD3/Task22
+holds remain.
 
 
 **Owning disclosure depth correction, 2026-10-10.**
