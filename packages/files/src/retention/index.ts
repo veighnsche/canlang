@@ -11,13 +11,21 @@
  * projections.
  */
 import type {
+  FilePolicy,
+  FileReferenceStoragePort,
+  FileRetirementAuthority,
+  FileRetentionPolicy,
+  FinalizedFileIdentity,
+  FinalizedFileRetirement,
   FinalizedFileRef,
+  Revision,
   UploadIntentId,
 } from '@canlang/contracts';
 import type {
   BlobStorePort,
   ClockPort,
   FinalizedStorePort,
+  FinalizedFileDeletionRecord,
   IntentStorePort,
   PagedFinalizedStorePort,
   PagedIntentStorePort,
@@ -27,6 +35,234 @@ import type {
 import { assertSafeBlobKey } from '../ports.js';
 import { blobKeyForFile } from '../finalize/index.js';
 import { stagingKeyForIntent } from '../upload/index.js';
+import { checkContent, sha256Hex } from '../upload/index.js';
+import { freezeFinalized } from '../provenance/index.js';
+
+const cleanupRefuse = (message: string): never => { throw new Error(`File retirement cleanup: ${message}`); };
+function closedData(value: unknown, required: readonly string[], optional: readonly string[] = []): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return cleanupRefuse('closed own data required');
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return cleanupRefuse('plain own data required');
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const keys = Reflect.ownKeys(descriptors);
+  if (keys.some(key => typeof key !== 'string' || !required.includes(key) && !optional.includes(key)) ||
+      required.some(key => !Object.hasOwn(descriptors, key))) return cleanupRefuse('closed metadata required');
+  const result: Record<string, unknown> = {};
+  for (const key of keys as string[]) {
+    const descriptor = descriptors[key];
+    if (!('value' in descriptor) || !descriptor.enumerable) return cleanupRefuse('own enumerable data required');
+    result[key] = descriptor.value;
+  }
+  return result;
+}
+function cleanupText(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) return cleanupRefuse('nonempty identity required');
+  return value;
+}
+function cleanupTime(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) return cleanupRefuse('safe nonnegative integer required');
+  return value;
+}
+function cleanupReceiver(value: unknown) {
+  const row = closedData(value, ['app', 'team', 'owner', 'principal']);
+  return Object.freeze({ app: cleanupText(row.app), team: cleanupText(row.team),
+    owner: cleanupText(row.owner), principal: cleanupText(row.principal) });
+}
+function cleanupRetention(value: unknown): FileRetentionPolicy {
+  const row = closedData(value, ['unattachedHorizonMs', 'retentionMs']);
+  return Object.freeze({ unattachedHorizonMs: cleanupTime(row.unattachedHorizonMs), retentionMs: cleanupTime(row.retentionMs) });
+}
+/** Closed detached correspondence facts only; this does not authenticate State. */
+export function checkedFileCleanupAuthority(value: unknown): FileRetirementAuthority {
+  const row = closedData(value, ['app', 'stateOwner', 'stateStoreId', 'fileStoreId', 'receiver']);
+  const receiver = closedData(row.receiver, ['app', 'team', 'owner']);
+  const result = Object.freeze({ app: cleanupText(row.app), stateOwner: cleanupText(row.stateOwner),
+    stateStoreId: cleanupText(row.stateStoreId), fileStoreId: cleanupText(row.fileStoreId),
+    receiver: Object.freeze({ app: cleanupText(receiver.app), team: cleanupText(receiver.team), owner: cleanupText(receiver.owner) }) });
+  if (result.app !== result.receiver.app) return cleanupRefuse('receiving app mismatch');
+  return result;
+}
+function cleanupIdentity(value: unknown): FinalizedFileIdentity {
+  const row = closedData(value, ['ref', 'receiver', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAtMs']);
+  const ref = cleanupText(row.ref);
+  assertSafeBlobKey(blobKeyForFile(ref));
+  const receiver = cleanupReceiver(row.receiver);
+  const kind = typeof row.provenance === 'object' && row.provenance !== null
+    ? Object.getOwnPropertyDescriptor(row.provenance, 'kind') : undefined;
+  if (kind === undefined || !('value' in kind)) return cleanupRefuse('own provenance required');
+  let provenance: FinalizedFileIdentity['provenance'];
+  if (kind.value === 'request') {
+    const p = closedData(row.provenance, ['kind', 'app', 'team', 'owner', 'principal', 'adapter', 'deliveryId', 'resultPath']);
+    provenance = Object.freeze({ kind: 'request', app: cleanupText(p.app), team: cleanupText(p.team),
+      owner: cleanupText(p.owner), principal: cleanupText(p.principal), adapter: cleanupText(p.adapter),
+      deliveryId: cleanupText(p.deliveryId), resultPath: cleanupText(p.resultPath) });
+    if (provenance.app !== receiver.app || provenance.team !== receiver.team || provenance.owner !== receiver.owner ||
+        provenance.principal !== receiver.principal) return cleanupRefuse('original request receiver mismatch');
+  } else if (kind.value === 'event') {
+    const p = closedData(row.provenance, ['kind', 'source', 'adapter', 'occurrenceId', 'fieldPath', 'itemIndex']);
+    provenance = Object.freeze({ kind: 'event', source: cleanupText(p.source), adapter: cleanupText(p.adapter),
+      occurrenceId: cleanupText(p.occurrenceId), fieldPath: cleanupText(p.fieldPath), itemIndex: cleanupTime(p.itemIndex) });
+  } else return cleanupRefuse('original provenance required');
+  const bytesDigest = cleanupText(row.bytesDigest);
+  if (!/^sha256:[0-9a-f]{64}$/.test(bytesDigest)) return cleanupRefuse('original digest required');
+  return Object.freeze({ ref, receiver, provenance, contentType: cleanupText(row.contentType),
+    sizeBytes: cleanupTime(row.sizeBytes), bytesDigest, finalizedAtMs: cleanupTime(row.finalizedAtMs) });
+}
+/** Snapshot a complete physical row without invoking getters or trusting casts. */
+export function checkedFileCleanupRecord(value: unknown): StoredFileRecord {
+  const row = closedData(value, ['file', 'owner', 'finalizedAtMs', 'state', 'attachedRecord'], ['attachedAtMs']);
+  const f = closedData(row.file, ['id', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAt']);
+  const date = closedData(f.finalizedAt, ['kind', 'ms']);
+  const identity = cleanupIdentity({ ref: f.id, receiver: row.owner, provenance: f.provenance,
+    contentType: f.contentType, sizeBytes: f.sizeBytes, bytesDigest: f.bytesDigest, finalizedAtMs: row.finalizedAtMs });
+  if (date.kind !== 'datetime' || typeof date.ms !== 'bigint' || date.ms !== BigInt(identity.finalizedAtMs) ||
+      !['finalized', 'attached', 'orphaned', 'expired'].includes(row.state as string) ||
+      row.attachedRecord !== null && (typeof row.attachedRecord !== 'string' || row.attachedRecord.length === 0) ||
+      row.state === 'attached' && row.attachedRecord === null) return cleanupRefuse('physical lifecycle/time mismatch');
+  const attachedAtMs = Object.hasOwn(row, 'attachedAtMs') ? cleanupTime(row.attachedAtMs) : undefined;
+  if (row.state === 'finalized' && (row.attachedRecord !== null || attachedAtMs !== undefined)) {
+    return cleanupRefuse('unattached lifecycle mismatch');
+  }
+  if (attachedAtMs !== undefined && (row.attachedRecord === null || attachedAtMs < identity.finalizedAtMs)) {
+    return cleanupRefuse('attachment time mismatch');
+  }
+  return Object.freeze({ file: freezeFinalized({ id: identity.ref, provenance: { ...identity.provenance },
+    contentType: identity.contentType, sizeBytes: identity.sizeBytes, bytesDigest: identity.bytesDigest,
+    finalizedAt: { kind: 'datetime', ms: BigInt(identity.finalizedAtMs) } }), owner: identity.receiver,
+    finalizedAtMs: identity.finalizedAtMs, state: row.state as StoredFileRecord['state'],
+    attachedRecord: row.attachedRecord as string | null, ...(attachedAtMs === undefined ? {} : { attachedAtMs }) });
+}
+function identityOf(record: StoredFileRecord): FinalizedFileIdentity {
+  return cleanupIdentity({ ref: record.file.id, receiver: record.owner, provenance: record.file.provenance,
+    contentType: record.file.contentType, sizeBytes: record.file.sizeBytes, bytesDigest: record.file.bytesDigest,
+    finalizedAtMs: record.finalizedAtMs });
+}
+function cleanupDecision(value: unknown): FinalizedFileRetirement {
+  const row = closedData(value, ['retirementId', 'authority', 'file', 'snapshot', 'censusRevision', 'retiredRevision', 'retiredAtMs', 'disposition', 'retention']);
+  const snapshot = closedData(row.snapshot, ['owner', 'snapshotId', 'digest', 'installedRevision', 'installedAt']);
+  const censusRevision = cleanupTime(row.censusRevision), retiredRevision = cleanupTime(row.retiredRevision);
+  const installedRevision = cleanupTime(snapshot.installedRevision);
+  if (typeof snapshot.installedAt !== 'number' || !Number.isFinite(snapshot.installedAt)) return cleanupRefuse('finite installed time required');
+  const installedAt = snapshot.installedAt;
+  const file = cleanupIdentity(row.file), retention = cleanupRetention(row.retention), retiredAtMs = cleanupTime(row.retiredAtMs);
+  if (retiredRevision !== censusRevision + 1 || installedRevision > censusRevision || retiredAtMs < file.finalizedAtMs ||
+      row.disposition !== 'orphaned' && row.disposition !== 'expired') return cleanupRefuse('original decision/revision mismatch');
+  const elapsed = BigInt(retiredAtMs) - BigInt(file.finalizedAtMs);
+  if (elapsed < BigInt(row.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
+    return cleanupRefuse('original retirement is not due');
+  }
+  return Object.freeze({ retirementId: cleanupText(row.retirementId), authority: checkedFileCleanupAuthority(row.authority), file,
+    snapshot: Object.freeze({ owner: cleanupText(snapshot.owner), snapshotId: cleanupText(snapshot.snapshotId),
+      digest: cleanupText(snapshot.digest), installedRevision: installedRevision as Revision, installedAt }),
+    censusRevision: censusRevision as Revision, retiredRevision: retiredRevision as Revision,
+    retiredAtMs, disposition: row.disposition, retention });
+}
+const cleanupEqual = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+function sameCleanupRecord(left: StoredFileRecord, right: StoredFileRecord): boolean {
+  return cleanupEqual(identityOf(left), identityOf(right)) && left.state === right.state &&
+    left.attachedRecord === right.attachedRecord && left.attachedAtMs === right.attachedAtMs;
+}
+
+/** Trusted host mechanics; journal/transaction implementations are not issuers. */
+export interface FinalizedFileCleanupDeps {
+  readonly clock: ClockPort;
+  readonly files: FinalizedStorePort;
+  readonly blobs: BlobStorePort;
+  readAuthority(): FileRetirementAuthority | null;
+  readDeletion(ref: FinalizedFileRef): FinalizedFileDeletionRecord | null;
+  saveDeletion(record: FinalizedFileDeletionRecord): void;
+  transaction<T>(body: () => T): T;
+}
+
+/** Bind the actual original State owner port outside request data. Capture its
+ * lookup once; accept only a ref, never a caller DTO/census/issuer callback.
+ * Shape checks and copies establish correspondence, not durable issuance.
+ * The host must supply the genuine port after State guard/profile qualification. */
+export function createFinalizedFileCleanup(
+  deps: FinalizedFileCleanupDeps,
+  storage: FileReferenceStoragePort,
+  options: { readonly policy: FilePolicy; readonly retention: FileRetentionPolicy },
+): (ref: FinalizedFileRef) => Promise<'deleted' | 'already-deleted'> {
+  const authority = checkedFileCleanupAuthority(storage.fileRetirementAuthority);
+  const readRetirement = storage.readFinalizedFileRetirement.bind(storage);
+  const readAuthority = deps.readAuthority.bind(deps), readDeletion = deps.readDeletion.bind(deps);
+  const saveDeletion = deps.saveDeletion.bind(deps), transaction = deps.transaction.bind(deps);
+  const get = deps.files.get.bind(deps.files), put = deps.files.put.bind(deps.files);
+  const read = deps.blobs.read.bind(deps.blobs), remove = deps.blobs.remove.bind(deps.blobs), nowMs = deps.clock.nowMs.bind(deps.clock);
+  if (!cleanupEqual(authority, checkedFileCleanupAuthority(readAuthority()))) return cleanupRefuse('persisted physical assignment mismatch');
+  return async ref => {
+    assertSafeBlobKey(ref);
+    assertSafeBlobKey(blobKeyForFile(ref));
+    // Snapshot CURRENT policy before the async issuer lookup; later mutation
+    // cannot change the policy half of this call's physical decision.
+    const retention = cleanupRetention(options.retention);
+    const p = closedData(options.policy, ['types', 'maxBytes']);
+    if (!Array.isArray(p.types) || p.types.length > 100) return cleanupRefuse('bounded current content policy required');
+    const types = Object.getOwnPropertyDescriptors(p.types);
+    if (Reflect.ownKeys(types).length !== p.types.length + 1 || Object.getPrototypeOf(p.types) !== Array.prototype) {
+      return cleanupRefuse('own dense current content types required');
+    }
+    const policy: FilePolicy = { maxBytes: cleanupTime(p.maxBytes), types: [] };
+    for (let i = 0; i < p.types.length; i++) {
+      const d = types[String(i)];
+      if (d === undefined || !('value' in d) || !d.enumerable) return cleanupRefuse('own current content type required');
+      policy.types.push(cleanupText(d.value));
+    }
+    const before = transaction(() => {
+      if (!cleanupEqual(authority, checkedFileCleanupAuthority(readAuthority()))) return cleanupRefuse('persisted physical assignment mismatch');
+      return checkedFileCleanupRecord(get(ref));
+    });
+    const decision = cleanupDecision(await readRetirement(ref));
+    return transaction(() => {
+      if (!cleanupEqual(authority, checkedFileCleanupAuthority(readAuthority())) || !cleanupEqual(decision.authority, authority) ||
+          decision.file.ref !== ref || decision.file.receiver.app !== authority.receiver.app ||
+          decision.file.receiver.team !== authority.receiver.team || decision.file.receiver.owner !== authority.receiver.owner) {
+        return cleanupRefuse('issuer/physical assignment mismatch');
+      }
+      const now = cleanupTime(nowMs());
+      if (decision.file.sizeBytes > policy.maxBytes || !policy.types.includes(decision.file.contentType)) {
+        return cleanupRefuse('current content policy refuses');
+      }
+      if (now < decision.retiredAtMs || BigInt(now) - BigInt(decision.file.finalizedAtMs) <
+          BigInt(decision.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
+        return cleanupRefuse('current retirement is not due');
+      }
+      const stored = checkedFileCleanupRecord(get(ref));
+      if (!sameCleanupRecord(stored, before) || !cleanupEqual(identityOf(stored), decision.file) ||
+          stored.attachedAtMs !== undefined && stored.attachedAtMs > now) {
+        return cleanupRefuse('original physical metadata mismatch');
+      }
+      const saved = readDeletion(ref);
+      if (saved !== null) {
+        const journal = closedData(saved, ['retirement', 'tombstone']);
+        const original = cleanupDecision(journal.retirement), tombstone = checkedFileCleanupRecord(journal.tombstone);
+        if (!cleanupEqual(original, decision) || tombstone.state !== decision.disposition || stored.state !== decision.disposition ||
+            !cleanupEqual(identityOf(tombstone), identityOf(stored)) || tombstone.attachedRecord !== stored.attachedRecord ||
+            tombstone.attachedAtMs !== stored.attachedAtMs) return cleanupRefuse('original terminal journal mismatch');
+      } else if (stored.state === 'orphaned' || stored.state === 'expired') return cleanupRefuse('terminal row has no original journal');
+      const bytes = read(blobKeyForFile(ref));
+      if (bytes === null) {
+        if (saved === null) return cleanupRefuse('missing bytes have no original terminal journal');
+        return 'already-deleted';
+      }
+      const detached = new Uint8Array(bytes);
+      if (detached.byteLength !== decision.file.sizeBytes || sha256Hex(detached) !== decision.file.bytesDigest) {
+        return cleanupRefuse('original physical bytes mismatch');
+      }
+      const content = checkContent(policy, decision.file.contentType, detached);
+      if (content.verdict !== 'accepted' || content.detectedType !== decision.file.contentType || content.sizeBytes !== decision.file.sizeBytes) {
+        return cleanupRefuse('current content policy refuses');
+      }
+      if (saved === null) {
+        const tombstone = { ...stored, state: decision.disposition };
+        saveDeletion({ retirement: decision, tombstone });
+        put(tombstone);
+      }
+      remove(blobKeyForFile(ref));
+      return 'deleted';
+    });
+  };
+}
 
 export interface RetentionDeps {
   readonly clock: ClockPort;

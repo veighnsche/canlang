@@ -7751,3 +7751,29 @@ Final Contracts/State/Work owning emissions pass, including normal State DO bund
 ### 2026-10-10 — manual local integration of 03267121
 
 Finite domain runtime, framework correspondence, corrected activation/resume and actual changed backend/test manual reviews CLEAR. Integrate coherent State485/0bd/08e95/032 source and directly related existing records after actual DO build/ReceiptError dependency qualification. Original constructor-captured adapter binding supplies correspondence only; persisted permanent assignment, complete census and original revision transaction retain durable authority. Normal activation/resume captures the full target before phase writes; copied adapters, legacy writes, source/shape mismatch and opaque payloads refuse. Reuse actual changed State DO15/15 1508.93ms, exact closed ReceiptError3/3 140.61ms, mixed Work9+State4 Memory/D1 admission and 16 distinct mixed tests including 13-family nonempty Memory activation/interrupted resume, domain DO3/3 2723.62ms, final owning emit/boundary0 and unchanged prior domain25/legacy82/reader38/9 at their recorded scopes. Combined 13-family DO activation is not claimed: DO reopen exercises State families, mixed activation/resume is Memory and mixed admission/reopen is D1. Packages authentic reopened Files terminal/byte transaction, Dev one authoritative physical store/routing/races/reopen, opaque original source/current File authority, provider and original full workflows remain required. Preserve all precise holds and actual physical ownership/allocations; no whole-plan acceptance or remote push. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — consume permanent retirement in Files (unfinished genuine join)
+
+Keep State issuance at the trusted original owner port, outside request data.
+Files accepts only a reference, persists its physical store identity and first
+exact State/receiver assignment, and checks the original whole decision after
+await against current physical metadata/policy/clock in one SQLite transaction.
+Save the original decision and matching terminal tombstone with byte deletion.
+Missing bytes require that same journal; copied DTOs, absence, live observations
+and public transactions supply no issuance or cleanup permission. Pinned public
+ports refuse finalized byte changes, terminal revival and first attachment time
+regression; genuine attachment marker moves preserve the original time.
+
+Owning emission passes. Five affected Files files115/115 pass695.76ms. Finite
+review found the attachment regression; corrected and final seven retirement
+controls7/7 pass192.31ms, with real DELETE-trigger rollback/reopen retry, original
+journal/identity and malformed/current-policy/legacy-bypass refusals. Correction
+review CLEAR; reuse other109 results. These controlled issuer tests qualify only
+Files mechanics. Pending reviewed State032 issuer/framework/DO source intake,
+genuine State-to-Files reopen qualification and Dev all-writer/routing recovery
+remain necessary; full physical profile and parent scopes remain unfinished.
+All exact holds are preserved; no unchanged Work/DO/native tests or publication.
+
+### 2026-10-10 — manual local integration of 08fcff8d
+
+Finite retention/SQLite/ports and defining mechanics/test manual reviews CLEAR. Durable random physical identity, permanent first State/receiver pin and original complete retirement decision are preserved; original State lookup/physical policy-row snapshot precede awaits, then exact metadata, current horizons/clock/content/bytes and assignment are checked in one SQLite transaction. Original decision journal, terminal tombstone and byte deletion roll back together; reopened missing-byte retries require the exact original decision. Pinned legacy finalize/delete/overwrite/append/revival/attachment regressions refuse, public transaction provides no cleanup authority. Reuse owning115 affected Files cases695.76ms and final corrected7 retirement controls192.31ms with109 other unchanged results, final emissions/boundary0. Controlled issuers qualify physical mechanics only. Actual reviewed State032 source is now available: Packages must qualify genuine persisted State-to-Files/reopen; Dev owns one authoritative native State store/current owner/physical routing/contention/interruption/reopen; opaque source/current File authority/provider/original full apps and precise holds remain. Preserve all allocation tuples and reconcile current tree/history without advancing complete checkpoint or publishing. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
