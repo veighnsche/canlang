@@ -393,3 +393,89 @@ describe('private original-stage commit checks', () => {
     resolve(null); await assert.rejects(read, /crossed/); assert.equal(await world.store.readRevision(), 0);
   });
 });
+
+
+describe('registry-issued read-only system execution', () => {
+  it('settles all three tracked readers, returns a frozen detached result, and closes without committing resources', async () => {
+    const world = await setupPortsWorld();
+    await invokeStage(world, { execute: makeStagingHandler({ intents: [makeStagedIntent('read-only-original')] }) });
+    const revision = await world.store.readRevision(), retained = await world.store.outboxGet('read-only-original');
+    let issued!: SystemCommandContext, commits = 0;
+    const value = { nested: { accepted: true } };
+    const store = { ...world.store, commit: async (batch: Parameters<typeof world.store.commit>[0]) => {
+      commits++; return world.store.commit(batch);
+    } };
+    const command = defineSystemCommand({ name: 'test.read-only', stage: () => ({}), read: async (_args, ctx) => {
+      issued = ctx;
+      assert.deepEqual(Object.keys(ctx).sort(), ['actor', 'load', 'now', 'operation', 'query']);
+      assert.equal(systemCommandStageRevision(ctx), revision);
+      const [loaded, selected, original] = await Promise.all([
+        ctx.load(world.model, 'absent' as never),
+        ctx.query({ model: world.model, authority: 'owner', archived: 'include' }),
+        readSystemCommandRetainedOutbox(ctx, 'read-only-original'),
+      ]);
+      assert.equal(loaded, null); assert.ok(Array.isArray(selected)); assert.deepEqual(original, retained);
+      return value;
+    } });
+    const result = await createSystemRegistry([command]).read(command.name, {}, runCtx('read-only'), { store });
+    assert.equal(result.revision, revision); assert.deepEqual(result.result, value);
+    assert.notEqual(result.result, value); assert.ok(Object.isFrozen(result.result));
+    assert.ok(Object.isFrozen((result.result as typeof value).nested)); value.nested.accepted = false;
+    assert.equal((result.result as typeof value).nested.accepted, true);
+    assert.equal(commits, 0); assert.equal(await world.store.readRevision(), revision);
+    assert.deepEqual(await world.store.outboxGet('read-only-original'), retained);
+    assert.throws(() => systemCommandStageRevision(issued), /closed or poisoned/);
+    assert.throws(() => readSystemCommandRetainedOutbox(issued, 'read-only-original'), /closed or poisoned/);
+    await assert.rejects(issued.load(world.model, 'absent' as never), /crossed/);
+  });
+  for (const mode of ['copied', 'caught-read-failure', 'write-staging', 'commit-check', 'drift'] as const) {
+    it(`refuses ${mode}, including caught capability failures, with zero registry commits`, async () => {
+      const world = await setupPortsWorld(), revision = await world.store.readRevision(); let commits = 0;
+      let issued!: SystemCommandContext;
+      const store = { ...world.store,
+        ...(mode === 'caught-read-failure' ? { load: async () => { throw new Error('reader failed'); } } : {}),
+        commit: async (batch: Parameters<typeof world.store.commit>[0]) => { commits++; return world.store.commit(batch); },
+      };
+      const command = defineSystemCommand({ name: 'test.refused-read', stage: () => ({}), read: async (_args, ctx) => {
+        issued = ctx;
+        if (mode === 'copied') assert.throws(() => systemCommandStageRevision({ ...ctx }), /not issued/);
+        if (mode === 'caught-read-failure') await assert.rejects(ctx.load(world.model, 'absent' as never), /reader failed/);
+        if (mode === 'commit-check') assert.throws(() => enrollSystemCommandCommitCheck(ctx, () => true), /Read-only/);
+        if (mode === 'drift') await world.store.commit(makeBatch(revision));
+        return mode === 'write-staging' ? { writes: [] } : { accepted: true };
+      } });
+      const error = await captureStateError(() => createSystemRegistry([command]).read(command.name, {}, runCtx('refused-read'), { store }));
+      assert.equal(error.code, mode === 'drift' ? 'busy' : 'validation');
+      if (mode === 'drift') assert.equal(error.retryable, true);
+      assert.equal(commits, 0); assert.equal(await world.store.readRevision(), revision + (mode === 'drift' ? 1 : 0));
+      assert.throws(() => systemCommandStageRevision(issued), /closed or poisoned/);
+    });
+  }
+  for (const kind of ['load', 'query', 'retained'] as const) {
+    it(`refuses an unawaited ${kind} read and closes it after settlement`, async () => {
+      const world = await setupPortsWorld(), revision = await world.store.readRevision();
+      let release!: () => void, pending!: Promise<unknown>;
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      const store = { ...world.store,
+        load: async (...args: Parameters<typeof world.store.load>) => { await gate; return world.store.load(...args); },
+        query: async (...args: Parameters<typeof world.store.query>) => { await gate; return world.store.query(...args); },
+        outboxGet: async (id: string) => { await gate; return world.store.outboxGet(id); },
+      };
+      const command = defineSystemCommand({ name: 'test.pending-read', stage: () => ({}), read: (_args, ctx) => {
+        pending = kind === 'load' ? ctx.load(world.model, 'absent' as never)
+          : kind === 'query' ? ctx.query({ model: world.model, authority: 'owner', archived: 'include' })
+          : readSystemCommandRetainedOutbox(ctx, 'absent');
+        return null;
+      } });
+      await assert.rejects(createSystemRegistry([command]).read(command.name, {}, runCtx('pending-read'), { store }), /unawaited/);
+      release(); await assert.rejects(pending, /crossed/);
+      assert.equal(await world.store.readRevision(), revision);
+    });
+  }
+  it('refuses commands without read behavior without invoking their stage', async () => {
+    const world = await setupPortsWorld(); let stages = 0;
+    const command = defineSystemCommand({ name: 'test.stage-only', stage: () => { stages++; return {}; } });
+    await assert.rejects(createSystemRegistry([command]).read(command.name, {}, runCtx('stage-only'), { store: world.store }), /no read-only/);
+    assert.equal(stages, 0); assert.equal(await world.store.readRevision(), 0);
+  });
+});
