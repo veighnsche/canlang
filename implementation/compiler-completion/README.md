@@ -3202,3 +3202,39 @@ lint remains pending at this coherent checkpoint. Payments.changed is a separate
 ready accepted source gap; executable terminal/event transport, other original
 source decisions, nine full references and precise BDD3/Task22 holds remain.
 Purchase rename is unassigned and exported Rent rename stays excluded. Local only.
+
+### 2026-10-10 — type standard verified event fields (unfinished native ingress)
+
+Accepted Payments.changed and Mailbox.received fields now reach body/example/
+effect consumers through checked canonical capability/event plus owning alias
+identity. Keep ordinary declared fields distinct from terminal envelopes:
+PaymentState includes pending; IncomingEmail retains its transcribed nested
+fields, including the existing opaque DatetimeValue. Local/imported event record
+identity, completions/progress, lexical precedence, trusted null actor and all
+unknown/operation-as-event/private IR refusals remain. Owning delivery-errors7
+and analysis37 give44 current affected passes, including the native receipt
+consumer; corrected span/null-actor assertions supersede initial test assumptions.
+Actual CLI still refuses unimplemented standard event transport E6008.
+
+Exact original25/catalog71→69 removes only Invoice468 unknown source and469
+opaque value errors, adds none; complete/omitted0/all25 current hashes/no artifact.
+All52 corpus rows/full assertions remain, only Inbox44→43 andInvoice214→212;
+50 other expectations unchanged. Equal-byte unknown-event controls restore prior
+findings. Inbox removes1E3010/2E3001 but newly exposes whole IncomingEmail equality
+E3002 at107 and nested-opaque received:DatetimeValue assignment E3001 at109.
+Keep replay equality and creation order. Compiler owns nominal identity/typed
+comparison; Contracts/Values must release the exact DatetimeValue facade with an
+owning witness before that representation join. No generic opaque/object pass
+or scalar guess. SEM-R08, native ingress and full workflow remain unfinished.
+Safely FF-consume containing reviewed98e3849 with source/draft preserved. Fresh
+current Cloudflare dependency graph22/22/cache0 passes36.66s onNode24.19.
+Frozen bc02e317/draft5cbdded required whole passes1422 over138 actual targets,
+zero failed/ignored/filtered/bodySKIP, with required real completion engines and
+genuine native/permission bodies. Strict all-target Clippy0 in1m02s and fmt/diff0
+qualify both standard-source units plus File73/preceding source fixes. This final
+record-only amendment changes no tested compiler/draft input. Finite independent
+source review CLEAR retains exact payload/alias identity and all authority/private
+publication boundaries; coordinator intake and native ingress remain separate.
+Original69/nine references/precise BDD3/Task22 holds remain. Ready assigned next:
+CanRefer join→join_program plus button/comment/spec, then nonexported CanPropose
+held→hold_result; no Purchase or exported Rent expansion.

@@ -250,6 +250,12 @@ pub enum HandlerSource {
         capability: SymbolId,
         event: SymbolId,
     },
+    /// Checked standard verified-event source; no runtime ingress enrollment.
+    StdCapabilityEvent {
+        capability: String,
+        event: String,
+        source: String,
+    },
     /// Exported-scenario completion: `on=Scenario.completed`.
     ScenarioCompleted { scenario: SymbolId },
     /// Delivery completion: `on=Cap.op.completed`.
@@ -2889,6 +2895,17 @@ impl<'a> Cx<'a> {
                 capability: completion.capability.clone(),
                 op: completion.op.clone(),
                 source: completion.source.clone(),
+            };
+        }
+        if let Some(event) = self
+            .types
+            .std_capability_event_handlers
+            .get(&NodeKey::of(on))
+        {
+            return HandlerSource::StdCapabilityEvent {
+                capability: event.capability.clone(),
+                event: event.event.clone(),
+                source: event.source.clone(),
             };
         }
         let segments = path_segments(on, text);
