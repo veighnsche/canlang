@@ -661,8 +661,9 @@ test('unchanged TypedFileJourney installs its emitted empty File inventory and r
       const create=async()=>{
         const result=await invoker.invokeMutation({operation:`${MODEL}.create`,operation_id:nextId(),inputs:{}},identity);
         assert.ok('result' in result,JSON.stringify(result));assert.equal(result.result.status,'committed');
-        assert.equal(result.result.records.length,1);
-        const id=result.result.records[0]!.id,row=await binding.store.load(MODEL,asId(id));assert.ok(row);
+        const records=result.result.records;assert.ok(records);assert.equal(records.length,1);
+        const record=records[0];assert.ok(record!==null&&typeof record==='object'&&'id' in record);assert.ok(typeof record.id==='string');
+        const id=record.id,row=await binding.store.load(MODEL,asId(id));assert.ok(row);
         assert.equal(row.version,1);assert.deepEqual(row.data,{label:'Uploaded',attachment:null});return id;
       };
       const attach=async(id:string,ref:string)=>{
