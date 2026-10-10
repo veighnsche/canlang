@@ -103,6 +103,7 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
+import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
@@ -3518,7 +3519,23 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>, receiptFrame?: ScenarioReceiptFrame): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
+  const arraySlots = new Map<string, { readonly elements: unknown[]; readonly index: number }>();
+  const referenceArrays: unknown[][] = [];
   for (const field of def?.descriptor.inputs ?? []) {
+    if (field.kind === 'ref' && Object.hasOwn(def!.inputArrays, field.name)) {
+      const wire = parameters[field.name];
+      // State owns nullable/length/version admission. Hydrate precisely its
+      // indexed slots rather than passing wire claims into authored code.
+      if (wire !== undefined && wire !== null) {
+        if (!Array.isArray(wire)) throw new loaded.producers.errors('validation', 'Admitted native reference array lacks its owning container.');
+        const elements = new Array<unknown>(wire.length);
+        parameters[field.name] = elements;
+        referenceArrays.push(elements);
+        for (let index = 0; index < wire.length; index += 1) {
+          arraySlots.set(`${field.name}/${index}`, { elements, index });
+        }
+      }
+    }
     if (field.kind !== "ref" && field.kind !== "delivery" && field.valueType !== undefined) {
       try {
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
@@ -3539,8 +3556,15 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
   for (const ref of call.recordRefs ?? []) {
     const view = recordView(ref.model, ref.row);
     receiptFrame?.bindAdmittedReference(view, ref);
-    parameters[ref.param] = view;
+    const slot = arraySlots.get(ref.param);
+    if (slot === undefined) parameters[ref.param] = view;
+    else {
+      slot.elements[slot.index] = view;
+      arraySlots.delete(ref.param);
+    }
   }
+  if (arraySlots.size !== 0) throw new loaded.producers.errors('validation', 'Admitted native reference array lacks an original owning slot.');
+  for (const elements of referenceArrays) Object.freeze(elements);
   return parameters;
 }
 
@@ -7770,17 +7794,27 @@ export interface DriveDispatchFenceEcho {
  *   inheriting and is refused. ABSENT means a direct dispatch with
  *   no trigger snapshot to inherit (intents carry no trigger point
  *   yet — the hook-to-dispatch trigger flow is unwired).
- * - `revalidateAuthority` re-reads LIVE authority at fence time (the
- *   drive awaits it; the pure-sync kernel replays the resolved
- *   verdict). A revocation landing between trigger and drive denies
- *   the transitive effect — no cached snapshot authorizes a spend.
+ * - `revalidateAuthority` re-reads LIVE authority at fence time. The
+ *   async kernel awaits it after the guard and evidence comparisons;
+ *   the existing synchronous port preserves its resolved verdict.
  */
-export interface DriveDispatchFenceInput {
+interface DriveDispatchFenceBase {
   readonly owner: string;
   readonly triggerRevision?: { readonly revision: number };
   readonly revalidateAuthority: () => boolean | Promise<boolean>;
-  readonly attemptDispatch: FenceAttemptDispatchFn;
 }
+
+/** Explicit host ports for an awaited guard; provider payload is not lexical capture. */
+export interface DriveAsyncDispatchGuard {
+  readonly attemptDispatch: typeof attemptDispatchAsync;
+  readonly evaluateGuard: AsyncGuardEvaluator;
+  readonly frozenInputs: unknown;
+}
+
+export type DriveDispatchFenceInput = DriveDispatchFenceBase & (
+  | { readonly attemptDispatch: FenceAttemptDispatchFn; readonly asyncGuard?: never }
+  | { readonly attemptDispatch?: never; readonly asyncGuard: DriveAsyncDispatchGuard }
+);
 
 /** T32b: one kernel verdict the fenced drive handles. */
 type FenceAttemptVerdict =
@@ -8448,7 +8482,7 @@ export interface DriveDispatchIntentOpts {
   readonly registry: DispatchSystemRegistry;
   /** Join-wrapped store: claim/record batches commit linkage-asserted. */
   readonly store: StoragePort;
-  /** L3 intent under drive (carries `dispatchGuard` + frozen `arguments`). */
+  /** L3 intent under drive; `arguments` is provider payload, not async lexical input. */
   readonly intent: OutboxIntent;
   readonly actor: string;
   readonly operation: string;
@@ -8566,9 +8600,10 @@ export type DriveDispatchOutcome =
  *
  * Ordering qualifier (R01-residual review): the KERNEL checks
  * unavailable before guard/authority evaluation — but this drive
- * awaits the snapshot pull + live authority re-read BEFORE
- * consulting the kernel, so throwing fence ports preempt an
- * unavailable verdict (pinned, not silently short-circuited).
+ * awaits the snapshot pull + live authority re-read BEFORE the
+ * synchronous kernel, so throwing fence ports preempt an unavailable
+ * verdict there (pinned, not silently short-circuited). Async guards
+ * instead retain Work's awaited evidence/authority ordering.
  * True short-circuit arrives only with ACTUAL availability
  * injection (the fence input carries no availability port yet —
  * follow-up). Inherited/superseded/settled precedence stays
@@ -8587,8 +8622,16 @@ async function runFenceGate(input: {
   if (typeof fence.owner !== "string" || fence.owner === "") {
     throw new Error("t32b: fenced drive needs a non-empty checkpoint owner.");
   }
-  if (typeof fence.revalidateAuthority !== "function" || typeof fence.attemptDispatch !== "function") {
-    throw new Error("t32b: fenced drive needs revalidateAuthority + attemptDispatch functions.");
+  const asyncGuard = fence.asyncGuard;
+  const asyncKernel = asyncGuard?.attemptDispatch;
+  const asyncEvaluator = asyncGuard?.evaluateGuard;
+  const lexicalInputs = asyncGuard?.frozenInputs;
+  const revalidateAuthority = fence.revalidateAuthority;
+  if (typeof revalidateAuthority !== "function" ||
+      (asyncGuard === undefined ? typeof fence.attemptDispatch !== "function" :
+        fence.attemptDispatch !== undefined || typeof asyncKernel !== "function" ||
+        typeof asyncEvaluator !== "function" || !Object.hasOwn(asyncGuard, "frozenInputs"))) {
+    throw new Error("t32b: fenced drive needs revalidateAuthority + one complete sync or async guard kernel.");
   }
   const triggerRevision = fence.triggerRevision;
   if (triggerRevision !== undefined) {
@@ -8599,68 +8642,85 @@ async function runFenceGate(input: {
   }
   const admission = await loadFenceAdmissionProducer();
   const checkpoint = (await admission.openTransitiveScope(opts.store, fence.owner)).snapshot();
+  let heldData: import('@canlang/work/kernel/tables').DispatchRowData | undefined;
+  if (asyncGuard !== undefined) {
+    const row = await opts.store.load(T24B_WORK_DISPATCH_MODEL, intentId as RecordId);
+    if (row === null || row.archivedAt !== null) throw new Error('t32b: async guard lost its actual held dispatch row.');
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'dispatch guard held row');
+    const readRow = requireProducerFn(tables, 'readDispatchRow', 'dispatch guard held row') as
+      typeof import('@canlang/work/kernel/tables').readDispatchRow;
+    heldData = readRow(row);
+    if (heldData.state !== 'claimed' || heldData.claimId !== heldClaimId || heldData.claimedAtMs !== now ||
+        heldData.intentId !== intentId ||
+        heldData.source !== opts.intent.target || heldData.occurrenceIndex !== opts.intent.occurrenceIndex) {
+      throw new Error('t32b: async guard lost its original physical claim correspondence.');
+    }
+  }
   // The CURRENT snapshot first (a side-effecting reader lands before
   // the live authority read — fence-time order, still after the
   // claim); unguarded dispatches skip the pull exactly like the
   // unfenced path (the kernel never reads the snapshot then).
   const snapshot: unknown = guard === null ? null : await opts.readStateSnapshot(opts.intent);
-  // LIVE authority re-read at fence time (after the claim, after the
-  // snapshot, before the provider call). The pure-sync kernel cannot
-  // await it, so the drive resolves it here and the kernel replays
-  // the resolved verdict — the REVOCATION verdict still lands after
-  // the guard inside the kernel's committed ordering.
-  const liveAuthorityOk = (await fence.revalidateAuthority()) === true;
-  const verdict = checkFenceAttemptVerdict(
-    fence.attemptDispatch(
-      {
-        clock: { nowMs: () => now },
-        // Single-shot mint reproducing the HELD claim: the kernel
-        // mints only on its claimed path, and the drive asserts the
-        // minted claim equals the held one below.
-        claimIds: { nextClaimId: () => heldClaimId },
-        // Attested, not re-read: the claim run just proved pending +
-        // non-superseded (it refuses superseded rows first), so a
-        // re-read here could only observe the pre-existing
-        // claim-to-provider race — which the unfenced path shares.
-        supersessions: { isSuperseded: () => false },
-        evaluateGuard: (predicate, frozenInputs, stateSnapshot) =>
-          opts.evaluateGuard(predicate, frozenInputs, stateSnapshot),
+  const attempt = {
+    intent: {
+      item: {
+        id: intentId as OutboxId,
+        operationId: opts.intent.operationId,
+        source: opts.intent.target,
+        occurrenceIndex: opts.intent.occurrenceIndex,
+        request: opts.intent.arguments,
+        originOccurrence: null,
+        // The physical claim just proved the committed intent is pending.
+        state: "pending" as const,
       },
-      {
-        intent: {
-          item: {
-            id: intentId,
-            operationId: opts.intent.operationId,
-            source: opts.intent.target,
-            occurrenceIndex: opts.intent.occurrenceIndex,
-            request: opts.intent.arguments,
-            originOccurrence: null,
-            // The L3 intent is committed (it came from outboxPending)
-            // and undispatched (unacked): pending in the kernel's
-            // dispatchability sense. (The dispatch ROW is claimed —
-            // row concurrency and intent dispatchability are separate
-            // mechanisms; the row claim is what `heldClaimId` names.)
-            state: "pending",
-          },
-          // Attested upper-bound marker: the intent committed no
-          // later than now at no later than the fresh checkpoint
-          // revision (the kernel null-checks it opaquely — lane 3
-          // mints the authoritative marker at stage).
-          commit: { revision: checkpoint.revision as number, committedAtMs: now },
-        },
-        guard: { predicate: guard },
-        frozenInputs: opts.intent.arguments,
-        stateSnapshot: snapshot,
-        fence: {
-          checkpoint: { revision: checkpoint.revision as number, owner: checkpoint.owner },
-          ...(triggerRevision === undefined
-            ? {}
-            : { triggerRevision: { revision: triggerRevision.revision } }),
-          revalidateAuthority: () => liveAuthorityOk,
-        },
-      },
-    ),
-  );
+      commit: { revision: checkpoint.revision as number, committedAtMs: now },
+    },
+    guard: { predicate: guard },
+    frozenInputs: asyncGuard === undefined ? opts.intent.arguments : lexicalInputs,
+    stateSnapshot: snapshot,
+    fence: {
+      checkpoint: { revision: checkpoint.revision as number, owner: checkpoint.owner },
+      ...(triggerRevision === undefined ? {} : { triggerRevision: { revision: triggerRevision.revision } }),
+    },
+  };
+  const deps = {
+    clock: { nowMs: () => now },
+    // Single-shot mint reproducing the HELD claim: the kernel mints only
+    // on its claimed path, and the drive asserts equality below.
+    claimIds: { nextClaimId: () => heldClaimId as ClaimId },
+    // The physical claim just attested pending/non-superseded. This
+    // read-only adapter cannot stage a supersession on that evidence.
+    supersessions: { isSuperseded: () => false, markSuperseded: () => {
+      throw new Error("t32b: a held dispatch guard cannot stage supersession.");
+    } },
+  };
+  let verdict: FenceAttemptVerdict;
+  if (asyncGuard !== undefined) {
+    verdict = checkFenceAttemptVerdict(await asyncKernel!({
+      ...deps,
+      evaluateGuard: (predicate, frozenInputs, stateSnapshot, execution) =>
+        asyncEvaluator!(predicate, frozenInputs, stateSnapshot, execution),
+    }, {
+      ...attempt,
+      intent: { ...attempt.intent, item: { ...attempt.intent.item,
+        attempts: heldData!.attempts, originOccurrence: heldData!.originOccurrence as OccurrenceId | null } },
+      fence: { ...attempt.fence, revalidateAuthority: () => revalidateAuthority.call(fence) },
+    }));
+    // Awaited evaluation must not spend or terminally skip under a moved
+    // physical owner checkpoint. The held claim remains for normal recovery.
+    if ((verdict.status === "claimed" || verdict.status === "skipped") &&
+        await opts.store.readRevision() !== checkpoint.revision) {
+      verdict = { status: "refused-revoked" };
+    }
+  } else {
+    // Preserve the synchronous port's existing pre-read and verdict ordering.
+    const liveAuthorityOk = (await fence.revalidateAuthority()) === true;
+    verdict = checkFenceAttemptVerdict(fence.attemptDispatch({
+      ...deps,
+      evaluateGuard: (predicate, frozenInputs, stateSnapshot) =>
+        opts.evaluateGuard(predicate, frozenInputs, stateSnapshot),
+    }, { ...attempt, fence: { ...attempt.fence, revalidateAuthority: () => liveAuthorityOk } }));
+  }
   const echo: DriveDispatchFenceEcho = {
     checkpoint: { revision: checkpoint.revision as number, owner: checkpoint.owner },
     triggerRevision: triggerRevision === undefined ? null : { revision: triggerRevision.revision },

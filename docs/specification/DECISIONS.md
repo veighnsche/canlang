@@ -5706,6 +5706,18 @@ source admission, counters and evaluation/path order; retain the original flat
 Do not lower the supported bound, enlarge the stack or skip the crashing case.
 
 
+### 2026-10-10 — preserve an unfinished claim-first awaited driver adapter
+
+Consume the real Work async kernel through an explicit paired evaluator and lexical input port, forwarding its exact private execution. Pin authority/kernel/evaluator before awaits, load held-row attempt/occurrence facts through owning Work, preserve trigger-origin versus operator-run identity, and refuse a moved physical checkpoint before skip/provider handling. Preserve synchronous behavior and refuse guarded Generation cleanup/recovery lacking its separate execution lifetime. No provider payload becomes lexical capture.
+
+Six new/eight actual async attempts pass; full affected Node result is76/78, with actual Work composition and own-boolean marker expectations assigned to Packages for shared repair. Existing native Email/D1/DO7/7, final clean CF emission, root noEmit and boundaries13/903/1279/zero pass. Owning native rebuild8.92s passes;21 dependency emissions are reused after fixing the changed CF item shape from the genuine Work row. This is explicitly unfinished: the existing physical claim precedes runFenceGate, while native membership/when must execute before claim. State/Work own the missing eligibility/original-guard-checkpoint/evidence-to-authoritative-commit port; no copying of eligibility rules or claim-first source acceptance is permitted. Defining native source/frozen-input/current-reader joins, G2/G3 and exact holds remain open.
+
+
+### 2026-10-10 — retain closed dispatch guard evidence (unfinished preclaim join)
+
+Factor the existing Work actual guard phase into runDispatchGuardPhase, preserving private frozen inputs/current snapshot/original intent/checkpoint and finally-closing execution. Its frozen result retains one private bounded, strict-Bool evidence consumer; repeated/concurrent consumption poisons the original and cannot replay source. attemptDispatchAsync consumes it before its unchanged false/authority/claim order; synchronous/default paths remain unchanged. Work clean emission and affected async/fence plus new transfer controls pass23/23 (66.69ms). This finite producer is unfinished until State original-stage commit enrollment and Work eligible-command/native adoption. The three balanced preclaim JEV requests are prepared adjacent; automatic approval review rejected egress to api.typesafe.ai because exact destination/repository-context approval is required, despite general preauthorization. No responses exist; exact human approval question is pending. The complete architecture choice remains proposed. No pushes or whole workflow acceptance.
+
+
 ### Compiler emitter borrowing, 2026-10-10 — implemented and qualified
 
 Use borrowed iteration for read-only whole-program emitter passes. The actual
@@ -5726,3 +5738,11 @@ error. Owning decision7 and original flat6/order2/schedule2/disclosure18 pass;
 strict all-target lint/format0. This grants no runtime authority or StateRead
 admission. General reference-array loops need the defining ordered-domain and
 zero/conditional coverage contract, not fabricated static dependency evidence.
+
+### 2026-10-10 — hydrate original indexed native reference inputs (unfinished qualification)
+
+Use the actual loaded State descriptor and its admitted `parameter/index` slots to install native array elements. Preserve every authored slot, repeated cached native views, explicit null/empty containers and original admission metadata independently of current staged-row getters. Freeze the native containers once all original slots are bound; do not forward wire reference claims or add flattened indexed parameters to authored code. State remains the sole owner of length/version/current-row/authority admission, and its existing per-parameter private frame bindings identify each repeated slot.
+
+The actual component4/4 and captured native D1 consumer1/1 pass at their scopes. Genuine qualified scalar replay with ref-array inputs succeeds through the private native frame; original array-loop mutation replay correctly refuses its absent Compiler association with all effects unchanged. Fresh compiled stages preserve the three original slots, A+2/B+1, history and one commit; malformed/current-access refusals retain table and Identity assertions. Use storage's actual normalized baseline and omit only D1's prohibited private metadata table from snapshots. Literal array defaults/nullable omission are not claimed.
+
+Keep static child reference-array and frozen-invocation source calls gated until Compiler releases their real source/call producer. Direct root reference-array input emission is available; observed array computations and native model-array return retention still lack a complete capture producer. These are distinct from the existing field/view input consumer and cannot be qualified by a handbuilt component or narrow browser success. The original preclaim dispatch/checkpoint, native query facade and G2/G3 prerequisites remain open.

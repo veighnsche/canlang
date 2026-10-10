@@ -1,0 +1,252 @@
+/** Actual captured native source, generated invoker and D1; ordinary void results. */
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { test } from 'node:test';
+import { Miniflare } from 'miniflare';
+import type { D1Database } from '@cloudflare/workers-types';
+import type { CompileArtifact, MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { hashInputs } from '@canlang/state/invocation/replay';
+import {
+  FIXED_NOW, asId, asModel, asOperation, asOperationId, createMemoryIdentityStore,
+  makeIdentity, seedMember, uuidv7,
+} from '@canlang/state/testing/invocation/fixtures';
+import { distribution } from '@canlang/values/distribution';
+import { assembleModules, importVerifiedAssemblyModule } from './modules.js';
+import { buildInvoker, type MutationOutcome } from '../worker/assembly.js';
+import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
+import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from '../dev/source-capture.js';
+import { compileCapturedSingleFile } from '../dev/compiler-check.js';
+
+const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+const APP = 'NativeRefArrays';
+const MODEL = asModel(`${APP}.Item`);
+const fixturePath = join(root, 'tests/integration/can-dev-server/NativeRefArrays.can');
+interface Projection { id: string; version: number; data: { value: string } }
+type Tables = Record<string, Array<Record<string, unknown>>>;
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+function projection(value: unknown): Projection {
+  const row = object(value), data = object(row.data);
+  assert.equal(typeof row.id, 'string'); assert.equal(typeof row.version, 'number');
+  assert.equal(typeof data.value, 'string'); assert.match(data.value as string, /^-?(0|[1-9][0-9]*)$/);
+  return { id: row.id as string, version: row.version as number, data: { value: data.value as string } };
+}
+function committed(outcome: MutationOutcome, status = 'committed') {
+  assert.ok('result' in outcome, JSON.stringify(outcome));
+  assert.equal(outcome.result.status, status);
+  assert.ok(Object.hasOwn(outcome.result, 'result'));
+  assert.equal(outcome.result.result, null, 'actual void becomes canonical null');
+  return outcome.result;
+}
+async function snapshot(database: D1Database): Promise<Tables> {
+  // Miniflare's private metadata is not a State table and D1 forbids reads.
+  // Retain every application/State table and SQLite's history sequence.
+  const tables = await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name!='_cf_METADATA' ORDER BY name")
+    .all<{ name: string }>();
+  assert.equal(tables.success, true);
+  const result: Tables = {};
+  for (const { name } of tables.results) {
+    const rows = await database.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all<Record<string, unknown>>();
+    assert.equal(rows.success, true);
+    result[name] = rows.results.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  }
+  return result;
+}
+function unchangedExcept(before: Tables, after: Tables, allowed: readonly string[]): void {
+  assert.deepEqual(Object.keys(after), Object.keys(before));
+  for (const name of Object.keys(before)) {
+    if (!allowed.includes(name)) assert.deepEqual(after[name], before[name], `unchanged State table ${name}`);
+  }
+}
+
+test('captured native reference arrays preserve D1 stages, actual qualified replay and unclaimed refusal',
+  { timeout: 120000 }, async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'can-native-ref-arrays-'));
+    let worker: Miniflare | undefined;
+    let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
+    let sequence = 0;
+    const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+      operation: `${APP}.${operation}`, inputs, operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+    });
+    try {
+      capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
+        appPath: fixturePath, compilerPath: join(root, 'compiler/target/debug/can'),
+        catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
+      assert.equal(await captureIsCurrent(capture), true);
+      const compiled = await compileCapturedSingleFile(capture);
+      assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics'
+        ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
+      if (compiled.kind !== 'artifact') throw new Error('NativeRefArrays did not produce an actual native artifact');
+      const artifact: CompileArtifact = compiled.artifact;
+      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      assert.equal(artifact.pages.length, 0);
+      const step = artifact.operations?.find(operation => operation.name === `${APP}.step`);
+      assert.ok(step); assert.equal(step.kind, 'scenario');
+      assert.deepEqual(step.result, { type: 'void' }, 'ordinary native body has no disclosure/marker plan');
+      assert.equal(step.inputs.fields.length, 1);
+      const input = step.inputs.fields[0]!;
+      assert.equal(input.name, 'items'); assert.equal(input.required, false);
+      assert.deepEqual(input.field, { kind: 'ref', model: MODEL, requireVersion: true });
+      assert.deepEqual(input.array, { required: false });
+      const callable = artifact.callables.find(item => item.id === step.name);
+      assert.ok(callable); assert.equal(callable.inputStyle, 'parameters');
+      const generated = artifact.modules.find(module => module.path === callable.module);
+      assert.ok(generated);
+      assert.match(generated.js, /for \(const [$\w]+ of [$\w]+\) \{/);
+      assert.match(generated.js, /check\([^\n]+\.length<=[^\n]+,"limit"\)/);
+      assert.match(generated.js, /await set\(c,/);
+      const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
+        workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        uiUrl: import.meta.resolve('@canlang/ui'),
+      });
+      const namespace = object(await importVerifiedAssemblyModule(asm, callable.module, artifact));
+      assert.equal(namespace[callable.export], step.name);
+      assert.equal(typeof namespace.canApp, 'function');
+      const registry = object((namespace.canApp as () => unknown)());
+      assert.deepEqual(registry.operations, artifact.operations, 'actual callable carrier matches the compiler artifact');
+      let handler: unknown = registry;
+      for (const member of callable.member) handler = object(handler)[member];
+      assert.equal(typeof handler, 'function', 'actual generated callable exists');
+      const definition = object(namespace.appDefinition);
+      assert.equal(definition.id, APP);
+      const declaration = object(object(definition.operations)[step.name]);
+      assert.equal(declaration.by, 'members');
+      assert.deepEqual(object(declaration.inputs).items, { type: MODEL, array: true });
+
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { DB: 'native-reference-arrays' }, d1Persist: join(dir, 'd1') });
+      const database = await worker.getD1Database('DB') as unknown as D1Database;
+      await ensureSchema(database);
+      const store = createD1Storage(database);
+      // Identity/membership uses the actual existing fixture; State persistence is real D1.
+      const memberships = createMemoryIdentityStore();
+      const member = await seedMember(memberships, { isOwner: false });
+      const identity = makeIdentity({ membership: member.membership, email: member.user.email });
+      const outsider = makeIdentity({ userId: 'nonmember', team: member.team, membership: null });
+      const publicIdentity = makeIdentity({ actor: null, team: member.team, membership: null });
+      const identitySnapshot = async () => ({ team: await memberships.findTeamById(member.team.team_id),
+        member: await memberships.findMembershipById(member.membership.membership_id),
+        user: await memberships.findUserById(member.user.user_id),
+        outsider: await memberships.findMembership(member.team.team_id, 'nonmember') });
+      const originalIdentity = await identitySnapshot();
+      const invoker = buildInvoker(artifact, asm, store, { memberships, now: () => FIXED_NOW });
+      const createA = envelope('Item.create', {}), createB = envelope('Item.create', {});
+      const aOutcome = committed(await invoker.invokeMutation(createA, identity));
+      const bOutcome = committed(await invoker.invokeMutation(createB, identity));
+      assert.equal(aOutcome.records?.length, 1); assert.equal(bOutcome.records?.length, 1);
+      const a = projection(aOutcome.records![0]), b = projection(bOutcome.records![0]);
+      assert.notEqual(a.id, b.id); assert.equal(a.version, 1); assert.equal(b.version, 1);
+      assert.equal(a.data.value, '0'); assert.equal(b.data.value, '0');
+      const ref = (row: Projection) => ({ id: row.id, version: String(row.version) });
+      const receiptIdentity = (request: MutationEnvelope) => ({ app: APP,
+        owner: identity.team!.team_id, principal: identity.actor!.user_id,
+        operation: asOperation(request.operation), operationId: asOperationId(request.operation_id) });
+      const request = envelope('step', { items: [ref(a), ref(b), ref(a)] });
+      const originalInputs = structuredClone(request.inputs);
+      const before = await snapshot(database), revision = await store.readRevision();
+      for (const table of ['outbox', 'schedules', 'unique_claims']) assert.deepEqual(before[table], []);
+      const aHistory = await store.historyFor(MODEL, asId(a.id)), bHistory = await store.historyFor(MODEL, asId(b.id));
+      committed(await invoker.invokeMutation(request, identity));
+      assert.deepEqual(request.inputs, originalInputs, 'submitted versions remain the original three slots');
+      const currentA = await store.load(MODEL, asId(a.id)), currentB = await store.load(MODEL, asId(b.id));
+      assert.ok(currentA); assert.ok(currentB);
+      assert.deepEqual(currentA.data, { value: '2' }); assert.deepEqual(currentB.data, { value: '1' });
+      assert.equal(currentA.version, 2); assert.equal(currentB.version, 2);
+      const updatesA = (await store.historyFor(MODEL, asId(a.id))).slice(aHistory.length);
+      const updatesB = (await store.historyFor(MODEL, asId(b.id))).slice(bHistory.length);
+      assert.deepEqual(updatesA.map(entry => [entry.change, entry.version, entry.before?.value, entry.after?.value]),
+        [['update', 2, '0', '1'], ['update', 2, '1', '2']]);
+      assert.deepEqual(updatesB.map(entry => [entry.change, entry.version, entry.before?.value, entry.after?.value]),
+        [['update', 2, '0', '1']]);
+      for (const entry of [...updatesA, ...updatesB]) {
+        assert.equal(entry.operationId, request.operation_id); assert.equal(entry.operation, request.operation);
+        assert.equal(entry.actor, identity.actor!.user_id);
+      }
+      assert.equal(await store.readRevision(), revision + 1, 'one net root commit');
+      const physical = await store.readReceipt(receiptIdentity(request)); assert.ok(physical);
+      assert.equal(physical.inputHash, await hashInputs(originalInputs));
+      assert.equal(physical.committedRevision, revision + 1);
+      assert.ok(physical.outcome.status === 'committed'); assert.equal(physical.outcome.result, null);
+      assert.deepEqual([...physical.outcome.recordVersions].sort((a, b) => a.id.localeCompare(b.id)),
+        [{ model: MODEL, id: a.id, version: 2 }, { model: MODEL, id: b.id, version: 2 }]
+          .sort((a, b) => a.id.localeCompare(b.id)));
+      assert.equal(Object.hasOwn(physical.outcome, 'scenario'), false, 'no retained capture qualification');
+      const after = await snapshot(database);
+      unchangedExcept(before, after, ['records', 'history', 'receipts', 'fence', 'fence_log', 'sqlite_sequence']);
+      assert.equal(after.receipts!.length, before.receipts!.length + 1);
+      assert.equal(after.fence_log!.length, before.fence_log!.length + 1);
+      assert.equal(after.history!.length, before.history!.length + 3);
+      assert.equal(after.records!.length, before.records!.length);
+      const refuseUnclaimedReplay = async (savedRequest: MutationEnvelope, savedTables: Tables) => {
+        const replay = await invoker.invokeMutation(savedRequest, identity);
+        assert.ok('error' in replay, JSON.stringify(replay));
+        assert.equal(replay.error.code, 'validation');
+        assert.equal(replay.error.message, 'Saved scenario has no supported execution association.');
+        assert.deepEqual(await snapshot(database), savedTables, 'unclaimed replay refuses without rows, history, receipts or effects');
+      };
+      // The actual Compiler has not released array/loop capture. Preserve the
+      // source association requirement; this is no native replay acceptance.
+      await refuseUnclaimedReplay(request, after);
+      assert.deepEqual(await store.readReceipt(receiptIdentity(request)), physical);
+
+      for (const inputs of [{ items: [] }, {}]) {
+        const empty = envelope('step', inputs), prior = await snapshot(database), priorRevision = await store.readRevision();
+        committed(await invoker.invokeMutation(empty, identity));
+        assert.equal(await store.readRevision(), priorRevision + 1);
+        const next = await snapshot(database);
+        unchangedExcept(prior, next, ['receipts', 'fence', 'fence_log']);
+        assert.equal(next.receipts!.length, prior.receipts!.length + 1);
+        await refuseUnclaimedReplay(empty, next);
+      }
+      const freshA = { id: a.id, version: '2' }, freshB = { id: b.id, version: '2' };
+      const qualified = artifact.operations?.find(operation => operation.name === `${APP}.captured`);
+      assert.ok(qualified?.result?.disclosure, 'unused array inputs have a genuine Compiler-issued scalar plan');
+      assert.equal(qualified.result.type, 'int');
+      const retained = envelope('captured', { items: [freshA, freshB, freshA] });
+      const retainedBefore = await snapshot(database), retainedRevision = await store.readRevision();
+      const result = await invoker.invokeMutation(retained, identity);
+      assert.ok('result' in result, JSON.stringify(result));
+      assert.equal(result.result.status, 'committed'); assert.equal(result.result.result, '7');
+      assert.equal(await store.readRevision(), retainedRevision + 1);
+      const retainedAfter = await snapshot(database);
+      unchangedExcept(retainedBefore, retainedAfter, ['records', 'receipts', 'fence', 'fence_log']);
+      assert.deepEqual(retainedAfter.records!.filter(row => row.model === MODEL),
+        retainedBefore.records!.filter(row => row.model === MODEL), 'qualified capture changes no domain rows');
+      const retainedReceipt = await store.readReceipt(receiptIdentity(retained));
+      assert.ok(retainedReceipt); assert.equal(retainedReceipt.outcome.status, 'committed');
+      assert.ok(retainedReceipt.outcome.scenario, 'the actual State framework retains its execution association');
+      assert.equal(retainedReceipt.inputHash, await hashInputs(retained.inputs));
+      const replayed = await invoker.invokeMutation(retained, identity);
+      assert.ok('result' in replayed, JSON.stringify(replayed));
+      assert.equal(replayed.result.status, 'replayed'); assert.equal(replayed.result.result, '7');
+      assert.deepEqual(await snapshot(database), retainedAfter, 'qualified native replay has no additional effects');
+      assert.deepEqual(await store.readReceipt(receiptIdentity(retained)), retainedReceipt);
+      const denied: Array<{ inputs: MutationEnvelope['inputs']; actor: ResolvedIdentity; code: string }> = [
+        { inputs: { items: [freshB, ref(a)] }, actor: identity, code: 'conflict' },
+        { inputs: { items: [freshA, { id: uuidv7(FIXED_NOW, 9999), version: '1' }] }, actor: identity, code: 'not_found' },
+        { inputs: { items: [freshA, { id: b.id }] }, actor: identity, code: 'validation' },
+        { inputs: { items: [freshA, freshB] }, actor: outsider, code: 'forbidden' },
+        { inputs: { items: [freshA, freshB] }, actor: publicIdentity, code: 'forbidden' },
+      ];
+      for (const { inputs, actor, code } of denied) {
+        const deniedRequest = envelope('step', inputs), prior = await snapshot(database);
+        const outcome = await invoker.invokeMutation(deniedRequest, actor);
+        assert.ok('error' in outcome, JSON.stringify(outcome)); assert.equal(outcome.error.code, code);
+        assert.deepEqual(await snapshot(database), prior, `${code} refuses before any physical write`);
+        assert.equal(await store.readReceipt(receiptIdentity(deniedRequest)), null);
+        assert.deepEqual(await identitySnapshot(), originalIdentity);
+      }
+      assert.deepEqual(await identitySnapshot(), originalIdentity);
+      assert.equal(await captureIsCurrent(capture), true);
+    } finally {
+      try { await worker?.dispose(); }
+      finally { await rm(dir, { recursive: true, force: true }); }
+    }
+  });
