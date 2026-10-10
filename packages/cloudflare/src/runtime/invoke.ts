@@ -5486,11 +5486,18 @@ async function runScenarioExecution(
         const selected = binding.get(scenarioDef!.name)?.get(site);
         if (selected === undefined || selected.name !== target) return refuseRecordBinding('Native call target differs from its owning checked occurrence.');
         assertNativeScenarioTarget(loaded, selected);
-        const own = localPolicyObject(inputs, selected.descriptor.inputs.map(field => field.name));
         const prepared: Record<string, unknown> = Object.create(null);
-        for (const field of selected.descriptor.inputs) {
-          if (!Object.hasOwn(own, field.name)) return refuseRecordBinding('Native child input omitted its required owning field.');
-          prepared[field.name] = localPolicyMember(own, field.name);
+        try {
+          const own = localPolicyObject(inputs, selected.descriptor.inputs.map(field => field.name));
+          for (const field of selected.descriptor.inputs) {
+            if (!Object.hasOwn(own, field.name)) return refuseRecordBinding('Native child input omitted its required owning field.');
+            prepared[field.name] = localPolicyMember(own, field.name);
+          }
+        } catch (error) {
+          // Preserve the existing protected-child validation classification
+          // when source hydration prepares shape before State suspends us.
+          if (error instanceof StateError) throw error;
+          throw new StateError('validation', message(error));
         }
         const hydrate = async (value: unknown, model: string): Promise<unknown> => {
           const origin = typeof value === 'object' && value !== null ? storedReferences.get(value) : undefined;
@@ -5514,7 +5521,12 @@ async function runScenarioExecution(
         for (const field of selected.descriptor.inputs) {
           if (field.kind !== 'ref' || prepared[field.name] === null) continue;
           if (Object.hasOwn(selected.inputArrays, field.name)) {
-            const values = nativeCallArray(prepared[field.name], Number.MAX_SAFE_INTEGER);
+            let values: unknown[];
+            try { values = nativeCallArray(prepared[field.name], Number.MAX_SAFE_INTEGER); }
+            catch (error) {
+              if (error instanceof StateError) throw error;
+              throw new StateError('validation', message(error));
+            }
             const hydrated: unknown[] = [];
             for (const value of values) hydrated.push(await hydrate(value, field.model));
             prepared[field.name] = Object.freeze(hydrated);

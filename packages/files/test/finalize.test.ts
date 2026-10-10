@@ -21,6 +21,7 @@ import {
   blobKeyForFile,
   ingestVerifiedEventBytes,
   readFinalizedBytes,
+  readCurrentFinalizedBytes,
   observeFinalizedFile,
   readFinalizedFileObservation,
   revalidateRetainedFinalizedFile,
@@ -87,6 +88,110 @@ function finalizedObservationFixture() {
 }
 
 describe('admitted finalized file facts from real SQLite storage', () => {
+  it('reads detached current bytes through actual SQLite binding after reopen without writes', () => {
+    const h = finalizedObservationFixture();
+    try {
+      h.reopen();
+      const original = h.store().files.get(h.ref)!;
+      const intents = h.store().intents.listAll();
+      const noWrite = (): never => assert.fail('current byte read must not write');
+      h.store().files.put = noWrite;
+      h.store().intents.put = noWrite;
+      h.store().blobs.write = noWrite;
+      h.store().blobs.append = noWrite;
+      h.store().blobs.remove = noWrite;
+      const bytes = h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION);
+      assert.ok(bytes);
+      assert.deepEqual(bytes, PDF_BYTES);
+      bytes[0] = bytes[0]! ^ 1;
+      assert.deepEqual(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), PDF_BYTES);
+      assert.deepEqual(h.store().files.get(h.ref), original);
+      assert.deepEqual(h.store().intents.listAll(), intents);
+      assert.deepEqual(h.store().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+    } finally { h.close(); }
+  });
+
+  it('refuses current byte reads under policy and unswept unattached or attached deadlines', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      for (const policy of [{ types: ['text/plain'], maxBytes: DEFAULT_FILE_POLICY.maxBytes },
+        { types: DEFAULT_FILE_POLICY.types, maxBytes: PDF_BYTES.length - 1 }]) {
+        assert.equal(readCurrentFinalizedBytes(h.deps(), h.ref, RECEIVER, { ...OBSERVATION_OPTIONS, policy }), null);
+      }
+      h.clock.setNowMs(original.finalizedAtMs + OBSERVATION_RETENTION.unattachedHorizonMs - 1);
+      assert.deepEqual(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), PDF_BYTES);
+      h.clock.advanceBy(1);
+      assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.deepEqual(h.store().files.get(h.ref), original);
+      h.clock.setNowMs(original.finalizedAtMs);
+      assert.equal(recordAttachment({ files: h.store().files, clock: h.clock }, h.ref, 'Expense_1/receipt', RECEIVER).status, 'attached');
+      const attached = h.store().files.get(h.ref)!;
+      h.clock.setNowMs(original.finalizedAtMs + OBSERVATION_RETENTION.retentionMs - 1);
+      assert.deepEqual(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), PDF_BYTES);
+      h.clock.advanceBy(1);
+      assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.deepEqual(h.store().files.get(h.ref), attached);
+      assert.deepEqual(h.store().blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+    } finally { h.close(); }
+  });
+
+  it('refuses current byte reads for foreign owners, missing or corrupt bytes and terminal rows', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const original = h.store().files.get(h.ref)!;
+      assert.equal(h.binding().readCurrentBytes(h.ref, OTHER_PRINCIPAL, OBSERVATION_RETENTION), null);
+      h.store().files.put({ ...original, owner: { ...original.owner, owner: 'foreign-owner' } });
+      assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      h.store().files.put(original);
+      const key = blobKeyForFile(h.ref);
+      h.store().blobs.remove(key);
+      assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.equal(h.store().blobs.read(key), null);
+      const corrupt = new Uint8Array(PDF_BYTES);
+      corrupt[corrupt.length - 1] = corrupt[corrupt.length - 1]! ^ 1;
+      h.store().blobs.write(key, corrupt);
+      assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+      assert.deepEqual(h.store().blobs.read(key), corrupt);
+      h.store().blobs.write(key, PDF_BYTES);
+      for (const state of ['orphaned', 'expired'] as const) {
+        const terminal = { ...original, state };
+        h.store().files.put(terminal);
+        assert.equal(h.binding().readCurrentBytes(h.ref, RECEIVER, OBSERVATION_RETENTION), null);
+        assert.deepEqual(h.store().files.get(h.ref), terminal);
+        assert.deepEqual(h.store().blobs.read(key), PDF_BYTES);
+      }
+    } finally { h.close(); }
+  });
+
+  it('returns the exact verified physical snapshot with only one blob read', () => {
+    const h = finalizedObservationFixture();
+    try {
+      const deps = h.deps();
+      const original = deps.files.get(h.ref)!;
+      const snapshot = deps.blobs.read(blobKeyForFile(h.ref))!;
+      const changed = new Uint8Array(snapshot);
+      changed[0] = changed[0]! ^ 1;
+      let reads = 0;
+      const noWrite = (): never => assert.fail('current byte read must not write');
+      const bytes = readCurrentFinalizedBytes({ ...deps,
+        files: { ...deps.files, put: noWrite },
+        blobs: { ...deps.blobs, read: key => {
+          assert.equal(key, blobKeyForFile(h.ref));
+          return ++reads === 1 ? snapshot : changed;
+        }, write: noWrite, append: noWrite, remove: noWrite },
+      }, h.ref, RECEIVER, OBSERVATION_OPTIONS);
+      assert.equal(reads, 1);
+      assert.ok(bytes);
+      assert.deepEqual(bytes, PDF_BYTES);
+      assert.notEqual(bytes, snapshot);
+      snapshot[0] = snapshot[0]! ^ 1;
+      assert.deepEqual(bytes, PDF_BYTES);
+      assert.deepEqual(deps.files.get(h.ref), original);
+      assert.deepEqual(deps.blobs.read(blobKeyForFile(h.ref)), PDF_BYTES);
+    } finally { h.close(); }
+  });
+
   it('observes genuine finalized event item provenance across JSON snapshot and SQLite reopen', () => {
     const dir = mkdtempSync(join(tmpdir(), 'can-event-observation-'));
     const path = join(dir, 'metadata.sqlite');

@@ -12,6 +12,7 @@ import type { AssembledModules } from './modules.js';
 import { invokeReadCanonical } from './invoke.js';
 import type { CanonicalMembershipReader } from './invoke.js';
 import type { CanonicalFileBinding } from './file-staging.js';
+import type { TeamOwnerStorageBoundary } from '../worker/assembly.js';
 export type { CanonicalFileBinding } from './file-staging.js';
 
 export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?: FileRetentionPolicy): CanonicalFileBinding {
@@ -56,6 +57,8 @@ export interface BoundFileHandlerOpts {
   readonly artifact: CompileArtifact;
   readonly asm: AssembledModules;
   readonly store: StoragePort;
+  /** Select the same actual team owner used by canonical operation admission. */
+  readonly ownerStorage?: TeamOwnerStorageBoundary;
   readonly memberships: CanonicalMembershipReader;
   readonly identityStore: IdentityStore;
   readonly clock: { nowMs(): number };
@@ -70,6 +73,9 @@ function notFound(): Response {
 export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Request) => Promise<Response> {
   if (opts.upload.identity.store !== opts.identityStore || opts.upload.clock !== opts.clock) {
     throw new Error('File upload and download must share the identity store and clock.');
+  }
+  if (opts.ownerStorage !== undefined && opts.ownerStorage.app !== opts.upload.app.appId) {
+    throw new Error('File owner storage must belong to the declared app.');
   }
   return async request => {
     const pathname = new URL(request.url).pathname;
@@ -96,8 +102,9 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       return resolved.identity;
     };
     const authorized = async (identity: ResolvedIdentity) => {
+      const store = opts.ownerStorage === undefined ? opts.store : await opts.ownerStorage.forIdentity(identity);
       const result = await invokeReadCanonical({
-        artifact: opts.artifact, asm: opts.asm, store: opts.store, memberships: opts.memberships,
+        artifact: opts.artifact, asm: opts.asm, store, memberships: opts.memberships,
         identity, operation: `${model}.read`, inputs: {},
         selection: { where: { op: 'eq', field: 'id', value: id }, limit: 1 },
       });
@@ -117,7 +124,10 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       if (metadata?.id !== first.id || bytes === null || bytes.byteLength !== metadata.sizeBytes) return notFound();
       // Bytes cross the response boundary only after current credentials and grants
       // are checked again; a changed model revision cannot authorize the old file.
-      const latest = await authorized(await resolveCaller());
+      const latestIdentity = await resolveCaller();
+      if (latestIdentity.actor?.user_id !== identity.actor?.user_id ||
+          latestIdentity.team?.team_id !== identity.team?.team_id) return notFound();
+      const latest = await authorized(latestIdentity);
       if (latest === null || latest.id !== first.id || latest.version !== first.version ||
           latest.revision !== first.revision) return notFound();
       return new Response(new Uint8Array(bytes), { headers: {
