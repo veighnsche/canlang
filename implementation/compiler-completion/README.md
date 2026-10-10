@@ -3388,3 +3388,20 @@ application or full S9Q07 acceptance.58/67/nine and precise BDD3/Task22/T11 hold
 remain; Work issuer/private nested completion and genuine typed hook context
 joins retain their owners. Coordinator assigns only the five private Purchase
 parameter/reference sites next; exported Rent remains excluded. Local only.
+
+
+### 2026-10-10 — preserve Purchase received state (unfinished composition)
+
+Assigned draft265b837 renames only private receive date parameter to received_on,
+its replay RHS, explicit Receipt received=received_on assignment, actual example
+binding and calendar input. Stored received cases/fields/table/order/labels and
+complete guards/locks/evaluation order/authority remain. Finite review CLEAR.
+Actual same CLI original25/catalog33→32 removes only one Purchase E3001 state/date
+capture, adds none, complete/omitted0/all25 current hashes/no artifact in1.564s.
+Isolated138→137 in0.071s; only Purchase corpus pin/comment changes. All52/full
+assertions and51 other expectations retained; owning table1/1 passes39.32s with36
+unrelated tests unselected. fmt/diff0; reuse unchanged production whole1429/138
+and strict57.26s. Safe FF481→reviewed containing4a6 consumes Workdc7/File679/
+selected Devb31 without source overlap or discarded edits. Private completion
+carrier and original typed hook context remain unfinished executable joins.
+58/67/nine and precise holds remain; exported Rent excluded. Local only.
