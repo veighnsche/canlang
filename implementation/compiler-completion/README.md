@@ -740,7 +740,7 @@ compiler leaves:
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
-| Capability Task39 protected call | Compiler retains the actual invocation operand, owning target IDs/input declarations, authored input order and result binding. Capability/State must release same-caller target admission in the existing owner session; Dev must release the source-bound private native facade/result-dependency bridge. Calls still refuse E6008; no nested invocation, receipt or commit substitutes for the missing consumer. Separate BDD3/Task22 holds remain. |
+| Capability Task39 protected call | Reviewed State3e9/LOCAL146cc8bf supplies same-owner mutation admission/execution. Compiler prepares bounded static unused-call disclosure and exact source/target/input/result correspondence. Dev owns the actual source-bound native facade/site carrier; its active-frame join additionally needs State to supply the genuine parent call pointer. Original Workbench context read/query Fact[], dynamic result binding and authored CRUD normalization remain defining owner joins. Calls still refuse E6008; no nested invocation, receipt or commit substitutes. Separate BDD3/Task22 holds remain. |
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium and2a5d2c72 temporary-profile/wait units are consumed. Actual local native forms/browser2/2 and corrected readonly polling1/1 pass; selected Images source profile still requires its artifact. Dev owns the selected-profile prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
@@ -2029,3 +2029,30 @@ shorthand key instead of skipping it. The owning action-call case **1/1** passes
 with literal rejection, shorthand/explicit-binding diagnostic parity and both
 compatible positives. This closes that finite checker gap; the transaction
 consumer prerequisite above remains unchanged.
+
+
+**Static call source/native preparation (unfinished), 2026-10-10.** Reviewed
+State3e9/LOCAL146cc8bf is consumed by clean fast-forward; actual owning graph
+**26/26**, zero cached, builds on Node24. Required scalar authored arguments
+retain source order and parent effect/branch influence, including no-call
+outcomes. Complete scalar/void children resolve only through prior acyclic
+waves. Source-derived IDs, exact path/hash/callable module, target declarations
+and the actual emitted operation descriptors join through the source-aware
+emitter before native plan publication. Missing bytes, skewed targets/input
+order/results/descriptors, recursion and unsupported profiles refuse preparation.
+Depth16 and aggregate200 match the defining State limits. Owning source
+**18/18**, invocation **6/6**, changed aggregate boundary **1/1**, strict
+all-target lint and formatting pass; finite independent review finds no
+remaining defect after correcting the depth/count bounds. The full changed-
+source run exposed the prior read-narrowing corpus expectation: Workbench
+75 diagnostics, or76 with read=true removed, with the sole additional E3003
+on nullable Proposal and all other diagnostic identities unchanged. Its exact
+count is corrected; the exact saved acfae291 source rerun completes all **129
+targets:1,356 passed,0 failed,0 ignored,0 filtered**, with required real
+completion engines, actual native/permission bodies and zero body skips.
+
+This is prepared source correspondence, with CALL still refusing E6008. Dev's
+real facade/site carrier and State-issued parent pointer are required before
+activation; no native child execution is claimed. Original read/query Fact[],
+protected dynamic/as/CRUD/default/composite profiles and the broader nine
+references remain open. Precise human holds and local/manual integration remain.
