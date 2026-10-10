@@ -3,11 +3,12 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { compileFunction, constants as vmConstants } from "node:vm";
 import { expect, it } from "vitest";
 import { attachDevSessionService, startDevSessionService, type SessionCheckResponse, type SessionConstructQualification } from "../src/dev/session-service.js";
 import type { CompilerConstructCandidates } from "../src/dev/construct-help.js";
 import { prepareLocalPreviewCapture } from "../src/dev/preview-inputs.js";
-import { createInstalledFirstProfileQualification } from "../src/dev/first-profile-qualification.js";
 
 const project = resolve(import.meta.dirname, "../../..");
 
@@ -103,6 +104,12 @@ it("retains released native originating context and keeps unqualified ranking lo
 }, 60_000);
 
 it("joins only actual current first-profile runtime and example outcomes through the private native session", async () => {
+  // Native installed producer imports preserve ESM own-data metadata;
+  // Vitest proxies expose export getters instead of the owning carrier.
+  const {createInstalledFirstProfileQualification}=await compileFunction("return import(url)",["url"],{
+    importModuleDynamically:vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  })(pathToFileURL(join(project,"packages/cloudflare/dist/dev/first-profile-qualification.js")).href
+  ) as typeof import("../src/dev/first-profile-qualification.js");
   // The qualification fixture remains Compiler-owned. Only this distinct
   // invalid application is temporary, inside the selected actual checkout.
   const appRoot=await mkdtemp(join(project,".can-dev-help-"));
@@ -132,7 +139,7 @@ it("joins only actual current first-profile runtime and example outcomes through
     expect(detail.construct_help.grammarCoverage).toBe("complete");
     expect(detail.construct_help.candidateCoverage).toBe("unknown");
     expect(detail.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.read",profile:"included",working:"qualified"});
-    expect(detail.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.user",profile:"included",working:"unqualified"});
+    expect(detail.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.user",profile:"included",working:"qualified"});
     expect(detail.diagnostic.construct_candidates.context).toMatchObject({materialIntentChoice:true,evidenceSufficient:false});
     expect(await client.request({command:"construct.rank",payload:{revision:checked.revision,index:0}}))
       .toMatchObject({result:{state:"candidate_coverage_unknown"}});
@@ -142,13 +149,13 @@ it("joins only actual current first-profile runtime and example outcomes through
     expect(Object.isFrozen(actual)).toBe(true);expect(actual.messageKinds).toEqual([]);
     const proofs=new Map(actual.proofs.map(proof=>[proof.id,proof]));
     for(const id of ["can.v1.field.trim","can.v1.field.min","can.v1.field.max","can.v1.policy","can.v1.invariant","can.v1.lock",
-      "can.v1.when.scenario.read","can.v1.builtin.count","can.v1.fixture.model","can.v1.examples.table.crud","can.v1.examples.table.error"]) {
+      "can.v1.when.scenario.read","can.v1.when.scenario.user","can.v1.builtin.count","can.v1.fixture.model","can.v1.fixture.user","can.v1.examples.table.crud","can.v1.examples.table.error","can.v1.examples.table.scenario"]) {
       const proof=proofs.get(id);expect(proof).toBeDefined();expect(Object.isFrozen(proof)).toBe(true);
       expect(proof!.compilerCheck).toContain("executed captured native compile");expect(proof!.runtimeCheck).toBeTruthy();
       expect(proof!.compilerSha256).toBe(actual.compilerSha256);expect(proof!.indexRevision).toBe(actual.indexRevision);
       if(id.includes("examples."))expect(proof!.exampleCheck).toContain("passed");
     }
-    for(const id of ["can.v1.when.scenario.user","can.v1.fixture.user","can.v1.examples.table.scenario","can.v1.ui.card",
+    for(const id of ["can.v1.ui.card",
       "can.v1.ui.table","can.v1.ui.stat","can.v1.then.form","can.v1.then.edit","can.v1.then.delete"])expect(proofs.has(id)).toBe(false);
     expect(await client.request({command:"preview.status"})).toMatchObject({state:"unavailable"});
   } finally {await owner.stop();await rm(appRoot,{recursive:true,force:true});await rm(runtimeDir,{recursive:true,force:true});}

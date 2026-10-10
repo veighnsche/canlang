@@ -365,6 +365,77 @@ export function exampleFixtures(bindings) {
 }`;
 
 describe("table row expansion", () => {
+  it("selects a generated s.person user and the same raw recipe without provisioning unused business fixtures", async () => {
+    const url = await writeModule("property-caller.mjs", `
+      let users = 0, business = 0;
+      const person = { dependencies: [], user: async () => { users++; return { roles: ["reviewer"] }; } };
+      const model = { model: "Todo", dependencies: [], value: async () => { business++; return { title: "unused" }; } };
+      const file = { dependencies: [], file: async () => { business++; return { id: "unused" }; } };
+      const delivery = { dependencies: [], delivery: "Mail.send", values: async () => { business++; return { request: {} }; } };
+      export const counts = () => ({ users, business });
+      export function exampleFixtures() {
+        return { fixtures: { person, model, file, delivery }, examples: [{
+          operation: "Todo.create", dependencies: ["person"], inputs: async () => ({}),
+          selectors: ["as"], observations: [async (c, s) => s.person.roles], rows: [
+            { dependencies: [], values: async (c, s) => [s.person], expected: async () => [["reviewer"]] },
+            { dependencies: [], values: async () => [person], expected: async () => [["reviewer"]] },
+          ],
+        }] };
+      }
+    `);
+    const calls: StepCall[] = [];
+    const suite = await loadExampleSuite(url, ids(), { invokeCall: async call => { calls.push(call); return { ok: true }; } });
+    const emitted = await import(url) as { counts: () => { users: number; business: number } };
+    expect(emitted.counts()).toEqual({ users: 1, business: 0 });
+    expect(suite.userFixtures).toEqual([{ name: "person", roles: ["reviewer"] }]);
+    expect(suite.rows.map(row => row.caller)).toEqual([
+      { kind: "fixture", fixture: "person" }, { kind: "fixture", fixture: "person" },
+    ]);
+    const report = await runTable<RowScope>({ operation: "Todo.create", rows: suite.rows,
+      userFixtures: suite.userFixtures, createScope: async () => new MemoryScope() });
+    expect(report.rows.map(row => row.outcome)).toEqual(["passed", "passed"]);
+    expect(report.rows.map(row => row.caller)).toEqual([
+      { account: "row-0-user-person", team: "current", roles: ["reviewer"], authenticated: true },
+      { account: "row-1-user-person", team: "current", roles: ["reviewer"], authenticated: true },
+    ]);
+    expect(calls.map(call => call.operation)).toEqual(["Todo.create", "Todo.create"]);
+    expect(calls[0]?.by).toEqual({ roles: ["reviewer"] });
+    expect(calls[0]?.scope).not.toBe(calls[1]?.scope);
+    expect(emitted.counts()).toEqual({ users: 1, business: 0 });
+  });
+
+  it("refuses foreign, copied, role-value and non-user recipe caller cells before any invocation", async () => {
+    const cases = [
+      ["foreign", "foreign"], ["copy", "{ ...person }"], ["roles", "{ roles: ['reviewer'] }"],
+      ["model", "model"], ["file", "file"], ["delivery", "delivery"],
+      ["missing", "s.absent"], ["undefined", "undefined"], ["boolean", "false"], ["null", "null"],
+    ] as const;
+    for (const [name, cell] of cases) {
+      let invoked = 0;
+      const url = await writeModule(`refused-caller-${name}.mjs`, `
+        let business = 0;
+        const person = { dependencies: [], user: async () => ({ roles: ["reviewer"] }) };
+        const foreign = { dependencies: [], user: async () => ({ roles: ["reviewer"] }) };
+        const model = { model: "Todo", dependencies: [], value: async () => { business++; return {}; } };
+        const file = { dependencies: [], file: async () => { business++; return {}; } };
+        const delivery = { dependencies: [], delivery: "Mail.send", values: async () => { business++; return { request: {} }; } };
+        export const businessCalls = () => business;
+        export function exampleFixtures() {
+          return { fixtures: { person, model, file, delivery }, examples: [{
+            operation: "Todo.create", dependencies: [], inputs: async () => ({}),
+            selectors: ["as"], observations: [], rows: [{ dependencies: [],
+              values: async (c, s) => [${cell}], expected: async () => [] }],
+          }] };
+        }
+      `);
+      await expect(loadExampleSuite(url, ids(), { invokeCall: async () => { invoked++; return { ok: true }; } }))
+        .rejects.toThrow(/example at index 0 row 0: as-cell/);
+      expect(invoked).toBe(0);
+      const emitted = await import(url) as { businessCalls: () => number };
+      expect(emitted.businessCalls()).toBe(0);
+    }
+  });
+
   it("expands rows with mapped callers and setup-assigned expectations", async () => {
     const suite = await loadExampleSuite(await writeModule("table.mjs", TABLE_MODULE), ids());
     expect(suite.rows.map((row) => row.rowIndex)).toEqual([0, 1]);

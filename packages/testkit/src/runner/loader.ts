@@ -298,6 +298,13 @@ export async function loadExampleSuite(
   // genuine cycles fail; no silent reinterpretation).
   resolveFixtureOrder([...suite.recipes.keys()], adjacency);
   const { users, values } = await extractSuiteUsers(suite, bindings);
+  // Emitted `as person` reads the fixture property. At load, resolve only
+  // declared user recipes; business fixtures remain unprovisioned, and the
+  // existing caller reader checks the suite's exact raw recipe identity.
+  const callerRecipes = new Map<string, unknown>();
+  for (const [raw, name] of suite.rawNames) {
+    if (suite.recipes.get(name)?.kind === "user") callerRecipes.set(name, raw);
+  }
   const invoke = hooks.invokeCall;
   const observeScope = hooks.observeScope;
   const prepare = hooks.prepareFixtures;
@@ -356,7 +363,7 @@ export async function loadExampleSuite(
       const mapped = readEmittedRow(row, exampleIndex, position, dependencies, suite);
       rows.push(
         await mapTableRow(
-          bindings, suite, adjacency, values, exampleIndex, rowIndex, position,
+          bindings, suite, adjacency, values, callerRecipes, exampleIndex, rowIndex, position,
           operation, inputsFn as (...args: readonly unknown[]) => unknown,
           selectors, observations, mapped, invoke, observeScope, prepare, hooks.prepareRowCells,
         ),
@@ -409,6 +416,7 @@ async function mapTableRow(
   suite: Parameters<typeof normalizeDependencies>[1],
   adjacency: Parameters<typeof resolveFixtureOrder>[1],
   userValues: ReadonlyMap<string, unknown>,
+  callerRecipes: ReadonlyMap<string, unknown>,
   exampleIndex: number,
   rowIndex: number,
   position: number,
@@ -432,7 +440,7 @@ async function mapTableRow(
   if (asIndex >= 0) {
     let probe: unknown;
     try {
-      probe = await mapped.valuesFn(bindings, scopeFacade(EMPTY_PROVISIONED));
+      probe = await mapped.valuesFn(bindings, scopeFacade(callerRecipes));
     } catch (thrown) {
       throw setupError(null, `${where}: caller probe failed: ${detailOf(thrown)}`, { cause: thrown });
     }
