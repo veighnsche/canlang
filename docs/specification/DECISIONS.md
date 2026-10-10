@@ -5577,3 +5577,44 @@ The earlier Interfaces model-context unit83305a79 is manually CLEAR at reviewed 
 Use additive Work `attemptDispatchAsync` with the existing refusal/availability/guard/authority/claim ordering. Issue an opaque private execution during actual guard evaluation; freeze its lexical inputs, current snapshot, intent and checkpoint. Live observers enroll bounded evidence comparisons; close the execution before awaiting them, then consider skip, current authority and claim. A changed positive or negative observation refuses before a terminal skip or provider claim; source expressions do not execute again. Retain the synchronous kernel and its current callers.
 
 Work clean emission and directly affected async/fence19/19 pass223.14ms. This qualifies the Work component only. State must consume the same live handle with genuine current Team/Identity reader and Compiler v1 sites, and Dev must transport original frozen lexical values and bind real native evaluations/current dispatch admission. Current source gates and precise holds remain; the separate active admitted REQUIRE observer cannot authorize a later SEND.
+
+## 2026-10-10 — define private membership decision source and lifetime bindings (proposed activation)
+
+Use the exact checked Bool guard/statement and owning source hash/module, stage
+(leading require, body require or post-close send dispatch), authored branch
+position and complete selected builtin/derive argument-slot/default invocation
+chain. The existing Task39 README defines the minimal contract. Membership binds
+selected active_member slot0 evaluated user and slot1 evaluated current verified
+owner Team through a privately issued actual stage; imported helper/query/lexical
+values retain source origin and need not be admitted parameters. Preserve source
+order, lazy evaluation and once-only captures. Return the actual Identity Bool,
+enrolling positive and negative observations; missing source, wrong lifetime/team
+or reader failure refuses rather than substituting false/role/cache evidence.
+Require can use active scenarioReceiptMemberships; SEND dispatch needs a separately
+issued genuine current reader after business closure, retaining frozen lexical
+inputs. Compiler owns checked source/IR/emitter; State owns private reader/current
+membership guard; Dev owns real stage adapter. Independently safe checked facts
+can ship first, with execution activation and StateRead derive/when admission
+withheld. This is a proposed activation contract, not a purity reclassification or
+native/source/reference acceptance.
+
+
+## 2026-10-10 — qualify bounded decision correspondence without activation (unfinished)
+
+Retain optional exact checked site/selected-call/default/chain facts and join them
+to immutable original inventory plus fresh checked semantic IR. Match actual
+statement/control/operand topology and reached derive/default bodies; source
+anchors/types alone cannot certify altered values or duplicate occurrences.
+Bound traversal and decline unsupported special shapes. Five owning cases and
+34 final affected cases pass; unchanged121/7 reused, strict all-target lint/format0.
+This implements source correspondence at its declared finite scope. Serial
+transport/private issuance/StateRead derive/when admission and native policy/query
+joins remain proposed or owner-dependent.
+
+Use exact source-array layer identity for inherited parameter cardinality;
+scalar-field[] element bounds do not become outer lengths. Preserve original
+min1/max10 and narrowingmin2/max5 in actual operation and generated input schemas,
+with field-only ! and distinctness excluded. Actual CLI3/3 plus strict lint/format
+pass. Direct parameter modifiers are parser-refused E1200; do not implement an
+inferred legal profile. Shared envelopes/intake belong to Packages; native current
+ref-array ownership remains State/Dev.
