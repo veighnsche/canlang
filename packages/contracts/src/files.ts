@@ -137,12 +137,9 @@ export interface FileRetentionPolicy {
   readonly retentionMs: number;
 }
 
-/**
- * JSON-safe facts about an actual finalized file, not attachment or disclosure
- * authority. Current physical bytes, lifecycle and receiving access must always
- * be revalidated; saved policy cannot renew the original finalization horizons.
- */
-export interface RetainedFinalizedFile {
+/** Immutable original physical identity; matching these facts grants no authority.
+ * Store assignment, lifecycle, attachment markers and policy are separate facts. */
+export interface FinalizedFileIdentity {
   readonly ref: FinalizedFileRef;
   readonly receiver: FinalizedFileReceiver;
   readonly provenance: Readonly<RequestProvenance> | Readonly<EventProvenance>;
@@ -150,6 +147,14 @@ export interface RetainedFinalizedFile {
   readonly sizeBytes: number;
   readonly bytesDigest: string;
   readonly finalizedAtMs: number;
+}
+
+/**
+ * JSON-safe facts about an actual finalized file, not attachment or disclosure
+ * authority. Current physical bytes, lifecycle and receiving access must always
+ * be revalidated; saved policy cannot renew the original finalization horizons.
+ */
+export interface RetainedFinalizedFile extends FinalizedFileIdentity {
   readonly retention: FileRetentionPolicy;
 }
 
