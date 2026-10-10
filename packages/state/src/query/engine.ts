@@ -33,7 +33,8 @@ import {
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';
-import { evaluateBy, type MembershipReader } from '../policy/roles.js';
+import { byDependsOnRow, evaluateBy, type ByPredicate, type MembershipReader } from '../policy/roles.js';
+import { observeRowGrantAuthority } from '../policy/membership-facts.js';
 import {
   collectPredicateFields,
   evalPredicateForRow,
@@ -42,6 +43,7 @@ import {
   isSecretValue,
   resolveRowPath,
   validatePredicateShape,
+  withPolicyRow,
   type ByContext,
   type InterimGrant,
   type InterimModelPolicy,
@@ -145,6 +147,17 @@ export interface ViewerPageQueryInput extends Omit<ViewerRecordsInput, 'predicat
   readonly selection?: ViewerPageSelection;
   /** Trusted generated-source closure; never admitted from a request body. */
   readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+}
+
+/** Internal checked containment inventory; never selection/request authority. */
+export interface ViewerPageParentPolicy {
+  readonly by: ByPredicate;
+  readonly parent?: ModelName;
+}
+interface ViewerPageParentDecision {
+  readonly model: ModelName;
+  readonly allowed: ReadonlyArray<boolean>;
+  readonly projection: string;
 }
 
 /** Materialized candidate cap only; adapters can still scan/sort more rows. */
@@ -481,18 +494,26 @@ function projectRow(
   };
 }
 
-/** Shared actor and row matching for viewer queries and saved-row disclosure. */
+/** Only row-independent predicates enter the existing query-level cache. */
 async function viewerGrantAuthority(policy: InterimModelPolicy, context: ByContext): Promise<boolean[]> {
   const allowed: boolean[] = [];
-  for (const grant of policy.grants) allowed.push(await evaluateBy(grant.by, context));
+  for (const grant of policy.grants) allowed.push(byDependsOnRow(grant.by) ? false : await evaluateBy(grant.by, context));
   return allowed;
 }
-
-function matchingViewerGrants(
-  grants: ReadonlyArray<InterimGrant>, allowed: ReadonlyArray<boolean>, row: StoredRow,
-): InterimGrant[] {
-  return grants.filter((grant, index) => allowed[index] === true &&
-    (grant.when === undefined || evalPredicateForRow(grant.when, row)));
+async function viewerRowAuthority(policy: InterimModelPolicy, context: ByContext,
+  cached: readonly boolean[], row: StoredRow): Promise<{ allowed: boolean[]; grants: InterimGrant[] }> {
+  const bound = withPolicyRow(policy, context, row), allowed: boolean[] = [];
+  for (const [index, grant] of policy.grants.entries()) {
+    allowed.push(byDependsOnRow(grant.by) ? await evaluateBy(grant.by, bound) : cached[index] === true);
+  }
+  return { allowed, grants: policy.grants.filter((grant, index) => allowed[index] === true &&
+    (grant.when === undefined || evalPredicateForRow(grant.when, row))) };
+}
+async function currentViewerAuthority(policy: InterimModelPolicy, context: ByContext, row: StoredRow) {
+  const evaluate = async (current: ByContext) => viewerRowAuthority(policy, current,
+    await viewerGrantAuthority(policy, current), row);
+  if (!policy.grants.some(grant => byDependsOnRow(grant.by))) return { value: await evaluate(context), revalidate: undefined };
+  return observeRowGrantAuthority(context, evaluate);
 }
 
 /** Authorize against the live row; copy only the original saved row's values. */
@@ -504,10 +525,11 @@ export async function projectSavedRecordForViewer(input: {
   readonly originalSecretFields: ReadonlyArray<string>;
 }): Promise<ProjectedRecord | null> {
   if (input.policy === undefined) return null;
-  const allowed = await viewerGrantAuthority(input.policy, input.context);
-  const grants = matchingViewerGrants(input.policy.grants, allowed, input.current);
-  return grants.length === 0 ? null : projectRow(input.saved, grants,
+  const authority = await currentViewerAuthority(input.policy, input.context, input.current);
+  const projected = authority.value.grants.length === 0 ? null : projectRow(input.saved, authority.value.grants,
     [...input.originalSecretFields, ...input.policy.secretFields]);
+  await authority.revalidate?.();
+  return projected;
 }
 
 type NumericOrderType = 'int' | 'decimal' | 'money';
@@ -854,6 +876,9 @@ interface AuthorizedSet {
     readonly policy: InterimModelPolicy | null;
     readonly byContext: ByContext;
     readonly allowed: ReadonlyArray<boolean>;
+    readonly revalidate?: () => Promise<void>;
+    readonly parents: readonly ViewerPageParentDecision[];
+    readonly evaluateParents?: (context: ByContext) => Promise<readonly ViewerPageParentDecision[]>;
   };
 }
 
@@ -904,7 +929,8 @@ async function runAuthorizedQuery(
   // is what authorization boundaries refuse.
   eventual = false,
   predicate?: ViewerRecordsInput['predicate'],
-  page?: { readonly parent?: RecordParent; readonly revision?: Revision },
+  page?: { readonly parent?: RecordParent; readonly revision?: Revision;
+    readonly parentPolicies?: ReadonlyMap<ModelName, ViewerPageParentPolicy>; readonly readBy?: ByPredicate },
   observation?: QueryObservation,
 ): Promise<AuthorizedSet> {
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
@@ -964,6 +990,48 @@ async function runAuthorizedQuery(
   let grantByOk: ReadonlyArray<boolean> = [];
   let grantedFields: string[] = [];
   let pageAuthority: AuthorizedSet['pageAuthority'];
+  let rowContext: ByContext | undefined;
+  let byContext: ByContext | undefined;
+  let parentDecisions: readonly ViewerPageParentDecision[] = [];
+  const parentRows = new Map<string, StoredRow | null>();
+  const evaluateParents = async (current: ByContext): Promise<readonly ViewerPageParentDecision[]> => {
+    const decisions: ViewerPageParentDecision[] = [];
+    let selected = page?.parent ?? null;
+    const visited = new Set<ModelName>();
+    while (selected !== null && page?.parentPolicies !== undefined) {
+      if (visited.has(selected.model)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
+      visited.add(selected.model);
+      const declaration = page.parentPolicies.get(selected.model);
+      if (declaration === undefined) throw new StateError('validation', 'Parent scope requires a checked generated model read.');
+      if (!(await evaluateBy(declaration.by, current))) throw new StateError('not_found', 'Parent record not found.');
+      const identity = JSON.stringify([selected.model, selected.id]);
+      // The coherent replay evaluates policy only, over the original rows.
+      if (!parentRows.has(identity)) parentRows.set(identity, await input.store.load(selected.model, selected.id));
+      const row = parentRows.get(identity)!;
+      if (row === null) throw new StateError('not_found', 'Parent record not found.');
+      const parentPolicy = input.policy.get(selected.model);
+      const authority = await projectCurrentRecordForViewerPolicy({ policy: parentPolicy, context: current, row });
+      if (authority.record === null || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
+      const ancestor = row.parent ?? null;
+      if ((declaration.parent === undefined && ancestor !== null) ||
+          (declaration.parent !== undefined && (ancestor === null || ancestor.model !== declaration.parent))) {
+        throw new StateError('not_found', 'Parent record not found.');
+      }
+      decisions.push({ model: selected.model, allowed: authority.allowed,
+        projection: JSON.stringify(authority.record) });
+      selected = ancestor;
+    }
+    return decisions;
+  };
+  const prepareViewer = async (current: ByContext): Promise<boolean[]> => {
+    const allowed = policy === null ? [] : await viewerGrantAuthority(policy, current);
+    grantedFields = policy === null ? [] : policy.grants.flatMap((grant, index) =>
+      allowed[index] || byDependsOnRow(grant.by) ? [...grant.fields] : []);
+    if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets);
+    for (const term of order) checkViewerPath(term.field, grantedFields, secrets);
+    for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets);
+    return allowed;
+  };
   if (input.authority === 'viewer') {
     const membership =
       input.context.actorUserId !== null && input.context.teamId !== null
@@ -987,30 +1055,19 @@ async function runAuthorizedQuery(
       membership,
       memberships: input.memberships,
     };
+    byContext = byCtx;
     const found = input.policy.get(input.model);
-    if (found !== undefined) {
-      policy = found;
-      secrets = found.secretFields;
-      const byOk = await viewerGrantAuthority(found, byCtx);
-      const covered: string[] = [];
-      for (const [index, grant] of found.grants.entries()) {
-        if (byOk[index]) covered.push(...grant.fields);
-      }
-      grantByOk = byOk;
-      grantedFields = covered;
+    if (found !== undefined) { policy = found; secrets = found.secretFields; }
+    const parentDependsOnRow = [...(page?.parentPolicies?.keys() ?? [])].some(model =>
+      input.policy.get(model)?.grants.some(grant => byDependsOnRow(grant.by)));
+    if (policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow) rowContext = byCtx;
+    else {
+      parentDecisions = await evaluateParents(byCtx);
+      grantByOk = await prepareViewer(byCtx);
     }
-    if (page !== undefined) pageAuthority = { policy, byContext: byCtx, allowed: grantByOk };
-    if (input.where !== undefined) {
-      for (const path of collectPredicateFields(input.where)) {
-        checkViewerPath(path, grantedFields, secrets);
-      }
-    }
-    for (const term of order) {
-      checkViewerPath(term.field, grantedFields, secrets);
-    }
-    for (const path of extraViewerPaths ?? []) {
-      checkViewerPath(path, grantedFields, secrets);
-    }
+    if (page !== undefined && rowContext === undefined) pageAuthority = {
+      policy, byContext: byCtx, allowed: grantByOk, parents: parentDecisions, evaluateParents,
+    };
   }
 
   // Unbounded scan: storage applies model/archived/order only. `where` stays
@@ -1032,7 +1089,31 @@ async function runAuthorizedQuery(
       ...(page.parent === undefined ? {} : { parent: page.parent }),
     }),
   };
-  const scanned = await input.store.query(spec);
+  let scanned: readonly StoredRow[];
+  let rowAuthority: readonly { allowed: boolean[]; grants: InterimGrant[] }[] | undefined;
+  let revalidateRowAuthority: (() => Promise<void>) | undefined;
+  if (rowContext !== undefined) {
+    const selectedPolicy = policy; let originalRows: readonly StoredRow[] | undefined;
+    const authority = await observeRowGrantAuthority(rowContext, async current => {
+      if (page?.readBy !== undefined && !(await evaluateBy(page.readBy, current))) {
+        throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+      }
+      const parents = await evaluateParents(current);
+      const cached = await prepareViewer(current);
+      const observedRows = originalRows ??= await input.store.query(spec);
+      if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
+      const rows = [];
+      for (const row of observedRows) rows.push(selectedPolicy === null ? { allowed: [], grants: [] } :
+        await viewerRowAuthority(selectedPolicy, current, cached, row));
+      return { cached, rows, parents };
+    });
+    scanned = originalRows!; rowAuthority = authority.value.rows; revalidateRowAuthority = authority.revalidate;
+    if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Row grant discovery moved beyond its original State revision.');
+    grantByOk = selectedPolicy?.grants.map((grant, index) => byDependsOnRow(grant.by)
+      ? rowAuthority!.some(row => row.allowed[index] === true) : authority.value.cached[index] === true) ?? [];
+    if (page !== undefined) pageAuthority = { policy, byContext: rowContext, allowed: grantByOk,
+      parents: authority.value.parents, revalidate: authority.revalidate };
+  } else scanned = await input.store.query(spec);
   if (page !== undefined && scanned.length > VIEWER_PAGE_MAX_CANDIDATES) {
     throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
   }
@@ -1050,9 +1131,9 @@ async function runAuthorizedQuery(
       matched.push(row);
     }
   } else {
-    const grants: ReadonlyArray<InterimGrant> = policy === null ? [] : policy.grants;
-    for (const row of scanned) {
-      const matching = matchingViewerGrants(grants, grantByOk, row);
+    for (const [index, row] of scanned.entries()) {
+      const matching = rowAuthority?.[index]?.grants ?? (policy === null ? [] :
+        (await viewerRowAuthority(policy, byContext!, grantByOk, row)).grants);
       if (matching.length === 0) {
         continue;
       }
@@ -1103,7 +1184,23 @@ async function runAuthorizedQuery(
     );
   }
 
+  if (revalidateRowAuthority !== undefined) {
+    await revalidateRowAuthority();
+    if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Row grant read moved beyond its original State revision.');
+  }
   return { revision, rows, ...(pageAuthority === undefined ? {} : { pageAuthority }) };
+}
+
+/** Internal policy-only projection for a caller that owns the complete authority observation. */
+export async function projectCurrentRecordForViewerPolicy(input: {
+  readonly policy: InterimModelPolicy | undefined;
+  readonly context: ByContext;
+  readonly row: StoredRow;
+}): Promise<{ readonly record: ProjectedRecord | null; readonly allowed: ReadonlyArray<boolean> }> {
+  if (input.policy === undefined) return { record: null, allowed: [] };
+  const { grants, allowed } = await viewerRowAuthority(input.policy, input.context,
+    await viewerGrantAuthority(input.policy, input.context), input.row);
+  return { record: grants.length === 0 ? null : projectRow(input.row, grants, input.policy.secretFields), allowed };
 }
 
 /** Current-row projection for admitted parent loads, using the same grants. */
@@ -1112,10 +1209,11 @@ export async function projectCurrentRecordForViewer(input: {
   readonly context: ByContext;
   readonly row: StoredRow;
 }): Promise<{ readonly record: ProjectedRecord | null; readonly allowed: ReadonlyArray<boolean> }> {
-  if (input.policy === undefined) return { record: null, allowed: [] };
-  const allowed = await viewerGrantAuthority(input.policy, input.context);
-  const matching = matchingViewerGrants(input.policy.grants, allowed, input.row);
-  return { record: matching.length === 0 ? null : projectRow(input.row, matching, input.policy.secretFields), allowed };
+  const evaluate = (context: ByContext) => projectCurrentRecordForViewerPolicy({ ...input, context });
+  if (!input.policy?.grants.some(grant => byDependsOnRow(grant.by))) return evaluate(input.context);
+  const authority = await observeRowGrantAuthority(input.context, evaluate);
+  await authority.revalidate();
+  return authority.value;
 }
 
 /** The transform finishes before current grant and revision checks. */
@@ -1124,6 +1222,23 @@ export function queryRecordsPage<Result>(input: ViewerPageQueryInput,
   transform: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>) => Result | Promise<Result>): Promise<Result>;
 export async function queryRecordsPage(input: ViewerPageQueryInput,
   transform?: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>) => unknown | Promise<unknown>): Promise<unknown> {
+  return runPageQuery(input, transform);
+}
+
+/** Private State containment join: parent and child policy discovery share one observation. */
+export function queryRecordsPageWithParentPolicies<Result>(input: ViewerPageQueryInput,
+  parentPolicies: ReadonlyMap<ModelName, ViewerPageParentPolicy>, readBy: ByPredicate,
+  transform: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>,
+    parents: readonly ViewerPageParentDecision[]) => Result | Promise<Result>,
+  retainFinalAuthority: (revalidate: () => Promise<void>) => void): Promise<Result> {
+  return runPageQuery(input, transform, parentPolicies, retainFinalAuthority, readBy) as Promise<Result>;
+}
+
+async function runPageQuery(input: ViewerPageQueryInput,
+  transform?: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>,
+    parents: readonly ViewerPageParentDecision[]) => unknown | Promise<unknown>,
+  parentPolicies?: ReadonlyMap<ModelName, ViewerPageParentPolicy>,
+  retainFinalAuthority?: (revalidate: () => Promise<void>) => void, readBy?: ByPredicate): Promise<unknown> {
   if (input.authority !== 'viewer' || 'predicate' in input || 'archived' in input ||
       (input.generatedPredicate !== undefined && typeof input.generatedPredicate !== 'function')) {
     throw new StateError('validation', 'Pages require current viewer authority without caller predicates or archive overrides.');
@@ -1177,6 +1292,8 @@ export async function queryRecordsPage(input: ViewerPageQueryInput,
   }, search?.fields, false, predicate, {
     ...(selection.parent === undefined ? {} : { parent: selection.parent }),
     ...(position === undefined ? {} : { revision: position.revision }),
+    ...(parentPolicies === undefined ? {} : { parentPolicies }),
+    ...(readBy === undefined ? {} : { readBy }),
   });
   if (position !== undefined && position.revision !== set.revision) {
     throw new StateError('conflict', 'Collection changed; restart pagination.');
@@ -1194,21 +1311,40 @@ export async function queryRecordsPage(input: ViewerPageQueryInput,
     ...(selection.includeCount === true ? { totalCount: set.rows.length } : {}),
   };
   const captured = set.pageAuthority!;
-  const result = transform === undefined ? page : await transform(structuredClone(page), [...captured.allowed]);
-  if (await input.store.readRevision() !== set.revision) {
-    throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
-  }
-  const membership = input.context.actorUserId !== null && input.context.teamId !== null
-    ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId) : null;
-  const live = captured.policy === null ? [] : await viewerGrantAuthority(captured.policy, {
-    ...captured.byContext, membership,
-  });
-  if (JSON.stringify(live) !== JSON.stringify(captured.allowed)) {
-    throw new StateError('forbidden', 'Collection read authority changed during the page read.');
-  }
-  if (await input.store.readRevision() !== set.revision) {
-    throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
-  }
+  const result = transform === undefined ? page : await transform(structuredClone(page), [...captured.allowed], structuredClone(captured.parents));
+  // The admitted page owner finishes its outer caller checks before invoking
+  // this same retained observation. Direct page queries finish here.
+  const revalidate = async (): Promise<void> => {
+    if (await input.store.readRevision() !== set.revision) {
+      throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+    }
+    if (captured.revalidate !== undefined) await captured.revalidate();
+    else {
+      const membership = input.context.actorUserId !== null && input.context.teamId !== null
+        ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId) : null;
+      const context = { ...captured.byContext, membership };
+      let parents: readonly ViewerPageParentDecision[];
+      try { parents = await captured.evaluateParents!(context); }
+      catch (error) {
+        if (error instanceof StateError && error.code === 'not_found') {
+          throw new StateError('forbidden', 'Parent read authority changed during the page read.');
+        }
+        throw error;
+      }
+      if (JSON.stringify(parents) !== JSON.stringify(captured.parents)) {
+        throw new StateError('forbidden', 'Parent read authority changed during the page read.');
+      }
+      const live = captured.policy === null ? [] : await viewerGrantAuthority(captured.policy, context);
+      if (JSON.stringify(live) !== JSON.stringify(captured.allowed)) {
+        throw new StateError('forbidden', 'Collection read authority changed during the page read.');
+      }
+    }
+    if (await input.store.readRevision() !== set.revision) {
+      throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+    }
+  };
+  if (retainFinalAuthority === undefined) await revalidate();
+  else retainFinalAuthority(revalidate);
   return result;
 }
 

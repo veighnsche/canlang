@@ -55,7 +55,7 @@ import {
   assertDeliveryField,
   createRetentionContentPolicy,
   createSelectedGrants,
-  resolveLeafGrantPaths,
+  observeLeafGrantPaths,
   type DeliveryFieldSchema,
   type JoinCaller,
   type JoinContentPolicyPort,
@@ -333,13 +333,15 @@ async function observeReceiptJoin(
     }
   }
   const selectedVerdicts = new Map<ReceiptProperty, boolean>();
+  let revalidateAuthority: (() => Promise<void>) | undefined;
   if (ownerExecution === undefined) {
     const viewer = input as SelectedReceiptJoinInput;
-    const paths = await resolveLeafGrantPaths({
+    const authority = await observeLeafGrantPaths({
       policy: viewer.policy, model: input.model, caller: viewer.caller,
       memberships: viewer.memberships, row: owner,
     });
-    const policyGrants = createSelectedGrants({ field, paths });
+    revalidateAuthority = authority.revalidate;
+    const policyGrants = createSelectedGrants({ field, paths: authority.paths });
     for (const property of new Set(input.selected)) {
       selectedVerdicts.set(property,
         policyGrants.mayObserve(property, { field, deliveryId: null, revision: null }));
@@ -352,6 +354,7 @@ async function observeReceiptJoin(
     mayObserve: (property, context) => context.field === field && selectedVerdicts.get(property) === true,
   };
   if (denied.length !== 0) {
+    await revalidateAuthority?.();
     await assertReceiptReadRevision(input, readRevision);
     return { outcome: 'denied', denied, readRevision };
   }
@@ -453,6 +456,7 @@ async function observeReceiptJoin(
       version: receiptRow.version,
     });
   }
+  await revalidateAuthority?.();
   await assertReceiptReadRevision(input, readRevision);
   if (ownerExecution !== undefined) {
     assertOwnerReceiptExecution(ownerExecution.call, input.store, ownerExecution.fence);
