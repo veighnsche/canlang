@@ -247,3 +247,99 @@ fn unsupported_contract_closures_remain_unpublished_without_new_diagnostics() {
     );
     assert!(refusal.get("modules").is_none());
 }
+
+#[test]
+fn ordinary_contract_modifiers_publish_exact_owning_schema_bounds() {
+    let scratch = tempfile::tempdir().unwrap();
+    let source = r#"app NominalBounds
+Given
+ Source {title:text trim min=1}
+ contract Fact {version:int min=1 max=9223372036854775807,title:Source.title max=2000,description:text? max=8000,amount:decimal min=1.25 max=2.5,titles:text[] min=1 max=10}
+When
+ scenario result() read=true -> Fact by=members
+  do return Fact {version=1,title="title",description=null,amount=1.5,titles=["title"]}
+Then
+"#;
+    let artifact = compile(source, scratch.path(), "nominal-bounds");
+    let fields = &artifact["valueTypes"]["contracts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|contract| contract["name"] == "NominalBounds.Fact")
+        .unwrap()["fields"];
+    assert_eq!(
+        fields,
+        &json!([
+            {"name":"version","type":"int","min":"1","max":"9223372036854775807"},
+            {"name":"title","type":"text","trim":true,"min":1,"max":2000},
+            {"name":"description","type":"text?","max":8000},
+            {"name":"amount","type":"decimal","min":"1.25","max":"2.5"},
+            {"name":"titles","type":"text[]","min":1,"max":10}
+        ])
+    );
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let runner = scratch.path().join("nominal-bounds.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(process.argv[2]+'/package.json');
+const {normalizeValueTypes,validateValue}=await import(pathToFileURL(require.resolve('@canlang/values')));
+const artifact=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const {valueSchema,valueTypes}=normalizeValueTypes(artifact.valueTypes);
+assert.ok(Object.isFrozen(valueTypes.contracts));
+const valid={version:'9223372036854775807',title:'  title  ',description:null,amount:'1.5',titles:['title']};
+const normalized=validateValue(valueSchema,'NominalBounds.Fact',valid,'create');
+assert.equal(normalized.version,9223372036854775807n);
+assert.equal(normalized.title,'title');
+for(const invalid of [
+ {...valid,version:'0'}, {...valid,version:'9223372036854775808'},
+ {...valid,title:'   '}, {...valid,title:'x'.repeat(2001)},
+ {...valid,description:'x'.repeat(8001)},
+ {...valid,amount:'1.24'}, {...valid,amount:'2.51'},
+ {...valid,titles:[]}, {...valid,titles:Array(11).fill('title')},
+]) assert.throws(()=>validateValue(valueSchema,'NominalBounds.Fact',invalid,'create'));
+validateValue(valueSchema,'NominalBounds.Fact',{...valid,version:'1',amount:'1.25'},'create');
+validateValue(valueSchema,'NominalBounds.Fact',{...valid,amount:'2.5'},'create');
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(scratch.path().join("nominal-bounds.json"))
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+    for (name, invalid) in [
+        ("computed", source.replace("max=2000", "max=1000+1000")),
+        (
+            "unsafe-length",
+            source.replace("max=2000", "max=9007199254740992"),
+        ),
+    ] {
+        let input = scratch.path().join(format!("{name}.can"));
+        std::fs::write(&input, invalid).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .output()
+            .unwrap();
+        let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(!output.status.success(), "{name}: {refusal}");
+        assert!(refusal.get("modules").is_none());
+        assert!(
+            refusal["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008"),
+            "{name}: {refusal}"
+        );
+    }
+}

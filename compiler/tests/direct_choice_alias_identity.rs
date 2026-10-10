@@ -11,7 +11,7 @@ use canlang_compiler::{
 
 #[test]
 fn direct_choice_alias_parameters_retain_identity_and_wrappers_in_ir() {
-    let source = "app AliasProbe\nGiven\n judgment Choice version=1\n  pick choice \"Pick one\" options=runtime {fallback=\"Fallback\",other=\"Other\"}\n contract Payload {selected:Choice.pick.choice}\nWhen\n scenario intake(required:Choice.pick.choice,nullable:Choice.pick.choice?,optional:Choice.pick.choice=\"fallback\",many:Choice.pick.choice[],payload:Payload?) by=members\n  do let checked=1\nThen\n";
+    let source = "app AliasProbe\nGiven\n judgment Choice version=1\n  pick choice \"Pick one\" options=runtime {fallback=\"Fallback\",other=\"Other\"}\n contract Payload {selected:Choice.pick.choice min=0 max=100}\nWhen\n scenario intake(required:Choice.pick.choice,nullable:Choice.pick.choice?,optional:Choice.pick.choice=\"fallback\",many:Choice.pick.choice[],payload:Payload?) by=members\n  do let checked=1\nThen\n";
     let mut db = SourceDb::new();
     let file = db.add("direct-alias.can".into(), source.into());
     let (checked, diagnostics) = check_program(&db, &[file], None);
@@ -76,6 +76,13 @@ fn direct_choice_alias_parameters_retain_identity_and_wrappers_in_ir() {
         .find(|symbol| symbol.name == "payload" && matches!(symbol.kind, SymbolKind::Param { .. }))
         .unwrap();
     assert!(!program.value_constraints.contains_key(&payload.id));
+    let selected = checked
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "AliasProbe.Payload.selected")
+        .unwrap();
+    let constraints = program.value_constraints.get(&selected.id).unwrap();
+    assert_eq!((constraints.min, constraints.max), (Some(1), Some(80)));
 }
 
 #[test]
@@ -84,7 +91,7 @@ fn direct_alias_artifact_reaches_checked_nominal_consumers() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let source = scratch.path().join("direct-alias.can");
-    std::fs::write(&source, "app AliasProbe\nGiven\n judgment Choice version=1\n  pick choice \"Pick one\" options=runtime {fallback=\"Fallback\",other=\"Other\"}\n contract Payload {selected:Choice.pick.choice}\nWhen\n scenario intake(required:Choice.pick.choice,nullable:Choice.pick.choice?,optional:Choice.pick.choice=\"fallback\",many:Choice.pick.choice[],payload:Payload?,unmapped:Choice.pick.choice=\"other\") by=members\n  do let checked=1\nThen\n").unwrap();
+    std::fs::write(&source, "app AliasProbe\nGiven\n judgment Choice version=1\n  pick choice \"Pick one\" options=runtime {fallback=\"Fallback\",other=\"Other\"}\n contract Payload {selected:Choice.pick.choice min=0 max=100}\nWhen\n scenario intake(required:Choice.pick.choice,nullable:Choice.pick.choice?,optional:Choice.pick.choice=\"fallback\",many:Choice.pick.choice[],payload:Payload?,unmapped:Choice.pick.choice=\"other\") by=members\n  do let checked=1\nThen\n").unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
         .arg(root.join("packages/values/dist/catalog.json"))
@@ -120,6 +127,9 @@ const artifact=JSON.parse(readFileSync(process.argv[3],'utf8'));
 const operation=artifact.operations.find(op=>op.name==='AliasProbe.intake');
 const alias='AliasProbe.Choice.pick.choice';
 const inputs=Object.fromEntries(operation.inputs.fields.map(input=>[input.name,input]));
+const selected=artifact.valueTypes.contracts.find(contract=>contract.name==='AliasProbe.Payload').fields[0];
+assert.equal(selected.min,1);
+assert.equal(selected.max,80);
 for(const [name,type] of [['required',alias],['nullable',alias+'?'],['optional',alias],['many',alias+'[]']]){
  assert.deepEqual(inputs[name].field,{kind:'nominal',name:alias});
  assert.equal(inputs[name].valueType,type);

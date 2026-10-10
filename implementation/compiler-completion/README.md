@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. The exact changed-source whole passes1356 with zero skips; genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Historical whole1356 qualifies exact6530 source; later query/schema source has focused qualification only. Genuine Dev native child execution is now qualified at its finite scope. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2224,3 +2224,86 @@ pass; target identity, wrong target, malformed request/envelope, opaque target
 and forged-handle controls run. Result/error payload certification is unchanged.
 Original29-file check follows exact reviewed direct-query source intake; no
 original clean source/native or wider reference acceptance follows this unit.
+
+
+**Owning nominal field modifiers (unfinished original query), 2026-10-10.**
+IR follows exact checked field-reuse edges in defining module scope and retains
+trim/min/max only; receiving ordinary bounds must provably narrow compatible
+inherited ranges. Defaults, server initialization, required-array input,
+uniqueness and authority remain receiving-declaration behavior. Generated alias
+bounds retain their authoritative checked intersection. The actual artifact
+producer emits numeric length bounds, exact scalar wire bounds and trim; an
+unrelated Judgment cannot grant an unsupported ordinary schema closure.
+Affected140/140 pass with strict all-target Clippy/format; the reviewed generated
+alias correction is rechecked through its actual consumer. New bounded metadata
+has producer qualification; actual Values consumption follows exact released
+Packages envelope/model-context intake. Model-containing ordinary contract
+publication and complete original query/policy/runtime joins remain unfinished.
+Whole1356 stays historical at6530; nine references and precise holds remain.
+
+
+**Released schema consumer and original cohort (unfinished), 2026-10-10.**
+Consume reviewed LOCALe5c8b728 and exact clean draft337 by fast-forward,
+preserving local commits/edits. Owning Values dependency build4/4 has zero cached
+tasks. Actual CLI-emitted bounded inventory passes its real Values consumer:
+trimmed nonblank title, exact full-int64/scalar bounds, nullable text, Decimal
+endpoints and array length/refusal controls; ordinary/native contract target3/3.
+The original imports+app-uses29-file check runs once: complete=true, exit10,
+150 diagnostics and **zero in Workbench**. Direct-query/fixture source defects
+are resolved. SKIP original global disclosure: prerequisite owning source/helper
+resolution for Employees8/9 impure active_member in pure staff/can_work and
+CanDo116 nullable user, plus other composed business source errors. Compiler owns the decision-context/source-closure prerequisite; Capability owns
+nullable/business source corrections. No guard removal or pure-rule weakening.
+State/Interfaces loaders require genuine same-load model names
+before Fact.task schema publication; defining owners have exact locations.
+Compiler checked query/projection work continues; no original native/reference
+acceptance or current whole1356 claim follows these finite results.
+
+
+**Checked nominal query projection (unfinished native join), 2026-10-10.**
+The real query checker retains exact contract/model/lexical alias identities and
+ordered owning fields, authored expression anchors/types and stored-reference,
+version or direct-field mappings. Imported two-stage visible/select is covered;
+computed/foreign/mixed projections retain ordinary typing without claiming row
+attribution. IR joins every fact to the actual typed lowered object, active alias,
+source anchors and owning model/contract field bijection. Altered owner/model/
+alias/type/mapping/order/omission controls refuse; unsupported query/read/as
+native disclosure stays withheld. Affected151/151 pass (query5, invocation7,
+disclosure18, codegen121), with final query/invocation12 rechecked after boxed
+optional facts; strict all-target Clippy/format0 and finite independent review.
+Actual any(Employee as e,predicate) needs its external predicate/call association,
+not a fabricated where clause. Original cohort/source/helper, State/Dev policy/
+query/result and current whole qualification remain unfinished; no wider credit.
+
+
+**Decision-context prerequisite (unfinished; advice only), 2026-10-10.**
+Compiler owns exact checked transitive helper/call/default and admission-context
+correspondence for original staff/can_work. Accepted DESIGN314 caller-mode query
+rules and StateRead active_member do not themselves qualify arbitrary StateRead
+in pure derives or dispatch guards. Preserve T06/default/pure gates until the
+bounded current-membership read contract, defining State observer and Dev stage
+association are released. Moving reads before set/create would alter authored
+observation timing. Three independently worded JEV Choice consultations select
+owner_prerequisite (confidence .87/.65/.53; probability .90/.74/.65); bounded
+contract remains the material alternative (.10/.25/.34). The single
+[advice record](decision-context-jev.json) retains uncertainty; it is not language
+acceptance. SKIP gate activation pending exact State/Dev contract, with Compiler
+remaining owner of source/context implementation. Actual any/all currently
+reject async predicates; checked external-predicate correspondence is an
+independent prerequisite, not an authority grant. Original source/reference
+completion and precise BDD3/Task22 holds remain unchanged.
+
+
+**Checked collection predicate join (unfinished native workflow), 2026-10-10.**
+Actual selected any/all/count/first calls retain owning overload, query/model,
+lexical alias and external predicate node/type, independent of Where. IR validates
+that fact against actual canonical slots, typed query and real Lambda body/source;
+named arguments preserve authored evaluation order and grouped predicates retain
+both source and lowered anchors. Skewed owner/model/query/alias/predicate/builtin/
+overload facts refuse without native admission. Affected154/154 pass (query8,
+invocation7, codegen121, disclosure18), strict all-target Clippy/format0; finite
+independent review is clear. Async membership predicates remain unsupported until
+the exact bounded decision contract and sequential runtime consumer join. Next
+ready prerequisite: original reused targets parameter min1/max10 currently drops
+at IR/operation input emission; Compiler owns producer, Packages shared envelopes,
+State per-element private current references, Dev actual frame array correspondence.
