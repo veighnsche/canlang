@@ -788,6 +788,7 @@ impl SemanticJoin<'_> {
         checked_query(self.program, b)?;
         if a.source != b.source
             || a.collection_call != b.collection_call
+            || a.contract_collection_call != b.contract_collection_call
             || a.where_async != b.where_async
             || a.select_param != b.select_param
             || a.order.len() != b.order.len()
@@ -969,6 +970,36 @@ impl SemanticJoin<'_> {
                     span: t,
                 },
             ) if x == y && s == t => self.expression(a, b, d + 1)?,
+            // A prepared child call remains an original statement in a
+            // parent's decision sites. Match its complete static operand and
+            // authored inputs to fresh IR; receipt preparation still owns all
+            // execution authority and child result qualification.
+            (
+                IrStmt::Call {
+                    target:
+                        IrEffectCallTarget::Operation {
+                            source: x,
+                            operation: a,
+                        },
+                    inputs: c,
+                    binding: u,
+                    result: ar,
+                    span: s,
+                },
+                IrStmt::Call {
+                    target:
+                        IrEffectCallTarget::Operation {
+                            source: y,
+                            operation: b,
+                        },
+                    inputs: e,
+                    binding: v,
+                    result: br,
+                    span: t,
+                },
+            ) if x == y && a == b && u == v && ar == br && s == t => {
+                self.expression(c, e, d + 1)?;
+            }
             (IrStmt::Return { value: a, span: x }, IrStmt::Return { value: b, span: y })
                 if x == y =>
             {
@@ -1391,13 +1422,25 @@ pub(super) fn serial_type(
 }
 
 fn checked_query(program: &CheckedProgram, query: &IrQuery) -> Option<()> {
-    let source = query.source.as_ref()?;
+    let source = query.source.as_deref()?;
     if program.types.checked_queries.get(&source.node) != Some(source) {
         return None;
     }
     if let Some(call) = query.collection_call.as_ref()
         && (program.types.checked_collection_calls.get(&call.node) != Some(call.as_ref())
             || call.query != source.node)
+    {
+        return None;
+    }
+    if let Some(call) = query.contract_collection_call.as_ref()
+        && (program
+            .types
+            .checked_contract_collection_calls
+            .get(&call.node)
+            != Some(call.as_ref())
+            || query.collection_call.is_some()
+            || call.query != source.node
+            || call.domain != source.domain)
     {
         return None;
     }
@@ -1412,19 +1455,28 @@ fn collection_lambda(
         return None;
     };
     let mut candidates = args.iter().filter_map(|arg| match &arg.expr {
-        IrExpr::Query(q) => q.collection_call.as_deref().map(|c| (q, c)),
+        IrExpr::Query(q) => match (&q.collection_call, &q.contract_collection_call) {
+            (Some(c), None) => Some((
+                q,
+                c.node,
+                c.alias,
+                c.builtin.as_str(),
+                c.predicate.as_ref()?,
+            )),
+            (None, Some(c)) => Some((q, c.node, c.alias, c.builtin.as_str(), &c.predicate)),
+            _ => None,
+        },
         _ => None,
     });
-    let (query, call) = candidates.next()?;
+    let (query, call, alias, builtin, predicate) = candidates.next()?;
     if candidates.next().is_some() {
         return None;
     }
     checked_query(program, query)?;
-    if !matches!(call.builtin.as_str(), "any" | "all") {
+    if !matches!(builtin, "any" | "all") {
         return None;
     }
-    let predicate = call.predicate.as_ref()?;
-    let selected = program.types.selected_calls.get(&call.node)?;
+    let selected = program.types.selected_calls.get(&call)?;
     let predicate_slot = selected.slots.get(1).copied().flatten()?;
     if !std::ptr::eq(args.get(predicate_slot)?, lambda)
         || selected.arguments.get(predicate_slot) != Some(&predicate.node)
@@ -1433,8 +1485,8 @@ fn collection_lambda(
     {
         return None;
     }
-    let source = query.source.as_ref()?;
-    let clause = source.clauses.iter().find(|c| c.node == call.alias)?;
+    let source = query.source.as_deref()?;
+    let clause = source.clauses.iter().find(|c| c.node == alias)?;
     let crate::analysis::types::CheckedQueryClauseKind::As { name } = &clause.kind else {
         return None;
     };

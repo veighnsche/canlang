@@ -6481,3 +6481,18 @@ Exact original Workbench110 and Run18/Scope12/Step19 source declarations/hashes 
 Scalar checked definitions need no File binding. Supported owning File-input definitions register the verified source/app callback before State execution, preserving its one-time lifecycle; the callback selects and pins the genuine host revalidator only when State checks an actual captured/saved assignment. Ordinary replay checks its authenticated nonempty assignment inventory before any File repair. Checked fresh scenarios retain only their validated staged attachments, so renaming a File-bearing record does not inspect or reattach unrelated Files. Legacy CRUD/unclaimed attachment repair remains unchanged. Real physical checks, changed host-port refusal, original current receiver/wire/bytes/retention/grants and full State reprojection after awaited repair remain required.
 
 The unchanged canonical43/43 suite passes with its optional-port Proxy assertions; both original required native receipt and lifecycle/UI cases pass1/1, without fixture or source weakening. The complete original File workflow passes1/1 (4913.12ms) and five genuine File component groups pass; the new real File-bearing rename fresh/ordinary/dedicated zero-property-access case passes1/1 (65.31ms). Final root noEmit and boundary13/923/1354/0 pass. A late-binding attempt was corrected against State's existing lifecycle; a missing-output check during emission was discarded and rerun after complete output. Current recorded G1 is reused; stored-member source authority, original application, Office/G2–G3 and precise holds remain open. Coherent local unit only, no remote publication or full-plan acceptance.
+
+Compiler bound child predicates, 2026-10-10 (unfinished original workflow):
+use a separate contract-array proof for synchronous any/all, preserving model-
+query attribution. Join actual CallAs occurrence/Complete child and its owning
+projection; admit only direct projected scalar/ref/version leaves and literals.
+Values owns per-element ordered lazy choices, with no invented parent scalar
+observation or row grant. Fresh typed source/IR correspondence includes static
+child calls and the optional proof. Box checked query source to keep IR size
+bounded. Genuine native predicate/ref/version/failure/rollback/replay/revocation
+passes with affected619, strict lint/format0 and finite review CLEAR; original
+Step.input count needs canonical Input stored observation,
+contained operands need current-stage Dev hydration, and old/fresh two-domain
+closure remains Compiler-owned after those releases. State File lifetime at
+LOCALa8de5109 releases the next assignment-only File source unit; broader original
+workflow/58 of67 and precise BDD3/Task22 holds remain open.

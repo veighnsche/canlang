@@ -1106,6 +1106,281 @@ fn query_parent_full_emission_requires_immutable_prepared_child_receipt() {
 }
 
 #[test]
+fn bound_contract_collections_keep_complete_child_provenance_without_parent_row_observations() {
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   require any(facts as current,current.done)\n   require all(facts as current,current.version>=1 and current.task==current.task)\n   require any(facts as current,current.title==\"second\" or not current.done)\n   require all(facts as current,true)\n   return count(facts)",
+        true,
+    );
+    let (db, program, lowered) = checked_with_ir(&[("query-contract-collections.can", &source)]);
+    let child = complete(&program, "QueryCalls.context");
+    assert_eq!(child.returns[0].influences.len(), 4);
+    let parent = complete(&program, "QueryCalls.parent");
+    origins(&db, parent);
+    assert_eq!(parent.effects.len(), 1);
+    assert_eq!(parent.returns.len(), 1);
+    let returned = &parent.returns[0];
+    assert!(
+        returned.dependencies.is_empty(),
+        "child fields are not fabricated parent row reads"
+    );
+    assert!(returned.intrinsics.is_empty());
+    assert!(returned.influences.is_empty());
+    assert!(
+        returned.decisions.is_empty(),
+        "per-element lazy choices are not once-per-parent markers"
+    );
+    assert_eq!(program.types.checked_contract_collection_calls.len(), 4);
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryCalls.parent")
+        .unwrap();
+    let ir::IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        panic!("actual parent");
+    };
+    let calls = effects
+        .iter()
+        .filter_map(|statement| {
+            let ir::IrStmt::Require { cond, .. } = statement else {
+                return None;
+            };
+            let ir::IrExpr::Call { args, .. } = &cond.expr else {
+                return None;
+            };
+            let ir::IrExpr::Query(query) = &args[0].expr else {
+                return None;
+            };
+            query.contract_collection_call.as_deref()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(calls.len(), 4);
+    for call in calls {
+        assert_eq!(
+            program
+                .types
+                .checked_contract_collection_calls
+                .get(&call.node),
+            Some(call)
+        );
+        assert!(
+            !program
+                .types
+                .checked_collection_calls
+                .contains_key(&call.node),
+            "contract values never become stored model proof"
+        );
+    }
+}
+
+#[test]
+fn bound_contract_collection_source_refuses_unproved_domains_and_predicate_reads() {
+    // A declined source may also have an ordinary async-predicate lowering
+    // refusal. Inspect checked closure before IR rather than hiding that error.
+    let check_source = |source: &str| {
+        let mut db = SourceDb::new();
+        let file = db.add("query-contract-refusal.can".into(), source.into());
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        program
+    };
+    for body in [
+        "   call context {location,targets} as facts\n   let copied=facts\n   require any(copied as current,current.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current select current,current.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,identity(current.done))\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,current.task.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,outer.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,actor==actor)\n   return 1",
+    ] {
+        let source = finite_query_parent_source(
+            "location:Location,targets:Scope.targets,outer:Task",
+            body,
+            false,
+        )
+        .replace(
+            "Given\n",
+            "Given\n derive identity(value:bool):bool=value\n",
+        );
+        let program = check_source(&source);
+        complete(&program, "QueryCalls.context");
+        assert!(
+            matches!(
+                fact(&program, "QueryCalls.parent"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "{source}"
+        );
+    }
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   require all(facts as current,current.version>=1)\n   return 1",
+        false,
+    ).replace("count(visible)==count(targets)", "count(visible)>=count(targets)");
+    let program = check_source(&source);
+    assert!(matches!(
+        fact(&program, "QueryCalls.context"),
+        ScenarioDisclosure::Declined(_)
+    ));
+    assert!(matches!(
+        fact(&program, "QueryCalls.parent"),
+        ScenarioDisclosure::Declined(_)
+    ));
+}
+
+#[test]
+fn bound_contract_collection_publication_requires_exact_fresh_alias_call_and_predicate_proof() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   require any(facts as current,current.version>=1 and current.task==current.task)\n   return count(facts)",
+        false,
+    );
+    let mut db = SourceDb::new();
+    let file = db.add("query-contract-publication.can".into(), source);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    complete(&program, "QueryCalls.parent");
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryCalls.parent")
+        .unwrap()
+        .id;
+    let publish = |lowered: &ir::IrProgram| {
+        serialize_decision_sources(
+            &program,
+            lowered,
+            &lowered.items[owner.0 as usize],
+            &db,
+            catalog.as_ref(),
+        )
+    };
+    assert!(
+        publish(&lowered).is_some(),
+        "genuine source/IR correspondence publishes"
+    );
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("query-contract-publication", "1.0", 1);
+    result.complete = true;
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &program,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    let parent = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "QueryCalls.parent")
+        .unwrap();
+    assert!(
+        parent["result"].get("disclosure").is_some(),
+        "actual native prepared parent is published"
+    );
+    for corruption in 0..4 {
+        let mut changed = lowered.clone();
+        let ir::IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+        else {
+            panic!("parent");
+        };
+        let ir::IrStmt::Call {
+            target,
+            inputs,
+            binding,
+            result,
+            ..
+        } = &mut effects[0]
+        else {
+            panic!("original child call");
+        };
+        match corruption {
+            0 => *binding = Some("copied".into()),
+            1 => *result = None,
+            2 => {
+                let ir::IrEffectCallTarget::Operation { operation, .. } = target else {
+                    panic!("static checked child");
+                };
+                *operation = owner;
+            }
+            3 => {
+                let ir::IrExpr::Object(entries) = &mut inputs.expr else {
+                    panic!("authored inputs");
+                };
+                entries[0].1.expr = ir::IrExpr::Int(7);
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            publish(&changed).is_none(),
+            "forged original child call {corruption} published"
+        );
+    }
+    for corruption in 0..6 {
+        let mut changed = lowered.clone();
+        let ir::IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+        else {
+            panic!("parent");
+        };
+        let ir::IrStmt::Require { cond, .. } = &mut effects[1] else {
+            panic!("require");
+        };
+        let ir::IrExpr::Call { args, .. } = &mut cond.expr else {
+            panic!("collection call");
+        };
+        let ir::IrExpr::Query(query) = &mut args[0].expr else {
+            panic!("value query");
+        };
+        if corruption == 0 {
+            query.contract_collection_call = None;
+        } else {
+            let proof = query.contract_collection_call.as_mut().unwrap();
+            match corruption {
+                1 => proof.call = proof.alias,
+                2 => proof.alias = proof.domain,
+                3 => proof.domain = proof.query,
+                4 => proof.slots.swap(0, 1),
+                5 => proof.predicate.node = proof.domain,
+                _ => unreachable!(),
+            }
+        }
+        assert!(
+            publish(&changed).is_none(),
+            "forged optional query proof {corruption} published"
+        );
+    }
+}
+
+#[test]
 fn query_child_preparation_refuses_nonoriginal_inputs_and_unproved_result_use() {
     for (parameters, body) in [
         (
