@@ -7502,3 +7502,22 @@ carrier and original typed hook context remain unfinished executable joins.
 ### 2026-10-10 — manual local integration of 50665f52
 
 Finite manual source review CLEAR. Exact draft265b837 changes only five assigned private receive date parameter and actual call/form sites to received_on, preserving stored received fields, explicit received=received_on assignment, state enum received, labels, guards, locks, order and authority. Reuse exact same-CLI original25/catalog33→32 removing only Purchase E3001 date/state capture, no additions, complete/omitted0/all25 current hashes/no artifact in1.564s; isolated138→137 in0.071s; all52/full corpus1/1 in39.32s with sole Purchase pin/comment correction; fmt/diff0. Compiler production is unchanged, so prior whole1429/138 and strict57.26s results retain their production scope without rerun or new whole-application claim. Full58/67/nine and every recipient-specific hold remain; exported Rent and native completion/hook/retirement joins retain separate owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — retain standard completion provenance (unfinished executable join)
+
+Keep selected canonical std operation and original result spelling before
+envelope nullability, plus exact own module/alias/import span and existing
+qualified binding/from, in the internal checked fact. Unique own correspondence
+is required; ambiguous aliases acquire no fact and unbound routes remain absent.
+This supplies actual producer inputs for the pinned private Dev/Work join without
+reconstructing declaration identity from nullable payloads. Payload/effects and
+existing publication E6008 remain unchanged. Owning delivery_error_shapes9/9
+pass1.14s, including distinct aliases/routes, unbound/duplicate/unknown controls
+and existing actual native observer/nullable set. fmt/diff0. Source32 witness
+reused; whole1429/138/strict retains frozen pre-provenance scope until the related
+join qualification.58/67/nine and precise holds unchanged. Local only.
+
+### 2026-10-10 — manual local integration of 0fc015ca
+
+Finite manual review CLEAR. Internal checked completion facts retain actual selected canonical operation/result, owning module/alias and exact std import span with optional original binding/from. Unique matching authored import is required; duplicate/mismatched/unknown sources do not acquire a fact, and unbound imports gain no deployment binding. Reuse owning delivery_error_shapes9/9 in1.14s, including genuine original native observer and route/ambiguity/unknown controls, plus fmt/diff0. Runtime E6008 remains; schema/census/IR/JS producer and matching private native consumer are still required. Changed production source does not inherit current whole acceptance from the prior frozen1429/138/strict tuple. Original source32/noartifact and all exact recipient holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
