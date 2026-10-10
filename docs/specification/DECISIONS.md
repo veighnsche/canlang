@@ -6457,3 +6457,9 @@ Interfaces emission and owning15/15 cases pass, including exact transport identi
 ### 2026-10-10 — manual local integration of bf58c8de
 
 Manually review only the leased FileJourney kernel and direct tests. Forward genuine opaque observations and retained revalidation with original method receiver, exact arguments and errors; missing seams refuse and core FileKernel is unchanged. Reuse owner15 checks, actual SQLite producer journey and Cloudflare noEmit. Dev owns the actual staged native consumer; this adapter establishes no whole typed-File acceptance or release of held native preparation. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — align HTTP scratch-cleanup fixture with real handlers
+
+The owning entry-write cleanup correction2b750a6e already covers both builders; duplicate production changes are unnecessary. Existing HTTP cleanup-success output/independent expected literals omitted five current required handler markers. Restore all seven actual marker names in those two literals, preserving the production refusal and every write/process/read/cleanup order, primary failure and scalar/error identity assertion.
+
+At reviewed LOCALe9fe1891 the existing suite passes15 and refuses the single stale HTTP success fixture for missing handlePageRequest. The corrected selected success passes1/1; reuse15 unchanged outcomes for16distinct affected lifecycle controls. An initial incorrect selector skipped all and qualifies nothing. No production change or build/dependency rerun; wider command resources, sidecars, returned URL lifetime, native preparation and publication remain open/held at their existing owners.
