@@ -1,0 +1,34 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "decision": "Least necessary trustworthy implementation join for original bounded Workbench context query returning Fact[] in same owner native execution.",
+    "verified_current": [
+      "State disclosure plan v1 supports scalar/direct-field observations and rejects query influences.",
+      "Owner session issues exact current-stage rows with identity/stage provenance, budget/lifetime checks, physical outer checkpoint, and current caller membership ports.",
+      "queryRecords applies viewer grants and secret carving before predicate/order; returns detached projected records rather than execution-owned original observations.",
+      "Dev loader owns actual source/JS/map trust boundary and already has private child carrier.",
+      "Compiler produces original domain, binder, ordered clauses, parameters, result/reference ownership and nonactivating facts. Nodes provide no schema or grants."
+    ],
+    "source": "let visible = Task as task where task in targets and task.location == location; require count(visible) == count(targets); return visible as task select Fact { task, version = task.version, title, description, due, priority, done }",
+    "required_outcomes": [
+      "Admitted targets max 10; retain complete bounded current-viewer candidate domain including false predicates and empty selections.",
+      "Actual generated source predicate executes once; actual business require executes; retain selected membership/order/cardinality distinct from limit.",
+      "Guard live grants and physical revision over original domain without rerunning source predicates.",
+      "Fact refs/versions come from actual State-issued query rows. Owning Values/schema validates declared Fact[] but alone cannot establish refs.",
+      "Same caller, owner, time, physical outer checkpoint, root receipt and rollback; closed/copied/foreign carriers and caught errors refuse.",
+      "Unsupported wider queries/composites/Files/Deliveries/dynamic/native source activation remain gated."
+    ],
+    "evaluation": "All alternatives must preserve the same complete required outcomes when implemented. Do not credit deferral as implemented workflow. Compare necessary trusted join complexity, provenance, evaluation order, implementation scope, and uncertainty fairly; no original-source acceptance is claimed."
+  },
+  "questions": {
+    "join": {
+      "type": "choice",
+      "instructions": "Which alternative is the least necessary trustworthy join for implementing the stated original bounded query-to-Fact[] workflow, while preserving every required outcome and existing ownership boundary? Judge concrete necessary changes and trust, not an assumed preference for where projection lives.",
+      "criteria": {
+        "A": "State-owned bound query and projection port within existing child frame. Verified loader binds exact checked occurrence/projection field map once. State calls existing viewer query engine through owner-stage adapter, issues actual ordered row carrier and derives canonical Fact[] wire from owning schema and exact issued rows/field mappings. Native consumes actual native view/cell bridge; source predicates and business require remain actual generated evaluation. Needs minimal State adapter/engine original-row retention and result bridge; avoids host-list authority but adds finite projection construction.",
+        "B": "Minimal query-engine issued observations consumed by State; retain native generated projection. Engine matched path issues private execution-owned original/projection/candidate/selection evidence. State records it under actual active checked query occurrence in same child carrier. Dev evaluates actual predicate and Fact construction once, checks native row/ref bindings, awaits State query/result observations. State validates exact wire against owning schema and issued row/field/order/version association. Needs private engine+State observation joins and verified native reports; reuses generated projection but correspondence is split across owners.",
+        "C": "Defer implementation until full general query/result/reference execution ABI. Preserve current explicit refusals; required outcomes are delivered only once full ABI is implemented. Original workflow remains missing meanwhile; no narrowed witness is substituted. Avoids finite-profile special casing but broadens design and delays behavior."
+      }
+    }
+  }
+}

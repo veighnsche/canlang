@@ -1,0 +1,128 @@
+{
+  "status": "advice_only_unaccepted",
+  "state": {
+    "task": "Task39 necessary compiler decision-context prerequisite, separate from held BDD3 consultation. Choose implementation direction, not activation or runtime acceptance.",
+    "requirements": [
+      "Preserve current membership for supplied account/team, full employment/location/caller controls and authored short-circuit/argument order.",
+      "Do not move membership before intervening effects or before the actual deferred send when site.",
+      "Keep active_member catalog effect StateRead; ordinary pure/default/server/nondeterministic constraints remain.",
+      "No guard pruning, fake narrow workflow, broad41-file migration, duplicate runtime authority or guessed accepted syntax.",
+      "Compiler owns producer/consumer behavior; State/Dev own actual authority/receipt frames. JEV is advice; verified source/spec/owner contract is authority."
+    ],
+    "verified": {
+      "spec_137": "derive name(p:T,...):R = expr defines a pure function; derived definitions cannot recurse, perform effects, or depend on incidental UI state.",
+      "spec_314": "Pure queries inherit declaration evaluation authority. Read-policy decisions, invariants, pre-state locks, CRUD when and mutation/trusted decision expressions inspect bounded authority state at resolved owner without recursively applying read policies. Derives inherit caller mode. Storage/team/parent/expiry/work bounds apply; ordinary viewer/read=true bodies remain permission-filtered; no authority output grant.",
+      "membership": "DESIGN233 active_member(person:user,team:Team) checks current membership, not history visibility. Catalog effect StateRead; defining canonical runtime exists, but complete new query/read/as receipt provenance is not released qualified.",
+      "compiler": "effectful_calls walks direct catalog call spellings, rejects every non-Pure call in derives and send when. It does not infer through checked derive callees. SelectedCall and derive declaration/dependency graph are available. Derives receive ambient c and remain awaited at authored call sites; async alone is not authority.",
+      "source": "Employees staff(person) = any(Employee as e,e.user==person and e.active and active_member(person,team)). can_work adds operator_wide or home==location or location in locations. Actual Workbench send when calls eligible after set Run and create Step; CanHire send when repeats can_work. Used across41 files/10 derived wrappers.",
+      "existing_control": "t06_bounded_read_stays_gated explicitly rejects arbitrary StateRead needy(p) in pure derive until defining T32 read contract adopted. Model/parameter defaults and other pure positions also use effectful_calls.",
+      "source_alternative": "Capability verified hoisting bool to earlier do changes timing; direct inline StateRead in send when still E3010; read=true scenario currently cannot be called as expression helper. Broad migration or role predicate substitution cannot preserve same outcome.",
+      "acceptance": "Current compiler checked query and projection source facts are nongrant. Original29 cohort has150 diagnostics/zero Workbench; shared helper errors remain. Native Fact[]/query-policy/guard closure must stay refused until genuine State/Dev joins qualify."
+    },
+    "alternatives": {
+      "bounded_contract": "Adopt only a defining bounded canonical StateRead contract (initially active_member) as caller-mode decision read, with exact checked identities/transitive helper closure, actual authored evaluation sites, private owning state provenance, explicit caller-context validation, and unchanged rejection of arbitrary StateRead/nondeterminism/defaults. No new declaration syntax or Pure reclassification. Must supply missing source/default/dispatch provenance before runtime activation; specification clarify accepted bounded reads.",
+      "inferred_effects": "Introduce inferred Pure/StateRead helper summaries for existing derives, restrict StateRead helpers to exact accepted decision contexts and propagate argument/default/callee effects transitively. No source syntax change; changes derive admission/spec despite preserving truly Pure functions. Same state authority/provenance/evaluation gates required.",
+      "explicit_read_helpers": "Preserve pure derive semantics and separately design an explicit reusable read helper (or read-scenario expression form) with grammar/import/effect/argument/caller authority contracts. Source changes limited to owning declarations and necessary wrappers; no precompute/guard removal. New syntax/API must be accepted and full runtime gates still required.",
+      "owner_prerequisite": "Keep existing source E3010 and mark this exact compiler design/runtime prerequisite blocked until State/Dev publish a bounded read contract that makes one above direction concrete. Continue useful independent query producer work. Avoid premature inferred purity changes, but original helper remains uncompiled."
+    }
+  },
+  "request_model": "jev-latest",
+  "rounds": [
+    {
+      "question": {
+        "type": "choice",
+        "instructions": "Which direction should the compiler implement next to resolve the verified Task39 decision-read conflict while preserving every stated authority, evaluation-order and pure/default constraint? Evaluate the alternatives as proposed, not as already implemented; choose owner_prerequisite if required defining runtime evidence is missing.",
+        "criteria": {
+          "bounded_contract": "Adopt only a defining bounded canonical StateRead contract (initially active_member) as caller-mode decision read, with exact checked identities/transitive helper closure, actual authored evaluation sites, private owning state provenance, explicit caller-context validation, and unchanged rejection of arbitrary StateRead/nondeterminism/defaults. No new declaration syntax or Pure reclassification. Must supply missing source/default/dispatch provenance before runtime activation; specification clarify accepted bounded reads.",
+          "inferred_effects": "Introduce inferred Pure/StateRead helper summaries for existing derives, restrict StateRead helpers to exact accepted decision contexts and propagate argument/default/callee effects transitively. No source syntax change; changes derive admission/spec despite preserving truly Pure functions. Same state authority/provenance/evaluation gates required.",
+          "explicit_read_helpers": "Preserve pure derive semantics and separately design an explicit reusable read helper (or read-scenario expression form) with grammar/import/effect/argument/caller authority contracts. Source changes limited to owning declarations and necessary wrappers; no precompute/guard removal. New syntax/API must be accepted and full runtime gates still required.",
+          "owner_prerequisite": "Keep existing source E3010 and mark this exact compiler design/runtime prerequisite blocked until State/Dev publish a bounded read contract that makes one above direction concrete. Continue useful independent query producer work. Avoid premature inferred purity changes, but original helper remains uncompiled."
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "direction": {
+            "type": "choice",
+            "choice": "owner_prerequisite",
+            "confidence": 0.87,
+            "probabilities": {
+              "bounded_contract": 0.1,
+              "inferred_effects": 0.0,
+              "explicit_read_helpers": 0.0,
+              "owner_prerequisite": 0.9
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1693,
+          "output_tokens": 60
+        }
+      }
+    },
+    {
+      "question": {
+        "type": "choice",
+        "instructions": "Select the best next compiler step for these exact current-membership helpers and dispatch guards. Compare the same original workflow outcomes, actual code/spec constraints and unfinished owner evidence for all alternatives; do not award hypothetical runtime qualification or silently relax purity.",
+        "criteria": {
+          "bounded_contract": "Adopt only a defining bounded canonical StateRead contract (initially active_member) as caller-mode decision read, with exact checked identities/transitive helper closure, actual authored evaluation sites, private owning state provenance, explicit caller-context validation, and unchanged rejection of arbitrary StateRead/nondeterminism/defaults. No new declaration syntax or Pure reclassification. Must supply missing source/default/dispatch provenance before runtime activation; specification clarify accepted bounded reads.",
+          "inferred_effects": "Introduce inferred Pure/StateRead helper summaries for existing derives, restrict StateRead helpers to exact accepted decision contexts and propagate argument/default/callee effects transitively. No source syntax change; changes derive admission/spec despite preserving truly Pure functions. Same state authority/provenance/evaluation gates required.",
+          "explicit_read_helpers": "Preserve pure derive semantics and separately design an explicit reusable read helper (or read-scenario expression form) with grammar/import/effect/argument/caller authority contracts. Source changes limited to owning declarations and necessary wrappers; no precompute/guard removal. New syntax/API must be accepted and full runtime gates still required.",
+          "owner_prerequisite": "Keep existing source E3010 and mark this exact compiler design/runtime prerequisite blocked until State/Dev publish a bounded read contract that makes one above direction concrete. Continue useful independent query producer work. Avoid premature inferred purity changes, but original helper remains uncompiled."
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "direction": {
+            "type": "choice",
+            "choice": "owner_prerequisite",
+            "confidence": 0.65,
+            "probabilities": {
+              "bounded_contract": 0.25,
+              "inferred_effects": 0.0,
+              "explicit_read_helpers": 0.01,
+              "owner_prerequisite": 0.74
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1687,
+          "output_tokens": 60
+        }
+      }
+    },
+    {
+      "question": {
+        "type": "choice",
+        "instructions": "Given the verified source and accepted caller-mode query semantics, which proposed approach is justified now for the necessary Task39 reusable decision-read capability? Preserve timing, context, authority and unsupported-effect refusal equally; unresolved missing read-contract evidence may justify owner_prerequisite.",
+        "criteria": {
+          "bounded_contract": "Adopt only a defining bounded canonical StateRead contract (initially active_member) as caller-mode decision read, with exact checked identities/transitive helper closure, actual authored evaluation sites, private owning state provenance, explicit caller-context validation, and unchanged rejection of arbitrary StateRead/nondeterminism/defaults. No new declaration syntax or Pure reclassification. Must supply missing source/default/dispatch provenance before runtime activation; specification clarify accepted bounded reads.",
+          "inferred_effects": "Introduce inferred Pure/StateRead helper summaries for existing derives, restrict StateRead helpers to exact accepted decision contexts and propagate argument/default/callee effects transitively. No source syntax change; changes derive admission/spec despite preserving truly Pure functions. Same state authority/provenance/evaluation gates required.",
+          "explicit_read_helpers": "Preserve pure derive semantics and separately design an explicit reusable read helper (or read-scenario expression form) with grammar/import/effect/argument/caller authority contracts. Source changes limited to owning declarations and necessary wrappers; no precompute/guard removal. New syntax/API must be accepted and full runtime gates still required.",
+          "owner_prerequisite": "Keep existing source E3010 and mark this exact compiler design/runtime prerequisite blocked until State/Dev publish a bounded read contract that makes one above direction concrete. Continue useful independent query producer work. Avoid premature inferred purity changes, but original helper remains uncompiled."
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "direction": {
+            "type": "choice",
+            "choice": "owner_prerequisite",
+            "confidence": 0.53,
+            "probabilities": {
+              "bounded_contract": 0.34,
+              "inferred_effects": 0.0,
+              "explicit_read_helpers": 0.01,
+              "owner_prerequisite": 0.65
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1693,
+          "output_tokens": 60
+        }
+      }
+    }
+  ]
+}
