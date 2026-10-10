@@ -2,10 +2,10 @@
  * Test-only doubles: in-memory identity store, mail outbox, fixture seeder.
  *
  * NEVER a production binding. The memory store is single-threaded with a
- * naive revision counter that mirrors fence participation shape only; it
- * proves no concurrency semantics. Production binds `IdentityStore` to
- * lane-03 fenced D1 tables (join J2) and `MailPort` to the lane-04 mail
- * adapter. Import from tests only, never from `src/index.ts`.
+ * naive revision counter, not a native transaction fence. The membership
+ * snapshot captures and detaches facts synchronously; other methods prove
+ * no concurrency semantics. Production uses global Identity D1 tables;
+ * the broader fence join J2 remains proposed. Import from tests only.
  */
 import type {
   AuthCode,
@@ -25,6 +25,7 @@ import type {
   UserId,
 } from '@canlang/contracts';
 import { systemClock, toInstant, webRandom } from './ports.js';
+import { captureMembershipRequest, finishMembershipSnapshot, snapshotData } from './membership-snapshot.js';
 import type {
   Clock,
   IdentityStore,
@@ -138,6 +139,22 @@ export function createMemoryIdentityStore(opts?: {
         if (row.team_id === team_id && row.user_id === user_id) return row;
       }
       return null;
+    },
+    async findMembershipsSnapshot(team_id, user_ids) {
+      // No await, external callback or singular asynchronous lookup between
+      // these facts. Detach roles before the returned Promise can settle.
+      const request = captureMembershipRequest(team_id, user_ids);
+      const members = request.user_ids.map(user_id => {
+        let found: Membership | null = null;
+        for (const row of memberships.values()) {
+          if (snapshotData(row, 'team_id') !== request.team_id ||
+              snapshotData(row, 'user_id') !== user_id) continue;
+          if (found !== null) throw new Error('identity-memory: duplicate membership');
+          found = row;
+        }
+        return found;
+      });
+      return finishMembershipSnapshot(request, members);
     },
     async findMembershipById(membership_id) {
       return memberships.get(membership_id) ?? null;

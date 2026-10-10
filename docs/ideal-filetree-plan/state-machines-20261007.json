@@ -1,30 +1,23 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "044b961a9b14935c36043d07249effafefe93318",
-  "base": "3703bbda41929c59ea5d8a3c722ea54d47c45f4f",
+  "integrated_source_pin": "62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2",
+  "base": "f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1736,
-    "net_path_deltas": 10832,
-    "history_touched_paths": 11376,
+    "commit_count_since_checkpoint": 1758,
+    "net_path_deltas": 10840,
+    "history_touched_paths": 11384,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9329,
-    "scope": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 044b961a9b14935c36043d07249effafefe93318 onto committed State ordered-history/bounded-loop intake 3703bbda41929c59ea5d8a3c722ea54d47c45f4f; actual staged source tree, finite existing bookkeeping conflict resolutions and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. State72 governing ordered-history producer and94 affected outcomes remain released at their owner scope; the historical pre-State72 bounded-loop D1 failure is preserved, and its genuine changed-source consumer qualification remains Dev-owned. Reuse incoming expired plain HTTP/CSV dedicated retained admission and installed native HTTP/CSV host qualification only at their recorded profiles, including actual ordered machine history and zero-effect replay; broader browser/source/authority/query/preclaim/release acceptance remains open. The native ESM/exact authored-source-claim shared fixture repair and maintained20 HTTP/MCP/CSV cases retain their finite owner scope, without broad production changes or repeated checks. Existing compiler bounded unconditional loop133targets1386 and prior native/transport results remain at exact source pins. Dispatch originOperationId remains distinct from registry run key and provider payload from verified source lexical input; source-issued frozen-lexical carrier, genuine physical preclaim ordering, saved membership closure and general loop/query/conditional capture remain defining prerequisites. Three existing preclaim JEV request paths are retained; request edits alone supply no completed consultation, responses or accepted architecture choice. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
+    "inherited_paths_without_prior_target_allocation": 9337,
+    "scope": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto committed worker source f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd; actual resolved staged merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, strongest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Three actual human-authorized preclaim response files remain registered under implementation ownership with inherited-unallocated target scope and recorded A/B uncertainty; completed advice is separate from source/native/workflow acceptance. Incoming Compiler query producer and Identity MembershipSnapshot source/test paths remain under their defining owners with exact target allocation pending. Reuse the unchanged preclaim unit source147 scope and other recorded finite owner evidence only; no product checks repeat for this bookkeeping. General source/native/query/preclaim/saved-membership/browser/release and full original workflow gates remain open. Complete checkpoint is unadvanced; LOCAL-only holds retained."
   },
   "methods": [
-    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z 8249342707d3280e88e39e8c911b7e457828f31f (actual staged source tree; existing plan/decision bookkeeping conflicts resolve M before root staging, without recursive registration)",
-    "git log --full-history -m --format= --name-only --no-renames -z 8249342707d3280e88e39e8c911b7e457828f31f..3703bbda41929c59ea5d8a3c722ea54d47c45f4f and 8249342707d3280e88e39e8c911b7e457828f31f..044b961a9b14935c36043d07249effafefe93318; union both parent history path sets",
-    "git rev-list --count 3703bbda41929c59ea5d8a3c722ea54d47c45f4f 044b961a9b14935c36043d07249effafefe93318 ^8249342707d3280e88e39e8c911b7e457828f31f (reachable union, no duplicate commits)",
-    "Both rename endpoints excluded from history-only. Highest existing per-path review scope and defining owner/allocations retained from both exact parent registries; package namespace aliases retain physical package ownership. Similarity renames confer no semantic successor authority. Existing target allocations, feature paths, retirement authority and complete checkpoint are retained. Existing bookkeeping conflict paths resolve M; their own resolution does not recursively register a new review.",
-    "Original-query source checkpoint roles: packages/contracts/src/state.ts owns additive query/result ports with its prior allocation retained; packages/state/src/invocation/scenario-query-plan.ts owns checked plan resolution against owning declarations; packages/state/test/invocation/scenario-owner-query.test.ts owns same-owner query/result behavior cases; packages/state/test/query/observed.test.ts owns observed query authority/fence cases. New paths retain inherited-unallocated scope, with current authority/source/native acceptance unproved.",
-    "Active-membership source roles: packages/state/src/invocation/scenario-membership-plan.ts owns declaration-owned membership plan resolution; packages/state/src/invocation/dispatch-membership.ts owns State active-membership dispatch admission; packages/state/test/invocation/scenario-owner-membership.test.ts and packages/work/src/dispatch/membership-guard.test.ts own their finite membership behavior checks. These four new paths remain inherited-unallocated; their recorded finite results do not establish full workflow or exact target acceptance.",
-    "State reference-array consumer source/test remains finite owner scope: elementwise current-row/version admission, ordered repeated PendingRefs and InvocationRef encoding reuse owning generic descriptors. Newly added consumer test remains inherited-unallocated; actual native private element/frame/source workflow qualification stays open.",
-    "Work guard-phase.test.ts and the three dispatch-preclaim-request JSON files are registered inherited-unallocated. Requests alone do not establish a completed JEV consultation; responses remain absent pending automatic egress approval review.",
-    "Native dispatch lexical/origin prerequisite is retained: dispatch row originOperationId differs from registry run key; OutboxIntent.arguments contains provider payload rather than source lexical inputs. Work supplied-input snapshots do not certify source provenance or invent a commit marker. Compiler/Dev verified native issuance/adoption and true preclaim ordering remain unfinished.",
-    "Native reference-array test source roles: packages/cloudflare/src/runtime/native-reference-arrays.test.ts owns the native hydration component checks; packages/cloudflare/src/runtime/native-reference-arrays-d1.integration.test.ts owns the captured Compiler/State/native D1 consumer; tests/integration/can-dev-server/NativeRefArrays.can owns its actual Dev evaluation source witness under the retained build/test registry owner. All three remain inherited-unallocated; ordinary array input admission and narrow scalar replay do not establish general array-loop closure."
+    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual resolved staged worker merge tree, including final M bookkeeping paths)",
+    "git log --full-history -m --format= --name-only --no-renames HEAD MERGE_HEAD ^checkpoint (both parent full histories)",
+    "Both parent net/history owner and allocation scopes unioned, retaining the strongest reviewed scope per path; rename detection remains bookkeeping, not semantic successor authority."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
   "review_scopes": {
@@ -388,6 +381,12 @@
     [
       "A",
       "compiler/src/codegen/scenario_decisions.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/src/codegen/scenario_queries.rs",
       "compiler",
       "inherited-unallocated"
     ],
@@ -1354,6 +1353,12 @@
     [
       "A",
       "compiler/tests/query_order.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/tests/query_source_producer.rs",
       "compiler",
       "inherited-unallocated"
     ],
@@ -2941,7 +2946,7 @@
       "inherited"
     ],
     [
-      "M",
+      "A",
       "docs/ideal-filetree-plan.md",
       "docs",
       "inherited"
@@ -3853,7 +3858,7 @@
       "inherited"
     ],
     [
-      "M",
+      "A",
       "docs/ideal-filetree-plan/state-machines-20261007.json",
       "docs",
       "inherited-unallocated"
@@ -19856,7 +19861,7 @@
       "inherited-unallocated"
     ],
     [
-      "M",
+      "A",
       "docs/specification/DECISIONS.md",
       "docs",
       "feature"
@@ -21865,6 +21870,24 @@
     [
       "A",
       "implementation/capability-roadmap-20261008/dispatch-preclaim-request-3.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/dispatch-preclaim-response-1.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/dispatch-preclaim-response-2.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/dispatch-preclaim-response-3.json",
       "implementation",
       "inherited-unallocated"
     ],
@@ -60962,6 +60985,12 @@
       "inherited"
     ],
     [
+      "A",
+      "packages/identity/src/membership-snapshot.ts",
+      "packages/identity",
+      "inherited-unallocated"
+    ],
+    [
       "M",
       "packages/identity/src/ports.ts",
       "identity",
@@ -61044,6 +61073,12 @@
       "packages/identity/test/d1.test.ts",
       "identity",
       "inherited"
+    ],
+    [
+      "A",
+      "packages/identity/test/membership-snapshot.test.ts",
+      "packages/identity",
+      "inherited-unallocated"
     ],
     [
       "M",
@@ -62154,6 +62189,12 @@
       "packages/state/src/ports/data-plane.test.ts",
       "state",
       "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/ports/index.ts",
+      "state",
+      "inherited-unallocated"
     ],
     [
       "M",
@@ -67635,7 +67676,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9329,
+    "count": 9337,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67649,7 +67690,7 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 044b961a9b14935c36043d07249effafefe93318 onto committed State ordered-history/bounded-loop intake 3703bbda41929c59ea5d8a3c722ea54d47c45f4f; actual staged source tree, finite existing bookkeeping conflict resolutions and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. State72 governing ordered-history producer and94 affected outcomes remain released at their owner scope; the historical pre-State72 bounded-loop D1 failure is preserved, and its genuine changed-source consumer qualification remains Dev-owned. Reuse incoming expired plain HTTP/CSV dedicated retained admission and installed native HTTP/CSV host qualification only at their recorded profiles, including actual ordered machine history and zero-effect replay; broader browser/source/authority/query/preclaim/release acceptance remains open. The native ESM/exact authored-source-claim shared fixture repair and maintained20 HTTP/MCP/CSV cases retain their finite owner scope, without broad production changes or repeated checks. Existing compiler bounded unconditional loop133targets1386 and prior native/transport results remain at exact source pins. Dispatch originOperationId remains distinct from registry run key and provider payload from verified source lexical input; source-issued frozen-lexical carrier, genuine physical preclaim ordering, saved membership closure and general loop/query/conditional capture remain defining prerequisites. Three existing preclaim JEV request paths are retained; request edits alone supply no completed consultation, responses or accepted architecture choice. Complete checkpoint remains unadvanced; LOCAL-only holds retained.",
+  "current_maintenance_summary": "Capability worker safe local sync of exact coordinator-reviewed LOCAL 62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto committed worker source f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd; actual resolved staged merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, strongest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Three actual human-authorized preclaim response files remain registered under implementation ownership with inherited-unallocated target scope and recorded A/B uncertainty; completed advice is separate from source/native/workflow acceptance. Incoming Compiler query producer and Identity MembershipSnapshot source/test paths remain under their defining owners with exact target allocation pending. Reuse the unchanged preclaim unit source147 scope and other recorded finite owner evidence only; no product checks repeat for this bookkeeping. General source/native/query/preclaim/saved-membership/browser/release and full original workflow gates remain open. Complete checkpoint is unadvanced; LOCAL-only holds retained.",
   "prepared_consultation_response_paths": [
     "implementation/capability-roadmap-20261008/dispatch-preclaim-response-1.json",
     "implementation/capability-roadmap-20261008/dispatch-preclaim-response-2.json",

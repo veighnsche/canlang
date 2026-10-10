@@ -5841,6 +5841,12 @@ Mandatory actual staged-tree/both-parent reconciliation for exactLOCAL5fa76b2 on
 
 **Verification.** State clean emission passes. Affected direct/history/removal/machine/owner/call/default checks90/90 pass (275.76ms combined initial run); four local D1/DO tests initially hit sandbox loopback EPERM, then4/4 pass with authorized local listeners (2597.82ms). Total94affected outcomes, zero skips. Ordered A/B/A, mixed new/cancelled rows, hard-removal reserved versions, one final write/net uniques, later-failure rollback, child/root attribution, immutable receipt effects and reopen/replay are covered. Unchanged Work23/StateWork27/Compiler6 are reused; owner-reported Dev79/79 belongs to its unchanged pre-history tuple, not this new State consumer qualification. Dev318f8efd on reviewed LOCAL189e09bb preserves the original consumer assertion and new genuine association/replay/empty/limit controls; its current D1 run fails before replay pending this State producer. No source acceptance, push or complete checkpoint advance follows from this local unit.
 
+
+Exact reviewed LOCAL61240891/State72a4ce23 releases the ordered-stage history
+correction against the existing DESIGN503/accepted DEC1774 contract. Compiler
+source remains14b; actual changed graph22/22 uncached and only affected native
+receipt target4/4 pass once. Reuse unchanged1386/focused301/lint/format at their
+recorded scope, with this consumer delta; Dev owns actual D1 qualification.
 ## 2026-10-10 — delegate expired plain scenario recovery (unfinished workflow)
 
 Connect checked plain HTTP and CSV scenario submissions whose UUIDv7 age validator reports expiration to the published callable invokeRetainedMutation method only. Keep missing or malformed dedicated ports age-refused without ordinary fallback, fresh calls ordinary and malformed/future IDs refused. HTTP framing, owning binding and current credential liveness still precede the call. CSV preserves review consent, selection/current authority, raw inputs/IDs and authored row order; invalid/duplicate rows stay uninvoked. Signed scenario form_binding retains its age refusal and existing restoration rules. CRUD routing is unchanged.
@@ -5883,13 +5889,90 @@ Refresh only the three existing dispatch-preclaim request JSON files against the
 
 Intake reviewed LOCAL044b961a preserving all source and human holds; reconcile actual staged tree and both-parent history since complete824934:1736commits/10832net deltas/11376historicalpaths/513history-only/9329pending allocations, zero new paths,79featurepaths/30targetleaves and ownership/scopes/retirements preserved; checkpoint unadvanced. Reuse unchanged product results. Coordinator-released State72 and unchanged original Dev318 D1 consumer1/1 (13.92s, record eb8aad65) close the finite ordered-history/void-loop fixture dependency; general loops and original workflow stay unfinished.
 
+### 2026-10-10 — manually review preclaim consultation preparation (unfinished)
+
+Integrate coherent LOCALf43a7b62 consultation inputs after finite manual review CLEAR. The three current choice requests contain verified internal architecture context, equal proposed alternatives and independently worded equivalent instructions; no credentials or actual provider/app/user content. Exact external destination/payload approval remains blocked by the recovered automatic review rejection. No transmission, design selection, production implementation or full workflow acceptance is inferred. Preserve current main file-tree ownership allocations, reconcile the actual merged tree and history, and leave the complete checkpoint unadvanced. Product behavior is unchanged; reuse existing affected results. Capability continues owning query correspondence work while awaiting only this precise consultation authorization. No push or publication.
+
 ### 2026-10-10 — consume canonical named query enums (unfinished workflow)
 
 State query inventory now accepts Compiler nominal enum fields only with exact tag/valueType identity and an actual owning normalized enum, refusing absent/foreign/schema collisions and skewed markers. Preserve nominal producer output and normalized ordered cases; no blanket nominal support or inline rewrite. State clean emission passes3.23s; affected seven-field owner receipt and named-enum inventory checks2/2 pass125ms. Generated source query, lazy observation correspondence/native adapter and original workflow acceptance remain open.
 
+### 2026-10-10 — integrate canonical query enums and exact consultation authorization
+
+Manually reviewed LOCALb1a65359 is CLEAR for the canonical named-enum query inventory consumer. The tag and canonical value type must name the actual normalized owning enum with closed array/nullability and collision checks; no inline rewrite or arbitrary nominal admission. Reuse owning clean State emission and two affected passing cases. Actual emitted Compiler/Dev query integration and lazy candidate/replay correspondence remain unfinished. The human explicitly authorizes only the three reviewed preclaim bodies from LOCALf43a7b62 to https://api.typesafe.ai/v1/systemone using installed authentication; no returned advice or selected architecture is inferred and other recipient holds remain intact. Reconcile the living plan without advancing its complete checkpoint; local integration only.
+
 ### 2026-10-10 — qualify installed cohort member-read failure (parent unfinished)
 
 Use the existing genuine compiled cohort and installed bound tick over native D1, with a finite selected-store member-load failure. Preserve visible failed/infra-read-failure with zero attempts/body/receipt/domain/history/outbox/schedule effects, independent healthy sibling completion, durable attention and exact no-effect replay after native reopen. CF clean emission passes3.56s; the changed exact case passes1/1 (4.45s total) after initial sandbox loopback EPERM and unchanged authorized local-listener rerun. Reuse existing boundary/routing/two-live results. This qualifies the faulty selected-store port, not a real D1 outage/provider profile or complete original roadmap.
+
+### 2026-10-10 — manual local integration of c1885d7e
+
+Finite manual review CLEAR: genuine compiled cohort and installed bound tick over native D1 qualify the explicitly injected selected-store read failure, zero failed-member attempts and effects, healthy sibling progress, durable attention and unchanged replay after real reopen. Reuse owning current emission and direct1/1 result; no product checks repeated. This is a faulty selected-store qualification, not an actual D1 outage or whole roadmap acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+## 2026-10-10 — emit checked query source and actual read sites (unfinished workflow)
+
+**Choice.** Retain the actual checked model query/local nominal select lineage
+independently of permission/disclosure admission. Join input/alias/model/contract,
+cardinality guard, actual field types and full executable source against fresh
+checked IR before serializing the existing State QueryPlan/projection/four
+influences. Query slot dependencies remain in the query inventory; they are not
+ordinary scalar return observations. Native opt-in emits fresh own-data source
+recipes and the defining Dev query/read/result façades; immediate synchronous
+read markers preserve original getters and lazy order. A source recipe never
+upgrades Declined or supplies current authority. Default emission is unchanged.
+
+**Rationale and uncertainty.** The original Workbench query is already checked
+but no complete receipt producer existed. Static possible fields do not prove
+which lazy predicate reads executed; State/Dev must bind real full candidate
+domains and issued slots, preserving false/empty/order/current-schema checks.
+Do not hoist location reads after false target membership. Keep the original
+nominal Task.priority schema instead of forcing an inline enum to accommodate
+a consumer limitation. Full original source guards, approval/protected proposal
+and rollback stay unchanged and unqualified until their owning contract joins.
+
+**Verification.** Current affected326 pass, strict all-target Clippy/format0,
+and finite source review clear. Actual installed source-plan check succeeds but
+its owning inventory test fails on nominal Task.priority: Capability/State owns
+the exact schema/tag repair and lazy-domain reconciliation. The failed positive
+assertion is preserved. Dev owns actual loader/frame/slot/result and unbound
+generic behavior; no source-data-only test certifies runtime activation. Actual
+CLI retains external active_member E6007; original29-file149 diagnostics remain
+at their recorded source scope. Whole1386 qualifies historical14b only, pending
+current source qualification. Earlier actual Dev eb8aad65 D1 history/replay1/1
+resolves that separate bounded-loop prerequisite; no broader reference closes.
+
+### 2026-10-10 — manually integrate checked query source producer (unfinished workflow)
+
+Finite manual source review CLEAR for LOCALe67b6378: actual checked source/IR query, predicate, projection, cardinality, occurrence and original reference/version/influence inventories agree. Native opt-in actual getter/read-marker and selected-result binding preserve lazy source order; nongrant source recipes do not upgrade Declined or set operation disclosure, and default emission remains separate. Reuse owning326 affected outcomes and strict lint/format. Owner72f51295 qualifies only the formerly failed emitted-query/changed-State nominal inventory consumer1/1 after owning State build6/6; no extra root checks or whole-current qualification inferred. Dev private adapter, State lazy live/saved/replay, original membership/pure admission and whole changed-source qualification remain required. Preserve every prior file-tree allocation, reconcile current tree/history, complete checkpoint unadvanced. Local integration only.
+
+
+### 2026-10-10 — connect native query views to issued State slots (unfinished original workflow)
+
+Use the released State query producer in the existing native receipt frame, binding loader authority only from complete checked query/disclosure descriptors, verified owning app/module, same-load actual viewer policy and Values schema. Expose finite execute/observe/bind facades with literal checked source IDs; retain handles, candidate slots, ordered-array association and result encoding privately. Query native fields are lazy getters over the exact State candidate carrier, with immediate actual read events matched to source field markers. No eager hydration, synthetic skipped reads, cached authority or viewer projection promoted to StoredRow. Selected source views resolve fields from only the actual State-issued selected record. Bind original ordered native rows and evaluated nominal Fact[] before selecting the return; re-encode evaluated contract fields at actual completion so later changes cannot evade State's exact original wire check. State owns lazy control closure, full domain/current grants, engine order, schema and checkpoint evidence; Dev owns actual native view/read/marker/projection correspondence. Only selected data reads are required by the native projection join; do not duplicate an all-potential-control requirement.
+
+Fourteen declaration-labelled actual assembler/Identity/State/native-host cases pass: populated/filtered/vacant domains and false observations, exact normal/dedicated replay without additional effects, current revoked membership, and caught/uncaught copied/missing/late/readless or changed result refusals with staged owner update rollback. CF emission, root noEmit and package boundaries pass at this scope. Combined45 initially37/8; correcting Dev's import/diagnostic changes restores the relevant controls. Final affected18 is17/1; five existing one/two-entry history expectations remain Packages-owned common prerequisites against State72's actual two/three authored entries. Preserve exact ordered attribution, one net row/commit and original security assertions; no common-gate rewrite by Dev. Final original CanWorkbench source execution remains blocked on exact Compiler complete query/Fact[] plus pure membership admission and State truthful lazy read closure; opt-in query-source inventory alone grants nothing. Incoming reviewed enum prerequisiteb1a65359/LOCAL9e71bea7 awaits safe intake. Original context/approval/protected proposals/invariants, broader source profiles, G2/G3/T04/T11 and precise human holds remain unchanged; local checkpoint is unfinished and unpushed.
+
+### 2026-10-10 — manual local integration of 5d8d8ee3
+
+Finite manual source review CLEAR for loader-verified native query schema and policy binding, actual issued candidate slots, lazy one-read literal markers, ordered selected-array and nominal-result correspondence, closed-frame/copy/alteration refusal and rollback/current-authority/replay controls. Reuse owning14 declaration-labelled component cases, current emits/source/boundary checks and corrected focused results; unchanged authored-history fixture failures remain Packages-owned. The checked Compiler producer is now present, but actual joined original source, State lazy live/saved/replay and full pure/membership admission still require owner qualification; nongrant recipes do not authorize execution. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+## 2026-10-10 — release a bounded coherent Identity read (consumer join unfinished)
+
+Reconcile TECH-I01 against current global Identity and separately routed team State databases. The old universally shared database/fence comments overstate production; correct them without changing credential contexts or claiming mutation atomicity. Implement IdentityStore.findMembershipsSnapshot and Contracts MembershipSnapshot: capture 1–99 same-team user positions, including duplicates, then observe all complete membership/absence facts in one primary bound SELECT. The 100-parameter D1 limit includes the team. Preserve removed status, owner and full role provenance; reject incomplete/skewed/corrupt results without truncation or fallback. Detach/freeze the complete output. Memory captures synchronously and rejects accessor facts without running getters; its counter is not a native fence.
+
+The accepted earlier coherent-authorized-point rule needs this read observation, not a reusable token or latest-at-return promise. State/Capability owns using one snapshot for all distinct membership facts while preserving owning State row/revision, policy order and lifetime checks; Dev owns runtime mirror/adapter and actual native consumer qualification. Multi-member admission remains withheld until that join qualifies. Full recovery/last-owner/guard/batch/J2 mutation choices remain proposed. OAuth's previously accepted33f12d62 consumed/unavailable correction is retained, not reimplemented.
+
+Three exact human-approved JEV requests compare bounded read, an owned revision covering every writer, colocated shared fence and deferral; all select bounded read (.99/.97/.97, confidence .99/.96/.96, residual deferral .01/.03/.03). No disagreement; raw requests/responses and uncertainty stay in the existing TECH-I01 state record. Advice is not proof. Clean Contracts/Identity emissions and all109 owning Identity checks pass, including real SQLite exact one-query behavior, equal-clock later mutation, full bind boundary, missing/removed facts and fail-closed corruption. Root source check identifies only the pending Dev mirror missing-method errors; final intake and native/installed qualification remain separate.
+
+Carry the unchanged DEL-R01 qualification at reviewed044b961a with this source unit: isolated installed types174 exports/13 owners and Worker216 modules/actual workerd initialization/assets/refusals passed at that baseline. Those results do not qualify this changed Identity producer. No full48-packet/333-task, native-preparation, release, publication or held-payload acceptance follows.
+
+### 2026-10-10 — manual local integration of a0a4d31e
+
+Finite defining producer review CLEAR: one captured same-team1-99 request uses one primary SQL statement or synchronous detached Memory capture, preserving positions, duplicates, absence, removed/owner membership and complete immutable role facts. Closed input/result correspondence refuses getters, sparse and corrupt/skewed carriers. Reuse109 owning Identity checks and clean Contracts/Identity emission. Statement-time coherence is distinct from current authority, State revision/lifetime and broad mutation J2; downstream consumption and new-source installed/native qualification remain open. Exact additive Dev mirror is the immediate reviewed next integration; prior installed results do not qualify this changed producer. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — manual local integration of 0193aa90
+
+Manual source correspondence CLEAR: the additive env-assembly mirror uses actual exported MembershipSnapshot and exact readonly findMembershipsSnapshot signature from reviewed Identity producer a0a4d31e. No duplicate runtime implementation, guessed revision/token or cross-database mutation guarantee. Producer and consumer source halves are now integrated; actual affected CF/root mutual assignability qualification remains Dev-owned and is not yet claimed. Preserve query and native/live holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
 ### 2026-10-10 — choose original-stage preclaim enrollment (accepted implementation decision; workflow unfinished)
 
@@ -5901,6 +5984,20 @@ State issues predicate-only private field getters and closes actual read/immedia
 
 State clean emission passes2.43s; full affected query suite37/37 passes152ms, including lazy true/false/empty/repeated/selected/replay/revocation and missing-marker/lifetime controls. A stale excluded-row order assertion was corrected to actual selected engine attribution before the relevant rerun. Reuse other unchanged results; full original source/native workflow and membership holds remain open.
 
+### 2026-10-10 — manually integrate lazy query correspondence (unfinished workflow)
+
+Finite State source review CLEAR for LOCALe22f8f4a: actual private candidate field reads require immediate checked markers with repeat counts; lazy skips invent no reads. Missing, copied, foreign, late, unchecked and caught failures poison capture. Retain full original viewer-domain/current grant/order/checkpoint guard and mandatory selected data/exact slots/wire. Authentic closed saved dependency evidence rechecks actual fields at replay without accepting caller-selected subsets or rerunning source. Reuse owning clean emission and37 affected outcomes. Exact approved three preclaim responses and A/A/B near-tie uncertainty are preserved; A is the source-based implementation choice, not source or whole workflow acceptance. State/Work preclaim implementation, generated/native joined query qualification and original pure/membership admission remain required. All prior physical allocations and the unadvanced complete checkpoint are preserved. No push/publication.
+
+## 2026-10-10 — retain authored history in common scenario fixtures
+
+Correct the five Dev-reported stale history assertions against the accepted State owner session. Existing rows retain every authored before/after update in source order with one reserved version and one net final write. Assert full actor/time, operation and root invocation attribution. Nested parent updates bracket the child's coalesced final creation; prepared-child updates retain their own operation under the root invocation. Text framework send rows add no business history, while assigned delivery contributes its second authored update. Preserve the original final-row, single commit, retained receipt/replay, guard and rollback assertions; no runtime source or behavior changes.
+
+The maintained31 Node cases initially pass30 with one newly added frame actor spelling error; correct user_id, clean Cloudflare emission passes, and only the affected original case reruns1/1 successfully. Reuse unchanged30 results and finite source reviewCLEAR. Exact Dev Identity mirror intake still blocks root source qualification independently; genuine Compiler/State/native query and full parent acceptance remain owner work. All precise human holds persist.
+
+### 2026-10-10 — manual local integration of 46d2b89d
+
+Finite manual source review CLEAR for five existing history fixtures: exact ordered before/after/actor/time/operation/root invocation/reservedversion facts reflect the accepted State history contract, with one net existing-row write or two nested final writes and no framework history. Preserve all Dev query imports, helpers and14 added component cases; compare actual incoming narrow history edits against the combined staged tree rather than replacing the whole file. Refusal, guard, finalrow, receipt and replay assertions remain unchanged. Reuse30 maintained passing cases and only corrected actor-case1/1 after clean CF emission; whole joined source qualification remains owner work. Exact Identity producer plus Dev mirror is already integrated; no installed/native/preparation acceptance is inferred. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
 ### 2026-10-10 — join actual eligible guard to original State commit (implemented/tested; native workflow unfinished)
 
 Implement chosen A through private actual State stage/revision and bounded128 commit enrollment, closing enrollment after staging and consuming strict evidence before one original expectedRevision commit. Context remains readers-only; copied/late/poisoned contexts and unawaited readers refuse even after caught failures. Detach exact staged effects/result before callbacks. Work optional installed guard callback enters only after unchanged authoritative eligibility/availability, preserving real stale reclaim. It receives frozen actual row/data/context/revision; its closed phase must issue once during that exact stage. Precreated, no-stage, copied/foreign, double/concurrent and consumed phases cannot substitute matching values. Retain actual guard execution poison through caught invalid/bounded/late enrollment and authority awaits. Validate observations, fresh current authority and final health for both outcomes. True stages real claim; false reuses owning pending/guard-false/claim-clear shape and acknowledges without consuming an attempt or fabricating a claim. Commit-marker bounds refuse missing/staged/future/invalid metadata without constructing provenance. Default/synchronous behavior is retained.
@@ -5908,3 +6005,9 @@ Implement chosen A through private actual State stage/revision and bounded128 co
 State final owning build and full affected registry21/21 pass108.77ms. Work owning build and changed kernel/phase/async/fence99/99 pass233.23ms; relevant actual State-Work membership27/27 passes233.94ms. Concrete omitted-marker correction affects kernel only; final kernel73/73 passes200.82ms and the other26 plus membership27 are reused.147 distinct affected outcomes including State21. Earlier97 value-only result is superseded by exact-stage provenance. Initial contextual State parameter and Work receiver-test typing errors were corrected before final checks.
 
 The installed callback API is createWorkDispatchClaimCommand(availability?, guard?): receive {row,data,context,revision}, return {phase,currentAuthority}, issuing runDispatchGuardPhase with stage:input.context. State exports systemCommandStageRevision and enrollSystemCommandCommitCheck. This owns the real State/Work join, not complete native/source acceptance. Dev retains physical preclaim adoption and verified source-issued original intent/frozen lexical/owner/current-authority provenance; Compiler retains checked source guard/lowering. outboxGet lacks an original commitstamp and provider payload is not lexical input. Do not fabricate those prerequisites. Durable saved membership/pure-owner admission and all other precise human holds remain independent. LOCAL only.
+
+### 2026-10-10 — intake coherent membership and query producers (unfinished)
+
+Intake exact reviewed LOCAL62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2 onto f27c6f3262e62b5e6a141cf9a6ff74b6fe454ccd. Preserve genuine bounded one-statement Identity MembershipSnapshot, Dev mirror and Compiler lazy query producers; reuse their owning results and State/Work147 outcomes. Coordinator manual CLEAR of f27 is finite original-stage enrollment only. Mandatory actual staged-tree/both-parent reconciliation since complete824934:1758commits/10840net deltas/11384historical paths/513history-only/9337pending allocations; register three consultation responses, two Compiler query paths, two Identity snapshot paths and previously unregistered State ports/index.ts. Preserve both-parent strongest scopes, owners, retirements,79features/30leaves; complete checkpoint unadvanced.
+
+Next ready saved-membership consumer uses one genuine same-team bounded snapshot for every discovered policy fact, reprojects only from that observation and coherently rereads all full facts before existing State revision/lifetime checks. Legacy multi-fact readers still withhold. Snapshot observation does not create return-time authority or cross-store atomicity. Original committed-intent provenance is separately blocked on Packages' additive retained contract: actual State inserts retain original created_at but omit original revision and codec exposure; State owns atomic original fenced-commit persistence after release, Dev owns native adoption. Never derive a stamp from current claim stage or provider arguments. Original SEQ048 CanVolunteer Opportunity.updated cohort remains blocked on Compiler committed-model-event emission/admission; existing installed results do not substitute for it. LOCAL commits only; all precise holds preserved.

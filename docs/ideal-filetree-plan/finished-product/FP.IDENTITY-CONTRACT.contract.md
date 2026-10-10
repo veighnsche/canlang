@@ -1,9 +1,66 @@
 # FP.IDENTITY-CONTRACT — Typed identity conditional outcome/context/fence contract
 
-Status: **PROPOSED** (draft for owner review; no implementation authorized).
+Status: **PROPOSED** for the broad mutation fence below. The bounded read
+producer in the current-source addendum is implemented; downstream consumption
+and whole J2 acceptance remain open.
 Author: Lane E session 01a10fab-d0e7-7ab2-aadc-901f4712454f. Base: main
 `f6d5fb4`-era lane tip (post-N1 `b84b0e0` merge of main `04d5806`).
 Task row: `tasks.md` FP.IDENTITY-CONTRACT (deps T04; gates FP.IDENTITY).
+
+## Current-source addendum — 2026-10-10 bounded membership observation
+
+The human-authorized TECH-I01 reconciliation supersedes the historical shared
+database premise for this read prerequisite. Production Identity uses global
+`env.DB`; concrete team State uses `STATE_DB` or owner-routed databases. The
+singular methods, wall-clock `updated_at`, and State fence do not supply a
+coherent conjunction of multiple membership reads or a shared revision.
+OAuth authorization-code consumption already has the explicit one-winner
+consumed/unavailable correction (`33f12d62`); it is not a remaining void-return
+gap. Recovery cascades, last-owner guards and broad J2 remain unimplemented.
+
+Identity now defines `findMembershipsSnapshot(team_id, user_ids)` returning
+Contracts `MembershipSnapshot`: one team and ordered `{user_id, membership}`
+entries for 1–99 requested positions, preserving duplicates, explicit absence,
+removed status, owner flags and full role provenance. One captured request
+becomes one bound primary D1 SELECT with a LEFT JOIN, never per-user reads or
+chunks. The limit leaves one of D1's 100 bound parameters for the team. Memory
+collects and detaches the complete observation synchronously, without awaiting
+or executing supplied getters. Both producers freeze the returned facts and
+refuse malformed requests, corrupt facts and incomplete/skewed correspondence.
+This observation can precede Promise settlement; it is not a reusable token,
+revision, latest-at-return assertion or cross-database transaction.
+
+For §4's four questions, the bounded read needs no shared database/fence bump,
+mutation count guard or statement-list execution boundary; Memory needs one
+synchronous detached capture rather than simulated fence aborts. These answers
+resolve only the read prerequisite. The broader mutation choices still require
+placement, guard, batch ownership and native/Memory semantics reconciliation.
+State/Capability must use this one observation for every distinct caller/subject
+membership in the decision, while retaining its owning row/revision, policy
+evaluation order and authority lifetime checks. Dev owns the runtime mirror,
+adapter and real native consumer qualification. Until these are connected and
+qualified, multi-member saved-result admission remains withheld.
+
+Three approved current-source Choice requests compare bounded read, a fully
+owned revision covering all writers, a colocated shared mutation fence and
+deferral. JEV `jev-1.13.0` selects bounded read three times: probabilities
+.99/.97/.97, confidence .99/.96/.96, residual deferral .01/.03/.03. Raw requests
+and responses live in the existing `state.json` TECH-I01 record. No disagreement
+arose; advice does not prove SQL/native concurrency or downstream authority.
+The exact payloads were explicitly approved by the human after automatic
+approval review rejected generic preauthorization. No earlier State payload
+approval was reused.
+
+Defining validation: clean Contracts and Identity emission and all 109 owning
+Identity tests pass, including real SQLite one-query SQL/correspondence,
+equal-clock mutation after observation, maximum bind count and corrupt result
+refusals, plus detached Memory facts and zero accessor execution. This is not
+native D1/State join acceptance. D1 primary-query and binding limits are defined
+in the [D1 database API](https://developers.cloudflare.com/d1/worker-api/d1-database/)
+and [D1 limits](https://developers.cloudflare.com/d1/platform/limits/).
+
+The original sections below describe their historical base and retain their
+proposal status; their shared-database assumptions are not current guarantees.
 
 ## 1. Scope (observations, not inference)
 
