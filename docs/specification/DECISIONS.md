@@ -6398,3 +6398,14 @@ execution, original58/67 closure, held consultation, File or committed events.
 ### 2026-10-10 — manual local integration of 74ad8a56
 
 Manual source/consumer review CLEAR for Compiler74ad8a56 whole checked direct owning singular user/user? row-subject policy transport. Preserve canonical model/module/field/type and exact rule correspondence; filtered, compound, nested and unsupported subjects remain registry-only. Nullable subjects evaluate once and absence returns false without actor-role fallback. Reuse owning409 affected outcomes including real CLI/appDefinition-to-State canonical declaration/Identity/Memory projection, null/revocation/refusal/no-effect consumer and required updated-State actual compiled public1/private-parent1; strict all-target lint/format and fresh owning State emission pass. Dev typed native metadata/current coherent Identity consumer remains required. Whole descriptor-only policy admission does not require executing the registry read callable; present-subject synchronous authored guards remain a separate concrete limitation. No full native application, File/event workflow or original58/67 completion. Keep existing decisions once rather than repeating unchanged historical sections; preserve physical owners/allocations and all precise holds. Complete checkpoint stays unadvanced. No remote push or publication.
+
+
+Compiler bound child count, 2026-10-10 (unfinished original workflow): use
+existing State complete child association and Dev exact schema decoding. Admit
+only checked direct count(CallAs) with exact Complete occurrence/result type,
+binding the actual awaited wire after authored input evaluation. All retained
+child authority gates parent disclosure; add no scalar observation/row grant.
+Copies/general fields/first/helper uses remain refused. Affected313, strict
+lint/format and finite source/authority review CLEAR; genuine native guard,
+return, post-child rollback, retained cardinality, replay and withholding pass.
+Original approve source provenance, full58/67 and precise holds remain open.
