@@ -268,9 +268,7 @@ test('real required File array source reaches winning State CRUD and current SQL
 // Internal typed traversal component only. Source generation establishes the
 // actual declaration types here; origin, census admission and native hosting
 // qualification belong to their owning consumers.
-test('original source declaration types bind complete canonical nested File profiles without invented model fields', {
-  skip: 'Compiler-owned E6008 prerequisite: genuine §13 field-schema lowering for FileProfile.Packet|FileProfile.Empty at Bundle.choice is pending.',
-}, () => {
+test('original source declaration types bind complete canonical nested File profiles without invented model fields', () => {
   const scratch = mkdtempSync(join(root, 'compiler/target/file-declared-profile-'));
   try {
     const input = join(scratch, 'Profiles.can');
