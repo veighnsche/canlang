@@ -11,9 +11,10 @@ import { beginOwnerMutation, bindOwnerModelPolicies, buildModelTable, generatedC
   readScenarioReceiptAssociation, selectScenarioReceiptReturn, bindScenarioReceiptCallProducer,
   invokeScenarioReceiptCall, StateError, type MutationWritesResult,
   type OwnerMutationSourceStage, type OwnerMutationSourceStager } from '@canlang/state';
-import { invoke, readGeneratedCrudAssociation } from '@canlang/state/invocation';
+import { invoke, readGeneratedCrudAssociation, projectGeneratedCrudReceipt } from '@canlang/state/invocation';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '@canlang/state/invocation/registry';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { buildPolicyTable } from '@canlang/state/policy/grants';
 import { admitRetainedFanoutChunk } from '@canlang/state/fanout/membership';
 import { FIXED_NOW, asId, asModel, asOperation, createMemoryIdentityStore, makeBatch,
   makeEnvelope, makeIdentity, seedMember, seedRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -420,6 +421,90 @@ test('genuine generated CRUD target association uses business identity while the
   const before = await snapshot(w.store), counts = { ...wiring.counts };
   assert.equal((await invoke(args)).status, 'replayed'); assert.equal(opens, 1); assert.equal(closes, 1); assert.equal(commits, 1);
   assert.deepEqual(wiring.counts, counts); assert.deepEqual(await snapshot(w.store), before);
+});
+
+test('genuine generated CRUD removal projects and replays a null target with retained Work versions and no deleted-target loads', async () => {
+  const DELETE = `${ITEM}.delete`, CREATE = `${ITEM}.create`;
+  const slice: ArtifactDescriptorSlice = { artifact_version: 1,
+    models: [{ name: ITEM, deleteMode: 'remove', fields: [
+      { name: 'value', field: { kind: 'string' }, required: true, serverOnly: false },
+    ] }], operations: [
+      { name: DELETE, kind: 'delete', description: '', inputs: { fields: [
+        { name: 'record', field: { kind: 'ref', model: ITEM, requireVersion: true }, required: true },
+      ] } },
+      { name: CREATE, kind: 'create', description: '', inputs: { fields: [
+        { name: 'value', field: { kind: 'string' }, required: true },
+      ] } },
+    ],
+  };
+  const w = await invokeWorld(slice); await seedRow(w.store, ITEM, { id: 'a', version: 4, data: { value: 'deleted private value' } });
+  const deleted = await w.store.load(ITEM, asId('a')); assert.ok(deleted);
+  const wiring = installed(); let frames = 0, closes = 0, bodies = 0, commits = 0, receipt: Receipt | undefined;
+  const actualCommit = w.store.commit;
+  w.store.commit = async batch => {
+    commits++; assert.ok(batch.receipt); assert.equal(batch.writes.length, 3);
+    assert.equal(batch.writes[0]!.kind, 'remove'); assert.equal(batch.history.length, 1);
+    return actualCommit(batch);
+  };
+  const ownerExecute = generatedCrudExecuteOwnerSession({ table: buildModelTable([
+    modelDef(ITEM, { fields: { value: field({ required: true }) }, deleteMode: 'remove' }),
+  ]), store: w.store, ownerBounds, stageSources: wiring.stageSources, secretFields: new Map([[ITEM, []]]),
+    createOwnerFrame: async () => { frames++; return { close: () => { closes++; } }; } });
+  const args = { ...w, envelope: makeEnvelope(DELETE, uuidv7(FIXED_NOW, ++sequence), { record: { id: 'a', version: '4' } }),
+    execute: async (call: Parameters<typeof ownerExecute>[0]) => { bodies++; return ownerExecute(call); },
+    observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
+  const removed = await invoke(args); assert.equal(removed.status, 'committed'); assert.equal(removed.result, null);
+  assert.ok(receipt); assert.ok(receipt.outcome.status === 'committed');
+  const retained = receipt;
+  assert.ok(retained.outcome.status === 'committed');
+  assert.deepEqual(readGeneratedCrudAssociation(retained.outcome), { kind: 'generated-crud/v1', model: ITEM,
+    record: null, secretFields: [] });
+  assert.equal(retained.outcome.recordVersions.length, 2);
+  assert.deepEqual(new Set(retained.outcome.recordVersions.map(ref => ref.model)), new Set([WORK_HANDLER_OCCURRENCE_MODEL, WORK_OCCURRENCE_MODEL]));
+  assert.equal(await w.store.load(ITEM, asId('a')), null);
+  const source = readOccurrenceRow((await w.store.load(WORK_OCCURRENCE_MODEL, asId('source/1')))!).result as {
+    change: { model: string; recordId: string; version: number; kind: string };
+  };
+  assert.deepEqual(source.change, { model: ITEM, recordId: 'a', version: 5, kind: 'deleted' });
+  const before = await snapshot(w.store), counts = { ...wiring.counts };
+  let storedRowLoads = 0, membershipReads = 0;
+  w.store.load = async () => {
+    storedRowLoads++;
+    throw Error('Removal recovery must not load or disclose any target or framework row');
+  };
+  const memberships = { ...w.memberships, findMembership: async (teamId: string, userId: string) => {
+    membershipReads++; return w.memberships.findMembership(teamId, userId);
+  } };
+  const projection = { ...w, memberships, receipt: retained,
+    policy: buildPolicyTable([{ model: ITEM, secretFields: [], grants: [{ by: 'members', fields: ['value'] }] }]) };
+  assert.deepEqual(await projectGeneratedCrudReceipt(projection), { result: null, records: [] });
+  assert.ok(membershipReads > 0);
+  const recovered = await invoke({ ...args, admissionMode: 'retained-receipt-only',
+    clock: { nowMs: () => FIXED_NOW + 16 * 60 * 1000 } });
+  assert.equal(recovered.status, 'replayed'); assert.equal(recovered.result, null);
+  assert.deepEqual(receipt, retained);
+  assert.deepEqual(await projectGeneratedCrudReceipt({ ...projection, receipt: receipt! }),
+    { result: null, records: [] });
+  assert.deepEqual(await snapshot(w.store), before); assert.deepEqual(wiring.counts, counts);
+  assert.equal(frames, 1); assert.equal(closes, 1); assert.equal(bodies, 1); assert.equal(commits, 1);
+  assert.equal(storedRowLoads, 0);
+  const validation = (error: unknown) => error instanceof StateError && error.code === 'validation';
+  await assert.rejects(projectGeneratedCrudReceipt({ ...projection, registry: new Map() }), validation);
+  await assert.rejects(projectGeneratedCrudReceipt({ ...projection, receipt: {
+    ...retained, identity: { ...retained.identity, operation: asOperation(CREATE) },
+  } }), validation);
+  await assert.rejects(projectGeneratedCrudReceipt({ ...projection, receipt: {
+    ...retained, outcome: { ...retained.outcome, result: deleted },
+  } }), validation);
+  await assert.rejects(projectGeneratedCrudReceipt({ ...projection, identity: makeIdentity({
+    userId: 'foreign-user', team: w.member.team, membership: w.member.membership,
+  }) }), error => error instanceof StateError && error.code === 'forbidden');
+  await w.memberships.removeMembership(w.member.membership.membership_id);
+  const revokedBefore = membershipReads;
+  assert.deepEqual(await projectGeneratedCrudReceipt({ ...projection,
+    policy: buildPolicyTable([{ model: ITEM, secretFields: [], grants: [] }]) }), { result: null, records: [] });
+  assert.ok(membershipReads > revokedBefore); assert.equal(storedRowLoads, 0);
+  assert.equal(bodies, 1); assert.equal(commits, 1); assert.deepEqual(wiring.counts, counts);
 });
 
 test('valid long component identities retain canonical composite handler and fanout row IDs', async () => {
