@@ -1427,12 +1427,12 @@ function queryDeclaration(artifact: CompileArtifact): void {
       ] } }],
   } };
 }
-function queryHandler(mode = 'valid'): string {
+function queryHandler(mode = 'valid', predicateTail = 'return value!=="excluded";'): string {
   return `${mode === 'valid' ? '' : 'await set(c,input.record,{private:"must roll back"});'}const rows=await executeScenarioReceiptQuery(c,"rows",task=>{
 ${mode === 'unread-marker' ? 'const value="original visible";' : 'const value=task.visible;'}
     observeScenarioReceiptQueryDependency(c,"Shop.Record",${mode === 'copied-view' ? '{...task}' : 'task'},"visible","visible-control");
 ${mode === 'unreported-read' ? 'task.visible;' : ''}
-    return value!=="excluded";
+    ${predicateTail}
   });
   const facts=rows.map(task=>{
 ${mode === 'projection-unread' ? 'const visible="original visible";' : 'const visible=task.visible;'}
@@ -1487,6 +1487,80 @@ for (const kind of ['populated', 'filtered', 'vacant']) it(`native query adapter
   const revoked = await w.invoker(w.readonlyStore, true).invokeRetainedMutation(w.envelope, w.identity);
   assert.ok('error' in revoked, JSON.stringify(revoked)); assert.equal(revoked.error.code, 'forbidden');
   assert.deepEqual(await w.snapshot(), after);
+  assert.deepEqual(w.counters(), { commits: 0, files: 0, executions: 1 });
+});
+it('native query lazy private control retains only executed candidate dependencies and exact nominal replay', async () => {
+  const handler = queryHandler('valid', `if(value==="excluded") return false;
+    const privateValue=task.private;
+    observeScenarioReceiptQueryDependency(c,"Shop.Record",task,"private","private-control");
+    return privateValue!=="blocked";`);
+  const w = await world(false, true, handler, artifact => {
+    queryDeclaration(artifact);
+    const result = artifact.operations![0]!.result!;
+    const disclosure = result.disclosure!;
+    const query = disclosure.queries![0]!;
+    artifact.operations![0]!.result = { ...result, disclosure: { ...disclosure, queries: [{ ...query,
+      order: [{ field: 'visible', direction: 'asc' }], dependencies: [query.dependencies[0]!,
+        { id: 'private-control', source: query.source, role: 'control', field: 'private', type: 'text' as CanTypeId },
+        query.dependencies[1]!,
+      ],
+    }] } };
+  }, false);
+  const second = await seedRow(w.store, model, { id: 'rec-2', data: {
+    visible: 'second visible', private: 'second private', token: 'second secret',
+  } });
+  const excluded = await seedRow(w.store, model, { id: 'rec-3', data: {
+    visible: 'excluded', private: 'false private must remain unread', token: 'false secret',
+  } });
+  const before = await w.snapshot();
+  const histories = await Promise.all(before.rows.map(row => w.store.historyFor(model, row.id)));
+  const batches: Parameters<StoragePort['commit']>[0][] = [];
+  const store: StoragePort = { ...w.store, commit: async batch => {
+    const committed = await w.store.commit(batch); batches.push(batch); return committed;
+  } };
+  const fresh = await w.invoker(store).invokeMutation(w.envelope, w.identity);
+  assert.ok('result' in fresh, JSON.stringify(fresh)); assert.equal(fresh.result.status, 'committed');
+  const result = [w.row, second].map(row => ({ task: { id: row.id, version: String(row.version) },
+    version: String(row.version), visible: row.data['visible'] }));
+  assert.deepEqual(fresh.result.result, result);
+  const receipt = await w.store.readReceipt(w.receiptIdentity); assert.ok(receipt);
+  assert.equal(receipt.outcome.status, 'committed');
+  if (receipt.outcome.status !== 'committed') throw new Error('expected committed lazy query receipt');
+  assert.deepEqual(receipt.outcome.result, result); assert.deepEqual(receipt.outcome.recordVersions, []);
+  const association = readScenarioReceiptAssociation(receipt); assert.ok(association?.queries);
+  assert.equal(association.queries.length, 1);
+  const query = association.queries[0]!;
+  assert.equal(query.candidates.length, 3);
+  assert.deepEqual(query.selectedIndices.map(index => query.candidates[index]!.record.id), [w.row.id, second.id]);
+  for (const row of [w.row, second, excluded]) {
+    const candidate = query.candidates.find(value => value.record.id === row.id); assert.ok(candidate);
+    assert.equal(candidate.record.version, row.version);
+    assert.deepEqual(candidate.record.data, { visible: row.data['visible'], private: row.data['private'] });
+    assert.equal(candidate.matched, row !== excluded);
+    assert.deepEqual(candidate.dependencies, row === excluded ? ['visible-control']
+      : ['visible-control', 'private-control', 'visible-data']);
+  }
+  const after = await w.snapshot();
+  assert.equal(after.revision, before.revision + 1);
+  assert.deepEqual(after.rows, before.rows); assert.deepEqual(after.history, before.history);
+  assert.deepEqual(await Promise.all(after.rows.map(row => w.store.historyFor(model, row.id))), histories);
+  assert.deepEqual(after.outbox, before.outbox); assert.deepEqual(after.schedules, before.schedules);
+  assert.equal(batches.length, 1); assert.equal(batches[0]!.expectedRevision, before.revision);
+  for (const effects of [batches[0]!.writes, batches[0]!.history, batches[0]!.outbox, batches[0]!.schedules,
+    batches[0]!.uniqueClaims, batches[0]!.uniqueReleases]) assert.deepEqual(effects, []);
+  assert.deepEqual(batches[0]!.receipt, receipt);
+  for (const dedicated of [false, true]) {
+    const replay = dedicated ? await w.invoker(w.readonlyStore, true).invokeRetainedMutation(w.envelope, w.identity)
+      : await w.invoker().invokeMutation(w.envelope, w.identity);
+    assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed');
+    assert.deepEqual(replay.result.result, result); assert.deepEqual(await w.snapshot(), after);
+    assert.deepEqual(await Promise.all(after.rows.map(row => w.store.historyFor(model, row.id))), histories);
+  }
+  await w.identities.removeMembership(w.membership.membership_id);
+  const revoked = await w.invoker(w.readonlyStore, true).invokeRetainedMutation(w.envelope, w.identity);
+  assert.ok('error' in revoked, JSON.stringify(revoked)); assert.equal(revoked.error.code, 'forbidden');
+  assert.deepEqual(await w.snapshot(), after);
+  assert.equal(batches.length, 1);
   assert.deepEqual(w.counters(), { commits: 0, files: 0, executions: 1 });
 });
 for (const mode of ['copied-view', 'copied-array', 'omitted-data', 'count', 'order', 'version', 'changed-result', 'late-data', 'unread-marker', 'unreported-read', 'projection-unread'])

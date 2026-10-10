@@ -363,6 +363,99 @@ describe("buildProductionDeps", () => {
     expect(await again.store.readRevision()).toBe(0);
     expect((await again.identityStore.findTeamById(team.team_id))?.team_id).toBe(team.team_id);
   });
+
+  it("preserves detached full membership snapshots through the production D1 Identity mirror", async () => {
+    const { db } = await startD1("mcpd-c-membership-snapshot");
+    const { identityStore } = await buildProductionDeps({ DB: db });
+    const team = await identityStore.createTeam({});
+    const foreignTeam = await identityStore.createTeam({});
+    const users = await Promise.all(["ava", "ben", "absent", "foreign-only"].map((name) =>
+      identityStore.createUser({
+        email: `${name}@membership-snapshot.test`,
+        password_hash: "test-hash-opaque",
+        email_verified: true,
+      }),
+    ));
+    const [ava, ben, absent, foreignOnly] = users;
+    const avaMembership = await identityStore.createMembership({
+      team_id: team.team_id,
+      user_id: ava!.user_id,
+      is_owner: true,
+      roles: [
+        { role: "Snapshot.reader", granted_at: "2026-07-15T10:00:00.000Z", granted_by: ava!.user_id },
+        { role: "Snapshot.editor", granted_at: "2026-07-15T10:01:00.000Z", granted_by: ava!.user_id },
+      ],
+    });
+    const benMembership = await identityStore.createMembership({
+      team_id: team.team_id,
+      user_id: ben!.user_id,
+      is_owner: false,
+      roles: [{ role: "Snapshot.reader", granted_at: "2026-07-15T10:02:00.000Z", granted_by: ava!.user_id }],
+    });
+    const foreignMembership = await identityStore.createMembership({
+      team_id: foreignTeam.team_id,
+      user_id: ava!.user_id,
+      is_owner: false,
+      roles: [{ role: "Snapshot.foreign", granted_at: "2026-07-15T10:03:00.000Z", granted_by: ben!.user_id }],
+    });
+    await identityStore.createMembership({
+      team_id: foreignTeam.team_id,
+      user_id: foreignOnly!.user_id,
+      is_owner: true,
+      roles: [],
+    });
+    const requested = [ben!.user_id, ava!.user_id, ben!.user_id, absent!.user_id, foreignOnly!.user_id];
+    const first = await identityStore.findMembershipsSnapshot(team.team_id, requested);
+    expect(first).toEqual({
+      team_id: team.team_id,
+      entries: [
+        { user_id: ben!.user_id, membership: benMembership },
+        { user_id: ava!.user_id, membership: avaMembership },
+        { user_id: ben!.user_id, membership: benMembership },
+        { user_id: absent!.user_id, membership: null },
+        { user_id: foreignOnly!.user_id, membership: null },
+      ],
+    });
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(Object.isFrozen(first.entries)).toBe(true);
+    for (const entry of first.entries) {
+      expect(Object.isFrozen(entry)).toBe(true);
+      if (entry.membership !== null) {
+        expect(Object.isFrozen(entry.membership)).toBe(true);
+        expect(Object.isFrozen(entry.membership.roles)).toBe(true);
+        for (const grant of entry.membership.roles) expect(Object.isFrozen(grant)).toBe(true);
+      }
+    }
+    const original = structuredClone(first);
+
+    await identityStore.setMembershipRoles(benMembership.membership_id, [
+      { role: "Snapshot.editor", granted_at: "2026-07-15T11:00:00.000Z", granted_by: ava!.user_id },
+    ]);
+    await identityStore.setMembershipOwner(benMembership.membership_id, true);
+    await identityStore.removeMembership(avaMembership.membership_id);
+    const currentBen = await identityStore.findMembershipById(benMembership.membership_id);
+    const removedAva = await identityStore.findMembershipById(avaMembership.membership_id);
+    expect(currentBen?.roles).toEqual([
+      { role: "Snapshot.editor", granted_at: "2026-07-15T11:00:00.000Z", granted_by: ava!.user_id },
+    ]);
+    expect(currentBen?.is_owner).toBe(true);
+    expect(removedAva?.status).toBe("removed");
+    const fresh = await identityStore.findMembershipsSnapshot(team.team_id, requested);
+    expect(fresh).toEqual({
+      team_id: team.team_id,
+      entries: [
+        { user_id: ben!.user_id, membership: currentBen },
+        { user_id: ava!.user_id, membership: removedAva },
+        { user_id: ben!.user_id, membership: currentBen },
+        { user_id: absent!.user_id, membership: null },
+        { user_id: foreignOnly!.user_id, membership: null },
+      ],
+    });
+    expect(first).toEqual(original);
+    expect(first.entries[0]!.membership?.is_owner).toBe(false);
+    expect(first.entries[1]!.membership?.status).toBe("active");
+    expect(await identityStore.findMembershipById(foreignMembership.membership_id)).toEqual(foreignMembership);
+  });
 });
 
 /* ------------------------------------------------------------------ */

@@ -4,7 +4,8 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deserialize, serialize } from 'node:v8';
-import { finalizeUpload, type FinalizeDeps } from '../src/finalize/index.js';
+import { blobKeyForFile, finalizeUpload, type FinalizeDeps } from '../src/finalize/index.js';
+import { createSqliteFileStore } from '../src/host/sqlite.js';
 import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
 import { appendUploadContent, completeUploadContent, sha256Hex, stagingKeyForIntent } from '../src/upload/index.js';
 import type { IntentStorePort, UploadIntentRecord } from '../src/ports.js';
@@ -12,6 +13,119 @@ import { handleCreateIntent } from '../src/bridge.js';
 import { BINDING, OTHER_PRINCIPAL, RECEIVER, makeHarness, uploadRequest } from './helpers.js';
 
 const BYTES = new TextEncoder().encode('A');
+
+function durableCompleted(dir: string) {
+  let metadata = createSqliteFileStore(join(dir, 'metadata.sqlite'));
+  let blobs = createFsBlobStore(join(dir, 'blobs'));
+  const h = makeHarness();
+  const upload = { ...h.upload, intents: metadata.intents, blobs };
+  const request = uploadRequest({ name: 'a.txt', type: 'text/plain', size: '1' });
+  const created = handleCreateIntent(h.bridge, upload, {}, request, BINDING);
+  assert.equal(created.status, 'granted');
+  if (created.status !== 'granted') throw new Error('fixture grant failed');
+  assert.equal(appendUploadContent(upload, created.intentId, RECEIVER, BYTES).status, 'appended');
+  assert.equal(completeUploadContent(upload, created.intentId, RECEIVER).status, 'completed');
+  const deps = (): FinalizeDeps => ({ ...h.finalize, intents: metadata.intents, files: metadata.files, blobs });
+  return {
+    deps,
+    input: { intentId: created.intentId, retryId: request.upload_id, bytesDigest: sha256Hex(BYTES), caller: RECEIVER },
+    reopen() {
+      metadata.close();
+      metadata = createSqliteFileStore(join(dir, 'metadata.sqlite'));
+      blobs = createFsBlobStore(join(dir, 'blobs'));
+    },
+    close() { metadata.close(); },
+  };
+}
+
+type FinalizationPhase = 'claim' | 'final-bytes' | 'file-row' | 'final-intent' | 'staging-remove';
+
+function interruptedFinalization(deps: FinalizeDeps, phase: FinalizationPhase, crash: Error): FinalizeDeps {
+  return {
+    ...deps,
+    intents: { ...deps.intents, put(row) {
+      deps.intents.put(row);
+      if ((phase === 'claim' && row.state === 'complete' && row.pendingFinalization !== undefined) ||
+          (phase === 'final-intent' && row.state === 'finalized')) throw crash;
+    } },
+    files: { ...deps.files, put(row) { deps.files.put(row); if (phase === 'file-row') throw crash; } },
+    blobs: {
+      read: deps.blobs.read.bind(deps.blobs), sizeOf: deps.blobs.sizeOf.bind(deps.blobs),
+      append: deps.blobs.append.bind(deps.blobs),
+      write(key, bytes) { deps.blobs.write(key, bytes); if (phase === 'final-bytes') throw crash; },
+      remove(key) { deps.blobs.remove(key); if (phase === 'staging-remove') throw crash; },
+    },
+  };
+}
+
+for (const phase of ['claim', 'final-bytes', 'file-row', 'final-intent', 'staging-remove'] as const) {
+  test(`real SQLite metadata and FS bytes recover after durable ${phase}`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-finalization-reopen-'));
+    const journey = durableCompleted(dir);
+    try {
+      const crash = new Error(`after durable ${phase}`);
+      assert.throws(() => finalizeUpload(interruptedFinalization(journey.deps(), phase, crash), journey.input), error => error === crash);
+      const interrupted = journey.deps().intents.get(journey.input.intentId);
+      assert.ok(interrupted);
+      assert.equal(interrupted.state, phase === 'final-intent' || phase === 'staging-remove' ? 'finalized' : 'complete');
+      assert.deepEqual(journey.deps().blobs.read(stagingKeyForIntent(journey.input.intentId)), phase === 'staging-remove' ? null : BYTES);
+      const ref = interrupted.finalizedRef ?? interrupted.pendingFinalization?.ref;
+      assert.ok(ref);
+      const claimedTime = interrupted.pendingFinalization?.finalizedAtMs ?? journey.deps().files.get(ref)?.finalizedAtMs;
+      assert.ok(claimedTime !== undefined);
+      journey.reopen();
+      const recovered = finalizeUpload({ ...journey.deps(), fileIds: { nextFileId() { throw new Error('Recovery must reuse the durable claim'); } } }, journey.input);
+      assert.equal(recovered.status, phase === 'final-intent' || phase === 'staging-remove' ? 'repeated' : 'finalized');
+      if (recovered.status !== 'finalized' && recovered.status !== 'repeated') throw new Error('recovery refused');
+      assert.equal(recovered.file.id, ref);
+      assert.equal(recovered.file.sizeBytes, BYTES.length);
+      assert.equal(recovered.file.bytesDigest, sha256Hex(BYTES));
+      assert.deepEqual(recovered.file.provenance, interrupted.provenance);
+      assert.equal(recovered.file.finalizedAt.ms, BigInt(claimedTime));
+      assert.ok(Object.isFrozen(recovered.file));
+      assert.ok(Object.isFrozen(recovered.file.provenance));
+      assert.ok(Object.isFrozen(recovered.file.finalizedAt));
+      const persisted = journey.deps().files.listAll();
+      assert.equal(persisted.length, 1);
+      assert.deepEqual(persisted[0]?.file, recovered.file);
+      assert.equal(persisted[0]?.state, 'finalized');
+      assert.equal(persisted[0]?.finalizedAtMs, claimedTime);
+      assert.equal(journey.deps().intents.get(journey.input.intentId)?.finalizedRef, ref);
+      assert.deepEqual(journey.deps().blobs.read(blobKeyForFile(ref)), BYTES);
+      assert.equal(journey.deps().blobs.read(stagingKeyForIntent(journey.input.intentId)), null);
+      assert.deepEqual(readdirSync(join(dir, 'blobs')), [blobKeyForFile(ref)]);
+      const before = journey.deps().intents.get(journey.input.intentId);
+      const repeated = finalizeUpload(journey.deps(), journey.input);
+      assert.equal(repeated.status, 'repeated');
+      assert.deepEqual(journey.deps().intents.get(journey.input.intentId), before);
+      assert.equal(journey.deps().files.listAll().length, 1);
+    } finally { journey.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+}
+
+for (const altered of ['staging', 'pending-final'] as const) {
+  test(`reopened pending finalization refuses altered ${altered} bytes without overwrite`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-finalization-conflict-'));
+    const journey = durableCompleted(dir);
+    try {
+      const crash = new Error('after durable claim');
+      assert.throws(() => finalizeUpload(interruptedFinalization(journey.deps(), 'claim', crash), journey.input), error => error === crash);
+      journey.reopen();
+      const before = journey.deps().intents.get(journey.input.intentId);
+      assert.ok(before?.pendingFinalization);
+      const key = altered === 'staging' ? stagingKeyForIntent(journey.input.intentId) : blobKeyForFile(before.pendingFinalization.ref);
+      const conflicting = new TextEncoder().encode('B');
+      journey.deps().blobs.write(key, conflicting);
+      journey.reopen();
+      const o = observed(journey.deps());
+      assert.deepEqual(finalizeUpload(o.deps, journey.input), { status: 'failed', reason: 'conflict' });
+      assert.deepEqual(o.writes, []);
+      assert.deepEqual(journey.deps().intents.get(journey.input.intentId), before);
+      assert.equal(journey.deps().files.listAll().length, 0);
+      assert.deepEqual(journey.deps().blobs.read(key), conflicting);
+    } finally { journey.close(); rmSync(dir, { recursive: true, force: true }); }
+  });
+}
 
 function completed() {
   const h = makeHarness();
@@ -75,7 +189,7 @@ test('equal sizes finalize once and repeat the same reference without reading st
   const o = observed(h.finalize);
   const first = finalizeUpload(o.deps, input);
   assert.equal(first.status, 'finalized');
-  assert.deepEqual(o.writes, ['mint', 'blob-write', 'blob-remove', 'file-put', 'intent-put']);
+  assert.deepEqual(o.writes, ['mint', 'intent-put', 'blob-write', 'file-put', 'intent-put', 'blob-remove']);
   if (first.status !== 'finalized') throw new Error('finalization failed');
   assert.equal(first.file.sizeBytes, BYTES.byteLength);
   assert.ok(Object.isFrozen(first.file));
@@ -86,7 +200,7 @@ test('equal sizes finalize once and repeat the same reference without reading st
   if (repeated.status !== 'repeated') throw new Error('repeat failed');
   assert.equal(repeated.file, first.file);
   assert.equal(o.readCount(), reads);
-  assert.deepEqual(o.writes, []);
+  assert.deepEqual(o.writes, ['blob-remove']);
 });
 
 test('equal sizes retain digest conflict before effects', () => {

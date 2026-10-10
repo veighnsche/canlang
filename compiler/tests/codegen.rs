@@ -1976,6 +1976,62 @@ fn construct_scalars_per_op() {
     );
     assert_eq!(text, "equalValue(\"demo.Summary\", a,b)");
 
+    let nullable_widget = ResolvedType::Nullable(Box::new(widget.clone()));
+    for op in [IrBinOp::Eq, IrBinOp::Ne] {
+        let (text, imports, diags) = lower(
+            &ir,
+            &binary(
+                op,
+                name("a", nullable_widget.clone()),
+                name("b", widget.clone()),
+                bool_ty.clone(),
+            ),
+        );
+        let comparison =
+            "(($left,$right)=>$left===null||$right===null?$left===$right:same($left,$right))(a,b)";
+        assert_eq!(
+            text,
+            if op == IrBinOp::Ne {
+                format!("!{comparison}")
+            } else {
+                comparison.to_string()
+            }
+        );
+        assert!(imports.iter().any(|import| import.contains("same")));
+        assert!(diags.is_empty());
+    }
+    for element in [widget.clone(), nullable_widget.clone()] {
+        let nullable = matches!(element, ResolvedType::Nullable(_));
+        let (text, _, diags) = lower(
+            &ir,
+            &binary(
+                IrBinOp::In,
+                name("member", element.clone()),
+                name(
+                    "targets",
+                    ResolvedType::Array {
+                        element: Box::new(element),
+                        ordered: true,
+                        nonempty: false,
+                    },
+                ),
+                bool_ty.clone(),
+            ),
+        );
+        let comparison = if nullable {
+            "(($left,$right)=>$left===null||$right===null?$left===$right:same($left,$right))($member,$item)"
+        } else {
+            "same($member,$item)"
+        };
+        assert_eq!(
+            text,
+            format!(
+                "(($member,$collection)=>$collection.some($item=>{comparison}))(member,targets)"
+            )
+        );
+        assert!(diags.is_empty());
+    }
+
     // Membership, coalescing, logic, trim.
     let (text, _, _) = lower(
         &ir,
