@@ -5706,13 +5706,13 @@ source admission, counters and evaluation/path order; retain the original flat
 Do not lower the supported bound, enlarge the stack or skip the crashing case.
 
 
-### Compiler emitter borrowing, 2026-10-10 — implemented, final qualification pending
+### Compiler emitter borrowing, 2026-10-10 — implemented and qualified
 
 Use borrowed iteration for read-only whole-program emitter passes. The actual
 scenario3000 native crash trace identifies unnecessary recursive IR clones in
 identity emission; borrowing preserves expression/output order and source gates
-without changing stack limits. Codegen121 passes; owning flat/native and current
-whole qualification remain required.
+without changing stack limits. Codegen121 and flat/native6 pass; current96fa whole133targets1381 passes with
+zero failed/ignored/filtered/skipped bodies and strict all-target lint/format0.
 
 
 ### Query decision correspondence, 2026-10-10 — implemented, runtime activation withheld
