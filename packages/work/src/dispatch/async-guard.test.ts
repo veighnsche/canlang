@@ -51,10 +51,19 @@ describe('async actual dispatch guard execution', () => {
     }
   });
 
-  it('awaits false and refuses nonboolean truth without authority or claim', async () => {
-    for (const verdict of [false, 'true']) {
-      const { deps, attempt, order } = setup(async () => verdict as boolean);
-      assert.equal((await attemptDispatchAsync(deps, attempt)).status, 'skipped');
+  it('awaits actual false and skips without authority or claim', async () => {
+    const { deps, attempt, order } = setup(async () => false);
+    assert.equal((await attemptDispatchAsync(deps, attempt)).status, 'skipped');
+    assert.deepEqual(order, ['supersession', 'availability', 'guard']);
+  });
+
+  it('rejects unknown async guard verdicts before observations, authority or claim', async () => {
+    for (const verdict of ['true', undefined, null, {}]) {
+      const { deps, attempt, order } = setup(async (_p, _i, _s, execution) => {
+        registerDispatchGuardRevalidation(execution, () => { order.push('observation'); return true; });
+        return verdict as unknown as boolean;
+      });
+      await assert.rejects(attemptDispatchAsync(deps, attempt), { name: 'TypeError', message: 'dispatch guard must return a boolean' });
       assert.deepEqual(order, ['supersession', 'availability', 'guard']);
     }
   });
