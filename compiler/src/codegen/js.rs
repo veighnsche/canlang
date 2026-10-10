@@ -1883,11 +1883,56 @@ fn guard_spellings(by: &[IrGuard]) -> (Vec<String>, bool) {
 
 /// A read grant may expose the same actor role identity as operation
 /// admission only when its entire checked predicate is that role gate.
-/// Row filters, subject gates and expression rules retain registry-only
-/// metadata, so consumers cannot silently drop part of the predicate.
+/// Row filters and expression rules retain registry-only metadata, so
+/// consumers cannot silently drop part of the predicate.
 fn actor_read_role(predicate: &TypedExpr) -> Option<&str> {
     match &predicate.expr {
         IrExpr::HasRole { role, person: None } => Some(role),
+        _ => None,
+    }
+}
+
+/// Only a whole subject gate over this model's direct stored user field
+/// can be represented by the row-subject policy descriptor.
+fn row_read_role<'a>(
+    predicate: &'a TypedExpr,
+    model: &IrItem,
+    fields: &[SymbolId],
+    ir: &IrProgram,
+) -> Option<(&'a str, &'a str)> {
+    let IrExpr::HasRole {
+        role,
+        person: Some(person),
+    } = &predicate.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &person.expr else {
+        return None;
+    };
+    if !matches!(&base.expr, IrExpr::Name(name) if name == "row")
+        || !matches!(&base.ty, ResolvedType::Record { symbol, stored: true } if *symbol == model.id)
+        || !matches!(
+            person.ty.nullable_inner().unwrap_or(&person.ty),
+            ResolvedType::Scalar(Scalar::User)
+        )
+    {
+        return None;
+    }
+    let mut candidates = fields
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|item| item.name == *field);
+    let declared = candidates.next()?;
+    if candidates.next().is_some() || declared.module != model.module {
+        return None;
+    }
+    match &declared.kind {
+        IrItemKind::Field {
+            owner,
+            ty: IrType::Known(ty),
+            ..
+        } if *owner == model.id && *ty == person.ty => Some((role, field)),
         _ => None,
     }
 }
@@ -3580,7 +3625,18 @@ impl<'a> Emitter<'a> {
                 match person {
                     Some(person) => {
                         let person_text = self.lower_expr(person);
-                        format!("hasRole(c,{},{person_text})", js_string(role))
+                        if matches!(&person.ty, ResolvedType::Nullable(inner)
+                            if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User)))
+                        {
+                            // Absence is false, never the helper's omitted
+                            // subject/actor overload. Evaluate the subject once.
+                            format!(
+                                "(($roleSubject)=>$roleSubject==null?false:hasRole(c,{},$roleSubject))({person_text})",
+                                js_string(role)
+                            )
+                        } else {
+                            format!("hasRole(c,{},{person_text})", js_string(role))
+                        }
                     }
                     None => format!("hasRole(c,{})", js_string(role)),
                 }
@@ -7393,9 +7449,19 @@ impl<'a> Emitter<'a> {
                     // this grant, so keep them registry-only as well.
                     if let Some(rule) = rules.next()
                         && rules.next().is_none()
-                        && let Some(role) = actor_read_role(&rule.pred)
                     {
-                        grant_members.push(format!("by:[{}]", js_string(role)));
+                        if let Some(role) = actor_read_role(&rule.pred) {
+                            grant_members.push(format!("by:[{}]", js_string(role)));
+                        } else if let Some((role, field)) =
+                            row_read_role(&rule.pred, item, &fields, ir)
+                        {
+                            grant_members.push(format!(
+                                "by:[{{roleSubject:{{role:{},person:{{model:{},field:{}}}}}}}]",
+                                js_string(role),
+                                js_string(&item.canonical),
+                                js_string(field),
+                            ));
+                        }
                     }
                     format!("{{{}}}", grant_members.join(","))
                 })

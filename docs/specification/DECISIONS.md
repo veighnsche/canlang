@@ -6376,3 +6376,25 @@ Owning Node24 Work clean emission passes1.48s and entire directly affected kerne
 ### 2026-10-10 — manual local integration of 6398ba5b
 
 Manual source review CLEAR for Capability6398 Work installed synchronous claim allocator: allocate exactly once only after owning lifecycle/availability and a genuine transferred true original-stage guard; false and ineligible paths allocate zero IDs while preserving original clear/ACK, current authority, evidence and fenced commit semantics. Legacy explicit ID ordering remains. Invalid, async, throwing or ambiguous allocator modes refuse; failed eligible true commit may consume an ephemeral ID without a physical claim or attempt. Reuse owning emission and affected kernel82/82, plus Work receipt36/36 qualification from d599 and exact repaired strict boundary13/917/1309/0; State200+53 unchanged. Integrate related prerequisite outcome records with this source unit. Dev actual native dispatch/allocator adoption and Compiler checked lexical source transport remain unfinished; no full plan or original native workflow acceptance. Filesa5 defining observation carrier is separately reviewed/released in LOCALb753; State actual receipt capture and Dev/Compiler consumer joins remain open. Existing cardinality, native-preparation, timezone, BDD3 and external holds remain precise. Preserve both decision histories, existing physical owners and allocations; complete checkpoint remains unadvanced. No remote push or publication.
+
+Compiler intake of reviewed LOCALbf8dd7f8, 2026-10-10 (unfinished row-policy native join): preserve committedd74 native query unit and all source histories while consuming exact State9458e68e row-subject evaluator/descriptor and released Work Identity test dependency. Reuse State253 and recorded owning build/results; no shared source fix or broad rerun. Canonical roleSubject person model/field must derive from owning singular stored user/user? declaration; Compiler source transport and Dev actual native current-reader remain required. Reconcile actual accumulated staged tree/history with prior allocations and complete checkpoint unadvanced; local-only, precise holds retained.
+
+
+Compiler row-subject source/State join, 2026-10-10 (unfinished native workflow):
+Choose exact released State945 row-subject descriptors only for a whole checked
+role predicate over the owning model's direct singular stored user/user? field.
+Require canonical model/module/field/type and unique rule correspondence; keep
+filtered, compound, member and nested predicates registry-only. Nullable user
+calls evaluate once and absence is false, preventing the omitted-subject actor
+overload. Redundant explicit actor calls retain E4020; other nullable/array
+subjects retain E3001. Genuine emitted metadata/State canonical declarations,
+Identity snapshots and Memory consumption qualify grants, title projection,
+null/revocation/refusal/no-effect behavior; affected409 and strict lint/format
+pass, finite source review CLEAR. Dev's string-only native parser and actual
+State hasRole-subject refusal still require genuine current coherent Identity
+execution binding. This finite source consumer does not accept native subject
+execution, original58/67 closure, held consultation, File or committed events.
+
+### 2026-10-10 — manual local integration of 74ad8a56
+
+Manual source/consumer review CLEAR for Compiler74ad8a56 whole checked direct owning singular user/user? row-subject policy transport. Preserve canonical model/module/field/type and exact rule correspondence; filtered, compound, nested and unsupported subjects remain registry-only. Nullable subjects evaluate once and absence returns false without actor-role fallback. Reuse owning409 affected outcomes including real CLI/appDefinition-to-State canonical declaration/Identity/Memory projection, null/revocation/refusal/no-effect consumer and required updated-State actual compiled public1/private-parent1; strict all-target lint/format and fresh owning State emission pass. Dev typed native metadata/current coherent Identity consumer remains required. Whole descriptor-only policy admission does not require executing the registry read callable; present-subject synchronous authored guards remain a separate concrete limitation. No full native application, File/event workflow or original58/67 completion. Keep existing decisions once rather than repeating unchanged historical sections; preserve physical owners/allocations and all precise holds. Complete checkpoint stays unadvanced. No remote push or publication.
