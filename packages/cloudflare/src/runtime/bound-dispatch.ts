@@ -580,6 +580,10 @@ async function createInstalledDispatcher(
       await refreshPending();
       const intent = pending.get(input.intentId);
       if (intent === undefined) return { status: 'not-pending', intentId: input.intentId };
+      if (input.fence.asyncGuard !== undefined && intent.dispatchGuard != null &&
+          dispatchGenerationTargetProfile(intent.target)?.role === 'control') {
+        throw new Error('Generation cleanup requires its own execution-bound async guard qualification.');
+      }
       // A trigger's own checkpoint cannot authorize a transitive effect. Check
       // this prefix before deployment availability or any dynamic authority read.
       const trigger = input.fence.triggerRevision;
@@ -699,6 +703,9 @@ async function createInstalledDispatcher(
           throw new Error('Generation recovery cannot inherit its triggering checkpoint.');
         }
         const guard = intent.dispatchGuard ?? null;
+        if (guard !== null && admitted.fence.asyncGuard !== undefined) {
+          throw new Error('Generation recovery requires its own execution-bound async guard qualification.');
+        }
         const snapshot = guard === null ? null : await admitted.readStateSnapshot(intent);
         if (guard !== null && admitted.evaluateGuard(guard, intent.arguments, snapshot) !== true) {
           throw new Error('Generation recovery dispatch guard no longer holds.');
