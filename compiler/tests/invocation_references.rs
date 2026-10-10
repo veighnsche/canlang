@@ -552,6 +552,82 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
             .is_none()
         );
     }
+    // Root depth is zero: sixteen real child edges are supported, while
+    // the next edge exceeds the shared source/State call-depth boundary.
+    for edges in [16, 17] {
+        let mut source = String::from("app CallDepth\nGiven\nWhen\n");
+        for depth in 0..edges {
+            source.push_str(&format!(
+                " scenario step{depth}() by=members\n  do call step{} {{}}\n",
+                depth + 1
+            ));
+        }
+        source.push_str(&format!(
+            " scenario step{edges}() by=members\n  do require true\nThen\n"
+        ));
+        let mut db = SourceDb::new();
+        let file = db.add(format!("call-depth-{edges}.can"), source);
+        let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
+        let parent = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "CallDepth.step0")
+            .unwrap();
+        let sites = collect_static_scenario_calls(
+            &ir,
+            parent,
+            &emitted.operations,
+            &db,
+            &emitted.entry.path,
+        );
+        assert_eq!(
+            sites.is_some(),
+            edges == 16,
+            "root-excluded child depth {edges}"
+        );
+        let disclosure = emitted
+            .operations
+            .iter()
+            .find(|op| op.name == parent.canonical)
+            .unwrap()
+            .disclosure
+            .as_ref();
+        assert_eq!(
+            disclosure.is_some(),
+            edges == 16,
+            "prepared parent depth {edges}"
+        );
+        assert!(
+            emitted
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic
+                        .message
+                        .contains("canonical cross-operation invocation")),
+            "depth preparation must not activate canonical execution"
+        );
+        if let Some(sites) = sites {
+            assert_eq!(sites.len(), 1);
+            assert_eq!(sites[0].target, "CallDepth.step1");
+            assert_eq!(sites[0].source.path, "call-depth-16.can");
+            assert_eq!(sites[0].source.sha256, db.get(file).unwrap().sha256);
+            assert_eq!(sites[0].source.module, emitted.entry.path);
+            std::fs::write(module_dir.path().join("depth-expected.json"), serde_json::to_vec(&serde_json::json!({
+                "id":sites[0].id,"source":{"path":sites[0].source.path,"sha256":sites[0].source.sha256,"module":sites[0].source.module},
+                "kind":"operation","targets":[sites[0].target],"resultType":sites[0].interface.result
+            })).unwrap()).unwrap();
+        }
+        std::fs::write(
+            module_dir.path().join(format!("depth-{edges}.mjs")),
+            &emitted.entry.js,
+        )
+        .unwrap();
+    }
     let runner = r#"import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {registerHooks} from 'node:module';
@@ -588,6 +664,21 @@ for(const file of ['no-source','target-skew','input-skew','duplicate-skew']){
  const module=await import(`./${file}.mjs`);
  assert.equal(Object.hasOwn(module.appDefinition.operations['CallProfile.parent'],'callSites'),false,'unproved source/target/ordered inputs have no public callSites carrier');
  assert.equal(module.canApp()['CallProfile.parent'].toString().includes('invokeScenarioReceiptCall'),false,'unmatched call profiles retain refusal bodies');
+}
+const depthExpected=JSON.parse(readFileSync(new URL('./depth-expected.json',import.meta.url),'utf8'));
+for(const edges of [16,17]){
+ const module=await import(`./depth-${edges}.mjs`);
+ const operation=module.appDefinition.operations['CallDepth.step0'];
+ const body=module.canApp()['CallDepth.step0'].toString();
+ if(edges===16){
+  assert.deepEqual(operation.callSites,[depthExpected],'sixteen child edges preserve the genuine source-qualified site');
+  assert.deepEqual(operation.callSites[0].source,module.canApp().operations.find(op=>op.name==='CallDepth.step0').result.disclosure.source);
+  assert.equal((body.match(/await invokeScenarioReceiptCall\(c,/g)||[]).length,1);
+  assert.ok(body.includes(`await invokeScenarioReceiptCall(c,${JSON.stringify(depthExpected.id)},"CallDepth.step1",`));
+ }else{
+  assert.equal(Object.hasOwn(operation,'callSites'),false,'seventeenth child edge declines the root carrier');
+  assert.equal(body.includes('invokeScenarioReceiptCall'),false,'over-depth root retains refusal body');
+ }
 }
 // Refused call handlers are deliberately never invoked.
 "#;
