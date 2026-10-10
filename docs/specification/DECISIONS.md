@@ -6204,7 +6204,7 @@ Manual review CLEAR for State4565/9737 finite receipt-free projection producer. 
 
 ### 2026-10-10 — consume explicit upload offsets (unfinished attachment replay)
 
-Use the owning append expectedOffset argument and canonical upload-offset header in real runtime consumers; mirror the actual conflict outcome. Missing offsets and stale ranges refuse without changing intent/staging; a full identical finalized retry preserves stored bytes and intent. Clean owning emits/root types pass and actual compiled Images provider/SQLite/D1/reopen passes1/1. Preserve the original attachment saved replay assertion: its supported execution association is absent even in a fresh successful native opt-in compile of the original source. Compiler owns that producer prerequisite, with evidence prioritized through coordinator; no invented association or weakened replay qualifies this workflow. Remote publication hold and whole-plan gates remain unchanged.
+Use the owning append expectedOffset argument and canonical upload-offset header in real runtime consumers; mirror the actual conflict outcome. Missing offsets and stale ranges refuse without changing intent/staging; a full identical completed-upload retry before finalization preserves stored bytes and intent. Clean owning emits/root types pass and actual compiled Images provider/SQLite/D1/reopen passes1/1. Preserve the original attachment saved replay assertion: its supported execution association is absent even in a fresh successful native opt-in compile of the original source. Compiler owns that producer prerequisite, with evidence prioritized through coordinator; no invented association or weakened replay qualifies this workflow. Remote publication hold and whole-plan gates remain unchanged.
 
 ### 2026-10-10 — manual local integration of 31b0b1a1
 
@@ -6524,6 +6524,18 @@ Resolve CF's declared Acorn8.18.0 through its public manifest and exact import-c
 
 Fresh affected build22/22, selected bundle3/3, boundary0 and current isolated225-module installed verifier pass. Workerd executes the exact parser, decodes escaped keys, rejects malformed syntax and returns the trailing throw AST without evaluating it; existing401/WASM/Work/Files/browser and missing/corrupt producer controls remain. Actual State imports are required; the Acorn runtime test is explicitly mapper-only until Dev releases its source consumer. Finite source review is CLEAR for coordinator review. Dev current G1/source verification and uninjected workerd Receipt.read, native typed File adoption, broader parent acceptance and precise native/publication/timezone/security holds remain separate.
 
+### 2026-10-10 — bind the existing assembly journey to released Files seams
+
+The existing real Files/Interfaces assembly fixture must supply required observeFile/revalidateFile through the genuine finalizer functions over its same stores, clock and current policy. Its upload binding forwards the required offset to appendUploadContentAtOffset, and both initial PUT requests declare offset0. Keep every original success, digest conflict, invented intent, foreign read, oversize, provenance and byte assertion; no default observation or weakened route gate.
+
+Root typecheck passes. Initial affected journeys reveal missing-offset refusal and consequent incomplete-transfer failure; correct those actual request/binding inputs, preserving the original digest-conflict request. Final root typecheck and both existing journeys pass, with19 unrelated cases filtered and finite source reviewCLEAR. Reuse unchanged owning forwarding/Files and installed results. This qualifies the common fixture gate using its explicit memory test stores, without native File/current-authority/replay/durable or whole-parent acceptance.
+
+### 2026-10-10 — require the released runtime's actual Acorn consumer
+
+After reviewed694 includes Dev's real parser consumer, the maintained Acorn checks must require that source import. Remove the temporary copied-runtime/synthetic-import fallback and installed synthetic link consumer; absence of the actual static edge now fails. Missing Acorn is checked against the ordinary real Worker graph, preserving all exact pinned ESM, parser, producer and security controls.
+
+Changed State/Cloudflare owners emit0. The changed existing bundle case passes1/1; current226-module installed tarballs pass the complete existing verifier, including genuine Acorn/State Files edges and missing-producer refusals. Reuse unchanged root typecheck, assembly journeys and other producer outcomes. This strengthens the common gate and does not qualify Dev's current G1, native SEND/File, broader source/authority/replay or whole-plan acceptance.
+
 ### 2026-10-10 — manual local integration of 8db96e6d
 
 Manual review CLEAR for genuine pinned Acorn ESM staging and released State Files ports/finalizer mapping. Preserve real parser bytes, one canonical module identity and meaningful missing producer refusals. Reuse owning build22, selected bundle3, isolated225-module workerd parser and existing production checks; changed-input production emission of exact reviewed Dev55 also resolves actual Acorn import and boots217-module workerd to expected authentication401. This closes the common import prerequisite only. Dev owns current G1 rerun, source/native workflow qualification and uninjected workerd Receipt.read; preserve precise native preparation, timezone and publication holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
@@ -6593,6 +6605,90 @@ journey remain required;58/67 and precise BDD3/Task22 holds stay unchanged.
 
 Manual analysis/disclosure and source/IR review CLEAR for Compiler279e0e68 assignment-only original required defaultless File input to actual owning singular file/file? field. Preserve unchanged TypedFileJourney Set-then-require order and actual native void publication, exact original source occurrence/parameter declaration and refusal of paired valid-second-input substitution. No File scalar/read/result, copied values, loop or child grant is introduced. Reuse316 affected outcomes, owning dependency build16 and strict all-target lint/format0. Dev actual finalized File binding/staging/D1 retained replay/current authority remains the required consumer. State stored Input f13 is now integrated in f8ac2994 for the next checked root/member/count task, with separate native contained hydration. Original58/67, BDD3/Task22 and full workflow scopes remain unfinished; preserve all precise holds and owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
+### 2026-10-10 — manual local integration of 1d0edc55
+
+Manual fixture source review CLEAR for exact1d0edc55: connect required observeFile/revalidateFile to genuine existing Files producers over the same clock/stores/current policy and forward retention, receiver and upload expectedOffset unchanged. Both initial PUTs provide canonical offset0; all original digest409, intent404, foreign, oversize, provenance, frozen attachment and exact byte assertions remain. Reuse owning Node24 root typecheck0 and two affected journeys,19 unrelated cases filtered. No production algorithm, native activation or broad File/current-authority/replay acceptance. This releases the shared fixture prerequisite to Dev; its changed native consumer and actual current G1 remain due. Preserve current newer integrated producers, precise holds and complete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — consume genuine File observations and repair ordinary saved attachments (unfinished native qualification)
+
+Use an explicit host receiving retention policy and the real Interfaces/Files observation/revalidation ports. Bind once before execution to the verified source/app and original host port; a changed port requires a fresh artifact/definition. Capture unique refs only for actual locator assignments at the admitted root after final owner writes; State retains complete authority over private observation identity, canonical full wire/final net write/postversion, original commit guards and existing saved association. Preserve nullable/empty assignments without inventing observations or File scalar results.
+
+Ordinary saved replay may retry the original attachment locator/ref only when its model/version/File wire is unambiguously exposed by current State projection and the genuine physical revalidator accepts. Repeat State's complete current projection after awaited repair. Dedicated retained-only recovery never writes attachment metadata; non-File recovery retains its existing no-file-access behavior. Five distinct real SQLite/MemoryState/Identity consumer groups pass at declaration-labelled scope, including copied-handle and changed genuine host-port refusals, ordinary/aged recovery, current physical/authority withholding and a lost postcommit response with actual repair. Clean producer emission passes; the sole root type failure is Packages-owned common fixture774, with reviewed1d0 released for next intake. Original CompilerFile279 and portable Acorn8db are likewise released next prerequisites. Preserve original native/replay assertions, Office/G1–G3 and all precise human holds; this checkpoint is unfinished and establishes no native/full-workflow acceptance.
+
+
+### 2026-10-10 — manual local integration of Dev File component
+
+Manual capture/binding and saved-replay review CLEAR for Dev0bdf8287. Bind verified owning app/source and original host File port once; genuine opaque active-root observations follow final owner writes with locator-only effects and no duplicated authority. Ordinary replay repairs only an unambiguous original assignment authorized by full State projection, exact saved/current version and complete wire, after genuine physical revalidation; full State reprojection follows awaited repair. Dedicated retained-only writes no attachment metadata and non-File recovery gains no File access. Reuse five genuine SQLite/MemoryState/Identity groups, owning emissions and boundary0; common fixture774 is fixed by reviewed1d0/694. This is declaration-labelled component scope. Compiler279 original File source is integrated; Dev actual original native/D1/reopen/replay/current-authority journey and current G1 remain required. Preserve newer current State stored Input, Compiler any/all/File proof, portable Acorn/Files, common fixtures and accepted final-net decision; all precise holds and full plans remain unfinished. Reconcile coverage and decisions without advancing the complete checkpoint or publication.
+
+### 2026-10-10 — manual local integration of aaa9ec83
+
+Manual review CLEAR for aaa9ec83 common assertions: require actual emitted static Acorn import and canonical staged edge; remove copied runtime/synthetic import/constant and installed fabricated link consumer. Missing canonical producer must fail the ordinary actual graph; exact ESM/parser/State Files/producer controls remain. Reuse changed case1 and owning clean emits plus installed226-module results at predecessor694 source scope. Current Dev File0bdf added eager receiverFromIdentity import whose mapped HTTP bundle lacks that named export by source inspection; Packages is assigned exact defining Interfaces reexport and current runtime/workerd qualification, with no duplicate Dev algorithm. No claim that predecessor installed401 qualifies this changed tuple. Actual current G1/native File/current authority and complete plans remain owner work; all precise holds and complete checkpoint preserved. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — expose the genuine receiving principal in the portable HTTP entry
+
+The current Dev0bdf runtime statically consumes Interfaces receiverFromIdentity through the existing HTTP bundle mapping. Reexport its genuine defining uploads/principals.js function using the existing Interfaces distribution and require its marker and named export. Preserve private File identity, existing IdentityError closure, deterministic pure reexports and all security refusals; no root-barrel tree or substitute consumer.
+
+At reviewed e7b95 carrier scope, changed Cloudflare emission passes, the affected real HTTP case passes1/1 and HTTP cleanup passes12/12. Current isolated installed226-module graph requires the actual rewritten runtime import and named export, then real workerd production initialize returns401 without assembly failure. Existing actual Acorn/State Files, physical producer/refusal/finally, Work Node, WASM and browser/integrity controls pass; independent finite source review CLEAR. This qualifies common current linking and the auth seam only. Dev owns current G1 and original native File/current-authority/replay workflows; precise holds and complete checkpoint remain unchanged. Local coordinator integration only.
+
+### 2026-10-10 — manual local integration of 54a26b74
+
+Manual finite source review CLEAR for the genuine Interfaces principal reexport through the existing pure HTTP entry, exact named export and actual current invoke import. Cleanup failure/order/error identity and parser controls remain unchanged. Reuse changed Cloudflare emission0, actual HTTP case1, HTTP cleanup12 and complete installed226 graph with real production workerd initialize401 at current Dev0bdf source. This releases the common module-link prerequisite; actual current G1 and full original native File browser/reopen/retention qualification remain Dev work, with UI offset0 still Packages-owned. All recipient-specific holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — supply the initial upload offset from generated forms
+
+The generated form client sends each file as one complete-byte PUT. Supply canonical upload-offset0 to the released Interfaces range protocol while preserving content type, CSRF, exact bytes and every finalize/form/error assertion. There is no need for a new header API or retry algorithm for this existing initial range.
+
+Owning UI/browser emission passes; all six existing S7 upload-flow checks pass without skips, and independent finite source review CLEAR. This qualifies the owning scripted request protocol only. Dev owns the unchanged real native File/SQLite/D1/browser/replay/current-authority consumer, and concurrent/provider/power-loss parent requirements and precise holds remain open. Local coordinator integration only.
+
+### 2026-10-10 — manual local integration of cb847afb
+
+Manual source review CLEAR for the existing generated-form wholebyte PUT supplying upload-offset0 to the genuine Interfaces append protocol. Preserve exact bytes, CSRF, digest, finalize and error assertions; no retry redesign or new header API. Reuse owning UI and actual browser emission0 plus all six maintained S7 upload-flow cases without skips. This releases the observed common upload prerequisite, not full original native File browser/reopen/retention acceptance. Dev owns that actual workflow and current G1 requalification after the genuine receiver export. Preserve precise recipient holds and all unfinished parent assignments. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — preserve the original compiled File workflow while consuming released prerequisites (unfinished)
+
+Intake exact reviewed Packages Acorn8db, common fixture1d0 and CompilerFile279 as local5a856a81/fb9f0911/3e892920. Build the actual native CLI with locked Cargo and refresh CF emission; compile the unchanged original File source3199 through its genuine current Values catalog into the maintained artifact. One explicit policy-bound File port serves each host. A durable reopen reconstructs a fresh artifact/assembly/definition from identical generated bytes and then binds the real reopened kernel, preserving source correspondence and all original assertions rather than substituting a host port into an executed definition.
+
+The full existing native D1/SQLite case reaches the actual generated browser form after original Set/guard rollback, saved association and postcommit-response replay repair, then fails at the real UI upload missing the required canonical offset header. The remaining browser/reopen/retention portion is unqualified until the owning shared UI/Interfaces consumer release. Root types/boundary0 pass; no assertion is removed. Current G1 gets beyond Acorn staging but fails installed login HTTP500 because the portable HTTP entry lacks the genuine receiverFromIdentity export required by reviewed Dev source. Packages owns that common closure; actual failed epochbfbf07a6/4146 and priority evidence are sent. Keep other ready Dev work moving, preserve Office/G2–G3 and precise human holds; these partial outcomes are not full acceptance.
+
+### 2026-10-10 — manual native File checkpoint integration
+
+Manual finite harness/source correspondence review CLEAR for Dev8cc8f061. Preserve unchanged original source3199 and every full CRUD, rollback, receipt/replay, readback, browser, revocation and retention assertion. Each actual host uses one genuine File binding with an explicit receiving policy; durable reopen reparses identical generated artifact bytes into a fresh assembly/definition and binds its genuine reopened SQLite kernel. Reuse actual native CLI regeneration, root types/boundary0 and the observed partial whole journey through Set/rollback/saved repair to the real upload-offset failure. Packages receiver54a and UI offsetcb847 are now reviewed and integrated in local main: the observed common prerequisites are released, but Dev must consume/reemit and qualify actual current G1 and the complete original native File browser/reopen/retention journey. No full workflow or plan acceptance; preserve all precise holds and other ready work. Reconcile existing coverage and decisions without advancing the complete checkpoint or publication.
+
+
+### 2026-10-10 — shared checked committed-model descriptor (producer unfinished)
+
+Match the exact Compiler proposal relayed by the coordinator: ArtifactCommittedChangeDescriptor carries canonical source/model, create/update/delete classification and every checked matching ordinary/cohort handler in declaration order. CompileArtifact.committedChanges is additive and optional; emitted appDefinition publishes identical rows. Reuse existing checked source/module and callable correspondence, private appDefinition.operations invocation descriptors and cohort map. CompileArtifact.operations stays user-invocable. Private immutable recordId binds required text id to event.id even after deletion; version uses existing required int/canonical wire. Original dynamic authority remains trusted InvocationContext, with no new origin or static owner claim.
+
+The shared type is implemented with owning Contracts emission0 and finite source review CLEAR. Existing barrel exports suffice; no runtime, schema or State/Work write is included. This is an unfinished contract checkpoint awaiting defining producer agreement/manual integration. Compiler owns declaration-derived complete publication/private admission; Capability owns accepted final-net same-fence sources/all routes/frozen cuts/receipts/rollback/replay; Dev owns actual native mapping/current owner. No implementation support or full workflow is advertised by the type alone; precise holds and complete checkpoint remain unchanged.
+
+### 2026-10-10 — manual local integration of af731606
+
+Manual finite review CLEAR for the exact agreed additive ArtifactCommittedChangeDescriptor and optional CompileArtifact.committedChanges. Complete canonical source-order handlers reuse actual checked source/callable correspondence, emitted private appDefinition.operations invocation and cohorts; user-invocable artifact operations remain separate. Reuse owning Contracts emission0; this shared type has no runtime/storage/schema/native behavior and is an unfinished prerequisite only. Release exact DTO to Compiler for complete checked producer and private input binding, Capability for original-fence final-net sources/all routes/frozen cuts/receipts, and Dev for actual native consumer. Preserve source permissions, dynamic trusted context, precise recipient holds and all remaining qualification. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — retain whole stored Input provenance through local comparison (unfinished original approve)
+
+Observe owning whole Step.input under the released canonical Contract codec;
+count and nested old/fresh predicates consume its local values without creating
+Fact row grants. Preserve exact inner member source spans, checked aliases/slots
+and genuine Complete child projection. A private bounded declaration/schema
+snapshot joins actual IR, constraints and source before native publication.
+Canonical Contract guards retain owning control dependencies; ordinary scalar
+guard pruning is unchanged. Original Input worker:user joins the actual emitted
+schema. Genuine generated CRUD/native comparison, rollback, stale versions,
+saved replay and revoked authority pass. Broad qualification currently has1408
+passes and two unchanged Dev non-File replay tripwire failures at invoke.ts5810;
+preserve both assertions and consume the exact owner repair. Coordinator
+acceptance and original member/pure/dynamic workflow remain unfinished. Continue
+the agreed committed-model source producer after this coherent local unit;
+BDD3/Task22 holds and58/67 remain unchanged.
+
+### 2026-10-10 — manual local integration of 44abe81f
+
+Manual analyzer/lowering and serializer/source review CLEAR for the finite original stored Input profile. Whole Step.input retains canonical contract controls and count/nested all-old any-fresh reference-version comparisons, exact member spans, immutable bounded schema/IR/source and existing Values identity; model-ref Member authority and unsupported profiles remain refused. Reuse owning source2, actual CLI/native1, owner22, editor/LSP and strict all-target Clippy/fmt0. Required broad qualification is1408 passed and2 unchanged Dev non-File replay File-port tripwire failures; neither ignored nor accepted, preserve assertions and require exact owner correction for the two affected cases. This coherent unfinished integration releases real Step.input producer to Dev while preserving agreed Contracts DTO and all current prerequisites. Original Workbench/member/pure/dynamic and full plans58/67 remain unfinished; precise BDD3/Task22 and other recipient holds preserved. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
 
 ### 2026-10-10 — worker intake of accepted final-net decision and source prerequisites (unfinished)
 
@@ -6606,16 +6702,65 @@ Implement accepted final-net A through State's actual private finalization stage
 Installed runtime selectors are a finite defining component, not checked source publication. Packages/Compiler own the agreed proposed canonical source/model/change/complete handlers DTO and declaration-derived binder; Dev owns actual native/current-owner adoption and invoke-local opaque ID retry memo. Known-ledger misuse fails closed locally; raw unattributable tokens refuse without aborting unrelated owners. Finite existing compound IDs need6000 row codeunits while individual source/handler/cohort identities stay200. State clean emission and71 directly affected existing tests pass; new complete Work producer tests/build and component review are pending. Preserve every original/native/publication gate and complete checkpoint.
 
 
-### 2026-10-10 — shared checked committed-model descriptor (producer unfinished)
-
-Match the exact Compiler proposal relayed by the coordinator: ArtifactCommittedChangeDescriptor carries canonical source/model, create/update/delete classification and every checked matching ordinary/cohort handler in declaration order. CompileArtifact.committedChanges is additive and optional; emitted appDefinition publishes identical rows. Reuse existing checked source/module and callable correspondence, private appDefinition.operations invocation descriptors and cohort map. CompileArtifact.operations stays user-invocable. Private immutable recordId binds required text id to event.id even after deletion; version uses existing required int/canonical wire. Original dynamic authority remains trusted InvocationContext, with no new origin or static owner claim.
-
-The shared type is implemented with owning Contracts emission0 and finite source review CLEAR. Existing barrel exports suffice; no runtime, schema or State/Work write is included. This is an unfinished contract checkpoint awaiting defining producer agreement/manual integration. Compiler owns declaration-derived complete publication/private admission; Capability owns accepted final-net same-fence sources/all routes/frozen cuts/receipts/rollback/replay; Dev owns actual native mapping/current owner. No implementation support or full workflow is advertised by the type alone; precise holds and complete checkpoint remain unchanged.
-
-
 ### 2026-10-10 — qualify the genuine same-fence source component (unfinished full workflow)
 
 State/Work final-net component d7 has finite coordinator source review CLEAR. Exact Packages type af731606 is locally selected as532d15c1, with no unrelated source intake. Owning emissions and84 distinct affected outcomes qualify71 State plus13 genuine Work groups, including the actual outer scenario/child/generatedCRUD/hook source join and original Invoke successful/rejected replay. Reuse9 unchanged outcomes after three fixture corrections and one new nested case; changed4/4 passes108.69ms. Strict boundary13/925/1357/0 is reused after import-path-neutral test edits. Complete checked Compiler routing/admission and Dev native/current-owner/invoke-local retry memo remain required; neither type nor component qualification accepts full SEQ048. The next ready State task is actual stored ref/ref[] origin field observation/current grant/retained recovery, with target admission separately enforced. No new table, broad read ABI or publication.
+
+### 2026-10-10 — manual local integration of final-net model sources
+
+Manual finite State, Work and final test-delta reviews CLEAR for d7ec5f26/f89d12fa. Final business changes, including same-value versioned updates, enroll source rows, all installed ordinary/cohort routes, complete bounded frozen memberships/first cuts and retained receipts with original root attribution under the original business fence. Preserve ordered authored history and every explicit effect; transient create-remove emits none. The private business subset retains existing receipt disclosure and CRUD association. Misuse, rollback, conflict and replay remain closed; unrelated owners are not globally poisoned. Reuse State71 plus Work13 distinct84, clean owning emits and strict boundary0, including real nested Scenario-Scenario-generatedCRUD/hook in one original fence with no replay callbacks. Shared Contracts source matches released af731606. This qualifies runtime handling of the installed selector inventory; Compiler complete checked metadata and Dev genuine native/current owner/invoke-local opaque ID memo/full original SEQ048 remain required. Retain reviewed current Compiler44abe source, receiver/UI/native File prerequisites and the corrected completed-upload retry wording. Continue ready stored-ref source-field authority work. Preserve precise holds, existing allocations and the unadvanced complete checkpoint; no publication.
+
+
+### 2026-10-10 — retain complete checked committed-model declarations (unfinished native join)
+
+Derive agreed optional committedChanges metadata from immutable clean checked
+source declarations, independently of editable analysis tables and lowered IR.
+Retain canonical imported model/source identity, complete declaration-order
+ordinary/cohort handlers and actual cohort correspondence; emit the same census
+in artifact and appDefinition. Reuse existing callables/private invocation and
+source maps. Private id is required text, version is int; deletion grants no row
+reference or snapshot. Refuse missing/skewed/raw/stale source rather than claim a
+partial inventory. Affected148, strict release checks and finite corrected review
+qualify the compiler component. State/Work final-net source is separately
+released; Dev actual native activation/original Volunteer remains unfinished.
+No new shared DTO, origin issuer, event wrapper, wider acceptance or hold change.
+
+### 2026-10-10 — manual local integration of cc6aa31d
+
+Manually reviewed the finite Compiler committed-model declaration and private payload unit in two independent slices: checked immutable source census and canonical imported identities, complete ordinary/cohort declaration inventory, identical optional artifact/appDefinition metadata, and existing text id/int version private admission all clear. Reuse the reported 148 distinct affected checks plus strict Clippy/format results; no unchanged checks rerun. Source matches the reviewed local commit. Reviewed State/Work final-net source and common DTO remain preserved. Dev owns actual same-fence runtime enrollment, current authority and original CanVolunteer qualification. Compiler 58/67 and precise BDD3/Task22 holds remain unchanged; this unfinished join is not whole-plan acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — retain refusal for unqualified stored-member child operands
+
+A proposed Dev lazy hydration seam reads only source-evaluated stored model refs through the genuine active owner session before State suspends the parent, preserving order/duplicates/explicit versions and copied/foreign refusal. Finite source review identifies an absent owning source-field authority and retained influence join: raw owner-row provenance plus permission to read the target does not authorize a hidden originating link. Preserve the related source/tests as an explicitly unfinished patch in the existing handoff directory and keep that profile refused in active code. State owns canonical source-field observation/current grants/recovery; Compiler owns exact original checked Member/implicit containment-parent source recipe and IDs. No guessed DTO, arbitrary ID grant, replacement source or receipt dependency is introduced. Stored nominal Step.input observation remains a separate intaken prerequisite.
+
+Exact original Workbench110 and Run18/Scope12/Step19 source declarations/hashes are sent to both owners and coordinator with the human priority request. The prototype remains unvalidated; original full Workbench, Office/G2–G3 and all precise holds stay open. At the separately released Packages54a/cb tuple, the complete original native File journey passes1/1 (4508.72ms) and current G1 passes genuine login/D1/MCP/page/assets/refusals plus authored examples3/3, with the existing single result and no whole-plan acceptance or publication. An actual non-File property-access regression exposed by unchanged canonical/native tripwires remains Dev-owned next work.
+
+### 2026-10-10 — defer optional File ports until genuine assignment checks
+
+Scalar checked definitions need no File binding. Supported owning File-input definitions register the verified source/app callback before State execution, preserving its one-time lifecycle. Fresh capture pins the genuine host revalidator before awaiting the actual observer; saved-only recovery pins at first State check. The later callback refuses method replacement or removal before invoking it. Only actual nonempty explicit assignments prepare observation, preserving zero optional-port access for scalar, absent, null and empty assignments. Ordinary replay checks its authenticated nonempty assignment inventory before any File repair. Checked fresh scenarios retain only their validated staged attachments, so renaming a File-bearing record does not inspect or reattach unrelated Files. Legacy CRUD/unclaimed attachment repair remains unchanged. Real physical checks, changed host-port refusal, original current receiver/wire/bytes/retention/grants and full State reprojection after awaited repair remain required.
+
+Reuse unchanged canonical43/43 with its optional-port Proxy assertions. At the corrected source, both required native receipt and lifecycle/UI cases pass1/1 (1.62s/0.82s), without fixture or source weakening. The complete original File workflow and seven genuine File groups pass8/8 (5520.91ms), including awaited observer replacement with zero accepting substitute calls/commits/retention and unchanged complete snapshot, plus the real File-bearing rename fresh/ordinary/dedicated zero-property-access case. Contracts/CF clean emissions, final root noEmit and boundary13/923/1354/0 pass. A late-binding attempt was corrected against State's existing lifecycle; a missing-output check during emission was discarded and rerun after complete output. Current recorded G1 is reused; stored-member source authority, original application, Office/G2–G3 and precise holds remain open. Coherent local unit only, no remote publication or full-plan acceptance.
+
+### 2026-10-10 — manual local File port correction integration
+
+Manual runtime pin and genuine consumer correspondence reviews CLEAR for the combined Dev3faa4b20/39f061bb correction. Pin the original genuine host File revalidator before awaited nonempty assignment observation; reject replacement/removal without selecting a substitute. Preserve source/app/definition binding, actual staged-only attachments, ordinary saved repair and full State reprojection, with zero optional File property reads for scalar/null/empty/rename paths. Reuse owner affected original File plus seven component groups8/8 and both unchanged required native cases1/1 each, clean Contracts/Cloudflare emissions, root types and boundary0. Unchanged canonical43 and recorded G1 are reused at their qualified tuples; no whole composite suite or plan acceptance is claimed. Related rejected stored-reference prototype stays inert in the explicitly unfinished archive; State and Compiler own its genuine authority/source prerequisites. Preserve current integrated compiler inventory, atomic State/Work source and all other owners. Existing tree/coverage/decisions are reconciled without advancing the incomplete checkpoint. Office/G2–G3, original application and precise human holds remain open. Local integration only.
+
+
+### 2026-10-10 — qualify committed-source diagnostics and exact File replay repair
+
+Retain unknown committed snapshot refusal as E2013 for closed id/version payload,
+and preserve whole-payload write refusal E3009. Typed event.id removes exactly
+nine Customer corpus findings; re-pin only that row (58→49). Reuse unchanged
+required-engine whole results, qualify only these two changed assertions and
+the two released Dev39f061bb native replay cases with unchanged tripwires.
+Combined1415 distinct tests, strict lint/format and actual editor pass at this
+component scope. Reviewed source/runtime/Contracts carriers are intaken locally;
+native committed activation, original protected Member producer and precise
+holds remain unfinished. No workflow repair, publication or full-plan closure.
+
+### 2026-10-10 — manual local integration of 25fb34aa
+
+Manual test/source review CLEAR: the unchanged pinned Customer, Contact and CompanyRole declarations each have three committed handlers comparing row.id with event.id; released checked text id removes exactly nine old findings, while all other corpus rows and49 remaining Customer findings stay asserted. Unknown snapshot now refuses E2013 for the closed id/version payload, and explicit whole-event mutation remains refused E3009 with the declared-event readonly control preserved. Reuse owner1411 broad passes plus the two corrected expectations and two exact unchanged Dev native cases,1415 distinct passing tests; reported strict checks and current real editor results are reused. No source/runtime gate weakened and no repeated unchanged validation. Dev actual committed-source activation/original Volunteer and Compiler protected stored Member/containment producers remain unfinished;58/67 and precise BDD3/Task22 holds remain. Preserve all owners and the incomplete checkpoint. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
 
 ### 2026-10-10 — stored reference origin authority (unfinished implementation)
@@ -6628,3 +6773,12 @@ Implicit containment parent remains existing metadata on a visible row; require 
 ### 2026-10-10 — CRUD removal target and joined receipt versions (unfinished qualification)
 
 A removed generated CRUD target has a null target association/result while other genuine original-fence writes retain their committed versions. State saved target-only projection must not infer whole-batch emptiness from target removal. Keep checked delete/model/association/caller/current authority validation and empty target disclosure; preserve all actual Work source/handler receipt versions. Dev's native source journey establishes the concrete failure, while the new owning State/Work controls remain pending and original native/full workflow qualification remains Dev-owned. No carrier/DTO/common gate change or receipt logic duplication is needed.
+### 2026-10-10 — manual local integration of 1983baf9
+
+Finite private authority, canonical schema/model-loader and genuine source/test reviews CLEAR for State94822fbb plus final1983baf9. Root directly verifies the new nested-child-only reference case at final source: genuine Step.parent/Run.location/Run.targets observations, no outer reference dependency, one original owner fence, saved recovery without recomputation, current partial grant/revoked subject withholding, unchanged body/commit/finalization counters and zero target loads. Current-stage genuine source rows, exact same-load declarations/constrained wires, whole origin-field grants and full Identity facts are required before promotion and rechecked with final source lifetime at the original fence. Saved closure preserves original values; implicit parent metadata does not grant authored fields or target records. Reuse178 distinct affected owner outcomes, clean State emission and boundary0; preserve older scalar missing-snapshot refusal. Compiler original checked containment/Member recipe IDs and Dev verified native source binding/separate target admission remain required; no original application/native/full-roadmap acceptance, new DTO/table or hold change. Current reviewed Compiler, File, common DTO and source runtime carriers remain preserved; synchronize local branches only, with obsolete PR gates ignored. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+
+### 2026-10-10 — exact local carrier intake for removal fix (unfinished)
+
+Intake reviewed coordinator `3add4d856f325f309bc55087f8cf8fdc7e5b0f4e` into the committed Capability worker `fb0aebd013d7857dfa7f30a08d9b82d015c672f0`, preserving the owning generated CRUD removal correction, both append records, and actual Compiler/File/State/Work prerequisite ancestry. Reconcile the staged worker tree and both full parent histories since complete `8249342707d3280e88e39e8c911b7e457828f31f`: 1926 commits, 10869 net deltas, 11413 historical paths, 513 history-only and 9366 pending allocations. Preserve strongest physical owners/scopes, 79 accepted feature paths, 30 target leaves, retirements/tasks and every hold; complete checkpoint stays unadvanced. State/Work source is unchanged by intake, so reuse the passed owning State emission and prior unchanged results; new removal checks remain pending. No PR sync, remote publication, main mutation or broader acceptance.

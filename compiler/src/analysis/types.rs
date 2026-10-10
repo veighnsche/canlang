@@ -532,7 +532,7 @@ pub struct CheckedCollectionPredicate {
     pub ty: ResolvedType,
 }
 
-/// Separate value-domain proof for a direct bound contract-array child result.
+/// Separate value-domain proof for a bound child result or owning contract array.
 /// It proves selected source/alias correspondence, never child completeness,
 /// native authority, or admission of the predicate's provenance closure.
 #[derive(Debug, Clone, PartialEq)]
@@ -545,7 +545,9 @@ pub struct CheckedContractCollectionCall {
     pub slots: [usize; 2],
     pub query: NodeKey,
     pub domain: NodeKey,
-    pub call: NodeKey,
+    /// Exact direct child CallAs, or a checked singular contract member domain.
+    /// A member domain establishes no stored observation or native authority.
+    pub call: Option<NodeKey>,
     pub alias: NodeKey,
     pub contract: SymbolId,
     pub predicate: CheckedCollectionPredicate,
@@ -556,7 +558,7 @@ pub struct CheckedContractCollectionCall {
 pub struct TypeTable {
     /// Selected query-domain collection calls; separate from authored Where clauses.
     pub checked_collection_calls: HashMap<NodeKey, CheckedCollectionCall>,
-    /// Direct bound contract-array any/all; distinct from stored-model proofs.
+    /// Checked contract-array any/all; distinct from stored-model proofs.
     pub checked_contract_collection_calls: HashMap<NodeKey, CheckedContractCollectionCall>,
     /// Successful query typing, preserving domain and authored clause identities.
     pub checked_queries: HashMap<NodeKey, CheckedQuery>,
@@ -3764,8 +3766,9 @@ impl<'a> Typer<'a> {
             let ty = self.expr(&cx, by, None);
             self.expect_bool(&cx, tight_span(text, by), &ty, "`by=`");
         }
-        let hook =
-            attribute_value(node, "on", text).map(|on| self.check_scenario_on(&cx, node, id, on));
+        let mut committed_event = false;
+        let hook = attribute_value(node, "on", text)
+            .map(|on| self.check_scenario_on(&cx, node, id, on, &mut committed_event));
         let read = self.check_scenario_read(&cx, node, id);
         if let Some(label) = attribute_value(node, "label", text) {
             self.check_scalar_caption(&cx, label, "label");
@@ -3793,6 +3796,23 @@ impl<'a> Typer<'a> {
                     symbol: event,
                     stored: false,
                 },
+            );
+        }
+        // Only the validated model-source branch admits these immutable
+        // identities. The id stays text even for deletion; no stored record
+        // or before/after snapshot is granted by a committed event.
+        if committed_event {
+            let payload = ResolvedType::Object(vec![
+                ("id".to_string(), ResolvedType::Scalar(Scalar::Text)),
+                ("version".to_string(), ResolvedType::Scalar(Scalar::Int)),
+            ]);
+            example_event = Some(payload.clone());
+            env.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                payload,
             );
         }
         // A validated delivery completion types the handler payload
@@ -4610,13 +4630,15 @@ impl<'a> Typer<'a> {
     /// `instrumentation.error`, capability events (`Cap.event`),
     /// delivery completions (`Cap.op.completed`,
     /// `Scenario.completed`) and declared queues (`E3010`). Returns
-    /// the hook identity for pre-commit model hooks.
+    /// the hook identity for pre-commit model hooks; `committed_event` is
+    /// set only by the validated model-source branch.
     fn check_scenario_on(
         &mut self,
         cx: &Ctx<'_, '_>,
         _node: &SyntaxNode,
         _id: SymbolId,
         on: &SyntaxNode,
+        committed_event: &mut bool,
     ) -> Option<(SymbolId, CrudOp)> {
         if on.kind == SyntaxKind::Call {
             return self.check_on_every(cx, on);
@@ -4632,7 +4654,7 @@ impl<'a> Typer<'a> {
         let segments = path_segments(on, cx.text);
         match segments.len() {
             1 => self.check_on_event(cx, on, &segments),
-            2 => self.check_on_two_seg(cx, on, &segments),
+            2 => self.check_on_two_seg(cx, on, &segments, committed_event),
             3 => self.check_on_completed(cx, on, &segments),
             _ => {
                 self.diags.push(Diagnostic::error(
@@ -4738,6 +4760,7 @@ impl<'a> Typer<'a> {
         cx: &Ctx<'_, '_>,
         on: &SyntaxNode,
         segments: &[&str],
+        committed_event: &mut bool,
     ) -> Option<(SymbolId, CrudOp)> {
         if segments == ["teams", "member_removed"] || segments == ["instrumentation", "error"] {
             return None;
@@ -4755,7 +4778,9 @@ impl<'a> Typer<'a> {
             return None;
         };
         match &self.tables.symbols[head.0 as usize].kind {
-            SymbolKind::Model { .. } => self.check_on_model_source(cx, on, head, segments),
+            SymbolKind::Model { .. } => {
+                self.check_on_model_source(cx, on, head, segments, committed_event)
+            }
             SymbolKind::Capability { ops, events } => {
                 let (ops, events) = (ops.clone(), events.clone());
                 if events
@@ -4805,12 +4830,16 @@ impl<'a> Typer<'a> {
         on: &SyntaxNode,
         model: SymbolId,
         segments: &[&str],
+        committed_event: &mut bool,
     ) -> Option<(SymbolId, CrudOp)> {
         let hook_op = match segments[1] {
             "create" => Some(CrudOp::Create),
             "update" => Some(CrudOp::Update),
             "delete" => Some(CrudOp::Delete),
-            "created" | "updated" | "deleted" => None,
+            "created" | "updated" | "deleted" => {
+                *committed_event = true;
+                None
+            }
             _ => {
                 self.diags.push(Diagnostic::error(
                     "E3010",
@@ -15888,6 +15917,7 @@ impl<'a> Typer<'a> {
                         .iter()
                         .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
                     && let Some(fact) = self.checked_contract_collection_call(
+                        cx,
                         node,
                         &overloads[index],
                         &ordered_args,
@@ -16052,6 +16082,7 @@ impl<'a> Typer<'a> {
 
     fn checked_contract_collection_call(
         &self,
+        cx: &Ctx<'_, '_>,
         node: &SyntaxNode,
         overload: &SigOverload,
         ordered_args: &[CallArg],
@@ -16154,47 +16185,120 @@ impl<'a> Typer<'a> {
                 .into_iter()
                 .find(|child| is_expression(child.kind))?,
         )?;
-        if domain_node.kind != SyntaxKind::NameRef {
-            return None;
-        }
-        let Some(Binding::CallAs { node: call }) =
-            self.tables.node_binding.get(&NodeKey::of(domain_node))
-        else {
-            return None;
+        let call = match domain_node.kind {
+            SyntaxKind::NameRef => {
+                let Binding::CallAs { node: call } =
+                    self.tables.node_binding.get(&NodeKey::of(domain_node))?
+                else {
+                    return None;
+                };
+                if self
+                    .types
+                    .effect_call_results
+                    .get(call)
+                    .and_then(Option::as_ref)
+                    != Some(&query.domain_type)
+                {
+                    return None;
+                }
+                Some(*call)
+            }
+            SyntaxKind::Member => {
+                let parts = kids(domain_node);
+                if parts.len() != 3 || !is_punct(parts[1], cx.text, ".") {
+                    return None;
+                }
+                let ResolvedType::Record { symbol: owner, .. } =
+                    self.types.node_types.get(&NodeKey::of(parts[0]))?
+                else {
+                    return None;
+                };
+                let owner_symbol = self.tables.symbols.get(owner.0 as usize)?;
+                let SymbolKind::Contract { fields } = &owner_symbol.kind else {
+                    return None;
+                };
+                let name = name_text(parts[2], cx.text)?;
+                let field = fields.iter().find(|field| {
+                    self.tables
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_some_and(|symbol| symbol.name == name)
+                })?;
+                if !matches!(self.tables.symbols.get(field.0 as usize)?.kind,
+                    SymbolKind::Field {owner: field_owner, ..} if field_owner == *owner)
+                    || self.decl.get(field) != Some(&query.domain_type)
+                    || self.types.node_types.get(&NodeKey::of(domain_node))
+                        != Some(&query.domain_type)
+                {
+                    return None;
+                }
+                None
+            }
+            _ => return None,
         };
-        if self
-            .types
-            .effect_call_results
-            .get(call)
-            .and_then(Option::as_ref)
-            != Some(&query.domain_type)
-        {
-            return None;
-        }
         let predicate = ordered_args[1].value;
         let boolean = ResolvedType::Scalar(Scalar::Bool);
         if self.types.node_types.get(&NodeKey::of(predicate)) != Some(&boolean) {
             return None;
         }
-        // Direct scalar/ref leaves and literals cannot suspend the Values
-        // callback. The disclosure producer still joins their actual fields,
-        // bindings, operators and complete child projection independently.
+        // Direct scalar/ref leaves, literals and checked nested any/all cannot
+        // suspend the Values callback. Disclosure joins their actual fields,
+        // bindings, operators and retained child/stored provenance separately.
         let mut pending = vec![predicate];
         let mut visits = 0;
         while let Some(expression) = pending.pop() {
             visits += 1;
-            if visits > 4096
-                || !matches!(
-                    expression.kind,
-                    SyntaxKind::NameRef
-                        | SyntaxKind::Path
-                        | SyntaxKind::Literal
-                        | SyntaxKind::Member
-                        | SyntaxKind::Group
-                        | SyntaxKind::Unary
-                        | SyntaxKind::Binary
-                )
-            {
+            if visits > 4096 {
+                return None;
+            }
+            if expression.kind == SyntaxKind::Call {
+                let key = NodeKey::of(expression);
+                let nested = self.types.checked_contract_collection_calls.get(&key)?;
+                if nested.node != key
+                    || !matches!(nested.builtin.as_str(), "any" | "all")
+                    || nested.predicate.ty != boolean
+                    || self.types.node_types.get(&key) != Some(&boolean)
+                {
+                    return None;
+                }
+                // The nested call was checked independently. Traverse only its
+                // actual value domain and predicate, never arbitrary query syntax.
+                let nested_query = self.types.checked_queries.get(&nested.query)?;
+                let nested_domain_key = *nested.arguments.get(nested.slots[0])?;
+                let nested_domain = kids(expression).into_iter().find_map(|argument| {
+                    kids(argument)
+                        .into_iter()
+                        .find(|value| NodeKey::of(value) == nested_domain_key)
+                })?;
+                let nested_query_node = grouped(nested_domain)?;
+                if nested_query_node.kind != SyntaxKind::Query
+                    || nested_query.node != NodeKey::of(nested_query_node)
+                    || nested_query.domain != nested.domain
+                {
+                    return None;
+                }
+                pending.push(
+                    kids(nested_query_node)
+                        .into_iter()
+                        .find(|value| NodeKey::of(value) == nested.domain)?,
+                );
+                pending.push(kids(expression).into_iter().find_map(|argument| {
+                    kids(argument)
+                        .into_iter()
+                        .find(|value| NodeKey::of(value) == nested.predicate.node)
+                })?);
+                continue;
+            }
+            if !matches!(
+                expression.kind,
+                SyntaxKind::NameRef
+                    | SyntaxKind::Path
+                    | SyntaxKind::Literal
+                    | SyntaxKind::Member
+                    | SyntaxKind::Group
+                    | SyntaxKind::Unary
+                    | SyntaxKind::Binary
+            ) {
                 return None;
             }
             pending.extend(
@@ -16212,7 +16316,7 @@ impl<'a> Typer<'a> {
             slots,
             query: query.node,
             domain: query.domain,
-            call: *call,
+            call,
             alias: alias.node,
             contract: *contract,
             predicate: CheckedCollectionPredicate {

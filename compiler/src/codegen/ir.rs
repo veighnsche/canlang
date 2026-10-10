@@ -583,6 +583,8 @@ pub struct IrProgram {
     /// requires actual evaluated-read and return capture at every selected site.
     pub scenario_disclosures:
         HashMap<SymbolId, crate::analysis::scenario_disclosure::ScenarioDisclosure>,
+    /// Declaration census retained by the checked builder, never a wire claim.
+    pub committed_sources: CheckedCommittedSources,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
     /// Builtin references observed while decoding checked call positions
@@ -656,6 +658,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         items: Vec::new(),
         value_constraints: HashMap::new(),
         scenario_disclosures: HashMap::new(),
+        committed_sources: CheckedCommittedSources::default(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
@@ -1300,10 +1303,71 @@ impl IrDeleteMode {
 }
 
 /// Checked trusted handler identity and finite payload authority.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrEventSource {
     Declared(String),
     DeliveryProgressed(String),
+    Committed {
+        model: SymbolId,
+        change: IrCommittedChange,
+    },
+}
+
+/// Final stored-change vocabulary shared with the defining artifact contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IrCommittedChange {
+    Create,
+    Update,
+    Delete,
+}
+
+impl IrCommittedChange {
+    pub fn suffix(self) -> &'static str {
+        match self {
+            Self::Create => "created",
+            Self::Update => "updated",
+            Self::Delete => "deleted",
+        }
+    }
+}
+
+/// Immutable source census prevents a partial or edited IR from claiming a
+/// complete trigger inventory. Raw IR fixtures can only construct the empty
+/// default. No runtime authority or extra public artifact DTO is introduced.
+#[derive(Debug, Clone, Default)]
+pub struct CheckedCommittedSources {
+    pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
+    pub(crate) handlers: Vec<CheckedCommittedHandler>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedCommittedHandler {
+    pub id: SymbolId,
+    pub module: ModuleId,
+    pub canonical: String,
+    pub source: IrEventSource,
+    pub model: String,
+    pub cohort: Option<IrCohort>,
+    pub cohort_model: Option<String>,
+    pub span: Span,
+}
+
+impl From<&crate::analysis::effects::CohortData> for IrCohort {
+    fn from(cohort: &crate::analysis::effects::CohortData) -> Self {
+        Self {
+            kind: match cohort.kind {
+                crate::analysis::effects::CohortKind::Model => IrCohortKind::Model,
+                crate::analysis::effects::CohortKind::AnchoredCollection => {
+                    IrCohortKind::AnchoredCollection
+                }
+            },
+            model: cohort.model,
+            bind: cohort.bind.clone(),
+            parent: (!cohort.parent_path.is_empty()).then(|| cohort.parent_path.join(".")),
+            span: Span::new(cohort.node.file, cohort.node.start, cohort.node.end),
+        }
+    }
 }
 
 /// Pre-commit hook trigger (T31 Rule A): the hooked model plus the
@@ -1879,11 +1943,50 @@ impl<'a> Cx<'a> {
         let migrations = self.build_migrations();
         let suites = self.build_suites(&items);
         let referenced_builtins = self.build_referenced_builtins();
+        let committed_sources = CheckedCommittedSources {
+            sources: self
+                .program
+                .checked_files()
+                .iter()
+                .filter_map(|id| {
+                    self.db
+                        .get(*id)
+                        .map(|source| (*id, source.path.clone(), source.sha256.clone()))
+                })
+                .collect(),
+            handlers: self
+                .program
+                .committed_handlers
+                .iter()
+                .map(|fact| {
+                    let change = match fact.event.as_str() {
+                        "created" => IrCommittedChange::Create,
+                        "updated" => IrCommittedChange::Update,
+                        "deleted" => IrCommittedChange::Delete,
+                        _ => unreachable!("checked committed source"),
+                    };
+                    CheckedCommittedHandler {
+                        id: fact.id,
+                        module: fact.module,
+                        canonical: fact.canonical.clone(),
+                        source: IrEventSource::Committed {
+                            model: fact.model,
+                            change,
+                        },
+                        model: fact.model_canonical.clone(),
+                        cohort: fact.cohort.as_ref().map(IrCohort::from),
+                        cohort_model: fact.cohort_model.clone(),
+                        span: fact.span,
+                    }
+                })
+                .collect(),
+        };
         let program = IrProgram {
             modules,
             items,
             value_constraints: self.program.types.value_constraints.clone(),
             scenario_disclosures: self.program.scenario_disclosures().clone(),
+            committed_sources,
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,
@@ -3489,6 +3592,7 @@ impl<'a> Cx<'a> {
         // Returns the typed expression: the checked type wins, table
         // inference fills gaps the types pass never sees.
         let mut fields = Vec::new();
+        let mut field_spans = Vec::new();
         let mut current = node;
         loop {
             let parts = kids(current);
@@ -3498,6 +3602,7 @@ impl<'a> Cx<'a> {
                 .find_map(|n| name_text(self.db, n))
                 .unwrap_or_default();
             fields.push(field);
+            field_spans.push(current.span);
             let Some(base) = parts.iter().find(|n| is_expression(n.kind)) else {
                 break;
             };
@@ -3534,7 +3639,7 @@ impl<'a> Cx<'a> {
                 {
                     expr.expr = member_of("c", "actorFacts", &ResolvedType::Unknown, base.span);
                 }
-                for field in fields.iter().rev() {
+                for (field, field_span) in fields.iter().rev().zip(field_spans.iter().rev()) {
                     let inferred = self.member_ty(&expr.ty, field);
                     let field_ty = if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
                         ty.clone()
@@ -3551,7 +3656,7 @@ impl<'a> Cx<'a> {
                             field: field.clone(),
                         },
                         field_ty,
-                        node.span,
+                        *field_span,
                     );
                 }
                 return expr;
@@ -3830,9 +3935,67 @@ impl<'a> Cx<'a> {
         let domain_name = kids(domain_node)
             .into_iter()
             .find_map(|child| name_text(self.db, child));
+        let domain_matches = match fact.call {
+            Some(call) => {
+                domain_node.kind == SyntaxKind::NameRef
+                    && matches!(&base.expr, IrExpr::Name(actual) if Some(actual) == domain_name.as_ref())
+                    && self
+                        .program
+                        .types
+                        .effect_call_results
+                        .get(&call)
+                        .and_then(Option::as_ref)
+                        == Some(&source.domain_type)
+            }
+            None => {
+                let parts = kids(domain_node);
+                if domain_node.kind != SyntaxKind::Member || parts.len() != 3 {
+                    return false;
+                }
+                let Some(text) = self
+                    .db
+                    .get(domain_node.span.file)
+                    .map(|source| source.text.as_str())
+                else {
+                    return false;
+                };
+                if text.get(parts[1].span.start as usize..parts[1].span.end as usize) != Some(".") {
+                    return false;
+                }
+                let Some(ResolvedType::Record { symbol: owner, .. }) =
+                    self.program.types.node_types.get(&NodeKey::of(parts[0]))
+                else {
+                    return false;
+                };
+                let Some(SymbolKind::Contract { fields }) = self
+                    .program
+                    .symbols
+                    .get(owner.0 as usize)
+                    .map(|symbol| &symbol.kind)
+                else {
+                    return false;
+                };
+                let Some(name) = name_text(self.db, parts[2]) else {
+                    return false;
+                };
+                let Some(field) = fields.iter().find(|field| {
+                    self.program
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_some_and(|symbol| symbol.name == name)
+                }) else {
+                    return false;
+                };
+                matches!(self.program.symbols.get(field.0 as usize).map(|symbol| &symbol.kind),
+                    Some(SymbolKind::Field {owner: field_owner, ..}) if field_owner == owner)
+                    && self.program.types.symbol_types.get(field) == Some(&source.domain_type)
+                    && self.contract_collection_member_matches(domain_node, base)
+            }
+        };
         if source.node != fact.query
             || source.domain != fact.domain
             || alias.node != fact.alias
+            || !alias.expressions.is_empty()
             || source.domain_type != source.result
             || *ty != source.result
             || base.ty != source.domain_type
@@ -3847,16 +4010,9 @@ impl<'a> Cx<'a> {
             || query.archived.is_some()
             || query.select.is_some()
             || query.select_param.is_some()
-            || domain_node.kind != SyntaxKind::NameRef
             || base.span != domain_node.span
-            || !matches!(&base.expr, IrExpr::Name(actual) if Some(actual) == domain_name.as_ref())
-            || self
-                .program
-                .types
-                .effect_call_results
-                .get(&fact.call)
-                .and_then(Option::as_ref)
-                != Some(&source.domain_type)
+            || !domain_matches
+            || self.program.types.node_types.get(&fact.domain) != Some(&source.domain_type)
             || !matches!(query_element_ty(&source.result), ResolvedType::Record {symbol,..} if symbol == fact.contract)
             || self.program.types.checked_queries.get(&fact.query) != Some(source)
         {
@@ -3883,6 +4039,7 @@ impl<'a> Cx<'a> {
             || body.span != predicate_node.span
             || param != name
             || expr_uses_async(body)
+            || !self.contract_collection_predicate_is_finite(body)
             || self.program.types.node_types.get(&fact.predicate.node) != Some(&boolean)
         {
             return false;
@@ -3891,6 +4048,182 @@ impl<'a> Cx<'a> {
             return false;
         };
         query.contract_collection_call = Some(Box::new(fact.clone()));
+        true
+    }
+
+    /// Match the actual member value against its checked source chain. Nested
+    /// member spans may cover the whole chain, so use node types and structure.
+    fn contract_collection_member_matches(&self, node: &SyntaxNode, value: &TypedExpr) -> bool {
+        let mut pending = vec![(node, value)];
+        let mut visits = 0;
+        while let Some((node, value)) = pending.pop() {
+            visits += 1;
+            if visits > 4096
+                || self.program.types.node_types.get(&NodeKey::of(node)) != Some(&value.ty)
+            {
+                return false;
+            }
+            match node.kind {
+                SyntaxKind::Group => {
+                    let children: Vec<_> = kids(node)
+                        .into_iter()
+                        .filter(|child| is_expression(child.kind))
+                        .collect();
+                    let [inner] = children.as_slice() else {
+                        return false;
+                    };
+                    pending.push((*inner, value));
+                }
+                SyntaxKind::NameRef => {
+                    let name = kids(node)
+                        .into_iter()
+                        .find_map(|child| name_text(self.db, child));
+                    if !matches!(&value.expr, IrExpr::Name(actual) if Some(actual) == name.as_ref())
+                    {
+                        return false;
+                    }
+                }
+                SyntaxKind::Member => {
+                    let parts = kids(node);
+                    let IrExpr::Member { base, field } = &value.expr else {
+                        return false;
+                    };
+                    let Some(text) = self
+                        .db
+                        .get(node.span.file)
+                        .map(|source| source.text.as_str())
+                    else {
+                        return false;
+                    };
+                    if parts.len() != 3
+                        || text.get(parts[1].span.start as usize..parts[1].span.end as usize)
+                            != Some(".")
+                        || name_text(self.db, parts[2]).as_ref() != Some(field)
+                    {
+                        return false;
+                    }
+                    pending.push((parts[0], base));
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
+    /// Only genuine checked nested any/all calls extend the finite synchronous
+    /// predicate profile. Their query and lambda retain their own source joins.
+    fn contract_collection_predicate_is_finite(&self, body: &TypedExpr) -> bool {
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let mut pending = vec![body];
+        let mut visits = 0;
+        while let Some(value) = pending.pop() {
+            visits += 1;
+            if visits > 4096 {
+                return false;
+            }
+            match &value.expr {
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                    let IrCallTarget::Builtin { id, awaited: false } = target else {
+                        return false;
+                    };
+                    if !matches!(id.as_str(), "any" | "all")
+                        || value.ty != boolean
+                        || args.len() != 2
+                    {
+                        return false;
+                    }
+                    let Some(query) = args.iter().find_map(|arg| match &arg.expr {
+                        IrExpr::Query(query) => Some(query),
+                        _ => None,
+                    }) else {
+                        return false;
+                    };
+                    let Some(fact) = query.contract_collection_call.as_deref() else {
+                        return false;
+                    };
+                    let Some(selected) = self.program.types.selected_calls.get(&fact.node) else {
+                        return false;
+                    };
+                    let slots_match = match &value.expr {
+                        IrExpr::BoundCall { slots, .. } => {
+                            slots.as_slice() == [Some(fact.slots[0]), Some(fact.slots[1])]
+                        }
+                        IrExpr::Call { .. } => fact.slots == [0, 1],
+                        _ => false,
+                    };
+                    let Some(domain) = args.get(fact.slots[0]) else {
+                        return false;
+                    };
+                    let Some(predicate) = args.get(fact.slots[1]) else {
+                        return false;
+                    };
+                    let IrExpr::Query(actual_query) = &domain.expr else {
+                        return false;
+                    };
+                    let IrExpr::Lambda { param, body } = &predicate.expr else {
+                        return false;
+                    };
+                    let Some(source) = actual_query.source.as_deref() else {
+                        return false;
+                    };
+                    let [alias] = source.clauses.as_slice() else {
+                        return false;
+                    };
+                    if !slots_match
+                        || fact.builtin != *id
+                        || fact.slots[0] == fact.slots[1]
+                        || fact.arguments != selected.arguments
+                        || selected.slots.as_slice() != [Some(fact.slots[0]), Some(fact.slots[1])]
+                        || !matches!(&selected.target, SelectedCallTarget::Builtin { id: actual, overload }
+                            if actual == id && *overload == fact.overload)
+                        || self
+                            .program
+                            .types
+                            .checked_contract_collection_calls
+                            .get(&fact.node)
+                            != Some(fact)
+                        || self.program.types.node_types.get(&fact.node) != Some(&boolean)
+                        || self
+                            .node(&fact.node)
+                            .is_none_or(|node| node.span != value.span)
+                        || actual_query.contract_collection_call.as_deref() != Some(fact)
+                        || self.program.types.checked_queries.get(&fact.query) != Some(source)
+                        || source.node != fact.query
+                        || source.domain != fact.domain
+                        || alias.node != fact.alias
+                        || !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if name == param)
+                        || predicate.ty != boolean
+                        || body.ty != boolean
+                        || fact.predicate.ty != boolean
+                        || self.program.types.node_types.get(&fact.predicate.node) != Some(&boolean)
+                    {
+                        return false;
+                    }
+                    let IrQueryDomain::Value { base, .. } = &actual_query.domain else {
+                        return false;
+                    };
+                    pending.push(base);
+                    pending.push(body);
+                }
+                IrExpr::Member { base, .. } => pending.push(base),
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(left);
+                    pending.push(right);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                IrExpr::Name(_)
+                | IrExpr::Int(_)
+                | IrExpr::Decimal(_)
+                | IrExpr::Text(_)
+                | IrExpr::Bool(_)
+                | IrExpr::Null
+                | IrExpr::Money { .. }
+                | IrExpr::DurationMs(_)
+                | IrExpr::Date(_)
+                | IrExpr::Datetime(_) => {}
+                _ => return false,
+            }
+        }
         true
     }
 
@@ -6242,6 +6575,18 @@ impl<'a> Cx<'a> {
             {
                 Some(IrEventSource::DeliveryProgressed(source.clone()))
             }
+            Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
+                let change = match event.as_str() {
+                    "created" => Some(IrCommittedChange::Create),
+                    "updated" => Some(IrCommittedChange::Update),
+                    "deleted" => Some(IrCommittedChange::Delete),
+                    _ => None,
+                };
+                change.map(|change| IrEventSource::Committed {
+                    model: *model,
+                    change,
+                })
+            }
             _ => None,
         };
         let hook = match &data.on {
@@ -6292,22 +6637,7 @@ impl<'a> Cx<'a> {
             .collect();
         // T34-F6: the checked `each=` cohort decodes verbatim (analysis
         // owns the contract; the IR never re-derives it).
-        let cohort = data.cohort.as_ref().map(|cohort| IrCohort {
-            kind: match cohort.kind {
-                crate::analysis::effects::CohortKind::Model => IrCohortKind::Model,
-                crate::analysis::effects::CohortKind::AnchoredCollection => {
-                    IrCohortKind::AnchoredCollection
-                }
-            },
-            model: cohort.model,
-            bind: cohort.bind.clone(),
-            parent: if cohort.parent_path.is_empty() {
-                None
-            } else {
-                Some(cohort.parent_path.join("."))
-            },
-            span: Span::new(cohort.node.file, cohort.node.start, cohort.node.end),
-        });
+        let cohort = data.cohort.as_ref().map(IrCohort::from);
         (
             data.read,
             by,

@@ -329,10 +329,13 @@ describe("deploy bundle (P-B)", () => {
       "handleCsvRequest",
       "handlePageRequest",
       "handlePagePreferencePost",
+      "receiverFromIdentity",
       "IdentityError",
     ]) {
       expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);
     }
+    // A body occurrence alone cannot satisfy the runtime's named import.
+    expect(ops).toMatch(/\bexport\s*\{[^}]*\breceiverFromIdentity\b[^}]*\}/s);
     // Real bundle, not a stub: the op chain + identity closure is
     // tens of KB (no MCP SDK weight).
     expect(ops.length).toBeGreaterThan(10_000);
@@ -956,34 +959,23 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     expect(manifest.version).toBe("8.18.0");
     expect(manifest.exports["."][0].import).toBe("./dist/acorn.mjs");
     const esm = readFileSync(join(dirname(manifestFile), manifest.exports["."][0].import), "utf8");
-    const runtime = dirname(resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build"));
-    const fixture = mkdtempSync(join(tmpdir(), "can-acorn-runtime-map-"));
-    let insertedMapperEdge = false;
-    try {
-      for (const entry of readdirSync(runtime).filter(name => name.endsWith(".js"))) {
-        let js = readFileSync(join(runtime, entry), "utf8");
-        if (entry === "invoke.js" && !scanModuleImports(js, entry).some(record => record.specifier === "acorn")) {
-          // Mapper-only fixture, not Dev's security implementation. All Acorn
-          // bytes below always come from the genuine pinned public ESM export.
-          js += '\nimport { parse as acornMapperParse } from "acorn";\nexport { acornMapperParse };\nconst ACORN_MAP_FIXTURE = "acorn";\n';
-          insertedMapperEdge = true;
-        }
-        writeFileSync(join(fixture, entry), js);
-      }
-      const bundle = buildDeployBundle(testArtifact(), { repoRoot, runtimeDistDir: fixture, verdict: ACTIVE_VERDICT });
-      const key = "vendor/acorn/acorn.js";
-      expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/acorn/"))).toEqual([key]);
-      expect(bundle.modules[key]).toBe(esm);
-      const invoke = bundle.modules["runtime/invoke.js"]!;
-      expect(scanModuleImports(invoke, "runtime/invoke.js").map(record => record.specifier)).toContain("../vendor/acorn/acorn.js");
-      expect(scanModuleImports(invoke, "runtime/invoke.js").some(record => record.specifier === "acorn")).toBe(false);
-      if (insertedMapperEdge) expect(invoke).toContain('const ACORN_MAP_FIXTURE = "../vendor/acorn/acorn.js"');
-      expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
-      expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
-      const missing = { ...bundle.modules };
-      delete missing[key];
-      expect(() => assertLinksResolve(missing)).toThrow(/vendor\/acorn\/acorn\.js.*no such staged module/);
-    } finally { rmSync(fixture, { recursive: true, force: true }); }
+    const runtimeFile = resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build");
+    const runtimeSource = readFileSync(runtimeFile, "utf8");
+    expect(scanModuleImports(runtimeSource, "runtime/invoke.js").filter(record => record.specifier === "acorn").map(record => record.kind))
+      .toEqual(["evaluation-static"]);
+    const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
+    const key = "vendor/acorn/acorn.js";
+    expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/acorn/"))).toEqual([key]);
+    expect(bundle.modules[key]).toBe(esm);
+    const invoke = bundle.modules["runtime/invoke.js"]!;
+    const imports = scanModuleImports(invoke, "runtime/invoke.js");
+    expect(imports.filter(record => record.specifier === "../vendor/acorn/acorn.js").map(record => record.kind)).toEqual(["evaluation-static"]);
+    expect(imports.some(record => record.specifier === "acorn")).toBe(false);
+    expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
+    const missing = { ...bundle.modules };
+    delete missing[key];
+    expect(() => assertLinksResolve(missing)).toThrow(/vendor\/acorn\/acorn\.js.*no such staged module/);
   });
 });
 

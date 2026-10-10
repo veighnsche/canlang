@@ -1,0 +1,246 @@
+diff --git a/packages/cloudflare/src/runtime/invoke.ts b/packages/cloudflare/src/runtime/invoke.ts
+index d5a75070..73212717 100644
+--- a/packages/cloudflare/src/runtime/invoke.ts
++++ b/packages/cloudflare/src/runtime/invoke.ts
+@@ -4620,6 +4620,12 @@ async function runScenarioExecution(
+   seamGuards.push({ name: 'parent.read', evaluate: async () => { await viewerNavigation.revalidate(); return true; } });
+   const views = new Map<string, Record<string, unknown>>();
+   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
++  // Only exact values evaluated from an owner-issued stored field can become
++  // protected child operands. General Values refs and copied carriers stay refs.
++  const storedReferences = new WeakMap<object, {
++    readonly sourceModel: string; readonly sourceId: string; readonly field: string;
++    readonly model: string; readonly id: string; readonly version?: bigint;
++  }>();
+   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
+   // This closure is installed only by the retained private-source drivers,
+   // after their owning source/identity admission. Request query options can
+@@ -4645,7 +4651,21 @@ async function runScenarioExecution(
+     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
+       enumerable: true, get: () => {
+         const wire = current()?.data[field];
+-        return nativeRecordField(loaded, modelName, field, wire);
++        const value = nativeRecordField(loaded, modelName, field, wire);
++        const declaration = opts.artifact.models?.find(candidate => candidate.name === modelName)?.fields
++          .find(candidate => candidate.name === field);
++        const target = declaration?.field.kind === 'ref' ? declaration.field.model : undefined;
++        if (ownerSession !== undefined && target !== undefined &&
++            loaded.models.some(candidate => candidate.name === target)) {
++          for (const reference of declaration?.array === undefined ? [value] : Array.isArray(value) ? value : []) {
++            if (isRecordRef(reference) && reference.model === target) {
++              storedReferences.set(reference, Object.freeze({ sourceModel: modelName, sourceId: row.id, field,
++                model: reference.model, id: reference.id,
++                ...(reference.version === undefined ? {} : { version: reference.version }) }));
++            }
++          }
++        }
++        return value;
+       },
+     });
+     // Ordinary references retain admitted metadata while domain reads see
+@@ -5387,7 +5407,41 @@ async function runScenarioExecution(
+         assertCall(actualCall, receiptStore);
+         const selected = binding.get(scenarioDef!.name)?.get(site);
+         if (selected === undefined || selected.name !== target) return refuseRecordBinding('Native call target differs from its owning checked occurrence.');
+-        const wire = await invokeCall(actualCall, receiptStore, { site, target, inputs });
++        assertNativeScenarioTarget(loaded, selected);
++        const own = localPolicyObject(inputs, selected.descriptor.inputs.map(field => field.name));
++        const prepared: Record<string, unknown> = Object.create(null);
++        for (const field of selected.descriptor.inputs) {
++          if (!Object.hasOwn(own, field.name)) return refuseRecordBinding('Native child input omitted its required owning field.');
++          prepared[field.name] = localPolicyMember(own, field.name);
++        }
++        const hydrate = async (value: unknown, model: string): Promise<unknown> => {
++          const origin = typeof value === 'object' && value !== null ? storedReferences.get(value) : undefined;
++          if (origin === undefined) return value;
++          if (origin.model !== model) return refuseRecordBinding('Stored child reference disagrees with its checked target model.');
++          // Read while this exact parent remains active, before State suspends
++          // it for child preparation. The source-evaluated identity is retained;
++          // neither the source field nor an arbitrary wire ref is reread.
++          assertCall(actualCall, receiptStore);
++          const row = await readOwnerRow(model as ModelName, origin.id as RecordId);
++          assertCall(actualCall, receiptStore);
++          if (nativeScenarioExecutions.get(actualCall) !== active) return refuseRecordBinding('Stored child reference has a closed or foreign parent.');
++          if (row === null || row.archivedAt !== null) throw new StateError('not_found', 'Stored child reference is no longer present.');
++          if (origin.version !== undefined && origin.version !== BigInt(row.version)) {
++            throw new StateError('conflict', 'Stored child reference expected version changed.');
++          }
++          return recordView(model, row);
++        };
++        for (const field of selected.descriptor.inputs) {
++          if (field.kind !== 'ref' || prepared[field.name] === null) continue;
++          if (Object.hasOwn(selected.inputArrays, field.name)) {
++            const values = nativeCallArray(prepared[field.name], Number.MAX_SAFE_INTEGER);
++            const hydrated: unknown[] = [];
++            for (const value of values) hydrated.push(await hydrate(value, field.model));
++            prepared[field.name] = Object.freeze(hydrated);
++          } else prepared[field.name] = await hydrate(prepared[field.name], field.model);
++        }
++        assertCall(actualCall, receiptStore);
++        const wire = await invokeCall(actualCall, receiptStore, { site, target, inputs: prepared });
+         // Parent native views retain original metadata while current fields track
+         // the same genuine owner session after the completed child stage.
+         for (const key of [...ownerRows.keys()]) {
+diff --git a/packages/cloudflare/src/runtime/scenario-receipt-canonical.test.ts b/packages/cloudflare/src/runtime/scenario-receipt-canonical.test.ts
+index 9230cf35..430cdfa2 100644
+--- a/packages/cloudflare/src/runtime/scenario-receipt-canonical.test.ts
++++ b/packages/cloudflare/src/runtime/scenario-receipt-canonical.test.ts
+@@ -1452,6 +1452,7 @@ ${mode === 'projection-unread' ? 'const visible="original visible";' : 'const vi
+ /** Handauthored Task39 read-child component. Every declaration channel is
+  * paired by the real loader; this does not qualify Compiler CALL lowering. */
+ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): void {
++  const stored = mode.startsWith('stored-');
+   const origin = { path: source, sha256: sha, module: modulePath };
+   const parentResult = artifact.operations![0]!.result!;
+   queryDeclaration(artifact);
+@@ -1475,6 +1476,11 @@ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): v
+   artifact.callables.push({ id: child, kind: 'operation', module: modulePath,
+     export: 'readFacts', member: ['Shop','readFacts'], inputStyle: 'parameters' });
+   if (mode === 'wrong-model') artifact.models!.push({ ...artifact.models![0]!, name: other });
++  if (stored) artifact.models![0]!.fields.push(
++    { name: 'link', field: { kind: 'ref', model }, required: false, serverOnly: false },
++    { name: 'links', field: { kind: 'ref', model }, array: { required: false }, max: 3, required: false, serverOnly: false },
++    { name: 'unused', field: { kind: 'ref', model }, required: false, serverOnly: false },
++  );
+   const declarations = {
+     [operation]: { inputs: { record: { type: model }, targets: { type: model, array: true, min: 0, max: 3 },
+       ...(mode === 'wrong-model' ? { other: { type: other } } : {}) }, result: { type: 'text' },
+@@ -1483,13 +1489,17 @@ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): v
+       inputs: { record: { type: model }, targets: { type: model, array: true, min: 0, max: 3 } },
+       result: { type: 'Shop.Fact', array: true }, callSites: [] },
+   };
+-  const callInputs = mode === 'copied-reference' ? '{record:{...input.record},targets:input.targets}'
++  const callInputs = mode === 'stored-copied' ? '{record:{...selectedStored},targets:input.record.links}'
++    : mode === 'stored-foreign' ? '{record:handlerProbe?handlerProbe():selectedStored,targets:input.record.links}'
++    : stored ? '{record:selectedStored,targets:input.record.links}'
++    : mode === 'copied-reference' ? '{record:{...input.record},targets:input.targets}'
+     : mode === 'wrong-model' ? '{record:input.other,targets:input.targets}'
+     : mode === 'malformed-array' ? '{record:input.record,targets:input.record}'
+     : mode === 'array-bound' ? '{record:input.record,targets:[...input.targets,input.record]}'
+     : mode === 'omitted-array' ? '{record:input.record}'
+     : '{record:input.record,targets:input.targets}';
+-  const fields = { visible: { type: 'text' }, private: { type: 'text' }, token: { type: 'secret', init: 'random_secret' } };
++  const fields = { visible: { type: 'text' }, private: { type: 'text' }, token: { type: 'secret', init: 'random_secret' },
++    ...(stored ? { link: { type: model }, links: { type: model, array: true }, unused: { type: model } } : {}) };
+   const models = Object.fromEntries([model, ...(mode === 'wrong-model' ? [other] : [])].map(name => [name, {
+     fields, readGrants: [{ rule: `${name}.read.1`, by: ['members'], fields: ['visible','private'] }],
+   }]));
+@@ -1498,10 +1508,10 @@ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): v
+   artifact.modules[0]!.js = `import {set,observeScenarioReceiptDependency,selectScenarioReceiptReturn,
+     invokeScenarioReceiptCall,executeScenarioReceiptQuery,observeScenarioReceiptQueryDependency,
+     bindScenarioReceiptQueryResult} from '@canlang/stdlib';
+-    let executions=0,handlerProbe,parentContext,childContext,inputSnapshot,returnedFacts;
++    let executions=0,handlerProbe,parentContext,childContext,inputSnapshot,returnedFacts,storedOperand;
+     export const executionCount=()=>executions;
+     export const setHandlerProbe=probe=>{handlerProbe=probe;};
+-    export const inspectChild=()=>({inputSnapshot,returnedFacts});
++    export const inspectChild=()=>({inputSnapshot,returnedFacts,storedOperand});
+     export const lateParentCall=()=>invokeScenarioReceiptCall(parentContext,'root-read','Shop.readFacts',{});
+     export const lateChildQuery=()=>executeScenarioReceiptQuery(childContext,'rows',()=>true);
+     const policy=${JSON.stringify(policy)};
+@@ -1512,7 +1522,8 @@ function referenceReadChildFixture(artifact: CompileArtifact, mode = 'valid'): v
+         const original=input.record.visible;
+         await observeScenarioReceiptDependency(c,'Shop.Record',input.record,'visible','visible-value');
+         await set(c,input.record,{visible:'parent middle'});
+-        ${mode === 'valid' ? `const facts=await invokeScenarioReceiptCall(c,'root-read','Shop.readFacts',${callInputs});
++        ${stored ? 'const selectedStored=input.record.link;storedOperand=selectedStored;' : ''}
++        ${mode === 'valid' || mode === 'stored-valid' ? `const facts=await invokeScenarioReceiptCall(c,'root-read','Shop.readFacts',${callInputs});
+           returnedFacts=facts.map(fact=>({task:fact.task,version:fact.version,visible:fact.visible}));`
+           : `try{await invokeScenarioReceiptCall(c,'root-read','Shop.readFacts',${callInputs});}catch{}`}
+         selectScenarioReceiptReturn(c,'selected');return original;
+@@ -1602,9 +1613,67 @@ it('checked read child admits ordered repeated protected references at the paren
+   assert.deepEqual(w.counters(),{commits:0,files:0,executions:2});
+ });
+ 
++it('stored read-child operands hydrate lazily at the parent stage with ordered repetition and original root versions', async () => {
++  const base=await world(false,true,undefined,artifact=>referenceReadChildFixture(artifact,'stored-valid'),false);
++  const second=await seedRow(base.store,model,{id:'rec-2',data:{visible:'second visible',private:'second private',token:'second secret'}});
++  const row=await updateRow(base.store,model,base.row,{data:{...base.row.data,
++    link:{id:base.row.id},links:[{id:base.row.id},{id:second.id},{id:base.row.id}],unused:{id:'never-selected-missing'}}});
++  const w={...base,row};
++  const envelope={...w.envelope,inputs:{record:{id:row.id,version:String(row.version)},targets:[]}};
++  const before=await w.snapshot(), histories=await Promise.all(before.rows.map(value=>w.store.historyFor(model,value.id)));
++  const batches:Parameters<StoragePort['commit']>[0][]=[];
++  const store:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
++  let unusedLoads=0;
++  const originalLoad=store.load;
++  store.load=async(name,id)=>{if(id==='never-selected-missing') unusedLoads++;return originalLoad(name,id);};
++  const fresh=await w.invoker(store).invokeMutation(envelope,w.identity);
++  assert.ok('result' in fresh,JSON.stringify(fresh));assert.equal(fresh.result.status,'committed');
++  assert.equal(fresh.result.result,'original visible');assert.equal(unusedLoads,0,'an unused missing field is never hydrated');
++  assert.equal(batches.length,1);const batch=batches[0]!;
++  const current=await w.store.load(model,row.id);assert.ok(current);
++  assert.equal(current.version,row.version+1);assert.equal(current.data['visible'],'parent middle');
++  assert.equal(batch.writes.length,1);assert.equal(batch.history.length,1);
++  assert.deepEqual(batch.history[0],{model,recordId:row.id,version:current.version,operation,
++    operationId:envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:row.data,after:current.data});
++  for(const effects of [batch.outbox,batch.schedules,batch.uniqueClaims,batch.uniqueReleases]) assert.deepEqual(effects,[]);
++  const receipt=await w.store.readReceipt(w.receiptIdentity);assert.ok(receipt);
++  assert.equal(receipt.outcome.status,'committed');assert.deepEqual(batch.receipt,receipt);
++  const association=readScenarioReceiptAssociation(receipt);assert.ok(association);
++  assert.deepEqual(association.observations.map(value=>[value.row.id,value.row.version]),[[row.id,row.version]],'root admission version stays original');
++  assert.equal(association.calls?.length,1);const call=association.calls![0]!;
++  assert.deepEqual(call.references.map(value=>[value.row.id,value.row.version]),
++    [[row.id,current.version],[row.id,current.version],[second.id,second.version],[row.id,current.version]]);
++  assert.deepEqual(call.result,[current,second].map(value=>({task:{id:value.id,version:String(value.version)},
++    version:String(value.version),visible:value.data['visible']})));
++  assert.deepEqual(association.changed.map(value=>value.row),[current]);
++  const namespace=await import(w.asm.moduleUrls[modulePath]!);
++  assert.deepEqual(namespace.inspectChild().inputSnapshot,{record:{id:row.id,version:BigInt(current.version)},
++    targets:[current,second,current].map(value=>({id:value.id,version:BigInt(value.version)})),frozen:true,repeated:true});
++  const after=await w.snapshot();assert.equal(after.revision,before.revision+1);
++  assert.deepEqual(after.rows,before.rows.map(value=>value.id===row.id?current:value));
++  assert.deepEqual(after.outbox,before.outbox);assert.deepEqual(after.schedules,before.schedules);
++  const expectedHistories=histories.map((history,index)=>before.rows[index]!.id===row.id?[...history,...batch.history]:history);
++  assert.deepEqual(await Promise.all(after.rows.map(value=>w.store.historyFor(model,value.id))),expectedHistories);
++  await assert.rejects(namespace.lateParentCall(),/closed|active|frame/i);
++  await assert.rejects(namespace.lateChildQuery(),/closed|active|frame/i);
++  for(const dedicated of [false,true]) {
++    const saved=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
++      :await w.invoker().invokeMutation(envelope,w.identity);
++    assert.ok('result' in saved,JSON.stringify(saved));assert.equal(saved.result.status,'replayed');assert.equal(saved.result.result,'original visible');
++    assert.deepEqual(await w.snapshot(),after);assert.deepEqual(await w.store.readReceipt(w.receiptIdentity),receipt);
++    assert.deepEqual(await Promise.all(after.rows.map(value=>w.store.historyFor(model,value.id))),expectedHistories);
++  }
++  assert.deepEqual(w.counters(),{commits:0,files:0,executions:2});
++});
++
+ it('caught protected read child input and write refusals roll back the actual parent stage and close its lifetime', async () => {
+-  for(const mode of ['copied-reference','wrong-model','malformed-array','array-bound','omitted-array','read-write']) {
+-    const w=await world(false,true,undefined,artifact=>referenceReadChildFixture(artifact,mode),false);
++  for(const mode of ['copied-reference','wrong-model','malformed-array','array-bound','omitted-array','read-write','stored-missing','stored-copied','stored-foreign']) {
++    const base=await world(false,true,undefined,artifact=>referenceReadChildFixture(artifact,mode),false);
++    const stored=mode.startsWith('stored-');
++    let row=base.row;
++    if(stored) row=await updateRow(base.store,model,row,{data:{...row.data,
++      link:{id:mode==='stored-missing'?'selected-missing':row.id},links:[{id:row.id},{id:row.id},{id:row.id}],unused:{id:'never-selected-missing'}}});
++    const w={...base,row};
+     const second=await seedRow(w.store,model,{id:'rec-2',data:{visible:'second visible',private:'second private',token:'second secret'}});
+     const other=mode==='wrong-model'?await seedRow(w.store,'Shop.Other' as ModelName,
+       {data:{visible:'other visible',private:'other private',token:'other secret'}}):undefined;
+@@ -1612,6 +1681,16 @@ it('caught protected read child input and write refusals roll back the actual pa
+     const ref=(row:typeof w.row)=>({id:row.id,version:String(row.version)});
+     const envelope={...w.envelope,inputs:{record:ref(w.row),targets:[ref(w.row),ref(second),ref(w.row)],
+       ...(other===undefined?{}:{other:ref(other)})}};
++    if(mode==='stored-foreign') {
++      const original=await w.invoker().invokeMutation({...envelope,operation_id:uuidv7(FIXED_NOW,++sequence)},w.identity);
++      assert.ok('result' in original,JSON.stringify(original));assert.equal(original.result.status,'committed');
++      const namespace=await import(w.asm.moduleUrls[modulePath]!);
++      const foreign=namespace.inspectChild().storedOperand;
++      assert.ok(foreign,'operand must come from the actual prior, now closed parent');
++      namespace.setHandlerProbe(()=>foreign);
++      const current=await w.store.load(model,w.row.id);assert.ok(current);w.row=current;
++      envelope.inputs.record=ref(current);envelope.inputs.targets=[ref(current),ref(second),ref(current)];
++    }
+     const before=await w.snapshot(), histories=await Promise.all(before.rows.map(row=>w.store.historyFor(model,row.id)));
+     const producerBytes=JSON.stringify({sources:w.artifact.sources,modules:w.artifact.modules});
+     const batches:Parameters<StoragePort['commit']>[0][]=[];
+@@ -1645,7 +1724,7 @@ it('caught protected read child input and write refusals roll back the actual pa
+       error instanceof Error && 'code' in error && error.code==='validation' &&
+       error.message==='Saved scenario: owner session is closed, finalized or poisoned.');
+     assert.deepEqual(await w.snapshot(),after);
+-    assert.deepEqual(w.counters(),{commits:0,files:0,executions:mode==='read-write'?2:1});
++    assert.deepEqual(w.counters(),{commits:0,files:0,executions:mode==='read-write'?2:mode==='stored-foreign'?3:1});
+   }
+ });
+ for (const kind of ['populated', 'filtered', 'vacant']) it(`native query adapter retains ${kind} candidates and exact nominal replay`, async () => {

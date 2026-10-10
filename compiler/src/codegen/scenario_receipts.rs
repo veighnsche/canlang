@@ -16,7 +16,7 @@ use super::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrEffectCallTarget, IrExpr, IrGuard, IrItem, IrItemKind,
     IrProgram, IrStmt, IrType, TypedExpr,
 };
-use super::js::{JsModel, JsModelField, JsModelFieldType};
+use super::js::{JsModel, JsModelField, JsModelFieldType, JsValueTypes};
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptSource {
@@ -196,6 +196,7 @@ pub(super) fn collect_native_scenario_receipt(
     models: &[JsModel],
     entry_module: &str,
     db: Option<&SourceDb>,
+    value_types: Option<&JsValueTypes>,
 ) -> Option<NativeScenarioReceipt> {
     let IrItemKind::Scenario {
         trusted: false,
@@ -526,6 +527,19 @@ pub(super) fn collect_native_scenario_receipt(
                     return None;
                 }
                 inline
+            } else if let Some(contract) = stored_contract_inventory_type(
+                ir,
+                value_types,
+                ty,
+                declared[0],
+                stored,
+                checked.source_facts.as_deref(),
+                db,
+            ) {
+                if transition.is_some() || contract != dependency.type_id {
+                    return None;
+                }
+                contract
             } else {
                 if transition.is_some()
                     || !supported_type_id(&dependency.type_id)
@@ -895,6 +909,240 @@ fn inventory_type(field: &JsModelField) -> Option<String> {
         if field.nullable { "?" } else { "" }
     );
     supported_type_id(&type_id).then_some(type_id)
+}
+
+/// Only an owning whole stored contract dependency uses this codec. Its local
+/// members are already canonical values; neither nominal results nor stored
+/// reference views gain admission here.
+fn stored_contract_inventory_type(
+    ir: &IrProgram,
+    value_types: Option<&JsValueTypes>,
+    ty: &ResolvedType,
+    field: &JsModelField,
+    stored: &IrItem,
+    source: Option<&crate::analysis::scenario_disclosure::CheckedScenarioSource>,
+    db: Option<&SourceDb>,
+) -> Option<String> {
+    let ResolvedType::Record { symbol, .. } = ty else {
+        return None;
+    };
+    let declaration = ir.items.get(symbol.0 as usize)?;
+    let IrItemKind::Contract { fields, .. } = &declaration.kind else {
+        return None;
+    };
+    let JsModelFieldType::Nominal { name } = &field.field else {
+        return None;
+    };
+    if declaration.id != *symbol
+        || name != &declaration.canonical
+        || field.value_type.as_deref() != Some(declaration.canonical.as_str())
+        || field.nullable
+        || field.array_required.is_some()
+        || field.machine.is_some()
+        || fields.is_empty()
+        || fields.len() > 200
+    {
+        return None;
+    }
+    let db = db?;
+    let inventory = source?.stored_contracts.as_deref()?;
+    let mut roots = inventory
+        .iter()
+        .filter(|schema| schema.model && schema.fields.iter().any(|field| field.id == stored.id));
+    let root = roots.next()?;
+    if roots.next().is_some() {
+        return None;
+    }
+    match_stored_contract_schema(ir, root, db)?;
+    let original = root.fields.iter().find(|field| field.id == stored.id)?;
+    match_stored_contract_field(ir, original, db)?;
+    if original.ty != *ty {
+        return None;
+    }
+    let value_types = value_types?;
+    let mut pending = vec![*symbol];
+    let mut seen = HashSet::new();
+    while let Some(id) = pending.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        if seen.len() > 200 {
+            return None;
+        }
+        let mut schemas = inventory
+            .iter()
+            .filter(|schema| !schema.model && schema.id == id);
+        let schema = schemas.next()?;
+        if schemas.next().is_some() {
+            return None;
+        }
+        match_stored_contract_schema(ir, schema, db)?;
+        let mut contracts = value_types
+            .contracts
+            .iter()
+            .filter(|contract| contract.name == schema.canonical);
+        let contract = contracts.next()?;
+        if contracts.next().is_some() || contract.fields.len() != schema.fields.len() {
+            return None;
+        }
+        for (original, leaf) in schema.fields.iter().zip(&contract.fields) {
+            match_stored_contract_field(ir, original, db)?;
+            let mut constraints = original.constraints.as_ref().map_or_else(
+                super::js::JsValueConstraints::default,
+                super::js::JsValueConstraints::from,
+            );
+            if original.trim {
+                constraints.trim = Some(true);
+            }
+            if original.constraints.is_none() {
+                let mut base = &original.ty;
+                while let ResolvedType::Nullable(inner) = base {
+                    base = inner;
+                }
+                let length = matches!(base, ResolvedType::Array { .. })
+                    || matches!(base, ResolvedType::Scalar(scalar) if scalar.is_string_like());
+                let bound = |value: i64| {
+                    if length {
+                        serde_json::Value::from(value)
+                    } else {
+                        serde_json::Value::String(value.to_string())
+                    }
+                };
+                constraints.min = original.min.as_ref().map(|(_, value, _)| bound(*value));
+                constraints.max = original.max.as_ref().map(|(_, value, _)| bound(*value));
+            }
+            let expected = super::js::JsNominalLeaf {
+                name: original.name.clone(),
+                declared: original.declared.clone(),
+                constraints,
+            };
+            if serde_json::to_value(leaf).ok()? != serde_json::to_value(&expected).ok()? {
+                return None;
+            }
+            let mut base = &original.ty;
+            let mut depth = 0;
+            while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } =
+                base
+            {
+                depth += 1;
+                if depth > 64 {
+                    return None;
+                }
+                base = inner;
+            }
+            if let ResolvedType::Record { symbol, .. } = base
+                && (inventory
+                    .iter()
+                    .any(|schema| !schema.model && schema.id == *symbol)
+                    || matches!(
+                        ir.items.get(symbol.0 as usize)?.kind,
+                        IrItemKind::Contract { .. }
+                    ))
+            {
+                pending.push(*symbol);
+                if pending.len() > 4096 {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(declaration.canonical.clone())
+}
+
+fn match_stored_contract_schema(
+    ir: &IrProgram,
+    schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    db: &SourceDb,
+) -> Option<()> {
+    let item = ir.items.get(schema.id.0 as usize)?;
+    let fields = match &item.kind {
+        IrItemKind::Model { fields, .. } if schema.model => fields,
+        IrItemKind::Contract { fields, .. } if !schema.model => fields,
+        _ => return None,
+    };
+    if item.id != schema.id
+        || item.canonical != schema.canonical
+        || item.module != schema.module
+        || item.span != schema.span
+        || fields != &schema.field_order
+        || (!schema.model
+            && schema
+                .fields
+                .iter()
+                .map(|field| field.id)
+                .collect::<Vec<_>>()
+                != *fields)
+    {
+        return None;
+    }
+    match_stored_contract_source(ir, &schema.source, item.span, db)
+}
+
+fn match_stored_contract_field(
+    ir: &IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    db: &SourceDb,
+) -> Option<()> {
+    let member = ir.items.get(original.id.0 as usize)?;
+    let IrItemKind::Field {
+        owner,
+        ty: IrType::Known(ty),
+        required_array,
+        modifiers,
+        ..
+    } = &member.kind
+    else {
+        return None;
+    };
+    if member.id != original.id
+        || member.canonical != original.canonical
+        || member.name != original.name
+        || member.span != original.span
+        || *owner != original.owner
+        || ty != &original.ty
+        || *required_array != original.required_array
+        || ir.value_constraints.get(&member.id) != original.constraints.as_ref()
+        || modifiers.trim != original.trim
+    {
+        return None;
+    }
+    for (actual, expected) in [
+        (&modifiers.min, original.min.as_ref()),
+        (&modifiers.max, original.max.as_ref()),
+    ] {
+        match (actual, expected) {
+            (None, None) => {}
+            (Some(actual), Some((node, value, source)))
+                if actual.span == node_span(*node)
+                    && matches!(actual.expr, IrExpr::Int(actual) if actual == i128::from(*value)) =>
+            {
+                match_stored_contract_source(ir, source, actual.span, db)?;
+            }
+            _ => return None,
+        }
+    }
+    match_stored_contract_source(ir, &original.source, member.span, db)
+}
+
+fn match_stored_contract_source(
+    ir: &IrProgram,
+    source: &DisclosureSource,
+    span: Span,
+    db: &SourceDb,
+) -> Option<()> {
+    let module = owning_module(ir, span)?;
+    let file = db.get(module.file)?;
+    (module.name == source.module
+        && file.path == source.path
+        && file.sha256 == source.sha256
+        && file.sha256 == sha256_hex(file.text.as_bytes())
+        && span.end as usize <= file.text.len()
+        && db
+            .iter()
+            .filter(|(_, file)| file.path == source.path)
+            .count()
+            == 1)
+        .then_some(())
 }
 
 fn valid_choice(
@@ -1715,7 +1963,12 @@ impl<'a> Sites<'a> {
                         // A checked bound-child predicate reads only the
                         // retained projection. Its element-local decisions
                         // belong to Values, not once-per-parent observations.
-                        if retained_contract_predicate(expression, target, args).is_some() {
+                        if let Some(domain) = retained_contract_predicate(expression, target, args)
+                        {
+                            // The domain is evaluated once outside the callback.
+                            // Stored contract domains capture their real root
+                            // field here; nested alias leaves create no sites.
+                            push!(Visit::Expression(domain));
                             continue;
                         }
                         extend!(args.iter().map(Visit::Expression));
@@ -1810,11 +2063,11 @@ impl<'a> Sites<'a> {
     }
 }
 
-fn retained_contract_predicate(
+fn retained_contract_predicate<'a>(
     expression: &TypedExpr,
     target: &IrCallTarget,
-    args: &[TypedExpr],
-) -> Option<()> {
+    args: &'a [TypedExpr],
+) -> Option<&'a TypedExpr> {
     let IrCallTarget::Builtin { id, awaited: false } = target else {
         return None;
     };
@@ -1871,7 +2124,7 @@ fn retained_contract_predicate(
         || base.span.file != fact.domain.file
         || base.span.start < fact.domain.start
         || base.span.end > fact.domain.end
-        || !matches!(base.expr, IrExpr::Name(_))
+        || !matches!(base.expr, IrExpr::Name(_) | IrExpr::Member { .. })
         || query.parent.is_some()
         || query.where_pred.is_some()
         || query.where_async
@@ -1894,7 +2147,7 @@ fn retained_contract_predicate(
         IrExpr::BoundCall { slots, .. } => slots.clone(),
         _ => (0..args.len()).map(Some).collect(),
     };
-    (slots.as_slice() == [Some(fact.slots[0]), Some(fact.slots[1])]).then_some(())
+    (slots.as_slice() == [Some(fact.slots[0]), Some(fact.slots[1])]).then_some(base.as_ref())
 }
 
 #[derive(Clone, Default)]

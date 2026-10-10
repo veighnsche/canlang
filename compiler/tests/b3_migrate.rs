@@ -333,6 +333,7 @@ fn artifact_carries_migration_registry() {
         operations: Vec::new(),
         value_types: None,
         model_policies: None,
+        committed_changes: None,
         stdlib_imports: BTreeSet::new(),
         ui_imports: BTreeSet::new(),
     };

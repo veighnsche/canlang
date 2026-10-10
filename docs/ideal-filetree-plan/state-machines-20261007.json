@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "d47f889b218bc5c029dac0801230fdcb6ce12478",
+  "integrated_source_pin": "3add4d856f325f309bc55087f8cf8fdc7e5b0f4e",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1874,
-    "net_path_deltas": 10860,
-    "history_touched_paths": 11404,
+    "commit_count_since_checkpoint": 1926,
+    "net_path_deltas": 10869,
+    "history_touched_paths": 11413,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9357,
-    "scope": "Capability worker intake of exact coordinator source d47f889b218bc5c029dac0801230fdcb6ce12478 onto worker e756a007d4fa3c46cf940090cb383aafd963f4a9; actual staged merge tree and both complete parent histories since checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing per-path physical owners, accepted feature scopes and target allocations from both parents are retained; new actual paths remain inherited-unallocated under their defining package. Retirements, 79 released feature paths, 30 target leaves and precise existing holds remain unchanged. Scoped source checks do not establish complete workflows or full source/target closure. Complete checkpoint is unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9366,
+    "scope": "Capability worker intake of exact coordinator source 3add4d856f325f309bc55087f8cf8fdc7e5b0f4e onto worker fb0aebd013d7857dfa7f30a08d9b82d015c672f0; actual staged merge tree and both complete parent histories since checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing per-path physical owners, accepted feature scopes and target allocations from both parents are retained; new actual paths remain inherited-unallocated under their defining package. Retirements, 79 released feature paths, 30 target leaves and precise existing holds remain unchanged. Scoped source checks do not establish complete workflows or full source/target closure. Complete checkpoint is unadvanced."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged Capability worker merge tree; exact coordinator intake onto worker parent)",
@@ -728,6 +728,12 @@
     ],
     [
       "A",
+      "compiler/tests/committed_change_runtime.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "compiler/tests/common/lsp_driver.rs",
       "compiler",
       "inherited"
@@ -945,6 +951,12 @@
     [
       "A",
       "compiler/tests/fixtures/collection-call-consumer.mjs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/tests/fixtures/committed_change.can",
       "compiler",
       "inherited-unallocated"
     ],
@@ -21498,6 +21510,12 @@
     [
       "A",
       "implementation/can-dev-server/unfinished-cloud-handoff/office-business/probe.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/stored-reference-hydration.unfinished.patch",
       "implementation",
       "inherited-unallocated"
     ],
@@ -60638,6 +60656,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/test/scenario-file-consumer.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/test/session-example-control.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -62078,6 +62102,18 @@
     ],
     [
       "A",
+      "packages/state/src/invocation/scenario-stored-reference.test.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/state/src/invocation/scenario-stored-reference.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/state/src/invocation/scenario-stored-value.test.ts",
       "packages/state",
       "inherited-unallocated"
@@ -62231,6 +62267,12 @@
       "packages/state/src/mutation/pipeline.ts",
       "packages/state",
       "feature"
+    ],
+    [
+      "A",
+      "packages/state/src/mutation/source-finalization.ts",
+      "packages/state",
+      "inherited-unallocated"
     ],
     [
       "A",
@@ -64574,6 +64616,12 @@
     ],
     [
       "A",
+      "packages/work/src/kernel/committed-model-source.ts",
+      "packages/work",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/work/src/kernel/dispatch-staging.ts",
       "packages/work",
       "inherited-unallocated"
@@ -64721,6 +64769,12 @@
       "packages/work/test/b3-mirror-conformance.test.ts",
       "packages/work",
       "inherited"
+    ],
+    [
+      "A",
+      "packages/work/test/committed-model-source.test.ts",
+      "packages/work",
+      "inherited-unallocated"
     ],
     [
       "M",
@@ -67796,7 +67850,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9357,
+    "count": 9366,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67810,5 +67864,5 @@
   "lanes": "Existing four local worktrees retain their assigned plans; this Capability worker intake reconciles only the exact coordinator snapshot with its staged worker tree. Open edits, physical owners and recipient-specific holds remain preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker intake of exact coordinator source d47f889b218bc5c029dac0801230fdcb6ce12478 onto worker e756a007d4fa3c46cf940090cb383aafd963f4a9; actual staged merge tree and both complete parent histories since checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing per-path physical owners, accepted feature scopes and target allocations from both parents are retained; new actual paths remain inherited-unallocated under their defining package. Retirements, 79 released feature paths, 30 target leaves and precise existing holds remain unchanged. Scoped source checks do not establish complete workflows or full source/target closure. Complete checkpoint is unadvanced."
+  "current_maintenance_summary": "Capability worker intake of exact coordinator source 3add4d856f325f309bc55087f8cf8fdc7e5b0f4e onto worker fb0aebd013d7857dfa7f30a08d9b82d015c672f0; actual staged merge tree and both complete parent histories since checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing per-path physical owners, accepted feature scopes and target allocations from both parents are retained; new actual paths remain inherited-unallocated under their defining package. Retirements, 79 released feature paths, 30 target leaves and precise existing holds remain unchanged. Scoped source checks do not establish complete workflows or full source/target closure. Complete checkpoint is unadvanced."
 }
