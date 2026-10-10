@@ -35,6 +35,8 @@ import type {
 } from '@canlang/contracts';
 import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import { RECEIPT_MODEL, readReceiptRow, withReceiptRowData } from '@canlang/state/receipt/tables';
+export { createStandardCompletionSourceCommand } from './standard-completion-source.js';
+export type { StandardCompletionDeclaration, StandardCompletionSourceBounds, StandardCompletionSourceOptions } from './standard-completion-source.js';
 import type {
   SystemCommandContext,
   SystemCommandDef,
