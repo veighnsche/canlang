@@ -587,3 +587,128 @@ test('native File retirement guards every owner writer and resumes original SQLi
       assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
     } finally {physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
   });
+
+test('unchanged TypedFileJourney installs its emitted empty File inventory and retires replaced references across reopen',
+  {timeout:120000}, async () => {
+    const fixture=fileURLToPath(new URL('./fixtures/typed-file-journey.can',import.meta.url));
+    const compiler=join(root,'compiler/target/debug/can'),catalog=fileURLToPath(distribution.catalog);
+    const paths=[fixture,compiler,catalog],digest=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
+    const hashes=await Promise.all(paths.map(async path=>digest(await readFile(path))));
+    const dir=await mkdtemp(join(tmpdir(),'can-file-empty-inventory-')),filePath=join(dir,'files.sqlite');
+    let worker:Miniflare|undefined,physical:SqliteFileStore|undefined,sequence=0,now=FIXED_NOW;
+    const clock={nowMs:()=>now},retention={unattachedHorizonMs:120000,retentionMs:600000};
+    const nextId=()=>asOperationId(uuidv7(FIXED_NOW,++sequence));
+    try {
+      const env={...process.env};delete env.CAN_CATALOG;
+      // This original void scenario stays on the ordinary native path.
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--catalog',catalog,fixture],
+        {cwd:root,env,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact,originalArtifact=JSON.stringify(artifact);
+      assert.deepEqual(artifact.valueTypes,{contracts:[]},'actual Compiler declaration census, not a host-supplied empty schema');
+      assert.ok(artifact.sources.some(source=>resolve(source.path)===fixture&&source.sha256===hashes[0]));
+      const attachDescriptor=artifact.operations?.find(operation=>operation.name===`${APP}.attach`);
+      assert.ok(attachDescriptor);assert.deepEqual(attachDescriptor.result,{type:'void'},'unchanged void source claims no saved result disclosure');
+      const asm=await assembleModules({artifact,sourcePath:fixture},{workDir:join(dir,'modules'),
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,script:'export default {fetch(){return new Response("ok")}}',
+        d1Databases:{IDENTITY:'empty-inventory-identity',OWNER:'empty-inventory-owner'},d1Persist:join(dir,'d1')});
+      const idDb=await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const db=await worker.getD1Database('OWNER') as unknown as D1Database;
+      await ensureIdentitySchema(idDb);await ensureSchema(db);
+      const identities=createD1IdentityStore(idDb,{clock}),team=await identities.createTeam({timezone:'UTC'});
+      const user=await identities.createUser({email:'empty-inventory@example.test',password_hash:'unused',email_verified:true});
+      await identities.createMembership({user_id:user.user_id,team_id:team.team_id,is_owner:true,roles:[]});
+      const grant=await issueMcpGrant(identities,{user_id:user.user_id,team_id:team.team_id,client_id:'empty-inventory'},{clock});
+      const identity=await resolveIdentity(identities,{mcp_grant_token:grant.token},{clock});
+      assert.equal(identity.actor?.user_id,user.user_id);assert.equal(identity.team?.team_id,team.team_id);
+      physical=createSqliteFileStore(filePath);
+      const input={artifact,asm,scope:{app:APP,ownerPackage:APP,owner:team.team_id},identities,db,
+        stateStoreId:'typed-file-empty-inventory',physicalSqliteFileStore:physical,initializeFresh:true as const,
+        clock,intentTtlMs:60000,urlBase:'https://test.invalid',retention,maxRows:100,maxReferences:100};
+      let binding=await createNativeFileRetirementBinding(input);
+      const installed=await binding.store.readFileReferenceInventory(APP);assert.ok(installed);
+      assert.deepEqual(installed.inventory.valueTypes,{contracts:[]});
+      assert.deepEqual(installed.inventory.artifactModels,artifact.models);
+      assert.equal(installed.inventory.frameworkModels.length,13);
+      const routed=await binding.ownerStorage.forIdentity(identity);
+      assert.deepEqual(await routed.readFileReferenceInventory(APP),installed);
+      assert.equal(routed.fileRetirementAuthority.fileStoreId,physical.fileStoreId);
+      const physicalState=()=>({fileStoreId:physical!.fileStoreId,files:physical!.files.listAll(),intents:physical!.intents.listAll(),
+        bytes:physical!.files.listAll().map(record=>physical!.blobs.read(blobKeyForFile(record.file.id))),
+        staging:physical!.intents.listAll().map(intent=>physical!.blobs.read(stagingKeyForIntent(intent.intentId)))});
+      const resources=async()=>({state:await snapshot(db),identity:await snapshot(idDb),files:physicalState()});
+      const kernel=createFileJourneyKernel(binding.bindings);
+      const upload:UploadDeps&{kernel:typeof kernel}={app:{appId:APP,brand:APP,appDefaultLocale:'en',ownerLabels:new Map()},
+        files:{usesFiles:()=>true},kernel,clock,logger:{log:()=>{}},
+        identity:{store:identities,clock,mail:{sendMail:async()=>{}},verifyBaseUrl:'',recoveryBaseUrl:'',inviteBaseUrl:'',sessionMaxAgeSeconds:3600}};
+      const handler=createBoundFileHandler({artifact,asm,store:binding.store,memberships:identities,identityStore:identities,
+        clock,upload,ownerStorage:binding.ownerStorage,retention,physicalFiles:physical.files,fileReferenceBounds:{maxRows:100,maxReferences:100}});
+      const request=(path:string,method:string,body:string|Uint8Array)=>new Request(path.startsWith('https:')?path:`https://test.invalid${path}`,
+        {method,headers:{authorization:`Bearer ${grant.token}`,'content-type':body instanceof Uint8Array?'application/octet-stream':'application/json',
+          ...(method==='PUT'?{'upload-offset':'0'}:{})},body});
+      const uploadFile=async(uploadId:string)=>{
+        const response=await handler(request('/files/intents','POST',JSON.stringify({upload_id:uploadId,operation:`${APP}.attach`,field:'/attachment',
+          arguments:{},name:'empty-inventory.pdf',type:'application/pdf',size:String(A_BYTES.length)})));
+        assert.equal(response.status,200,await response.clone().text());
+        const intent=await response.json() as {content:string;finalize:string};
+        assert.equal((await handler(request(intent.content,'PUT',A_BYTES))).status,200);
+        const finalized=await handler(request(intent.finalize,'POST',JSON.stringify({upload_id:uploadId,bytes_digest:sha256Hex(A_BYTES)})));
+        assert.equal(finalized.status,200,await finalized.clone().text());
+        const ref=(await finalized.json() as {file:string}).file;assert.equal(typeof ref,'string');return ref;
+      };
+      const invoker=buildInvoker(artifact,asm,binding.store,{appId:APP,memberships:identities,now:clock.nowMs,
+        files:createCanonicalFileBinding(kernel,retention),ownerStorage:binding.ownerStorage});
+      const create=async()=>{
+        const result=await invoker.invokeMutation({operation:`${MODEL}.create`,operation_id:nextId(),inputs:{}},identity);
+        assert.ok('result' in result,JSON.stringify(result));assert.equal(result.result.status,'committed');
+        assert.equal(result.result.records.length,1);
+        const id=result.result.records[0]!.id,row=await binding.store.load(MODEL,asId(id));assert.ok(row);
+        assert.equal(row.version,1);assert.deepEqual(row.data,{label:'Uploaded',attachment:null});return id;
+      };
+      const attach=async(id:string,ref:string)=>{
+        const before=await binding.store.load(MODEL,asId(id));assert.ok(before);
+        const operationId=nextId(),revision=await binding.store.readRevision();
+        const result=await invoker.invokeMutation({operation:`${APP}.attach`,operation_id:operationId,
+          inputs:{entry:{id,version:String(before.version)},attachment:{id:ref},accept:true}},identity);
+        assert.ok('result' in result,JSON.stringify(result));assert.equal(result.result.status,'committed');
+        const after=await binding.store.load(MODEL,asId(id));assert.ok(after);
+        assert.equal(after.version,before.version+1);assert.deepEqual(after.data,{...before.data,attachment:{id:ref}});
+        assert.equal(await binding.store.readRevision(),revision+1);
+        const receipt=await binding.store.readReceipt({app:APP,owner:team.team_id,principal:user.user_id,
+          operation:asOperation(`${APP}.attach`),operationId});assert.ok(receipt);assert.equal(receipt.outcome.status,'committed');
+        const history=await binding.store.historyFor(MODEL,after.id);assert.equal(history.length,after.version);
+        assert.equal(history.at(-1)!.operationId,operationId);assert.deepEqual(history.at(-1)!.before,before.data);
+        assert.deepEqual(history.at(-1)!.after,after.data);
+      };
+      const original=await uploadFile('original'),replacement=await uploadFile('replacement');assert.notEqual(original,replacement);
+      const first=await create(),second=await create();
+      await attach(first,original);await attach(second,replacement);
+      now=FIXED_NOW+retention.unattachedHorizonMs+1;
+      const referenced=await resources();await assert.rejects(()=>binding.retireAndDelete(original,'orphaned'));
+      assert.deepEqual(await resources(),referenced,'original source field remains a genuine retirement barrier');
+      await attach(first,replacement);
+      const beforeRetirement=await resources(),retirementRevision=await binding.store.readRevision();
+      const retired=await binding.retireAndDelete(original,'orphaned');assert.equal(retired.result,'deleted');
+      const originalDecision=await binding.store.readFinalizedFileRetirement(original);assert.deepEqual(originalDecision,retired.retirement);
+      assert.equal(await binding.store.readRevision(),retirementRevision+1);
+      const afterRetirement=await resources();
+      for(const table of Object.keys(beforeRetirement.state))if(!['file_retirements','fence','fence_log'].includes(table))
+        assert.deepEqual(afterRetirement.state[table],beforeRetirement.state[table],table);
+      assert.deepEqual(afterRetirement.identity,beforeRetirement.identity);
+      assert.equal(physical.files.get(original)?.state,'orphaned');assert.equal(physical.blobs.read(blobKeyForFile(original)),null);
+      assert.deepEqual(physical.blobs.read(blobKeyForFile(replacement)),A_BYTES);
+      const fileStoreId=physical.fileStoreId;physical.close();physical=createSqliteFileStore(filePath);
+      const reopenedArtifact=JSON.parse(originalArtifact) as CompileArtifact;
+      const reopenedAssembly=await assembleModules({artifact:reopenedArtifact,sourcePath:fixture},{workDir:join(dir,'reopened-modules'),
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      binding=await createNativeFileRetirementBinding({...input,artifact:reopenedArtifact,asm:reopenedAssembly,physicalSqliteFileStore:physical});
+      assert.equal(physical.fileStoreId,fileStoreId);
+      assert.deepEqual(await binding.store.readFileReferenceInventory(APP),installed);
+      assert.deepEqual(await binding.store.readFinalizedFileRetirement(original),originalDecision);
+      assert.deepEqual(await resources(),afterRetirement,'reopen preserves the installed declaration and original permanent decision');
+      const retry=await binding.retireAndDelete(original,'orphaned');assert.equal(retry.result,'already-deleted');
+      assert.deepEqual(retry.retirement,originalDecision);assert.deepEqual(await resources(),afterRetirement,'terminal retry has no effects');
+      assert.equal(JSON.stringify(artifact),originalArtifact);
+      assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
+    } finally {physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
+  });
