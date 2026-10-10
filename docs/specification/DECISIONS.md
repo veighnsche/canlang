@@ -6145,3 +6145,8 @@ Manual Files and Interfaces source reviews CLEAR for4a416a6a. Authenticated boun
 ### 2026-10-10 — consume explicit upload offsets (unfinished attachment replay)
 
 Use the owning append expectedOffset argument and canonical upload-offset header in real runtime consumers; mirror the actual conflict outcome. Missing offsets and stale ranges refuse without changing intent/staging; a full identical finalized retry preserves stored bytes and intent. Clean owning emits/root types pass and actual compiled Images provider/SQLite/D1/reopen passes1/1. Preserve the original attachment saved replay assertion: its supported execution association is absent even in a fresh successful native opt-in compile of the original source. Compiler owns that producer prerequisite, with evidence prioritized through coordinator; no invented association or weakened replay qualifies this workflow. Remote publication hold and whole-plan gates remain unchanged.
+
+
+### 2026-10-10 — retain owning optional ref-array descriptor bits (unfinished source qualification)
+
+Allow only a checked read-query protected array to retain its genuine required:false descriptor. The static child adapter still requires the explicitly authored input key and converts only live exact-parent native references; State owns the container and admission. Do not force Compiler metadata to required:true. Existing real child positive/rollback components pass2/2 with six refusal modes including omitted-array; complete compiled source qualification remains separate.
