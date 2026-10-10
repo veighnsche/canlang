@@ -434,6 +434,27 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
         collect_static_scenario_calls(&ir, parent, &emitted.operations, &db, &emitted.entry.path)
             .unwrap();
     assert_eq!(sites[0].id, again[0].id);
+    let module_dir = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        module_dir.path().join("node_modules"),
+    )
+    .unwrap();
+    std::fs::write(module_dir.path().join("positive.mjs"), &emitted.entry.js).unwrap();
+    std::fs::write(
+        module_dir.path().join("no-source.mjs"),
+        &without_source.entry.js,
+    )
+    .unwrap();
+    let expected: Vec<_> = sites.iter().map(|site|serde_json::json!({
+        "id":site.id,"source":{"path":site.source.path,"sha256":site.source.sha256,"module":site.source.module},
+        "kind":"operation","targets":[site.target],"resultType":site.interface.result,
+    })).collect();
+    std::fs::write(
+        module_dir.path().join("expected.json"),
+        serde_json::to_vec(&expected).unwrap(),
+    )
+    .unwrap();
     assert_eq!(
         sites[0].interface.to_json(),
         emitted
@@ -472,7 +493,7 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
         )
         .is_none()
     );
-    for target_skew in [true, false] {
+    for corruption in ["target", "input", "duplicate"] {
         let mut skewed = ir.clone();
         let finish = skewed
             .items
@@ -484,21 +505,32 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
         else {
             panic!("parent")
         };
-        let IrStmt::Call { target, inputs, .. } = &mut effects[0] else {
-            panic!("call")
-        };
-        if target_skew {
-            let IrEffectCallTarget::Operation { operation, .. } = target else {
-                panic!("static")
-            };
-            *operation = finish;
+        if corruption == "duplicate" {
+            // Counts still match, but the second source occurrence was
+            // omitted and the first proof cannot certify two actual calls.
+            effects[1] = effects[0].clone();
         } else {
-            let IrExpr::Object(entries) = &mut inputs.expr else {
-                panic!("input object")
+            let IrStmt::Call { target, inputs, .. } = &mut effects[0] else {
+                panic!("call")
             };
-            entries.reverse();
+            if corruption == "target" {
+                let IrEffectCallTarget::Operation { operation, .. } = target else {
+                    panic!("static")
+                };
+                *operation = finish;
+            } else {
+                let IrExpr::Object(entries) = &mut inputs.expr else {
+                    panic!("input object")
+                };
+                entries.reverse();
+            }
         }
         let refused = js::emit_program_with_native_source_receipts(&skewed, true, &db);
+        std::fs::write(
+            module_dir.path().join(format!("{corruption}-skew.mjs")),
+            &refused.entry.js,
+        )
+        .unwrap();
         assert!(
             refused
                 .operations
@@ -520,6 +552,46 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
             .is_none()
         );
     }
+    let runner = r#"import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {registerHooks} from 'node:module';
+import {pathToFileURL} from 'node:url';
+// The real native host maps this emitted specifier to its public facade.
+// Preserve generated module bytes; neither this loader nor the test executes handlers.
+registerHooks({resolve(specifier,context,next){return specifier==='@canlang/stdlib'
+ ?{url:pathToFileURL(process.argv[2]).href,shortCircuit:true}:next(specifier,context);}});
+const expected=JSON.parse(readFileSync(new URL('./expected.json',import.meta.url),'utf8'));
+const positive=await import('./positive.mjs');
+const carrier=positive.appDefinition.operations['CallProfile.parent'].callSites;
+assert.deepEqual(carrier,expected,'actual emitted registry retains checked call order and identity');
+const owning=positive.canApp().operations;
+const parent=owning.find(op=>op.name==='CallProfile.parent');
+for(const site of carrier){
+ assert.deepEqual(Object.keys(site).sort(),['id','kind','resultType','source','targets']);
+ assert.deepEqual(Object.keys(site.source).sort(),['module','path','sha256']);
+ assert.deepEqual(site.source,parent.result.disclosure.source);
+ assert.equal(site.kind,'operation');assert.equal(site.targets.length,1);
+ assert.equal(site.resultType,owning.find(op=>op.name===site.targets[0]).result?.type??null);
+}
+assert.notEqual(carrier[0].id,carrier[1].id);
+for(const file of ['no-source','target-skew','input-skew','duplicate-skew']){
+ const module=await import(`./${file}.mjs`);
+ assert.equal(Object.hasOwn(module.appDefinition.operations['CallProfile.parent'],'callSites'),false,'unproved source/target/ordered inputs have no public callSites carrier');
+}
+// Refused call handlers are deliberately never invoked.
+"#;
+    std::fs::write(module_dir.path().join("inspect.mjs"), runner).unwrap();
+    let inspected = Command::new("node")
+        .arg(module_dir.path().join("inspect.mjs"))
+        .arg(root().join("packages/cloudflare/dist/runtime/stdlib.js"))
+        .output()
+        .unwrap();
+    assert!(
+        inspected.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&inspected.stdout),
+        String::from_utf8_lossy(&inspected.stderr)
+    );
     // State bounds the aggregate nested execution, not merely each callee's
     // local inventory: one branch call plus 199 leaves is 200 occurrences.
     for leaves in [199, 200] {

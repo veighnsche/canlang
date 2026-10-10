@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T01:12:10.019796+00:00",
+  "updated_utc": "2026-10-10T01:17:53.667343+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -105,10 +105,10 @@
     "targets": 129
   },
   "latest_component": {
-    "base_commit": "146cc8bfef1c64773dced3a232721f0289450cba",
-    "state": "static_call_correspondence_current_whole_qualified_executable_join_unfinished",
-    "outcome": "Exact source/acfae291 all129targets1356passed/0failed/0ignored/0filtered; required real completion engines/corpus/native/permission bodies, zero skips. Source18/18, invocation6/6 including200/201 boundary, strict all-target lint/format pass. Existing source/emitted descriptor producer consumed; E6008 retained.",
-    "remaining": "Reviewed State3e9 mutation-call API consumed. Dev actual private source-bound facade/site carrier requires State-issued actual parent call pointer; original read/query Fact[] closure, dynamic/as result binding, authored CRUD normalization, defaults/framework/composite provenance remain defining owner joins. Original58/67 and exact holds unchanged."
+    "base_commit": "fea029b9",
+    "state": "call_sites_carrier_and_proof_bijection_qualified_unfinished_native_join",
+    "outcome": "ActualgeneratedJSmodule imports using genuine native host @canlang/stdlib mapping; closedkeys/source/IDs/order/targets/results and absenceonunprovedparents passchangedcase1/1, unchangedowning5 reused. Emitter121/121 and focusedstrictClippy/fmt0 pass. Refusedcallhandlersnotexecuted. Coordinatorfea029 review found duplicateIRcalls could consume sameproof and omit another with equalcounts. Collector now consumes unique sourceproofNodeKeys and requires all callproofs. Existing directhelper/emitter/actualNode module control refuses duplicate/omittedoccurrence.",
+    "remaining": "Released Statee73 parent lifetime + Deve090 facade at reviewedLOCAL6b5a04a6 await exact compiler intake. Dev actual verified-operation producer/adapter binding is still required before E6008 lift. Original Workbench read/queryFact[] closure, protecteddynamic/as/CRUD normalization/default/framework/composite profiles remain definingownerjoins."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Task39 static unused-call source/native correspondence prepared against reviewed State3e9/LOCAL146cc8bf. Source18/18, invocation6/6, changed aggregate200/201 limit1/1, all-target lint/format pass; actual dependency graph26/26 zero cached. Exact original Workbench read-vs-mutation corpus delta is sole nullable Proposal E3003,75vs76; corrected corpus pin and exact savedacfae291 full129targets1356/0/0/0, zero body skips, required real engines/native/permission bodies passed. E6008 remains pending genuine Dev facade/site carrier and State actual parent pointer. Original read/queryFact[]/dynamic/as/CRUD/default/composite joins, broader58/67 nine refs and exact holds remain. Local/manual only.",
+  "current_source_work": "Exact existingDevcallSites source carrier and coordinator duplicate/omitted sourceproof bijection fix implemented; actualmodulecase1/1 + unchangedowning5, emitter121/121, focusedstrictlint/fmt0. Earlierfull129targets1356/0/0/0 at savedacfae291 remains exactpreservedsource only. Statee73 and Deve090 availableat reviewedLOCAL6b5a04a6 for exactintake after coherentunit; verified nativeproducerbinding pending, E6008 remains. OriginalreadFact[]/dynamic/as/CRUD/default/composite, broader58/67 nine refs and exactholds remain. Local/manualonly.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -449,13 +449,13 @@
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
-    "current_head_is_qualified": true,
+    "current_head_is_qualified": false,
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
     "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
     "remaining_dependencies": "Reviewed State3e9 mutation-call API consumed. Dev actual private source-bound facade/site carrier requires State-issued actual parent call pointer; original read/query Fact[] closure, dynamic/as result binding, authored CRUD normalization, defaults/framework/composite provenance remain defining owner joins. Dev original Text/wholeT04+UI and broad nine owner-dependent refs/holds remain.",
-    "subsequent_focused_qualification": "Static source/native call correspondence and original read-narrowing corpus count correction are included in this full tuple; CALL remains E6008. No native child call/originalTask39 acceptance."
+    "subsequent_focused_qualification": "New exact DevcallSites producer and coordinator duplicate/omitted proof correction pass actualcarrier1/1, unchangedowning5 and emitter121/121 reused, focused strictlint/fmt0. The full1356 source before this carrier/fix remains historical at savedacfae291; no newer whole/nativecall claimed."
   },
   "construct_help_first_profile": {
     "state": "compiler_prerequisite_and_selected_native_core_qualified_full_profile_open",
@@ -523,9 +523,9 @@
     "target": "compiler/tests/invocation_references.rs",
     "result": "5/5 Node24 actual installed catalog/CLI; call controls8/8; emitter121/121 prior unchanged after isolated read-narrow correction; strict all-target lint/format0.",
     "behavior": "Actual dynamic operands separated from declaring SymbolIds; owning parameter/model/result schemas retained by index, authored input order/typed shorthand/source anchors, as bindings and value/void/opaque result facts. Exact read-scenario static calls preserve member-path narrowing; mutating/dynamic/unknown calls invalidate.",
-    "blocked_on": "Reviewed State3e9 mutation-call API consumed. Dev actual private source-bound facade/site carrier requires State-issued actual parent call pointer; original read/query Fact[] closure, dynamic/as result binding, authored CRUD normalization, defaults/framework/composite provenance remain defining owner joins.",
+    "blocked_on": "Released Statee73 parent lifetime + Deve090 facade at reviewedLOCAL6b5a04a6 await exact compiler intake. Dev actual verified-operation producer/adapter binding is still required before E6008 lift. Original Workbench read/queryFact[] closure, protecteddynamic/as/CRUD normalization/default/framework/composite profiles remain definingownerjoins.",
     "refusal": "Actual CLI refuses canonical calls E6008 with no modules/no E6006 gap. Structural InvocationRef packaging/direct handlers/child context/nested invocation,receipt,commit are not substitutes.",
-    "qualification": "Source/emitter correspondence and current whole compiler tuple qualify at exact savedacfae291,1356/0/0/0. No native call/originalTask39 acceptance, broader task credit or BDD3/Task22 hold lift.",
+    "qualification": "Currentcarrier/fix qualifies its changed producer with actual generatedmodule assertions and affectedtests. Priorfull129targets1356/0/0/0 retained only at savedacfae291 pre-carrier source. No nativecall/originalTask39/broaderreferenceacceptance or holdlift.",
     "related_argument_correction": "Existing check_action_call consumes explicit value or typed shorthand key_node for additional declaration targets. heterogeneous_action_call1/1 passes original literal, shorthand/explicit-binding exact diagnostic span parity and compatible positives. No executable call or held policy claim.",
     "static_preparation": {
       "profile": "Static mutation scenario, unused scalar/void result, complete acyclic child, required direct builtin scalar inputs in authored order; no read/dynamic/as/CRUD/default/composite widening.",
@@ -534,6 +534,12 @@
       "validation": "Source18/18; owning invocation6/6 with changed bound1/1; strict all-target Clippy/fmt0. Actual graph26/26 zero cached; finite review clear after depth/count corrections. Exact savedacfae291 whole129targets1356/0/0/0, required real engines/native/permission bodies with zero skips.",
       "corpus": "Original Workbench diagnostic count75; removing checked read=true restores sole additional E3003 (76), no other diagnostic identity drift. Corpus pin corrected.",
       "execution": "Calls remain E6008; no native call or original Task39 acceptance."
+    },
+    "carrier": {
+      "state": "implemented_tested_pending_manual_review_unfinished_native_join",
+      "shape": "Existing appDefinition.operations[parent].callSites only; sourceordered closed{id,source:{path,sha256,module},kind,targets:canonicalnames[],resultType:actualdeclaredType|null}. No clonedinterface/parallelcarrier.",
+      "correction": "Coordinatorfea029 review found duplicateIRcalls could consume sameproof and omit another with equalcounts. Collector now consumes unique sourceproofNodeKeys and requires all callproofs. Existing directhelper/emitter/actualNode module control refuses duplicate/omittedoccurrence.",
+      "validation": "ActualgeneratedJSmodule imports using genuine native host @canlang/stdlib mapping; closedkeys/source/IDs/order/targets/results and absenceonunprovedparents passchangedcase1/1, unchangedowning5 reused. Emitter121/121 and focusedstrictClippy/fmt0 pass. Refusedcallhandlersnotexecuted."
     }
   }
 }

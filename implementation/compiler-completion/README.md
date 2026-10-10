@@ -740,7 +740,7 @@ compiler leaves:
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
-| Capability Task39 protected call | Reviewed State3e9/LOCAL146cc8bf supplies same-owner mutation admission/execution. Compiler prepares bounded static unused-call disclosure and exact source/target/input/result correspondence. Dev owns the actual source-bound native facade/site carrier; its active-frame join additionally needs State to supply the genuine parent call pointer. Original Workbench context read/query Fact[], dynamic result binding and authored CRUD normalization remain defining owner joins. Calls still refuse E6008; no nested invocation, receipt or commit substitutes. Separate BDD3/Task22 holds remain. |
+| Capability Task39 protected call | Reviewed State3e9/LOCAL146cc8bf supplies same-owner mutation admission/execution. Compiler prepares bounded static unused-call disclosure and exact source/target/input/result correspondence. Dev owns the actual source-bound native facade/site carrier; State e73 parent lifetime and Dev e090 facade are released at LOCAL6b5a04a6, while the verified native producer binding remains required. Original Workbench context read/query Fact[], dynamic result binding and authored CRUD normalization remain defining owner joins. Calls still refuse E6008; no nested invocation, receipt or commit substitutes. Separate BDD3/Task22 holds remain. |
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium and2a5d2c72 temporary-profile/wait units are consumed. Actual local native forms/browser2/2 and corrected readonly polling1/1 pass; selected Images source profile still requires its artifact. Dev owns the selected-profile prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
@@ -2056,3 +2056,25 @@ real facade/site carrier and State-issued parent pointer are required before
 activation; no native child execution is claimed. Original read/query Fact[],
 protected dynamic/as/CRUD/default/composite profiles and the broader nine
 references remain open. Precise human holds and local/manual integration remain.
+
+
+**Checked callSites carrier and bijection correction (unfinished), 2026-10-10.**
+Dev's exact existing `appDefinition.operations[parent].callSites` contract now
+emits source-ordered closed sites: id, source, kind, canonical target-name
+strings and actual declared resultType (including void, without inferred CRUD
+results). The source carrier duplicates no interface schema or artifact channel.
+Actual emitted modules load through the genuine native stdlib mapping and
+qualify exact identities/source/result facts; no refused handler executes.
+Coordinator review found a collector-only duplicate/omitted occurrence gap: two
+IR calls could reuse one proof while counts matched. Consume each proof once
+and require every source call proof, with the same actual emitter/Node control
+refusing duplicate IDs and omitted occurrences. Changed owning case **1/1**,
+unchanged five owning cases and emitter **121/121**, focused strict lint and
+formatting pass. The prior full **1,356** is retained at its exact pre-carrier
+source; no newer whole or native child execution is claimed.
+
+Reviewed State e73 parent lifetime and Dev e090 stdlib facade are available at
+LOCAL6b5a04a6; consume their exact release after this coherent compiler unit.
+Dev's real verified-operation producer binding remains the activation
+prerequisite, so E6008 stays. Original Workbench/read/query Fact[], dynamic/as/
+CRUD/default/composite joins, broad nine refs and precise holds remain.
