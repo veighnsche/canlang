@@ -140,6 +140,26 @@ test('row metadata refuses an unissued module assembly before policy admission',
   } finally { world.cleanup(); }
 });
 
+test('private completion census refuses unissued modules before executing source or metadata accessors', async () => {
+  // Presence controls over the existing historical component fixture. Positive
+  // completion admission still requires the genuine checked Compiler producer.
+  const marker = '__canCompletionUnissuedImport';
+  const globals = globalThis as unknown as Record<string, unknown>;
+  for (const key of ['standardCompletions', '"standardCompletions"', '["standardCompletions"]']) {
+    const world = profile(undefined, 'historical');
+    const source = `${world.artifact.modules[0]!.js}\nconst sourceCensus={${key}:[]};\n`;
+    world.artifact.modules[0]!.js = source;
+    writeFileSync(join(world.asm.dir, 'shop.mjs'), source.replace('"@canlang/stdlib"',
+      JSON.stringify(new URL('../src/runtime/stdlib.js', import.meta.url).href)) +
+      `\nglobalThis.${marker}=true;\nObject.defineProperty(appDefinition,"standardCompletions",{get(){globalThis.${marker}="getter";return [];}});`);
+    try {
+      assert.equal(Object.hasOwn(globals, marker), false);
+      await assert.rejects(loadCanonicalDescriptors(world.asm, world.artifact), /assembler-owned/);
+      assert.equal(Object.hasOwn(globals, marker), false, 'refusal precedes both import and accessor execution');
+    } finally { delete globals[marker]; world.cleanup(); }
+  }
+});
+
 test('actual canonical create stores plain generated hex; read/query omit it but retain actor/now stamps', async () => {
   const { store } = createTestMemoryStorage();
   const world = profile();

@@ -31,7 +31,7 @@ for (const backend of ['d1', 'do'] as const) {
       } else {
         mf = new Miniflare({
           modules: true,
-          scriptPath: fileURLToPath(new URL('../../../test/storage/do-test-worker.js', import.meta.url)),
+          scriptPath: fileURLToPath(new URL('../../test/storage/do-test-worker.js', import.meta.url)),
           modulesRules: [{ type: 'ESModule', include: ['**/*.js'] }],
           compatibilityDate: '2025-01-01',
           durableObjects: { TEST_DO: { className: 'TestDO', useSQLite: true, unsafePreventEviction: true } },

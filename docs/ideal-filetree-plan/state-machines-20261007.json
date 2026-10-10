@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "7a582651024ad740b744424ebcb46749814365ef",
+  "integrated_source_pin": "24c0aaa583930f93053adaeaf51fa158c27f2b43",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2027,
-    "net_path_deltas": 10887,
-    "history_touched_paths": 11431,
+    "commit_count_since_checkpoint": 2033,
+    "net_path_deltas": 10891,
+    "history_touched_paths": 11435,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9384,
-    "scope": "Worker exact reviewed7a582651 framework prerequisite intake onto unfinished State485217b9. Actual staged tree and both complete histories since824934: 2027 commits/10887 net deltas/11431 historical paths/513 history-only/9384 pending allocations. Register owning State retirement source/test and Work framework producer/test while retaining every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all precise holds. Complete checkpoint unadvanced; Memory/D1 finite results are not DO/framework/physical deletion acceptance."
+    "inherited_paths_without_prior_target_allocation": 9388,
+    "scope": "Worker exact coordinator-reviewed24c0aaa5/4879 DO built-worker prerequisite intake onto unfinished0bd45161 and a8e40e9f. Actual staged tree and both complete histories since824934: 2033 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Register new State owning framework source/test and Work actual combined producer test plus Packages canonical worker build; preserve every prior exact allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all human holds. Complete checkpoint unadvanced; unchanged component results reused and actual changed DO qualification remains next."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -73,70 +73,10 @@
       "inherited"
     ],
     [
-      "D",
-      ".github/workflows/b1-join.yml",
-      "build",
-      "inherited"
-    ],
-    [
       "A",
       ".github/workflows/ci.yml",
       "build",
       "inherited-unallocated"
-    ],
-    [
-      "D",
-      ".github/workflows/e2e.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/integration.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/lane-01.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/lane-02.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/lane-03.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/lane-04.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/lane-05.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      ".github/workflows/lane-06.yml",
-      "build",
-      "inherited"
-    ],
-    [
-      "M",
-      ".github/workflows/release.yml",
-      "build",
-      "inherited"
     ],
     [
       "A",
@@ -145,40 +85,10 @@
       "inherited"
     ],
     [
-      "M",
-      ".gitignore",
-      "build",
-      "inherited"
-    ],
-    [
-      "M",
-      "AGENTS.md",
-      "build",
-      "inherited"
-    ],
-    [
-      "D",
-      "DECISIONS.md",
-      "build",
-      "inherited"
-    ],
-    [
       "A",
       "LICENSE",
       "build",
       "inherited"
-    ],
-    [
-      "M",
-      "README.md",
-      "build",
-      "inherited"
-    ],
-    [
-      "M",
-      "bun.lock",
-      "build",
-      "feature"
     ],
     [
       "A",
@@ -223,24 +133,6 @@
       "inherited"
     ],
     [
-      "M",
-      "compiler/Cargo.lock",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/Cargo.toml",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/README.md",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/build.rs",
       "compiler",
@@ -265,28 +157,10 @@
       "inherited"
     ],
     [
-      "M",
-      "compiler/src/analysis/catalog.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/src/analysis/cohort.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/src/analysis/effects.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/analysis/examples.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -295,70 +169,16 @@
       "inherited"
     ],
     [
-      "M",
-      "compiler/src/analysis/mod.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/analysis/resolve.rs",
-      "compiler",
-      "feature"
-    ],
-    [
       "A",
       "compiler/src/analysis/scenario_disclosure.rs",
       "compiler",
       "inherited-unallocated"
     ],
     [
-      "M",
-      "compiler/src/analysis/types.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/cli.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/codegen/artifact.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/codegen/bdd.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/src/codegen/defaults.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/src/codegen/ir.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/codegen/js.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/codegen/mod.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -397,68 +217,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "compiler/src/codegen/sourcemap.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/diagnostic.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/src/docs.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/explain.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/ide/queries.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/ide/tokens.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/json.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/lib.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/lint/driver.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/lint/rules.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/lsp/mod.rs",
       "compiler",
       "inherited"
     ],
@@ -469,28 +229,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "compiler/src/lsp/server.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/lsp/transport.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/src/lsp/uri.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/src/main.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -499,46 +241,10 @@
       "inherited"
     ],
     [
-      "M",
-      "compiler/src/source.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/src/syntax/construct_help.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/src/syntax/cst.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/src/syntax/layout.rs",
-      "compiler",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/src/syntax/lexer.rs",
-      "compiler",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/src/syntax/mod.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/src/syntax/parser.rs",
-      "compiler",
-      "feature"
     ],
     [
       "A",
@@ -557,12 +263,6 @@
       "compiler/tests/actor_fact_bindings.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/tests/analysis.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -587,18 +287,6 @@
       "compiler/tests/async_query_predicate_runtime.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/tests/authoring.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/tests/b1_join.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -691,12 +379,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "compiler/tests/check.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/tests/checked_cohort.rs",
       "compiler",
@@ -707,12 +389,6 @@
       "compiler/tests/checked_query_facts.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/tests/codegen.rs",
-      "compiler",
-      "feature"
     ],
     [
       "A",
@@ -837,12 +513,6 @@
     [
       "A",
       "compiler/tests/docs.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
-      "M",
-      "compiler/tests/effects.rs",
       "compiler",
       "inherited"
     ],
@@ -1159,18 +829,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "compiler/tests/format.rs",
-      "compiler",
-      "feature"
-    ],
-    [
-      "M",
-      "compiler/tests/foundation.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/tests/graph_width.rs",
       "compiler",
@@ -1187,12 +845,6 @@
       "compiler/tests/hook_order_rollback_runtime.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/tests/ide.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -1217,12 +869,6 @@
       "compiler/tests/json_input_contract.rs",
       "compiler",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "compiler/tests/lint.rs",
-      "compiler",
-      "inherited"
     ],
     [
       "A",
@@ -1489,12 +1135,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "compiler/tests/syntax.rs",
-      "compiler",
-      "inherited"
-    ],
-    [
       "A",
       "compiler/tests/temporal_message_types.rs",
       "compiler",
@@ -1633,18 +1273,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "design/AI-AND-SERVICE-DRAFTS.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/UI-COMPONENTS.md",
-      "design",
-      "inherited"
-    ],
-    [
       "A",
       "design/can-dev-agent-tasks.md",
       "design",
@@ -1679,49 +1307,6 @@
       "design/can-dev-session-control.md",
       "design",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "design/complex-apps/decide.md",
-      "design",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "design/complex-apps/inbox.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/delivery-recipe-overrides-20261004.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R096",
-      "EVALUATION.md",
-      "design/evaluation/PLAN.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/evaluation/briefs/ADOPTION.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/evaluation/briefs/INTERFACES.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/evaluation/briefs/LANGUAGE.md",
-      "design",
-      "inherited"
     ],
     [
       "A",
@@ -1896,25 +1481,6 @@
       "design/evaluation/can-dev-novice-20261009/raw/supplies-sol.can",
       "design",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "design/jev/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R075",
-      "design/jev/cafe-completion-20261004/analysis.md",
-      "design/jev/cafe-completion-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/cafe-completion-20261004/equivalence.md",
-      "design",
-      "inherited"
     ],
     [
       "A",
@@ -2247,110 +1813,8 @@
       "inherited-unallocated"
     ],
     [
-      "R069",
-      "design/jev/catch-intake-20261004/assessment.md",
-      "design/jev/catch-intake-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/catch-intake-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R056",
-      "design/jev/check-completion-20261004/decision.md",
-      "design/jev/check-completion-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/check-completion-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R054",
-      "design/jev/complex-enrich-20261004/assessment.md",
-      "design/jev/complex-enrich-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/complex-enrich-20261004/wording.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R059",
-      "design/jev/complex-inbox-20261004/verification.md",
-      "design/jev/complex-inbox-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/complex-inbox-20261004/authoring-comparison.md",
-      "design",
-      "inherited"
-    ],
-    [
       "A",
       "design/jev/complex-sync-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/complex-sync-20261004/assessment.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/complex-sync-20261004/wording.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/jev/crm-connections-reschedule-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/crm-connections-reschedule-20261004/verification.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R062",
-      "design/jev/daisyui-catalog-20261004/assessment.md",
-      "design/jev/daisyui-catalog-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/daisyui-catalog-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R075",
-      "design/jev/delivery-recipe-overrides-20261004/verification.md",
-      "design/jev/delivery-recipe-overrides-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/delivery-recipe-overrides-20261004/wording-check.md",
       "design",
       "inherited"
     ],
@@ -2397,201 +1861,8 @@
       "inherited"
     ],
     [
-      "R067",
-      "design/jev/desk-handoff-20261004/review.md",
-      "design/jev/desk-handoff-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/desk-handoff-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R055",
-      "design/jev/feedback-completion-20261004/analysis.md",
-      "design/jev/feedback-completion-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/feedback-completion-20261004/equivalence.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R055",
-      "design/jev/hire-onboard-20261004/assessment.md",
-      "design/jev/hire-onboard-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/hire-onboard-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
       "A",
       "design/jev/hire-retention-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/hire-retention-20261004/assessment.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/hire-retention-20261004/corrected-wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/hire-retention-20261004/correction.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/hire-retention-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R083",
-      "design/jev/loyalty-eligibility-20261004/assessment.md",
-      "design/jev/loyalty-eligibility-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/loyalty-eligibility-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R064",
-      "design/jev/maintain-inspection-progress/verification.md",
-      "design/jev/maintain-inspection-progress/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/maintain-inspection-progress/decision.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R052",
-      "design/jev/maintain-recovery-20261004/review.md",
-      "design/jev/maintain-recovery-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/maintain-recovery-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R057",
-      "design/jev/mcp-file-handoff-20261004/assessment.md",
-      "design/jev/mcp-file-handoff-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/mcp-file-handoff-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R053",
-      "design/jev/member-consumed-stage-20261004/assessment.md",
-      "design/jev/member-consumed-stage-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/member-consumed-stage-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R066",
-      "design/jev/member-owner-20261004/assessment.md",
-      "design/jev/member-owner-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/member-owner-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R069",
-      "design/jev/muse-feedback-20261004/assessment.md",
-      "design/jev/muse-feedback-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/muse-feedback-20261004/bounded-review.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R069",
-      "design/jev/record-input-admission-20261004/assessment.md",
-      "design/jev/record-input-admission-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/record-input-admission-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R064",
-      "design/jev/rent-sales-producer-20261004/assessment.md",
-      "design/jev/rent-sales-producer-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/rent-sales-producer-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "R062",
-      "design/jev/rent-sales-version-boundary-20261004/assessment.md",
-      "design/jev/rent-sales-version-boundary-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/rent-sales-version-boundary-20261004/wording-check.md",
       "design",
       "inherited"
     ],
@@ -2680,19 +1951,6 @@
       "feature"
     ],
     [
-      "R083",
-      "design/jev/stats-breakdown-20261004/assessment.md",
-      "design/jev/stats-breakdown-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/stats-breakdown-20261004/wording-check.md",
-      "design",
-      "inherited"
-    ],
-    [
       "A",
       "design/jev/t33-context-correction-20261006/README.md",
       "design",
@@ -2731,19 +1989,6 @@
     [
       "A",
       "design/jev/t33-context-correction-20261006/result-3.json",
-      "design",
-      "inherited"
-    ],
-    [
-      "R082",
-      "design/jev/time-completion-20261004/analysis.md",
-      "design/jev/time-completion-20261004/README.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "D",
-      "design/jev/time-completion-20261004/wording-check.md",
       "design",
       "inherited"
     ],
@@ -2940,44 +2185,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "design/muse-migration-20261004/feedback-design.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/muse-migration-20261004/progress-design.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/owner-fanout-20261004.md",
-      "design",
-      "inherited"
-    ],
-    [
-      "M",
-      "design/research-ai-capabilities-20261004.md",
-      "design",
-      "inherited"
-    ],
-    [
       "A",
       "docs/authoring-demo.md",
-      "docs",
-      "inherited"
-    ],
-    [
-      "M",
-      "docs/dev-setup.md",
-      "docs",
-      "inherited"
-    ],
-    [
-      "M",
-      "docs/e2e.md",
       "docs",
       "inherited"
     ],
@@ -5342,13 +4551,6 @@
     [
       "A",
       "docs/research/compiler-library-audit-20261006/pass10/verification.json",
-      "docs",
-      "inherited-unallocated"
-    ],
-    [
-      "R060",
-      "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can",
-      "docs/research/compiler-library-audit-20261006/pass10/workload/ExpenseFlow.can",
       "docs",
       "inherited-unallocated"
     ],
@@ -19903,1151 +19105,8 @@
       "feature"
     ],
     [
-      "R056",
-      "editors/vscode/audit-astra/final-changed-files/DESIGN.md",
-      "docs/specification/DESIGN.md",
-      "docs",
-      "feature"
-    ],
-    [
-      "R086",
-      "GRAMMAR.md",
-      "docs/specification/GRAMMAR.md",
-      "docs",
-      "feature"
-    ],
-    [
-      "R096",
-      "REQUIREMENTS.md",
-      "docs/specification/REQUIREMENTS.md",
-      "docs",
-      "inherited"
-    ],
-    [
-      "M",
-      "draft",
-      "build",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "editors/vscode/.empty-typeroot/.gitkeep",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/.vscodeignore",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/AUDIT-RESOLUTION.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/GRAMMAR-AUDIT.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/README.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/REPORT.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/build-inventory.py",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-during-audit.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-current-path.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/corpus-tokens.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/description-probe.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/description-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/description-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/execution-presentation-latest-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/execution-presentation-probe-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/execution-presentation-probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/execution-presentation-tokenize.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/DECISIONS.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/draft/CanField.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-file-drift.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/final-palette-swap-settings.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/followup-013-theme-evidence.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/followup-013-theme-probe.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/followup-013-theme.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/followup-013/manifest.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/followup-013/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/inventory-execution-presentation.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/inventory-foundation.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/latest-extension/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/latest-probe-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/latest-probe-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/probe-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/probe-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/probe-tokenization.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/production-coverage.csv",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/recheck-current-path.txt",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot-manifest.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/AGENTS.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/DECISIONS.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/DESIGN.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/GRAMMAR.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanApprove.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanBoard.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanBook.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanCRM.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanCatch.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanCheck.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanContract.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanDesk.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanEvent.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanExpense.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanField.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanGrant.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanHire.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanLearn.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanLeave.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanMail.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanMember.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanPropose.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanReception.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanRefer.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanRent.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanReport.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanShift.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanStats.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanStock.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanTable.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanTime.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanTrade.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/editors/vscode/README.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/editors/vscode/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/theme-installation-evidence-005813.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/theme-installation-evidence-010004.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/theme-installation-evidence-010146.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/theme-installation-evidence.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/theme-installation.md",
-      "editors",
-      "inherited"
-    ],
-    [
-      "D",
-      "editors/vscode/audit-astra/theme-probe.cjs",
       "editors",
       "inherited"
     ],
@@ -21262,30 +19321,6 @@
       "inherited"
     ],
     [
-      "M",
-      "editors/vscode/package.json",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/src/client.ts",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/src/extension.ts",
-      "editors",
-      "inherited"
-    ],
-    [
-      "M",
-      "editors/vscode/syntaxes/can.tmLanguage.json",
-      "editors",
-      "feature"
-    ],
-    [
       "A",
       "editors/vscode/test/client-currentness.cjs",
       "editors",
@@ -21328,22 +19363,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "examples/ExpenseFlow.can",
-      "examples",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "examples/Generation.can",
       "examples",
       "feature"
-    ],
-    [
-      "M",
-      "examples/TeamTasks.can",
-      "examples",
-      "inherited-unallocated"
     ],
     [
       "A",
@@ -21394,22 +19417,10 @@
       "inherited"
     ],
     [
-      "M",
-      "implementation/DIAGNOSTICS.md",
-      "implementation",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "implementation/PACKAGE-BOUNDARIES-AND-TURBO.md",
       "implementation",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "implementation/PLAN.md",
-      "implementation",
-      "inherited"
     ],
     [
       "A",
@@ -22428,13 +20439,6 @@
     [
       "A",
       "implementation/capability-roadmap-20261008/enum-comparison/originals/Generation.can",
-      "implementation",
-      "inherited-unallocated"
-    ],
-    [
-      "R084",
-      "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can",
-      "implementation/capability-roadmap-20261008/enum-comparison/originals/TeamTasks.can",
       "implementation",
       "inherited-unallocated"
     ],
@@ -26107,13 +24111,6 @@
     [
       "A",
       "implementation/compiler-completion/corpus-admission/independent-review/pins.json",
-      "implementation",
-      "inherited-unallocated"
-    ],
-    [
-      "R050",
-      "editors/vscode/audit-astra/latest-corpus-tokens.json",
-      "implementation/compiler-completion/corpus-admission/independent-review/probe",
       "implementation",
       "inherited-unallocated"
     ],
@@ -42492,13 +40489,6 @@
       "inherited-unallocated"
     ],
     [
-      "R093",
-      "DESIGN.md",
-      "implementation/compiler-completion/message-slot-coverage/source/docs/specification/DESIGN.md",
-      "implementation",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "implementation/compiler-completion/message-slot-coverage/source/packages/values/dist/catalog.json",
       "implementation",
@@ -56107,18 +54097,6 @@
       "feature"
     ],
     [
-      "M",
-      "implementation/status/frontend-catalog-migration.md",
-      "implementation",
-      "inherited"
-    ],
-    [
-      "M",
-      "implementation/status/lane-01.md",
-      "implementation",
-      "inherited"
-    ],
-    [
       "A",
       "implementation/turbo-scheduling/README.md",
       "implementation",
@@ -58939,18 +56917,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "package.json",
-      "build",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/cloudflare/README.md",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
       "A",
       "packages/cloudflare/conformance/preparation/cases.json",
       "packages/cloudflare",
@@ -58965,12 +56931,6 @@
     [
       "A",
       "packages/cloudflare/conformance/preparation/workloads.mjs",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/cloudflare/package.json",
       "packages/cloudflare",
       "inherited"
     ],
@@ -59137,12 +57097,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/cloudflare/src/cli/platform.ts",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
       "A",
       "packages/cloudflare/src/deploy/activate.ts",
       "packages/cloudflare",
@@ -59151,12 +57105,6 @@
     [
       "A",
       "packages/cloudflare/src/deploy/bundle.ts",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/cloudflare/src/deploy/compat.ts",
       "packages/cloudflare",
       "inherited"
     ],
@@ -59183,12 +57131,6 @@
       "packages/cloudflare/src/deploy/package-assets.ts",
       "packages/cloudflare",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/cloudflare/src/deploy/plan.ts",
-      "packages/cloudflare",
-      "inherited"
     ],
     [
       "A",
@@ -59291,12 +57233,6 @@
       "packages/cloudflare/src/dev/local-persistence.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/cloudflare/src/dev/local-run.ts",
-      "packages/cloudflare",
-      "inherited"
     ],
     [
       "A",
@@ -59449,12 +57385,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/cloudflare/src/runtime/artifact.ts",
-      "packages/cloudflare",
-      "feature"
-    ],
-    [
       "A",
       "packages/cloudflare/src/runtime/assembly-verification.ts",
       "packages/cloudflare",
@@ -59539,12 +57469,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/cloudflare/src/runtime/context.ts",
-      "packages/cloudflare",
-      "feature"
-    ],
-    [
       "A",
       "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
       "packages/cloudflare",
@@ -59617,12 +57541,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/cloudflare/src/runtime/invoke.ts",
-      "packages/cloudflare",
-      "feature"
-    ],
-    [
       "A",
       "packages/cloudflare/src/runtime/mcp-permissions.ts",
       "packages/cloudflare",
@@ -59639,12 +57557,6 @@
       "packages/cloudflare/src/runtime/model-rule-activation.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/cloudflare/src/runtime/modules.ts",
-      "packages/cloudflare",
-      "inherited"
     ],
     [
       "A",
@@ -59753,12 +57665,6 @@
       "packages/cloudflare/src/runtime/sourcemap.ts",
       "packages/cloudflare",
       "inherited"
-    ],
-    [
-      "M",
-      "packages/cloudflare/src/runtime/stdlib.ts",
-      "packages/cloudflare",
-      "feature"
     ],
     [
       "A",
@@ -59929,12 +57835,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/cloudflare/src/worker/assembly.ts",
-      "packages/cloudflare",
-      "feature"
-    ],
-    [
       "A",
       "packages/cloudflare/src/worker/main.ts",
       "packages/cloudflare",
@@ -59983,12 +57883,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/cloudflare/test/assembly.test.ts",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
       "A",
       "packages/cloudflare/test/browser-assets-bundle.test.ts",
       "packages/cloudflare",
@@ -60009,12 +57903,6 @@
     [
       "A",
       "packages/cloudflare/test/canonical-read-selectors.test.ts",
-      "packages/cloudflare",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/cloudflare/test/cli.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -60087,12 +57975,6 @@
     [
       "A",
       "packages/cloudflare/test/dev-session-core.test.ts",
-      "packages/cloudflare",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/cloudflare/test/dev-smoke.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -60577,12 +58459,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/cloudflare/test/modules.test.ts",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
       "A",
       "packages/cloudflare/test/multi-owner-env.test.ts",
       "packages/cloudflare",
@@ -60685,12 +58561,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/cloudflare/test/runtime-stdlib.test.ts",
-      "packages/cloudflare",
-      "feature"
-    ],
-    [
       "A",
       "packages/cloudflare/test/scenario-file-consumer.test.ts",
       "packages/cloudflare",
@@ -60733,12 +58603,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/cloudflare/test/worker-boundary.test.ts",
-      "packages/cloudflare",
-      "inherited"
-    ],
-    [
       "A",
       "packages/cloudflare/test/worker-main.test.ts",
       "packages/cloudflare",
@@ -60749,24 +58613,6 @@
       "packages/cloudflare/test/zero-config.test.ts",
       "packages/cloudflare",
       "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/README.md",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/package.json",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/artifact.ts",
-      "packages/contracts",
-      "feature"
     ],
     [
       "A",
@@ -60781,80 +58627,14 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/contracts/src/deployment.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
       "A",
       "packages/contracts/src/distribution.ts",
       "packages/contracts",
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/contracts/src/files.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/identity.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/index.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/presentation.ts",
-      "packages/contracts",
-      "feature"
-    ],
-    [
       "A",
       "packages/contracts/src/reference.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/services.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/state.ts",
-      "packages/contracts",
-      "feature"
-    ],
-    [
-      "M",
-      "packages/contracts/src/values.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/wire.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/src/work.ts",
-      "packages/contracts",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/contracts/test/assembly.test.ts",
       "packages/contracts",
       "inherited"
     ],
@@ -60895,34 +58675,10 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/files/package.json",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/bridge.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/catalog.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
       "A",
       "packages/files/src/distribution.ts",
       "packages/files",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/files/src/finalize/index.ts",
-      "packages/files",
-      "inherited"
     ],
     [
       "A",
@@ -60937,58 +58693,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/files/src/ports.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/provenance/index.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/retention/index.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/scenarios.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/upload/fs-blob-store.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/src/upload/index.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/test/bridge.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
       "A",
       "packages/files/test/completion-byte-count.test.ts",
       "packages/files",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/files/test/contract-shapes.test.ts",
-      "packages/files",
-      "inherited"
     ],
     [
       "A",
@@ -61003,86 +58711,14 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/files/test/finalize.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/test/foreign.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/test/helpers.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
       "A",
       "packages/files/test/provider-output.test.ts",
       "packages/files",
       "inherited"
     ],
     [
-      "M",
-      "packages/files/test/retention.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/test/scenarios.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/test/upload-journey.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/test/validation.test.ts",
-      "packages/files",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/files/tsconfig.json",
-      "packages/files",
-      "inherited"
-    ],
-    [
       "A",
       "packages/identity/README.md",
-      "packages/identity",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/identity/package.json",
-      "packages/identity",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/identity/src/accounts/passwords.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/identity/src/authentication/oauth.ts",
-      "packages/identity",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/identity/src/authentication/revocation.ts",
       "packages/identity",
       "inherited"
     ],
@@ -61105,22 +58741,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/identity/src/index.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
       "A",
       "packages/identity/src/membership-snapshot.ts",
       "packages/identity",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/identity/src/ports.ts",
-      "packages/identity",
-      "inherited"
     ],
     [
       "A",
@@ -61141,38 +58765,14 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/identity/src/sessions/cookies.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
       "A",
       "packages/identity/src/sessions/presession.ts",
       "packages/identity",
       "inherited"
     ],
     [
-      "M",
-      "packages/identity/src/sessions/tokens.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
       "A",
       "packages/identity/src/storage/d1.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/identity/src/testing.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/identity/test/accounts.test.ts",
       "packages/identity",
       "inherited"
     ],
@@ -61189,12 +58789,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/identity/test/contracts.test.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
       "A",
       "packages/identity/test/d1.test.ts",
       "packages/identity",
@@ -61203,12 +58797,6 @@
     [
       "A",
       "packages/identity/test/membership-snapshot.test.ts",
-      "packages/identity",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/identity/test/oauth.test.ts",
       "packages/identity",
       "inherited-unallocated"
     ],
@@ -61225,32 +58813,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/identity/test/sessions.test.ts",
-      "packages/identity",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/identity/test/teams.test.ts",
-      "packages/identity",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/identity/tsconfig.json",
-      "packages/identity",
-      "inherited"
-    ],
-    [
       "A",
       "packages/interfaces/README.md",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/package.json",
       "packages/interfaces",
       "inherited"
     ],
@@ -61273,26 +58837,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/interfaces/src/envelope/validate.ts",
-      "packages/interfaces",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/errors/envelope.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
       "A",
       "packages/interfaces/src/http/assets.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/http/auth.ts",
       "packages/interfaces",
       "inherited"
     ],
@@ -61301,12 +58847,6 @@
       "packages/interfaces/src/http/canonical-json.ts",
       "packages/interfaces",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/http/context.ts",
-      "packages/interfaces",
-      "inherited"
     ],
     [
       "A",
@@ -61345,24 +58885,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/interfaces/src/http/limits.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/http/operations.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/http/pages.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
       "A",
       "packages/interfaces/src/http/presentation.ts",
       "packages/interfaces",
@@ -61371,18 +58893,6 @@
     [
       "A",
       "packages/interfaces/src/http/print.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/http/routes.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/index.ts",
       "packages/interfaces",
       "inherited"
     ],
@@ -61411,44 +58921,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/interfaces/src/mcp/schemas.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/mcp/server.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/mcp/tools.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/ports.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/testing.ts",
-      "packages/interfaces",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "packages/interfaces/src/uploads/kernel.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/src/uploads/routes.ts",
       "packages/interfaces",
       "inherited"
     ],
@@ -61561,24 +59035,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/interfaces/test/http-auth.test.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/test/http-operations.test.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/test/http-pages.test.ts",
-      "packages/interfaces",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "packages/interfaces/test/http-presentation.test.ts",
       "packages/interfaces",
@@ -61601,18 +59057,6 @@
       "packages/interfaces/test/mcp-field-descriptions.test.ts",
       "packages/interfaces",
       "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/test/mcp-tools.test.ts",
-      "packages/interfaces",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/interfaces/test/oauth.test.ts",
-      "packages/interfaces",
-      "inherited-unallocated"
     ],
     [
       "A",
@@ -61669,32 +59113,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/interfaces/test/uploads.test.ts",
-      "packages/interfaces",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/interfaces/test/wire.test.ts",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/interfaces/tsconfig.json",
-      "packages/interfaces",
-      "inherited"
-    ],
-    [
       "A",
       "packages/services/README.md",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/package.json",
       "packages/services",
       "inherited"
     ],
@@ -61703,18 +59123,6 @@
       "packages/services/src/distribution.ts",
       "packages/services",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/services/src/http/client.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/http/pagination.ts",
-      "packages/services",
-      "inherited"
     ],
     [
       "A",
@@ -61735,88 +59143,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/services/src/judgments/harness.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
       "A",
       "packages/services/src/judgments/specification.ts",
       "packages/services",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/services/src/judgments/systemone.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/mail/adapter.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/mail/redact.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/media/comfyui.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/media/harness.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/media/mapping.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/models/harness.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/models/ollama.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/ports.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/src/scenarios.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/contract-shapes.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/http-client.test.ts",
-      "packages/services",
-      "inherited"
     ],
     [
       "A",
@@ -61825,52 +59155,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/services/test/judgments-systemone.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/mail-adapter.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/mail-redaction.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/media-comfyui.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/models-ollama.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/services/test/pagination.test.ts",
-      "packages/services",
-      "inherited"
-    ],
-    [
       "A",
       "packages/services/test/private-harness-leaves.test.ts",
       "packages/services",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/services/test/scenarios.test.ts",
-      "packages/services",
-      "inherited"
     ],
     [
       "A",
@@ -61891,28 +59179,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/services/tsconfig.json",
-      "packages/services",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/README.md",
+      "A",
+      "packages/state/scripts/build-do-test-worker.mjs",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/package.json",
-      "packages/state",
-      "feature"
-    ],
-    [
-      "M",
-      "packages/state/src/catalog.ts",
-      "packages/state",
-      "feature"
     ],
     [
       "A",
@@ -61933,22 +59203,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/src/effects/staging.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/effects/transition.ts",
       "packages/state",
       "feature"
-    ],
-    [
-      "M",
-      "packages/state/src/errors.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -61999,12 +59257,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/index.ts",
-      "packages/state",
-      "feature"
-    ],
-    [
       "A",
       "packages/state/src/internal/machine.ts",
       "packages/state",
@@ -62015,12 +59267,6 @@
       "packages/state/src/internal/own-data.ts",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/src/invocation/admission.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -62047,12 +59293,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/invocation/context.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/invocation/descriptor-join.test.ts",
       "packages/state",
@@ -62065,38 +59305,14 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/src/invocation/index.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/invocation/invoke-read.test.ts",
       "packages/state",
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/invocation/invoke.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/invocation/prepared-inputs.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/invocation/registry.ts",
-      "packages/state",
-      "feature"
-    ],
-    [
-      "M",
-      "packages/state/src/invocation/replay.ts",
       "packages/state",
       "inherited"
     ],
@@ -62185,24 +59401,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/migration/activate.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/migration/index.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/migration/mapper.ts",
-      "packages/state",
-      "feature"
-    ],
-    [
       "A",
       "packages/state/src/migration/recover.ts",
       "packages/state",
@@ -62213,24 +59411,6 @@
       "packages/state/src/migration/retain.ts",
       "packages/state",
       "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/migration/stage.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/migration/transition.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/migration/validate.ts",
-      "packages/state",
-      "feature"
     ],
     [
       "A",
@@ -62263,20 +59443,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/mutation/crud.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/mutation/generated-crud.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/mutation/index.ts",
       "packages/state",
       "inherited"
     ],
@@ -62293,12 +59461,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/src/mutation/models.ts",
-      "packages/state",
-      "feature"
-    ],
-    [
       "A",
       "packages/state/src/mutation/nullable-ref.test.ts",
       "packages/state",
@@ -62309,12 +59471,6 @@
       "packages/state/src/mutation/owner-mutation-session.test.ts",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/src/mutation/pipeline.ts",
-      "packages/state",
-      "feature"
     ],
     [
       "A",
@@ -62359,22 +59515,10 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/policy/grants.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/policy/membership-facts.ts",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/src/policy/roles.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -62407,44 +59551,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/src/ports/index.ts",
-      "packages/state",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/src/ports/read.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/ports/system.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/ports/t32b-read.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/ports/transact.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/query/engine.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/query/index.ts",
       "packages/state",
       "inherited"
     ],
@@ -62497,52 +59605,28 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/storage/d1.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/src/storage/data-plane-durable.test.ts",
       "packages/state",
       "inherited"
     ],
     [
-      "M",
-      "packages/state/src/storage/durable-object.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/storage/index.ts",
+      "A",
+      "packages/state/src/storage/file-reference-inventory.ts",
       "packages/state",
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/src/storage/memory.ts",
-      "packages/state",
-      "inherited"
+      "A",
+      "packages/state/src/storage/file-retirement.ts",
+      "state",
+      "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/storage/owner-router.ts",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/src/storage/port.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/src/storage/schema.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -62582,6 +59666,12 @@
     ],
     [
       "A",
+      "packages/state/test/file-retirement-storage.test.ts",
+      "state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/state/test/fixtures/numeric-control/artifact.json",
       "packages/state",
       "inherited-unallocated"
@@ -62591,24 +59681,6 @@
       "packages/state/test/fixtures/numeric-control/source.can",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/test/invocation/admission.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/invocation/fixtures.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/invocation/invoke.test.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -62621,12 +59693,6 @@
       "packages/state/test/invocation/read-selection.test.ts",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/test/invocation/roles.test.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -62665,26 +59731,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/test/migration/activate.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/test/migration/adapters.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/migration/fixtures.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/migration/invalidate.test.ts",
       "packages/state",
       "inherited"
     ],
@@ -62695,38 +59743,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/state/test/migration/resume.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/test/migration/retain.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/migration/stage.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/migration/transition.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/mutation/create.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/mutation/fixtures.ts",
       "packages/state",
       "inherited"
     ],
@@ -62755,24 +59773,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/test/ports/fixtures.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/ports/staging.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/ports/system.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/test/ports/t24a-dispatch-join-durable.test.ts",
       "packages/state",
@@ -62791,26 +59791,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/test/query/aggregates.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/query/fixtures.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/state/test/query/observed.test.ts",
-      "packages/state",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/test/query/projection.test.ts",
       "packages/state",
       "inherited-unallocated"
     ],
@@ -62821,40 +59803,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/test/query/scope.test.ts",
+      "A",
+      "packages/state/test/storage/file-reference-inventory.test.ts",
       "packages/state",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/test/scaffold.test.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/storage/conformance.ts",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/storage/d1.test.ts",
-      "packages/state",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/state/test/storage/do-test-worker.js",
-      "packages/state",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/state/test/storage/do.test.ts",
-      "packages/state",
-      "inherited"
     ],
     [
       "A",
@@ -62869,51 +59821,15 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/state/tsconfig.json",
-      "packages/state",
-      "inherited"
-    ],
-    [
       "A",
       "packages/stdlib/README.md",
       "packages/stdlib",
       "inherited"
     ],
     [
-      "M",
-      "packages/stdlib/package.json",
-      "packages/stdlib",
-      "feature"
-    ],
-    [
       "A",
       "packages/stdlib/src/distribution.ts",
       "packages/stdlib",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/stdlib/src/index.ts",
-      "packages/stdlib",
-      "feature"
-    ],
-    [
-      "M",
-      "packages/stdlib/test/assembly.test.ts",
-      "packages/stdlib",
-      "feature"
-    ],
-    [
-      "M",
-      "packages/stdlib/tsconfig.json",
-      "packages/stdlib",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/testkit/README.md",
-      "packages/testkit",
       "inherited-unallocated"
     ],
     [
@@ -62959,18 +59875,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/testkit/package.json",
-      "packages/testkit",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/testkit/src/assertions/equal.ts",
-      "packages/testkit",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "packages/testkit/src/browser/chromium.ts",
       "packages/testkit",
@@ -62995,26 +59899,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/testkit/src/fixtures/playback.ts",
-      "packages/testkit",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "packages/testkit/src/fixtures/recipes.ts",
-      "packages/testkit",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/testkit/src/index.ts",
-      "packages/testkit",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/testkit/src/reporting/report.ts",
       "packages/testkit",
       "inherited"
     ],
@@ -63025,26 +59911,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/testkit/src/runner/loader.ts",
-      "packages/testkit",
-      "inherited"
-    ],
-    [
       "A",
       "packages/testkit/src/runner/steps.ts",
-      "packages/testkit",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/testkit/src/runner/table.ts",
-      "packages/testkit",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/testkit/src/scopes/local.ts",
       "packages/testkit",
       "inherited"
     ],
@@ -63067,20 +59935,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/testkit/test/equal.test.ts",
-      "packages/testkit",
-      "inherited-unallocated"
-    ],
-    [
       "A",
       "packages/testkit/test/fixtures.test.ts",
-      "packages/testkit",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/testkit/test/playback.test.ts",
       "packages/testkit",
       "inherited"
     ],
@@ -63091,26 +59947,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/ui/README.md",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/package.json",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/scripts/build-browser.mjs",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/appearance.ts",
       "packages/ui",
       "inherited"
     ],
@@ -63151,32 +59989,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/ui/src/catalog.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/src/client.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/collections.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/components.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/controls.ts",
       "packages/ui",
       "inherited"
     ],
@@ -63211,30 +60025,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/ui/src/forms.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/groups.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/htmx.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/index.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/src/internal/appearance-props.ts",
       "packages/ui",
@@ -63253,68 +60043,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/ui/src/leaves.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/media.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/messages.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/navigation.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/overlays.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/panels.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/src/policyPage.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/review.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/settings.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/src/shell.ts",
-      "packages/ui",
-      "feature"
-    ],
-    [
-      "M",
-      "packages/ui/test/appearance.test.ts",
       "packages/ui",
       "inherited"
     ],
@@ -63349,30 +60079,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/ui/test/catalog.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/collections.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/components.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/controls.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/test/csv-grammar.test.ts",
       "packages/ui",
@@ -63385,98 +60091,14 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/ui/test/fixtures/descriptors.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/forms.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/groups.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/htmx.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/journeys.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/leaves.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/media.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/messages.test.ts",
-      "packages/ui",
-      "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/ui/test/navigation.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/overlays.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/test/page-polling.test.ts",
       "packages/ui",
       "feature"
     ],
     [
-      "M",
-      "packages/ui/test/panels.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/ui/test/policyPage.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/review.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/settings.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/test/shell.test.ts",
       "packages/ui",
       "inherited"
     ],
@@ -63499,18 +60121,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/ui/test/themes.test.ts",
-      "packages/ui",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/ui/tsconfig.json",
-      "packages/ui",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/Cargo.lock",
       "packages/values",
@@ -63519,12 +60129,6 @@
     [
       "A",
       "packages/values/Cargo.toml",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/README.md",
       "packages/values",
       "inherited"
     ],
@@ -63679,20 +60283,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/values/package.json",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/scripts/build-semantics.mjs",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/scripts/emit-catalog.mjs",
       "packages/values",
       "inherited"
     ],
@@ -63967,52 +60559,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/values/src/array.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/catalog.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/decimal.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/src/distribution.ts",
       "packages/values",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/values/src/equality.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/errors.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/icu.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/index.ts",
-      "packages/values",
-      "inherited"
     ],
     [
       "A",
@@ -64039,24 +60589,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/values/src/kinds.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/locale.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/money.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/src/prepared/codec.ts",
       "packages/values",
@@ -64075,72 +60607,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/values/src/schema.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/stdlib-pure.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/temporal.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/text.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/timezone.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/src/wire.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/array.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/catalog.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/conformance.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/decimal-oracle.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/equality.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/test/exact-bootstrap.test.ts",
       "packages/values",
@@ -64153,20 +60619,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/values/test/exports-conformance.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/test/legacy-validation-traces.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/locale.test.ts",
       "packages/values",
       "inherited"
     ],
@@ -64201,44 +60655,14 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/values/test/schema.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/test/string-escape.contract.test.ts",
       "packages/values",
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/values/test/temporal.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/timezone.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
       "A",
       "packages/values/test/validation-binding.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/test/wire.test.ts",
-      "packages/values",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/values/tsconfig.json",
       "packages/values",
       "inherited"
     ],
@@ -64591,12 +61015,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/work/package.json",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/src/dispatch/async-guard.test.ts",
       "packages/work",
@@ -64607,12 +61025,6 @@
       "packages/work/src/dispatch/guard-phase.test.ts",
       "packages/work",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/work/src/dispatch/index.ts",
-      "packages/work",
-      "inherited"
     ],
     [
       "A",
@@ -64651,22 +61063,10 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/work/src/event/index.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/src/index.ts",
       "packages/work",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/work/src/intent/index.ts",
-      "packages/work",
-      "inherited"
     ],
     [
       "A",
@@ -64681,12 +61081,6 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/work/src/kernel/commands.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/src/kernel/committed-model-source.ts",
       "packages/work",
@@ -64695,6 +61089,12 @@
     [
       "A",
       "packages/work/src/kernel/dispatch-staging.ts",
+      "packages/work",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/work/src/kernel/file-reference-inventory.ts",
       "packages/work",
       "inherited-unallocated"
     ],
@@ -64741,30 +61141,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/work/src/kernel/tables.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/src/observation/association.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/src/observation/observation.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/src/observation/ports.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/src/observation/t25a-progress.test.ts",
       "packages/work",
@@ -64783,26 +61159,8 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/work/src/ports.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/src/receipt/index.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/src/receipt/t25a-consistency.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/src/recovery/index.ts",
       "packages/work",
       "inherited"
     ],
@@ -64831,18 +61189,6 @@
       "inherited"
     ],
     [
-      "M",
-      "packages/work/src/schedule/every.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/src/schedule/index.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/test/b3-mirror-conformance.test.ts",
       "packages/work",
@@ -64855,34 +61201,22 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/work/test/contract-shapes.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/test/dispatch-unavailable.test.ts",
       "packages/work",
       "inherited"
     ],
     [
-      "M",
-      "packages/work/test/dispatch.test.ts",
+      "A",
+      "packages/work/test/file-reference-inventory.test.ts",
       "packages/work",
-      "inherited"
+      "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/work/test/event.test.ts",
+      "A",
+      "packages/work/test/file-retirement-framework.test.ts",
       "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/every.test.ts",
-      "packages/work",
-      "inherited"
+      "inherited-unallocated"
     ],
     [
       "A",
@@ -64891,56 +61225,8 @@
       "inherited-unallocated"
     ],
     [
-      "M",
-      "packages/work/test/intent.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/kernel-commands.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/kernel-tables.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
       "A",
       "packages/work/test/live-serve-addressing.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/observation-association.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/observation.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/receipt.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/recovery.test.ts",
-      "packages/work",
-      "inherited"
-    ],
-    [
-      "M",
-      "packages/work/test/schedule.test.ts",
       "packages/work",
       "inherited"
     ],
@@ -65015,12 +61301,6 @@
       "packages/work/test/t26-progress-relations.test.ts",
       "packages/work",
       "inherited-unallocated"
-    ],
-    [
-      "M",
-      "packages/work/tsconfig.json",
-      "packages/work",
-      "inherited"
     ],
     [
       "A",
@@ -65119,12 +61399,6 @@
       "inherited"
     ],
     [
-      "M",
-      "tests/e2e/fixtures/artifact-loader.ts",
-      "build",
-      "inherited"
-    ],
-    [
       "A",
       "tests/e2e/fixtures/cando-seed.spec.ts",
       "build",
@@ -65149,12 +61423,6 @@
       "inherited"
     ],
     [
-      "M",
-      "tests/e2e/fixtures/e2e-test.ts",
-      "build",
-      "inherited"
-    ],
-    [
       "A",
       "tests/e2e/fixtures/example-hooks.ts",
       "build",
@@ -65173,18 +61441,6 @@
       "inherited"
     ],
     [
-      "M",
-      "tests/e2e/fixtures/handbuilt/teamtasks-worker.mjs",
-      "build",
-      "inherited"
-    ],
-    [
-      "M",
-      "tests/e2e/fixtures/handbuilt/teamtasks.ts",
-      "build",
-      "inherited"
-    ],
-    [
       "A",
       "tests/e2e/fixtures/handbuilt/ui-bundle-entry.js",
       "build",
@@ -65193,13 +61449,6 @@
     [
       "A",
       "tests/e2e/fixtures/mcp-grants.ts",
-      "build",
-      "inherited"
-    ],
-    [
-      "R083",
-      "editors/vscode/audit-astra/snapshot/draft/CanDo.can",
-      "tests/e2e/fixtures/patched-pilot/CanDo.can",
       "build",
       "inherited"
     ],
@@ -65248,12 +61497,6 @@
     [
       "A",
       "tests/e2e/fixtures/vendor-walk.spec.ts",
-      "build",
-      "inherited"
-    ],
-    [
-      "M",
-      "tests/e2e/tsconfig.json",
       "build",
       "inherited"
     ],
@@ -65336,6 +61579,3606 @@
       "inherited-unallocated"
     ],
     [
+      "A",
+      "tools/b3-s4-demo.sh",
+      "build",
+      "inherited"
+    ],
+    [
+      "A",
+      "turbo.json",
+      "build",
+      "inherited-unallocated"
+    ],
+    [
+      "D",
+      ".github/workflows/b1-join.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/e2e.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/integration.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/lane-01.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/lane-02.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/lane-03.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/lane-04.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/lane-05.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      ".github/workflows/lane-06.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      "DECISIONS.md",
+      "build",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/cafe-completion-20261004/equivalence.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/catch-intake-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/check-completion-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/complex-enrich-20261004/wording.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/complex-inbox-20261004/authoring-comparison.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/complex-sync-20261004/assessment.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/complex-sync-20261004/wording.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/crm-connections-reschedule-20261004/verification.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/daisyui-catalog-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/delivery-recipe-overrides-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/desk-handoff-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/feedback-completion-20261004/equivalence.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/hire-onboard-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/hire-retention-20261004/assessment.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/hire-retention-20261004/corrected-wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/hire-retention-20261004/correction.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/hire-retention-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/loyalty-eligibility-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/maintain-inspection-progress/decision.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/maintain-recovery-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/mcp-file-handoff-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/member-consumed-stage-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/member-owner-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/muse-feedback-20261004/bounded-review.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/record-input-admission-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/rent-sales-producer-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/rent-sales-version-boundary-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/stats-breakdown-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "design/jev/time-completion-20261004/wording-check.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/REPORT.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/build-inventory.py",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-during-audit.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-current-path.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/corpus-tokens.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/description-probe.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/description-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/description-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/execution-presentation-latest-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/execution-presentation-probe-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/execution-presentation-probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/execution-presentation-tokenize.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/DECISIONS.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/draft/CanField.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-file-drift.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/final-palette-swap-settings.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/followup-013-theme-evidence.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/followup-013-theme-probe.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/followup-013-theme.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/followup-013/manifest.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/followup-013/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/inventory-execution-presentation.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/inventory-foundation.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/latest-extension/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/latest-probe-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/latest-probe-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/probe-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/probe-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/probe-tokenization.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/production-coverage.csv",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/recheck-current-path.txt",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot-manifest.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/AGENTS.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/DECISIONS.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/DESIGN.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/GRAMMAR.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanApprove.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanBoard.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanBook.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanCRM.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanCatch.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanCheck.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanContract.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanDesk.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanEvent.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanExpense.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanField.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanGrant.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanHire.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanLearn.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanLeave.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanMail.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanMember.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanPropose.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanReception.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanRefer.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanRent.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanReport.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanShift.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanStats.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanStock.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanTable.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanTime.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanTrade.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/editors/vscode/README.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/editors/vscode/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/theme-installation-evidence-005813.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/theme-installation-evidence-010004.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/theme-installation-evidence-010146.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/theme-installation-evidence.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/theme-installation.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "D",
+      "editors/vscode/audit-astra/theme-probe.cjs",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      ".github/workflows/release.yml",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      ".gitignore",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "AGENTS.md",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "README.md",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "bun.lock",
+      "build",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/Cargo.lock",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/Cargo.toml",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/README.md",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/analysis/catalog.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/analysis/effects.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/analysis/examples.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/analysis/mod.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/analysis/resolve.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/analysis/types.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/cli.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/codegen/artifact.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/codegen/bdd.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/codegen/ir.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/codegen/js.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/codegen/mod.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/codegen/sourcemap.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/diagnostic.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/explain.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/ide/queries.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/ide/tokens.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/json.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/lib.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/lint/driver.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/lint/rules.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/lsp/mod.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/lsp/server.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/lsp/transport.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/main.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/source.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/syntax/cst.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/src/syntax/layout.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "compiler/src/syntax/lexer.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "compiler/src/syntax/mod.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/src/syntax/parser.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/tests/analysis.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/authoring.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/b1_join.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/check.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/codegen.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/tests/effects.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/format.rs",
+      "compiler",
+      "feature"
+    ],
+    [
+      "M",
+      "compiler/tests/foundation.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/ide.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/lint.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "compiler/tests/syntax.rs",
+      "compiler",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/AI-AND-SERVICE-DRAFTS.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/UI-COMPONENTS.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/complex-apps/decide.md",
+      "design",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "design/complex-apps/inbox.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/delivery-recipe-overrides-20261004.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/evaluation/briefs/ADOPTION.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/evaluation/briefs/INTERFACES.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/evaluation/briefs/LANGUAGE.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/jev/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/jev/crm-connections-reschedule-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/muse-migration-20261004/feedback-design.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/muse-migration-20261004/progress-design.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/owner-fanout-20261004.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "design/research-ai-capabilities-20261004.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "M",
+      "docs/dev-setup.md",
+      "docs",
+      "inherited"
+    ],
+    [
+      "M",
+      "docs/e2e.md",
+      "docs",
+      "inherited"
+    ],
+    [
+      "M",
+      "draft",
+      "build",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "editors/vscode/.vscodeignore",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/AUDIT-RESOLUTION.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/GRAMMAR-AUDIT.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/README.md",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/package.json",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/src/client.ts",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/src/extension.ts",
+      "editors",
+      "inherited"
+    ],
+    [
+      "M",
+      "editors/vscode/syntaxes/can.tmLanguage.json",
+      "editors",
+      "feature"
+    ],
+    [
+      "M",
+      "examples/ExpenseFlow.can",
+      "examples",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "examples/TeamTasks.can",
+      "examples",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "implementation/DIAGNOSTICS.md",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "implementation/PLAN.md",
+      "implementation",
+      "inherited"
+    ],
+    [
+      "M",
+      "implementation/status/frontend-catalog-migration.md",
+      "implementation",
+      "inherited"
+    ],
+    [
+      "M",
+      "implementation/status/lane-01.md",
+      "implementation",
+      "inherited"
+    ],
+    [
+      "M",
+      "package.json",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/README.md",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/package.json",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/cli/platform.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/deploy/compat.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/deploy/plan.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/dev/local-run.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/runtime/artifact.ts",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/runtime/context.ts",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/runtime/invoke.ts",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/runtime/modules.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/runtime/stdlib.ts",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/cloudflare/src/worker/assembly.ts",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/cloudflare/test/assembly.test.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/test/cli.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/cloudflare/test/dev-smoke.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/cloudflare/test/modules.test.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/cloudflare/test/runtime-stdlib.test.ts",
+      "packages/cloudflare",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/cloudflare/test/worker-boundary.test.ts",
+      "packages/cloudflare",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/README.md",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/package.json",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/artifact.ts",
+      "packages/contracts",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/contracts/src/deployment.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/files.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/identity.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/index.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/presentation.ts",
+      "packages/contracts",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/contracts/src/services.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/state.ts",
+      "packages/contracts",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/contracts/src/values.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/wire.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/src/work.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/contracts/test/assembly.test.ts",
+      "packages/contracts",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/package.json",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/bridge.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/catalog.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/finalize/index.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/ports.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/provenance/index.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/retention/index.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/scenarios.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/upload/fs-blob-store.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/src/upload/index.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/bridge.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/contract-shapes.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/finalize.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/foreign.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/helpers.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/retention.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/scenarios.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/upload-journey.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/test/validation.test.ts",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/files/tsconfig.json",
+      "packages/files",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/package.json",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/accounts/passwords.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/authentication/oauth.ts",
+      "packages/identity",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/identity/src/authentication/revocation.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/index.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/ports.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/sessions/cookies.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/sessions/tokens.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/src/testing.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/test/accounts.test.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/test/contracts.test.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/test/oauth.test.ts",
+      "packages/identity",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/identity/test/sessions.test.ts",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/identity/test/teams.test.ts",
+      "packages/identity",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/identity/tsconfig.json",
+      "packages/identity",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/package.json",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/envelope/validate.ts",
+      "packages/interfaces",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/errors/envelope.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/http/auth.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/http/context.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/http/limits.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/http/operations.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/http/pages.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/http/routes.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/index.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/mcp/schemas.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/mcp/server.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/mcp/tools.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/ports.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/testing.ts",
+      "packages/interfaces",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/interfaces/src/uploads/routes.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/http-auth.test.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/http-operations.test.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/http-pages.test.ts",
+      "packages/interfaces",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/mcp-tools.test.ts",
+      "packages/interfaces",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/oauth.test.ts",
+      "packages/interfaces",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/uploads.test.ts",
+      "packages/interfaces",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/interfaces/test/wire.test.ts",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/interfaces/tsconfig.json",
+      "packages/interfaces",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/package.json",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/http/client.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/http/pagination.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/judgments/harness.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/judgments/systemone.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/mail/adapter.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/mail/redact.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/media/comfyui.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/media/harness.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/media/mapping.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/models/harness.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/models/ollama.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/ports.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/src/scenarios.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/contract-shapes.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/http-client.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/judgments-systemone.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/mail-adapter.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/mail-redaction.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/media-comfyui.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/models-ollama.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/pagination.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/test/scenarios.test.ts",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/services/tsconfig.json",
+      "packages/services",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/README.md",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/state/package.json",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/catalog.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/effects/staging.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/errors.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/index.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/invocation/admission.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/invocation/context.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/invocation/index.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/invocation/invoke.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/invocation/registry.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/invocation/replay.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/migration/activate.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/migration/index.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/migration/mapper.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/migration/stage.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/migration/transition.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/migration/validate.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/mutation/crud.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/mutation/index.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/mutation/models.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/mutation/pipeline.ts",
+      "packages/state",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/state/src/policy/grants.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/policy/roles.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/ports/index.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/state/src/ports/read.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/ports/system.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/ports/transact.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/query/engine.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/query/index.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/storage/d1.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/storage/durable-object.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/storage/index.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/state/src/storage/memory.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/storage/port.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/src/storage/schema.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/invocation/admission.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/invocation/fixtures.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/invocation/invoke.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/invocation/roles.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/migration/activate.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/migration/fixtures.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/migration/invalidate.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/migration/resume.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/migration/stage.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/migration/transition.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/mutation/create.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/mutation/fixtures.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/ports/fixtures.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/ports/staging.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/ports/system.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/query/aggregates.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/query/fixtures.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/query/projection.test.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/state/test/query/scope.test.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/state/test/scaffold.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/storage/conformance.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/storage/d1.test.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/state/test/storage/do-test-worker.js",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/test/storage/do.test.ts",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/state/tsconfig.json",
+      "packages/state",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/stdlib/package.json",
+      "packages/stdlib",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/stdlib/src/index.ts",
+      "packages/stdlib",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/stdlib/test/assembly.test.ts",
+      "packages/stdlib",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/stdlib/tsconfig.json",
+      "packages/stdlib",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/testkit/README.md",
+      "packages/testkit",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/testkit/package.json",
+      "packages/testkit",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/testkit/src/assertions/equal.ts",
+      "packages/testkit",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/testkit/src/fixtures/playback.ts",
+      "packages/testkit",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/testkit/src/index.ts",
+      "packages/testkit",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/testkit/src/reporting/report.ts",
+      "packages/testkit",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/testkit/src/runner/loader.ts",
+      "packages/testkit",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/testkit/src/runner/table.ts",
+      "packages/testkit",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/testkit/src/scopes/local.ts",
+      "packages/testkit",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/testkit/test/equal.test.ts",
+      "packages/testkit",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/testkit/test/playback.test.ts",
+      "packages/testkit",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/README.md",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/package.json",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/appearance.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/catalog.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/collections.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/components.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/controls.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/forms.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/groups.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/htmx.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/index.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/leaves.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/media.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/messages.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/navigation.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/overlays.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/panels.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/review.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/settings.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/src/shell.ts",
+      "packages/ui",
+      "feature"
+    ],
+    [
+      "M",
+      "packages/ui/test/appearance.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/catalog.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/collections.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/components.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/controls.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/fixtures/descriptors.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/forms.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/groups.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/htmx.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/journeys.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/leaves.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/media.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/messages.test.ts",
+      "packages/ui",
+      "inherited-unallocated"
+    ],
+    [
+      "M",
+      "packages/ui/test/navigation.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/overlays.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/panels.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/review.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/settings.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/shell.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/test/themes.test.ts",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/ui/tsconfig.json",
+      "packages/ui",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/README.md",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/package.json",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/scripts/emit-catalog.mjs",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/array.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/catalog.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/decimal.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/equality.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/errors.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/icu.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/index.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/kinds.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/locale.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/money.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/schema.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/stdlib-pure.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/temporal.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/text.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/timezone.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/src/wire.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/array.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/catalog.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/conformance.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/decimal-oracle.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/equality.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/exports-conformance.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/locale.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/schema.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/temporal.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/timezone.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/test/wire.test.ts",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/values/tsconfig.json",
+      "packages/values",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/package.json",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/dispatch/index.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/event/index.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/intent/index.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/kernel/commands.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/kernel/tables.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/observation/association.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/observation/observation.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/observation/ports.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/ports.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/receipt/index.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/recovery/index.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/schedule/every.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/src/schedule/index.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/contract-shapes.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/dispatch.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/event.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/every.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/intent.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/kernel-commands.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/kernel-tables.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/observation-association.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/observation.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/receipt.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/recovery.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/test/schedule.test.ts",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "packages/work/tsconfig.json",
+      "packages/work",
+      "inherited"
+    ],
+    [
+      "M",
+      "tests/e2e/fixtures/artifact-loader.ts",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "tests/e2e/fixtures/e2e-test.ts",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "tests/e2e/fixtures/handbuilt/teamtasks-worker.mjs",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "tests/e2e/fixtures/handbuilt/teamtasks.ts",
+      "build",
+      "inherited"
+    ],
+    [
+      "M",
+      "tests/e2e/tsconfig.json",
+      "build",
+      "inherited"
+    ],
+    [
       "M",
       "tests/integration/lane02-values.test.ts",
       "build",
@@ -65348,46 +65191,227 @@
       "inherited"
     ],
     [
-      "A",
-      "tools/b3-s4-demo.sh",
-      "build",
-      "inherited"
-    ],
-    [
       "M",
       "tsconfig.check.json",
       "build",
       "inherited"
     ],
     [
-      "A",
-      "turbo.json",
+      "R050",
+      "editors/vscode/audit-astra/latest-corpus-tokens.json",
+      "implementation/compiler-completion/corpus-admission/independent-review/probe",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "R052",
+      "design/jev/maintain-recovery-20261004/review.md",
+      "design/jev/maintain-recovery-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R053",
+      "design/jev/member-consumed-stage-20261004/assessment.md",
+      "design/jev/member-consumed-stage-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R054",
+      "design/jev/complex-enrich-20261004/assessment.md",
+      "design/jev/complex-enrich-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R055",
+      "design/jev/feedback-completion-20261004/analysis.md",
+      "design/jev/feedback-completion-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R055",
+      "design/jev/hire-onboard-20261004/assessment.md",
+      "design/jev/hire-onboard-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R056",
+      "design/jev/check-completion-20261004/decision.md",
+      "design/jev/check-completion-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R056",
+      "editors/vscode/audit-astra/final-changed-files/DESIGN.md",
+      "docs/specification/DESIGN.md",
+      "docs",
+      "feature"
+    ],
+    [
+      "R057",
+      "design/jev/mcp-file-handoff-20261004/assessment.md",
+      "design/jev/mcp-file-handoff-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R059",
+      "design/jev/complex-inbox-20261004/verification.md",
+      "design/jev/complex-inbox-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R060",
+      "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can",
+      "docs/research/compiler-library-audit-20261006/pass10/workload/ExpenseFlow.can",
+      "docs",
+      "inherited-unallocated"
+    ],
+    [
+      "R062",
+      "design/jev/daisyui-catalog-20261004/assessment.md",
+      "design/jev/daisyui-catalog-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R062",
+      "design/jev/rent-sales-version-boundary-20261004/assessment.md",
+      "design/jev/rent-sales-version-boundary-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R064",
+      "design/jev/maintain-inspection-progress/verification.md",
+      "design/jev/maintain-inspection-progress/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R064",
+      "design/jev/rent-sales-producer-20261004/assessment.md",
+      "design/jev/rent-sales-producer-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R066",
+      "design/jev/member-owner-20261004/assessment.md",
+      "design/jev/member-owner-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R067",
+      "design/jev/desk-handoff-20261004/review.md",
+      "design/jev/desk-handoff-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R069",
+      "design/jev/catch-intake-20261004/assessment.md",
+      "design/jev/catch-intake-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R069",
+      "design/jev/muse-feedback-20261004/assessment.md",
+      "design/jev/muse-feedback-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R069",
+      "design/jev/record-input-admission-20261004/assessment.md",
+      "design/jev/record-input-admission-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R075",
+      "design/jev/cafe-completion-20261004/analysis.md",
+      "design/jev/cafe-completion-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R075",
+      "design/jev/delivery-recipe-overrides-20261004/verification.md",
+      "design/jev/delivery-recipe-overrides-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R082",
+      "design/jev/time-completion-20261004/analysis.md",
+      "design/jev/time-completion-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R083",
+      "design/jev/loyalty-eligibility-20261004/assessment.md",
+      "design/jev/loyalty-eligibility-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R083",
+      "design/jev/stats-breakdown-20261004/assessment.md",
+      "design/jev/stats-breakdown-20261004/README.md",
+      "design",
+      "inherited"
+    ],
+    [
+      "R083",
+      "editors/vscode/audit-astra/snapshot/draft/CanDo.can",
+      "tests/e2e/fixtures/patched-pilot/CanDo.can",
       "build",
+      "inherited"
+    ],
+    [
+      "R084",
+      "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can",
+      "implementation/capability-roadmap-20261008/enum-comparison/originals/TeamTasks.can",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "A",
-      "packages/work/src/kernel/file-reference-inventory.ts",
-      "packages/work",
+      "R086",
+      "GRAMMAR.md",
+      "docs/specification/GRAMMAR.md",
+      "docs",
+      "feature"
+    ],
+    [
+      "R093",
+      "DESIGN.md",
+      "implementation/compiler-completion/message-slot-coverage/source/docs/specification/DESIGN.md",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "A",
-      "packages/work/test/file-reference-inventory.test.ts",
-      "packages/work",
-      "inherited-unallocated"
+      "R096",
+      "EVALUATION.md",
+      "design/evaluation/PLAN.md",
+      "design",
+      "inherited"
     ],
     [
-      "A",
-      "packages/state/src/storage/file-retirement.ts",
-      "state",
-      "inherited-unallocated"
-    ],
-    [
-      "A",
-      "packages/state/test/file-retirement-storage.test.ts",
-      "state",
-      "inherited-unallocated"
+      "R096",
+      "REQUIREMENTS.md",
+      "docs/specification/REQUIREMENTS.md",
+      "docs",
+      "inherited"
     ]
   ],
   "history_only": [
@@ -67958,7 +67982,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9384,
+    "count": 9388,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67972,5 +67996,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Worker exact reviewed7a582651 framework prerequisite intake onto unfinished State485217b9. Actual staged tree and both complete histories since824934: 2027 commits/10887 net deltas/11431 historical paths/513 history-only/9384 pending allocations. Register owning State retirement source/test and Work framework producer/test while retaining every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all precise holds. Complete checkpoint unadvanced; Memory/D1 finite results are not DO/framework/physical deletion acceptance."
+  "current_maintenance_summary": "Worker exact coordinator-reviewed24c0aaa5/4879 DO built-worker prerequisite intake onto unfinished0bd45161 and a8e40e9f. Actual staged tree and both complete histories since824934: 2033 commits/10891 net deltas/11435 historical paths/513 history-only/9388 pending allocations. Register new State owning framework source/test and Work actual combined producer test plus Packages canonical worker build; preserve every prior exact allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all human holds. Complete checkpoint unadvanced; unchanged component results reused and actual changed DO qualification remains next."
 }

@@ -55,3 +55,12 @@ bun run --filter @canlang/state test
 ```
 
 Dependencies are exact-pinned; the single root `bun.lock` is lane 07 owned.
+
+`build:emit` also bundles the original `test/storage/do-test-worker.js` with
+the actual emitted DO adapter and its declared dependency closure into
+`dist/test/storage/do-test-worker.js`. Internal loaders and the public
+`@canlang/state/testing/storage/do-test-worker` export use this built asset.
+The worker protocol and real Miniflare SQLite/transaction assertions stay
+unchanged. Missing or browser-incompatible dependencies fail the build; the
+bundler removes its old asset before attempting to rebuild it. The test worker
+is not a production deployment or a substitute for owning adapter qualification.
