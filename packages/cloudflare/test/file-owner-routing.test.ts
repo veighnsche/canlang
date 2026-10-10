@@ -1,5 +1,5 @@
-/** Native typed File host with genuine per-team D1 routing. The receiving
- * principal remains physical; this does not qualify shared-reader File grants. */
+/** Native typed File host: current whole-field readers are State-authorized,
+ * while actual SQLite receiving provenance and byte validity remain Files-owned. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { execFile } from 'node:child_process';
@@ -55,7 +55,8 @@ test('native typed File downloads select the current D1 owner without fallback a
     const dir=await mkdtemp(join(tmpdir(),'can-file-owner-routing-'));
     let worker:Miniflare|undefined, physical:SqliteFileStore|undefined, sequence=0;
     let gate: {started:ReturnType<typeof deferred>;release:ReturnType<typeof deferred>}|undefined;
-    const clock={nowMs:()=>FIXED_NOW}, nextId=()=>asOperationId(uuidv7(FIXED_NOW,++sequence));
+    let now=FIXED_NOW;
+    const clock={nowMs:()=>now}, nextId=()=>asOperationId(uuidv7(FIXED_NOW,++sequence));
     try {
       const env={...process.env}; delete env.CAN_CATALOG;
       const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--catalog',catalog,fixture],
@@ -78,11 +79,14 @@ test('native typed File downloads select the current D1 owner without fallback a
       const user=await identities.createUser({email:'file-routing-owner@example.test',password_hash:'unused',email_verified:true});
       for(const team of [teamA,teamB,unmounted]) await identities.createMembership({user_id:user.user_id,team_id:team.team_id,is_owner:true,roles:[]});
       const other=await identities.createUser({email:'file-routing-other@example.test',password_hash:'unused',email_verified:true});
-      await identities.createMembership({user_id:other.user_id,team_id:teamA.team_id,is_owner:true,roles:[]});
+      const otherMembership=await identities.createMembership({user_id:other.user_id,team_id:teamA.team_id,is_owner:true,roles:[]});
+      const limited=await identities.createUser({email:'file-routing-label-only@example.test',password_hash:'unused',email_verified:true});
+      await identities.createMembership({user_id:limited.user_id,team_id:teamA.team_id,is_owner:false,roles:[]});
       const noTeam=await identities.createUser({email:'file-routing-no-team@example.test',password_hash:'unused',email_verified:true});
       const grants=await Promise.all([teamA,teamB,unmounted].map(team=>issueMcpGrant(identities,
         {user_id:user.user_id,team_id:team.team_id,client_id:'file-routing'},{clock})));
       const otherGrant=await issueMcpGrant(identities,{user_id:other.user_id,team_id:teamA.team_id,client_id:'file-routing-other'},{clock});
+      const limitedGrant=await issueMcpGrant(identities,{user_id:limited.user_id,team_id:teamA.team_id,client_id:'file-routing-label-only'},{clock});
       const sessionToken=randomBytes(32).toString('hex');
       const session=await identities.createSession({user_id:user.user_id,token_sha256:await sha256HexText(sessionToken),
         expires_at:new Date(FIXED_NOW+3600000).toISOString(),last_team_id:teamA.team_id});
@@ -108,19 +112,24 @@ test('native typed File downloads select the current D1 owner without fallback a
       physical=createSqliteFileStore(join(dir,'files.sqlite'));
       const nativeKernel=createFileJourneyKernel(createSqliteFileBindings(physical,{clock,intentTtlMs:60000,urlBase:'https://test.invalid'}));
       const byteReads: {ref:string;owner:string;principal:string}[]=[];
-      const kernel={...nativeKernel,async readBytes(ref:string,caller:Parameters<typeof nativeKernel.readBytes>[1]) {
-        byteReads.push({ref,owner:caller.owner,principal:caller.principal});
-        const bytes=await nativeKernel.readBytes(ref,caller);
-        if(gate!==undefined) {const held=gate;held.started.resolve();await held.release.promise;}
-        return bytes;
-      }};
+      let legacyReadCalls=0;
+      const kernel={...nativeKernel,
+        async readBytes():Promise<Uint8Array|null> {legacyReadCalls++;throw new Error('Protected download used legacy readBytes');},
+        async readCurrentBytes(ref:string,receiver:Parameters<typeof nativeKernel.readCurrentBytes>[1],retention:Parameters<typeof nativeKernel.readCurrentBytes>[2]) {
+          byteReads.push({ref,owner:receiver.owner,principal:receiver.principal});
+          const bytes=await nativeKernel.readCurrentBytes(ref,receiver,retention);
+          if(gate!==undefined) {const held=gate;held.started.resolve();await held.release.promise;}
+          return bytes;
+        }};
       const upload:UploadDeps&{kernel:typeof kernel}={app:{appId:APP,brand:APP,appDefaultLocale:'en',ownerLabels:new Map()},
         files:{usesFiles:()=>true},kernel,clock,logger:{log:()=>{}},
         identity:{store:identities,clock,mail:{sendMail:async()=>{}},verifyBaseUrl:'',recoveryBaseUrl:'',inviteBaseUrl:'',sessionMaxAgeSeconds:3600}};
-      const opts={artifact,asm,store:fallback,memberships:identities,identityStore:identities,clock,upload,ownerStorage:boundary};
+      const retention={unattachedHorizonMs:120000,retentionMs:600000};
+      const opts={artifact,asm,store:fallback,memberships:identities,identityStore:identities,clock,upload,ownerStorage:boundary,
+        retention,physicalFiles:physical.files,fileReferenceBounds:{maxRows:100,maxReferences:100}};
       const handler=createBoundFileHandler(opts);
       assert.throws(()=>createBoundFileHandler({...opts,ownerStorage:{...boundary,app:'OtherApp'}}),/app|owner/i);
-      const canonicalFiles=createCanonicalFileBinding(kernel,{unattachedHorizonMs:120000,retentionMs:600000});
+      const canonicalFiles=createCanonicalFileBinding(nativeKernel,retention);
       const invoker=buildInvoker(artifact,asm,fallback,{appId:APP,memberships:identities,now:clock.nowMs,files:canonicalFiles,ownerStorage:boundary});
       const request=(path:string,method='GET',body?:string|Uint8Array,token?:string,selectedCookie?:string)=>new Request(
         path.startsWith('https:')?path:`https://test.invalid${path}`,{method,headers:{...(token===undefined?{}:{authorization:`Bearer ${token}`}),
@@ -151,6 +160,7 @@ test('native typed File downloads select the current D1 owner without fallback a
         return {ref,intent};
       };
       const uploadedA=await uploadFile('routing-a',A_BYTES,grants[0]!.token),uploadedB=await uploadFile('routing-b',B_BYTES,grants[1]!.token);
+      const uploadedOther=await uploadFile('routing-other-principal',A_BYTES,otherGrant.token);
       await mutate('attach',{entry:{id:sharedId,version:'1'},attachment:{id:uploadedA.ref},accept:true},identityA);
       await mutate('attach',{entry:{id:sharedId,version:'1'},attachment:{id:uploadedB.ref},accept:true},identityB);
       const rowA=await storeA.load(MODEL,asId(sharedId)),rowB=await storeB.load(MODEL,asId(sharedId));assert.ok(rowA);assert.ok(rowB);
@@ -158,21 +168,24 @@ test('native typed File downloads select the current D1 owner without fallback a
       assert.deepEqual(rowA.data['attachment'],{id:uploadedA.ref});assert.deepEqual(rowB.data['attachment'],{id:uploadedB.ref});
       assert.ok(physical.files.get(uploadedA.ref)?.attachedRecord);assert.ok(physical.files.get(uploadedB.ref)?.attachedRecord);
       const fileState=()=>({files:physical!.files.listAll(),intents:physical!.intents.listAll(),
-        bytes:[uploadedA,uploadedB].map(value=>physical!.blobs.read(blobKeyForFile(value.ref))),
-        staging:[uploadedA,uploadedB].map(value=>physical!.blobs.read(stagingKeyForIntent(value.intent.intent_id)))});
+        bytes:physical!.files.listAll().map(value=>physical!.blobs.read(blobKeyForFile(value.file.id))),
+        staging:physical!.intents.listAll().map(value=>physical!.blobs.read(stagingKeyForIntent(value.intentId)))});
       const all=async()=>({a:await snapshot(a),b:await snapshot(b),identity:await snapshot(idDb),files:fileState()});
       const downloadPath=`/files/read/${MODEL}/${sharedId}/attachment`;
-      for(const [grant,bytes,owner] of [[grants[0]!,A_BYTES,teamA.team_id],[grants[1]!,B_BYTES,teamB.team_id]] as const) {
+      for(const [grant,bytes,owner] of [[grants[0]!,A_BYTES,teamA.team_id],[grants[1]!,B_BYTES,teamB.team_id],[otherGrant,A_BYTES,teamA.team_id]] as const) {
         const before=await all(),count=byteReads.length;
         const response=await handler(request(downloadPath,'GET',undefined,grant.token));
         assert.equal(response.status,200,await response.clone().text());assert.deepEqual(new Uint8Array(await response.arrayBuffer()),bytes);
-        assert.equal(byteReads.length,count+1);assert.equal(byteReads.at(-1)!.owner,owner);assert.deepEqual(await all(),before);
+        assert.equal(byteReads.length,count+1);assert.equal(byteReads.at(-1)!.owner,owner);assert.equal(byteReads.at(-1)!.principal,user.user_id, 'physical uploader remains distinct from current shared reader');
+        assert.deepEqual(await all(),before);assert.equal(legacyReadCalls,0);
       }
       // A-only locator must not fall back to store A for the selected B owner.
+      const uploadedAOnly=await uploadFile('routing-a-only',A_BYTES,grants[0]!.token);
+      const uploadedBOnly=await uploadFile('routing-b-only',B_BYTES,grants[1]!.token);
       const aOnly=nextId();await mutate('Entry.create',{label:'Only A'},identityA,aOnly);
-      await mutate('attach',{entry:{id:aOnly,version:'1'},attachment:{id:uploadedA.ref},accept:true},identityA);
+      await mutate('attach',{entry:{id:aOnly,version:'1'},attachment:{id:uploadedAOnly.ref},accept:true},identityA);
       const bOnly=nextId();await mutate('Entry.create',{label:'Only B'},identityB,bOnly);
-      await mutate('attach',{entry:{id:bOnly,version:'1'},attachment:{id:uploadedB.ref},accept:true},identityB);
+      await mutate('attach',{entry:{id:bOnly,version:'1'},attachment:{id:uploadedBOnly.ref},accept:true},identityB);
       // Real receiving bindings forbid sharing one File across teams; the
       // primary rows still have identical ids/versions and owner revisions.
       const onlyAPath=`/files/read/${MODEL}/${aOnly}/attachment`;
@@ -187,12 +200,71 @@ test('native typed File downloads select the current D1 owner without fallback a
       await refusal(request(downloadPath));
       await refusal(request(downloadPath,'GET',undefined,undefined,noTeamCookie));
       await refusal(request(downloadPath,'GET',undefined,grants[2]!.token));
-      await refusal(request(downloadPath,'GET',undefined,otherGrant.token),false); // Same team owner; different physical receiving principal.
+      await refusal(request(downloadPath,'GET',undefined,limitedGrant.token)); // Current member lacks whole attachment field grant.
+      assert.equal(legacyReadCalls,0);
+      // Corrupt only physical receiving metadata through the actual SQLite
+      // store, using other genuine finalized receivers. No new authority is minted.
+      const originalPhysical=physical!.files.get(uploadedA.ref);assert.ok(originalPhysical);
+      for(const wrong of [uploadedB,uploadedOther]) {
+        const wrongPhysical=physical!.files.get(wrong.ref);assert.ok(wrongPhysical);
+        physical!.files.put({...originalPhysical,owner:wrongPhysical.owner});
+        await refusal(request(downloadPath,'GET',undefined,otherGrant.token),false);
+        physical!.files.put(originalPhysical);
+      }
+      const originalBytes=physical!.blobs.read(blobKeyForFile(uploadedA.ref));assert.ok(originalBytes);
+      physical!.blobs.write(blobKeyForFile(uploadedA.ref),new Uint8Array(originalBytes.length).fill(120));
+      await refusal(request(downloadPath,'GET',undefined,otherGrant.token),false);
+      physical!.blobs.write(blobKeyForFile(uploadedA.ref),originalBytes);
+      now=FIXED_NOW+retention.retentionMs+1;
+      await refusal(request(downloadPath,'GET',undefined,otherGrant.token),false);
+      now=FIXED_NOW;
+      // A byte read begun against real metadata must not disclose those bytes
+      // after the physical checkpoint changes, even with unchanged owner/ref.
+      const beforeMetadataRace=await all(),beforeMetadataReads=byteReads.length;
+      gate={started:deferred(),release:deferred()};
+      const metadataPending=handler(request(downloadPath,'GET',undefined,otherGrant.token));
+      await Promise.race([gate.started.promise,metadataPending.then(response=>{throw new Error(`Expected held current-byte read; received HTTP ${response.status}`);})]);
+      physical!.files.put({...originalPhysical,file:{...originalPhysical.file,contentType:'application/octet-stream'}});
+      const afterMetadataChange=await all();
+      assert.deepEqual(afterMetadataChange.a,beforeMetadataRace.a);assert.deepEqual(afterMetadataChange.b,beforeMetadataRace.b);
+      assert.deepEqual(afterMetadataChange.identity,beforeMetadataRace.identity);
+      const metadataHeld=gate;gate=undefined;metadataHeld.release.resolve();
+      const metadataRefusal=await metadataPending;
+      assert.ok(metadataRefusal.status>=400&&metadataRefusal.status<500,String(metadataRefusal.status));
+      assert.notDeepEqual(new Uint8Array(await metadataRefusal.arrayBuffer()),A_BYTES);
+      assert.equal(byteReads.length,beforeMetadataReads+1);assert.deepEqual(await all(),afterMetadataChange);
+      assert.equal(legacyReadCalls,0);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
+      physical!.files.put(originalPhysical);
+      const heldDownload=async(action:()=>Promise<void>,changesDomain=false)=>{
+        const beforeHeld=await all();
+        gate={started:deferred(),release:deferred()};
+        const pending=handler(request(downloadPath,'GET',undefined,otherGrant.token));
+        await Promise.race([gate.started.promise,pending.then(response=>{throw new Error(`Expected held current-byte read; received HTTP ${response.status}`);})]);
+        await action();const afterAction=await all();
+        assert.deepEqual(afterAction.files,beforeHeld.files);
+        if(!changesDomain){assert.deepEqual(afterAction.a,beforeHeld.a);assert.deepEqual(afterAction.b,beforeHeld.b);}
+        const held=gate;gate=undefined;held.release.resolve();
+        const response=await pending;assert.ok(response.status>=400&&response.status<500,String(response.status));
+        assert.notDeepEqual(new Uint8Array(await response.arrayBuffer()),A_BYTES);assert.deepEqual(await all(),afterAction);
+        assert.equal(legacyReadCalls,0);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
+      };
+      await heldDownload(()=>identities.removeMembership(otherMembership.membership_id));
+      await identities.reactivateMembership(otherMembership.membership_id,{is_owner:true,roles:[]});
+      await heldDownload(async()=>{
+        const row=await storeA.load(MODEL,asId(sharedId));assert.ok(row);
+        await mutate('Entry.update',{record:{id:row.id,version:String(row.version)},label:'Changed during physical read'},identityA);
+      },true);
+      // Match the row version/revision again using a real B-owner update; the
+      // original session race below must refuse before B routing, independently
+      // of the two genuine finalized File ids.
+      const currentB=await storeB.load(MODEL,asId(sharedId));assert.ok(currentB);
+      await mutate('Entry.update',{record:{id:currentB.id,version:String(currentB.version)},label:'Matching B version'},identityB);
+      assert.equal((await storeA.load(MODEL,asId(sharedId)))!.version,(await storeB.load(MODEL,asId(sharedId)))!.version);
       assert.equal(await storeA.readRevision(),await storeB.readRevision());
       const beforeRace=await all(),beforeRaceReads=byteReads.length;
       gate={started:deferred(),release:deferred()};
       const pending=handler(request(downloadPath,'GET',undefined,undefined,cookie));
-      await gate.started.promise;
+      await Promise.race([gate.started.promise,pending.then(response=>{throw new Error(`Expected held current-byte read; received HTTP ${response.status}`);})]);
       postByteRace=true;
       await identities.setSessionTeam(session.session_id,teamB.team_id);
       const afterSelection=await snapshot(idDb);
@@ -202,7 +274,7 @@ test('native typed File downloads select the current D1 owner without fallback a
       const deniedBytes=new Uint8Array(await refused.arrayBuffer());assert.notDeepEqual(deniedBytes,A_BYTES);assert.notDeepEqual(deniedBytes,B_BYTES);
       assert.equal(byteReads.length,beforeRaceReads+1);assert.equal(byteReads.at(-1)!.ref,uploadedA.ref);
       assert.deepEqual(await snapshot(a),beforeRace.a);assert.deepEqual(await snapshot(b),beforeRace.b);assert.deepEqual(fileState(),beforeRace.files);
-      assert.deepEqual(await snapshot(idDb),afterSelection);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
+      assert.deepEqual(await snapshot(idDb),afterSelection);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);assert.equal(legacyReadCalls,0);
       assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
     } finally {gate?.release.resolve();physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
   });
