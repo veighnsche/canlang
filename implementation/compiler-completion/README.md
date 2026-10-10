@@ -2240,3 +2240,21 @@ has producer qualification; actual Values consumption follows exact released
 Packages envelope/model-context intake. Model-containing ordinary contract
 publication and complete original query/policy/runtime joins remain unfinished.
 Whole1356 stays historical at6530; nine references and precise holds remain.
+
+
+**Released schema consumer and original cohort (unfinished), 2026-10-10.**
+Consume reviewed LOCALe5c8b728 and exact clean draft337 by fast-forward,
+preserving local commits/edits. Owning Values dependency build4/4 has zero cached
+tasks. Actual CLI-emitted bounded inventory passes its real Values consumer:
+trimmed nonblank title, exact full-int64/scalar bounds, nullable text, Decimal
+endpoints and array length/refusal controls; ordinary/native contract target3/3.
+The original imports+app-uses29-file check runs once: complete=true, exit10,
+150 diagnostics and **zero in Workbench**. Direct-query/fixture source defects
+are resolved. SKIP original global disclosure: prerequisite owning source/helper
+resolution for Employees8/9 impure active_member in pure staff/can_work and
+CanDo116 nullable user, plus other composed business source errors. Capability/
+design owns these existing source contracts; no guard removal or pure-rule
+weakening. State/Interfaces loaders still require genuine same-load model names
+before Fact.task schema publication; defining owners have exact locations.
+Compiler checked query/projection work continues; no original native/reference
+acceptance or current whole1356 claim follows these finite results.
