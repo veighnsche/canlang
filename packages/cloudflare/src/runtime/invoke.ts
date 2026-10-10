@@ -1301,6 +1301,7 @@ interface StateInvokeProducer {
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
   readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
   readonly bindScenarioReceiptQueryProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer;
+  readonly bindScenarioReceiptReferenceProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptReferenceProducer;
   readonly bindScenarioReceiptFileProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFileProducer;
   readonly observeScenarioReceiptFileAssignment?: typeof import('@canlang/state/invocation').observeScenarioReceiptFileAssignment;
   readonly projectReadScenarioQueryResult?: typeof import('@canlang/state/invocation').projectReadScenarioQueryResult;
@@ -1633,6 +1634,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['bindScenarioReceiptQueryProducer'] !== 'function' ? {} : {
         bindScenarioReceiptQueryProducer: scenarioMod['bindScenarioReceiptQueryProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptQueryProducer']>,
+      }),
+      ...(typeof scenarioMod['bindScenarioReceiptReferenceProducer'] !== 'function' ? {} : {
+        bindScenarioReceiptReferenceProducer: scenarioMod['bindScenarioReceiptReferenceProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptReferenceProducer']>,
       }),
       ...(typeof scenarioMod['bindScenarioReceiptFileProducer'] !== 'function' ? {} : {
         bindScenarioReceiptFileProducer: scenarioMod['bindScenarioReceiptFileProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFileProducer']>,
@@ -3088,6 +3092,33 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
   }
 }
 
+/** Stored reference influence uses State's actual current viewer policy. The
+ * checked type selects its owning producer; a Values reference grants nothing. */
+async function bindNativeScenarioReferences(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  for (const value of loaded.registry.values()) {
+    const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
+    if (def === undefined || plan === undefined || !plan.returns.some(entry => entry.dependencies.some(dependency => {
+      const parsed = parseTypeId(dependency.type);
+      const modelName = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
+      return modelName !== undefined && loaded.models.some(model => model.name === modelName);
+    }))) continue;
+    const bind = loaded.producers.invoke.bindScenarioReceiptReferenceProducer;
+    if (bind === undefined) {
+      throw new AssemblyCorrespondenceError('Scenario stored references require their installed State producer.');
+    }
+    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
+      entry.module === plan.source.module);
+    if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario stored references lack their exact owning callable.');
+    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const where = `Scenario stored references ${JSON.stringify(def.name)}`;
+    const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
+    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
+    if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario stored references lack their owning app identity.');
+    bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'] });
+  }
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -3264,6 +3295,7 @@ export async function loadCanonicalDescriptors(
   await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioQueries(asm, artifact, canonical);
+  await bindNativeScenarioReferences(asm, artifact, canonical);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
@@ -4059,7 +4091,8 @@ async function createContainmentNavigation(input: {
     prepared.set(row, entry);
   };
   const attach = (record: Record<string, unknown>, model: string, row: StoredRow | ProjectedRecord,
-    view: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>): void => {
+    view: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>,
+    bindReference?: (reference: object, parent: object, model: string) => void): void => {
     const ownership = loaded.containment.get(model);
     if (!isUnknownRecord(ownership) || typeof ownership.parent !== 'string') return;
     Object.defineProperty(record, 'parent', { enumerable: true, get: () => {
@@ -4076,6 +4109,7 @@ async function createContainmentNavigation(input: {
         Object.freeze(shape);
         const fields = loaded.models.find(candidate => candidate.name === identity.model)?.fields ?? {};
         const metadata = new Set(['version', 'created', 'updated', 'created_by', 'updated_by', 'archived_at', 'parent']);
+        let boundReference = false;
         const reference = new Proxy(shape, {
           get: (target, property, receiver) => {
             // Identity comparison and collection selection need only the
@@ -4089,6 +4123,10 @@ async function createContainmentNavigation(input: {
               if (entry.row === undefined) throw new StateError('not_found', 'Parent record not found.');
               used.add(entry);
               const parent = entry.view ??= view(entry.model, entry.row);
+              if (!boundReference && bindReference !== undefined) {
+                bindReference(reference, parent, entry.model);
+                boundReference = true;
+              }
               return Reflect.get(parent, property);
             } catch (error) { input.failure?.(error); throw error; }
           },
@@ -4656,6 +4694,13 @@ async function runScenarioExecution(
   seamGuards.push({ name: 'parent.read', evaluate: async () => { await viewerNavigation.revalidate(); return true; } });
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
+  // Only exact values evaluated from an owner-issued stored field can become
+  // protected child operands. General Values refs and copied carriers stay refs.
+  const storedReferences = new WeakMap<object, {
+    readonly sourceView: object; readonly wire: unknown;
+    readonly sourceModel: string; readonly sourceId: string; readonly field: string;
+    readonly model: string; readonly id: string; readonly version?: bigint;
+  }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   // This closure is installed only by the retained private-source drivers,
   // after their owning source/identity admission. Request query options can
@@ -4683,14 +4728,29 @@ async function runScenarioExecution(
     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
       enumerable: true, get: () => {
         const wire = current()?.data[field];
-        return nativeRecordField(loaded, modelName, field, wire);
+        const value = nativeRecordField(loaded, modelName, field, wire);
+        const declaration = opts.artifact.models?.find(candidate => candidate.name === modelName)?.fields
+          .find(candidate => candidate.name === field);
+        const target = declaration?.field.kind === 'ref' ? declaration.field.model : undefined;
+        if (ownerSession !== undefined && target !== undefined &&
+            loaded.models.some(candidate => candidate.name === target)) {
+          for (const reference of declaration?.array === undefined ? [value] : Array.isArray(value) ? value : []) {
+            if (isRecordRef(reference) && reference.model === target) {
+              storedReferences.set(reference, Object.freeze({ sourceView: record, wire, sourceModel: modelName, sourceId: row.id, field,
+                model: reference.model, id: reference.id,
+                ...(reference.version === undefined ? {} : { version: reference.version }) }));
+            }
+          }
+        }
+        return value;
       },
     });
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, nativeRecordMetadata(row));
     ownerNavigation.attach(record, modelName, ownerSession === undefined ? row : snapshot,
-      (model, parent) => recordView(model, parent as StoredRow));
+      (model, parent) => recordView(model, parent as StoredRow),
+      receiptAware ? (reference, parent, model) => scenarioReceiptFrame!.bindNavigationReference(reference, parent, model) : undefined);
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     scenarioReceiptFrame?.bind(record, modelName, current);
@@ -5425,7 +5485,43 @@ async function runScenarioExecution(
         assertCall(actualCall, receiptStore);
         const selected = binding.get(scenarioDef!.name)?.get(site);
         if (selected === undefined || selected.name !== target) return refuseRecordBinding('Native call target differs from its owning checked occurrence.');
-        const wire = await invokeCall(actualCall, receiptStore, { site, target, inputs });
+        assertNativeScenarioTarget(loaded, selected);
+        const own = localPolicyObject(inputs, selected.descriptor.inputs.map(field => field.name));
+        const prepared: Record<string, unknown> = Object.create(null);
+        for (const field of selected.descriptor.inputs) {
+          if (!Object.hasOwn(own, field.name)) return refuseRecordBinding('Native child input omitted its required owning field.');
+          prepared[field.name] = localPolicyMember(own, field.name);
+        }
+        const hydrate = async (value: unknown, model: string): Promise<unknown> => {
+          const origin = typeof value === 'object' && value !== null ? storedReferences.get(value) : undefined;
+          if (origin === undefined) return value;
+          if (origin.model !== model) return refuseRecordBinding('Stored child reference disagrees with its checked target model.');
+          // Read while this exact parent remains active, before State suspends
+          // it for child preparation. The source-evaluated identity is retained;
+          // neither the source field nor an arbitrary wire ref is reread.
+          assertCall(actualCall, receiptStore);
+          if (scenarioReceiptFrame === undefined) return refuseRecordBinding('Stored child reference requires its original source frame.');
+          scenarioReceiptFrame.assertObservedReference(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
+          const row = await readOwnerRow(model as ModelName, origin.id as RecordId);
+          assertCall(actualCall, receiptStore);
+          if (nativeScenarioExecutions.get(actualCall) !== active) return refuseRecordBinding('Stored child reference has a closed or foreign parent.');
+          if (row === null || row.archivedAt !== null) throw new StateError('not_found', 'Stored child reference is no longer present.');
+          if (origin.version !== undefined && origin.version !== BigInt(row.version)) {
+            throw new StateError('conflict', 'Stored child reference expected version changed.');
+          }
+          return recordView(model, row);
+        };
+        for (const field of selected.descriptor.inputs) {
+          if (field.kind !== 'ref' || prepared[field.name] === null) continue;
+          if (Object.hasOwn(selected.inputArrays, field.name)) {
+            const values = nativeCallArray(prepared[field.name], Number.MAX_SAFE_INTEGER);
+            const hydrated: unknown[] = [];
+            for (const value of values) hydrated.push(await hydrate(value, field.model));
+            prepared[field.name] = Object.freeze(hydrated);
+          } else prepared[field.name] = await hydrate(prepared[field.name], field.model);
+        }
+        assertCall(actualCall, receiptStore);
+        const wire = await invokeCall(actualCall, receiptStore, { site, target, inputs: prepared });
         // Parent native views retain original metadata while current fields track
         // the same genuine owner session after the completed child stage.
         for (const key of [...ownerRows.keys()]) {
