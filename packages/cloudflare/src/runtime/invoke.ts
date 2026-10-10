@@ -2721,15 +2721,26 @@ async function bindNativeScenarioCalls(asm: AssembledModules, artifact: CompileA
     if (inventories.size >= 200) throw new AssemblyCorrespondenceError('Native call closure exceeds its finite parent bound.');
     inventories.set(def.name, { def, app, sites }); selected.set(def.name, targets);
   }
-  // Complete closure must be acyclic before any producer is bound.
-  const visiting = new Set<string>(), visited = new Set<string>();
-  const visit = (name: string, depth = 0): void => {
-    if (depth >= 16) throw new AssemblyCorrespondenceError('Native call closure exceeds its defining depth bound.');
+  // State permits sixteen child edges below a root. Cache the complete
+  // remaining depth, so a shared subtree still counts on every caller path.
+  const visiting = new Set<string>(), remainingDepth = new Map<string, number>();
+  const visit = (name: string, depth = 0): number => {
+    // Bound an uncached path before recursion, independently of graph size.
+    if (depth > 16) throw new AssemblyCorrespondenceError('Native call closure exceeds its defining depth bound.');
     if (visiting.has(name)) throw new AssemblyCorrespondenceError('Native call closure must be acyclic.');
-    if (visited.has(name)) return;
+    const cached = remainingDepth.get(name);
+    if (cached !== undefined) {
+      if (depth + cached > 16) throw new AssemblyCorrespondenceError('Native call closure exceeds its defining depth bound.');
+      return cached;
+    }
     visiting.add(name);
-    for (const target of selected.get(name)?.values() ?? []) visit(target.name, depth + 1);
-    visiting.delete(name); visited.add(name);
+    let longest = 0;
+    for (const target of selected.get(name)?.values() ?? []) {
+      longest = Math.max(longest, 1 + visit(target.name, depth + 1));
+      if (depth + longest > 16) throw new AssemblyCorrespondenceError('Native call closure exceeds its defining depth bound.');
+    }
+    visiting.delete(name); remainingDepth.set(name, longest);
+    return longest;
   };
   for (const name of inventories.keys()) visit(name);
   if (inventories.size === 0) return;
