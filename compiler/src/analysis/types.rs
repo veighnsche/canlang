@@ -465,6 +465,34 @@ pub struct CheckedQuery {
     pub domain_type: ResolvedType,
     pub result: ResolvedType,
     pub clauses: Vec<CheckedQueryClause>,
+    /// Exact row attribution for a closed nominal select; never an execution grant.
+    pub projection: Option<Box<CheckedQueryProjection>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedQueryProjection {
+    pub node: NodeKey,
+    pub contract: SymbolId,
+    pub model: SymbolId,
+    /// Actual query `as` declaration, independent of the alias spelling.
+    pub alias: NodeKey,
+    pub fields: Vec<CheckedQueryProjectionField>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedQueryProjectionField {
+    pub field: SymbolId,
+    /// Authored value expression or the shorthand key token.
+    pub node: NodeKey,
+    pub ty: ResolvedType,
+    pub mapping: CheckedQueryProjectionMapping,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CheckedQueryProjectionMapping {
+    StoredReference,
+    Version,
+    DirectField { field: SymbolId },
 }
 
 #[derive(Debug, Clone)]
@@ -14938,10 +14966,160 @@ impl<'a> Typer<'a> {
         !self.tables.node_binding.contains_key(&key) && !self.types.resolved_cases.contains(&key)
     }
 
-    /// Type a `Query`: the domain is a model or a collection
-    /// (`E3006`); `where` is bool, `order` keys are ordered scalars,
-    /// `select` projects. `as` aliases record the domain element for
-    /// following clauses; the result element feeds `RowQuery` rows.
+    /// Attach only a complete direct-row projection after ordinary typing has
+    /// established constructor ownership and every expression's lexical binding.
+    fn checked_query_projection(
+        &self,
+        cx: &Ctx<'_, '_>,
+        expression: &SyntaxNode,
+        alias: NodeKey,
+    ) -> Option<CheckedQueryProjection> {
+        fn grouped(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
+            for _ in 0..64 {
+                if node.kind != SyntaxKind::Group {
+                    return Some(node);
+                }
+                node = kids(node)
+                    .into_iter()
+                    .find(|node| is_expression(node.kind))?;
+            }
+            None
+        }
+        fn scalar_field(mut ty: &ResolvedType) -> bool {
+            for _ in 0..64 {
+                match ty {
+                    ResolvedType::Nullable(inner) => ty = inner,
+                    ResolvedType::Scalar(_) | ResolvedType::Enum { .. } => return true,
+                    _ => return false,
+                }
+            }
+            false
+        }
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.aliases.get(&alias)?
+        else {
+            return None;
+        };
+        let model_symbol = self.tables.symbols.get(model.0 as usize)?;
+        if !matches!(model_symbol.kind, SymbolKind::Model { .. }) {
+            return None;
+        }
+        let expression = grouped(expression)?;
+        if expression.kind != SyntaxKind::Construct {
+            return None;
+        }
+        let parts = kids(expression);
+        let head = parts
+            .iter()
+            .find(|node| is_expression(node.kind))
+            .copied()?;
+        let TypeRef::Symbol(contract) = self.tables.node_typeref.get(&NodeKey::of(head))? else {
+            return None;
+        };
+        let declaration = self.tables.symbols.get(contract.0 as usize)?;
+        let SymbolKind::Contract {
+            fields: declared_fields,
+        } = &declaration.kind
+        else {
+            return None;
+        };
+        if self.types.node_types.get(&NodeKey::of(expression))
+            != Some(&ResolvedType::Record {
+                symbol: *contract,
+                stored: false,
+            })
+        {
+            return None;
+        }
+        let object = parts
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Object)
+            .copied()?;
+        let entries = object_entries(object, cx.text);
+        if entries.len() != declared_fields.len() || entries.len() > 200 {
+            return None;
+        }
+        let is_row = |node: &SyntaxNode| {
+            matches!(self.tables.node_binding.get(&NodeKey::of(node)), Some(Binding::QueryAlias {node: bound}) if *bound == alias)
+                && self.types.node_types.get(&NodeKey::of(node))
+                    == Some(&ResolvedType::Record {
+                        symbol: *model,
+                        stored: true,
+                    })
+        };
+        let mut seen = HashSet::new();
+        let mut fields = Vec::new();
+        for (name, key, value) in entries {
+            let field = *declared_fields.iter().find(|field| {
+                self.tables
+                    .symbols
+                    .get(field.0 as usize)
+                    .is_some_and(|symbol| symbol.name == name)
+            })?;
+            if !seen.insert(field) {
+                return None;
+            }
+            let field_symbol = self.tables.symbols.get(field.0 as usize)?;
+            if !matches!(field_symbol.kind, SymbolKind::Field {owner,..} if owner == *contract) {
+                return None;
+            }
+            let original = value.unwrap_or(key);
+            let node = grouped(original)?;
+            let ty = self.types.node_types.get(&NodeKey::of(original))?.clone();
+            let mapping = if is_row(node) {
+                CheckedQueryProjectionMapping::StoredReference
+            } else {
+                if node.kind != SyntaxKind::Member {
+                    return None;
+                }
+                let parts = kids(node);
+                if parts.len() != 3
+                    || !is_punct(parts[1], cx.text, ".")
+                    || !is_row(grouped(parts[0])?)
+                {
+                    return None;
+                }
+                let name = name_text(parts[2], cx.text)?;
+                if name == "version" {
+                    if ty != ResolvedType::Scalar(Scalar::Int) {
+                        return None;
+                    }
+                    CheckedQueryProjectionMapping::Version
+                } else {
+                    let source = *model_symbol.fields_of().iter().find(|field| {
+                        self.tables
+                            .symbols
+                            .get(field.0 as usize)
+                            .is_some_and(|symbol| symbol.name == name)
+                    })?;
+                    if !matches!(self.tables.symbols.get(source.0 as usize)?.kind, SymbolKind::Field {owner,..} if owner == *model)
+                        || !scalar_field(&ty)
+                    {
+                        return None;
+                    }
+                    CheckedQueryProjectionMapping::DirectField { field: source }
+                }
+            };
+            fields.push(CheckedQueryProjectionField {
+                field,
+                node: NodeKey::of(original),
+                ty,
+                mapping,
+            });
+        }
+        Some(CheckedQueryProjection {
+            node: NodeKey::of(expression),
+            contract: *contract,
+            model: *model,
+            alias,
+            fields,
+        })
+    }
+
+    /// Type a model/collection query and its authored clause scopes. The
+    /// projected element feeds both the result and optional source attribution.
     fn type_query(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
         let query_key = NodeKey::of(node);
         self.types.checked_queries.remove(&query_key);
@@ -15048,6 +15226,9 @@ impl<'a> Typer<'a> {
         // enclosing environment exactly as the contract allows.
         let mut clause_env = cx.narrow.clone();
         let mut checked_clauses = Vec::new();
+        let mut projection = None;
+        let mut projection_alias = None;
+        let mut select_count = 0usize;
         let mut complete_clauses = !has_error(node);
         for part in parts {
             if part.kind != SyntaxKind::QueryClause || has_error(part) {
@@ -15087,6 +15268,7 @@ impl<'a> Typer<'a> {
             match head {
                 "as" => {
                     self.aliases.insert(NodeKey::of(part), element.clone());
+                    projection_alias = Some(NodeKey::of(part));
                 }
                 "archived" => {}
                 "where" => {
@@ -15165,6 +15347,15 @@ impl<'a> Typer<'a> {
                     for value in kids(part) {
                         if is_expression(value.kind) {
                             let ty = self.expr(&clause_cx, value, None);
+                            select_count += 1;
+                            projection = if select_count == 1 {
+                                projection_alias.and_then(|alias| {
+                                    self.checked_query_projection(&clause_cx, value, alias)
+                                        .map(Box::new)
+                                })
+                            } else {
+                                None
+                            };
                             if !ty.is_error() {
                                 projected = Some(ty);
                                 element = projected.clone().unwrap_or(ResolvedType::Error);
@@ -15235,6 +15426,7 @@ impl<'a> Typer<'a> {
                     domain_type: base_ty,
                     result: result.clone(),
                     clauses: checked_clauses,
+                    projection,
                 },
             );
         }

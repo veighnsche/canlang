@@ -156,3 +156,120 @@ fn invalid_queries_do_not_publish_successful_query_facts() {
         );
     }
 }
+
+#[test]
+fn imported_two_stage_nominal_projection_maps_exact_checked_row_fields() {
+    use canlang_compiler::analysis::types::CheckedQueryProjectionMapping as Mapping;
+    let source = r#"package shared
+ Given
+  export Task {title:text trim min=1,done:bool=false,state:enum(todo,done)=todo,description:text?}
+  policy Task read=members
+ When
+ Then
+app Projection
+use shared {Task as Job}
+Given
+ contract Fact {task:Job,version:int,title:Job.title,done:bool,state:Job.state,description:text?}
+When
+ scenario facts(targets:Job[]) read=true -> Fact[] by=members
+  do
+   let visible=Job as task where task in targets
+   require count(visible)==count(targets)
+   return visible as task select Fact {task,version=task.version,title=task.title,done=task.done,state=task.state,description=task.description}
+Then
+"#;
+    let (checked, diagnostics) = check(source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let symbol = |name: &str| {
+        checked
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == name)
+            .unwrap()
+            .id
+    };
+    let task = symbol("shared.Task");
+    let fact = symbol("Projection.Fact");
+    let mut queries = checked.types.checked_queries.values().collect::<Vec<_>>();
+    queries.sort_by_key(|query| query.node.start);
+    assert_eq!(queries.len(), 2);
+    assert!(
+        queries[0].projection.is_none(),
+        "filter only has no nominal projection"
+    );
+    let query = queries[1];
+    assert_eq!(text(source, query.domain), "visible");
+    let projection = query
+        .projection
+        .as_ref()
+        .expect("complete checked direct-row constructor");
+    assert_eq!(projection.model, task);
+    assert_eq!(projection.contract, fact);
+    assert_eq!(projection.alias, query.clauses[0].node);
+    assert_ne!(
+        projection.alias, queries[0].clauses[0].node,
+        "same spelling never joins different lexical declarations"
+    );
+    assert_eq!(
+        projection
+            .fields
+            .iter()
+            .map(|field| field.field)
+            .collect::<Vec<_>>(),
+        ["task", "version", "title", "done", "state", "description"]
+            .map(|name| symbol(&format!("Projection.Fact.{name}")))
+    );
+    assert_eq!(projection.fields[0].mapping, Mapping::StoredReference);
+    assert_eq!(
+        projection.fields[0].ty,
+        ResolvedType::Record {
+            symbol: task,
+            stored: true
+        }
+    );
+    assert_eq!(text(source, projection.fields[0].node), "task");
+    assert_eq!(projection.fields[1].mapping, Mapping::Version);
+    assert_eq!(projection.fields[1].ty, ResolvedType::Scalar(Scalar::Int));
+    for (field, name) in
+        projection.fields[2..]
+            .iter()
+            .zip(["title", "done", "state", "description"])
+    {
+        assert_eq!(
+            field.mapping,
+            Mapping::DirectField {
+                field: symbol(&format!("shared.Task.{name}"))
+            }
+        );
+        assert_eq!(text(source, field.node), format!("task.{name}"));
+        assert_eq!(field.ty, checked.types.node_types[&field.node]);
+    }
+    assert!(
+        matches!(&projection.fields[4].ty, ResolvedType::Enum {owner:Some(owner),..} if *owner==symbol("shared.Task.state"))
+    );
+    assert_eq!(
+        projection.fields[5].ty,
+        ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text)))
+    );
+}
+
+#[test]
+fn computed_foreign_and_mixed_nominal_projections_keep_raw_query_without_attribution() {
+    for value in [
+        "lower(task.title ?? \"\")",
+        "other.title",
+        "task.title ?? other.title",
+    ] {
+        let source = format!(
+            "app ProjectionRefusal\nGiven\n Task {{title:text?}}\n policy Task read=members\n contract Fact {{task:Task,title:text?}}\nWhen\n scenario facts(other:Task) read=true -> Fact[] by=members\n  do return Task as task select Fact {{task,title={value}}}\nThen\n"
+        );
+        let (checked, diagnostics) = check(&source);
+        assert!(diagnostics.is_empty(), "{value}: {diagnostics:?}");
+        let query = checked.types.checked_queries.values().next().unwrap();
+        assert_eq!(query.clauses.len(), 2);
+        assert!(
+            query.projection.is_none(),
+            "{value} must not fabricate direct-row attribution"
+        );
+    }
+}

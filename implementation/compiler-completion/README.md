@@ -2258,3 +2258,19 @@ weakening. State/Interfaces loaders still require genuine same-load model names
 before Fact.task schema publication; defining owners have exact locations.
 Compiler checked query/projection work continues; no original native/reference
 acceptance or current whole1356 claim follows these finite results.
+
+
+**Checked nominal query projection (unfinished native join), 2026-10-10.**
+The real query checker retains exact contract/model/lexical alias identities and
+ordered owning fields, authored expression anchors/types and stored-reference,
+version or direct-field mappings. Imported two-stage visible/select is covered;
+computed/foreign/mixed projections retain ordinary typing without claiming row
+attribution. IR joins every fact to the actual typed lowered object, active alias,
+source anchors and owning model/contract field bijection. Altered owner/model/
+alias/type/mapping/order/omission controls refuse; unsupported query/read/as
+native disclosure stays withheld. Affected151/151 pass (query5, invocation7,
+disclosure18, codegen121), with final query/invocation12 rechecked after boxed
+optional facts; strict all-target Clippy/format0 and finite independent review.
+Actual any(Employee as e,predicate) needs its external predicate/call association,
+not a fabricated where clause. Original cohort/source/helper, State/Dev policy/
+query/result and current whole qualification remain unfinished; no wider credit.
