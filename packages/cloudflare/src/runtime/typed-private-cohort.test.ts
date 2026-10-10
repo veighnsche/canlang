@@ -26,7 +26,8 @@ import { buildInvoker, createTeamOwnerStorageBoundary } from '../worker/assembly
 import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, invokeDueSourceRoutingCanonical,
   invokeRetainedHandlerOccurrenceCanonical, loadFanoutStateProducers,
   runFanoutSchedulerTurn, T34F7_FANOUT_INTENT_MODEL, T34F7_FANOUT_CHECKPOINT_MODEL,
-  T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild, runRetainedFanoutSchedulerTurn } from './invoke.js';
+  T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild, runRetainedFanoutSchedulerTurn,
+  readFanoutSchedulerProgress } from './invoke.js';
 import type { CanonicalDueScheduleOpts, FanoutSchedulerBodyPort, FanoutSchedulerTurnResult } from './invoke.js';
 import { createBoundCohortTick } from './cohort-tick.js';
 import { activate } from '../deploy/activate.js';
@@ -43,6 +44,120 @@ function outcomeStatus(value: unknown): string {
   assert.ok(typeof value.status === 'string', 'Native due status must be text.');
   return value.status;
 }
+
+test('installed bound cohort tick retains an infrastructure read failure and advances its healthy sibling across native restart', async () => {
+  const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
+  const dir = await mkdtemp(join(await realpath(tmpdir()), 'can-cohort-read-failure-'));
+  let mf: Miniflare | undefined;
+  const now = FIXED_NOW, clock = { nowMs: () => now };
+  let sequence = 0;
+  const nextId = () => uuidv7(now, ++sequence);
+  const open = async () => {
+    mf = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+      script: 'export default { fetch() { return new Response("ok"); } }',
+      d1Databases: { IDENTITY: 'cohort-read-identity', OWNER: 'cohort-read-owner' }, d1Persist: join(dir, 'd1') });
+    const identityDb = await mf.getD1Database('IDENTITY') as unknown as D1Database;
+    await ensureIdentitySchema(identityDb);
+    return { identities: createD1IdentityStore(identityDb, { clock }),
+      ownerDb: await mf.getD1Database('OWNER') as unknown as D1Database };
+  };
+  try {
+    const asm = await assembleModules({ artifact, sourcePath: fixturePath }, { workDir: join(dir, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    let storage = await open();
+    const team = await storage.identities.createTeam({ timezone: 'UTC' });
+    const user = await storage.identities.createUser({ email: 'cohort-read@example.test', email_verified: true, password_hash: 'unused' });
+    await storage.identities.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+    const token = 'cohort-read-session';
+    await storage.identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+      expires_at: new Date(now + 3600_000).toISOString(), last_team_id: team.team_id });
+    const scope = { app: APP, owner: team.team_id, ownerPackage: APP };
+    const ownerBoundary = () => createTeamOwnerStorageBoundary({ artifact, asm, app: APP, identities: storage.identities,
+      router: createD1OwnerRouter({ resolveBinding: selected => selected.app === APP && selected.owner === team.team_id
+        ? { ...selected, db: storage.ownerDb, initializeFresh: true } : null }) });
+    let boundary = await ownerBoundary(), selected = await boundary.forTrustedScope(scope, now);
+    const invoker = buildInvoker(artifact, asm, selected.store,
+      { memberships: storage.identities, now: clock.nowMs, ownerStorage: boundary });
+    const mutate = async (operation: string, inputs: Record<string, unknown>) => {
+      const outcome = await invoker.invokeMutation({ operation: `${APP}.${operation}`, operation_id: nextId(), inputs },
+        await resolveIdentity(storage.identities, { session_token: token }, { clock }));
+      assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+      return outcome.result.records![0] as { id: string; version: number };
+    };
+    const parent = await mutate('Container.create', { name: 'read-failure cohort' });
+    const failedMember = await mutate('Entry.create', { label: 'never execute', parent: { id: parent.id } });
+    const healthyMember = await mutate('Entry.create', { label: 'healthy', parent: { id: parent.id } });
+    const beforeFailed = await selected.store.load(ENTRY, asId(failedMember.id)); assert.ok(beforeFailed);
+    const beforeHistory = await selected.store.historyFor(ENTRY, beforeFailed.id);
+    const sourceOccurrence = nextId(), registry = createSystemRegistry([workSchedulePutCommand]);
+    const due = { key: sourceOccurrence, occurrenceId: sourceOccurrence, event: `${APP}.Scoped`, scope, at: now };
+    await registry.run('work.schedule.put', { ...due,
+      payload: { container: { id: parent.id, version: String(parent.version) }, marker: 'healthy sibling marker' } },
+    { actor: user.user_id, now, operation: 'work.schedule.put', operationId: nextId() }, { store: selected.store });
+    assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical({ artifact, asm, app: APP, handler: `${APP}.scoped`,
+      due, store: selected.store, identities: storage.identities, now: clock.nowMs })), 'completed');
+    const producers = await loadFanoutStateProducers();
+    const intents = await selected.store.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner', limit: 2 });
+    assert.equal(intents.length, 1);
+    const intent = intents[0]!, fanoutId = intent.id as string;
+    assert.deepEqual(producers.tables.readFanoutIntentRow(intent).members, [failedMember.id, healthyMember.id].sort());
+    const sourceReceipt = await selected.store.load(WORK_OCCURRENCE_MODEL, asId(sourceOccurrence)); assert.ok(sourceReceipt);
+    const beforeOutbox = await selected.store.outboxPending();
+    let failedReads = 0, failureCommits = 0;
+    const readFailure = new Error('finite selected-member lifecycle read failure');
+    // A finite faulty selected-store port around actual native D1, not a
+    // claimed D1 outage. The installed tick and compiled body stay unchanged.
+    const faultyBoundary = { ...boundary, forTrustedScope: async (requested: typeof scope, at: number) => {
+      const actual = await boundary.forTrustedScope(requested, at);
+      return { ...actual, store: { ...actual.store,
+        load: async (model: Parameters<StoragePort['load']>[0], id: Parameters<StoragePort['load']>[1]) => {
+          if (model === ENTRY && id === failedMember.id) { failedReads++; throw readFailure; }
+          return actual.store.load(model, id);
+        },
+        commit: async (batch: Parameters<StoragePort['commit']>[0]) => {
+          if (batch.writes.some(write => write.model === T34F7_FANOUT_CHILD_MODEL && write.kind !== 'remove' &&
+              producers.tables.readFanoutChildRow(write.row).recordId === failedMember.id)) {
+            failureCommits++; assert.equal(batch.receipt, null);
+            assert.ok(!batch.writes.some(write => write.model === ENTRY));
+            assert.deepEqual(batch.history, []); assert.deepEqual(batch.outbox, []); assert.deepEqual(batch.schedules, []);
+          }
+          return actual.store.commit(batch);
+        },
+      } };
+    } };
+    const tick = await createBoundCohortTick({ artifact, asm, identities: storage.identities, ownerStorage: faultyBoundary,
+      scope, now: clock.nowMs });
+    for (let turn = 0; turn < 4; turn++) await tick.tick();
+    const children = await selected.store.query(producers.tables.fanoutChildPageQuery(fanoutId, { cursor: null, limit: 3 }));
+    assert.equal(children.length, 2);
+    const failed = children.find(row => producers.tables.readFanoutChildRow(row).recordId === failedMember.id)!;
+    const healthy = children.find(row => producers.tables.readFanoutChildRow(row).recordId === healthyMember.id)!;
+    assert.deepEqual([producers.tables.readFanoutChildRow(failed).state, producers.tables.readFanoutChildRow(failed).causeReason,
+      producers.tables.readFanoutChildRow(failed).attempts], ['failed', 'infra-read-failure', 0]);
+    assert.equal(producers.tables.readFanoutChildRow(healthy).state, 'completed');
+    assert.equal(failedReads, 1); assert.equal(failureCommits, 1);
+    assert.deepEqual(await selected.store.load(ENTRY, beforeFailed.id), beforeFailed);
+    assert.deepEqual(await selected.store.historyFor(ENTRY, beforeFailed.id), beforeHistory);
+    assert.deepEqual(await selected.store.outboxPending(), beforeOutbox);
+    const healthyAfter = await selected.store.load(ENTRY, asId(healthyMember.id)); assert.ok(healthyAfter);
+    assert.equal(healthyAfter.data.count, '1'); assert.equal(healthyAfter.data.label, 'healthy sibling marker');
+    const healthyHistory = await selected.store.historyFor(ENTRY, healthyAfter.id);
+    const progress = await readFanoutSchedulerProgress({ store: selected.store, fanoutId, pageLimit: 3, producers });
+    assert.deepEqual([progress.failed, progress.completed, progress.terminal, progress.attention], [1, 1, true, true]);
+    await mf!.dispose(); mf = undefined;
+    storage = await open(); boundary = await ownerBoundary(); selected = await boundary.forTrustedScope(scope, now);
+    const replayTick = await createBoundCohortTick({ artifact, asm, identities: storage.identities, ownerStorage: boundary,
+      scope, now: clock.nowMs });
+    for (let turn = 0; turn < 3; turn++) await replayTick.tick();
+    assert.deepEqual(await selected.store.query(producers.tables.fanoutChildPageQuery(fanoutId, { cursor: null, limit: 3 })), children);
+    assert.deepEqual(await selected.store.load(ENTRY, beforeFailed.id), beforeFailed);
+    assert.deepEqual(await selected.store.historyFor(ENTRY, beforeFailed.id), beforeHistory);
+    assert.deepEqual(await selected.store.load(ENTRY, healthyAfter.id), healthyAfter);
+    assert.deepEqual(await selected.store.historyFor(ENTRY, healthyAfter.id), healthyHistory);
+    assert.deepEqual(await selected.store.load(WORK_OCCURRENCE_MODEL, asId(sourceOccurrence)), sourceReceipt);
+    assert.deepEqual(await readFanoutSchedulerProgress({ store: selected.store, fanoutId, pageLimit: 3, producers }), progress);
+  } finally { await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
+});
 
 test('declared private cohorts freeze sibling handlers and retain checked events across native restart', async t => {
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
