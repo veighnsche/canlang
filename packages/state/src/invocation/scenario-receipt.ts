@@ -729,13 +729,39 @@ interface QueryExecution {
   readonly call: AdmittedCall; readonly owner: ReceiptOwnerSession; readonly stage: number;
   readonly plan: ScenarioReceiptQueryPlan; readonly handle: ScenarioReceiptQueryHandle;
   readonly candidates: { readonly row: StoredRow; readonly record: ProjectedRecord;
-    readonly slot: ScenarioReceiptQuerySlot; readonly dependencies: Set<string>; matched: boolean }[];
+    readonly slot: ScenarioReceiptQuerySlot; readonly dependencies: Set<string>;
+    readonly reads: Map<string, number>; readonly markers: Map<string, number>;
+    pendingRead: string | null; matched: boolean }[];
   selectedIndices: readonly number[];
   activeSlot: ScenarioReceiptQuerySlot | null;
   complete: boolean;
 }
 const queryHandles = new WeakMap<ScenarioReceiptQueryHandle, QueryExecution>();
 const querySlots = new WeakMap<ScenarioReceiptQuerySlot, { execution: QueryExecution; index: number }>();
+
+/** Source sees read-tracking getters only while its original predicate is live.
+ * The saved snapshot and selected result always retain the private plain row. */
+function queryPredicateRecord(execution: QueryExecution, index: number, store: StoragePort): ProjectedRecord {
+  const candidate = execution.candidates[index]!, data: Record<string, unknown> = {};
+  for (const field of Object.keys(candidate.record.data)) Object.defineProperty(data, field, {
+    enumerable: true, get: () => {
+      try {
+        const state = capture(execution.call, store), owner = execution.owner;
+        ownerHealthy(owner);
+        if (owner.executingCall !== execution.call || owner.stage !== execution.stage ||
+            execution.activeSlot !== candidate.slot || !owner.busy || state.pending !== 0 || state.returnId !== null) {
+          return invalid('query field read requires its original active predicate candidate.');
+        }
+        if (candidate.pendingRead !== null) return invalid('query field read omitted its immediate source marker.');
+        if (!execution.plan.dependencies.some(dep => dep.role === 'control' && dep.field === field)) return invalid('query predicate read is outside its checked control closure.');
+        candidate.pendingRead = field;
+        candidate.reads.set(field, (candidate.reads.get(field) ?? 0) + 1);
+        return candidate.record.data[field];
+      } catch (error) { execution.owner.capture.poisoned = true; throw error; }
+    },
+  });
+  return Object.freeze({ ...candidate.record, data: Object.freeze(data) });
+}
 function resultWire(bound: BoundPlan, result: unknown): void {
   if (!bound.plan.returns.some(entry => entry.projection !== undefined)) { scalarWire(bound.type, result); return; }
   if (bound.valueSchema === undefined) return invalid('query result requires its owning loaded Values schema.');
@@ -1301,20 +1327,26 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
         const slot = Object.freeze({});
-        const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(), matched: false };
+        const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(),
+          reads: new Map<string, number>(), markers: new Map<string, number>(), pendingRead: null as string | null, matched: false };
         querySlots.set(slot, { execution, index: execution.candidates.length }); execution.candidates.push(candidate);
         execution.activeSlot = slot;
         try {
-          const accepted = await input.predicate(Object.freeze({ slot, record: candidate.record }));
+          const accepted = await input.predicate(Object.freeze({ slot, record: queryPredicateRecord(execution, execution.candidates.length - 1, store) }));
           capture(call, store); ownerHealthy(owner);
           if (typeof accepted !== 'boolean') return invalid('query predicate requires an actual boolean.');
-          if (plan.dependencies.some(dep => dep.role === 'control' && !candidate.dependencies.has(dep.id))) return invalid('query predicate omitted its checked control observation.');
+          if (candidate.pendingRead !== null || [...candidate.reads].some(([field, count]) => candidate.markers.get(field) !== count)) return invalid('query predicate omitted an executed control source marker.');
           candidate.matched = accepted; return accepted;
         } finally { execution.activeSlot = null; }
       }, requiredFields);
       if (observed.candidates.length !== execution.candidates.length || observed.candidates.some((candidate, index) =>
         candidate.row !== execution.candidates[index]!.row || candidate.matched !== execution.candidates[index]!.matched)) return invalid('actual query engine lost original candidate correspondence.');
       execution.selectedIndices = Object.freeze([...observed.selectedIndices]); execution.complete = true;
+      // Engine order is independent of authored predicate reads. Attribute its
+      // selected-row fields without inventing source reads or markers.
+      for (const index of execution.selectedIndices) for (const dependency of plan.dependencies) {
+        if (dependency.role === 'control' && plan.order.some(term => term.field === dependency.field)) execution.candidates[index]!.dependencies.add(dependency.id);
+      }
       // Recheck the same full domain and current grants without rerunning source.
       // Later own writes never substitute for this original intermediate stage.
       if (owner.callGuards.length >= MAX_ITEMS) return invalid('query commit guard budget exceeded.');
@@ -1345,7 +1377,10 @@ export function observeScenarioReceiptQueryDependency(call: AdmittedCall, store:
     if (query === undefined || query.call !== call || query.owner !== owner || query.stage !== owner?.stage ||
         query.activeSlot !== input.slot || !owner.busy || state.pending !== 0 || state.returnId !== null) return invalid('query field observation requires its actual active candidate slot.');
     const dependency = query.plan.dependencies.find(dep => dep.id === input.dependencyId), candidate = query.candidates[issued!.index]!;
-    if (dependency === undefined || !Object.hasOwn(candidate.record.data, dependency.field)) return invalid('query dependency is outside its checked projected field.');
+    if (dependency === undefined || dependency.role !== 'control' || !Object.hasOwn(candidate.record.data, dependency.field) ||
+        candidate.pendingRead !== dependency.field) return invalid('query source marker must match its immediate actual control field read.');
+    candidate.pendingRead = null;
+    candidate.markers.set(dependency.field, (candidate.markers.get(dependency.field) ?? 0) + 1);
     candidate.dependencies.add(dependency.id);
   } catch (error) {
     state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true;
@@ -1372,7 +1407,7 @@ export function bindScenarioReceiptQueryResult(call: AdmittedCall, store: Storag
       for (const field of returned.projection.fields) if (field.kind === 'field') {
         for (const dependency of execution.plan.dependencies) if (dependency.role === 'data' && dependency.field === field.field) candidate.dependencies.add(dependency.id);
       }
-      if (execution.plan.dependencies.some(dep => !candidate.dependencies.has(dep.id))) return invalid('result omitted its checked selected-row field attribution.');
+      if (execution.plan.dependencies.some(dep => dep.role === 'data' && !candidate.dependencies.has(dep.id))) return invalid('result omitted its checked selected-row data attribution.');
     }
     const expected = queryProjectionWire(returned.projection, execution.plan, execution.candidates, execution.selectedIndices);
     resultWire(state.bound, expected); resultWire(state.bound, input.wire);

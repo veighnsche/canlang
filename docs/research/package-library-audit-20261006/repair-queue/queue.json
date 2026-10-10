@@ -1768,7 +1768,7 @@
     {
       "family": "IDENTITY",
       "kind": "security-correctness",
-      "readiness": "blocked-FP.IDENTITY-CONTRACT-J2-reconciliation-and-security-review",
+      "readiness": "partial-bounded-read-producer; blocked-owner-consumption-and-broad-J2",
       "audit_finding_ids": [
         "SI02",
         "SI03",
@@ -1785,7 +1785,7 @@
         "library-sequence:I01"
       ],
       "prerequisites": [
-        "Four recorded J2 state/identity owner questions, verified origin/context/fence/transaction participants and typed conditional winner contract. Existing shared-fence outcome labels remain proposals. Consequential mechanism needs balanced JEV3; preserve pending Astra review."
+        "Bounded MembershipSnapshot producer implemented and109 owning checks pass; Dev additive Identity mirror intake and Capability/State+Dev real multi-member consumption/qualification remain. Original whole mutation J2 placement/guards/batch/Memory contract and critical security review remain open; do not infer whole acceptance."
       ],
       "intended_deleted_mechanisms": [
         "None; replace void consume/check-write only after owner atomic/recoverable mechanism release; public crypto/cookie thin integrations stay."
@@ -1854,7 +1854,7 @@
       "new_files_proposal_only": [
         "packages/state/src/ports/identity.ts"
       ],
-      "status": "blocked",
+      "status": "partial",
       "depends_on_packets": [],
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
@@ -1895,7 +1895,8 @@
           "persisted-security-and-timing-contract-if-changed"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
-      }
+      },
+      "implementation_reference": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state.TECH-I01.bounded_membership_release"
     },
     {
       "family": "IDENTITY / INTERFACES",

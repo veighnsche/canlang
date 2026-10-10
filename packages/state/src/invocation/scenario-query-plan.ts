@@ -317,9 +317,13 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
     const ids = list(candidate.dependencies).map(text); unique(ids);
     if (ids.some(id => !query.dependencies.some(dep => dep.id === id))) fail('foreign observed query dependency.');
     for (const dependency of query.dependencies) {
-      const required = dependency.role === 'control' || candidate.matched;
-      if (!required) continue;
-      if (!ids.includes(dependency.id) || !Object.hasOwn(projected.data, dependency.field)) fail('complete false-domain control and selected data observations required.');
+      // State closes actual predicate read/marker correspondence before
+      // producing these IDs. Skipped branches have no executed observation;
+      // selected projection and engine order remain mandatory separately.
+      const required = candidate.matched && (dependency.role === 'data' || query.order.some(term => term.field === dependency.field));
+      if (required && !ids.includes(dependency.id)) fail('complete selected data and order observations required.');
+      if (!ids.includes(dependency.id)) continue;
+      if (!Object.hasOwn(projected.data, dependency.field)) fail('actual query observation field is missing.');
       canonicalWire(dependency.type, projected.data[dependency.field], schema);
     }
   }
@@ -355,7 +359,7 @@ result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: re
       const projected = await savedProjection(query.model, candidate.row, candidate.secretFields, []);
       if (projected === null || projected.id !== candidate.row.id || projected.version !== candidate.row.version) return false;
       for (const dependency of query.dependencies) {
-        if (dependency.role !== 'control' && !candidate.matched) continue;
+        if (!candidate.dependencies.includes(dependency.id)) continue;
         if (!Object.hasOwn(projected.data, dependency.field) || !same(projected.data[dependency.field], candidate.record.data[dependency.field])) return false;
         canonicalWire(dependency.type, projected.data[dependency.field], bound.valueSchema);
       }
