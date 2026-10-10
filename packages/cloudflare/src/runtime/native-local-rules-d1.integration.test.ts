@@ -391,9 +391,13 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
   }
 });
 
-it('consumes unchanged native HookOrder with one portable D1 fence and late staged-Audit rollback', { timeout: 180000 }, async () => {
-  const sourcePath = join(root, 'compiler/tests/fixtures/hook_order_rollback.can');
+for (const contextual of [false, true]) it(contextual
+  ? 'consumes unchanged native contextual HookOrder with portable D1 attribution, defaults and late rollback'
+  : 'consumes unchanged native HookOrder with one portable D1 fence and late staged-Audit rollback', { timeout: 180000 }, async () => {
+  const sourcePath = join(root, 'compiler/tests/fixtures', contextual ? 'hook_order_contextual.can' : 'hook_order_rollback.can');
   const originalSource = await readFile(sourcePath, 'utf8');
+  if (contextual) assert.equal(createHash('sha256').update(originalSource).digest('hex'),
+    '4c4ebefea8e03bd50f59c471608ca534a6ed0ba6d21ad8f3c377b061951970f7', 'exact released owning contextual source');
   const entryModel = 'HookOrder.Entry', auditModel = 'HookOrder.Audit';
   let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
   let persistence: string | undefined;
@@ -518,11 +522,11 @@ it('consumes unchanged native HookOrder with one portable D1 fence and late stag
       return { status: response.status, body: object(await response.json()), id, inputs, operation: `${entryModel}.${kind}` };
     };
     type Mutation = Awaited<ReturnType<typeof mutate>>;
-    const receipt = async (result: Mutation) => {
+    const receipt = async (result: Mutation, expectedDefaults: Record<string, unknown> = {}) => {
       const row = await db.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(result.id).first<ReceiptRow>(); assert.ok(row);
       assert.equal(row.app, 'HookOrder'); assert.equal(row.owner, ava.owner); assert.equal(row.principal, ava.principal);
       assert.equal(row.operation, result.operation); assert.equal(row.input_hash, await hashInputs(result.inputs));
-      assert.deepEqual(JSON.parse(row.resolved_defaults), {}); assert.ok(Number.isSafeInteger(row.created_at));
+      assert.deepEqual(JSON.parse(row.resolved_defaults), expectedDefaults); assert.ok(Number.isSafeInteger(row.created_at));
       assert.ok(Number.isSafeInteger(row.committed_revision)); return row;
     };
     const history = async () => (await db.prepare('SELECT * FROM history ORDER BY seq').all()).results;
@@ -576,10 +580,29 @@ it('consumes unchanged native HookOrder with one portable D1 fence and late stag
     const current = (await physical(entryModel))[0]!, audits = await physical(auditModel); assert.equal(audits.length, 1);
     const audit = audits[0]!; assert.equal(current.id, initial.id); assert.equal(current.version, 2);
     assert.deepEqual(current.data, { state: 'second', accept: true }); assert.equal(audit.version, 1);
-    assert.deepEqual(audit.data, { note: 'first' }, 'the staged child observes the first source-ordered candidate');
+    const expectedAudit: Record<string, unknown> = { note: 'first' };
+    if (contextual) {
+      const actorFacts = await identityDb.prepare('SELECT email,email_verified FROM identity_users WHERE user_id=?')
+        .bind(ava.principal).first<{ email: string; email_verified: number }>(); assert.ok(actorFacts);
+      const teamFacts = await identityDb.prepare('SELECT timezone FROM identity_teams WHERE team_id=?')
+        .bind(ava.owner).first<{ timezone: string }>(); assert.ok(teamFacts);
+      const invocationTime = await db.prepare('SELECT created_at FROM receipts WHERE operation_id=?')
+        .bind(updated.id).first<{ created_at: number }>(); assert.ok(invocationTime);
+      const admittedNow = new Date(invocationTime.created_at).toISOString();
+      Object.assign(expectedAudit, { author: { id: ava.principal }, at: admittedNow,
+        explicit_author: { id: ava.principal }, explicit_at: admittedNow, team_id: ava.owner,
+        team_timezone: teamFacts.timezone, operation_id: updated.id, operation_source: 'http',
+        actor_email: actorFacts.email, actor_verified: actorFacts.email_verified === 1 });
+      assert.deepEqual(audit.data.explicit_author, audit.data.author, 'explicit native actor equals State server=actor');
+      assert.equal(audit.data.explicit_at, audit.data.at, 'explicit native now equals State server=now');
+    }
+    assert.deepEqual(audit.data, expectedAudit, 'the staged child observes the first source-ordered candidate and exact admitted context');
     assert.deepEqual(await read(entryModel), [{ id: current.id, data: current.data }]);
-    assert.deepEqual(await read(auditModel), [{ id: audit.id, data: audit.data }]);
-    const updateReceipt = await receipt(updated), updateOutcome = object(JSON.parse(updateReceipt.outcome));
+    assert.deepEqual(await read(auditModel), [{ id: audit.id, data: { note: 'first' } }],
+      'the original member policy discloses only note, including in the contextual fixture');
+    const updateDefaults = contextual ? { '1:HookOrder.Audit.author': { id: ava.principal },
+      '1:HookOrder.Audit.at': expectedAudit.at } : {};
+    const updateReceipt = await receipt(updated, updateDefaults), updateOutcome = object(JSON.parse(updateReceipt.outcome));
     assert.equal(updateOutcome.status, 'committed');
     // The owner finalizer orders net writes by model/id; history below keeps
     // the actual source stage order instead of inventing extra root versions.
