@@ -291,7 +291,7 @@ async function verifyConsumer(checkout) {
 
   // Exercise CompiledWasm in workerd, using the actual selected binary, glue,
   // backend, and rewritten producer graph, plus the genuine portable Files
-  // digest/strict decoder, nongrant extractor, and pinned Acorn parser. The
+  // digest/strict decoder, current byte reader, nongrant extractor and Acorn parser. The
   // probe supplies its entry; parsing must not execute the source initializer.
   const backendKey = Object.keys(first.modules).find(key => key.endsWith('/values-bindings/backend.js'));
   assert.ok(backendKey, 'selected values backend must be staged');
@@ -302,7 +302,8 @@ async function verifyConsumer(checkout) {
     `import * as glue from ${JSON.stringify('./' + glueKey)};`,
     `import { wasmBackend } from ${JSON.stringify('./' + backendKey)};`,
     'import { sha256Hex, checkContent } from "./vendor/files/upload/index.js";',
-    'import { readFinalizedFileObservation } from "./vendor/files/finalize/index.js";',
+    'import { readFinalizedFileObservation, ingestVerifiedEventBytes, readCurrentFinalizedBytes, blobKeyForFile } from "./vendor/files/finalize/index.js";',
+    'import { TestOnlyMemoryBlobStore, TestOnlyMemoryFinalizedStore, TestOnlyMemoryIntentStore, TestOnlyCounterFileIds } from "./vendor/files/ports.js";',
     `import { parse, version } from ${JSON.stringify('./' + acornKey)};`,
     `import { createCommittedModelSourceStager } from ${JSON.stringify('./' + committedKey)};`,
     'import * as sourceState from "./vendor/state/index.js";',
@@ -322,7 +323,19 @@ async function verifyConsumer(checkout) {
     '  let closedRejected = false, rawRejected = false; try { await stager(liveToken); } catch (error) { closedRejected = error instanceof sourceState.StateError && error.code === "validation"; } try { sourceState.readOwnerMutationSourceStage({}); } catch (error) { rawRejected = error instanceof sourceState.StateError && error.code === "validation"; }',
     '  return { sameReader: sourceState.readOwnerMutationSourceStage === mutationState.readOwnerMutationSourceStage, sameBegin: sourceState.beginOwnerMutation === mutationState.beginOwnerMutation, selectors, writes: output.writes.length, businessWrites: sourceState.ownerMutationBusinessWrites(output).length, closedRejected, rawRejected, unchangedRevision: await store.readRevision() };',
     '}',
-    'export default { async fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), acorn, committedSource: await probeCommittedSource(), files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}) } }); } };',
+    // Controlled non-durable ports exercise genuine production finalization and
+    // physical read code. They establish neither provider authentication nor
+    // State grants, shared-reference retention or a durable host read contract.
+    'function probeCurrentFileBytes() {',
+    '  let now = 1700000000000; const blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(); const deps = { clock: { nowMs: () => now }, blobs, files, intents: new TestOnlyMemoryIntentStore(), fileIds: new TestOnlyCounterFileIds("portable_file") };',
+    '  const receiver = { app: "portable-files", team: "portable-team", owner: "portable-owner", principal: "portable-principal" }; const policy = { types: ["application/pdf"], maxBytes: 64 }, retention = { unattachedHorizonMs: 1000, retentionMs: 2000 }, options = { policy, retention }; const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);',
+    '  const finalized = ingestVerifiedEventBytes(deps, { provenance: { kind: "event", source: "portable.fixture", adapter: "portable.fixture", occurrenceId: "portable_occurrence", fieldPath: "output", itemIndex: 0 }, receiver, claimedType: "application/pdf", bytes: pdf, policy }); if (finalized.status !== "finalized") throw new Error("genuine Files fixture finalization refused");',
+    '  const ref = finalized.file.id, key = blobKeyForFile(ref), originalRead = blobs.read.bind(blobs), snapshot = originalRead(key), changed = new Uint8Array(pdf); changed[0] ^= 1; let readCount = 0; blobs.read = incoming => { if (incoming !== key) throw new Error("foreign byte key"); return ++readCount === 1 ? snapshot : changed; };',
+    '  let current; try { current = readCurrentFinalizedBytes(deps, ref, receiver, options); } finally { blobs.read = originalRead; } if (current === null) throw new Error("current physical read refused"); const detachedSnapshot = current !== snapshot; snapshot[0] ^= 1;',
+    '  const foreignRejected = readCurrentFinalizedBytes(deps, ref, { ...receiver, principal: "foreign" }, options) === null; blobs.write(key, changed); const corruptRejected = readCurrentFinalizedBytes(deps, ref, receiver, options) === null; blobs.write(key, pdf); now += retention.unattachedHorizonMs; const expiredBeforeSweep = readCurrentFinalizedBytes(deps, ref, receiver, options) === null;',
+    '  return { currentBytes: Array.from(current), readCount, detachedSnapshot, foreignRejected, corruptRejected, expiredBeforeSweep, state: files.get(ref).state };',
+    '}',
+    'export default { async fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), acorn, committedSource: await probeCommittedSource(), files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}), currentRead: probeCurrentFileBytes() } }); } };',
   ].join('\n');
   const wasmWorker = await startLocalDev({
     workerName: 'installed-wasm-regression', compatibilityDate: '2026-07-15',
@@ -340,6 +353,8 @@ async function verifyConsumer(checkout) {
       pdf: { claimedType: 'text/plain', detectedType: 'application/pdf', sizeBytes: 5, verdict: 'accepted' },
       invalidText: { claimedType: 'text/plain', detectedType: null, sizeBytes: 2, verdict: 'rejected' },
       rawObservation: null,
+      currentRead: { currentBytes: [0x25, 0x50, 0x44, 0x46, 0x2d], readCount: 1, detachedSnapshot: true,
+        foreignRejected: true, corruptRejected: true, expiredBeforeSweep: true, state: 'finalized' },
     } });
   } finally {
     await wasmWorker.dispose();
