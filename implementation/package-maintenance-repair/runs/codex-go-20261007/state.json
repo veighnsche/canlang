@@ -538,7 +538,7 @@
       "root_read_released": true,
       "commit_pending": false,
       "commit": "89d885a9",
-      "remaining_prerequisite": "Finite State intrinsic/input and Work7f927643 prerequisites released. State framework producer b6472540/a4e25acb plus genuine Dev5c adapter are consumed through exact reviewed LOCAL main8a807bb4 at their unfinished qualified scopes. Finite authored-delivery public-route repair now passes22producer/2installed-workerd cases, awaiting coordinator exact release. Capability owns original complete native Text/Task44; Dev owns optional-loader compatibility and unchanged complete41 profile. Broader receipt/disclosure/Identity/lifetime/native/publication gates remain; no parent acceptance."
+      "remaining_prerequisite": "Finite State intrinsic/input and Work7f927643 prerequisites released. State framework producer b6472540/a4e25acb plus genuine Dev5c adapter are consumed through exact reviewed LOCAL main8a807bb4 at their unfinished qualified scopes. Finite authored-delivery public-route repair now passes22producer/2installed-workerd cases, manually reviewed/released at LOCAL67554d14 and consumed in reviewed6da0dd1d. Capability owns original complete native Text/Task44; Dev owns optional-loader compatibility and unchanged complete41 profile. Broader receipt/disclosure/Identity/lifetime/native/publication gates remain; no parent acceptance."
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -1159,7 +1159,7 @@
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/csv/grammar.ts"
       ],
-      "residual_evidence": "Released Compilerb2c1a425 alias identity consumed with genuine CLI→mounted CSV regression; owning bounds/NAME now reachable and required empty alias retains raw text. Prior ordinary Contract/date/scalar checks retain scope. Nominal normalization authority, selectedSR02resource and installed/browser/durable parent joins remain open.",
+      "residual_evidence": "Released Compilerb2c1a425 alias identity consumed with genuine CLI→mounted CSV regression; owning bounds/NAME now reachable and required empty alias retains raw text. Prior ordinary Contract/date/scalar checks retain scope. Current supported bounded NAME alias identity needs no added normalization; selectedSR02resource and installed/browser/durable parent joins remain open.",
       "finite_own_data_slice": {
         "state": "independently accepted finite correction; committed4d103fbe",
         "files": [
@@ -1216,8 +1216,8 @@
         }
       },
       "remaining_prerequisite": {
-        "prerequisite": "Direct bounded-alias descriptor/consumer prerequisite resolved at the finite genuine source slice below. Remaining nominal duplicate normalization must follow its owning Values contract; selectedSR02 resource/installed/browser/durable and original parent joins remain separate.",
-        "owner": "Values owning normalization contract; separately selected resource/current-context and installed/durable owners"
+        "prerequisite": "Direct bounded-alias descriptor/consumer prerequisite resolved. Current supported singular bounded NAME text aliases decode unchanged and identical admitted inputs already deduplicate; no missing raw-distinct/equal-normalized behavior is demonstrated. Selected SR02 resource/current-context and installed/browser/durable original parent joins remain.",
+        "owner": "Selected resource/current-context and installed/browser/durable defining owners; future normalization only if an actual owning Values profile changes identity"
       },
       "stored_field_constraint_slice": {
         "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
@@ -1255,11 +1255,16 @@
         "behavior": "Shared mapping retains required singular checked text-alias empty cell as own empty text, allowing existing owning Values min1 binding_mismatch rather than missing-required. Nullable mapped blank=null; mapped optional and unmapped defaults stay absent. Compound cells remain raw strings/refuse; no new normalization or compound syntax.",
         "validation": "Fresh locked/offline CLI build, UI/Interfaces owning emits and affected genuine actualCLI regression1/1 passed0.70s,1unchangedIR case unselected. Real emitted alias schema/catalog→public mounted CSV review/commit covers empty/badNAME/81char owning refusals, two valid raw candidates, nullable/default/array omission, raw compound schema refusal, independent golden consent, zero review effects and exactly2valid source-ordered scripted downstream calls with original IDs. Affected existing scalar/date controls2/2 and test rustfmt pass. Compiler owning2/2,codegen121/strict checks reused at source scope; no fabricated descriptor substitute.",
         "limit": "Genuine emitted repository CLI/public mounted Interfaces/UI/Values boundary with scripted downstream only; not State/browser/installed/durable or whole parent acceptance. Native preparation/release and timezone/JEV holds unchanged."
+      },
+      "nominal_identity_reassessment": {
+        "state": "Coordinator withdrew proposed nominal duplicate correction after verified producer facts; no no-op helper, CSV coercion or speculative producer added.",
+        "evidence": "Released1c2341af is present: it retains receiving contract-field trim/bounds. Contracts state1141 and Values schema134/core1513 permit direct aliases only as bounded text with NAME format; direct alias decode remains unchanged. One current installed Values comparison confirms padded direct NAME refuses format, plain NAME decodes unchanged, and only receiving structural contract trim makes both values equal. Compound CSV cells remain unsupported raw strings. Existing alias/scalar/consent/source validation reused unchanged.",
+        "limits": "This corrects a stale readiness premise, not full DEL-C01 acceptance or a new Values/Compiler producer request. Concrete resource/installed/browser/durable gates and all precise holds remain."
       }
     },
     "DEL-C02": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Partial: existing CRUD and bounded plain-scenario replay-age delegation implemented/tested; frozen review context/integrity/per-row authority and complete parent qualification remain blocked.",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/confirm.ts",
@@ -1267,8 +1272,8 @@
       ],
       "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open",
       "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD aged replay has landed. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed integrity, per-row review authority and scenario disclosure before scenario age delegation.",
-        "owner": "Interfaces/UI/Identity/State review owners; scenario disclosure producer"
+        "prerequisite": "Checked CRUD and bounded plain-scenario aged replay delegation are available. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed integrity and per-row review authority stay separate; expired signed scenario-form restoration and multi-member projection remain unavailable.",
+        "owner": "Interfaces/UI/Identity review owners; Capability/Identity broader scenario projection and coherent multi-member snapshot; Dev actual installed/native consumers"
       }
     },
     "DEL-C02-order": {
@@ -1606,8 +1611,8 @@
       "commands_released": true,
       "status": "Finite source-owned UI/Interfaces/currentCF static stage and runtime mapping qualified narrowly. Exact Dev3d37c2b28b04aa3cf8ce5f4a03e4867fb4a1887f portable assembly-verification/State mutation-index prerequisite consumed without duplicate implementation; Modules owning17/17 result reused. Common deploy fixture now requires runtime/stdlib and private verification leaf, maps generated stdlib and Work receipt to their defining portable producers, and preserves both required DB abs imports. Actual22producer build tasks pass. Three affected layout/rewrite/receipt cases pass; two DB boot cases initially refuse missing appDefinition.id, then pass after handwritten entries declare it, retaining real workerd/D1 unauth401/grant401, inactive500 and authorized operation discovery. Remaining25unchanged owning Dev bundle results reused at their original scope; no full-current suite claim. Source-derived caller/installed/native/full-current closure gates remain open.",
       "remaining_prerequisite": {
-        "prerequisite": "New State-authored delivery leaf route now passes exact installed import and real workerd/D1 portable bundle checks; coordinator exact release pending. Selected entry source/lock/tool/emit/pack/actual supported-host correspondence and full-current native/profile consumers remain owner gates; native preparation stays held.",
-        "owner": "Coordinator exact route release; Dev/Capability original native consumers and each delivery/release owner"
+        "prerequisite": "New State-authored delivery leaf route now passes exact installed import and real workerd/D1 portable bundle checks; manually reviewed/released at LOCAL67554d14 and consumed in reviewed6da0dd1d. Selected entry source/lock/tool/emit/pack/actual supported-host correspondence and full-current native/profile consumers remain owner gates; native preparation stays held.",
+        "owner": "Dev/Capability original native consumers and each delivery/release/installed supported-host owner"
       },
       "current_validation_gap": "Historical emergency installed-closure checkpoint was subsequently qualified at its recorded local source: actual installed-only Worker/abs/auth/Wasm/missing-corrupt asset and170export/13owner declaration gates passed with797thirdparty diagnostics retained. Reuse those unchanged results only at their source scope. Current integrated source and finite portable bundle repair below do not establish all installed/supported-host/native/full-release qualification; native preparation remains held.",
       "portable_import_fixture_slice": {
@@ -1744,13 +1749,13 @@
     },
     "REPLAY-IP07": {
       "planning_status": "blocked",
-      "state": "Checked CRUD HTTP/CSV implemented, tested and root-reviewed; full packet partial pending scenario authority/result provenance",
+      "state": "Checked CRUD and bounded plain checked-scenario HTTP/CSV retained delegation implemented and affected local checks passed; full packet remains partial pending broader current authority/disclosure/installed/native gates.",
       "files": [
         "packages/interfaces/src/http/operations.ts",
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/envelope/validate.ts"
       ],
-      "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
+      "blocker": "Current published zero/single-distinct-membership scenario receipt projection is available and plain HTTP/CSV delegation is qualified below. Coherent multi-member Identity snapshots, broader source/legacy disclosure/current installed/native joins and precise held payload/preparation gates remain; expired signed scenario-form restoration stays age-refused.",
       "evidence": "security-joins.json",
       "remaining_prerequisite": {
         "prerequisite": "Scenario execution-owned provenance/current-authority projection remains. Capability's zero/single-distinct membership finite slice is not yet released; multi-member authority needs Identity's coherent snapshot contract below. Expired signed create/update recovery is qualified through the owning runtime facade; broader host/installed and original parent gates remain. Keep scenario age gate; no full packet acceptance.",
@@ -1800,6 +1805,14 @@
           "owner": "Packages completed the existing genuine compiled Interfaces consumer qualification with the owning public Cloudflare runtime; broader scenario/host producers retain their existing obligations.",
           "limit": "Current emitted native/JSON HTTP over real CF buildInvoker and State Memory only; actual installed/browser/durable and completeREPLAY-IP07 acceptance are unclaimed. Delete source binding production remains unavailable. Scenario current projection and parent gates remain blocked; native preparation/release HOLD retained. Historical254f883d unfinished checkpoint label remains preservation history, superseded here only at this finite qualification scope."
         }
+      },
+      "bounded_scenario_consumer": {
+        "state": "Implemented and affected local checks passed; finite source review clear; coordinator manual local review/release pending (unfinished parent workflow).",
+        "source_base": "9678f45041b54895e1a45aac8a564df104b80e18",
+        "producer": "Current reviewed CF invokeRetainedMutationCanonical selects the positive State invokeRetainedReceiptOnly producer. Scenarios require checked disclosure and exact association reader/projector; absent producer, legacy/malformed association, changed hash and unseen receipt refuse. State current secrecy/type/row-lifetime/authority and repeated zero/single membership checks remain; multi-member projection remains withheld.",
+        "behavior": "Only checked scenario IDs refused specifically as expired can forward through callable invokeRetainedMutation. Missing/null/nonfunction producer retains the age refusal with no ordinary fallback. Fresh/malformed/future and checked CRUD routing are unchanged. HTTP closed/bound inputs and final credential liveness precede recovery; signed scenario form_binding remains age-refused. CSV review/consent/selection/current authority and source row order precede calls, raw inputs/IDs stay unchanged, invalid/duplicate/future/malformed rows never invoke recovery.",
+        "validation": "Final owning Interfaces clean emission0. Five affected maintained HTTP/CSV files initially58/59 pass; one new HTTP component fixture lacked its required description and was corrected without changing admission. Only that failed case rerun1/1 passes265.75ms; unchanged58 results from2.944s run reused. Initial emission caught two new nullable actor assertions, corrected before successful build/check. New HTTP and mounted CSV components cover dedicated replay/conflict/not_found passthrough, unavailable ports, raw envelopes/current identity, bound/closed inputs, fresh ordinary routing, signed binding hold and reverse selection/source order. Finite independent source review clear. Owning State/CF association/security/effect negatives and prior native/CRUD validation reused at unchanged scopes, not rerun.",
+        "limits": "Adapter/component qualification only: not a new genuine compiled scenario workflow, installed/browser/durable profile, multi-member Identity release, expired signed-form restoration or complete REPLAY-IP07/DEL-C02/48/333 acceptance. No State/Compiler/Dev producer edits and all precise human holds remain."
       }
     },
     "PARSER-DP01": {
