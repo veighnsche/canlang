@@ -52,3 +52,7 @@ export {
   type InterimOperationDef,
   type OperationRegistry,
 } from './registry.js';
+export { bindScenarioDispatchMembershipProducer,
+  type ScenarioDispatchMembershipPorts, type ScenarioDispatchMembershipProducer,
+  type ScenarioDispatchMembershipExecution, type ScenarioDispatchMembershipHandle,
+} from './dispatch-membership.js';
