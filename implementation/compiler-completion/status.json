@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T04:38:02.336654+00:00",
+  "updated_utc": "2026-10-10T04:48:45.346514+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Exact compiler96fa42834dc0c5d12724b1c877f639a35b379439 passes the complete current-source required run:133targets1381passed/0failed/0ignored/0filtered/0SKIP on Node24.19 with actual installed graph22/22 at reviewedlocala22241b7. Strict all-targetClippy/fmt0; coordinator manual review integrated compiler corrections at LOCALd0828a56. Original58/67 and precise owner dependencies/holds remain. Exact Dev2a1a07a1 NativeRefArrays input is released at LOCAL5fa76b27; its bounded loop producer/consumer join is the next ready compiler unit.",
+  "current_source_work": "Exact96fa prior source remains whole-qualified133targets1381/0failed/0ignored/0filtered/0SKIP. Next bounded NativeRefArrays loop source is implemented and owning301/301 pass (library157, codegen121, native4, disclosure19), finite review clear; current-source whole follows coherent save. Exact reviewed LOCAL5fa Dev2a input/private lifetime consumed preserving both histories at23d9; actual graph22/22 uncached on Node24.19. Original58/67 and precise owner dependencies/holds remain.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -449,7 +449,7 @@
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
-    "current_head_is_qualified": true,
+    "current_head_is_qualified": false,
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
@@ -658,13 +658,20 @@
       "behavior": "Actual reused array parameter source layer retains exact compatible min/max inclusive JS-safe integer lengths in IR, top-level operation input metadata and generated scenario/capability schemas; field-only !, normalization, uniqueness/distinctness are not borrowed. Outer scalar-field[] wrapper does not promote element bounds to cardinality.",
       "validation": "Owning actual IR/CLI/artifact/generated-schema target3/3: imported Task[] min1/max10, narrowed min2/max5, nullable/read-versus-mutation versions, legal default[] and unbounded/scalar-element wrapper controls; unsafe/symbolic no modules. Direct parameter modifiers already refuse parser E1200; no new unsupported-syntax inference. Strict all-target and changed-source whole due after decision consumer stable. Strict all-target Clippy/fmt0 at coherent decision/parameter source; changed-source whole due.",
       "owner_release": "Packages exact shared envelope top-level min/max:number for safe nonnegative array lengths, existing array/nullable/ref requireVersion. State per-element current reference/outer checkpoint; Dev private input-array view/slot correspondence. Native array admission remains withheld.",
-      "remaining": "Exact Dev2a1a07a1 fixture/private indexed input lifetime is released at LOCAL5fa76b27. Next ready finite compiler unit: immutable admitted model-array domain, positive literal limit, unconditional supported Set, empty/nonempty return selection and exact source/IR join. Existing repeated static row markers suffice. General query/computed/nullable/nested/conditional loops still require complete defining coverage; no new human hold."
+      "remaining": "Released State original indexed current refs and Dev2a input lifetime consumed. Compiler finite direct admitted array/literal bound/unconditional Set loop now joins actual source/IR and empty/nonempty paths; owning actual native Memory passes. Dev owns its changed actualD1 acceptance. General computed/query/nullable/nested/conditional loop coverage remains declined; no new human hold."
     },
     "nominal_model_references": {
       "state": "implemented_real_values_and_state_loader_tested_native_query_unfinished",
       "behavior": "Exact checked Model SymbolId/canonical joins actual emitted models inventory; ordinary nominal closure supports singular/nullable/ordered-array references without model row schemas or authority.",
       "validation": "Actual CLI + installed Values ordinary_contract_results4/4; native BigInt versions, wire roundtrips, normalized version spelling, inherited trim/min, missing/closed/no-context/dangling/collision/null/array controls; finite independent review clear. Same-load released State loader consumes actual full compiler artifact, preserves Fact result/ref schemas and rejects missing/duplicate model context; final affected13/13 (ordinary4,bounds3,decision6).",
       "next": "Real query/source/policy/native result provenance and private captures remain owner joins; changed-source whole qualification running."
+    },
+    "reference_array_loop": {
+      "state": "implemented_owning_tested_unfinished_final_whole_and_dev_d1",
+      "source": "tests/integration/can-dev-server/NativeRefArrays.can exact Dev2a1a07a1 at reviewed LOCAL5fa76b27",
+      "behavior": "Direct admitted nonnullable owning stored-model array, positive literal bound, one straight-line current-item Set loop, exact parameter/model/item/domain/limit/ordered-body IR bijection; existing private Then/Else empty/nonempty selection and repeated static current-row markers. Original order/duplicates, once domain fetch and pre-body length check retained. Repeated observations and executions each bounded200; general query/nested/conditional/helper/version/result-control profiles remain declined.",
+      "validation": "Library157 and codegen121 pass; final owning native4/disclosure19 pass, total301. Actual CLI/native public State Memory A/B/A captures values0/0/1 and versions1/1/2, same dependency ID; final A2/B1 bothversion2, one rootcommit, originalslots unchanged, saved replay no effects. Empty/omitted capture/replay, genuine same-team nonmember/stale/malformed/overlimit refusals, nine IRskew controls and source budget/general-profile controls pass. Exact owner graph22/22 uncached; strict all-targetClippy/fmt0 and finite source review clear. Initial test-only setup catalog-owner mismatch and unsupported cross-team isolation assumption corrected to actual cohort/policy; no production gate weakened.",
+      "remaining": "Save coherent local producer then current-source whole qualification; coordinator review/release, Dev sole owning actual D1 consumer acceptance checks. No original Workbench/general-loop/reference-count acceptance."
     }
   }
 }

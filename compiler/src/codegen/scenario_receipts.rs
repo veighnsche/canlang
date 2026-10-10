@@ -102,6 +102,7 @@ pub(super) struct NativeDependency {
 pub(super) enum NativeDecisionKind {
     ParameterDefault,
     If,
+    For,
     Match,
     And,
     Or,
@@ -282,6 +283,7 @@ pub(super) fn collect_native_scenario_receipt(
             let expected = match kind {
                 NativeDecisionKind::ParameterDefault => decision.node.kind,
                 NativeDecisionKind::If => SyntaxKind::If as u8,
+                NativeDecisionKind::For => SyntaxKind::For as u8,
                 NativeDecisionKind::Match => SyntaxKind::Match as u8,
                 _ => SyntaxKind::Binary as u8,
             };
@@ -852,7 +854,10 @@ fn valid_choice(
             NativeDecisionKind::ParameterDefault,
             DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided,
         ) => true,
-        (NativeDecisionKind::If, DisclosureChoice::Then | DisclosureChoice::Else) => true,
+        (
+            NativeDecisionKind::If | NativeDecisionKind::For,
+            DisclosureChoice::Then | DisclosureChoice::Else,
+        ) => true,
         (NativeDecisionKind::Match, DisclosureChoice::Match(case)) => {
             cases.is_some_and(|cases| cases.contains(case))
         }
@@ -887,6 +892,89 @@ fn match_effect_proofs(
             return None;
         }
         match (&proof.kind, *sites.effects.get(&site)?) {
+            (
+                DisclosureEffectKind::For {
+                    domain: checked_domain,
+                    limit: checked_limit,
+                    maximum,
+                    item: checked_item,
+                    parameter,
+                    model,
+                    body: checked_body,
+                },
+                IrStmt::For {
+                    item,
+                    domain,
+                    limit: Some(limit),
+                    body,
+                    ..
+                },
+            ) => {
+                let parameter_item = ir.items.get(parameter.0 as usize)?;
+                let IrItemKind::Param {
+                    owner: parameter_owner,
+                    index,
+                    ty: IrType::Known(parameter_type),
+                    default: None,
+                    ..
+                } = &parameter_item.kind
+                else {
+                    return None;
+                };
+                let IrItemKind::Scenario { params, .. } = &owner.kind else {
+                    return None;
+                };
+                let ResolvedType::Array { element, .. } = parameter_type else {
+                    return None;
+                };
+                let expected_record = ResolvedType::Record {
+                    symbol: *model,
+                    stored: true,
+                };
+                let model_item = ir.items.get(model.0 as usize)?;
+                if proof.node.kind != SyntaxKind::For as u8
+                    || !direct_field_name(item)
+                    || item != checked_item
+                    || *maximum == 0
+                    || *maximum > 200
+                    || parameter_item.id != *parameter
+                    || *parameter_owner != owner.id
+                    || params.get(*index) != Some(parameter)
+                    || element.as_ref() != &expected_record
+                    || domain.ty != *parameter_type
+                    || !matches!(&domain.expr, IrExpr::Name(name) if name == &parameter_item.name)
+                    || domain.span != node_span(*checked_domain)
+                    || limit.span != node_span(*checked_limit)
+                    || limit.ty != ResolvedType::Scalar(Scalar::Int)
+                    || !matches!(limit.expr, IrExpr::Int(value) if value == i128::from(*maximum))
+                    || model_item.id != *model
+                    || model_item.module != owner.module
+                    || !matches!(model_item.kind, IrItemKind::Model { .. })
+                    || body.is_empty()
+                    || body.len() != checked_body.len()
+                {
+                    return None;
+                }
+                for (statement, node) in body.iter().zip(checked_body) {
+                    let IrStmt::Set {
+                        record,
+                        changes,
+                        when: None,
+                        span,
+                    } = statement
+                    else {
+                        return None;
+                    };
+                    if *span != node_span(*node)
+                        || node.kind != SyntaxKind::Set as u8
+                        || record.ty != expected_record
+                        || !matches!(&record.expr, IrExpr::Name(name) if name == item)
+                        || !closed_loop_changes(changes, item, &expected_record)
+                    {
+                        return None;
+                    }
+                }
+            }
             (
                 DisclosureEffectKind::Call {
                     operation,
@@ -1052,6 +1140,49 @@ fn match_effect_proofs(
     Some(())
 }
 
+/// The initial loop profile reads only its current element through direct
+/// fields and eager scalar expressions. A different receiver or helper cannot
+/// inherit the source loop's per-element provenance by sharing a record type.
+fn closed_loop_changes(changes: &TypedExpr, item: &str, record: &ResolvedType) -> bool {
+    let IrExpr::Object(entries) = &changes.expr else {
+        return false;
+    };
+    let mut pending: Vec<_> = entries.iter().map(|(_, value)| value).collect();
+    let mut visited = 0usize;
+    while let Some(value) = pending.pop() {
+        visited += 1;
+        if visited > 16384 {
+            return false;
+        }
+        match &value.expr {
+            IrExpr::Member { base, .. } => {
+                if base.ty != *record || !matches!(&base.expr, IrExpr::Name(name) if name == item) {
+                    return false;
+                }
+            }
+            IrExpr::Binary { op, left, right } => {
+                if matches!(op, IrBinOp::And | IrBinOp::Or | IrBinOp::Coalesce) {
+                    return false;
+                }
+                pending.push(left);
+                pending.push(right);
+            }
+            IrExpr::Unary { operand, .. } => pending.push(operand),
+            IrExpr::Int(_)
+            | IrExpr::Decimal(_)
+            | IrExpr::Text(_)
+            | IrExpr::Bool(_)
+            | IrExpr::Null
+            | IrExpr::Money { .. }
+            | IrExpr::DurationMs(_)
+            | IrExpr::Date(_)
+            | IrExpr::Datetime(_) => {}
+            _ => return false,
+        }
+    }
+    true
+}
+
 fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool {
     let (base, nullable) = match ty {
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
@@ -1196,6 +1327,25 @@ impl<'a> Sites<'a> {
                     IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
+                    IrStmt::For {
+                        domain,
+                        limit: Some(limit),
+                        body,
+                        span,
+                        ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some()
+                            || out
+                                .decisions
+                                .insert(context.site(*span), NativeDecisionKind::For)
+                                .is_some()
+                        {
+                            return None;
+                        }
+                        push!(Visit::Expression(domain));
+                        push!(Visit::Expression(limit));
+                        extend!(body.iter().map(Visit::Statement));
+                    }
                     IrStmt::Call {
                         target: IrEffectCallTarget::Operation { .. },
                         inputs,
