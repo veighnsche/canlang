@@ -2935,9 +2935,9 @@ through that real owner. Dev still owns same-private-owner current-stage stored
 singular/array reference hydration for step.parent operands. Assignment-only
 Compiler File source is qualified; reviewed LOCALd11197ca supplies Dev's genuine
 host component, with actual original D1 journey validation still Dev-owned.
-SEQ048 next needs Compiler's complete checked committed-model handler inventory
-and private id/version source producer against the released Packages DTO, then
-State same-fence enrollment and Dev native consumption. Full58/67 and precise
+SEQ048 checked compiler inventory/private id-version producer is qualified below.
+Reviewed State/Workd7ec5f26+f89d12fa and Packagesaf731606 are released in
+LOCAL7a3b7df6; Dev genuine source enrollment/native consumption remains required. Full58/67 and precise
 BDD3/Task22 holds remain unchanged.
 
 **Assignment-only File source (unfinished native host join), 2026-10-10.**
@@ -2977,3 +2977,26 @@ released Dev File component touches its port before establishing an assignment
 only the two affected native cases require the released repair. Finite source
 review is clear; coordinator acceptance and whole-suite acceptance are pending.
 Original step.parent operands, pure/dynamic approve and owner/held joins remain.
+
+
+**Committed-model source producer (unfinished native join), 2026-10-10.**
+The agreed Contracts descriptor is emitted once as the identical optional
+`committedChanges` artifact/appDefinition inventory. Clean immutable checked
+declarations retain complete ordinary/cohort matches in declaration order and
+canonical imported model/source identities. Existing private operation admission
+uses required text `id` and integer `version`, plus the actual cohort ref; a
+deleted id requires no row lookup. Trusted handlers stay outside user operation
+metadata. Existing callables, cohorts and source maps retain linkage. Closed
+contextual payloads expose only id/version. Altered public analysis tables,
+missing/duplicate/skewed IR, invalid model IDs and raw/missing/stale source refuse
+publication. Review found source-census and invalid-model refusal defects; both
+are corrected and the finite followup is CLEAR. Final affected135 pass; unchanged
+migration9/typed artifact2/typed BDD2 controls are reused,148 distinct affected.
+Actual CLI and Node24 witness complete metadata/private scalar/cohort ABI,
+imports, deletion, declared-event isolation, legacy omission and refusals.
+This qualifies declaration emission; Dev still owns actual State/Work enrollment,
+frozen membership/current authority and original CanVolunteer execution. The
+reviewed LOCAL7a3b7df6 runtime/DTO carrier awaits ancestry-safe intake at the
+coherent boundary. Final strict all-target Clippy passes25.02s; format/diff0.
+The earlier whole1408+2runtime failures remains historical for this source unit.
+Original58/67 and precise BDD3/Task22 holds remain unchanged.

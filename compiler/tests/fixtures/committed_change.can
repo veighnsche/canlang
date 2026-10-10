@@ -1,0 +1,39 @@
+package Stored
+ Given
+  export Record {title:text}
+ When
+ Then
+app CommittedJourney
+use Stored {Record as Imported}
+Given
+ Local {title:text}
+ Entry {label:text="",count:int=0}
+ event Notice {message:text}
+When
+ scenario created on=Local.created
+  do
+   let identity=event.id
+   let revision=event.version
+ scenario updated_first on=Local.updated
+  do
+   let identity=event.id
+   let revision=event.version
+ scenario updated_cohort on=Local.updated each=Entry as entry
+  do
+   set entry {label=event.id,count=event.version}
+ scenario updated_last on=Local.updated
+  do
+   let identity=event.id
+   let revision=event.version
+ scenario deleted on=Local.deleted
+  do
+   let identity=event.id
+   let revision=event.version
+ scenario imported on=Imported.updated
+  do
+   let identity=event.id
+   let revision=event.version
+ scenario declared on=Notice
+  do
+   let message=event.message
+Then

@@ -1240,10 +1240,22 @@ pub struct JsOutput {
     pub value_types: Option<JsValueTypes>,
     /// Complete local checked owner-policy declaration coverage, when supported.
     pub model_policies: Option<Vec<ModelPolicies>>,
+    /// Complete checked committed-model source inventory, when present.
+    pub committed_changes: Option<Vec<JsCommittedChange>>,
     /// `@canlang/stdlib` imports used by the entrypoint.
     pub stdlib_imports: BTreeSet<String>,
     /// `@canlang/ui` imports used by the entrypoint.
     pub ui_imports: BTreeSet<String>,
+}
+
+/// Rust producer mirror of ArtifactCommittedChangeDescriptor; Contracts owns
+/// the shared wire interface. Both envelopes reuse this single inventory.
+#[derive(Debug, Clone, Serialize)]
+pub struct JsCommittedChange {
+    pub source: String,
+    pub model: String,
+    pub change: super::ir::IrCommittedChange,
+    pub handlers: Vec<String>,
 }
 
 /// Line-oriented writer attributing every emitted line to a source span.
@@ -1418,6 +1430,7 @@ fn emit_program_with_sources(
     >,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    emitter.committed_changes = emitter.collect_committed_changes(db);
     emitter.validate_model_field_bounds();
     let entry_id = pick_entrypoint(ir);
     let entry_name = entry_id
@@ -1557,6 +1570,7 @@ fn emit_program_with_sources(
     let stdlib_imports = emitter.stdlib.clone();
     let ui_imports = emitter.ui.clone();
     let value_types = emitter.value_types.clone();
+    let committed_changes = emitter.committed_changes.clone();
 
     let mut packages = Vec::new();
     for module in &ir.modules {
@@ -1576,6 +1590,7 @@ fn emit_program_with_sources(
         operations,
         value_types,
         model_policies: local_policies.map(|plan| plan.descriptors),
+        committed_changes,
         stdlib_imports,
         ui_imports,
     }
@@ -1989,6 +2004,7 @@ fn fill_binary_template(template: String, left: &str, right: &str) -> String {
 pub struct Emitter<'a> {
     ir: &'a IrProgram,
     value_types: Option<JsValueTypes>,
+    committed_changes: Option<Vec<JsCommittedChange>>,
     by_canonical: HashMap<String, usize>,
     stdlib: BTreeSet<String>,
     ui: BTreeSet<String>,
@@ -2060,6 +2076,7 @@ impl<'a> Emitter<'a> {
         let mut emitter = Self {
             ir,
             value_types,
+            committed_changes: None,
             by_canonical,
             stdlib: BTreeSet::new(),
             ui: BTreeSet::new(),
@@ -6760,6 +6777,9 @@ impl<'a> Emitter<'a> {
         members.push(self.emit_models_member());
         members.push(self.emit_preferences_member());
         members.push(self.emit_operations_member());
+        if let Some(changes) = &self.committed_changes {
+            members.push(format!("committedChanges:{}", descriptor_json(changes)));
+        }
         // T34-F6: fanout cohort descriptors alongside operations. The
         // member is omitted when empty, so sources without a checked
         // `each=` cohort emit byte-identical output.
@@ -7807,9 +7827,17 @@ impl<'a> Emitter<'a> {
                     if let Some(event) = event_source {
                         let identity = match event {
                             IrEventSource::Declared(identity)
-                            | IrEventSource::DeliveryProgressed(identity) => identity,
+                            | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
+                            IrEventSource::Committed { model, change } => self
+                                .ir
+                                .items
+                                .get(model.0 as usize)
+                                .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))
+                                .map(|model| format!("{}.{}", model.canonical, change.suffix())),
                         };
-                        members.push(format!("event:{}", js_string(identity)));
+                        if let Some(identity) = identity {
+                            members.push(format!("event:{}", js_string(&identity)));
+                        }
                         if let Some(invocation) = self.private_event_invocation(item, event) {
                             members.push(format!("invocation:{}", invocation.to_json()));
                         }
@@ -8307,6 +8335,100 @@ impl<'a> Emitter<'a> {
         format!("disabled:[{}]", disabled.join(","))
     }
 
+    /// Publish a complete census only when every checked declaration still
+    /// joins its canonical source, private inputs and cohort in this IR.
+    fn collect_committed_changes(
+        &mut self,
+        db: Option<&crate::source::SourceDb>,
+    ) -> Option<Vec<JsCommittedChange>> {
+        let facts = &self.ir.committed_sources;
+        let current: Vec<_> = self
+            .ir
+            .items
+            .iter()
+            .filter(|item| {
+                matches!(
+                    item.kind,
+                    IrItemKind::Scenario {
+                        event_source: Some(IrEventSource::Committed { .. }),
+                        ..
+                    }
+                )
+            })
+            .collect();
+        if facts.handlers.is_empty() && current.is_empty() {
+            return None;
+        }
+        let valid = db.is_some_and(|db| {
+            facts.sources.iter().all(|(id, path, hash)| {
+                db.get(*id)
+                    .is_some_and(|source| source.path == *path && source.sha256 == *hash)
+            })
+        }) && !facts.sources.is_empty()
+            && current.len() == facts.handlers.len()
+            && current.iter().zip(&facts.handlers).all(|(item, fact)| {
+                let IrItemKind::Scenario {
+                    event_source: Some(source @ IrEventSource::Committed { model, .. }),
+                    trusted: true,
+                    params,
+                    hook: None,
+                    cohort,
+                    ..
+                } = &item.kind
+                else {
+                    return false;
+                };
+                item.id == fact.id
+                    && item.module == fact.module
+                    && item.canonical == fact.canonical
+                    && item.span == fact.span
+                    && params.is_empty()
+                    && source == &fact.source
+                    && cohort == &fact.cohort
+                    && cohort.as_ref().map(|cohort| {
+                        self.ir
+                            .items
+                            .get(cohort.model.0 as usize)
+                            .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))
+                            .map(|item| item.canonical.as_str())
+                    }) == fact.cohort_model.as_deref().map(Some)
+                    && self.ir.items.get(model.0 as usize).is_some_and(|model| {
+                        model.canonical == fact.model
+                            && matches!(model.kind, IrItemKind::Model { .. })
+                    })
+                    && self.private_event_invocation(item, source).is_some()
+            });
+        if !valid {
+            let span = facts
+                .handlers
+                .first()
+                .map(|fact| fact.span)
+                .or_else(|| current.first().map(|item| item.span))
+                .unwrap_or(Span::new(crate::source::SourceId(0), 0, 0));
+            self.diags.push(Diagnostic::error("E6008",
+                "cannot publish committedChanges: checked source, complete handler inventory or private invocation does not match".to_string(), span));
+            return None;
+        }
+        let mut changes: Vec<JsCommittedChange> = Vec::new();
+        for fact in &facts.handlers {
+            let IrEventSource::Committed { change, .. } = fact.source else {
+                unreachable!()
+            };
+            let source = format!("{}.{}", fact.model, change.suffix());
+            if let Some(entry) = changes.iter_mut().find(|entry| entry.source == source) {
+                entry.handlers.push(fact.canonical.clone());
+            } else {
+                changes.push(JsCommittedChange {
+                    source,
+                    model: fact.model.clone(),
+                    change,
+                    handlers: vec![fact.canonical.clone()],
+                });
+            }
+        }
+        Some(changes)
+    }
+
     /// Private trusted admission uses the existing flat operation profile.
     /// The runtime admits these event fields, then binds the admitted values
     /// into the handler's `{event}` envelope. Observed stored ref versions
@@ -8316,48 +8438,44 @@ impl<'a> Emitter<'a> {
         handler: &IrItem,
         event: &IrEventSource,
     ) -> Option<JsOperation> {
-        let event = match event {
-            IrEventSource::Declared(identity) => identity.as_str(),
+        let scalar_input = |name: &str, field: JsMcpField, value_type: &str| JsOperationField {
+            min: None,
+            max: None,
+            name: name.to_string(),
+            field,
+            value_type: Some(value_type.to_string()),
+            required: true,
+            nullable: false,
+            array_required: None,
+            computed_default: false,
+            default: None,
+            description: None,
+            choices: None,
+        };
+        let mut inputs = match event {
+            IrEventSource::Committed { .. } => vec![
+                scalar_input("id", JsMcpField::String, "text"),
+                scalar_input("version", JsMcpField::Integer, "int"),
+            ],
             IrEventSource::DeliveryProgressed(_) => {
-                let IrItemKind::Scenario {
-                    description,
-                    result,
-                    ..
-                } = &handler.kind
-                else {
+                vec![scalar_input("delivery_id", JsMcpField::String, "text")]
+            }
+            IrEventSource::Declared(_) => Vec::new(),
+        };
+        let fields = match event {
+            IrEventSource::Declared(identity) => {
+                let declaration = self
+                    .ir
+                    .items
+                    .iter()
+                    .find(|item| item.canonical == *identity)?;
+                let IrItemKind::Event { fields } = &declaration.kind else {
                     return None;
                 };
-                return Some(JsOperation {
-                    name: handler.canonical.clone(),
-                    kind: JsOperationKind::Scenario,
-                    description: description
-                        .as_ref()
-                        .map(|message| message.source.clone())
-                        .unwrap_or_default(),
-                    inputs: vec![JsOperationField {
-                        min: None,
-                        max: None,
-                        name: "delivery_id".to_string(),
-                        field: JsMcpField::String,
-                        value_type: Some("text".to_string()),
-                        required: true,
-                        nullable: false,
-                        array_required: None,
-                        computed_default: false,
-                        default: None,
-                        description: None,
-                        choices: None,
-                    }],
-                    result: checked_scenario_result(result.as_ref()),
-                    disclosure: None,
-                });
+                fields.as_slice()
             }
+            _ => &[],
         };
-        let declaration = self.ir.items.iter().find(|item| item.canonical == event)?;
-        let IrItemKind::Event { fields } = &declaration.kind else {
-            return None;
-        };
-        let mut inputs = Vec::new();
         for id in fields {
             let item = self.ir.items.get(id.0 as usize)?;
             let IrItemKind::Field {

@@ -210,6 +210,8 @@ pub struct CompileArtifact {
     pub value_types: Option<crate::codegen::js::JsValueTypes>,
     /// Checked complete owner-policy descriptors for the supported native profile.
     pub model_policies: Option<Vec<crate::codegen::model_policies::ModelPolicies>>,
+    /// Complete checked committed-model trigger inventory.
+    pub committed_changes: Option<Vec<crate::codegen::js::JsCommittedChange>>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
     /// Lowered migration transitions in source order (B3-I1 registry).
@@ -399,6 +401,7 @@ pub fn assemble(
         models,
         value_types: js.value_types.clone(),
         model_policies: js.model_policies.clone(),
+        committed_changes: js.committed_changes.clone(),
         pages,
         migrations,
         requires,
@@ -604,6 +607,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
         models: &artifact.models,
         value_types: artifact.value_types.as_ref(),
         model_policies: artifact.model_policies.as_deref(),
+        committed_changes: artifact.committed_changes.as_deref(),
         pages: artifact
             .pages
             .iter()
@@ -672,6 +676,8 @@ struct ArtifactWire<'a> {
     value_types: Option<&'a crate::codegen::js::JsValueTypes>,
     #[serde(rename = "modelPolicies", skip_serializing_if = "Option::is_none")]
     model_policies: Option<&'a [crate::codegen::model_policies::ModelPolicies]>,
+    #[serde(rename = "committedChanges", skip_serializing_if = "Option::is_none")]
+    committed_changes: Option<&'a [crate::codegen::js::JsCommittedChange]>,
     pages: Vec<PageWire<'a>>,
     migrations: Vec<MigrationWire<'a>>,
     requires: Vec<RequirementWire<'a>>,
