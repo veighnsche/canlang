@@ -152,6 +152,9 @@ export function callerFromCell(
     if (name === undefined) {
       throw new FixtureSetupError(null, "as-cell names no caller in this suite");
     }
+    if (suite.recipes.get(name)?.kind !== "user") {
+      throw new FixtureSetupError(name, "as-cell names a fixture that is not a user");
+    }
     return { kind: "fixture", fixture: name };
   }
   throw new FixtureSetupError(null, "as-cell value is not a caller");
