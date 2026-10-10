@@ -5620,3 +5620,9 @@ with field-only ! and distinctness excluded. Actual CLI3/3 plus strict lint/form
 pass. Direct parameter modifiers are parser-refused E1200; do not implement an
 inferred legal profile. Shared envelopes/intake belong to Packages; native current
 ref-array ownership remains State/Dev.
+
+### 2026-10-10 — expose completed qualification through explicit construct help (unfinished whole profile)
+
+Explicit `construct.help` consumes the existing daemon-owned completed qualification bundle through the same exact card/profile/index/compiler predicate as diagnostic detail. Refresh actual captured source before and after lookup and withhold working availability for stale, cancelled, pending, historical, malformed or outside-profile evidence. Refuse unknown IDs before starting a job. Keep the captured card immutable and candidate coverage unknown; one card lookup does not establish a complete compiler candidate inventory. No new proof schema, external request or business authority is introduced.
+
+The actual private CLI/Unix component and owning card tests pass28/28, including one-job reuse, source changes before watcher delivery and existing malformed bundle/accessor refusal. Owning CF clean emission and root noEmit pass; reuse the unchanged actual41-card producer/browser result at its recorded tuple. Current consumed ad4 compiler rebuild12.32s and owning graph22/22 plus root noEmit/boundaries13packages/902files/1279expressions/zero violations qualify only that released intake. G2/G3, original native query/reference-array/membership/SEND producer joins, authorized actor/trace/row detail and exact external disclosure holds remain open.
