@@ -7430,3 +7430,28 @@ Finite independent and manual review CLEAR for additive REQUIRED FileReferenceSt
 ### 2026-10-10 — selected local integration of generated selector/native qualificationb31f4dca
 
 Finite manual review CLEAR; integrate the exact owning CF consumer test and directly related records without divergent Dev ancestry. Reuse its complete three-row genuine generated/native case1/1 at5446.65ms, final clean CF emit and unchanged prerequisite checks. Actual source, current fixture identity, independent wire input, complete business resources, original receipt/history/revision and awaited cleanup qualify this finite workflow. Work completion, native precommit hook lowering, File retirement, original applications and all recipient-specific holds remain separate. No remote push.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
+
+### 2026-10-10 — manual local integration of a7610b95
+
+Finite manual source review CLEAR. Resolve the same enabled owning CRUD grant before the precommit hook, retain authenticated actor proof only in that checked hook scope, and preserve public, foreign, disabled, unknown and committed-handler nullable/refusal behavior. Reuse owning analysis/hook controls and the exact complete25/catalog source delta35→33 with no new diagnostics or emitted original artifacts. Native actor/now/team/operation lowering remains E6008 until Compiler and Dev connect the genuine private invocation context; current whole/strict validation and original applications remain unfinished. Genuine generated selector/native qualification is independently integrated at a26623d9, not evidence for native hooks. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
