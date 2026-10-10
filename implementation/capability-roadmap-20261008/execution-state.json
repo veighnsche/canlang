@@ -1049,10 +1049,10 @@
           }
         },
         "saved_coherent_membership_consumer": {
-          "state": "implemented_unfinished_validation_blocked",
+          "state": "implemented_tested_unfinished_native_source_workflow",
           "implementation": "Existing saved policy projection discovers complete facts without authorizing multiple-subject conjunction, requires one real same-Team1\u201399 snapshot matching discovery, reprojects entirely from immutable snapshot facts with unseen-pair refusal, preserves output/State revision equality and final same-ID full-fact coherent reread. Zero/single legacy behavior retained; no chunking/current-stage/source replay or cross-store authority promise. Existing execution observer shares strict full-fact checker with its prior separate200-role budget.",
-          "validation": "Owning State clean emit failed: installed Contracts outputs lack MembershipSnapshot/MAX_MEMBERSHIP_SNAPSHOT_USERS and installed Identity testing outputs lack findMembershipsSnapshot;11 diagnostics (4 missing Contracts exports,6 missing Identity methods,1 derivative implicit-any). No runtime suites started. Packages received exact prerequisite output/emit request. Focused existing tests use genuine Identity memory producer, not simulated production evidence; saved receipt/owner membership/dispatch suites await release.",
-          "acceptance": "No tested/accepted consumer claim; actual installed State multiple-subject join and original durable source closure remain separately required."
+          "validation": "Released Contracts and Identity owning output emissions pass; State clean emit passes. Initial affected joined run75/76 in158.96ms: saved receipt32/32 and dispatch9/9 pass; existing owner query callback marked before getter and read twice without second marker. Exact defining-test correction reads person once then immediately marks and reuses local, preserving canonical source assertions. Final State clean emit and affected owner35/35 pass115.10ms; unchanged32+9 reused,76 distinct outcomes. Prior stale-output11 diagnostic failure resolved by owner-authorized ordinary emissions.",
+          "acceptance": "Defining State/genuine Identity memory consumer tested; installed State multiple-subject/native/source closure/pure-owner admission remain unfinished. No return-time authority/cross-store claim."
         }
       }
     },
