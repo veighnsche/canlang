@@ -220,7 +220,7 @@ async function mapInputs<T, R>(items: readonly T[], read: (item: T) => Promise<R
   return results;
 }
 
-async function captureInputs(root: string, paths: readonly { name: string; path: string | null }[]): Promise<readonly CapturedFileIdentity[]> {
+export async function captureInputs(root: string, paths: readonly { name: string; path: string | null }[]): Promise<readonly CapturedFileIdentity[]> {
   const inputs = await mapInputs(paths, async (input): Promise<CapturedFileIdentity> => {
     if (input.path === null) {
       return Object.freeze({
