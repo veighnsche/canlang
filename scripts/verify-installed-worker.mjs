@@ -142,6 +142,16 @@ async function verifyConsumer(checkout) {
   api.assertLinksResolve(first.modules); api.assertWorkerdLoadable(first.modules);
 
   const committedKey = 'vendor/work/kernel/committed-model-source.js';
+  const invokeEntry = ownerModule('@canlang/cloudflare/runtime/invoke');
+  const actualInvoke = readFileSync(invokeEntry, 'utf8');
+  assert.match(actualInvoke, /^\s*import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*['"]@canlang\/work['"]/m,
+    'the actual installed runtime must consume the genuine public named stager');
+  assert.match(first.modules['runtime/invoke.js'], /^\s*import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*['"]\.\.\/vendor\/work\/kernel\/committed-model-source\.js['"]/m,
+    'the actual runtime named factory must resolve to the genuine defining Work module');
+  assert.match(first.modules['runtime/invoke.js'], /loadProducerModule\(['"]\.\.\/vendor\/state\/mutation\/index\.js['"],\s*['"]committed model source lifetime['"]\)/,
+    'the actual source-stage reader must resolve to the same canonical State instance');
+  assert.match(first.modules['runtime/invoke.js'], /return\s+createCommittedModelSourceStager\s*\(/,
+    'the actual committed-model consumer must call the genuine named factory');
   const committedFile = installedFile(new URL('kernel/committed-model-source.js', distributions.work.modules));
   const publicWork = await import(ownerModule('@canlang/work'));
   const committedProducer = await import(pathToFileURL(committedFile));
@@ -151,7 +161,7 @@ async function verifyConsumer(checkout) {
   assert.ok(!first.modules[committedKey].includes('@canlang/state'));
   assert.equal(first.modules['vendor/work/index.js'], undefined, 'the Node-capable public barrel must not enter the Worker graph');
   assert.deepEqual(Object.keys(first.modules).filter(key => key.endsWith('/mutation/source-finalization.js')), ['vendor/state/mutation/source-finalization.js']);
-  for (const key of ['vendor/state/index.js', 'vendor/state/mutation/source-finalization.js']) {
+  for (const key of [committedKey, 'vendor/state/index.js', 'vendor/state/mutation/source-finalization.js']) {
     const missing = { ...first.modules }; delete missing[key];
     assert.throws(() => api.assertLinksResolve(missing), /no such staged module/, `missing canonical source-stage ${key}`);
   }
@@ -205,7 +215,6 @@ async function verifyConsumer(checkout) {
   // Reuse the actual serving control at a new installed location. This child
   // cannot read checkout source and exercises the uninjected Node fallback
   // through genuine Identity, State receipt rows and the public Work producer.
-  const invokeEntry = ownerModule('@canlang/cloudflare/runtime/invoke');
   const servingControl = join(dirname(fileURLToPath(invokeEntry)), 'd3b-observer-seam.test.js');
   installedFile(pathToFileURL(servingControl));
   // Execute the exact control directly: node:test honors the pattern without
@@ -359,7 +368,7 @@ async function verifyConsumer(checkout) {
     }
   }
   const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 4, stateImports: 'actual scenario-file-assignment finalizer and ports edges', portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' }, acorn: { key: acornKey, publicEntry: acornManifest.module, missingProducers: 1, portableWorkerd: wasmWorkerResult.acorn, authority: 'Parser staging and execution only; Dev owns source verification and current G1' } };
-  evidence.committedSource = { key: committedKey, canonicalState: 'vendor/state/mutation/source-finalization.js', missingProducers: 1, corruptProducer: 'existing loadability guard refused malformed genuine bytes', workerd: wasmWorkerResult.committedSource, authority: 'Portable defining producer and private State identity only; Dev owns checked source adoption and complete native workflow' };
+  evidence.committedSource = { key: committedKey, actualConsumer: 'runtime/invoke.js named factory import/call and canonical State lifetime loader', canonicalState: 'vendor/state/mutation/source-finalization.js', missingProducers: 1, corruptProducer: 'contextual syntax guard refused malformed genuine bytes', workerd: wasmWorkerResult.committedSource, authority: 'Actual portable consumer edge, defining producer and private State identity only; Dev owns complete checked/native workflow acceptance' };
   writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 }
