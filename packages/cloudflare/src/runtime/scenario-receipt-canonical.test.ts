@@ -16,9 +16,10 @@ import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { invoke, observeScenarioReceiptDependency, selectScenarioReceiptReturn, readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import { hashInputs } from '@canlang/state/invocation/replay';
-import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
-import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL } from '@canlang/work/kernel/tables';
+import { associationRowId, readAssociationRow, readReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
+import { readDispatchRow, WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL } from '@canlang/work/kernel/tables';
 import { deriveOutboxId } from '@canlang/work/intent';
+import { encodeValue, makeDeliveryRef } from '@canlang/values';
 import { seedRow, updateRow, uuidv7, FIXED_NOW } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from './modules.js';
 import { AssemblyCorrespondenceError } from './assembly-verification.js';
@@ -926,7 +927,81 @@ it('keeps a caught altered admitted prompt intrinsic poisoned and rolls back suc
   assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
 });
 
-it('allows the installed Text send producer to read its physical dispatch table while direct saved handlers remain owner-only', async () => {
+it('executes a pure saved scope with unrelated generated Text declarations without using optional runtime framework ports', async () => {
+  // This checks execution against absent cached runtime ports. It does not
+  // simulate missing loader exports: installed ESM namespaces are immutable.
+  const textArtifact=JSON.parse(await readFile(new URL('../../test/fixtures/typed-generation-progress.json',import.meta.url),'utf8')) as CompileArtifact;
+  assert.equal(textArtifact.modules.length,1);
+  const textModule=textArtifact.modules[0]!, textSource=textArtifact.sources[0]!;
+  assert.equal(createHash('sha256').update(await readFile(new URL('../../test/fixtures/typed-generation-progress.can',import.meta.url)))
+    .digest('hex'),textSource.sha256,'the unrelated generated binding and delivery model remain source-current');
+  const w=await world(false,true,`
+    await handlerProbe(c,await c.store.load("Shop.Record",input.record.id));
+    const value=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
+    selectScenarioReceiptReturn(c,"selected"); return value;
+  `,artifact=>{
+    artifact.sources.push(...textArtifact.sources); artifact.modules.push(...textArtifact.modules);
+    artifact.models!.push(...textArtifact.models!);
+    artifact.modules[0]!.js=`import {appDefinition as generatedTextDefinition} from ${JSON.stringify(`./${textModule.path}`)};\n`+
+      artifact.modules[0]!.js.replace('id:"SavedScenario",policy,models:',
+        'id:"SavedScenario",policy,contracts:generatedTextDefinition.contracts,capabilities:generatedTextDefinition.capabilities,bindings:generatedTextDefinition.bindings,models:');
+  },false);
+  const namespace:unknown=await import(w.asm.moduleUrls[modulePath]!);
+  assert.ok(namespace && typeof namespace==='object' && 'setHandlerProbe' in namespace &&
+    typeof namespace.setHandlerProbe==='function');
+  let closedContext:import('./context.js').HandlerContext|undefined, ownerEntry:unknown, captures=0;
+  namespace.setHandlerProbe((context:import('./context.js').HandlerContext,row:unknown)=>{
+    assert.ok(row && typeof row==='object' && Object.isFrozen(row));
+    closedContext=context; ownerEntry=row; captures++;
+  });
+  const frameworkSnapshot=async()=>Promise.all(
+    [WORK_DISPATCH_MODEL,WORK_SCHEDULE_MODEL,RECEIPT_MODEL as ModelName,RECEIPT_ASSOCIATION_MODEL as ModelName]
+      .map(selected=>w.store.query({model:selected,authority:'owner',archived:'include'})));
+  const before={state:await w.snapshot(),framework:await frameworkSnapshot()};
+  const batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+  const store:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const producer=w.loaded.producers.invoke;
+  const keys=['bindScenarioReceiptFrameworkProducer','stageScenarioReceiptSend','stageScenarioReceiptDelivery'] as const;
+  const descriptors=Object.getOwnPropertyDescriptors(producer);
+  for(const key of keys) { assert.equal(typeof producer[key],'function'); assert.equal(Reflect.deleteProperty(producer,key),true); }
+  try {
+    const fresh=await buildInvoker(w.artifact,w.asm,store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(w.envelope,w.identity);
+    assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+    assert.equal(fresh.result.result,w.row.data['visible']); assert.deepEqual(fresh.result.records,[]);
+    assert.equal(captures,1); assert.equal(batches.length,1);
+    const batch=batches[0]!;
+    for(const values of [batch.writes,batch.history,batch.outbox,batch.schedules,batch.uniqueClaims,batch.uniqueReleases])
+      assert.deepEqual(values,[],'pure capture emits no domain or framework effects');
+    assert.ok(batch.receipt); assert.deepEqual(batch.receipt.identity,w.receiptIdentity);
+    assert.equal(batch.receipt.inputHash,await hashInputs(w.envelope.inputs)); assert.deepEqual(batch.receipt.resolvedDefaults,{});
+    const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical); assert.deepEqual(physical,batch.receipt);
+    assert.equal(physical.outcome.status,'committed');
+    if(physical.outcome.status!=='committed') throw new Error('pure saved scope did not commit');
+    assert.deepEqual(physical.outcome.recordVersions,[]);
+    const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+    assert.deepEqual(association.plan,plan()); assert.deepEqual(association.changed,[]);
+    assert.deepEqual(association.observations.map(observation=>observation.row),[ownerEntry]);
+    const after={state:await w.snapshot(),framework:await frameworkSnapshot()};
+    assert.equal(after.state.revision,before.state.revision+1);
+    assert.deepEqual({...after.state,revision:before.state.revision,receipt:before.state.receipt},before.state);
+    assert.deepEqual(after.framework,before.framework);
+    const {selectScenarioReceiptReturn:selectFacade}=await import('./stdlib.js');
+    assert.ok(closedContext);
+    assert.throws(()=>selectFacade(closedContext!,'selected'),/active framework context/,'the actual handler frame closes after capture');
+    for(const dedicated of [false,true]) {
+      const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity)
+        :await w.invoker().invokeMutation(w.envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.deepEqual(replay.result.result,fresh.result.result); assert.deepEqual(replay.result.records,[]);
+      assert.deepEqual({state:await w.snapshot(),framework:await frameworkSnapshot()},after);
+      assert.equal(batches.length,1); assert.equal(captures,1); assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+    }
+  } finally { Object.defineProperties(producer,Object.fromEntries(keys.map(key=>[key,descriptors[key]!]))); }
+});
+
+it('joins installed Text sends and assigned deliveries in one saved-scenario fence while caught refusals remain owner-only', async () => {
   // Reuse the exact released generated binding/contracts/capability module,
   // without borrowing its handlers or disclosure markers into this frame.
   // This remains a declaration-labelled saved-scenario component consumer.
@@ -937,18 +1012,24 @@ it('allows the installed Text send producer to read its physical dispatch table 
   const textBytes=await readFile(new URL('../../test/fixtures/typed-generation-progress.can',import.meta.url));
   assert.equal(createHash('sha256').update(textBytes).digest('hex'),textSource.sha256,'reused generated Text declaration remains source-current');
   const sourceOperation='std.TextGenerationV1.generate', binding='TypedGenerationProgress.LLM';
-  for(const mode of ['trusted-send','direct-handler-read'] as const) {
+  const requestField=textArtifact.models!.find(candidate=>candidate.name==='TypedGenerationProgress.Job')!.fields
+    .find(field=>field.name==='request'); assert.ok(requestField); assert.equal(requestField.field.kind,'delivery');
+  for(const mode of ['trusted-send','assigned-delivery','caught-send','missing-send-export','direct-handler-read'] as const) {
+    const positive=mode==='trusted-send' || mode==='assigned-delivery';
     const w=await world(false,true,`
+      await handlerProbe(await c.store.load("Shop.Record",input.record.id));
       const old=input.record.visible;
       await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
-      await set(c,input.record,{visible:"must not commit framework attempt"});
-      ${mode==='trusted-send' ? `
+      await set(c,input.record,{visible:"${positive?'committed Text send':'must not commit framework attempt'}"});
+      ${mode!=='direct-handler-read' ? `
         // Actual Values-native TextRequest, admitted by the reused generated
         // contract and binding before the installed Work staging producer.
         const value={source:c.operation.id,revision:input.record.version,profile:"local-chat",policy_revision:"policy-1",
           messages:[{role:"user",content:"Actual declared component request",attachments:[]}],
           max_input_tokens:1024n,max_output_tokens:128n,max_duration:30000n};
-        try { await c.sendDeferred("${sourceOperation}",{value},"${binding}"); } catch {}
+        ${positive ? `const attempt=await c.sendDeferred("${sourceOperation}",{value},"${binding}");
+          ${mode==='assigned-delivery'?'await set(c,input.record,{request:attempt});':''}` :
+          `try { await c.sendDeferred("${sourceOperation}",{value},"${mode==='caught-send'?`${binding}.unknown`:binding}"); } catch {}`}
       ` : `
         try { await c.store.load("work.dispatch","unadmitted-work-row"); } catch {}
       `}
@@ -961,7 +1042,22 @@ it('allows the installed Text send producer to read its physical dispatch table 
       artifact.modules[0]!.js=`import {appDefinition as generatedTextDefinition} from ${JSON.stringify(`./${textModule.path}`)};\n`+
         artifact.modules[0]!.js.replace('id:"SavedScenario",policy,models:',
           'id:"SavedScenario",policy,contracts:generatedTextDefinition.contracts,capabilities:generatedTextDefinition.capabilities,bindings:generatedTextDefinition.bindings,models:');
+      if(mode==='assigned-delivery') {
+        // Copy every defining delivery field member, including its actual
+        // nominal result inventory, rather than inventing a component codec.
+        artifact.models![0]!.fields.push(structuredClone(requestField));
+        artifact.modules[0]!.js=artifact.modules[0]!.js.replace('fields:{visible:{type:"text"}',
+          'fields:{request:generatedTextDefinition.models["TypedGenerationProgress.Job"].fields.request,visible:{type:"text"}');
+      }
     },false);
+    const namespace:unknown=await import(w.asm.moduleUrls[modulePath]!);
+    assert.ok(namespace && typeof namespace==='object' && 'setHandlerProbe' in namespace &&
+      typeof namespace.setHandlerProbe==='function');
+    let ownerEntry:unknown, entryCaptures=0;
+    namespace.setHandlerProbe((row:unknown)=>{
+      assert.ok(row && typeof row==='object' && Object.isFrozen(row),'probe captures the actual immutable owner-issued pre-stage row');
+      ownerEntry=row; entryCaptures++;
+    });
     const frameworkSnapshot=async()=>Object.fromEntries(await Promise.all(
       [WORK_DISPATCH_MODEL,WORK_SCHEDULE_MODEL,RECEIPT_MODEL as ModelName,RECEIPT_ASSOCIATION_MODEL as ModelName]
         .map(async selected=>[selected,await w.store.query({model:selected,authority:'owner',archived:'include'})])));
@@ -971,30 +1067,93 @@ it('allows the installed Text send producer to read its physical dispatch table 
       if(selected===WORK_DISPATCH_MODEL) dispatchLoads.push(id);
       return w.store.load(selected,id);
     },commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
-    const fresh=await buildInvoker(w.artifact,w.asm,captured,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
-      .invokeMutation(w.envelope,w.identity);
-    assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
-    if(mode==='trusted-send') {
-      assert.equal(fresh.error.message,'Saved scenario deferred domain effects require their defining owner-session join.');
-      assert.deepEqual(dispatchLoads,[deriveOutboxId(w.envelope.operation_id,sourceOperation,0)],
-        'the real Work producer reads exactly its actual deterministic dispatch identity');
-    } else {
-      assert.match(fresh.error.message,/capture is poisoned/,'catching direct owner read refusal cannot restore a successful frame');
-      assert.deepEqual(dispatchLoads,[],'an arbitrary handler framework load never falls through to physical storage');
-    }
-    assert.equal(w.counters().executions,1); assert.equal(batches.length,1,'one exact rejected receipt/fence commit');
-    const batch=batches[0]!; assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
-    assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
-    assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
+    const producer=w.loaded.producers.invoke;
+    const original=producer.stageScenarioReceiptSend; assert.equal(typeof original,'function');
+    const mutable=producer as {stageScenarioReceiptSend?:typeof original};
+    if(mode==='missing-send-export') delete mutable.stageScenarioReceiptSend;
+    let fresh:Awaited<ReturnType<ReturnType<typeof buildInvoker>['invokeMutation']>>;
+    try { fresh=await buildInvoker(w.artifact,w.asm,captured,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(w.envelope,w.identity); }
+    finally { if(original===undefined) delete mutable.stageScenarioReceiptSend; else mutable.stageScenarioReceiptSend=original; }
+    assert.equal(w.counters().executions,1); assert.equal(entryCaptures,1);
+    assert.equal(batches.length,1,'one actual canonical receipt/fence commit');
+    const batch=batches[0]!;
+    assert.deepEqual(batch.schedules,[]); assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
     assert.ok(batch.receipt); assert.deepEqual(batch.receipt.identity,w.receiptIdentity);
     assert.equal(batch.receipt.inputHash,await hashInputs(w.envelope.inputs)); assert.deepEqual(batch.receipt.resolvedDefaults,{});
     const physical=await w.store.readReceipt(w.receiptIdentity); assert.deepEqual(physical,batch.receipt); assert.ok(physical);
+    const after={state:await w.snapshot(),framework:await frameworkSnapshot()};
+    assert.equal(after.state.revision,before.state.revision+1);
+    assert.equal(batch.expectedRevision,before.state.revision); assert.equal(physical.committedRevision,after.state.revision);
+    if(positive) {
+      assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+      assert.equal(fresh.result.result,w.row.data['visible']);
+      assert.equal(physical.outcome.status,'committed');
+      if(physical.outcome.status!=='committed') throw new Error('expected actual Text send commit');
+      const intentId=deriveOutboxId(w.envelope.operation_id,sourceOperation,0);
+      assert.deepEqual(dispatchLoads,[intentId],'Work reads exactly its actual deterministic dispatch identity');
+      assert.equal(batch.writes.length,mode==='assigned-delivery'?4:2);
+      assert.equal(batch.history.length,1); assert.equal(batch.outbox.length,1);
+      assert.equal(batch.writes.filter(write=>write.model===model).length,1,'source stages coalesce into one business net row');
+      const final=await w.store.load(model,w.row.id); assert.ok(final);
+      assert.equal(final.version,w.row.version+1); assert.equal(final.data['visible'],'committed Text send');
+      assert.equal(final.data['private'],w.row.data['private']); assert.equal(final.data['token'],w.row.data['token']);
+      const intent=batch.outbox[0]!;
+      assert.equal(intent.intentId,intentId); assert.equal(intent.operation,operation); assert.equal(intent.operationId,w.envelope.operation_id);
+      assert.equal(intent.target,sourceOperation); assert.equal(intent.arguments['binding'],binding);
+      assert.equal(intent.arguments['from'],'deployment.llm');
+      const value=(intent.arguments['arguments'] as {value:{source:string;revision:string}}).value;
+      assert.equal(value.source,w.envelope.operation_id); assert.equal(value.revision,String(w.row.version));
+      const dispatch=await w.store.load(WORK_DISPATCH_MODEL,intentId as RecordId); assert.ok(dispatch);
+      const dispatchData=readDispatchRow(dispatch);
+      assert.equal(dispatchData.operationId,w.envelope.operation_id); assert.equal(dispatchData.source,sourceOperation);
+      assert.equal(dispatchData.requestSource,w.envelope.operation_id); assert.equal(dispatchData.requestRevision,String(w.row.version));
+      assert.equal(dispatchData.requestApp,app); assert.equal(dispatchData.requestOwner,w.receiptIdentity.owner);
+      const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+      assert.deepEqual(association.observations.map(value=>value.row),[ownerEntry]);
+      assert.deepEqual(association.changed.map(value=>({model:value.model,row:value.row})),[{model,row:final}]);
+      assert.deepEqual(physical.outcome.recordVersions,[{model,id:final.id,version:final.version}],
+        'framework dispatch/receipt rows share the fence but never become business changed-record identities');
+      assert.equal(projectedRecords(fresh.result).length,1);
+      assert.equal(projectedRecords(fresh.result)[0]!.data['visible'],'committed Text send');
+      assert.equal(Object.hasOwn(projectedRecords(fresh.result)[0]!.data,'token'),false);
+      assert.equal(Object.hasOwn(projectedRecords(fresh.result)[0]!.data,'request'),false,'raw delivery identity is not a public field');
+      assert.deepEqual(after.state.outbox,batch.outbox); assert.equal(after.state.history.length,before.state.history.length+1);
+      assert.deepEqual(after.framework[WORK_SCHEDULE_MODEL],before.framework[WORK_SCHEDULE_MODEL]);
+      if(mode==='assigned-delivery') {
+        assert.deepEqual(final.data['request'],encodeValue(`delivery(${sourceOperation})?`,makeDeliveryRef(intentId,sourceOperation)));
+        const joined=await w.store.load(RECEIPT_ASSOCIATION_MODEL as ModelName,associationRowId(model,final.id,'request') as RecordId); assert.ok(joined);
+        assert.deepEqual(readAssociationRow(joined),{locator:{recordId:final.id,field:'request'},deliveryId:intentId,
+          source:sourceOperation,revision:after.state.revision});
+        const retained=await w.store.load(RECEIPT_MODEL as ModelName,intentId as RecordId); assert.ok(retained);
+        const pending=readReceiptRow(retained).receipt;
+        assert.equal(pending.deliveryId,intentId); assert.equal(pending.revision,after.state.revision);
+        assert.equal(pending.status,'pending'); assert.equal(pending.result,null); assert.equal(pending.error,null);
+      } else {
+        assert.deepEqual(after.framework[RECEIPT_MODEL],before.framework[RECEIPT_MODEL]);
+        assert.deepEqual(after.framework[RECEIPT_ASSOCIATION_MODEL],before.framework[RECEIPT_ASSOCIATION_MODEL]);
+      }
+      for(const dedicated of [false,true]) {
+        const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity)
+          :await w.invoker().invokeMutation(w.envelope,w.identity);
+        assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+        assert.deepEqual(replay.result.result,fresh.result.result); assert.deepEqual(replay.result.records,fresh.result.records);
+        assert.deepEqual({state:await w.snapshot(),framework:await frameworkSnapshot()},after);
+        assert.equal(batches.length,1); assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+      }
+      continue;
+    }
+    assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
+    if(mode==='direct-handler-read') assert.match(fresh.error.message,/capture is poisoned/,
+      'catching direct owner read refusal cannot restore a successful frame');
+    else if(mode==='caught-send') assert.match(fresh.error.message,/no exact checked binding/);
+    else assert.equal(fresh.error.message,'Saved scenario send requires its installed State framework producer.');
+    assert.deepEqual(dispatchLoads,[],'unadmitted handler reads and refused sends never reach the physical dispatch table');
+    assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]); assert.deepEqual(batch.outbox,[]);
     assert.equal(physical.outcome.status,'rejected');
     if(physical.outcome.status!=='rejected') throw new Error('expected framework attempt rejection');
     assert.equal(physical.outcome.code,'validation'); assert.equal(physical.outcome.message,fresh.error.message);
     assert.equal(readScenarioReceiptAssociation(physical),null);
-    const after={state:await w.snapshot(),framework:await frameworkSnapshot()};
-    assert.equal(after.state.revision,before.state.revision+1);
     assert.deepEqual(after.state.rows,before.state.rows); assert.deepEqual(after.state.history,before.state.history);
     assert.deepEqual(after.state.outbox,before.state.outbox); assert.deepEqual(after.state.schedules,before.state.schedules);
     assert.deepEqual(after.framework,before.framework,'Work dispatch/schedule/receipt/association rows remain unchanged');
