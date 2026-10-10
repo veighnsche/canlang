@@ -8283,3 +8283,28 @@ ABI correction is no source-capture or workflow acceptance; all holds remain.
 ### 2026-10-11 — selected local integration of original defaultse4a37ee8
 
 Finite original-default ABI source and public type reviews CLEAR. Select only exact Contracts state.ts, existing assembly controls/README and directly related literal-default record/TECH-F02 prerequisite from e4a37ee8. Required historical valueDefaults preserve every genuine original own raw literal contract/field/value before normalization, including null/empty/false/File-free values; unique original pairs and complete same-load schema comparison are required. Projection compares physical retained raw equality before independent type/constraint/File traversal; current normalized schema or missing evidence cannot substitute. Reuse owning Contracts emit0, strict maintained public assembly noEmit0 and affected1/1 4ms, twelve barrel pins/six new negative controls and all sixteen earlier controls. No runtime changes, new table/registry/cycle or nominal Values default semantics changed. Dev must capture genuine original defaults; Capability must validate/persist full original fence/census and conserve through reopen/migration. This releases type evidence only; opaque runtime refusal, actual workflow qualification and every precise hold remain. Preserve existing allocations/complete checkpoint unadvanced; no publication.
+
+
+## 2026-10-11 — Native installed assembly fixture loading
+
+Use the existing MCP fixture native-loader pattern for assembly.test.ts runtime
+assembleWorker/buildInvoker imports. Resolve the public installed assembly export
+with createRequire and load it via USE_MAIN_CONTEXT_DEFAULT_LOADER. Vitest module
+proxies expose `canApp` as an accessor; production correctly requires original
+own-data metadata. Preserve genuine ESM export representation through the actual
+loader rather than materializing getters or weakening that refusal.
+
+The three previously failing buildInvoker cases pass3/3 in176ms through installed
+assembly/State. Original caller/live membership commit value, anonymous forbidden
+and no-revision outcome, unknown-operation validation text, fixtures, provenance
+labels and timeouts remain intact. Eighteen unrelated cases are unselected.
+Independent finite fixture/provenance review CLEAR and diff whitespace passes.
+Current emitted dependencies and owner unchanged cold page/new config/worker
+results are reused; no build/full/native rerun or timeout increase. Coordinator
+reviews the exact local fixture unit. Hand-written component inputs do not
+qualify compiler provenance, complete native applications or all-current CI, and
+all precise holds remain.
+
+### 2026-10-11 — selected local integration of native fixture loader09357ecd
+
+Finite Packages09357ecd common fixture repair independently reviewed CLEAR. Apply only its original runtime import patch to current assembly.test.ts, preserving both Dev2331 full/partial/config-refusal cases and every existing assertion/timeout. Native public installed compileFunction main-context loader matches existing MCP pattern; no production metadata accessor materialization/admission, module/body reconstruction or source provenance waiver. Reuse owner three affected buildInvoker cases3/3 176ms with original identity/live membership commit, anonymous forbidden/no revision and unknown-operation validation assertions, eighteen unrelated cases unselected. Because the loader boundary changed, Dev owns one targeted qualification of its two newer host cases on this combined source; earlier Vitest result remains at its prior tuple, not freshly qualified here. No whole CI/application or original compiled workflow acceptance. Preserve original owners/allocations and all precise holds, complete checkpoint unadvanced; no remote publication.
