@@ -53,6 +53,7 @@ function checked(c: HandlerContext): Frame {
 export interface ScenarioReceiptFrame {
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
   bindAdmittedReference(view: object, reference: object): void;
+  prepareReference(view: unknown, model: string): { readonly id: string; readonly version: string };
   assertCompleted(): void;
   close(): void;
 }
@@ -72,6 +73,17 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
+    prepareReference(view: unknown, model: string) {
+      // Trusted host preparation runs after State suspends this parent and
+      // before child admission. This private frame pointer, never source c,
+      // owns authority here; checked(c) would incorrectly require current execution.
+      if (frame.failed) throw frame.error;
+      if (!frame.active) return fail(frame, new StateError('validation', 'Scenario receipt helper requires its active framework context.'));
+      try {
+        const row = captureNativeScenarioReceiptRow(view, frame.owner, model);
+        return Object.freeze({ id: row.id, version: String(row.version) });
+      } catch (error) { return fail(frame, error); }
+    },
     bind(view: object, model: string, current: () => StoredRow | null | undefined) {
       checked(c);
       try { bindNativeScenarioReceiptRow(view, frame.owner, model, current); }
