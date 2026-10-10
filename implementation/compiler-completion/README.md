@@ -2464,3 +2464,19 @@ Owning decision6/6 passes exact JSON, original proof/semantic corruptions and ne
 literal-default controls; strict all-target Clippy/format0. No artifact ABI, emitter captures, runtime private
 binding, StateRead admission or native execution is claimed. State/Dev stage/
 occurrence observers and real lazy emitted captures remain next prerequisites.
+
+
+**Released same-load consumer qualification, 2026-10-10.**
+Exact reviewed localmaind8d3cf87 is safely consumed with pending loader assertions
+preserved. Released package sources match the actual uncached22/22 dependency
+build. Actual CLI Fact inventory now passes installed Values and full State
+artifact loading with exact result/ref schemas, missing/duplicate model context
+refusals; final affected13/13 (ordinary4,bounds3,decision6). Earlier unchanged
+strict lint/format results are reused. Changed-source whole checks follow.
+
+The real serial membership join exposes one defining State discrepancy: actual
+Compiler type ID Team is uppercase, while released State special active_member
+intake requires lowercase team. Coordinator assigned the exact correction to
+State. SKIP membership transport activation pending that release and Dev private
+source/frame/stage facade; Compiler will consume exact owning repair. No duplicate
+State patch, purity change, replay or hoist. Precise BDD3/Task22 holds remain.
