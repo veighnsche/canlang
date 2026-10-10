@@ -391,6 +391,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   const query = bindRowQueryRunner(deps, identity, scope?.query ?? deps.query);
   if (partial) {
     const context = buildPresentationContext({
+      ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
       request,
       pathname,
       searchQuery,
@@ -454,6 +455,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     settings: { sections: [] },
   };
   const context = buildPresentationContext({
+    ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
     request,
     pathname,
     searchQuery,

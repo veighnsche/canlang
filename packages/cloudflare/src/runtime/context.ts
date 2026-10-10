@@ -107,6 +107,8 @@ export interface HandlerFormattingScope {
 
 /** Handler context threaded as the first argument (`c`) of emitted handlers. */
 export interface HandlerContext {
+  /** Trusted host origin plus app mount prefix; link construction grants no access. */
+  readonly deploymentBase?: string;
   caller: CallerInfo;
   store: StoragePort;
   clock: () => number;
@@ -148,6 +150,8 @@ export interface HandlerContext {
  * outside canonical execution omit it.
  */
 export interface CreateContextDeps {
+  /** Explicit installed host configuration, never a caller/request/auth fact. */
+  readonly deploymentBase?: HandlerContext['deploymentBase'];
   caller: CallerInfo;
   store: StoragePort;
   clock?: () => number;
@@ -172,6 +176,7 @@ export interface CreateContextDeps {
  */
 export function createContext(deps: CreateContextDeps): HandlerContext {
   return {
+    ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
     caller: deps.caller,
     store: deps.store,
     clock: deps.clock ?? (() => Date.now()),

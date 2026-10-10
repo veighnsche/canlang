@@ -8161,3 +8161,36 @@ Use the exact reviewed/generated source45621cc8 and original artifact/catalog in
 ### 2026-10-11 — selected local integration of 907daecc
 
 Finite actual completion consumer review CLEAR. Exact unchanged dc8 source45621cc8 and genuine verified artifact/catalog/private modules connect original bound local Email/Work/Identity/owner D1 source and ordinary/cohort consumers. Reuse complete affected1/1 PASS49920.25ms, zero failures/cancellations/skips, final frozen Dev root noEmit0/owning emissions0 and boundaries13/948/1418/zero at their tuple. Actual guarded Audit v1/history/canonical receipt/fence and three original frozen a/b/c Entry updates/version/history/receipts execute; later row excluded and replay consumes no new IDs/commits/effects. Transparent observer resolves original current-authority boundary then delegates original store. Genuine EmailHTTP400 creates original failed terminal/source: early ordinary/cohort guards seal failed/rule_failed receipts with no domain/history effects, unchanged original outboxes/replays/expiry/source-currentness/issuer/refusal/full unrelated resources. The authored guard precedes writes: no late staged-write rollback claim. Trusted host send setup/local adapter and one private fixture are component boundaries, not authored SEND/provider authentication/public terminal/full application acceptance. Only exact existing test and directly related authoritative finite result fields adopted, no divergent carrier ancestry or duplicate producer implementation. Original File/type result was separately reviewed; complete checkpoint and all holds remain unadvanced.
+
+
+## 2026-10-11 — Explicit trusted app URL context
+
+Use one optional host-only `deploymentBase` containing the trusted HTTP(S)
+origin and app mount prefix. It belongs to presentation/handler dependencies,
+separate from app identity, admitted identity/source facts and canonical authority.
+Interfaces forwards it through full and partial pages and form-error rendering;
+extra source fields cannot populate it. The CF handler factory forwards it, and
+the c-first `app_url(context,path)` helper delegates path/base validation to the
+existing Values producer. Missing configuration refuses when the helper executes.
+No request, polling or authentication URL supplies a default; constructing a link
+grants no access.
+
+Contracts, Interfaces and CF TypeScript emission pass0. The new actual HTTP
+request-to-render case passes1/1 (229.25025ms), covering configured/absent host
+base in four full/partial requests from an unrelated origin while preserving
+actor/team/roles and shell behavior. The new runtime case passes1/1 (4ms),
+connecting createContext to Values with mounted/preview bases and missing/empty
+configuration plus actual path/base refusals. Four unrelated runtime cases are
+unselected; unchanged Values/full/native results are reused. Finite source
+review CLEAR.
+
+This completes only the shared carrier/helper prerequisite, pending coordinator
+review/intake. Dev supplies real installed/preview/deployment configuration,
+assembly mirrors and mutation/read/model-policy context forwarding, including
+actual mount routing. Compiler supplies checked c-first lowering and the original
+source/installed-host consumer. Their producer work remains separate; complete
+mounted/browser/native acceptance and all precise human holds remain open.
+
+### 2026-10-11 — selected local integration of dd688cfe
+
+Finite explicit host carrier/helper source and owning consumer reviews CLEAR. Integrate exact seven source paths plus existing two owning test paths from dd688cfe, no divergent Packages carrier ancestry or unrelated state fields. Optional deploymentBase is supplied only by explicit trusted host dependency, source extras are removed and request/poll/auth URLs furnish no fallback. Full/partial/form-error contexts and CF createContext forward the same field; runtime c-first app_url delegates trusted origin/mount/path validation directly to Values and refuses missing config. Reuse Contracts/Interfaces/CF emission0, actual four configured/absent authenticated full/partial request case1/1 229.25025ms and actual runtime mounted/preview/missing/empty/escape/base controls1/1 4ms. Form-error forwarding is source-reviewed, not a new direct case claim. This releases a carrier/helper component only. Dev still owns real assembly mirrors/invoker all three context sites/explicit protected-preview or deployment configuration and configured mounted routing; Compiler owns checked c-first lowering. Full nonroot route/form/static/poll/auth/File serving remains DEL-B02 requirement, not accepted from helper output. No File authority, schema identity, provider deployment or hold release. Preserve all allocations and complete checkpoint unadvanced.

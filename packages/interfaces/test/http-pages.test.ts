@@ -232,6 +232,49 @@ test('public GET full page renders the shell with brand and sign-in', async () =
   assert.ok(html.includes('href="/hello"'));
 });
 
+test('only the host deployment base reaches full and partial render contexts', async () => {
+  const rendered: PresentationContext[] = [];
+  const sourceBase = 'https://source-label.example/other';
+  const page = helloPage({
+    admit: async () => ({ deploymentBase: sourceBase, source: sourceBase, caller: sourceBase }),
+    render: async (context, bindings) => {
+      assert.equal(bindings.deploymentBase, sourceBase);
+      rendered.push(context);
+      return '<p>deployment context</p>';
+    },
+  });
+  const { deps, identity } = await createTestDeps({ descriptors: [page] });
+  const configured = createHttpHandler({ ...deps, deploymentBase: 'https://app.example/tenant' }, spySub());
+  const absent = createHttpHandler(deps, spySub());
+  for (const handler of [configured, absent]) {
+    for (const partial of [false, true]) {
+      const seed = testRequest('/hello', { cookie: identity.cookie, headers: {
+        origin: 'https://untrusted.example', referer: 'https://untrusted.example/hello',
+        'x-forwarded-host': 'untrusted.example',
+        ...(partial ? { 'HX-Request': 'true' } : {}),
+      } });
+      const response = await handler(new Request('https://untrusted.example/hello', { headers: seed.headers }));
+      assert.equal(response.status, 200);
+      const html = await response.text();
+      assert.ok(html.includes('<p>deployment context</p>'));
+      assert.equal(html.includes('<!DOCTYPE html>'), !partial);
+    }
+  }
+  assert.equal(rendered.length, 4);
+  assert.deepEqual(rendered.map(context => context.isPartial), [false, true, false, true]);
+  assert.deepEqual(rendered.slice(0, 2).map(context => context.deploymentBase),
+    ['https://app.example/tenant', 'https://app.example/tenant']);
+  for (const context of rendered.slice(2)) {
+    assert.equal(Object.hasOwn(context, 'deploymentBase'), false);
+    assert.equal(context.deploymentBase, undefined);
+  }
+  for (const context of rendered.slice(1)) {
+    assert.deepEqual(context.actor, rendered[0]!.actor);
+    assert.deepEqual(context.team, rendered[0]!.team);
+    assert.deepEqual(context.canonical?.builtinRoles, rendered[0]!.canonical?.builtinRoles);
+  }
+});
+
 test('page search is a bounded request-local value for full and partial renders', async () => {
   const observed: string[] = [];
   const page = helloPage({ render: async context => {

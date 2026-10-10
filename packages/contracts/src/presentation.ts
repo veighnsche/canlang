@@ -181,6 +181,12 @@ export interface PageSourceContext {
 
 /** Dispatcher-owned presentation view; raw principal stays opaque to UI. */
 export interface PresentationContext extends Partial<PageSourceContext> {
+  /**
+   * Trusted host configuration: HTTP(S) origin plus the app mount prefix.
+   * Never inferred from request, polling or authentication URLs. Absent
+   * configuration leaves app_url unavailable; constructing a link grants no access.
+   */
+  readonly deploymentBase?: string;
   /** Exact-operation form preparation supplied by the request dispatcher. */
   readonly prepareForm?: OperationFormPreparer;
   /** Viewer locale preference: saved preference, then language priority list. */
