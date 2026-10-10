@@ -3,11 +3,12 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { compileFunction, constants as vmConstants } from "node:vm";
 import { expect, it } from "vitest";
 import { attachDevSessionService, startDevSessionService, type SessionCheckResponse, type SessionConstructQualification } from "../src/dev/session-service.js";
 import type { CompilerConstructCandidates } from "../src/dev/construct-help.js";
 import { prepareLocalPreviewCapture } from "../src/dev/preview-inputs.js";
-import { createInstalledFirstProfileQualification } from "../src/dev/first-profile-qualification.js";
 
 const project = resolve(import.meta.dirname, "../../..");
 
@@ -103,6 +104,12 @@ it("retains released native originating context and keeps unqualified ranking lo
 }, 60_000);
 
 it("joins only actual current first-profile runtime and example outcomes through the private native session", async () => {
+  // Native installed producer imports preserve ESM own-data metadata;
+  // Vitest proxies expose export getters instead of the owning carrier.
+  const {createInstalledFirstProfileQualification}=await compileFunction("return import(url)",["url"],{
+    importModuleDynamically:vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  })(pathToFileURL(join(project,"packages/cloudflare/dist/dev/first-profile-qualification.js")).href
+  ) as typeof import("../src/dev/first-profile-qualification.js");
   // The qualification fixture remains Compiler-owned. Only this distinct
   // invalid application is temporary, inside the selected actual checkout.
   const appRoot=await mkdtemp(join(project,".can-dev-help-"));
