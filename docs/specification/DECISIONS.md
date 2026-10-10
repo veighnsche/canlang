@@ -5841,6 +5841,12 @@ Mandatory actual staged-tree/both-parent reconciliation for exactLOCAL5fa76b2 on
 
 **Verification.** State clean emission passes. Affected direct/history/removal/machine/owner/call/default checks90/90 pass (275.76ms combined initial run); four local D1/DO tests initially hit sandbox loopback EPERM, then4/4 pass with authorized local listeners (2597.82ms). Total94affected outcomes, zero skips. Ordered A/B/A, mixed new/cancelled rows, hard-removal reserved versions, one final write/net uniques, later-failure rollback, child/root attribution, immutable receipt effects and reopen/replay are covered. Unchanged Work23/StateWork27/Compiler6 are reused; owner-reported Dev79/79 belongs to its unchanged pre-history tuple, not this new State consumer qualification. Dev318f8efd on reviewed LOCAL189e09bb preserves the original consumer assertion and new genuine association/replay/empty/limit controls; its current D1 run fails before replay pending this State producer. No source acceptance, push or complete checkpoint advance follows from this local unit.
 
+
+Exact reviewed LOCAL61240891/State72a4ce23 releases the ordered-stage history
+correction against the existing DESIGN503/accepted DEC1774 contract. Compiler
+source remains14b; actual changed graph22/22 uncached and only affected native
+receipt target4/4 pass once. Reuse unchanged1386/focused301/lint/format at their
+recorded scope, with this consumer delta; Dev owns actual D1 qualification.
 ## 2026-10-10 — delegate expired plain scenario recovery (unfinished workflow)
 
 Connect checked plain HTTP and CSV scenario submissions whose UUIDv7 age validator reports expiration to the published callable invokeRetainedMutation method only. Keep missing or malformed dedicated ports age-refused without ordinary fallback, fresh calls ordinary and malformed/future IDs refused. HTTP framing, owning binding and current credential liveness still precede the call. CSV preserves review consent, selection/current authority, raw inputs/IDs and authored row order; invalid/duplicate rows stay uninvoked. Signed scenario form_binding retains its age refusal and existing restoration rules. CRUD routing is unchanged.
@@ -5902,3 +5908,39 @@ Use the existing genuine compiled cohort and installed bound tick over native D1
 ### 2026-10-10 — manual local integration of c1885d7e
 
 Finite manual review CLEAR: genuine compiled cohort and installed bound tick over native D1 qualify the explicitly injected selected-store read failure, zero failed-member attempts and effects, healthy sibling progress, durable attention and unchanged replay after real reopen. Reuse owning current emission and direct1/1 result; no product checks repeated. This is a faulty selected-store qualification, not an actual D1 outage or whole roadmap acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+## 2026-10-10 — emit checked query source and actual read sites (unfinished workflow)
+
+**Choice.** Retain the actual checked model query/local nominal select lineage
+independently of permission/disclosure admission. Join input/alias/model/contract,
+cardinality guard, actual field types and full executable source against fresh
+checked IR before serializing the existing State QueryPlan/projection/four
+influences. Query slot dependencies remain in the query inventory; they are not
+ordinary scalar return observations. Native opt-in emits fresh own-data source
+recipes and the defining Dev query/read/result façades; immediate synchronous
+read markers preserve original getters and lazy order. A source recipe never
+upgrades Declined or supplies current authority. Default emission is unchanged.
+
+**Rationale and uncertainty.** The original Workbench query is already checked
+but no complete receipt producer existed. Static possible fields do not prove
+which lazy predicate reads executed; State/Dev must bind real full candidate
+domains and issued slots, preserving false/empty/order/current-schema checks.
+Do not hoist location reads after false target membership. Keep the original
+nominal Task.priority schema instead of forcing an inline enum to accommodate
+a consumer limitation. Full original source guards, approval/protected proposal
+and rollback stay unchanged and unqualified until their owning contract joins.
+
+**Verification.** Current affected326 pass, strict all-target Clippy/format0,
+and finite source review clear. Actual installed source-plan check succeeds but
+its owning inventory test fails on nominal Task.priority: Capability/State owns
+the exact schema/tag repair and lazy-domain reconciliation. The failed positive
+assertion is preserved. Dev owns actual loader/frame/slot/result and unbound
+generic behavior; no source-data-only test certifies runtime activation. Actual
+CLI retains external active_member E6007; original29-file149 diagnostics remain
+at their recorded source scope. Whole1386 qualifies historical14b only, pending
+current source qualification. Earlier actual Dev eb8aad65 D1 history/replay1/1
+resolves that separate bounded-loop prerequisite; no broader reference closes.
+
+### 2026-10-10 — manually integrate checked query source producer (unfinished workflow)
+
+Finite manual source review CLEAR for LOCALe67b6378: actual checked source/IR query, predicate, projection, cardinality, occurrence and original reference/version/influence inventories agree. Native opt-in actual getter/read-marker and selected-result binding preserve lazy source order; nongrant source recipes do not upgrade Declined or set operation disclosure, and default emission remains separate. Reuse owning326 affected outcomes and strict lint/format. Owner72f51295 qualifies only the formerly failed emitted-query/changed-State nominal inventory consumer1/1 after owning State build6/6; no extra root checks or whole-current qualification inferred. Dev private adapter, State lazy live/saved/replay, original membership/pure admission and whole changed-source qualification remain required. Preserve every prior file-tree allocation, reconcile current tree/history, complete checkpoint unadvanced. Local integration only.
