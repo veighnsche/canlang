@@ -39,6 +39,8 @@ import { isSecretValue } from '../policy/grants.js';
 import { assertOperationIdAge } from './context.js';
 import { hashInputs } from './replay.js';
 import { StateError } from '../errors.js';
+import type { OwnerMutationReadView } from '../mutation/pipeline.js';
+import { decodeValue, encodeValue, isRecordRef, validateValue, type NormalizedSchema } from '@canlang/values';
 
 /** One admitted mutation call with its loaded record rows and fence. */
 export interface AdmittedCall {
@@ -391,6 +393,115 @@ export function validateCallInputs(
   return { refs: validateInputs(def, inputs), normalized: inputs };
 }
 
+/** Shared current caller authorization; enrollment belongs to the supplied fence. */
+async function authorizeCall(def: InterimOperationDef | GeneratedOperationDef,
+  context: InvocationContext, memberships: MembershipReader, scope: FenceScope, skipTrusted = true): Promise<void> {
+  if (skipTrusted && context.kind === 'trusted') return;
+  const actorUserId = context.actor?.userId ?? null;
+  const teamId = context.team?.teamId ?? null;
+  const membership = actorUserId !== null && teamId !== null
+    ? await memberships.findMembership(teamId, actorUserId) : null;
+  if (actorUserId !== null && teamId !== null) {
+    scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
+  }
+  if (!await evaluateBy(def.by, { actorUserId, teamId, membership, memberships })) {
+    throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+  }
+}
+
+/** Canonical child admission within an already active owner transaction.
+ * This mechanism does not authenticate its arguments or activate an executor;
+ * the owning session supplies its checked target, current caller and read view.
+ * It neither looks up a receipt nor commits a separate transaction.
+ */
+export async function admitOwnerStageCall(input: {
+  readonly def: GeneratedOperationDef;
+  readonly inputs: ClosedInputs;
+  readonly context: InvocationContext;
+  readonly read: OwnerMutationReadView;
+  readonly memberships: MembershipReader;
+  readonly revision: Revision;
+  readonly owner: string;
+  readonly conflictServerOnly?: ConflictServerOnly;
+  readonly valueSchema?: NormalizedSchema;
+  /** Canonical model inventory from the same checked owning artifact. */
+  readonly modelNames?: ReadonlySet<string>;
+}): Promise<{ inputs: ClosedInputs; recordRefs: AdmittedCall['recordRefs']; checkpoint: AdmittedCall['checkpoint'] }> {
+  const scope = openFenceScope(input.revision, input.owner);
+  // A call value grants no authority: target user operations retain their by
+  // policy even when the enclosing source is an authenticated trusted trigger.
+  await authorizeCall(input.def, input.context, input.memberships, scope, false);
+  const validated = validateCallInputs(input.def, input.inputs);
+  const pending: PendingRef[] = [...validated.refs];
+  let inspected = 0;
+  // Nominal values need their checked owner schema before recursive refs can
+  // be discovered. The schema's unknown nominals alone do not prove models.
+  for (const field of input.def.descriptor.inputs) {
+    if (field.kind === 'ref' && Object.hasOwn(input.def.inputArrays, field.name)) {
+      throw new StateError('validation', 'Owner calls do not support reference arrays.');
+    }
+    if (field.kind === 'ref') continue;
+    if (field.kind === 'file' || field.kind === 'delivery') {
+      throw new StateError('validation', 'Owner calls do not support file or delivery input provenance.');
+    }
+    let value = validated.normalized[field.name];
+    if (!Object.hasOwn(validated.normalized, field.name)) continue;
+    if (field.kind === 'nominal') {
+      if (input.valueSchema === undefined || input.modelNames === undefined || field.valueType === undefined) {
+        throw new StateError('validation', 'Owner calls require the checked nominal input schema and model inventory.');
+      }
+    }
+    const primitive = field.valueType ?? ({ string: 'text', integer: 'int', boolean: 'bool', decimal: 'decimal',
+      money: 'money', datetime: 'datetime', duration: 'duration', user: 'user',
+      enum: field.kind === 'enum' ? `enum(${field.enumValues?.join(',')})` : undefined } as Record<string, string | undefined>)[field.kind];
+    const valueType = field.valueType ?? (primitive === undefined ? undefined :
+      `${primitive}${Object.hasOwn(input.def.inputArrays, field.name) ? '[]' : ''}`);
+    if (valueType !== undefined) {
+      try {
+        const decoded = input.valueSchema === undefined
+          ? decodeValue(valueType, value)
+          : validateValue(input.valueSchema, valueType, value, 'create');
+        validated.normalized[field.name] = encodeValue(valueType, decoded);
+        value = decoded;
+      } catch {
+        throw new StateError('validation', 'Invalid owner call typed input.');
+      }
+    }
+    const seen = new WeakSet<object>();
+    const inspect = (value: unknown, path: string, depth: number): void => {
+      if (++inspected > 4096 || depth > 64) {
+        throw new StateError('limit', 'Owner call composite reference inspection exceeds its finite budget.');
+      }
+      if (typeof value !== 'object' || value === null || seen.has(value)) return;
+      seen.add(value);
+      if (isRecordRef(value)) {
+        if (field.kind !== 'nominal' || input.modelNames?.has(value.model) !== true ||
+            value.version === undefined || !CANONICAL_VERSION_RE.test(value.version.toString())) {
+          throw new StateError('validation', 'Owner calls require checked models and original expected reference versions.');
+        }
+        pending.push({ param: path, model: value.model as ModelName, id: value.id as RecordId,
+          expectedVersion: Number(value.version) as RecordVersion });
+        return;
+      }
+      if (Object.hasOwn(value, 'kind') && (value as Record<string, unknown>)['kind'] === 'ref') {
+        throw new StateError('validation', 'Owner calls require declared singular reference inputs.');
+      }
+      const kind = (value as Record<string, unknown>)['kind'];
+      if (kind === 'file' || kind === 'delivery' || kind === 'action' || kind === 'invocation') {
+        throw new StateError('validation', 'Owner calls do not support composite protected value provenance.');
+      }
+      for (const [name, nested] of Object.entries(value)) inspect(nested, `${path}/${name}`, depth + 1);
+    };
+    inspect(value, field.name, 0);
+  }
+  const recordRefs = await loadCallRecordRefs({
+    pending, inputs: validated.normalized,
+    store: { load: (model, id) => input.read.get(model, id) }, scope,
+    ...(input.conflictServerOnly === undefined ? {} : { conflictServerOnly: input.conflictServerOnly }),
+  });
+  return { inputs: validated.normalized, recordRefs, checkpoint: scope.snapshot() };
+}
+
 /**
  * Admit one invocation. Trusted calls skip the `by` check on their verified
  * source authority; every other kind runs it. System/test kinds admit
@@ -428,19 +539,7 @@ export async function admit(input: {
   const scope = openFenceScope(revision, context.team?.teamId ?? context.app);
   const inputHash = await hashInputs(inputs);
 
-  const authorize = async (): Promise<void> => {
-    if (context.kind === 'trusted') return;
-    const actorUserId = context.actor?.userId ?? null;
-    const teamId = context.team?.teamId ?? null;
-    const membership = actorUserId !== null && teamId !== null
-      ? await memberships.findMembership(teamId, actorUserId) : null;
-    if (actorUserId !== null && teamId !== null) {
-      scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
-    }
-    if (!await evaluateBy(def.by, { actorUserId, teamId, membership, memberships })) {
-      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
-    }
-  };
+  const authorize = (): Promise<void> => authorizeCall(def, context, memberships, scope);
 
   const existing = await store.readReceipt(receiptIdentityFor(context));
   if (existing !== null) {
@@ -503,7 +602,7 @@ export async function admit(input: {
 export async function loadCallRecordRefs(input: {
   readonly pending: ReadonlyArray<PendingRef>;
   readonly inputs: Readonly<Record<string, unknown>>;
-  readonly store: StoragePort;
+  readonly store: Pick<StoragePort, 'load'>;
   readonly scope?: FenceScope;
   readonly conflictServerOnly?: ConflictServerOnly;
   /** Reads hide ungranted rows before exposing version/lifetime eligibility. */

@@ -154,6 +154,18 @@ export interface ScenarioReceiptAssociation {
   readonly plan: ScenarioResultDisclosurePlan;
   readonly resultType: CanTypeId;
   readonly returnId: string;
+  /** Actual same-owner calls, retained privately with the parent receipt.
+   * Target metadata identifies the checked interface; it grants no authority.
+   * Current projection rechecks target authority and every saved dependency. */
+  readonly calls?: ReadonlyArray<{
+    readonly site: string;
+    readonly caller: string;
+    readonly target: string;
+    readonly targetInterface: string;
+    readonly references: ReadonlyArray<{ readonly model: ModelName; readonly row: StoredRow; readonly secretFields: readonly string[] }>;
+    readonly result: unknown;
+    readonly scenario?: Omit<ScenarioReceiptAssociation, 'changed' | 'calls'>;
+  }>;
   readonly observations: ReadonlyArray<{
     readonly dependencyId: string;
     readonly model: ModelName;

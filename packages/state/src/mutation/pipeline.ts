@@ -147,6 +147,9 @@ export interface OwnerMutationStageOptions {
   readonly cause: 'crud' | 'scenario';
   /** Verified admitted CRUD inputs, not the defaults/hooks-adjusted candidate. */
   readonly input?: Readonly<Record<string, unknown>>;
+  /** Root State's admitted child context; only operation/source may differ.
+   * This attribution carries no admission proof or authority of its own. */
+  readonly context?: InvocationContext;
 }
 
 /** Canonical hook carriers; native hydration belongs to the checked adapter. */
@@ -349,6 +352,10 @@ function fieldDataEqual(left: unknown, right: unknown, seen = new WeakMap<object
  */
 function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owner?: OwnerMutationInput, revision?: Revision): OwnerMutationSession {
   const { table, context, store } = input;
+  let stageContext = context;
+  // Final net history retains the last contributing stage's operation;
+  // actor, clock and operation identity remain those of the enclosing call.
+  const historyContexts = new Map<string, InvocationContext>();
   const now = context.now;
   const actor = actorFor(context);
   // T32b-wire: the transitive facility's trigger point. Revision + owner
@@ -544,11 +551,12 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     final: Object.freeze({ get: (model: ModelName, id: RecordId) => guardedRead(() => getRow(model, id)),
       query: (spec: OwnerMutationQuery) => guardedRead(() => ownerQuery(spec, 'final')) }),
   });
+  let stagePolicyViews = policyViews;
   const beforeStage = async (model: ModelName, id: RecordId, after: StoredRow | null): Promise<void> => {
     if (owner?.policies === undefined) return;
     consumeWork();
     await owner.policies.beforeStage(deepFreeze(structuredClone({ model, id,
-      before: firstBefore.get(keyOf(model, id)) ?? null, after })), policyViews);
+      before: firstBefore.get(keyOf(model, id)) ?? null, after })), stagePolicyViews);
   };
 
   /** Required check: missing keys, nulls, and hook-set undefined all fail. */
@@ -1011,7 +1019,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       // mutate the pipeline candidate nor smuggle uncloneable values forward
       // (or retain an alias and mutate it after returning).
       const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
-        ...ctx, context, input: options.input!,
+        ...ctx, context: stageContext, input: options.input!,
         after: op === 'remove' ? null : deepFreeze({
           id: triggerId, version: before === null ? 1 as RecordVersion : nextVersion(def.model, triggerId, before),
           created: before?.created ?? now, updated: now, createdBy: before?.createdBy ?? actor,
@@ -1163,13 +1171,14 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     readonly change: 'create' | 'update' | 'archive' | 'remove';
     readonly before: StoredRow | null;
     readonly after: Readonly<Record<string, unknown>> | null;
-  }): void => {
+  }, attribution: InvocationContext = stageContext): void => {
+    if (owner !== undefined) historyContexts.set(keyOf(entry.model, entry.recordId), attribution);
     outHistory.push({
       model: entry.model,
       recordId: entry.recordId,
       version: entry.version,
-      operation: context.operation,
-      operationId: context.operationId,
+      operation: attribution.operation,
+      operationId: attribution.operationId,
       actor,
       at: now,
       change: entry.change,
@@ -1518,7 +1527,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           }
           const machine = def.fields[edge.field]?.machine;
           if (machine === undefined || !machine.transitions.some((site) =>
-              site.from === edge.from && site.to === edge.to && site.operation === context.operation)) {
+              site.from === edge.from && site.to === edge.to && site.operation === stageContext.operation)) {
             throw new StateError('validation', 'Transition is not declared for the current operation.');
           }
           if (!machine.states.includes(before.data[edge.field] as string)) {
@@ -1846,7 +1855,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         recordHistory({ model, recordId: id, before, after: after?.data ?? null,
           version: after?.version ?? (before!.version + 1) as RecordVersion,
           change: before === null ? 'create' : after === null ? 'remove' :
-            before.archivedAt === null && after.archivedAt !== null ? 'archive' : 'update' });
+            before.archivedAt === null && after.archivedAt !== null ? 'archive' : 'update' },
+          historyContexts.get(keyOf(model, id)) ?? context);
         for (const key of def.uniqueKeys) {
           consumeWork();
           const previous = before === null ? null : canonicalUnique(before.data[key], key, def);
@@ -1887,9 +1897,49 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           options.cause === 'crud' && (typeof options.input !== 'object' || options.input === null || Array.isArray(options.input)))) {
         throw new StateError('validation', 'Owner mutation staging needs an explicit cause and admitted CRUD inputs.');
       }
+      let childContext = context;
+      if (typeof options === 'object' && options !== null && 'context' in options) {
+        const member = Object.getOwnPropertyDescriptor(options, 'context');
+        if (owner === undefined || member === undefined || !('value' in member)) {
+          throw new StateError('validation', 'Owner child context requires its own admitted context data.');
+        }
+        const sameFrozenData = (value: unknown, expected: unknown): boolean => {
+          if (typeof expected !== 'object' || expected === null) return Object.is(value, expected);
+          if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+              ![Object.prototype, null].includes(Object.getPrototypeOf(value)) || !Object.isFrozen(value)) return false;
+          const keys = Reflect.ownKeys(expected);
+          return Reflect.ownKeys(value).length === keys.length && keys.every(key => {
+            const actual = Object.getOwnPropertyDescriptor(value, key), original = Object.getOwnPropertyDescriptor(expected, key);
+            return actual !== undefined && 'value' in actual && actual.enumerable === true &&
+              original !== undefined && 'value' in original && sameFrozenData(actual.value, original.value);
+          });
+        };
+        const candidate: unknown = member.value;
+        if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate) ||
+            ![Object.prototype, null].includes(Object.getPrototypeOf(candidate)) || !Object.isFrozen(candidate) ||
+            Reflect.ownKeys(candidate).length !== Reflect.ownKeys(context).length ||
+            !Reflect.ownKeys(context).every(key => {
+              const actual = Object.getOwnPropertyDescriptor(candidate, key), original = Object.getOwnPropertyDescriptor(context, key);
+              if (actual === undefined || !('value' in actual) || actual.enumerable !== true ||
+                  original === undefined || !('value' in original)) return false;
+              return key === 'operation' || key === 'source'
+                ? typeof actual.value === 'string' && actual.value.trim().length !== 0
+                : sameFrozenData(actual.value, original.value);
+            })) {
+          throw new StateError('validation', 'Owner child context must preserve the frozen root caller, owner, clock and operation identity.');
+        }
+        childContext = candidate as InvocationContext;
+      }
       const frozenWrites = deepFreeze(jsonClone(Array.isArray(writes) ? writes : [writes], 'Owner mutation writes'));
       const frozenOptions = deepFreeze(jsonClone(options, 'Owner mutation cause'));
-      await processWrites(frozenWrites as readonly MutationWrite[], frozenOptions);
+      try {
+        stageContext = childContext;
+        stagePolicyViews = childContext === context ? policyViews : Object.freeze({ ...policyViews, context: childContext });
+        await processWrites(frozenWrites as readonly MutationWrite[], frozenOptions);
+      } finally {
+        stageContext = context;
+        stagePolicyViews = policyViews;
+      }
     }),
     finalize: () => serial(async () => {
       const result = await finish();

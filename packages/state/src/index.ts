@@ -152,6 +152,8 @@ export {
   observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
+  bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
+  type ScenarioReceiptCallProducer, type ScenarioReceiptCallFrame,
   type ScenarioReceiptFrameworkProducer, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
   type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
