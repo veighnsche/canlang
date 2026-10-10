@@ -1254,8 +1254,8 @@
       }
     },
     "TECH-F02": {
-      "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "planning_status": "implementing",
+      "state": "Bounded keyset retention producer and actual SQLite transactional batch consumer implemented and directly tested; remaining descriptor/shared lifetime/download/provider joins blocked",
       "files": [
         "packages/files/src/upload/index.ts",
         "packages/files/src/finalize/index.ts",
@@ -1268,8 +1268,15 @@
         "packages/interfaces/src/ingress/mapping.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Persisted terminal tombstone retry cleanup has landed. Remaining descriptor availability, attachment/download lifetime, resumable retention beyond full listAll and authenticated provider/source occurrence/age/replay/effect association.",
-        "owner": "Files/Interfaces/Cloudflare; actual descriptor/provider/source producers"
+        "prerequisite": "Terminal tombstone retry cleanup and genuine bounded/resumable SQLite metadata retention now implemented. Remaining current descriptor availability, shared attachment/download lifetime and authenticated provider/source occurrence/age/replay/effect association; actual native/provider/installed driver acceptance is separate.",
+        "owner": "Interfaces/Cloudflare actual descriptor, shared attachment lifetime/download and authenticated provider/source owners; actual native/deployment host owners"
+      },
+      "bounded_retention_implementation": {
+        "source_base": "Exact reviewed LOCALbb234ad81d2f06f3be2ce55932b53b01f438e8e7; coordinator separately released ports.ts,retention/index.ts,host/sqlite.ts and existing retention.test.ts plus directly related docs/records.",
+        "contract": "PagedIntentStorePort/PagedFinalizedStorePort.listAfter uses immutable safe-id ascending exclusive keysets and actual bounded queries, never listAll slicing. runRetentionBatch plus actual SQLite binding uses one explicit1–1000combined traversal/processing limit across intents and files. Every visited row counts. Pending cleanup requires at most one auxiliary finalized-row lookup per intent to protect published bytes; metadataReads counts traversed rows+point lookup units including absence, <=2*limit. Byte-size checks and idempotent deletes remain separately bounded per visited record. No claim that all metadata reads <= traversal limit.",
+        "continuation": "Only return a cursor after successful cleanup. Actual selected SQLite transaction rolls metadata+bytes back on failure; external FS serial cleanup retains terminal-before-delete and retries oldcursor. Exact full pages may need an emptyprobe; nextnull completes sweep, later nullrestart revisits newlydue and earlierinserted rows. Current clock perbatch, no frozen cohort/time, cross-store concurrency or exact disposaldeadline. Legacy full-list API unchanged and uncredited for bounded traversal.",
+        "verification": "Files owning clean emission0. Initial20affected checks pass119.89ms including unchanged15. Concrete source review exposed auxiliary read claim; correct accounting/docs and add genuine publishedpending protection/count control, then clean emission0 and2affected accounting checks pass (prior19unchanged reused):21distinct direct outcomes,0fail/skip/cancel. Actual SQLmalformed untouchedtail proves cappedquery/no lookahead; reopen,combinedbudget,earlierinsertion/freshdue,SQLite rollback,retryoldcursor,serialFScleanup and invalidlimits/cursors qualify. One affected package-boundary check13packages/914files/1307runtime-context/0violations; unchanged dependency/import result reused after accounting-only edit. Diffcheck0. Unchanged Files/Interfaces168 and prior finalization99 scopes reused.",
+        "status": "Coherent local component implemented/tested for coordinator manual review; full TECH-F02 and original lifetime/source/native packet remain unfinished. No new bookkeeping files or remote push; precise human holds retained."
       }
     },
     "TECH-SV01": {
