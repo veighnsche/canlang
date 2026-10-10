@@ -3420,3 +3420,30 @@ pass1.14s, including distinct aliases/routes, unbound/duplicate/unknown controls
 and existing actual native observer/nullable set. fmt/diff0. Source32 witness
 reused; whole1429/138/strict retains frozen pre-provenance scope until the related
 join qualification.58/67/nine and precise holds unchanged. Local only.
+
+
+### 2026-10-10 — emit checked private standard completions (unfinished native join)
+
+Seal the original checked declaration/header, operation/import route and full
+ordered handler census, then carry it into StandardCompleted IR and the existing
+private standardCompletions carrier. canApp reuses the original appDefinition
+array. Retain complete selected input/raw-result/DeliveryError schemas, required
+four-field private envelopes and real callable/cohort identities; no synthetic
+symbols or public artifact extension. Completion-bearing definitions use the same
+complete value inventory as the installed loader, avoiding unrelated legacy
+operation records. Programs without completions retain their existing behavior.
+
+Owning codegen121/121 (0.37s), delivery_error_shapes9/9 (1.19s, actual existing
+native observer), new projection2/2 (0.12s) and IR2/2 (0.01s) pass. The positive
+checks unchanged emitted modules against installed Values and the exact released
+Dev321 consumer shape, including nested Text/Image and original array reference;
+analysis/IR/route/census/source-owner/unknown-closure controls refuse. Corrected
+whole-declaration versus name-token spans and actual test API/path assumptions
+supersede intermediate failures. CLI terminal E6008 remains. Capability must
+release the genuine readonly State runner and factored Work.read before Dev can
+qualify retained-source execution/replay; no fake occurrence or source authority.
+Void, anchored completion and unknown WorkflowField remain refused. Strict all-target Clippy0 (28.79s), fmt/diff0 follow the earlier provenance
+question-mark and raw-IR fixture census corrections; related typed_bdd2/2
+pass0.00s,136 distinct affected checks total. Current whole follows
+related ready work; historical1429/138 stays frozen.58/67/nine and all exact
+holds remain. Local only.

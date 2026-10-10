@@ -7585,3 +7585,30 @@ Use one sparse generated appDefinition.standardCompletions array, exposed by ori
 ### 2026-10-10 — selected local integration of private completion loader321f2d8f
 
 Finite manual review CLEAR; integrate only exact CF runtime/test paths and directly related records, excluding divergent Dev ancestry. Reuse owning unissued-census/accessor refusal1/1 Bun40.35ms and unchanged complete compiled native two-owner D1 committed CRUD/ordinary/frozen-cohort regression1/1 Node26898.98ms, clean CF emit/root noEmit and unchanged boundary results at their scopes. Sparse same-reference census, actual module/callable/schema/R-before-nullability/declaration-order proofs and bounded own wire shape precede Values; enrollment freezes scope and rechecks original source/current owner through genuine State-issued stage. Retained, anchored and void execution remains refused. Capability must supply actual registry-issued tracked read-only original-source runner plus factored Work replay reader without committing, fake stage or fresh cohort capture; Compiler must supply the checked producer. State File retirement compatibility/DO, Files physical consumer, Dev host joins and every precise hold remain. No remote push or whole-plan acceptance.
+
+
+### 2026-10-10 — emit checked private standard completions (unfinished native join)
+
+Seal the original checked declaration/header, operation/import route and full
+ordered handler census, then carry it into StandardCompleted IR and the existing
+private standardCompletions carrier. canApp reuses the original appDefinition
+array. Retain complete selected input/raw-result/DeliveryError schemas, required
+four-field private envelopes and real callable/cohort identities; no synthetic
+symbols or public artifact extension. Completion-bearing definitions use the same
+complete value inventory as the installed loader, avoiding unrelated legacy
+operation records. Programs without completions retain their existing behavior.
+
+Owning codegen121/121 (0.37s), delivery_error_shapes9/9 (1.19s, actual existing
+native observer), new projection2/2 (0.12s) and IR2/2 (0.01s) pass. The positive
+checks unchanged emitted modules against installed Values and the exact released
+Dev321 consumer shape, including nested Text/Image and original array reference;
+analysis/IR/route/census/source-owner/unknown-closure controls refuse. Corrected
+whole-declaration versus name-token spans and actual test API/path assumptions
+supersede intermediate failures. CLI terminal E6008 remains. Capability must
+release the genuine readonly State runner and factored Work.read before Dev can
+qualify retained-source execution/replay; no fake occurrence or source authority.
+Void, anchored completion and unknown WorkflowField remain refused. Strict all-target Clippy0 (28.79s), fmt/diff0 follow the earlier provenance
+question-mark and raw-IR fixture census corrections; related typed_bdd2/2
+pass0.00s,136 distinct affected checks total. Current whole follows
+related ready work; historical1429/138 stays frozen.58/67/nine and all exact
+holds remain. Local only.

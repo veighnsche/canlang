@@ -585,6 +585,7 @@ pub struct IrProgram {
         HashMap<SymbolId, crate::analysis::scenario_disclosure::ScenarioDisclosure>,
     /// Declaration census retained by the checked builder, never a wire claim.
     pub committed_sources: CheckedCommittedSources,
+    pub standard_completion_sources: CheckedStandardCompletionSources,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
     /// Builtin references observed while decoding checked call positions
@@ -659,6 +660,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         value_constraints: HashMap::new(),
         scenario_disclosures: HashMap::new(),
         committed_sources: CheckedCommittedSources::default(),
+        standard_completion_sources: CheckedStandardCompletionSources::default(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
@@ -1311,6 +1313,13 @@ pub enum IrEventSource {
         model: SymbolId,
         change: IrCommittedChange,
     },
+    StandardCompleted {
+        source: String,
+        canonical_operation: String,
+        result_type: String,
+        binding: String,
+        from: String,
+    },
 }
 
 /// Final stored-change vocabulary shared with the defining artifact contract.
@@ -1339,6 +1348,25 @@ impl IrCommittedChange {
 pub struct CheckedCommittedSources {
     pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
     pub(crate) handlers: Vec<CheckedCommittedHandler>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CheckedStandardCompletionSources {
+    pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
+    pub(crate) handlers: Vec<CheckedStandardCompletionHandler>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedStandardCompletionHandler {
+    pub id: SymbolId,
+    pub module: ModuleId,
+    pub canonical: String,
+    pub node: NodeKey,
+    pub on: NodeKey,
+    pub completion: crate::analysis::types::CheckedStdDeliveryCompletion,
+    pub cohort: Option<IrCohort>,
+    pub cohort_model: Option<String>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -1922,8 +1950,184 @@ pub struct IrSequence {
 // --- Bridge build ---------------------------------------------------------
 
 impl<'a> Cx<'a> {
+    fn standard_completion_source(&self, id: SymbolId) -> Option<IrEventSource> {
+        let count = self.program.standard_completion_handlers.len();
+        if count != self.program.types.std_delivery_completion_handlers.len()
+            || count
+                != self
+                    .program
+                    .effects
+                    .scenarios
+                    .values()
+                    .filter(|data| {
+                        matches!(
+                            data.on,
+                            Some(
+                                crate::analysis::effects::HandlerSource::StdDeliveryCompleted { .. }
+                            )
+                        )
+                    })
+                    .count()
+        {
+            return None;
+        }
+        let fact = self
+            .program
+            .standard_completion_handlers
+            .iter()
+            .find(|fact| fact.id == id)?;
+        let symbol = self.program.symbols.get(id.0 as usize)?;
+        let module = self.program.modules.get(fact.module.0 as usize)?;
+        let data = self.program.effects.scenarios.get(&id)?;
+        if symbol.id != id
+            || symbol.module != fact.module
+            || symbol.canonical != fact.canonical
+            || symbol.span != fact.span
+            || !matches!(symbol.kind, SymbolKind::Scenario { trusted: true, .. })
+            || data.scenario != id
+            || data.module != fact.module
+            || data.node != fact.node
+            || data.on_node.as_ref() != Some(&fact.on)
+            || data.cohort.as_ref().map(IrCohort::from) != fact.cohort.as_ref().map(IrCohort::from)
+            || data
+                .cohort
+                .as_ref()
+                .and_then(|cohort| self.program.symbols.get(cohort.model.0 as usize))
+                .filter(|symbol| matches!(symbol.kind, SymbolKind::Model { .. }))
+                .map(|symbol| symbol.canonical.as_str())
+                != fact.cohort_model.as_deref()
+        {
+            return None;
+        }
+        let expected = &fact.completion;
+        let current = self
+            .program
+            .types
+            .std_delivery_completion_handlers
+            .get(&fact.on)?;
+        if current.capability != expected.capability
+            || current.op != expected.op
+            || current.source != expected.source
+            || current.canonical_operation != expected.canonical_operation
+            || current.result_type != expected.result_type
+            || current.module != expected.module
+            || current.alias != expected.alias
+            || current.import_span != expected.import_span
+            || current.binding != expected.binding
+            || current.from != expected.from
+            || current.payload != expected.payload
+        {
+            return None;
+        }
+        if !matches!(&data.on, Some(crate::analysis::effects::HandlerSource::StdDeliveryCompleted { capability, op, source })
+            if capability == &expected.capability && op == &expected.op && source == &expected.source)
+        {
+            return None;
+        }
+        let header = self.node(&fact.on)?;
+        let owner = self.node(&data.node)?;
+        if owner.kind != SyntaxKind::Scenario
+            || NodeKey::of(owner) != fact.node
+            || crate::analysis::attribute_value(owner, "on", &self.db.get(fact.on.file)?.text)
+                .map(NodeKey::of)
+                .as_ref()
+                != Some(&fact.on)
+        {
+            return None;
+        }
+        let path = crate::analysis::path_segments(header, &self.db.get(fact.on.file)?.text);
+        if header.kind != SyntaxKind::Path
+            || path != [expected.alias.as_str(), expected.op.as_str(), "completed"]
+        {
+            return None;
+        }
+        let mut routes = module.imports.iter().flat_map(|import| {
+            import
+                .members
+                .iter()
+                .filter(move |member| member.alias == expected.alias)
+                .map(move |member| (import, member))
+        });
+        let (import, member) = routes.next()?;
+        if routes.next().is_some()
+            || import.provider != "std"
+            || import.span != expected.import_span
+            || import.from != expected.from
+            || expected.module != fact.module
+            || expected.source
+                != format!(
+                    "{}.{}.{}.completed",
+                    module.name, expected.alias, expected.op
+                )
+        {
+            return None;
+        }
+        let operation = std_capability(&member.name)?
+            .operations
+            .iter()
+            .find(|op| op.name == expected.op)?;
+        let capability = std_capability(&member.name)?;
+        if capability.name != expected.capability
+            || expected.canonical_operation != format!("{}.{}", capability.name, operation.name)
+            || operation.result != expected.result_type
+        {
+            return None;
+        }
+        let binding = expected.binding.as_ref()?;
+        let from = expected.from.as_ref()?;
+        if binding != &format!("{}.{}", module.name, member.alias) {
+            return None;
+        }
+        Some(IrEventSource::StandardCompleted {
+            source: expected.source.clone(),
+            canonical_operation: expected.canonical_operation.clone(),
+            result_type: expected.result_type.clone(),
+            binding: binding.clone(),
+            from: from.clone(),
+        })
+    }
+
+    fn check_standard_completion_census(&mut self) {
+        let expected = self.program.standard_completion_handlers.len();
+        let actual = self
+            .program
+            .effects
+            .scenarios
+            .values()
+            .filter(|data| {
+                matches!(
+                    data.on,
+                    Some(crate::analysis::effects::HandlerSource::StdDeliveryCompleted { .. })
+                )
+            })
+            .count();
+        let valid = expected == actual
+            && expected == self.program.types.std_delivery_completion_handlers.len()
+            && self
+                .program
+                .standard_completion_handlers
+                .iter()
+                .all(|fact| self.standard_completion_source(fact.id).is_some());
+        if !valid {
+            let span = self
+                .program
+                .standard_completion_handlers
+                .first()
+                .map(|fact| fact.span)
+                .or_else(|| self.program.modules.first().map(|module| module.span));
+            if let Some(span) = span {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "standard completion handler triggers disagree with checked source census or bound import".to_string(),
+                    span,
+                ));
+            }
+        }
+    }
+
     /// Build the program: modules, rule maps, items, suites.
     fn build_program(&mut self) -> (IrProgram, Vec<Diagnostic>) {
+        self.check_standard_completion_census();
         let modules = self.build_modules();
         // Rule maps first: preferences items read their validator names.
         let mut read_rules = Vec::new();
@@ -1983,12 +2187,32 @@ impl<'a> Cx<'a> {
                 })
                 .collect(),
         };
+        let standard_completion_sources = CheckedStandardCompletionSources {
+            sources: committed_sources.sources.clone(),
+            handlers: self
+                .program
+                .standard_completion_handlers
+                .iter()
+                .map(|fact| CheckedStandardCompletionHandler {
+                    id: fact.id,
+                    module: fact.module,
+                    canonical: fact.canonical.clone(),
+                    node: fact.node,
+                    on: fact.on,
+                    completion: fact.completion.clone(),
+                    cohort: fact.cohort.as_ref().map(IrCohort::from),
+                    cohort_model: fact.cohort_model.clone(),
+                    span: fact.span,
+                })
+                .collect(),
+        };
         let program = IrProgram {
             modules,
             items,
             value_constraints: self.program.types.value_constraints.clone(),
             scenario_disclosures: self.program.scenario_disclosures().clone(),
             committed_sources,
+            standard_completion_sources,
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,
@@ -6516,7 +6740,6 @@ impl<'a> Cx<'a> {
 
     /// Decode a scenario row (G1): admission, guards, effects, captions.
     #[allow(clippy::type_complexity)]
-    #[allow(clippy::type_complexity)]
     fn decode_scenario(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
@@ -6580,6 +6803,15 @@ impl<'a> Cx<'a> {
         // Pre-commit hooks use the engine context. Ordinary declared events
         // retain their checked identity and existing `{event}` handler ABI.
         let event_source = match &data.on {
+            Some(crate::analysis::effects::HandlerSource::StdDeliveryCompleted { .. }) => {
+                // Internal provenance does not release native handler publication.
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower scenario {}: standard handler triggers await the native terminal carrier", symbol.canonical),
+                    symbol.span,
+                ));
+                self.standard_completion_source(symbol.id)
+            }
             Some(crate::analysis::effects::HandlerSource::Event(event)) => {
                 if let Some(bind) = data.cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
                     && let SymbolKind::Event { fields } =
