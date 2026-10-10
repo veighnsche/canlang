@@ -1733,6 +1733,118 @@ fn t10_literal_for_delivery_rejected() {
     assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
 }
 
+/// A checked capability recipe retains its exact operation identity when used
+/// in another fixture. This attribution does not certify result payloads.
+#[test]
+fn capability_operation_fixture_delivery_identity() {
+    use canlang_compiler::analysis::types::ResolvedType;
+
+    let catalog = fixture();
+    let source = "package p\n use p {Mail as Box} from=deployment.mail\n Given\n  export capability Mail version=1\n   notify(value:text) -> Ack\n   other(value:text) -> Ack\n  contract Ack {ok:bool}\n  M {h:delivery(Box.notify)?}\n  policy M read=members\n  fixture receipt=Box.notify {request={value=\"hello\"}}\n  fixture holder=M {h=receipt}\n When\n Then\n";
+    let inspect = |source: &str| {
+        let mut db = SourceDb::new();
+        let file = db.add("delivery-fixture.can".into(), source.into());
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        let start = source.rfind("h=receipt").unwrap() as u32 + 2;
+        let ty = program
+            .types
+            .node_types
+            .iter()
+            .find(|(node, _)| node.start == start && node.end == start + 7)
+            .map(|(_, ty)| ty.clone())
+            .expect("actual fixture reference was typed");
+        (program, diagnostics, ty)
+    };
+    let (program, diagnostics, ty) = inspect(source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "p.Mail.notify")
+        .unwrap()
+        .id;
+    assert_eq!(ty, ResolvedType::Delivery { op: operation });
+
+    let wrong = source.replace("fixture receipt=Box.notify", "fixture receipt=Box.other");
+    let (_, diagnostics, ty) = inspect(&wrong);
+    assert_eq!(codes(&diagnostics), vec!["E3015"], "{diagnostics:?}");
+    assert!(matches!(ty, ResolvedType::Delivery {op} if op != operation));
+
+    for (name, recipe) in [
+        ("missing", "{request={}}"),
+        ("wrong-input", "{request={value=1}}"),
+        ("unknown-input", "{request={value=\"hello\",extra=true}}"),
+        (
+            "bad-envelope",
+            "{request={value=\"hello\"},status=succeeded}",
+        ),
+    ] {
+        let invalid = source.replace("{request={value=\"hello\"}}", recipe);
+        let diagnostics = check(&invalid, Some(&catalog));
+        assert!(
+            diagnostics.iter().any(|diag| diag.code == "E3015"),
+            "{name}: {diagnostics:?}"
+        );
+    }
+
+    for (name, target, declaration, request) in [
+        (
+            "scenario",
+            "work",
+            "  scenario work(value:text) by=members\n   do let checked=1\n",
+            "{value=\"hello\"}",
+        ),
+        (
+            "crud",
+            "M.delete",
+            "  crud M by=members fields=h\n",
+            "{record=empty}",
+        ),
+        ("capability-head", "Mail", "", "{}"),
+    ] {
+        let opaque = source
+            .replace(
+                "fixture receipt=Box.notify {request={value=\"hello\"}}",
+                &format!("fixture receipt={target} {{request={request}}}"),
+            )
+            .replace(
+                "  fixture receipt=",
+                "  fixture empty=M {h=null}\n  fixture receipt=",
+            )
+            .replace(" When\n Then", &format!(" When\n{declaration} Then"));
+        let (_, diagnostics, ty) = inspect(&opaque);
+        assert_eq!(ty, ResolvedType::Opaque("operation fixture"), "{name}");
+        assert!(
+            diagnostics.iter().any(|diag| diag.code == "E3015"),
+            "{name}: {diagnostics:?}"
+        );
+    }
+
+    for (name, invalid, code) in [
+        (
+            "unknown-operation",
+            source.replace("fixture receipt=Box.notify", "fixture receipt=Box.missing"),
+            "E2013",
+        ),
+        (
+            "opaque-external",
+            source.replace(" use p {Mail as Box}", " use unknown {Mail as Box}"),
+            "E3019",
+        ),
+        (
+            "forged",
+            source.replace("h=receipt", "h={id=\"fake\",operation=\"p.Mail.notify\"}"),
+            "E3015",
+        ),
+    ] {
+        let diagnostics = check(&invalid, Some(&catalog));
+        assert!(
+            diagnostics.iter().any(|diag| diag.code == code),
+            "{name}: {diagnostics:?}"
+        );
+    }
+}
+
 /// (T10/R18) Cross-enum comparison stays rejected: distinct enum
 /// types never compare (T36 owns any nominal mapping).
 #[test]

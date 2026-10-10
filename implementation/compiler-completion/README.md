@@ -2213,3 +2213,14 @@ Fact.task canonical Values/schema handoff, complete staff/can_work closure,
 State viewer-query/result attestation and genuine Dev read/as execution remain
 prerequisites before original context admission. Dynamic protected calls,
 T11 evidence and BDD3/Task22 holds keep their precise scopes. **58/67** remains.
+
+
+**Capability delivery fixture attribution (unfinished original source), 2026-10-10.**
+A checked operation fixture retains `Delivery{op}` only for its exact resolved
+CapabilityOp declaration. This resolves the original waiting fixture's opaque
+attribution gap; scenario/CRUD/bare/unknown/external operation fixtures keep
+existing behavior. Owning checker **283/283**, strict all-target Clippy/format
+pass; target identity, wrong target, malformed request/envelope, opaque target
+and forged-handle controls run. Result/error payload certification is unchanged.
+Original29-file check follows exact reviewed direct-query source intake; no
+original clean source/native or wider reference acceptance follows this unit.
