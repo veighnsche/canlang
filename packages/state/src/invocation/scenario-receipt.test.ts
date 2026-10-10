@@ -49,12 +49,12 @@ const forbidden = (error: unknown) => error instanceof StateError && error.code 
 const emptyEffects = (result: unknown): ExecutionEffects => ({ result, writes: [], history: [], outbox: [],
   schedules: [], uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
 
-async function world(slice: ArtifactDescriptorSlice = artifact()) {
+async function world(slice: ArtifactDescriptorSlice = artifact(), rowData?: Record<string, unknown>) {
   const store = createMemoryStorage(); const memberships = createMemoryIdentityStore();
   const member = await seedMember(memberships, { isOwner: false, roles: ['Shop.reader'] });
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
   const loaded = loadArtifactDescriptors(slice, { by: 'members' });
-  const row = await seedRow(store, MODEL, { data: { visible: 'original visible', private: 'private choice', token: 'original secret' } });
+  const row = await seedRow(store, MODEL, { data: rowData ?? { visible: 'original visible', private: 'private choice', token: 'original secret' } });
   const envelope = makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { record: { id: row.id, version: String(row.version) } });
   const policy = buildPolicyTable([{ model: MODEL, secretFields: [],
     grants: [{ by: { role: 'Shop.reader' }, fields: ['visible', 'private', 'token'] }] }]);
@@ -665,17 +665,80 @@ describe('execution-associated saved scenario disclosure', () => {
   // Actual Identity memory producer plus the existing State receipt fixture.
   // These qualify the defining consumer protocol, not workerd/D1 or Compiler
   // source capture. Legacy singular doubles above remain unchanged.
-  async function coherentWorld() {
-    const w = await world(); const receipt = await save(w);
+  async function coherentWorld(slice: ArtifactDescriptorSlice = artifact(), rowData?: Record<string, unknown>) {
+    const w = await world(slice, rowData); const receipt = await save(w);
     const identities = createIdentityMemoryStore({ clock: createFrozenClock(FIXED_NOW) });
     const caller = await identities.createMembership({ team_id: w.member.team.team_id,
       user_id: w.member.user.user_id, is_owner: false, roles: w.member.membership.roles });
     const subject = await identities.createMembership({ team_id: caller.team_id, user_id: 'review-subject',
       is_owner: false, roles: [{ role: 'Shop.review', granted_at: caller.created_at, granted_by: caller.user_id }] });
-    const registryFor = (by: ByPredicate) => loadArtifactDescriptors(artifact(), { by }).registry;
+    const registryFor = (by: ByPredicate) => loadArtifactDescriptors(slice, { by }).registry;
     const by: ByPredicate = { and: ['members', { roleSubject: { role: 'Shop.review', person: subject.user_id } }] };
     return { ...w, receipt, identities, caller, subject, registryFor, registry: registryFor(by) };
   }
+
+  async function rowSubjectReceiptWorld() {
+    const slice = artifact();
+    slice.models![0]!.fields.push({ name: 'reviewer', field: { kind: 'user' },
+      valueType: 'user' as CanTypeId, required: true, serverOnly: false });
+    const w = await coherentWorld(slice, { visible: 'original visible', private: 'private choice',
+      token: 'original secret', reviewer: { id: 'original-unprivileged-reviewer' } });
+    const current = await w.store.load(MODEL, w.row.id); assert.ok(current);
+    await updateRow(w.store, MODEL, current, { data: { ...current.data,
+      reviewer: { id: w.subject.user_id }, visible: 'later current visible' } });
+    const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{
+      by: { and: [{ role: 'Shop.reader' }, { roleSubject: { role: 'Shop.review',
+        person: { model: MODEL, field: 'reviewer' } } }] },
+      fields: ['visible', 'reviewer', 'token'],
+    }] }], w.loaded.models);
+    return { ...w, policy };
+  }
+
+  it('forwards genuine nested row-subject snapshots while current authority discloses original saved result and changes', async () => {
+    const w = await rowSubjectReceiptWorld();
+    const requests: string[][] = []; let singulars = 0;
+    const memberships: MembershipReader = {
+      findMembership: async (team, user) => { singulars++; return w.identities.findMembership(team, user); },
+      findMembershipsSnapshot: async (team, users) => {
+        assert.equal(team, w.caller.team_id);
+        assert.deepEqual([...users], [w.caller.user_id, w.subject.user_id]);
+        requests.push([...users]);
+        return w.identities.findMembershipsSnapshot(team, users);
+      },
+    };
+    const before = { revision: await w.store.readRevision(), row: await w.store.load(MODEL, w.row.id),
+      receipt: await w.store.readReceipt(w.receipt.identity), history: await w.store.historyFor(MODEL, w.row.id) };
+    const projected = await projectScenarioReceipt({ ...w, memberships });
+    assert.equal(projected.result, 'original visible');
+    assert.equal(projected.records.length, 1);
+    assert.deepEqual(projected.records[0]!.data, { visible: 'committed visible',
+      reviewer: { id: 'original-unprivileged-reviewer' } });
+    assert.equal(projected.records[0]!.version, w.row.version + 1);
+    assert.ok(requests.length > 2, 'nested saved-row authority reaches the actual snapshot producer before outer coherence');
+    assert.ok(singulars > 0);
+    assert.deepEqual({ revision: await w.store.readRevision(), row: await w.store.load(MODEL, w.row.id),
+      receipt: await w.store.readReceipt(w.receipt.identity), history: await w.store.historyFor(MODEL, w.row.id) }, before);
+  });
+
+  it('withholds saved row-subject disclosure after current subject swap or revocation and refuses absent nested snapshots', async () => {
+    for (const control of ['swap', 'revoked', 'no-snapshot'] as const) {
+      const w = await rowSubjectReceiptWorld();
+      if (control === 'swap') {
+        const current = await w.store.load(MODEL, w.row.id); assert.ok(current);
+        await updateRow(w.store, MODEL, current, { data: { ...current.data,
+          reviewer: { id: 'original-unprivileged-reviewer' } } });
+      }
+      if (control === 'revoked') await w.identities.removeMembership(w.subject.membership_id);
+      const memberships: MembershipReader = control === 'no-snapshot'
+        ? { findMembership: w.identities.findMembership } : w.identities;
+      const before = { revision: await w.store.readRevision(), row: await w.store.load(MODEL, w.row.id),
+        receipt: await w.store.readReceipt(w.receipt.identity), history: await w.store.historyFor(MODEL, w.row.id) };
+      if (control === 'no-snapshot') await assert.rejects(projectScenarioReceipt({ ...w, memberships }), forbidden);
+      else assert.deepEqual(await projectScenarioReceipt({ ...w, memberships }), { result: null, records: [] }, control);
+      assert.deepEqual({ revision: await w.store.readRevision(), row: await w.store.load(MODEL, w.row.id),
+        receipt: await w.store.readReceipt(w.receipt.identity), history: await w.store.historyFor(MODEL, w.row.id) }, before);
+    }
+  });
 
   it('uses two actual coherent snapshots for every caller/subject grant without singular fallback', async () => {
     const w = await coherentWorld(); let singulars = 0; const requests: readonly string[][] = [];
