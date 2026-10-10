@@ -3461,3 +3461,25 @@ unfinished; no current whole or native terminal acceptance. Capability's genuine
 readonly State/Work a8e source and Dev's live hook234ac adapter are released through
 coordinator carriers, pending safe exact intake and actual consuming qualification.
 E6008/void/anchored/WorkflowField and every precise hold remain. Local only.
+
+
+### 2026-10-10 — bind checked precommit hooks (unfinished native qualification)
+
+Emit nonempty State owner-hook claims only for the bounded checked own create/update
+profile: ordered scalar guards/lets/branches, candidate adjustments and same-module
+other-model staging. Preserve State omissions/defaults and readonly trigger ID/version.
+The exact synthetic event.after target is intentionally Unknown in checked IR;
+its owning hook and every supplied writable field establish the narrow association.
+Unknown values, metadata writes, foreign/same-trigger staging, delete, queries,
+opaque calls and unjoined effects acquire no claim. Original hooks[operation].run
+is reused by modelPolicyBindings; checked callbacks receive the native before/after
+views and owning context, with State-assigned after.version. Existing unsupported
+timer/transitive profiles retain their meaningful legacy engine assertions.
+
+Owning profile6/6, rule profile6/6, actual CLI/module projection4/4 (0.64s)
+and codegen121/121 (0.27s) pass;
+source syntax/IR mismatch and native stdlib fixture corrections supersede the
+intermediate failures. Strict all-target Clippy0 (44.21s), fmt/diff0. Native
+ordered execution, late-guard rollback, replay and server defaults follow exact
+reviewed adapter intake; no current whole or typed contextual source acceptance.
+Actor/now E6008, terminal E6008,58/67/nine and precise holds remain. Local only.

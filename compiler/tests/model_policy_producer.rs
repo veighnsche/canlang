@@ -126,3 +126,55 @@ fn protected_lock_targets_obey_the_same_native_field_profile() {
         );
     }
 }
+
+#[test]
+fn checked_hook_policy_reuses_original_callback_and_state_snapshot_shape() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let artifact = compile(
+        include_str!("fixtures/hook_order_rollback.can"),
+        scratch.path(),
+    );
+    let module = artifact["modules"][0]["path"].as_str().unwrap();
+    assert_eq!(
+        artifact["modelPolicies"],
+        serde_json::json!([
+            {"abi":"state.owner-model-policies@1","model":"HookOrder.Entry",
+             "ownerPackage":"HookOrder","module":module,"rules":[],
+             "hooks":[{"id":"HookOrder.adjustEntry","op":"update","operation":"HookOrder.Entry.update"}]}
+        ])
+    );
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(js.contains("($candidate,$hookCtx,c)"));
+    assert!(js.contains("version:$hookCtx.after.version"));
+    assert!(!js.contains("before.version+1"));
+    assert!(!js.contains("$hookCtx.before.data"));
+    let runner = scratch.path().join("hook-projection.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {dirname,resolve} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),root=process.argv[2];
+const require=createRequire(resolve(root,'package.json'));
+const {assembleModules}=await import(pathToFileURL(require.resolve('@canlang/cloudflare/runtime/modules')));
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const asm=await assembleModules({artifact,sourcePath:resolve(base,'policy.can')},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const registry=(await import(asm.entryUrl)).canApp();
+const hook=artifact.modelPolicies[0].hooks[0],binding=registry.modelPolicyBindings[0];
+assert.deepEqual({...binding,run:undefined},{id:hook.id,module:artifact.modelPolicies[0].module,ownerPackage:'HookOrder',model:'HookOrder.Entry',kind:'hook',run:undefined});
+assert.equal(binding.run,registry.hooks[hook.operation].run,'one original callback');
+assert.deepEqual(registry.hooks[hook.operation].ops,[hook.op]);
+const callables=artifact.callables.filter(callable=>callable.id===hook.id);
+assert.equal(callables.length,1);assert.equal(callables[0].module,artifact.modelPolicies[0].module);
+assert.deepEqual(callables[0].member,['hooks',hook.operation,'run']);
+"#).unwrap();
+    let run = Command::new("node").arg(runner).arg(root).output().unwrap();
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
