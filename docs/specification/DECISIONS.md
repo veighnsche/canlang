@@ -5554,3 +5554,15 @@ behavior. Actual CLI/refusal/executed binding3/3 and codegen121 pass. Do not hoi
 membership reads or accept Promises as booleans. Compiler's eventual lazy capture
 producer and State/Dev dispatch lifetime are prerequisites; no broader hold or
 Task22 lookup release is implied.
+
+
+## 2026-10-10 — join nominal model references to emitted inventory (unfinished native query)
+
+Admit an ordinary contract model leaf only through its exact checked Model
+SymbolId and canonical name in the actual emitted model inventory. Keep nominal
+contract fixed-point closure and existing unsupported wrappers; reference leaves
+do not copy model row schemas or confer existence/version/authority evidence.
+Use released Values normalization with actual same-load model names. Actual CLI/
+installed consumer4/4 and independent finite review pass; nullable/ordered arrays
+and wire/native version behavior remain owning codec semantics. Same-load loader
+and original native query/result provenance qualification remain separate.

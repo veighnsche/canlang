@@ -649,6 +649,12 @@
       "behavior": "Actual reused array parameter source layer retains exact compatible min/max inclusive JS-safe integer lengths in IR, top-level operation input metadata and generated scenario/capability schemas; field-only !, normalization, uniqueness/distinctness are not borrowed. Outer scalar-field[] wrapper does not promote element bounds to cardinality.",
       "validation": "Owning actual IR/CLI/artifact/generated-schema target3/3: imported Task[] min1/max10, narrowed min2/max5, nullable/read-versus-mutation versions, legal default[] and unbounded/scalar-element wrapper controls; unsafe/symbolic no modules. Direct parameter modifiers already refuse parser E1200; no new unsupported-syntax inference. Strict all-target and changed-source whole due after decision consumer stable. Strict all-target Clippy/fmt0 at coherent decision/parameter source; changed-source whole due.",
       "owner_release": "Packages exact shared envelope top-level min/max:number for safe nonnegative array lengths, existing array/nullable/ref requireVersion. State per-element current reference/outer checkpoint; Dev private input-array view/slot correspondence. Native array admission remains withheld."
+    },
+    "nominal_model_references": {
+      "state": "implemented_real_values_consumer_tested_native_query_unfinished",
+      "behavior": "Exact checked Model SymbolId/canonical joins actual emitted models inventory; ordinary nominal closure supports singular/nullable/ordered-array references without model row schemas or authority.",
+      "validation": "Actual CLI + installed Values ordinary_contract_results4/4; native BigInt versions, wire roundtrips, normalized version spelling, inherited trim/min, missing/closed/no-context/dangling/collision/null/array controls; finite independent review clear.",
+      "next": "Consume reviewed same-load State/Interfaces owner repairs; qualify loader then changed-source whole. Original query/native source/authority/provenance remain open."
     }
   }
 }

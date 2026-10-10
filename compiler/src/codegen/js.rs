@@ -1977,8 +1977,19 @@ impl<'a> Emitter<'a> {
             .any(|item| matches!(item.kind, IrItemKind::Judgment { .. }));
         // Ordinary contracts use the same released inventory, independently
         // of whether a Judgment happens to be present. Admit whole checked
-        // closures only; unknown/model-containing shapes gain no new claim.
-        fn supported_field(ir: &IrProgram, ty: &ResolvedType, contracts: &[SymbolId]) -> bool {
+        // closures only. Model leaves refer to the same-load model inventory;
+        // their row schemas and authority remain owned by model declarations.
+        let model_names: BTreeSet<String> = self
+            .collect_models()
+            .into_iter()
+            .map(|model| model.name)
+            .collect();
+        fn supported_field(
+            ir: &IrProgram,
+            ty: &ResolvedType,
+            contracts: &[SymbolId],
+            model_names: &BTreeSet<String>,
+        ) -> bool {
             let outer = match ty {
                 ResolvedType::Nullable(inner) => inner.as_ref(),
                 ty => ty,
@@ -2000,7 +2011,14 @@ impl<'a> Emitter<'a> {
                 ) => checked_value_profile(ty).is_some(),
                 // Declaration identity distinguishes a contract from a model;
                 // reused named-contract field types also carry `stored:true`.
-                ResolvedType::Record { symbol, .. } => contracts.contains(symbol),
+                ResolvedType::Record { symbol, .. } => {
+                    contracts.contains(symbol)
+                        || ir.items.get(symbol.0 as usize).is_some_and(|item| {
+                            item.id == *symbol
+                                && matches!(item.kind, IrItemKind::Model { .. })
+                                && model_names.contains(&item.canonical)
+                        })
+                }
                 ResolvedType::Enum {
                     owner: Some(owner),
                     cases,
@@ -2047,7 +2065,7 @@ impl<'a> Emitter<'a> {
                         field.id == *id
                             && matches!(&field.kind, IrItemKind::Field {
                         owner, ty: IrType::Known(ty), ..
-                    } if *owner == item.id && supported_field(self.ir, ty, &ordinary_contracts))
+                    } if *owner == item.id && supported_field(self.ir, ty, &ordinary_contracts, &model_names))
                     })
                 }) {
                     ordinary_contracts.push(item.id);
