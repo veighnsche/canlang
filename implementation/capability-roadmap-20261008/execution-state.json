@@ -992,9 +992,20 @@
             "timestamp": "2026-10-10T04:12:51.794Z",
             "call_id": "call_de93b845cfe84b48a5ee25d18a1119db",
             "reason": "The command would transmit sensitive internal repository architecture to the external api.typesafe.ai endpoint; JEV consultation is authorized in substance, but the exact destination and payload are not explicitly authorized for sensitive egress.",
-            "state": "blocked_exact_human_authorization_absent_no_retry"
+            "state": "historical_denial_resolved_by_exact_human_authorization_three_calls_completed"
           },
-          "next_owned_unit": "After three advisory responses and architecture decision: actual private State original-stage/revision enrollment joined to installed Work eligibility and existing guard phase; one original expectedRevision commit revalidates closed positive/negative evidence and fresh authority before real claim or owning guard-false skip/ack with no attempt. Include lifetime/provenance/concurrency/refusal defining controls. Dev owns native physical preclaim/source-lexical adoption; Compiler owns source lowering."
+          "next_owned_unit": "After three advisory responses and architecture decision: actual private State original-stage/revision enrollment joined to installed Work eligibility and existing guard phase; one original expectedRevision commit revalidates closed positive/negative evidence and fresh authority before real claim or owning guard-false skip/ack with no attempt. Include lifetime/provenance/concurrency/refusal defining controls. Dev owns native physical preclaim/source-lexical adoption; Compiler owns source lowering.",
+          "consultation": {
+            "authorization": "Human: Authorize these three requests. Coordinator conveyed exact f43a7b62 bodies/destination approval; no other payload or holds lifted.",
+            "responses": [
+              "dispatch-preclaim-response-1.json",
+              "dispatch-preclaim-response-2.json",
+              "dispatch-preclaim-response-3.json"
+            ],
+            "advice": "A/A/B; A probabilities.62/.67/.49, B.36/.32/.50; confidence.43/.51/.25. No explanations returned.",
+            "choice": "A: private actual State stage/revision commit ledger and installed Work eligible guard callback, reusing closed Work phase.",
+            "uncertainty": "B is competitive. Third wording emphasizes continuation architecture; sensitivity plausible, not proven. Source comparison finds no requirement for B additional effect-choice/output continuation lifetime. Advice is not acceptance; missing source/native provenance and cross-store atomicity remain."
+          }
         },
         "installed_decision_join_intake": "Intake exact reviewed LOCALfbec14516c4cdbc213a05db4f9a973aca883d2e6 onto70952efe. The sole genuine Compiler JSON \u2192 installed State join accepts user/Team, preserves exact frozen source/stage/position/slot/default/frame facts, and refuses lowercase team; reuse owning6/6 plus strict lint/fmt on its actual22-package graph. Reuse Compiler normal-stack/corpus attribution and Packages two shared Cloudflare assertion repairs19/19 at their exact scopes. No duplicate cross-process check, CI rewrite or native activation. The directly affected State/Work membership consumer after the guard-phase edit passes27/27 (126.47ms), alongside guard-phase/async/fence23/23; unchanged State checks reused. Mandatory actual staged-tree/both-parent reconciliation since complete824934 records1693commits,10829net deltas,11373historicalpaths,513history-only,9326pending allocations; four new guard-test/consultation-request paths registered with responses absent. Owners/scopes/allocations/retirements and79features/30targetleaves preserved, complete checkpoint unadvanced. Actual preclaim architecture still awaits exact JEV egress approval or human waiver; native capture and durable membership closure remain separately owned prerequisites. LOCAL commits only.",
         "native_dispatch_carrier_prerequisite": {
