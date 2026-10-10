@@ -7617,3 +7617,24 @@ Final State and Work owning emissions pass. State system35 plus owning framework
 ### 2026-10-10 — selected local integration of read-only completion a8e40e9f
 
 Finite State and Work manual reviews CLEAR. Integrate exact four runner/reader source and test paths plus the directly related existing task record; exclude unfinished State retirement485 ancestry. Reuse owning35 State system and9 Work cases at their declared scopes, zero failures/skips, and final emissions. The genuine private tracked context settles original reads, refuses poisoned/pending/check/write/fence drift execution, returns detached consumed source through the shared full route validator and closes without commit. Dev must consume the actual runner and reader; Compiler private executable producer, native admission, File framework/DO/physical issuer and every precise human hold remain unqualified. Preserve all allocation tuples and the unadvanced complete checkpoint; no remote push, publication or whole-plan acceptance.
+
+### 2026-10-10 — describe closed receipt-error controls (unfinished State join)
+
+Extend the shared framework field vocabulary only for closed flat required
+string controls, matching State's actual nullable ReceiptError code/message.
+Outer omission/nullability retains its declared semantics; extra/nested/opaque
+JSON does not gain an exemption. Work's existing closed validator handles the
+shape after bounded own-data detachment; all nine actual Work inventories stay
+unchanged. State owns its receipt descriptor and runtime qualification. Opaque
+receipt results still require checked source/type/current-authority joins.
+
+Owning Contracts and Work emissions pass. In-memory public type controls use
+the actual ReceiptError membership and reject missing/extra/nonstring/nested
+object/opaque fields; finite source review CLEAR. Reuse unchanged Work runtime
+checks, with no new State runtime acceptance inferred. Permanent issuer and
+all-writer barriers, physical Files deletion/reopen and Dev routing remain
+unfinished; exact holds and parent completion statuses are preserved.
+
+### 2026-10-10 — manual local integration of 7738135a
+
+Finite manual review CLEAR for necessary closed flat required string-field control vocabulary and bounded detached Work validator compatibility. Actual nine Work inventory descriptors remain unchanged; no arbitrary JSON or opaque result exemption. Reuse owning Contracts/Work emissions and exact ReceiptError membership/negative type controls, unchanged Work runtime results. Capability must bind the actual State ReceiptError producer descriptor and qualify nested own-data error controls in its real framework/retirement graph. State DO, physical Files, opaque result/source authority and native joins remain unfinished; preserve every precise hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
