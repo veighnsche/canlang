@@ -8332,3 +8332,27 @@ Original full FileProfile source (SHA256e4a64b884ff66666d0a270720a39bf23670e92a9
 ### 2026-10-11 — manual local integration of bb0104ab
 
 Reviewed finite unfinished Compilerbb0104ab contract inventory producer and exact full source/native witness CLEAR. Only checked File and unions of at least two exact already-complete ordinary contract arms are admitted in the existing collector; fixed-point incomplete/cyclic/mixed-model closures retain refusal, with no global model-field/DTO/public input widening. Complete unchanged a941 FileProfile source compiles0 with sourceSHAe4a64b884ff66666d0a270720a39bf23670e92a9a0cc52edbc4360bb1fa18c3f and all Packet/Empty/Bundle inventory, ordered nominal union type and original constraints. Reuse 160 existing affected results ordinary4/codegen121/emptyFile4/disclosure31 and fmt/diff0. New actual State binder case remains due after this reviewed containing original-ancestry release; earlier1be whole1457 across140 integrationfiles/docs0/strict0 1m41s and reviewed724 context graph22/native6 pass at their recorded tuple and do not qualify this changed producer. Existing source/identity/replay/guards and all precise holds remain. Complete original State case must execute without its exact temporary skip before nested/union qualification; separate complete Images nominal source producer and opaque runtime/receiving still unfinished. Preserve actual current main source/helper/default evidence, original allocations and unadvanced complete checkpoint; no remote publication. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+## 2026-10-11 — Exact original URL fixture asset reader
+
+Register only the portable D1 native test reading Compiler's owning
+`anonymous-message-consumer.mjs` fixture through the existing checkout-input
+policy. Dev supplied three final sites for the complete original URL source,
+source currency and final equality. This is an asset read; the independent
+package import gate continues to refuse executing that sibling module. Keep
+the exact consumer/target predicate and all prior registrations unchanged.
+
+The two changed maintained policy cases pass2/2 in357.305292ms: nine canonical
+reads register, eight wrong-reader/target paths and five JavaScript imports
+refuse. The registered D1 consumer's import of this exact fixture also refuses.
+A misplaced positive read was corrected before execution; finite read-only
+policy review confirms separate asset/import gates. Unchanged full scans, builds
+and native results are reused. Coordinator reviews the local coherent delta;
+Dev owns actual new source-current boundary and original native URL assertions.
+No consumer execution, whole-plan acceptance or precise human hold is qualified
+by these policy cases.
+
+### 2026-10-11 — reviewed local gate integration
+
+Select only Packages b92c9e1d exact fixture-reader pair and defining positive/refusal cases, independently reviewed CLEAR. Reuse two changed policy cases2/2 357.305292ms; import execution remains forbidden, no directory/source shortcut waiver. Dev owns the actual changed-source boundary qualification after intake and its complete original native consumer. Preserve all existing allocations and recipient holds; complete checkpoint stays unadvanced. Local integration only.
