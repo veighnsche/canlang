@@ -1008,11 +1008,18 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       }
       const card = index.get(id);
       if (card === undefined) throw new SessionSocketError("CONSTRUCT_UNKNOWN", "construct ID is not in captured help");
+      await core.refresh().catch(() => undefined);
+      const captured = checkedCaptures.get(revision);
+      const bundle = captured && !requestSignal.aborted && rankCurrent(revision, index.revision)
+        ? await qualification(captured, index, requestSignal) : null;
+      await core.refresh().catch(() => undefined);
+      const current = !requestSignal.aborted && rankCurrent(revision, index.revision);
       return {
         schema: "can.dev.construct-help.v1", session: socket?.identity.sessionId,
         revision, source_revision: found.sourceRevision, index_revision: index.revision,
-        current: core.status().revision === revision && !core.status().dirty,
-        card, candidate_coverage: "unknown",
+        current,
+        card: current && bundle ? index.get(id, FIRST_PROFILE, bundle.proofs.find(proof => proof.id === id)) : card,
+        candidate_coverage: "unknown",
       };
     }
     if (command.command === "failure.lookup" || command.command === "failure.detail") {
