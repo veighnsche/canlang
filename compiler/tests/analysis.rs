@@ -1004,6 +1004,8 @@ fn draft_outcome_table() {
     // Current aggregate snapshot: released draft 5a12eb9ebb136ffa4e5ce352663f92affba25bc2
     // with the e461c1e2 checker and real catalog, captured 2026-10-09.
     // All 52 files remain checked: 38 decreases, 14 unchanged, total 4192.
+    // Task39's checked read-call narrowing removes one Workbench E3003;
+    // removing read=true restores that exact finding (75 -> 76). Total 4191.
     // Historical attribution above describes earlier corpus/checker snapshots;
     // these aggregate pins do not establish full draft/runtime qualification.
     let table: &[(&str, usize)] = &[
@@ -1055,7 +1057,9 @@ fn draft_outcome_table() {
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
         ("draft/CanVolunteer.can", 46),
-        ("draft/CanWorkbench.can", 76),
+        // The checked read-only context call retains proposal.call != null;
+        // invocation_references pins its mutation-call invalidation control.
+        ("draft/CanWorkbench.can", 75),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),

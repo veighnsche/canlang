@@ -263,7 +263,7 @@ When
 Then
 "#;
     let (_, program) = checked(&[("refused.can", source)]);
-    for name in ["query", "absent", "composite", "model", "called"] {
+    for name in ["query", "absent", "composite", "model"] {
         assert!(
             matches!(
                 fact(&program, &format!("Refused.{name}")),
@@ -272,6 +272,10 @@ Then
             "{name} must decline the entire closure"
         );
     }
+    let called = complete(&program, "Refused.called");
+    assert_eq!(called.effects.len(), 1);
+    assert!(matches!(&called.effects[0].kind,
+        canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind::Call {input_keys,..} if input_keys.is_empty()));
     let changed = complete(&program, "Refused.changed");
     assert_eq!(changed.effects.len(), 1);
     assert!(matches!(
@@ -848,4 +852,80 @@ Then
             .iter()
             .all(|path| path.dependencies.is_empty())
     );
+}
+
+#[test]
+fn static_unused_scalar_calls_keep_authored_inputs_and_effect_selectors() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    let source = "app Calls\nGiven\n Item {value:int,private:bool}\n policy Item read=members fields=value\nWhen\n scenario child(first:int,second:int) -> int by=members\n  do return first+second\n scenario parent(item:Item,accept:bool) -> int by=members\n  do\n   if item.private\n    call child {second=item.value,first=1}\n   require accept\n   return 7\nThen\n";
+    let (_, program) = checked(&[("calls.can", source)]);
+    let parent = complete(&program, "Calls.parent");
+    let child = program
+        .symbols
+        .iter()
+        .find(|item| item.canonical == "Calls.child")
+        .unwrap();
+    assert_eq!(parent.effects.len(), 1);
+    assert!(
+        matches!(&parent.effects[0].kind, DisclosureEffectKind::Call {operation,input_keys}
+        if *operation == child.id && input_keys == &["second", "first"])
+    );
+    assert_eq!(parent.effects[0].source, parent.source);
+    assert_eq!(parent.returns.len(), 2);
+    for path in &parent.returns {
+        assert!(
+            path.dependencies
+                .iter()
+                .any(|read| read.field_name == "private" && read.role == DependencyRole::Control)
+        );
+    }
+    let called = parent
+        .returns
+        .iter()
+        .find(|path| {
+            path.dependencies
+                .iter()
+                .any(|read| read.field_name == "value")
+        })
+        .unwrap();
+    assert!(
+        called
+            .intrinsics
+            .iter()
+            .any(|input| input.role == DependencyRole::Control)
+    );
+}
+
+#[test]
+fn static_call_preparation_resolves_children_independently_of_source_order() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    let source = "app Calls\nGiven\nWhen\n scenario parent(value:int) by=members\n  do call middle {value}\n scenario middle(value:int) by=members\n  do call child {value}\n scenario child(value:int) -> int by=members\n  do return value\nThen\n";
+    let (_, program) = checked(&[("calls.can", source)]);
+    for name in ["Calls.parent", "Calls.middle"] {
+        let plan = complete(&program, name);
+        assert!(
+            matches!(&plan.effects[0].kind, DisclosureEffectKind::Call {input_keys,..} if input_keys == &["value"])
+        );
+        assert_eq!(plan.returns.len(), 1);
+        assert_eq!(plan.returns[0].intrinsics.len(), 1);
+    }
+}
+
+#[test]
+fn static_call_preparation_declines_bound_read_crud_and_reference_profiles() {
+    for source in [
+        "app Calls\nGiven\nWhen\n scenario child(value:int) -> int by=members\n  do return value\n scenario parent(value:int) by=members\n  do call child {value} as result\nThen\n",
+        "app Calls\nGiven\nWhen\n scenario child(value:int) read=true -> int by=members\n  do return value\n scenario parent(value:int) by=members\n  do call child {value}\nThen\n",
+        "app Calls\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n crud Item by=members fields=value\n scenario parent(value:int) by=members\n  do call Item.create {value}\nThen\n",
+        "app Calls\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario child(item:Item) -> int by=members\n  do return item.value\n scenario parent(item:Item) by=members\n  do call child {item}\nThen\n",
+    ] {
+        let (_, program) = checked(&[("calls.can", source)]);
+        assert!(
+            matches!(
+                fact(&program, "Calls.parent"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "{source}"
+        );
+    }
 }
