@@ -2716,3 +2716,17 @@ event.id to recordId and the genuine owner/version/occurrenceId. Compiler then
 owns the checked IR/metadata/callable emission. Existing schedule/cohort selection
 and raw State model change facts do not supply that authority. No guessed
 payload, fabricated declared event, schedule wrapper or source rewrite.
+
+
+**Reviewed owner intake (unfinished workflows), 2026-10-10.** Consume exact
+reviewed LOCALc4e3faf6 at the committed21371478 boundary, preserving both
+histories and incoming per-path allocations. State/Workf27 original-stage
+preclaim enrollment is owning-qualified147; Dev58d production membership
+snapshot1/1 and Dev017 lazy native query1/1/canonical45 are reused unchanged.
+Contracts06ea defines complete optional original outbox revision/time only;
+actual persistence and native consumption remain their owners' prerequisites.
+These releases do not supply Compiler original guard/frozen lexical/committed
+event payload provenance, public nominal Fact[] codec or private child admission.
+The original event payload/atomic source and Fact[] prerequisites above remain
+SKIP with exact owners; BDD3/Task22 holds remain precise. No unchanged full Cargo,
+editor or owning tests are repeated, and no remote push follows this intake.

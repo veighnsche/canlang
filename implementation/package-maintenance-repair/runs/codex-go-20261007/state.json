@@ -403,7 +403,7 @@
     },
     "TECH-V05": {
       "planning_status": "blocked",
-      "state": "Local source-current host/currency/cache prerequisites complete; private optimization policy comparison active, release-host/data gates open",
+      "state": "Local source-current host/currency/cache comparisons complete and released; timezone key-equivalence/retention-budget policy remains unselected under its exact consultation payload hold, supported release-host/data gates open.",
       "files": [
         "packages/values/src/timezone.ts",
         "packages/values/src/locale.ts",
@@ -438,8 +438,8 @@
         "no_workaround": true
       },
       "remaining_prerequisite": {
-        "prerequisite": "Supported ICU/tzdb/currency release profile and selected raw-zone cache/budget policy with required consequential-choice consultation.",
-        "owner": "Values contract/release-host owners"
+        "prerequisite": "Timezone key equivalence and retention/budget policy: raw-key Maps amplify retained formatters; Node/Bun resolved identities differ, so canonical-key substitution is not qualified. Existing exact consultation payload remains held after approval rejection; do not reuse TECH-I01 or State payload approval. Supported ICU/tzdb/currency release-host correspondence remains separate.",
+        "owner": "Values contract/release-host owners; human for the specifically held consultation payload"
       }
     },
     "TECH-S01": {
@@ -707,8 +707,8 @@
       "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open",
       "commit": "33f12d62",
       "remaining_prerequisite": {
-        "prerequisite": "Dev exact mirror; Capability/State+Dev multi-member observation consumption/native qualification; broader J2 database placement, mutation guard/batch ownership/Memory semantics and recovery/last-owner atomic winner/replay.",
-        "owner": "Dev, Capability/State, Identity/Contracts transaction owners"
+        "prerequisite": "Capability/State and Dev coherent multi-member observation consumption and actual source/native qualification; broader J2 database placement, mutation guard/batch ownership/Memory semantics and recovery/last-owner atomic winner/replay. Dev mirror source prerequisite is released62dadb61.",
+        "owner": "Capability/State, Dev, Identity/Contracts transaction owners"
       },
       "coherent_membership_consultation": {
         "status": "complete; advice only",
@@ -887,20 +887,21 @@
         "approval": "Human explicitly approved these exact three TECH-I01 requests and TypeSafe destination after the automatic approval review rejected generic preauthorization. No earlier payload approval reused."
       },
       "bounded_membership_release": {
-        "status": "implemented; clean defining emits and109 owning Identity checks pass; review/consumer qualification pending",
+        "status": "Defining producer and finite common fixtures manually source-reviewed CLEAR and integrated in reviewed LOCAL62dadb614eddd82c72ba3c9ecf60f7f04ba2d8c2; owning109/installed scopes retained. Whole consumer/J2 acceptance remains open.",
         "contract": "findMembershipsSnapshot(team_id,user_ids): Promise<MembershipSnapshot>;1–99 same-team ordered positions including duplicates/absence/removed/owner/full roles; immutable detached facts. One captured request, one primary bound SELECT; Memory synchronous complete capture. No chunk/fallback/revision/authority token/latest-at-return/mutation J2 claim.",
         "writer_lease": "Human-authorized TECH-I01 defining source unit; root sole writer for active_files, including explicitly named membership-snapshot.test.ts. Finite queue_resume read-only review; no other source writer.",
         "validation": {
           "contracts_emit": "clean ordinary build exit0",
           "identity_emit": "clean ordinary build exit0",
           "identity_tests": "109/109 pass, zero fail/skip/cancel; real SQLite one-query/99users+1team bind boundary/order/absence/removed/equal-clock later mutation; malformed requests/skewed/corrupt results and frozen detached Memory/zero accessor execution",
-          "source_check": "blocked by exact Dev Identity mirror TS2741 at mcpd-env-assembly.test.ts81/526 only; root repeated only after mirror prerequisite intake",
+          "source_check": "Historical a0 check found Dev mirror missing-method TS2741 at81/526. Exact Dev0193 mirror is source-released/intaken via reviewed LOCAL62dadb61; current affected source/native qualification is Dev-owned, not an unresolved missing-source gate. No unchanged gate rerun by Packages.",
           "finite_review": "CLEAR for bounded defining producer/tests/addendum after fixing Memory own-data matching;109 results/builds reused. Native, Dev mirror and State consumption remain separate gates."
         },
         "prerequisites": [
           {
             "owner": "Dev",
-            "needed": "Exact Cloudflare env-assembly IdentityStore mirror additive method signature/type; source assignment failure released to coordinator."
+            "needed": "Exact Cloudflare env-assembly IdentityStore mirror additive method signature/type; source assignment failure released to coordinator.",
+            "status": "Exact source released in Dev0193 and intaken through reviewed LOCAL62dadb61; actual affected Dev qualification remains separate."
           },
           {
             "owner": "Capability/State",
@@ -911,7 +912,20 @@
             "needed": "Real native D1/State runtime adapter and complete multi-member consumer qualification."
           }
         ],
-        "limits": "Whole Identity mutation winner/recovery/last-owner/security acceptance, remaining J2 choice and downstream/native/installed qualification remain open. Precise native preparation/publication/payload holds unchanged."
+        "limits": "Whole Identity mutation winner/recovery/last-owner/security acceptance, remaining J2 choice and downstream/native/installed qualification remain open. Precise native preparation/publication/payload holds unchanged.",
+        "installed_validation": {
+          "source": "a0a4d31e producer +46d2b89d fixture unit; current clean Contracts/Identity/CF outputs; unchanged other-owner outputs reused",
+          "commands": [
+            "node scripts/verify-installed-types.mjs --skip-build",
+            "node scripts/verify-installed-worker.mjs --skip-build"
+          ],
+          "result": "Both existing isolated local tarball gates exit0 once on Node24.19/TS5.9.3. Types174 exports/13 owners, zero owned/consumer diagnostics/undeclared edges,797 thirdparty diagnostics retained; missing/corrupt own declaration cases reject. Worker217 deterministic actual installed modules incl new Identity helper, checkout ERR_ACCESS_DENIED, actual production workerd/D1 initialize401/auth-required, retained selected Wasm ABI1/addint3 and UI bytes, four missing/corrupt asset cases and exactmissingreceiptobserver refuse.",
+          "existing_evidence": [
+            "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-4AXgF7/consumer/evidence.json",
+            "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-uLYrLh/consumer/evidence.json"
+          ],
+          "limits": "Changed defining producer installed export/runtime graph qualified only; new multi-member nativeconsumer, Devmirror source intake/rootcheck, earliestengine/otherhost and fullJ2/parent/security remain open. No nativepreparation/backend adoption, publication/deployment or heldpayload consultation. Validation-only record preserved for next coherent source unit; no bookkeeping-only commit."
+        }
       }
     },
     "TECH-I02": {
@@ -1816,7 +1830,7 @@
         "prerequisite": "New State-authored delivery leaf route now passes exact installed import and real workerd/D1 portable bundle checks; manually reviewed/released at LOCAL67554d14 and consumed in reviewed6da0dd1d. Selected entry source/lock/tool/emit/pack/actual supported-host correspondence and full-current native/profile consumers remain owner gates; native preparation stays held.",
         "owner": "Dev/Capability original native consumers and each delivery/release/installed supported-host owner"
       },
-      "current_validation_gap": "Current existing installed declaration and Worker gates both pass once against reviewed local044b961a9b14935c36043d07249effafefe93318. Actual tarball-only Node24 consumer checks174typed exports/13owners with zero owned/consumer diagnostics and zero undeclared imports;797third-party diagnostics remain retained. Installed216module Worker/abs/auth/Wasm/deterministic/browser/missing-corrupt asset and missing receipt-observer refusals pass with checkout reads denied. This replaces the stale current-head installed-closure prerequisite only at the selected existing-gate scope; all selected authored source/lock/tool/emit/pack/actual supported-host/native/full-release correspondence and native preparation HOLD remain separate. Historical170export/13owner results retain their original source scope.",
+      "current_validation_gap": "Existing isolated installed declaration and Worker gates also pass once for changed Contracts/Identity source a0a4d31e plus46d2b89d common fixtures:174typed exports/13owners, zero owned/consumer diagnostics/undeclarededges,797thirdpartydiagnosticsretained;217module actualinstalled Worker initialization/auth/assets/checkout-denial/refusals. See TECH-I01.bounded_membership_release.installed_validation for the same existing-gate receipts. Earlier044/216module qualification retains its original scope. New native multi-member consumer, exact Dev mirror/root intake, earliestengine/otherhost and whole selected authored source/lock/tool/emit/pack/native/fullrelease correspondence remain owner gates; nativepreparation HOLD unchanged.",
       "portable_import_fixture_slice": {
         "state": "Implemented and affected fixture passed; coordinator review pending",
         "source": "Coordinator-released mainfdd03cb7 contains exact owning Dev40222c25 complete quoted-literal rewrite and preserved public State mutation subpaths. No duplicate source repair.",
@@ -1979,7 +1993,8 @@
         "verified_source": "Identity ports.ts findMembership(team,user), State policy/roles.ts MembershipReader and Cloudflare runtime/invoke.ts mirror are singular. Identity storage/d1.ts uses one SELECT and separately atomic membership UPDATEs with clock-derived updated_at; its database port has no multi-member snapshot token or State revision association. Repeated equality and State revision checks do not establish simultaneous caller/subject AND authority.",
         "prerequisite": "Identity must own/release a bounded coherent multi-member read/snapshot correspondence, consumed by State/Cloudflare current disclosure. Capability's reported finite zero/single-distinct identity projection remains an unpublished producer input; do not duplicate it or infer broader scenario replay admission.",
         "owner": "Identity defining membership snapshot contract; Capability State/scenario projection; Dev Cloudflare producer; Packages Interfaces consumer",
-        "limit": "Read-only exact source verification and dependency record only. No new epoch/retry loop/protocol, Identity/State source change, extra proof tree or native preparation activation. Existing human holds remain."
+        "limit": "Read-only exact source verification and dependency record only. No new epoch/retry loop/protocol, Identity/State source change, extra proof tree or native preparation activation. Existing human holds remain.",
+        "current_defining_release": "TECH-I01 producer a0a4d31e and Dev0193 additive mirror are manually source-reviewed CLEAR and integrated LOCAL62dadb61;109 owning Identity and changed-source installed gates retained at original scopes. Current multi-member Capability/State+Dev consumption/source/native qualification remain. This read-only REPLAY-IP07 row did not authorize or implement the defining producer; broader legacy/disclosure/preparation/payload holds retained."
       },
       "checked_crud_consumer": {
         "state": "implemented, tested, root-reviewed finite current producer/consumer join",
@@ -2726,7 +2741,14 @@
       "ownership": "Coordinator says proceed now; Roadmap page read-scope observer occupies separate invoke.ts hunks. No shared output/index reservation held.",
       "consultation": "/private/tmp/canlang-repair-go-20261007/retained-outbox-placement/request-{1,2,3}.json; approximately10KB architecture facts only, corrected bare-field SQLite predicate fact; no calls executed, specific approval pending",
       "models": "Sol low factual inventory; implementation selection waits finite contract. No new goals/timers or recursive proof packets.",
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "defining_original_commit_contract": {
+        "status": "Implemented defining Contracts type; original State persistence and Dev native consumer unfinished",
+        "source": "packages/contracts/src/state.ts RetainedOutboxIntent.originalCommit?: OriginalOutboxCommit",
+        "contract": "Complete readonly {revision:Revision,createdAt:number}, scoped to the original winning owning-store commit and original persisted outbox epoch-ms creation time. Retain unchanged through dispatch/skip/reopen. Omission is missing provenance including legacy timestamp-only rows; no partial stamp/current revision/current clock/stage/provider-payload inference. Absence must refuse/withhold original correspondence.",
+        "validation": "Clean Contracts emit0; strict noEmit/exactOptionalPropertyTypes/skipLibCheckfalse probe on emitted state declaration0: legacy omission and complete stamps admit; time-only/revision-only/unscoped numeric revision/presentundefined/readonlymutation negatives reject. Types only; no adapter/runtime acceptance or full gate rerun.",
+        "owners": "Packages Contracts defining type; Capability original fenced persistence/legacy decode in State memory/D1/DO; Dev actual native consumer. Existing held delivery/State/timezone payloads are not released by this type."
+      }
     },
     "durable_progress_notification": {
       "status": "Selected Task21 producer investigation; owning Compiler dependency handed via Coordinator before Work source writes",

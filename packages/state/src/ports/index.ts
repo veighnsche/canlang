@@ -20,6 +20,8 @@ export {
 } from './transact.js';
 export {
   createSystemRegistry,
+  systemCommandStageRevision,
+  enrollSystemCommandCommitCheck,
   defineSystemCommand,
   outboxAckCommand,
   scheduleCancelCommand,
