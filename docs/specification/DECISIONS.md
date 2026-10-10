@@ -6945,3 +6945,34 @@ Private pre-suspension stored-reference hydration must keep the existing child s
 ### 2026-10-10 — manual local intake of exact Devd61a3efe
 
 Manual finite d61 source review CLEAR. Convert only synchronous pre-hydration plain-own object/member and dense-array shape faults through genuine State validation; preserve existing State errors and leave all awaited target reads, admission, lifetime and invocation exceptions outside conversion. Intake exact owning invoke source and related existing PLAN/DEC, with no Dev branch ancestry or active worktree mutation. Reuse the two previously failed unchanged cases2/2 in539.83ms plus56 unchanged successes:58 distinct outcomes, not a fresh whole58 run. Changed CF emission/root noEmit/boundary0 pass. Earlier native1/1 is retained at its exact scope. Preserve the failed overlapping Office capture result; Dev separately owns frozen current Office qualification and cleanup. No rebuild merely for local visibility, no original application/full-plan acceptance, no hold change or remote publication.
+
+### 2026-10-10 — current physical File reads return their verified snapshot
+
+Reuse the genuine Files observation validator for `readCurrentFinalizedBytes`,
+with explicit physical receiver, current File policy and retention. Read once,
+check size and copy before digest/type validation, then return those verified
+bytes. The actual SQLite `readCurrentBytes` binding runs it in the existing
+metadata/byte transaction. Keep observation identity, retained captured/current
+horizons, provenance, original finalization time and legacy physical reads.
+This avoids a validate/discard/second-read gap without inventing row authority.
+
+Final owning Files emission passes; actual SQLite affected suite9/9 passes
+with four new snapshot/reopen/no-write/policy/deadline/foreign/corruption/terminal
+controls and five unchanged observation/revalidation controls. Independent
+finite source/test review is clear. Reuse unchanged upload/finalization/bounded
+retention results and the exact prior common229 scope; no protected download or
+current whole-head installed qualification follows.
+
+Capability/State owns canonical current committed File slots, independent
+row/field occurrences, removal/replacement/shared references and whole-field,
+parent and Identity checks before/after physical reads. Dev's released b666953d
+host contract owns exact scalar locator/verified descriptor/available operation,
+selected owner store and current reader versus physical original receiver.
+Packages owns Files retention/bytes and the Interfaces kernel. A complete
+owner/revision census must remain serialized through physical deletion; an
+asynchronous scan followed by a separate sweep cannot prove atomic retention.
+Deployment/provider namespace/key/age verification and persistent authenticated
+occurrence/delivery/digest/operation/receiving-effect replay correlation are
+still absent defining prerequisites. The single attachment marker grants
+neither shared-reference lifetime nor row reads. Parent scope is unfinished;
+coordinator manual source intake remains due and all precise holds persist.

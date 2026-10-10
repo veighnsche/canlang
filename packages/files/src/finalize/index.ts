@@ -167,13 +167,13 @@ function withinFileLifetime(stored: StoredFileRecord, now: number, retention: Fi
     BigInt(stored.attachedAtMs) - BigInt(stored.finalizedAtMs) < BigInt(retention.unattachedHorizonMs);
 }
 
-function currentFileFacts(
+function currentFileRead(
   deps: ObservationDeps,
   ref: FinalizedFileRef,
   caller: ReceivingContext,
   options: FinalizedFileObservationOptions,
   originalRetention?: FileRetentionPolicy,
-): RetainedFinalizedFile | null {
+): { readonly facts: RetainedFinalizedFile; readonly bytes: Uint8Array } | null {
   assertSafeBlobKey(ref);
   assertSafeBlobKey(blobKeyForFile(ref));
   const receiver = snapshotReceiver(caller);
@@ -193,11 +193,29 @@ function currentFileFacts(
     finalizedAtMs: stored.finalizedAtMs, retention });
   if (facts === null || !isSameReceiver(facts.receiver, receiver) || !withinFileLifetime(stored, now, retention) ||
       (originalRetention !== undefined && !withinFileLifetime(stored, now, originalRetention))) return null;
-  const bytes = deps.blobs.read(blobKeyForFile(ref));
-  if (bytes === null || bytes.byteLength !== facts.sizeBytes || sha256Hex(bytes) !== facts.bytesDigest) return null;
+  const storedBytes = deps.blobs.read(blobKeyForFile(ref));
+  if (storedBytes === null || storedBytes.byteLength !== facts.sizeBytes) return null;
+  const bytes = new Uint8Array(storedBytes);
+  if (sha256Hex(bytes) !== facts.bytesDigest) return null;
   const check = checkContent(options.policy, facts.contentType, bytes);
   if (check.verdict !== 'accepted' || check.detectedType !== facts.contentType || check.sizeBytes !== facts.sizeBytes) return null;
-  return facts;
+  return { facts, bytes };
+}
+
+/**
+ * Read the exact physical byte snapshot validated against the current receiver,
+ * File policy and finalization-anchored lifetime. State must separately check
+ * the current whole-field grant and occurrence before and after async host reads.
+ * This producer grants no business-row access and does not infer shared references.
+ */
+export function readCurrentFinalizedBytes(
+  deps: ObservationDeps,
+  ref: FinalizedFileRef,
+  caller: ReceivingContext,
+  options: FinalizedFileObservationOptions,
+): Uint8Array | null {
+  try { return currentFileRead(deps, ref, caller, options)?.bytes ?? null; }
+  catch { return null; }
 }
 
 /** Observe real live bytes and immutable metadata without changing any port. */
@@ -208,10 +226,10 @@ export function observeFinalizedFile(
   options: FinalizedFileObservationOptions,
 ): FinalizedFileObservation | null {
   try {
-    const facts = currentFileFacts(deps, ref, caller, options);
-    if (facts === null) return null;
+    const current = currentFileRead(deps, ref, caller, options);
+    if (current === null) return null;
     const handle = Object.freeze(Object.create(null)) as FinalizedFileObservation;
-    observations.set(handle, facts);
+    observations.set(handle, current.facts);
     return handle;
   } catch { return null; }
 }
@@ -235,8 +253,8 @@ export function revalidateRetainedFinalizedFile(
   try {
     const saved = snapshotRetained(retained);
     if (saved === null) return false;
-    const current = currentFileFacts(deps, saved.ref, caller, options, saved.retention);
-    return current !== null && current.ref === saved.ref && isSameReceiver(current.receiver, saved.receiver) &&
+    const current = currentFileRead(deps, saved.ref, caller, options, saved.retention)?.facts;
+    return current !== undefined && current.ref === saved.ref && isSameReceiver(current.receiver, saved.receiver) &&
       JSON.stringify(current.provenance) === JSON.stringify(saved.provenance) &&
       current.contentType === saved.contentType && current.sizeBytes === saved.sizeBytes &&
       current.bytesDigest === saved.bytesDigest && current.finalizedAtMs === saved.finalizedAtMs;
