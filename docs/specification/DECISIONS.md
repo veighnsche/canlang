@@ -7978,3 +7978,24 @@ The portable worker's broad handler guard incorrectly refused original authentic
 ### 2026-10-11 — selected local integration of portable owner hooks a9e62aec
 
 Finite worker startup/private original callable census and genuine original portable HookOrder assertion reviews CLEAR. Integrate only exact three owning CF paths from a9e62aec and directly related final731d13e3 records; exact portable fixture policy already equals local5457 source, so no duplicate gate or divergent branch ancestry intake. Every handler must match its original module/id/member after full original hook/callback/CRUD/policy binding and assembly verification; cohorts and scheduled/unclaimed handlers remain refused. The ordinary worker router preserves its actual StoragePort typing, while Node File host generic authority extensions remain separate. Reuse owner unchanged Compiler HookOrder capture/CLI/installed portable worker/Identity/two-owner D1/auth/MCP case1/1 28533.95ms, exact ordered net effect/one receipt/history/fence, late full rollback and saved rejection/replay/create replay/resource/source currentness/awaited cleanup; worker-main18/18 and affected CF emission/root types0. Owner boundary13packages/948files/1415expressions/zero after exact guard intake is finite evidence. Existing Node File portable-constructor boundary case2/3 requires Packages shared classifier repair; no full File workflow or opaque/current authority/race/reopen qualification is inferred. Complete native applications, Office/G2/G3 and precise recipient holds remain. Preserve existing allocations and reconcile living plan/coverage/decisions with complete checkpoint unadvanced; no remote publication.
+
+
+## 2026-10-11 — Exact Node File host portable constructor boundary
+
+Implemented finite common-gate correction for Dev's named, not-yet-committed host import:
+`src/dev/file-retirement.ts` may import only `createTeamOwnerStorageBoundary`
+from `../worker/assembly.js`. Preserve the existing example-runner constructor
+set and all serving entry/main/self-import, other file/export, wildcard, default,
+side-effect and re-export refusals. The owning Node host retains the shared
+portable constructor; no feature implementation or broad worker import grant.
+
+Affected existing Node-host boundary case1/1 passes27ms with two unrelated cases
+unselected. Exact import/alias and prior constructor set admitted; eleven wrong
+forms/exports/paths and unrelated consumer/assembly export refused. Original
+source scan remains. The actual new Dev host source and native owner/store,
+interruption/reopen assertions are Dev-owned and unpublished here. Finite
+coordinator review pending; no full/native rerun or precise hold release.
+
+### 2026-10-11 — selected local integration of exact Node File host gate d88009cd
+
+Finite exact path/specifier/named-constructor whitelist review CLEAR. Integrate only the maintained worker boundary and related existing Packages records from d88009cd; all other accepted source/status preserved, no divergent branch ancestry. Reuse affected existing Node-host case1/1 27ms with original tree scan, literal/alias positive, prior example-runner constructor set and eleven disallowed forms/paths plus other-file/export refusals. This reviewed commit and current main contain no file-retirement.ts consumer; Dev has the actual named working-tree import and owes coherent original host/native source qualification. The allowance is not evidence of current host execution or physical lifecycle acceptance. Existing worker startup/portable original HookOrder a9 is separately reviewed/integrated at82ecfe98, with actual1/1, main18/18 and owning emission0 results reused. No repeated unrelated cases or full runtime/build/boundary. Preserve precise holds and allocations, reconcile living plan/coverage/decisions with complete checkpoint unadvanced; local only.

@@ -5068,6 +5068,13 @@
         "verification": "Ordinary CF emit first found our frame actor userId/user_id typo; corrected. Initial maintained31 Node checks:30 pass,1 frameactor assertion fails. After relevant correction, clean CF emit0 and affected original frame check1/1 passes24.84ms (113.12ms total), no skip/cancel; unchanged30 reused (initial730.44ms total). Defining source reviewCLEAR; diff check0.",
         "status": "Implemented and affected assertions qualified; coherent local unit for coordinator manual review. Root source check still depends on exact Dev Identity mirror intake from TECH-I01; no whole native/installed/parent gate claim.",
         "limits": "No producer behavior changed, no count-only relaxation, no full global/native rerun. Dev query assembler/native journey and State/Compiler source producers remain owner-qualified separately. Precise native preparation/publication/payload holds retained."
+      },
+      "file_retirement_portable_constructor": {
+        "status": "Exact named consumer/specifier/export gate manually reviewed and integrated; forthcoming Dev actual host consumer remains unpublished and must qualify independently.",
+        "change": "Only src/dev/file-retirement.ts may import createTeamOwnerStorageBoundary from ../worker/assembly.js. Existing example-runner portable exports preserved; other files/exports, wildcard/default/side-effect/re-export, serving entry/main/self-import remain refused.",
+        "validation": "Affected existing Node-host worker-boundary case1/1 passes27ms, two unrelated cases unselected. Exact Dev import and alias plus existing example-runner set admitted; eleven wrong export/form/path lines and unrelated file/assembly export refuse. Original tree scan retained. No full Worker/native/package-boundary rerun.",
+        "remaining_owner": "Dev consumes the reviewed exact gate and owns actual original State/SQLite owner-store/all-writer/race/interruption/reopen qualification. Source/fixture witness and precise holds remain required.",
+        "limits": "No runtime feature changes, broad assembly grant, source duplication, physical lifecycle acceptance or precise hold release. Local-only coherent commit/no push."
       }
     },
     "state_do_worker_loader": {
