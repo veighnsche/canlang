@@ -4,14 +4,15 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CanonicalOwnerModelPolicies, DomainWrite, InvocationContext, OccurrenceId,
+import type { CanonicalOwnerModelPolicies, ClosedInputs, DomainWrite, InvocationContext, OccurrenceId,
   Receipt, Revision, StoragePort, StoredRow } from '@canlang/contracts';
 import { beginOwnerMutation, bindOwnerModelPolicies, buildModelTable, generatedCrudExecuteOwnerSession,
   beginScenarioReceiptMutation, ownerMutationBusinessWrites, readOwnerMutationSourceStage,
-  readScenarioReceiptAssociation, selectScenarioReceiptReturn, type MutationWritesResult,
+  readScenarioReceiptAssociation, selectScenarioReceiptReturn, bindScenarioReceiptCallProducer,
+  invokeScenarioReceiptCall, StateError, type MutationWritesResult,
   type OwnerMutationSourceStage, type OwnerMutationSourceStager } from '@canlang/state';
 import { invoke, readGeneratedCrudAssociation } from '@canlang/state/invocation';
-import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '@canlang/state/invocation/registry';
+import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '@canlang/state/invocation/registry';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
 import { admitRetainedFanoutChunk } from '@canlang/state/fanout/membership';
 import { FIXED_NOW, asId, asModel, asOperation, createMemoryIdentityStore, makeBatch,
@@ -83,7 +84,7 @@ test('final same-value and A/B/A updates emit once at the reserved version and r
   const wiring = installed(), root = context(), revision = await store.readRevision();
   const session = await beginOwnerMutation({ table: table(), store, context: root, bounds: ownerBounds, stageSources: wiring.stageSources });
   for (const [index, value] of ['A', 'B', 'A'].entries()) await session.stage(update('a', value), {
-    ...cause, context: { ...root, operation: asOperation(`Shop.child${index}`), source: `nested-${index}` },
+    ...cause, context: Object.freeze({ ...session.views.context, operation: asOperation(`Shop.child${index}`), source: `nested-${index}` }),
   });
   const output = await session.finalize(), business = ownerMutationBusinessWrites(output);
   assert.equal(business.length, 1); assert.equal(output.writes.length, 3);
@@ -119,9 +120,9 @@ test('surviving creation, self-cancellation, permanent removal and archive use t
   await session.stage({ op: 'remove', model: ARCHIVE, id: asId('archived') }, cause);
   const output = await session.finalize();
   assert.deepEqual(sourceReceipts(output).map(receipt => receipt.change), [
-    { model: ITEM, recordId: 'new', version: 1, kind: 'created' },
-    { model: ITEM, recordId: 'a', version: 8, kind: 'deleted' },
     { model: ARCHIVE, recordId: 'archived', version: 4, kind: 'deleted' },
+    { model: ITEM, recordId: 'a', version: 8, kind: 'deleted' },
+    { model: ITEM, recordId: 'new', version: 1, kind: 'created' },
   ]);
   assert.deepEqual(output.history.map(entry => [entry.recordId, entry.change, entry.version]), [
     ['new', 'create', 1], ['a', 'update', 8], ['a', 'remove', 8], ['archived', 'archive', 4],
@@ -356,7 +357,7 @@ test('genuine source views are sequential, immutable and closed after finalizati
     const stageSources: OwnerMutationSourceStager = async token => {
       const stage = readOwnerMutationSourceStage(token);
       if (mode === 'copy') { assert.throws(() => readOwnerMutationSourceStage({ ...token }), /genuine active/); return []; }
-      if (mode === 'caught-query') { await assert.rejects(stage.framework.query({ model: WORK_OCCURRENCE_MODEL })); return []; }
+      if (mode === 'caught-query') { await assert.rejects(stage.framework.query({ model: WORK_OCCURRENCE_MODEL, authority: 'owner' })); return []; }
       if (mode === 'caught-unknown') { await assert.rejects(stage.framework.load(ITEM, asId('a'))); return []; }
       if (mode === 'caught-work') { assert.throws(() => stage.consumeWork(100_000)); return []; }
       reader = stage.final.get(ITEM, asId('a')); void reader.catch(() => {});
@@ -382,7 +383,7 @@ test('actual original revision conflicts discard all staged business, history an
         await view.final.get(ITEM, asId('a')); return wiring.stageSources(token);
       } });
     await owner.stage(update('a', 'changed'), cause);
-    if (phase === 'reader') await assert.rejects(owner.finalize(), /revision|conflict/i);
+    if (phase === 'reader') await assert.rejects(owner.finalize(), error => error instanceof StateError && error.code === 'conflict');
     else {
       const output = await owner.finalize();
       await seedRow(store, EMPTY, { id: 'external', data: { value: 'other writer' } });
@@ -487,4 +488,96 @@ test('caught genuine source-stage failures reject Invoke with no business/histor
   for (const model of frameworkModels) assert.deepEqual(await rows(w.store, model), []);
   assert.equal(await w.store.readRevision(), revision + 1);
   await assert.rejects(invoke(args)); assert.equal(callbacks, 1); assert.equal(ids, 0); assert.equal(executes, 1); assert.equal(commits, 1);
+});
+
+test('a genuine nested scenario-to-generated-CRUD call and hook secondary feed the same outer source finalization and Invoke replay', async () => {
+  const CHILD = 'Shop.complete', UPDATE = `${ITEM}.update`, slice = scenarioArtifact();
+  slice.callables!.push({ id: CHILD, kind: 'operation', module: origin.module, export: 'identity', member: ['complete'] });
+  slice.operations!.push(
+    { name: CHILD, kind: 'scenario', description: '', inputs: { fields: [] }, result: { type: 'void',
+      disclosure: { version: 1, source: origin, returns: [{ id: 'child-return', source: origin, influences: [], dependencies: [] }] } } },
+    { name: UPDATE, kind: 'update', description: '', inputs: { fields: [
+      { name: 'record', field: { kind: 'ref', model: ITEM, requireVersion: true }, required: true },
+      { name: 'value', field: { kind: 'string' }, required: false },
+    ] } },
+  );
+  const w = await invokeWorld(slice); await seedRow(w.store, ITEM, { id: 'a', data: { value: 'entry' } });
+  const parent = w.registry.get(OP), child = w.registry.get(CHILD), crud = w.registry.get(UPDATE);
+  assert.ok(parent && isGeneratedOperationDef(parent)); assert.ok(child && isGeneratedOperationDef(child));
+  assert.ok(crud && isGeneratedOperationDef(crud));
+  const models = table(); let hooks = 0, rootExecutions = 0, childExecutions = 0, prepares = 0, commits = 0;
+  const policies = bindOwnerModelPolicies({ table: models, descriptors: [{ abi: 'state.owner-model-policies@1',
+    model: ITEM, module: 'owner.mjs', ownerPackage: 'Shop', rules: [],
+    hooks: [{ id: 'nested-update-hook', op: 'update', operation: asOperation(UPDATE) }],
+  }], bindings: [{ id: 'nested-update-hook', kind: 'hook', model: ITEM, module: 'owner.mjs', ownerPackage: 'Shop',
+    run: (candidate, carrier) => { hooks++;
+      carrier.stage({ op: 'create', model: ARCHIVE, id: asId('nested-side'), data: { value: 'secondary' } });
+      return { ...candidate, value: 'hook-final' };
+    },
+  }] });
+  const wiring = installed(), revision = await w.store.readRevision(); let receipt: Receipt | undefined;
+  let rootContext: InvocationContext | undefined;
+  bindScenarioReceiptCallProducer(child, { source: origin, app: APP, registry: w.registry,
+    sites: [{ id: 'nested-crud', source: origin, kind: 'operation', targets: [
+      { operation: UPDATE, interface: crud.descriptor },
+    ], resultType: null }], prepare: (_def, inputs, immediateParent) => {
+      prepares++; assert.equal(immediateParent.def.name, CHILD); return inputs as ClosedInputs;
+    }, execute: async () => { throw Error('Generated CRUD executes through the actual owning State stage'); },
+  });
+  bindScenarioReceiptCallProducer(parent, { source: origin, app: APP, registry: w.registry,
+    sites: [{ id: 'child-scenario', source: origin, kind: 'operation', targets: [
+      { operation: CHILD, interface: child.descriptor },
+    ], resultType: 'void' }], prepare: (_def, inputs, immediateParent) => {
+      prepares++; assert.equal(immediateParent.def.name, OP); return inputs as ClosedInputs;
+    }, execute: async frame => {
+      childExecutions++; assert.equal(frame.parent.context, rootContext);
+      assert.equal(frame.call.context.operation, CHILD); assert.equal(frame.call.context.source, origin.path);
+      const current = await frame.session.read(ITEM, asId('a')); assert.ok(current);
+      const result = await invokeScenarioReceiptCall(frame.call, w.store, { site: 'nested-crud', target: UPDATE,
+        inputs: { record: { id: current.id, version: String(current.version) }, value: 'authored-child' } }) as StoredRow;
+      assert.equal(result.version, 2); assert.equal(result.data.value, 'hook-final');
+      selectScenarioReceiptReturn(frame.call, w.store, 'child-return'); return null;
+    },
+  });
+  const actualCommit = w.store.commit;
+  w.store.commit = async batch => {
+    commits++; assert.equal(batch.expectedRevision, revision); assert.ok(batch.receipt);
+    assert.equal(batch.writes.length, 6); assert.equal(batch.history.length, 3); return actualCommit(batch);
+  };
+  const args = { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: Parameters<Parameters<typeof invoke>[0]['execute']>[0]) => {
+    rootExecutions++; rootContext = call.context;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: models, bounds: ownerBounds,
+      policies, stageSources: wiring.stageSources });
+    await invokeScenarioReceiptCall(call, w.store, { site: 'child-scenario', target: CHILD, inputs: {} });
+    await session.stage(update('a', 'root-final'), cause);
+    selectScenarioReceiptReturn(call, w.store, 'advance-return');
+    const output = await session.finalize();
+    assert.deepEqual(output.history.map(entry => [entry.model, entry.recordId, entry.operation, entry.version,
+      entry.before, entry.after]), [
+      [ITEM, 'a', UPDATE, 2, { value: 'entry' }, { value: 'hook-final' }],
+      [ARCHIVE, 'nested-side', UPDATE, 1, null, { value: 'secondary' }],
+      [ITEM, 'a', OP, 2, { value: 'hook-final' }, { value: 'root-final' }],
+    ]);
+    assert.deepEqual(sourceReceipts(output).map(source => source.change), [
+      { model: ARCHIVE, recordId: 'nested-side', version: 1, kind: 'created' },
+      { model: ITEM, recordId: 'a', version: 2, kind: 'updated' },
+    ]);
+    for (const source of sourceReceipts(output)) {
+      assert.equal(source.context.operation, OP); assert.equal(source.context.source, w.source);
+      assert.equal(source.context.operationId, w.envelope.operation_id); assert.equal(source.revision, revision);
+      assert.deepEqual(source.context.actor, rootContext.actor); assert.deepEqual(source.context.team, rootContext.team);
+    }
+    return execution(output);
+  } };
+  assert.equal((await invoke(args)).status, 'committed'); assert.ok(receipt);
+  const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+  assert.deepEqual(new Set(association.calls!.map(call => call.target)), new Set([CHILD, UPDATE]));
+  assert.deepEqual(new Set(association.changed.map(change => change.model)), new Set([ITEM, ARCHIVE]));
+  assert.equal((await rows(w.store, WORK_OCCURRENCE_MODEL)).length, 2);
+  assert.equal((await w.store.load(ITEM, asId('a')))!.data.value, 'root-final');
+  assert.equal((await w.store.load(ARCHIVE, asId('nested-side')))!.data.value, 'secondary');
+  const before = await snapshot(w.store), counts = { ...wiring.counts };
+  assert.equal((await invoke(args)).status, 'replayed'); assert.deepEqual(await snapshot(w.store), before);
+  assert.deepEqual(wiring.counts, counts); assert.equal(commits, 1); assert.equal(rootExecutions, 1);
+  assert.equal(childExecutions, 1); assert.equal(hooks, 1); assert.equal(prepares, 2);
 });
