@@ -766,6 +766,19 @@ async function loadAttemptDispatch(): Promise<FenceAttemptDispatchFn> {
   return cachedAttemptDispatch;
 }
 
+type AsyncWorkGuardProducers = Pick<typeof import("@canlang/work/dispatch"),
+  "attemptDispatchAsync" | "assertDispatchGuardExecution" | "readDispatchGuardExecution" |
+  "registerDispatchGuardRevalidation">;
+
+async function loadAsyncWorkGuardProducers(): Promise<AsyncWorkGuardProducers> {
+  const module = await import(workSpecifier("dispatch/index.ts"));
+  for (const name of ["attemptDispatchAsync", "assertDispatchGuardExecution", "readDispatchGuardExecution",
+    "registerDispatchGuardRevalidation"] as const) {
+    assert.equal(typeof module[name], "function", `installed Work must export ${name}`);
+  }
+  return module as AsyncWorkGuardProducers;
+}
+
 interface WorkerStack {
   readonly registry: DispatchSystemRegistry;
   readonly joinPort: DispatchJoinPort;
@@ -872,6 +885,292 @@ function liveAuthority(seed: SeededIdentity): () => Promise<boolean> {
     return membership !== null && membership.status === "active";
   };
 }
+
+describe("T32b async fenced dispatch drives (installed Work guard executions)", () => {
+  it("keeps lexical inputs and its private handle live across await, then closes before evidence, authority and provider", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const work: AsyncWorkGuardProducers = await loadAsyncWorkGuardProducers();
+    await stageIntents(stack, [stageInput({ intentId: "obx_async_true", guard: "eligible()", guardVerdict: true })]);
+    const intent = await pendingIntent(stack, "obx_async_true");
+    const order: string[] = [];
+    const lexical = { taskIds: ["lexical-task"], minimum: 7n };
+    let execution: import("@canlang/work/dispatch").DispatchGuardExecution | undefined;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => { assert.fail("async fence must not use the legacy synchronous evaluator"); },
+      readStateSnapshot: () => ({ eligible: true }),
+      callProvider: async supplied => {
+        order.push("provider");
+        assert.ok(execution);
+        assert.throws(() => work.assertDispatchGuardExecution(execution), /not live/);
+        assert.deepEqual(supplied.arguments, intent.arguments);
+        return deliveredOutcome();
+      },
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: async () => {
+          order.push("authority");
+          assert.ok(execution);
+          assert.throws(() => work.assertDispatchGuardExecution(execution), /not live/);
+          return liveAuthority(seed)();
+        },
+        asyncGuard: {
+          attemptDispatch: work.attemptDispatchAsync,
+          frozenInputs: lexical,
+          evaluateGuard: async (predicate, inputs, snapshot, handle) => {
+            execution = handle;
+            order.push("guard");
+            assert.equal(predicate, "eligible()");
+            assert.deepEqual(inputs, lexical);
+            assert.notDeepEqual(inputs, intent.arguments);
+            assert.deepEqual(snapshot, { eligible: true });
+            assert.ok(Object.isFrozen(inputs));
+            work.assertDispatchGuardExecution(handle);
+            await Promise.resolve();
+            work.assertDispatchGuardExecution(handle);
+            assert.deepEqual(work.readDispatchGuardExecution(handle).frozenInputs, lexical);
+            work.registerDispatchGuardRevalidation(handle, async () => {
+              order.push("evidence");
+              assert.throws(() => work.readDispatchGuardExecution(handle), /not live/);
+              await Promise.resolve();
+              return true;
+            });
+            return true;
+          },
+        },
+      },
+    });
+    assert.equal(outcome.status, "recorded");
+    assert.deepEqual(order, ["guard", "evidence", "authority", "provider"]);
+    const data = readDispatchExecutionRow(await dispatchRow(stack, intent.intentId));
+    assert.equal(data.state, "delivered");
+    assert.equal(data.attempts, 1);
+    assert.deepEqual(await pendingIds(stack), []);
+    assert.throws(() => work.assertDispatchGuardExecution(execution), /not live/);
+  });
+
+  it("revalidates a stable false async observation before recording the existing skip and acknowledgement", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const work: AsyncWorkGuardProducers = await loadAsyncWorkGuardProducers();
+    await stageIntents(stack, [stageInput({ intentId: "obx_async_false", guard: "eligible()", guardVerdict: true })]);
+    const intent = await pendingIntent(stack, "obx_async_false");
+    const order: string[] = [];
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => { assert.fail("legacy evaluator is not the async guard"); },
+      callProvider: async () => { assert.fail("a false guard must not reach the provider"); },
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: async () => { assert.fail("false guard must skip before live authority"); },
+        asyncGuard: {
+          attemptDispatch: work.attemptDispatchAsync, frozenInputs: { eligible: false },
+          evaluateGuard: async (_predicate, _inputs, _snapshot, execution) => {
+            order.push("guard");
+            await Promise.resolve();
+            work.registerDispatchGuardRevalidation(execution, () => {
+              order.push("evidence");
+              assert.throws(() => work.assertDispatchGuardExecution(execution), /not live/);
+              return true;
+            });
+            return false;
+          },
+        },
+      },
+    });
+    assert.equal(outcome.status, "skipped");
+    assert.deepEqual(order, ["guard", "evidence"]);
+    const data = readDispatchExecutionRow(await dispatchRow(stack, intent.intentId));
+    assert.equal(data.state, "pending");
+    assert.equal(data.guardVerdict, false);
+    assert.equal(data.attempts, 0);
+    assert.deepEqual(await pendingIds(stack), []);
+  });
+
+  it("refuses invalidated positive and negative observations before provider, recording or acknowledgement", async () => {
+    for (const verdict of [true, false]) {
+      const { store } = createTestMemoryStorage();
+      const stack = await workerStack(store);
+      const seed = await seedIdentity();
+      const work: AsyncWorkGuardProducers = await loadAsyncWorkGuardProducers();
+      const intentId = `obx_async_invalid_${verdict}`;
+      await stageIntents(stack, [stageInput({ intentId, guard: "eligible()", guardVerdict: true })]);
+      const intent = await pendingIntent(stack, intentId);
+      const revision = await store.readRevision();
+      let observations = 0;
+      const outcome = await driveDispatchIntent({
+        ...driveDefaults(stack, intent),
+        evaluateGuard: () => { assert.fail("legacy guard must remain unused"); },
+        callProvider: async () => { assert.fail("invalidated evidence must not reach provider"); },
+        fence: {
+          owner: seed.teamId,
+          revalidateAuthority: async () => { assert.fail("invalidated evidence precedes authority"); },
+          asyncGuard: {
+            attemptDispatch: work.attemptDispatchAsync, frozenInputs: { verdict },
+            evaluateGuard: async (_predicate, _inputs, _snapshot, execution) => {
+              await Promise.resolve();
+              work.registerDispatchGuardRevalidation(execution, () => {
+                observations += 1;
+                assert.throws(() => work.assertDispatchGuardExecution(execution), /not live/);
+                return false;
+              });
+              return verdict;
+            },
+          },
+        },
+      });
+      assert.equal(outcome.status, "refused-revoked");
+      assert.equal(observations, 1);
+      const data = readDispatchExecutionRow(await dispatchRow(stack, intentId));
+      assert.equal(data.state, "claimed");
+      assert.equal(data.attempts, 0);
+      assert.equal(data.guardVerdict, true);
+      if (outcome.status !== "refused-revoked") throw new Error("unreachable");
+      assert.equal(data.claimId, outcome.claimId);
+      assert.deepEqual(await pendingIntent(stack, intentId), intent);
+      assert.equal(await store.readRevision(), revision + 1, "only the physical held claim may commit");
+    }
+  });
+
+  it("rechecks genuine membership after an awaited async guard removes it", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const work: AsyncWorkGuardProducers = await loadAsyncWorkGuardProducers();
+    await stageIntents(stack, [stageInput({ intentId: "obx_async_membership", guard: "eligible()", guardVerdict: true })]);
+    const intent = await pendingIntent(stack, "obx_async_membership");
+    const revision = await store.readRevision();
+    const order: string[] = [];
+    let configuredFence: DriveDispatchFenceInput | undefined;
+    let replacementReads = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => { assert.fail("legacy guard must remain unused"); },
+      callProvider: async () => { assert.fail("revoked membership must not reach provider"); },
+      fence: configuredFence = {
+        owner: seed.teamId,
+        revalidateAuthority: async () => { order.push("authority"); return liveAuthority(seed)(); },
+        asyncGuard: {
+          attemptDispatch: work.attemptDispatchAsync, frozenInputs: { member: seed.memberId },
+          evaluateGuard: async (_predicate, _inputs, _snapshot, execution) => {
+            order.push("guard");
+            await Promise.resolve().then(async () => {
+              await seed.store.removeMembership(seed.memberMembershipId);
+              assert.ok(configuredFence);
+              // The actual host configuration changes while this guard awaits.
+              // Its original live authority callback must already be pinned.
+              Object.defineProperty(configuredFence, "revalidateAuthority", {
+                value: () => { replacementReads += 1; return true; },
+              });
+            });
+            work.assertDispatchGuardExecution(execution);
+            work.registerDispatchGuardRevalidation(execution, () => { order.push("evidence"); return true; });
+            return true;
+          },
+        },
+      },
+    });
+    assert.equal(outcome.status, "refused-revoked");
+    assert.deepEqual(order, ["guard", "evidence", "authority"]);
+    assert.equal(replacementReads, 0, "the permissive replacement must not replace the pinned live membership reader");
+    assert.equal((await seed.store.findMembership(seed.teamId, seed.memberId))?.status, "removed");
+    const data = readDispatchExecutionRow(await dispatchRow(stack, intent.intentId));
+    assert.equal(data.state, "claimed");
+    assert.equal(data.attempts, 0);
+    assert.deepEqual(await pendingIntent(stack, intent.intentId), intent);
+    assert.equal(await store.readRevision(), revision + 1);
+  });
+
+  it("refuses a moved physical checkpoint after await before recording even a false guard skip", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const work: AsyncWorkGuardProducers = await loadAsyncWorkGuardProducers();
+    const intentId = "obx_async_checkpoint";
+    await stageIntents(stack, [stageInput({ intentId, guard: "eligible()", guardVerdict: true })]);
+    const intent = await pendingIntent(stack, intentId);
+    let heldCheckpoint = -1;
+    let interveningRevision = -1;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => { assert.fail("legacy guard must remain unused"); },
+      callProvider: async () => { assert.fail("a moved checkpoint must not reach provider"); },
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: async () => { assert.fail("the false guard precedes authority"); },
+        asyncGuard: {
+          attemptDispatch: work.attemptDispatchAsync, frozenInputs: {},
+          evaluateGuard: async (_predicate, _inputs, _snapshot, execution) => {
+            heldCheckpoint = await store.readRevision();
+            assert.equal(work.readDispatchGuardExecution(execution).checkpoint?.revision, heldCheckpoint);
+            // This is another genuine system-command commit through the same
+            // physical store, not a fabricated revision or observer verdict.
+            await stageIntents(stack, [stageInput({ intentId: "obx_async_intervening" })]);
+            interveningRevision = await store.readRevision();
+            assert.ok(interveningRevision > heldCheckpoint);
+            work.assertDispatchGuardExecution(execution);
+            return false;
+          },
+        },
+      },
+    });
+    assert.equal(outcome.status, "refused-revoked");
+    const data = readDispatchExecutionRow(await dispatchRow(stack, intentId));
+    assert.equal(data.state, "claimed");
+    assert.equal(data.attempts, 0);
+    assert.equal(data.guardVerdict, true, "the stale false guard must not record a skip");
+    assert.deepEqual(await pendingIntent(stack, intentId), intent);
+    assert.deepEqual(await pendingIds(stack), [intentId, "obx_async_intervening"].sort());
+    assert.equal(await store.readRevision(), interveningRevision, "no record or ack may follow the intervening commit");
+  });
+
+  it("preserves pending intents and closes handles when an async guard throws or returns nonbool", async () => {
+    for (const kind of ["throws", "nonbool"] as const) {
+      const { store } = createTestMemoryStorage();
+      const stack = await workerStack(store);
+      const seed = await seedIdentity();
+      const work: AsyncWorkGuardProducers = await loadAsyncWorkGuardProducers();
+      const intentId = `obx_async_${kind}`;
+      await stageIntents(stack, [stageInput({ intentId, guard: "eligible()", guardVerdict: true })]);
+      const intent = await pendingIntent(stack, intentId);
+      const revision = await store.readRevision();
+      const failure = new Error("guard reader failed");
+      let execution: import("@canlang/work/dispatch").DispatchGuardExecution | undefined;
+      let observations = 0;
+      const evaluateGuard = (async (...[_predicate, _inputs, _snapshot, handle]:
+        Parameters<import("@canlang/work/dispatch").AsyncGuardEvaluator>) => {
+        execution = handle;
+        await Promise.resolve();
+        work.registerDispatchGuardRevalidation(handle, () => { observations += 1; return true; });
+        if (kind === "throws") throw failure;
+        return "true";
+      }) as unknown as import("@canlang/work/dispatch").AsyncGuardEvaluator;
+      await assert.rejects(driveDispatchIntent({
+        ...driveDefaults(stack, intent),
+        evaluateGuard: () => { assert.fail("legacy guard must remain unused"); },
+        callProvider: async () => { assert.fail("failed guard must not reach provider"); },
+        fence: {
+          owner: seed.teamId,
+          revalidateAuthority: async () => { assert.fail("failed guard must not read authority"); },
+          asyncGuard: { attemptDispatch: work.attemptDispatchAsync, frozenInputs: {}, evaluateGuard },
+        },
+      }), error => kind === "throws" ? error === failure :
+        error instanceof TypeError && error.message === "dispatch guard must return a boolean");
+      assert.ok(execution);
+      assert.throws(() => work.assertDispatchGuardExecution(execution), /not live/);
+      assert.equal(observations, 0);
+      const data = readDispatchExecutionRow(await dispatchRow(stack, intentId));
+      assert.equal(data.state, "claimed");
+      assert.equal(data.attempts, 0);
+      assert.equal(data.guardVerdict, true);
+      assert.deepEqual(await pendingIntent(stack, intentId), intent);
+      assert.equal(await store.readRevision(), revision + 1);
+    }
+  });
+});
 
 describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
   it("drives a quiet transitive dispatch through claimed to recorded", async () => {

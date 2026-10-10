@@ -5704,3 +5704,10 @@ depth64 guard returns its normal refusal before stack exhaustion. Preserve
 source admission, counters and evaluation/path order; retain the original flat
 80-term regression. Existing library154 and decision6 pass on the default stack.
 Do not lower the supported bound, enlarge the stack or skip the crashing case.
+
+
+### 2026-10-10 — preserve an unfinished claim-first awaited driver adapter
+
+Consume the real Work async kernel through an explicit paired evaluator and lexical input port, forwarding its exact private execution. Pin authority/kernel/evaluator before awaits, load held-row attempt/occurrence facts through owning Work, preserve trigger-origin versus operator-run identity, and refuse a moved physical checkpoint before skip/provider handling. Preserve synchronous behavior and refuse guarded Generation cleanup/recovery lacking its separate execution lifetime. No provider payload becomes lexical capture.
+
+Six new/eight actual async attempts pass; full affected Node result is76/78, with actual Work composition and own-boolean marker expectations assigned to Packages for shared repair. Existing native Email/D1/DO7/7, final clean CF emission, root noEmit and boundaries13/903/1279/zero pass. Owning native rebuild8.92s passes;21 dependency emissions are reused after fixing the changed CF item shape from the genuine Work row. This is explicitly unfinished: the existing physical claim precedes runFenceGate, while native membership/when must execute before claim. State/Work own the missing eligibility/original-guard-checkpoint/evidence-to-authoritative-commit port; no copying of eligibility rules or claim-first source acceptance is permitted. Defining native source/frozen-input/current-reader joins, G2/G3 and exact holds remain open.
