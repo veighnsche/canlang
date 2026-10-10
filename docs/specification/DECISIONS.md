@@ -6306,3 +6306,43 @@ State clean emission, corrected saved receipt/query74 and role/loader/default53 
 ### 2026-10-10 — manual local integration of 9458e68e
 
 Manual producer/consumer source reviews CLEAR for Capability9458e68e finite State row-selected subject authority. Exact owning canonical singular user/user? declarations bind private policy/row context; canonical stored identities resolve lazily with no actor substitution or copied-policy authority. Cache only row-independent predicates. Genuine complete same-Team1–99 caller/subject membership observations include relevant original read refs and page parent/child/operation gates before callbacks, then retain identical full facts through transforms, receipt loads and final State revision fences without source replay or sequential multi-subject fallback. Saved disclosure authorizes current row subjects while returning original captured values/versions. Reuse clean owning State emission, corrected74 plus126 unchanged expanded results and53 role/loader/default checks; no reruns. Five newly authored genuine Work selected-receipt cases remain unrun at this checkpoint, pending owning safe intake of the already reviewed Work Identity dependency in local0f8965dc; Capability continues that affected validation and corrections. Exact descriptor/API is now available for Compiler checked source/role/callable transport and Dev genuine native/current Identity adoption. Typed File retained association awaits its separate Packages defining release; proposed cardinality consultation and all recipient-specific holds remain unchanged. Full canonical/native workflows and all four plans remain unfinished. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+Compiler intake of reviewed LOCAL08ceabac, 2026-10-10 (unfinished native join):
+preserve committed59e6733c parent preparation and both parent records. Exact
+Dev988 ordinary-array contract and State9737 bound Values projection are now
+present; reuse their owning2/2 and38/38, clean emits and Dev's Images1/1. The
+earlier ordinary-array refusal is resolved. Dev's dual public/private helper
+lifetime is the remaining publication prerequisite; Compiler owns the concrete
+duplicate return-selection correction and actual compiled native parent test.
+No shared gate rewrite or whole rerun. Reconcile actual accumulated staged tree
+and both histories, retaining released allocations and unadvanced checkpoint.
+Local-only; original application prerequisites and precise holds remain.
+
+Compiler intake of reviewed LOCAL6c3d350c, 2026-10-10 (unfinished native source): preserve59e parent preparation ande015 owner intake. Exact reviewed Dev38cfc597/1af76e32 dual lifetime and contained Packages retention source now coexist. Reuse owner private48, legacypublic1, corrected public1 with13 negative/final-await modes, clean emits/root/boundary0 and recorded finite retention results. Public viewer and private State receipt frames remain distinct actual owning lifetimes; strict markers/current grant/lazy identity and final poison checks are retained. This resolves the defining helper dispatch prerequisite, while Compiler owns once-only return selection, immutable prepared publication and genuine CLI public/protected parent qualification next. Reconcile actual staged tree/history with released allocations and complete checkpoint unadvanced. No shared gate rewrite, broad rerun, publication or hold release.
+
+### 2026-10-10 — publish immutable Complete queries through genuine runtime lifetimes (unfinished original application)
+
+Only the private immutable CheckedProgram/fresh-executable recipe set can
+publish nominal read disclosure; require exact typed-plan/source equality.
+Raw IR Complete and source inventory alone remain nongrant. Bind the evaluated
+projection before the owning Return's single selection; preserve the strict
+public/private host marker and lifetime contracts rather than tolerating a
+duplicate. Direct original protected parent inputs and unused child bindings now
+join the actual installed runtime.
+
+Affected154/154 pass, including genuine compiled public and private parent
+consumers with original scan/count/select, full false/selected domain, lazy
+reads, exact ordered Fact[]/original versions, one parent commit, rollback and
+effect-free replay/current membership checks. Existing saved identity replay
+withholds null after revocation; explicit retained admission refuses forbidden.
+Fresh released package emissions and strict all-target lint/format pass; finite
+activation review CLEAR. Setup-only path/replay expectations were corrected,
+with no host or behavioral assertion weakened. Whole/editor and unchanged
+owner results are reused. Bound result consumption and original application
+purity/row-policy/File/event contracts remain distinct dependencies;58/67 and
+precise human holds are unchanged. Local coherent commit for coordinator review.
+
+### 2026-10-10 — manual local integration of d74c805d
+
+Manual source/consumer review CLEAR for Compilerd74c805d native query activation. Only immutable CheckedProgram/fresh indexed-IR prepared receipts with exact typed-plan/source inventory equality publish Complete nominal read disclosure; raw IR Complete tags and source inventory remain nongrant. Evaluated projection binds once, then the owning Return selects exactly once under reviewed real public/private host lifetimes. Reuse154 affected outcomes including real CLI Node24.19 Memory public1/private-parent1, strict lint/format and fresh owning emissions. Actual original three query-body statements, full false/selected domain, ordered seven-field Fact references/versions, bounds/current admission, one parent commit, rollback and effect-free saved replay are preserved; revoked ordinary replay withholds null and retained admission refuses forbidden. Parent child result is unused; this finite native workflow does not qualify full original Workbench authorization/purity/bound result consumption, row-selected native adoption, File/event joins or whole58/67 completion. All precise holds remain. Preserve both histories and existing physical owners/coverage allocations; complete checkpoint stays unadvanced. No remote push or publication.

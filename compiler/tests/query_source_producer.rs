@@ -93,7 +93,7 @@ fn complete_plan(
 }
 
 #[test]
-fn complete_query_recipe_matches_real_state_schema_but_publication_stays_closed() {
+fn complete_query_recipe_matches_real_published_disclosure_and_state_schema() {
     let source = SOURCE.replace(
         "require active_member(actor,team)",
         "require count(targets)>0",
@@ -129,7 +129,7 @@ fn complete_query_recipe_matches_real_state_schema_but_publication_stays_closed(
         .iter()
         .find(|operation| operation["name"] == "workbench.context")
         .unwrap();
-    assert!(operation["result"].get("disclosure").is_none());
+    assert_eq!(operation["result"]["disclosure"], produced);
     let module = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(module.contains("canScenarioQuerySources"));
     for helper in [
@@ -139,10 +139,15 @@ fn complete_query_recipe_matches_real_state_schema_but_publication_stays_closed(
         "selectScenarioReceiptReturn",
     ] {
         assert!(
-            !module.contains(helper),
-            "unfinished publication activated {helper}"
+            module.contains(helper),
+            "prepared publication omitted {helper}"
         );
     }
+    assert_eq!(
+        module.matches("selectScenarioReceiptReturn(c,").count(),
+        1,
+        "one authored return must select its capture exactly once"
+    );
     let scratch = tempfile::tempdir().unwrap();
     let artifact_path = scratch.path().join("artifact.json");
     let recipe_path = scratch.path().join("receipt.json");
@@ -169,7 +174,7 @@ assert.deepEqual(checked,produced);
 assert.equal(checked.returns.length,1);
 assert.equal(checked.returns[0].influences.length,4);
 assert.equal(checked.returns[0].projection.fields.length,7);
-assert.equal(artifact.operations.find(operation=>operation.name==='workbench.context').result.disclosure,undefined);
+assert.deepEqual(artifact.operations.find(operation=>operation.name==='workbench.context').result.disclosure,produced);
 "#).unwrap();
     let consumed = Command::new("node")
         .arg(runner)

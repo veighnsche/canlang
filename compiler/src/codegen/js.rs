@@ -1379,8 +1379,8 @@ pub fn emit_program_with_native_source_receipts(
     emit_program_with_receipt_sources(ir, native_receipts, Some(db))
 }
 
-/// Emit source-bound, nongrant query recipes alongside the original module.
-/// They never populate operation disclosure or grant a native frame.
+/// Emit nongrant source inventories alongside independently prepared immutable
+/// Complete query receipts. Source inventories alone cannot activate capture.
 pub(super) fn emit_program_with_query_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -1472,6 +1472,7 @@ fn emit_program_with_sources(
             for item in &ir.items {
                 if let Some(recipe) = query_receipts.get(&item.canonical) {
                     emitter.native_receipts.insert(item.id, recipe.clone());
+                    emitter.prepared_query_receipts.insert(item.id);
                 }
             }
         }
@@ -1973,6 +1974,8 @@ pub struct Emitter<'a> {
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
     receipt_calls: Vec<Span>,
     native_query_sources: HashMap<SymbolId, NativeQuerySource>,
+    /// Only the immutable CheckedProgram/fresh-IR producer can populate this.
+    prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
 }
 
@@ -2033,6 +2036,7 @@ impl<'a> Emitter<'a> {
             receipt_capture: None,
             receipt_calls: Vec::new(),
             native_query_sources: HashMap::new(),
+            prepared_query_receipts: std::collections::HashSet::new(),
             query_capture: None,
         };
         // Derive outputs retain presentation provenance across shared calls,
@@ -4533,12 +4537,11 @@ impl<'a> Emitter<'a> {
                 let selected = self.lower_expr(base);
                 let projected = self.append_select("$querySelected", false, query);
                 self.stdlib.insert("bindScenarioReceiptQueryResult".into());
-                self.stdlib.insert("selectScenarioReceiptReturn".into());
                 // Preserve exact selected-array identity, source-order map and
-                // reference/version values. The host alone binds private slots.
+                // reference/version values. The owning Return selects once,
+                // after this result binding, in either real runtime lifetime.
                 return format!(
-                    "(($querySelected)=>{{const $queryResult={projected};bindScenarioReceiptQueryResult(c,{},$querySelected,$queryResult);selectScenarioReceiptReturn(c,{});return $queryResult;}})({selected})",
-                    js_string(&source.return_id),
+                    "(($querySelected)=>{{const $queryResult={projected};bindScenarioReceiptQueryResult(c,{},$querySelected,$queryResult);return $queryResult;}})({selected})",
                     js_string(&source.return_id)
                 );
             }
@@ -8668,9 +8671,22 @@ impl<'a> Emitter<'a> {
                         continue;
                     }
                     let published_result = self.checked_operation_result(result.as_ref(), *read);
-                    let disclosure = if published_result.as_deref().is_some_and(|type_id| {
-                        type_id == "void" || super::scenario_receipts::supported_type_id(type_id)
-                    }) {
+                    let prepared_query = *read
+                        && self.prepared_query_receipts.contains(&item.id)
+                        && self
+                            .native_query_sources
+                            .get(&item.id)
+                            .is_some_and(|source| {
+                                self.native_receipts.get(&item.id).is_some_and(|recipe| {
+                                    serde_json::to_value(&recipe.plan).ok().as_ref()
+                                        == Some(&source.plan)
+                                })
+                            });
+                    let disclosure = if prepared_query
+                        || published_result.as_deref().is_some_and(|type_id| {
+                            type_id == "void"
+                                || super::scenario_receipts::supported_type_id(type_id)
+                        }) {
                         self.native_receipts.get(&item.id).map(|recipe| {
                             serde_json::to_value(&recipe.plan)
                                 .expect("native disclosure JSON invariant")
@@ -9931,7 +9947,8 @@ impl<'a> Emitter<'a> {
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
                     // Source inventories remain useful for declined scenarios,
                     // but only a published, whole-owner receipt can enter the
-                    // private query lifetime. Generic reads have no such frame.
+                    // owning query lifetime. Dev dispatches the actual public
+                    // viewer lifetime or private child State frame.
                     self.query_capture = self.admitted_query_source(item.id);
                     self.receipt_call_sites = self
                         .native_call_sites

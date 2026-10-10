@@ -978,7 +978,7 @@ fn query_child_preparation_proves_original_inputs_and_unused_binding_in_source_o
 }
 
 #[test]
-fn query_parent_full_emission_withdraws_capture_until_child_publication_is_admitted() {
+fn query_parent_full_emission_requires_immutable_prepared_child_receipt() {
     let source = finite_query_parent_source(
         "location:Location,targets:Scope.targets",
         "   call context {location,targets} as facts\n   return 1",
@@ -1027,11 +1027,7 @@ fn query_parent_full_emission_withdraws_capture_until_child_publication_is_admit
             },
         },
     );
-    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
-    assert_eq!(diagnostics[0].code, "E6008");
-    assert!(diagnostics[0].message.contains("QueryCalls.context"));
-    // The closed native gate leaves the ordinary cross-operation call
-    // unsupported; this is a preparation/refusal witness, not usable output.
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let artifact: serde_json::Value =
         serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
     for name in ["QueryCalls.context", "QueryCalls.parent"] {
@@ -1042,8 +1038,8 @@ fn query_parent_full_emission_withdraws_capture_until_child_publication_is_admit
             .find(|operation| operation["name"] == name)
             .unwrap();
         assert!(
-            operation["result"].get("disclosure").is_none(),
-            "{name} published unfinished capture"
+            operation["result"].get("disclosure").is_some(),
+            "{name} lost its actual prepared receipt"
         );
         assert!(matches!(
             fact(&program, name),
@@ -1071,9 +1067,41 @@ fn query_parent_full_emission_withdraws_capture_until_child_publication_is_admit
         "invokeScenarioReceiptCall",
     ] {
         assert!(
-            !modules.contains(helper),
-            "unfinished read child activated {helper}"
+            modules.contains(helper),
+            "actual prepared child omitted {helper}"
         );
+    }
+    // Raw IR carries the checked Complete tag but cannot provide the immutable
+    // fresh receipt map constructed by full emission.
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let raw = canlang_compiler::codegen::js::emit_program_with_native_source_receipts(
+        &lowered, true, &db,
+    );
+    assert!(
+        raw.diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("QueryCalls.context")),
+        "{:?}",
+        raw.diagnostics
+    );
+    for name in ["QueryCalls.context", "QueryCalls.parent"] {
+        let operation = raw
+            .operations
+            .iter()
+            .find(|operation| operation.name == name)
+            .unwrap();
+        assert!(operation.disclosure.is_none(), "raw IR activated {name}");
+    }
+    for helper in [
+        "executeScenarioReceiptQuery",
+        "observeScenarioReceiptQueryDependency",
+        "bindScenarioReceiptQueryResult",
+        "selectScenarioReceiptReturn",
+        "invokeScenarioReceiptCall",
+    ] {
+        assert!(!raw.entry.js.contains(helper), "raw IR activated {helper}");
     }
 }
 
