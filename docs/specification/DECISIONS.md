@@ -7223,3 +7223,27 @@ Rename only the assigned nonexported held callback to hold_result. Accepted lexi
 ### 2026-10-10 — manual local integration of 01245cd2
 
 Manually reviewed exact draft c97f4098 (including reviewed f887678f): CanRefer private join_program and its sole action/spec references preserve guards/inputs/create/order; CanPropose changes only the private callback name to hold_result, preserving its on binding, complete body and every held case. No public export or generated mjs change. Reuse actual original25/catalog69 to65 to56, complete/current witnesses with no added diagnostics or artifact; owning all52 corpus assertions pass at3.30s and5.37s, only Refer79 to75 and Propose127 to118 change. Unchanged Compiler1422/138 and strict outcomes remain valid at their recorded production source scope, with no new native original-application claim. Datetime/example-channel joins and every precise hold remain separate. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — map only the released DatetimeValue representation (unfinished)
+
+Consume the exact released Contracts/Values frozen bigint DatetimeValue facade as
+the existing datetime scalar. This narrowly supersedes the earlier opaque leaf
+decision; WorkflowField and unknown named leaves remain opaque. No Object/Opaque
+compatibility or whole-message comparison is introduced. Actual emitted
+IncomingEmail.received input and typed equality pass the installed Cloudflare/
+State Memory consumer1/1 in1.16s: constructor offset normalization, canonical
+millisecond-Z wire, inclusive0001..9999 range, malformed/noncanonical/range/type/
+null refusals and preserved enum/receipt controls. isDatetime remains a shape
+guard, not range/provenance admission. Unknown WorkflowInspection.fields is
+ArrayOpaque and real CLI E6008 publishes no modules; text/duration comparison
+refuses E3002.
+
+Affected355 distinct checks pass; only Inbox43→41 changes in the all52/full-
+assertion corpus,51 other pins retained. Finite independent review is CLEAR.
+Corrected test assumptions use the real CLI publication stage and actual
+input.field.kind rather than an invented valueType. Current changed whole/lint
+and original25 recomputation follow the related checked-selector unit; prior
+frozen1422/138 is historical for this new production change. Whole IncomingEmail
+identity/equality, verified native ingress,58/67/nine references and precise
+BDD3/Task22 holds remain unfinished. Local commits only.
