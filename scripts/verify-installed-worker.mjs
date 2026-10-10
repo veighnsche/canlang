@@ -141,8 +141,13 @@ async function verifyConsumer(checkout) {
 
   const filesClosure = ['vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/files/')).sort(), [...filesClosure].sort());
-  // The State consumer is separately owned. Require the actual portable
-  // finalizer explicitly in this link control, as the workerd probe does below.
+  const stateFiles = first.modules['vendor/state/invocation/scenario-file-assignment.js'];
+  assert.ok(stateFiles.includes('../../files/finalize/index.js'));
+  assert.ok(stateFiles.includes('../../files/ports.js'));
+  assert.ok(!stateFiles.includes('@canlang/files/finalize'));
+  assert.ok(!stateFiles.includes('@canlang/files/ports'));
+  // Require the actual portable finalizer explicitly in this link control,
+  // as the workerd probe does below, alongside the genuine State consumer.
   const filesLinkControl = 'export { readFinalizedFileObservation } from "./vendor/files/finalize/index.js";';
   for (const key of filesClosure) {
     const missing = { ...first.modules, 'installed-files-link-control.js': filesLinkControl }; delete missing[key];
@@ -153,6 +158,22 @@ async function verifyConsumer(checkout) {
   assert.equal(filesFinalize.readFinalizedFileObservation({}), null, 'raw data supplies no live Files identity');
   assert.ok(first.modules['vendor/files/upload/index.js'].includes('../../noble-hashes/sha2.js'));
   assert.ok(first.modules['vendor/files/upload/index.js'].includes('../../noble-hashes/utils.js'));
+
+  // Require selects Acorn's CJS root. The pinned public manifest names the
+  // actual import-condition ESM producer used by the portable Worker.
+  const acornManifestFile = fileURLToPath(ownerModule('acorn/package.json'));
+  const acornManifest = JSON.parse(readFileSync(acornManifestFile, 'utf8'));
+  assert.equal(acornManifest.name, 'acorn');
+  assert.equal(acornManifest.version, '8.18.0');
+  assert.equal(acornManifest.module, 'dist/acorn.mjs');
+  assert.equal(acornManifest.exports['.'][0].import, './dist/acorn.mjs');
+  const acornFile = installedFile(pathToFileURL(join(dirname(acornManifestFile), acornManifest.module)));
+  const acornKey = 'vendor/acorn/acorn.js';
+  assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/acorn/')), [acornKey]);
+  assert.equal(first.modules[acornKey], readFileSync(acornFile, 'utf8'));
+  const missingAcorn = { ...first.modules, 'installed-acorn-link-control.js': `export { parse } from ${JSON.stringify('./' + acornKey)};` };
+  delete missingAcorn[acornKey];
+  assert.throws(() => api.assertLinksResolve(missingAcorn), /no such staged module/, 'missing actual Acorn ESM key');
 
   // Reuse the actual serving control at a new installed location. This child
   // cannot read checkout source and exercises the uninjected Node fallback
@@ -196,9 +217,12 @@ async function verifyConsumer(checkout) {
   }
 
   // Mutate only isolated producer files, never the checkout's shared outputs.
-  for (const specifier of ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association',
-    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports']) {
-    const file = fileURLToPath(ownerModule(specifier)); const saved = readFileSync(file);
+  const producerFiles = ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association',
+    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports']
+    .map(specifier => [specifier, fileURLToPath(ownerModule(specifier))]);
+  producerFiles.push(['acorn ESM', acornFile]);
+  for (const [specifier, file] of producerFiles) {
+    const saved = readFileSync(file);
     try {
       rmSync(file);
       assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }),
@@ -230,19 +254,25 @@ async function verifyConsumer(checkout) {
 
   // Exercise CompiledWasm in workerd, using the actual selected binary, glue,
   // backend, and rewritten producer graph, plus the genuine portable Files
-  // digest/strict decoder and nongrant extractor. The probe supplies its entry.
+  // digest/strict decoder, nongrant extractor, and pinned Acorn parser. The
+  // probe supplies its entry; parsing must not execute the source initializer.
   const backendKey = Object.keys(first.modules).find(key => key.endsWith('/values-bindings/backend.js'));
   assert.ok(backendKey, 'selected values backend must be staged');
   const probeKey = 'installed-wasm-probe.js';
+  const parserSource = 'export const marker = {"\\u0070olicy": false}; throw new Error("initializer");';
   const probeSource = [
     `import compiled from ${JSON.stringify('./' + wasmKey)};`,
     `import * as glue from ${JSON.stringify('./' + glueKey)};`,
     `import { wasmBackend } from ${JSON.stringify('./' + backendKey)};`,
     'import { sha256Hex, checkContent } from "./vendor/files/upload/index.js";',
     'import { readFinalizedFileObservation } from "./vendor/files/finalize/index.js";',
+    `import { parse, version } from ${JSON.stringify('./' + acornKey)};`,
     'glue.initSync({ module: compiled });',
     'const backend = wasmBackend(glue);',
-    'export default { fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}) } }); } };',
+    `const ast = parse(${JSON.stringify(parserSource)}, { ecmaVersion: 'latest', sourceType: 'module' });`,
+    'let malformedRejected = false; try { parse("export const =", { ecmaVersion: "latest", sourceType: "module" }); } catch (error) { malformedRejected = error instanceof SyntaxError; }',
+    'const acorn = { version, declaration: ast.body[0].type, escapedKey: ast.body[0].declaration.declarations[0].init.properties[0].key.value, trailing: ast.body[1].type, malformedRejected };',
+    'export default { fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), acorn, files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}) } }); } };',
   ].join('\n');
   const wasmWorker = await startLocalDev({
     workerName: 'installed-wasm-regression', compatibilityDate: '2026-07-15',
@@ -253,7 +283,9 @@ async function verifyConsumer(checkout) {
     const response = await wasmWorker.dispatch('/');
     assert.equal(response.status, 200);
     wasmWorkerResult = await response.json();
-    assert.deepEqual(wasmWorkerResult, { compiled: true, abi: REQUIRED_ABI_VERSION, sum: '3', files: {
+    assert.deepEqual(wasmWorkerResult, { compiled: true, abi: REQUIRED_ABI_VERSION, sum: '3', acorn: {
+      version: '8.18.0', declaration: 'ExportNamedDeclaration', escapedKey: 'policy', trailing: 'ThrowStatement', malformedRejected: true,
+    }, files: {
       slicedDigest: `sha256:${digest(new Uint8Array([0x00, 0xff, 0x80, 0x01]))}`,
       pdf: { claimedType: 'text/plain', detectedType: 'application/pdf', sizeBytes: 5, verdict: 'accepted' },
       invalidText: { claimedType: 'text/plain', detectedType: null, sizeBytes: 2, verdict: 'rejected' },
@@ -285,7 +317,7 @@ async function verifyConsumer(checkout) {
       writeFileSync(file, saved);
     }
   }
-  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 4, portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' } };
+  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 4, stateImports: 'actual scenario-file-assignment finalizer and ports edges', portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' }, acorn: { key: acornKey, publicEntry: acornManifest.module, missingProducers: 1, portableWorkerd: wasmWorkerResult.acorn, authority: 'Parser staging and execution only; Dev owns source verification and current G1' } };
   writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 }

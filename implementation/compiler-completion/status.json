@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T15:25:24Z",
+  "updated_utc": "2026-10-10T16:08:14Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -100,10 +100,10 @@
     "reused_results": "Unchanged strict all-target Clippy/format and editor/client/LSP qualification; current whole includes actual compiler corpus/LSP/completion/native tests."
   },
   "latest_component": {
-    "base_commit": "b74c26fee6e7df5d65cd26a780772ab8fcb61259",
-    "state": "finite_bound_query_child_count_native_qualified_original_approve_unfinished",
-    "outcome": "Direct checked count(CallAs) joins the exact Complete child occurrence/result type; JS binds its actual awaited decoded wire. Genuine compiled parent guard/return consume count2; valid child1 fails the parent count guard and accept=false fails after actual child2, both rolling back. Saved count equals retained child length; replay executes nothing and current authority still withholds/refuses. Affected313 pass (library161/codegen121/invocation7/disclosure23/native1), strict all-targetClippy/fmt0, finite source/owning-authority review CLEAR. Initial stale Declined fixture branch and unsanitized binding assertion corrected; no owner API or invented scalar/row observation.",
-    "remaining": "Original approve member reference/array inputs, stored contract-array count, any/all reference/version predicates, pure authorization and dynamic proposal call remain source provenance tasks. Unchanged whole/editor/owner results reused;58/67 and BDD3/Task22 holds unchanged."
+    "base_commit": "bd757ca56fd39b785a69e4b81b02bc8419b14e8d",
+    "state": "assignment_only_file_source_native_publication_qualified_dev_host_unfinished",
+    "record": "typed_file_association_prerequisite",
+    "outcome": "Unchanged original File Set-then-guard source has Complete/native void publication; exact owning field/input/source and paired-proof corruption refusals qualified. Affected316 pass and strict lint/format0; Dev actual native File staging/replay remains."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -158,7 +158,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Finite native bound child count passes affected313/strictlint/fmt after row source-State409. Original approve member inputs, stored contract arrays, bound any/all/reference predicates and pure/dynamic authorization still require complete checked source provenance. Native row policy, finalized File State/Dev association, committed events and exact holds remain;58/67 full completion unchanged.",
+  "current_source_work": "Bound Complete child count and finite synchronous any/all over owning returned projection plus assignment-only original File Set/source are implemented and affected-tested. Dev actual File staging/replay remains. Original approve stored Step.input canonical Input observation, protected contained-field reference/array inputs, nested old/fresh aliases, pure/dynamic authorization remain. State nominal Input checkpoint3ea3b6b9+f13c9a69 is implemented/tested and awaits exact reviewed carrier. Native row policy, committed event source and precise BDD3/Task22 holds remain;58/67 unchanged.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -719,6 +719,12 @@
           "state": "finite_bound_query_child_count_native_qualified_original_approve_unfinished",
           "outcome": "Direct checked count(CallAs) joins the exact Complete child occurrence/result type; JS binds its actual awaited decoded wire. Genuine compiled parent guard/return consume count2; valid child1 fails the parent count guard and accept=false fails after actual child2, both rolling back. Saved count equals retained child length; replay executes nothing and current authority still withholds/refuses. Affected313 pass (library161/codegen121/invocation7/disclosure23/native1), strict all-targetClippy/fmt0, finite source/owning-authority review CLEAR. Initial stale Declined fixture branch and unsanitized binding assertion corrected; no owner API or invented scalar/row observation.",
           "remaining": "Original approve member reference/array inputs, stored contract-array count, any/all reference/version predicates, pure authorization and dynamic proposal call remain source provenance tasks. Unchanged whole/editor/owner results reused;58/67 and BDD3/Task22 holds unchanged."
+        },
+        "bound_result_collections": {
+          "state": "finite_bound_query_any_all_native_qualified_original_approve_unfinished",
+          "behavior": "Separate checked contract-array any/all proof joins selected slots/query/alias to exact CallAs occurrence and Complete child projection. Direct projected scalar/reference/version leaves plus literals retain ordinary synchronous lazy evaluation; no fabricated parent scalar/row observation or per-element parent decision. Fresh source/IR join covers optional proof and exhaustive static child-call correspondence. Query source proof is boxed to preserve bounded IR enum layout; authority unchanged.",
+          "validation": "Affected619 pass: library161/B4284/query8/codegen121/decision7/invocation7/disclosure26/sourceproducer4/actualnative1, no ignored outcomes. After boxing, affected query/codegen/decision/sourceproducer/disclosure/native167 rerun; unchanged library/B4/invocation results reused. Strict all-targetClippy/format0; finite source and new static-call delta reviews CLEAR. Initial nominal stored-bit, missing receipt Query/Lambda and static Call semantic joins corrected; invalid ambient fixture and incorrect version-only withholding expectation corrected against real contracts. Genuine CRUD increments versions without rewriting saved receipt; actual current-role revocation withholds both old/fresh saved outcomes, replay runs no code.",
+          "remaining": "Original count(step.input.facts) needs State owning Step.input/type workbench.Input canonical wire/current authority release; subsequent facts member is local checked contract consumption. step.parent.location/targets requires Dev same-private-owner current-stage stored reference/array hydration. Compiler retains these provenance/count and nested old/fresh predicates; full source/pure/dynamic workflow remains unfinished. BDD3/Task22 holds unchanged."
         }
       }
     },
@@ -765,8 +771,8 @@
     "evidence": "Original CanVolunteer.can46-51 retained. Effects HandlerSource::Committed preserves model/action; IR6065-6108 has no Committed event source variant. Declared event private input derivation cannot supply committed model event fields. Actual CommittedChangeEvent recordId/owner/version/occurrenceId requires explicit event.id mapping; State model change facts and existing schedule occurrence routes do not define native payload authority. No guessed fields, DeclaredEvent fabrication, schedule wrapper or source rewrite."
   },
   "typed_file_association_prerequisite": {
-    "state": "blocked_defining_finalized_file_lifetime_and_retained_execution_association",
-    "owner": "Capability/State retained File assignment/association; Files finalized provenance; Dev actual native input/assignment/consumer; Compiler checked source/Set emission after released contract",
-    "evidence": "Original TypedFileJourney attach sets actual file then require accept; Dev fresh native-opt-in artifact has void/no disclosure and unchanged saved replay refuses unsupported association. State scenario-receipt.ts1294 explicitly rejects nonempty fileAssignments. No fabricated Complete, scalar substitution, empty assignment, weaker replay or new human hold."
+    "state": "compiler_source_qualified_dev_actual_native_consumer_unfinished",
+    "owner": "Compiler assignment-only File input/Set/source correspondence; Dev actual native finalized observation binding/staging/replay; State/Files defining lifetime released",
+    "evidence": "Reviewed LOCALa8de5109 and integratedbd757ca5 release State4b15ce79+d21cd1 active-root genuine Files observation/final canonical owning write+postversion/optional retained association/current row+File disclosure, after Filesa5c4be7d/Packages806/Interfacesbf58. Compiler now qualifies unchanged original TypedFileJourney Complete/native void emission with awaited Set then actual guard, dedicated required File input/source proof, verified owning schema and paired carrier corruption refusal. Affected316 pass; strict lint/format0 and finite review CLEAR. No scalar File/read/result/child grant. Dev owns actual native binding/staging/current-authority retained replay and unchanged D1 journey; broader original workflow remains unfinished."
   }
 }

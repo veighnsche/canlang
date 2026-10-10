@@ -1106,6 +1106,281 @@ fn query_parent_full_emission_requires_immutable_prepared_child_receipt() {
 }
 
 #[test]
+fn bound_contract_collections_keep_complete_child_provenance_without_parent_row_observations() {
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   require any(facts as current,current.done)\n   require all(facts as current,current.version>=1 and current.task==current.task)\n   require any(facts as current,current.title==\"second\" or not current.done)\n   require all(facts as current,true)\n   return count(facts)",
+        true,
+    );
+    let (db, program, lowered) = checked_with_ir(&[("query-contract-collections.can", &source)]);
+    let child = complete(&program, "QueryCalls.context");
+    assert_eq!(child.returns[0].influences.len(), 4);
+    let parent = complete(&program, "QueryCalls.parent");
+    origins(&db, parent);
+    assert_eq!(parent.effects.len(), 1);
+    assert_eq!(parent.returns.len(), 1);
+    let returned = &parent.returns[0];
+    assert!(
+        returned.dependencies.is_empty(),
+        "child fields are not fabricated parent row reads"
+    );
+    assert!(returned.intrinsics.is_empty());
+    assert!(returned.influences.is_empty());
+    assert!(
+        returned.decisions.is_empty(),
+        "per-element lazy choices are not once-per-parent markers"
+    );
+    assert_eq!(program.types.checked_contract_collection_calls.len(), 4);
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryCalls.parent")
+        .unwrap();
+    let ir::IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        panic!("actual parent");
+    };
+    let calls = effects
+        .iter()
+        .filter_map(|statement| {
+            let ir::IrStmt::Require { cond, .. } = statement else {
+                return None;
+            };
+            let ir::IrExpr::Call { args, .. } = &cond.expr else {
+                return None;
+            };
+            let ir::IrExpr::Query(query) = &args[0].expr else {
+                return None;
+            };
+            query.contract_collection_call.as_deref()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(calls.len(), 4);
+    for call in calls {
+        assert_eq!(
+            program
+                .types
+                .checked_contract_collection_calls
+                .get(&call.node),
+            Some(call)
+        );
+        assert!(
+            !program
+                .types
+                .checked_collection_calls
+                .contains_key(&call.node),
+            "contract values never become stored model proof"
+        );
+    }
+}
+
+#[test]
+fn bound_contract_collection_source_refuses_unproved_domains_and_predicate_reads() {
+    // A declined source may also have an ordinary async-predicate lowering
+    // refusal. Inspect checked closure before IR rather than hiding that error.
+    let check_source = |source: &str| {
+        let mut db = SourceDb::new();
+        let file = db.add("query-contract-refusal.can".into(), source.into());
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        program
+    };
+    for body in [
+        "   call context {location,targets} as facts\n   let copied=facts\n   require any(copied as current,current.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current select current,current.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,identity(current.done))\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,current.task.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,outer.done)\n   return 1",
+        "   call context {location,targets} as facts\n   require any(facts as current,actor==actor)\n   return 1",
+    ] {
+        let source = finite_query_parent_source(
+            "location:Location,targets:Scope.targets,outer:Task",
+            body,
+            false,
+        )
+        .replace(
+            "Given\n",
+            "Given\n derive identity(value:bool):bool=value\n",
+        );
+        let program = check_source(&source);
+        complete(&program, "QueryCalls.context");
+        assert!(
+            matches!(
+                fact(&program, "QueryCalls.parent"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "{source}"
+        );
+    }
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   require all(facts as current,current.version>=1)\n   return 1",
+        false,
+    ).replace("count(visible)==count(targets)", "count(visible)>=count(targets)");
+    let program = check_source(&source);
+    assert!(matches!(
+        fact(&program, "QueryCalls.context"),
+        ScenarioDisclosure::Declined(_)
+    ));
+    assert!(matches!(
+        fact(&program, "QueryCalls.parent"),
+        ScenarioDisclosure::Declined(_)
+    ));
+}
+
+#[test]
+fn bound_contract_collection_publication_requires_exact_fresh_alias_call_and_predicate_proof() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source = finite_query_parent_source(
+        "location:Location,targets:Scope.targets",
+        "   call context {location,targets} as facts\n   require any(facts as current,current.version>=1 and current.task==current.task)\n   return count(facts)",
+        false,
+    );
+    let mut db = SourceDb::new();
+    let file = db.add("query-contract-publication.can".into(), source);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    complete(&program, "QueryCalls.parent");
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryCalls.parent")
+        .unwrap()
+        .id;
+    let publish = |lowered: &ir::IrProgram| {
+        serialize_decision_sources(
+            &program,
+            lowered,
+            &lowered.items[owner.0 as usize],
+            &db,
+            catalog.as_ref(),
+        )
+    };
+    assert!(
+        publish(&lowered).is_some(),
+        "genuine source/IR correspondence publishes"
+    );
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("query-contract-publication", "1.0", 1);
+    result.complete = true;
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &program,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    let parent = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "QueryCalls.parent")
+        .unwrap();
+    assert!(
+        parent["result"].get("disclosure").is_some(),
+        "actual native prepared parent is published"
+    );
+    for corruption in 0..4 {
+        let mut changed = lowered.clone();
+        let ir::IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+        else {
+            panic!("parent");
+        };
+        let ir::IrStmt::Call {
+            target,
+            inputs,
+            binding,
+            result,
+            ..
+        } = &mut effects[0]
+        else {
+            panic!("original child call");
+        };
+        match corruption {
+            0 => *binding = Some("copied".into()),
+            1 => *result = None,
+            2 => {
+                let ir::IrEffectCallTarget::Operation { operation, .. } = target else {
+                    panic!("static checked child");
+                };
+                *operation = owner;
+            }
+            3 => {
+                let ir::IrExpr::Object(entries) = &mut inputs.expr else {
+                    panic!("authored inputs");
+                };
+                entries[0].1.expr = ir::IrExpr::Int(7);
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            publish(&changed).is_none(),
+            "forged original child call {corruption} published"
+        );
+    }
+    for corruption in 0..6 {
+        let mut changed = lowered.clone();
+        let ir::IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+        else {
+            panic!("parent");
+        };
+        let ir::IrStmt::Require { cond, .. } = &mut effects[1] else {
+            panic!("require");
+        };
+        let ir::IrExpr::Call { args, .. } = &mut cond.expr else {
+            panic!("collection call");
+        };
+        let ir::IrExpr::Query(query) = &mut args[0].expr else {
+            panic!("value query");
+        };
+        if corruption == 0 {
+            query.contract_collection_call = None;
+        } else {
+            let proof = query.contract_collection_call.as_mut().unwrap();
+            match corruption {
+                1 => proof.call = proof.alias,
+                2 => proof.alias = proof.domain,
+                3 => proof.domain = proof.query,
+                4 => proof.slots.swap(0, 1),
+                5 => proof.predicate.node = proof.domain,
+                _ => unreachable!(),
+            }
+        }
+        assert!(
+            publish(&changed).is_none(),
+            "forged optional query proof {corruption} published"
+        );
+    }
+}
+
+#[test]
 fn query_child_preparation_refuses_nonoriginal_inputs_and_unproved_result_use() {
     for (parameters, body) in [
         (
@@ -1327,4 +1602,334 @@ fn supplied_reference_array_loop_retains_empty_nonempty_and_exact_ir_corresponde
             "general loop profile remains refused: {body}"
         );
     }
+}
+
+#[test]
+fn original_file_attachment_has_assignment_only_proof_and_native_void_disclosure() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    use canlang_compiler::analysis::{ResolvedType, Scalar};
+    use canlang_compiler::codegen::{
+        ir::{IrExpr, IrItemKind, IrStmt, IrType},
+        js,
+    };
+    let source = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
+    let (db, program, lowered) = checked_with_ir(&[("typed-file-journey.can", source)]);
+    let closure = complete(&program, "TypedFileJourney.attach");
+    origins(&db, closure);
+    assert_eq!(closure.effects.len(), 1);
+    assert_eq!(closure.returns.len(), 1);
+    let DisclosureEffectKind::Set {
+        fields,
+        file_inputs,
+        ..
+    } = &closure.effects[0].kind
+    else {
+        panic!("original attachment Set");
+    };
+    assert_eq!(fields.len(), 1);
+    assert_eq!(file_inputs.len(), 1);
+    let input = &file_inputs[0];
+    assert_eq!(input.field, fields[0]);
+    assert_eq!(
+        program.symbols[input.field.0 as usize].canonical,
+        "TypedFileJourney.Entry.attachment"
+    );
+    assert_eq!(
+        program.symbols[input.parameter.0 as usize].canonical,
+        "TypedFileJourney.attach.attachment"
+    );
+    assert_eq!(
+        &source[input.value.start as usize..input.value.end as usize],
+        "attachment"
+    );
+    assert_eq!(
+        program.types.symbol_types.get(&input.parameter),
+        Some(&ResolvedType::Scalar(Scalar::File))
+    );
+    assert!(
+        closure.returns[0]
+            .dependencies
+            .iter()
+            .all(|dependency| dependency.type_id != "file"),
+        "assignment proof does not manufacture finalized File observations"
+    );
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "TypedFileJourney.attach")
+        .unwrap()
+        .id;
+    let IrItemKind::Scenario {
+        effects, result, ..
+    } = &lowered.items[owner.0 as usize].kind
+    else {
+        panic!("actual attachment scenario");
+    };
+    assert!(result.is_none());
+    assert!(matches!(
+        effects.as_slice(),
+        [IrStmt::Set { .. }, IrStmt::Require { .. }]
+    ));
+    let emit = |ir: &ir::IrProgram| js::emit_program_with_native_source_receipts(ir, true, &db);
+    let native = emit(&lowered);
+    let operation = native
+        .operations
+        .iter()
+        .find(|operation| operation.name == "TypedFileJourney.attach")
+        .unwrap();
+    assert_eq!(operation.result.as_deref(), Some("void"));
+    assert!(operation.disclosure.is_some());
+    assert!(
+        native.entry.js.contains("await set("),
+        "original owning Set is awaited"
+    );
+
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("typed-file-journey", "1.0", 1);
+    result.complete = true;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    // Full emission consumes this exact checked source cohort, not a substitute
+    // File observation or a separately constructed runtime context.
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(input.value.file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (fresh, diagnostics) = check_program(&db, program.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (artifact, diagnostics) = canlang_compiler::codegen::emit(
+        &fresh,
+        &canlang_compiler::codegen::EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "TypedFileJourney.attach")
+        .unwrap();
+    assert_eq!(operation["result"]["type"], "void");
+    assert!(operation["result"].get("disclosure").is_some());
+
+    for corruption in 0..10 {
+        let mut changed = lowered.clone();
+        match corruption {
+            0..=3 => {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!("actual scenario");
+                };
+                let IrStmt::Set { changes, .. } = &mut effects[0] else {
+                    panic!("actual Set");
+                };
+                let IrExpr::Object(entries) = &mut changes.expr else {
+                    panic!("authored assignment");
+                };
+                match corruption {
+                    0 => entries[0].1.expr = IrExpr::Name("accept".into()),
+                    1 => entries[0].1.ty = ResolvedType::Scalar(Scalar::Bool),
+                    2 => entries[0].1.span.start += 1,
+                    3 => entries[0].0 = "label".into(),
+                    _ => unreachable!(),
+                }
+            }
+            4..=6 => {
+                let IrItemKind::Field {
+                    ty,
+                    owner: field_owner,
+                    ..
+                } = &mut changed.items[input.field.0 as usize].kind
+                else {
+                    panic!("owning attachment field");
+                };
+                match corruption {
+                    4 => {
+                        *ty = IrType::Known(ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+                            Scalar::Text,
+                        ))))
+                    }
+                    5 => *field_owner = owner,
+                    6 => changed.items[input.field.0 as usize].name = "label".into(),
+                    _ => unreachable!(),
+                }
+            }
+            _ => {
+                let ScenarioDisclosure::Complete(closure) =
+                    changed.scenario_disclosures.get_mut(&owner).unwrap()
+                else {
+                    panic!("private checked closure");
+                };
+                let DisclosureEffectKind::Set { file_inputs, .. } = &mut closure.effects[0].kind
+                else {
+                    panic!("private assignment proof");
+                };
+                match corruption {
+                    7 => file_inputs[0].parameter = owner,
+                    8 => file_inputs[0].field = owner,
+                    9 => file_inputs[0].value.start += 1,
+                    _ => unreachable!(),
+                }
+            }
+        }
+        assert!(
+            emit(&changed)
+                .operations
+                .iter()
+                .find(|operation| operation.name == "TypedFileJourney.attach")
+                .unwrap()
+                .disclosure
+                .is_none(),
+            "File source/IR input or schema skew {corruption} must refuse native publication"
+        );
+    }
+}
+
+#[test]
+fn file_assignment_refuses_nonoriginal_and_unsupported_file_profiles() {
+    let original = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
+    let body = "   set entry {attachment=attachment}\n   require accept";
+    let mut cases = vec![
+        original.replace(body, "   let copied=attachment\n   set entry {attachment=copied}\n   require accept"),
+        original.replace("Given\n", "Given\n derive identity(value:file):file=value\n")
+            .replace("attachment=attachment", "attachment=identity(attachment)"),
+        original.replace("attachment:file,accept", "attachment:file?,accept"),
+        original.replace(body, "   set entry {attachment=attachment}\n   let observed=entry.attachment\n   require accept"),
+        original.replace(") by=owner\n  do", ") -> file by=owner\n  do")
+            .replace(body, "   set entry {attachment=attachment}\n   require accept\n   return attachment"),
+        original.replace(body, "   let files=[attachment]\n   set entry {attachment=attachment}\n   require accept"),
+        original.replace("attachment:file,accept", "attachment:file,attachments:file[],accept")
+            .replace(body, "   for supplied in attachments limit=3\n    set entry {attachment=supplied}\n   require accept"),
+    ];
+    cases.push(original.replace("When\n", "When\n scenario child(attachment:file) by=owner\n  do require true\n")
+        .replace(body, "   set entry {attachment=attachment}\n   call child {attachment}\n   require accept"));
+    for source in cases {
+        let mut db = SourceDb::new();
+        let file = db.add("file-profile-refusal.can".into(), source.clone());
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(
+            diagnostics.is_empty(),
+            "valid unsupported source {source}\n{diagnostics:?}"
+        );
+        assert!(
+            matches!(
+                fact(&program, "TypedFileJourney.attach"),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "unsupported File closure must decline: {source}"
+        );
+    }
+}
+
+#[test]
+fn file_assignment_paired_proof_and_value_corruption_still_requires_original_source_binding() {
+    use canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind;
+    use canlang_compiler::codegen::{
+        ir::{IrExpr, IrItemKind, IrStmt},
+        js,
+    };
+    let source = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can")
+        .replace(
+            "attachment:file,accept",
+            "attachment:file,second:file,accept",
+        );
+    let (db, program, lowered) = checked_with_ir(&[("file-paired-binding.can", &source)]);
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "TypedFileJourney.attach")
+        .unwrap()
+        .id;
+    let second = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "TypedFileJourney.attach.second")
+        .unwrap()
+        .id;
+    let disclosed = |ir: &ir::IrProgram, db: &SourceDb| {
+        js::emit_program_with_native_source_receipts(ir, true, db)
+            .operations
+            .iter()
+            .find(|operation| operation.name == "TypedFileJourney.attach")
+            .unwrap()
+            .disclosure
+            .is_some()
+    };
+    assert!(
+        disclosed(&lowered, &db),
+        "original required File assignment qualifies"
+    );
+
+    let mut changed = lowered.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+        panic!("original attachment scenario");
+    };
+    let IrStmt::Set { changes, .. } = &mut effects[0] else {
+        panic!("original Set");
+    };
+    let IrExpr::Object(entries) = &mut changes.expr else {
+        panic!("original inputs");
+    };
+    let original_span = entries[0].1.span;
+    entries[0].1.expr = IrExpr::Name("second".into());
+    let ScenarioDisclosure::Complete(closure) =
+        changed.scenario_disclosures.get_mut(&owner).unwrap()
+    else {
+        panic!("immutable checked closure");
+    };
+    let DisclosureEffectKind::Set { file_inputs, .. } = &mut closure.effects[0].kind else {
+        panic!("original File assignment proof");
+    };
+    assert_eq!(file_inputs.len(), 1);
+    let original_value = file_inputs[0].value;
+    file_inputs[0].parameter = second;
+    assert_eq!(file_inputs[0].value, original_value);
+    assert_eq!(
+        (
+            original_value.file,
+            original_value.start,
+            original_value.end
+        ),
+        (original_span.file, original_span.start, original_span.end)
+    );
+    assert!(
+        !disclosed(&changed, &db),
+        "agreeing forged File value and parameter cannot replace the original source binding"
+    );
+
+    assert!(
+        !disclosed(&lowered, &SourceDb::new()),
+        "missing original source bytes refuse native publication"
+    );
+    let mut changed_db = SourceDb::new();
+    changed_db.add(
+        "file-paired-binding.can".into(),
+        source.replace("attachment=attachment", "attachment=second"),
+    );
+    assert!(
+        !disclosed(&lowered, &changed_db),
+        "changed source bytes cannot qualify the previous checked assignment"
+    );
 }

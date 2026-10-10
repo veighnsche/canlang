@@ -2116,6 +2116,7 @@ fn construct_scalars_per_op() {
         IrExpr::Query(IrQuery {
             source: None,
             collection_call: None,
+            contract_collection_call: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: Some(Box::new(binary(
@@ -3853,6 +3854,7 @@ fn construct_value_query() {
         IrExpr::Query(IrQuery {
             source: None,
             collection_call: None,
+            contract_collection_call: None,
             domain: IrQueryDomain::Value {
                 base: Box::new(name(
                     "selected",
@@ -3886,6 +3888,7 @@ fn construct_value_query() {
         IrExpr::Query(IrQuery {
             source: None,
             collection_call: None,
+            contract_collection_call: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: None,
@@ -3902,6 +3905,7 @@ fn construct_value_query() {
         IrExpr::Query(IrQuery {
             source: None,
             collection_call: None,
+            contract_collection_call: None,
             domain: IrQueryDomain::Value {
                 base: Box::new(fetched),
                 alias: "row".to_string(),
@@ -6781,6 +6785,7 @@ fn t31_hook_expr_gaps() {
         IrExpr::Query(IrQuery {
             source: None,
             collection_call: None,
+            contract_collection_call: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
             where_pred: None,

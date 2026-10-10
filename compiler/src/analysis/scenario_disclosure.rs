@@ -183,6 +183,13 @@ pub struct DisclosureEffect {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisclosureFileInput {
+    pub field: SymbolId,
+    pub parameter: SymbolId,
+    pub value: NodeKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisclosureEffectKind {
     For {
         domain: NodeKey,
@@ -200,6 +207,7 @@ pub enum DisclosureEffectKind {
     Set {
         model: SymbolId,
         fields: Vec<SymbolId>,
+        file_inputs: Vec<DisclosureFileInput>,
     },
     Send {
         operation: String,
@@ -1722,6 +1730,220 @@ impl<'a> Closure<'a> {
         Some(selected.arguments[0])
     }
 
+    /// These predicates consume the already retained child projection. Their
+    /// local short-circuit sites must not become once-per-parent observations:
+    /// Values evaluates them separately for each visited element.
+    fn query_child_collection(&mut self, key: NodeKey, env: &Env) -> Option<()> {
+        let fact = self
+            .types
+            .checked_contract_collection_calls
+            .get(&key)?
+            .clone();
+        let selected = self.types.selected_calls.get(&key)?;
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        if fact.node != key
+            || !matches!(&selected.target, SelectedCallTarget::Builtin {id, overload}
+                if id == &fact.builtin && *overload == fact.overload && matches!(id.as_str(), "any" | "all"))
+            || selected.arguments != fact.arguments
+            || selected.slots.as_slice() != [Some(fact.slots[0]), Some(fact.slots[1])]
+            || fact.slots[0] == fact.slots[1]
+            || selected.arguments.len() != 2
+            || self.query_group(*selected.arguments.get(fact.slots[0])?)? != fact.query
+            || selected.arguments.get(fact.slots[1]) != Some(&fact.predicate.node)
+            || fact.predicate.ty != boolean
+            || self.types.node_types.get(&key) != Some(&boolean)
+            || self.types.node_types.get(&fact.predicate.node) != Some(&boolean)
+            || !matches!(self.query_binding(fact.domain), Some(Binding::CallAs {node}) if *node == fact.call)
+        {
+            return None;
+        }
+        let checked = self.types.checked_queries.get(&fact.query)?;
+        let [alias] = checked.clauses.as_slice() else {
+            return None;
+        };
+        if checked.node != fact.query
+            || checked.domain != fact.domain
+            || alias.node != fact.alias
+            || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+            || !alias.expressions.is_empty()
+            || checked.projection.is_some()
+            || checked.result != checked.domain_type
+            || !matches!(&checked.result, ResolvedType::Array {element, ordered:true,nonempty:false}
+                if matches!(element.as_ref(), ResolvedType::Record {symbol,..} if *symbol == fact.contract))
+        {
+            return None;
+        }
+        let ResolvedType::Array { element, .. } = &checked.result else {
+            return None;
+        };
+        let alias_ty = element.as_ref().clone();
+        let child = env.get(&Local::Call(fact.call))?.query_child?;
+        if !self.complete_children.contains(&child)
+            || self.types.effect_call_results.get(&fact.call)
+                != self.types.symbol_results.get(&child)
+            || self
+                .types
+                .effect_call_results
+                .get(&fact.call)
+                .and_then(Option::as_ref)
+                != Some(&checked.domain_type)
+            || self.types.node_types.get(&fact.domain) != Some(&checked.domain_type)
+        {
+            return None;
+        }
+        let scenario = self.effects.scenarios.get(&child)?.clone();
+        self.complete_query(&scenario).ok()??;
+        let queries = self.checked_query_sources(&scenario)?;
+        let [query] = queries.as_slice() else {
+            return None;
+        };
+        if query.projection.contract != fact.contract {
+            return None;
+        }
+        let mut visits = 0;
+        (self.query_child_predicate(
+            fact.predicate.node,
+            fact.alias,
+            &query.projection,
+            &alias_ty,
+            0,
+            &mut visits,
+        )? == boolean)
+            .then_some(())
+    }
+
+    fn query_child_predicate(
+        &self,
+        key: NodeKey,
+        alias: NodeKey,
+        projection: &DisclosureQueryProjection,
+        alias_ty: &ResolvedType,
+        depth: usize,
+        visits: &mut usize,
+    ) -> Option<ResolvedType> {
+        *visits += 1;
+        if depth > 64 || *visits > 4096 {
+            return None;
+        }
+        let grouped = self.query_group(key)?;
+        let node = self.nodes.get(&grouped)?;
+        let ty = self.types.node_types.get(&grouped)?.clone();
+        if self.types.node_types.get(&key) != Some(&ty) {
+            return None;
+        }
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let scalar = |ty: &ResolvedType| {
+            primitive_type(ty) || matches!(ty, ResolvedType::Enum {cases,..} if !cases.is_empty())
+        };
+        match node.kind {
+            SyntaxKind::Literal if scalar(&ty) => {}
+            SyntaxKind::NameRef | SyntaxKind::Path
+                if self.types.resolved_cases.contains(&grouped)
+                    && matches!(ty, ResolvedType::Enum { .. }) => {}
+            SyntaxKind::Member => {
+                let mut children = node.children.iter().filter(|child| expression(child.kind));
+                let base = NodeKey::of(children.next()?);
+                if children.next().is_some()
+                    || !matches!(self.query_binding(base), Some(Binding::QueryAlias {node}) if *node == alias)
+                    || self.types.node_types.get(&base) != Some(alias_ty)
+                {
+                    return None;
+                }
+                let name = node
+                    .children
+                    .iter()
+                    .rev()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
+                let name = self
+                    .db
+                    .get(name.span.file)?
+                    .text
+                    .get(name.span.start as usize..name.span.end as usize)?;
+                let projected = projection.fields.iter().find(|field| self.resolve.symbols.get(field.field.0 as usize)
+                    .is_some_and(|symbol| symbol.name == name
+                        && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == projection.contract)))?;
+                if ty != projected.ty
+                    || self.types.symbol_types.get(&projected.field) != Some(&ty)
+                    || !(scalar(&ty)
+                        || matches!((&ty, &projected.mapping),
+                        (ResolvedType::Record {symbol,stored:true}, CheckedQueryProjectionMapping::StoredReference)
+                        if *symbol == projection.model))
+                {
+                    return None;
+                }
+            }
+            SyntaxKind::Unary => {
+                let mut children = node.children.iter().filter(|child| expression(child.kind));
+                let child = NodeKey::of(children.next()?);
+                if children.next().is_some() {
+                    return None;
+                }
+                let child_ty = self.query_child_predicate(
+                    child,
+                    alias,
+                    projection,
+                    alias_ty,
+                    depth + 1,
+                    visits,
+                )?;
+                let operator = node
+                    .children
+                    .iter()
+                    .find(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
+                let operator = self
+                    .db
+                    .get(operator.span.file)?
+                    .text
+                    .get(operator.span.start as usize..operator.span.end as usize)?;
+                if !((matches!(operator, "not" | "!") && ty == boolean && child_ty == boolean)
+                    || (operator == "-"
+                        && ty == child_ty
+                        && matches!(ty, ResolvedType::Scalar(Scalar::Int | Scalar::Decimal))))
+                {
+                    return None;
+                }
+            }
+            SyntaxKind::Binary if ty == boolean => {
+                let (operator, left, right) = ["and", "or", "==", "!=", "<", "<=", ">", ">="]
+                    .into_iter()
+                    .find_map(|operator| {
+                        self.query_binary(grouped, operator)
+                            .map(|(left, right)| (operator, left, right))
+                    })?;
+                let left = self.query_child_predicate(
+                    left,
+                    alias,
+                    projection,
+                    alias_ty,
+                    depth + 1,
+                    visits,
+                )?;
+                let right = self.query_child_predicate(
+                    right,
+                    alias,
+                    projection,
+                    alias_ty,
+                    depth + 1,
+                    visits,
+                )?;
+                if left != right
+                    || !(match operator {
+                        "and" | "or" => left == boolean,
+                        "==" | "!=" => {
+                            scalar(&left)
+                                || matches!(left, ResolvedType::Record { stored: true, .. })
+                        }
+                        _ => scalar(&left) && left != boolean,
+                    })
+                {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+        Some(ty)
+    }
+
     fn query_dependency(
         &self,
         node: NodeKey,
@@ -2702,6 +2924,9 @@ impl<'a> Closure<'a> {
         {
             return Ok(vec![ValuePath::default()]);
         }
+        if calls.is_empty() && self.query_child_collection(key, env).is_some() {
+            return Ok(vec![ValuePath::default()]);
+        }
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
             let alternatives = self.expr(*argument, module, env, calls)?;
@@ -3179,6 +3404,7 @@ impl<'a> Closure<'a> {
             return Err(self.fail(effect.node, "set receiver lacks binding provenance"));
         }
         let mut written = Vec::new();
+        let mut file_inputs = Vec::new();
         for arg in &effect.args {
             let field = fields
                 .iter()
@@ -3203,15 +3429,33 @@ impl<'a> Closure<'a> {
                 base,
                 ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }
             );
-            if !delivery {
+            let file = matches!(base, ResolvedType::Scalar(Scalar::File));
+            if !delivery && !file {
                 if matches!(base, ResolvedType::Array { .. }) {
                     return Err(self.fail(arg.key_node, "set array outside scalar effect profile"));
                 }
                 self.field_type_id(arg.key_node, field.id, ty)?;
             }
-            let values = match arg.value {
-                Some(value) => self.expr(value, module, env, calls)?,
-                None => self.lexical(arg.key_node, module, env, calls)?,
+            let values = if file {
+                let value = arg.value.ok_or_else(|| {
+                    self.fail(
+                        arg.key_node,
+                        "File assignment needs explicit original input",
+                    )
+                })?;
+                file_inputs.push(self.file_assignment_input(
+                    effect.node,
+                    module,
+                    env,
+                    calls,
+                    (NodeKey::of(receiver), field.id, value),
+                )?);
+                vec![ValuePath::default()]
+            } else {
+                match arg.value {
+                    Some(value) => self.expr(value, module, env, calls)?,
+                    None => self.lexical(arg.key_node, module, env, calls)?,
+                }
             };
             if values.iter().any(|value| {
                 if delivery {
@@ -3234,9 +3478,107 @@ impl<'a> Closure<'a> {
             DisclosureEffectKind::Set {
                 model: *model,
                 fields: written,
+                file_inputs,
             },
         )?;
         Ok(paths)
+    }
+
+    /// Source correspondence only. The installed Files producer supplies the
+    /// genuine finalized observation to the owning active root invocation.
+    fn file_assignment_input(
+        &self,
+        statement: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+        assignment: (NodeKey, SymbolId, NodeKey),
+    ) -> Result<DisclosureFileInput, DisclosureDecline> {
+        let (receiver, field, value) = assignment;
+        let fail = || self.fail(value, "File assignment needs original required root input");
+        if !calls.is_empty()
+            || self.loop_node.is_some()
+            || self
+                .nodes
+                .get(&value)
+                .is_none_or(|node| node.kind != SyntaxKind::NameRef)
+            || self.types.node_types.get(&value) != Some(&ResolvedType::Scalar(Scalar::File))
+        {
+            return Err(fail());
+        }
+        let Some(Binding::Symbol(parameter)) = self.query_binding(value) else {
+            return Err(fail());
+        };
+        let Some(SymbolKind::Param { owner, .. }) = self
+            .resolve
+            .symbols
+            .get(parameter.0 as usize)
+            .map(|symbol| &symbol.kind)
+        else {
+            return Err(fail());
+        };
+        let parent = self.effects.scenarios.get(owner).ok_or_else(fail)?;
+        let param = parent
+            .params
+            .iter()
+            .find(|param| param.param == *parameter)
+            .ok_or_else(fail)?;
+        let Some(Binding::Symbol(receiver_parameter)) = self.query_binding(receiver) else {
+            return Err(fail());
+        };
+        let field_owner = match self
+            .resolve
+            .symbols
+            .get(field.0 as usize)
+            .map(|symbol| &symbol.kind)
+        {
+            Some(SymbolKind::Field { owner, .. }) => *owner,
+            _ => return Err(fail()),
+        };
+        let declaration = self
+            .effects
+            .models
+            .get(&field_owner)
+            .and_then(|model| {
+                model
+                    .fields
+                    .iter()
+                    .find(|candidate| candidate.field == field)
+            })
+            .ok_or_else(fail)?;
+        if parent.read
+            || parent.on.is_some()
+            || parent.cohort.is_some()
+            || parent.scope_authority
+            || parent.module != module
+            || statement.file != parent.node.file
+            || statement.start < parent.node.start
+            || statement.end > parent.node.end
+            || value.file != statement.file
+            || value.start < statement.start
+            || value.end > statement.end
+            || param.default.is_some()
+            || !self.direct_builtin_parameter_type(param.type_node, Scalar::File)
+            || self.types.symbol_types.get(parameter) != Some(&ResolvedType::Scalar(Scalar::File))
+            || self.types.field_reuse_sources.contains_key(parameter)
+            || self.types.field_reuse_sources.contains_key(&field)
+            || declaration.required_array
+            || !env.contains_key(&Local::Symbol(*parameter))
+            || !matches!(self.resolve.symbols.get(receiver_parameter.0 as usize).map(|symbol| &symbol.kind),
+                Some(SymbolKind::Param { owner: receiver_owner, .. }) if receiver_owner == owner)
+            || !parent
+                .params
+                .iter()
+                .any(|param| param.param == *receiver_parameter && param.default.is_none())
+        {
+            return Err(fail());
+        }
+        self.source(module, value)?;
+        Ok(DisclosureFileInput {
+            field,
+            parameter: *parameter,
+            value,
+        })
     }
 
     fn send(
