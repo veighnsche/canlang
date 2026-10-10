@@ -2,12 +2,15 @@
  * S9b-2: kernel command stages transition rows correctly through
  * hand-faked readers-only contexts. These tests prove MY stage logic
  * (ordering, refusals, conditional updates, idempotency); the L3
- * registry/commit behavior stays L3-tested and is never duplicated.
+ * registry/commit behavior stays L3-tested. The installed preclaim guard
+ * join additionally uses the actual registry and memory store below.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
   ModelName,
+  OperationId,
+  OperationName,
   QuerySpec,
   RecordId,
   RecordVersion,
@@ -20,6 +23,8 @@ import type {
   SystemCommandDef,
   SystemStaging,
 } from '@canlang/state';
+import { createSystemRegistry, systemCommandStageRevision, enrollSystemCommandCommitCheck } from '@canlang/state';
+import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
   WORK_DISPATCH_MODEL,
   WORK_EVERY_SLOT_MODEL,
@@ -38,6 +43,7 @@ import { KernelTableError } from '../src/kernel/tables.js';
 import {
   WORK_DISPATCH_STAGE_COMMANDS,
   createWorkDispatchClaimCommand,
+  type DispatchClaimGuard,
   WORK_SYSTEM_COMMANDS,
   workDispatchClaimCommand,
   workDispatchStopPendingCommand,
@@ -58,6 +64,11 @@ import {
 } from '@canlang/work/kernel/schedule-staging';
 import { workOccurrencePutReceiptCommand as portableOccurrencePutReceiptCommand } from '@canlang/work/kernel/occurrence-staging';
 import { RootRecurrenceNotSupportedError } from '../src/schedule/every.js';
+import { commitOutboxIntent, stageOutboxIntent } from '../src/intent/index.js';
+import {
+  readDispatchGuardExecution, registerDispatchGuardRevalidation, runDispatchGuardPhase,
+  transferDispatchGuardPhase, type DispatchGuardExecution, type DispatchGuardPhase,
+} from '../src/dispatch/index.js';
 
 const NOW = 1_758_000_000_000;
 const ACTOR = 'dispatcher-test';
@@ -319,6 +330,288 @@ for (const family of GENERATION_FAMILIES) describe(`kernel commands: ${family.na
     await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, fakeCtx(seed([]))));
     await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args,
       fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row: original() }]))));
+  });
+});
+
+describe('installed dispatch guard joins the actual original registry commit (memory only)', () => {
+  async function fixture(over: Record<string, unknown> = {}, superseded = false) {
+    const { store } = createTestMemoryStorage();
+    const staged = stageOutboxIntent({ operationId: '0193f2c0-0000-7000-8000-000000000003',
+      source: 'std.EmailV1.send', occurrenceIndex: 0, request: { to: 'a@example.com' },
+      originOccurrence: null });
+    const row = newDispatchRow({ intentId: staged.item.id, operationId: staged.item.operationId,
+      source: staged.item.source, occurrenceIndex: staged.item.occurrenceIndex,
+      originOccurrence: staged.item.originOccurrence }, { nowMs: NOW, actor: ACTOR });
+    const seeded = { ...row, data: { ...row.data, ...over } };
+    const committed = await store.commit({ expectedRevision: await store.readRevision(),
+      writes: [{ kind: 'insert', model: WORK_DISPATCH_MODEL, row: seeded }, ...(superseded ? [{
+        kind: 'insert' as const, model: WORK_SUPERSESSION_MODEL,
+        row: newSupersessionRow({ outboxId: staged.item.id, byOccurrenceId: 'occ_1', markedAtMs: NOW },
+          { nowMs: NOW, actor: ACTOR }),
+      }] : [])], history: [], receipt: null, schedules: [], uniqueClaims: [], uniqueReleases: [],
+      outbox: [{ intentId: staged.item.id, operation: 'Acme.send' as OperationName,
+        operationId: staged.item.operationId as OperationId, target: staged.item.source,
+        arguments: staged.item.request, occurrenceIndex: staged.item.occurrenceIndex }] });
+    // Unit intent model names the actual committed seed revision. Native lexical
+    // and commit-marker issuance remain Dev's separate source-adapter prerequisite.
+    const intent = commitOutboxIntent(staged, { revision: committed.revision, committedAtMs: NOW });
+    const run = (guard: DispatchClaimGuard, availability = () => true) =>
+      createSystemRegistry([createWorkDispatchClaimCommand(availability, guard)]).run('work.dispatch.claim', {
+        intentId: staged.item.id, claimId: 'new-claim', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE,
+      }, { actor: ACTOR, now: NOW, operation: 'test.claim', operationId: 'claim-run' }, { store });
+    return { store, intent, row: seeded, revision: committed.revision, run,
+      current: () => store.load(WORK_DISPATCH_MODEL, staged.item.id as RecordId) };
+  }
+
+  for (const stale of [false, true]) for (const result of [false, true]) {
+    it(`${stale ? 'stale reclaim' : 'pending'} ${result ? 'claims' : 'skips without claim or attempt'} after closed evidence and authority`, async () => {
+      const f = await fixture(stale ? { state: 'claimed', claimId: 'old', claimedAtMs: NOW - MAX_AGE,
+        attempts: 2, firstAttemptAtMs: NOW - MAX_AGE * 2 } : {});
+      let execution!: DispatchGuardExecution, context!: SystemCommandContext;
+      let sourceCalls = 0, observationChecks = 0, authorityChecks = 0;
+      const outcome = await f.run(async input => {
+        context = input.context;
+        assert.equal(input.revision, f.revision);
+        assert.equal(systemCommandStageRevision(context), f.revision);
+        assert.ok(Object.isFrozen(input)); assert.ok(Object.isFrozen(input.row));
+        assert.ok(Object.isFrozen(input.row.data)); assert.ok(Object.isFrozen(input.data));
+        assert.deepEqual(input.row, f.row);
+        assert.throws(() => { (input.data as unknown as Record<string, unknown>).source = 'foreign'; }, TypeError);
+        const phase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: { user: 'u1' },
+          stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
+          evaluateGuard: (_predicate, _inputs, _snapshot, issued) => {
+            execution = issued; sourceCalls++;
+            registerDispatchGuardRevalidation(issued, async () => {
+              observationChecks++;
+              assert.equal(await f.store.readRevision(), input.revision);
+              assert.deepEqual(await f.current(), f.row);
+              return true;
+            });
+            return result;
+          } });
+        return { phase, async currentAuthority(this: { readonly phase: DispatchGuardPhase }) {
+          assert.equal(this.phase, phase);
+          authorityChecks++; assert.equal(await f.store.readRevision(), input.revision);
+          assert.deepEqual(await f.current(), f.row); return true;
+        } };
+      });
+      assert.equal(outcome.revision, f.revision + 1);
+      assert.equal(sourceCalls, 1); assert.equal(observationChecks, 1); assert.equal(authorityChecks, 1);
+      assert.throws(() => readDispatchGuardExecution(execution), /not live/);
+      assert.throws(() => systemCommandStageRevision(context), /./);
+      assert.throws(() => enrollSystemCommandCommitCheck(context, () => true), /./);
+      const current = await f.current(); assert.ok(current);
+      const data = readDispatchRow(current);
+      assert.equal(current.version, f.row.version + 1);
+      assert.equal(data.attempts, stale ? 2 : 0);
+      assert.equal(data.firstAttemptAtMs, stale ? NOW - MAX_AGE * 2 : null);
+      const retained = await f.store.outboxGet(f.intent.item.id); assert.ok(retained);
+      if (result) {
+        assert.deepEqual(outcome.result, { claimed: true, ...(stale ? { reclaimed: true } : {}),
+          intentId: f.intent.item.id, claimId: 'new-claim' });
+        assert.equal(data.state, 'claimed'); assert.equal(data.claimId, 'new-claim');
+        assert.equal(data.claimedAtMs, NOW); assert.equal(retained.status, 'pending');
+      } else {
+        assert.deepEqual(outcome.result, { claimed: false, reason: 'guard-false', intentId: f.intent.item.id });
+        assert.equal(data.state, 'pending'); assert.equal(data.guardVerdict, false);
+        assert.equal(data.claimId, null); assert.equal(data.claimedAtMs, null);
+        assert.equal(retained.status, 'dispatched');
+      }
+    });
+  }
+
+  it('does not execute guards for superseded, pinned, deferred, held, settled or unavailable rows', async () => {
+    for (const [over, marked, available, reason] of [
+      [{}, true, true, 'superseded'], [{ guardVerdict: false }, false, true, 'guard-false'],
+      [{ availableAtMs: NOW + 1 }, false, true, 'deferred'],
+      [{ state: 'claimed', claimId: 'held', claimedAtMs: NOW }, false, true, 'claimed'],
+      [{ state: 'delivered' }, false, true, 'settled'], [{}, false, false, 'unavailable'],
+      [{ state: 'claimed', claimId: 'old', claimedAtMs: NOW - MAX_AGE }, false, false, 'unavailable'],
+    ] as const) {
+      const f = await fixture(over, marked);
+      const outcome = await f.run(() => { throw new Error('ineligible source executed'); }, () => available);
+      assert.equal((outcome.result as { reason: string }).reason, reason);
+      assert.deepEqual(await f.current(), f.row);
+      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+    }
+  });
+
+  for (const result of [true, false]) for (const failure of ['observation', 'authority', 'nonboolean', 'reader', 'unknown-source']) {
+    it(`refuses ${result ? 'claim' : 'skip'} when ${failure} fails before the original commit`, async () => {
+      const f = await fixture(); let evaluated = 0;
+      await assert.rejects(f.run(async input => ({
+        phase: await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
+          stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
+          evaluateGuard: (_predicate, _inputs, _snapshot, execution) => {
+            evaluated++;
+            registerDispatchGuardRevalidation(execution, () => {
+              if (failure === 'reader') throw new Error('reader failure');
+              return failure !== 'observation';
+            });
+            return failure === 'unknown-source' ? 'true' as unknown as boolean : result;
+          } }),
+        currentAuthority: () => failure === 'nonboolean' ? 'true' as unknown as boolean : failure !== 'authority',
+      })));
+      assert.equal(evaluated, 1); assert.equal(await f.store.readRevision(), f.revision);
+      assert.deepEqual(await f.current(), f.row);
+      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+    });
+  }
+
+  it('refuses forged/copied/consumed phases and mismatched original identities or checkpoints', async () => {
+    for (const misuse of ['forged', 'copied', 'consumed', 'wrong-revision', 'wrong-id', 'wrong-source', 'wrong-operation',
+      'absent-commit', 'staged-commit', 'future-commit', 'zero-commit', 'fractional-commit',
+      'negative-time', 'missing-time', 'string-time', 'missing-commit-revision']) {
+      const f = await fixture();
+      await assert.rejects(f.run(async input => {
+        const candidate: Record<string, unknown> = { ...f.intent, item: { ...f.intent.item,
+          ...(misuse === 'wrong-id' ? { id: 'foreign' } : {}),
+          ...(misuse === 'wrong-source' ? { source: 'std.Other.send' } : {}),
+          ...(misuse === 'wrong-operation' ? { operationId: 'foreign' } : {}) } };
+        if (misuse === 'absent-commit') delete candidate.commit;
+        if (misuse === 'staged-commit') candidate.commit = null;
+        if (misuse === 'future-commit') candidate.commit = { ...f.intent.commit, revision: input.revision + 1 };
+        if (misuse === 'zero-commit') candidate.commit = { ...f.intent.commit, revision: 0 };
+        if (misuse === 'fractional-commit') candidate.commit = { ...f.intent.commit, revision: 1.5 };
+        if (misuse === 'negative-time') candidate.commit = { ...f.intent.commit, committedAtMs: -1 };
+        if (misuse === 'missing-time') candidate.commit = { revision: f.intent.commit.revision };
+        if (misuse === 'string-time') candidate.commit = { ...f.intent.commit, committedAtMs: '0' };
+        if (misuse === 'missing-commit-revision') candidate.commit = { committedAtMs: NOW };
+        let phase: DispatchGuardPhase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
+          stateSnapshot: input.row, checkpoint: { revision: input.revision + (misuse === 'wrong-revision' ? 1 : 0), owner: 'team-1' },
+          intent: candidate as unknown as typeof f.intent,
+          evaluateGuard: () => true });
+        if (misuse === 'forged') phase = { result: true, revalidate: async () => true };
+        if (misuse === 'copied') phase = { ...phase };
+        if (misuse === 'consumed') await phase.revalidate();
+        return { phase, currentAuthority: () => true };
+      }));
+      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
+      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+    }
+  });
+
+  it('refuses precreated, no-stage, copied-stage and foreign-stage phases at the same checkpoint', async () => {
+    for (const misuse of ['precreated', 'no-stage', 'copied-stage', 'foreign-stage']) {
+      const f = await fixture();
+      let retained: DispatchGuardPhase | undefined;
+      const make = (stage?: SystemCommandContext) => runDispatchGuardPhase({ stage,
+        predicate: 'current.membership', frozenInputs: {}, stateSnapshot: f.row,
+        checkpoint: { revision: f.revision, owner: 'team-1' }, intent: f.intent, evaluateGuard: () => true });
+      if (misuse === 'precreated') retained = await make();
+      if (misuse === 'foreign-stage') {
+        const foreign = await fixture();
+        assert.equal(foreign.revision, f.revision);
+        await assert.rejects(foreign.run(async input => {
+          retained = await make(input.context);
+          throw new Error('foreign command closes without effects');
+        }), /foreign command closes/);
+        assert.equal(await foreign.store.readRevision(), foreign.revision);
+      }
+      await assert.rejects(f.run(async input => ({
+        phase: retained ?? await make(misuse === 'copied-stage' ? { ...input.context } : undefined),
+        currentAuthority: () => true,
+      })));
+      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
+      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+    }
+  });
+
+  it('caught double or concurrent phase issuance poisons the original actual stage', async () => {
+    for (const concurrent of [false, true]) {
+      const f = await fixture(); let evaluations = 0;
+      await assert.rejects(f.run(async input => {
+        let release!: () => void;
+        const waiting = new Promise<void>(resolve => { release = resolve; });
+        const make = () => runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership',
+          frozenInputs: {}, stateSnapshot: input.row,
+          checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
+          evaluateGuard: async () => { evaluations++; if (concurrent) await waiting; return true; } });
+        const first = make();
+        if (concurrent) {
+          await assert.rejects(make(), /already issued/);
+          release();
+          return { phase: await first, currentAuthority: () => true };
+        }
+        const phase = await first;
+        await assert.rejects(make(), /already issued/);
+        return { phase, currentAuthority: () => true };
+      }), /poisoned/);
+      assert.equal(evaluations, 1);
+      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
+      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+    }
+  });
+
+  it('caught repeated transfers or late actual handle misuse poison commit evidence', async () => {
+    for (const misuse of ['before-stage', 'during-authority', 'late-registration']) {
+      const f = await fixture();
+      await assert.rejects(f.run(async input => {
+        let execution!: DispatchGuardExecution;
+        const phase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
+          stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
+          evaluateGuard: (_predicate, _inputs, _snapshot, issued) => { execution = issued; return true; } });
+        if (misuse === 'before-stage') {
+          transferDispatchGuardPhase(phase);
+          assert.throws(() => transferDispatchGuardPhase(phase), /already been transferred/);
+        }
+        return { phase, currentAuthority: () => {
+          if (misuse === 'during-authority') assert.throws(() => transferDispatchGuardPhase(phase), /already been transferred/);
+          if (misuse === 'late-registration') assert.throws(() => registerDispatchGuardRevalidation(execution, () => true), /not live/);
+          return true;
+        } };
+      }));
+      assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
+    }
+  });
+
+  it('refuses moved physical revision and source failure without claim or skip effects', async () => {
+    for (const moved of [false, true]) {
+      const f = await fixture();
+      await assert.rejects(f.run(async input => {
+        if (!moved) throw new Error('source guard failed');
+        const phase = await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
+          stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' }, intent: f.intent,
+          evaluateGuard: () => false });
+        await f.store.commit({ expectedRevision: input.revision, writes: [], history: [], receipt: null,
+          outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+        return { phase, currentAuthority: () => true };
+      }));
+      assert.equal(await f.store.readRevision(), f.revision + (moved ? 1 : 0));
+      assert.deepEqual(await f.current(), f.row);
+      assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
+    }
+  });
+
+  it('refuses forged stage contexts before source and closes an unawaited actual stage reader', async () => {
+    let sourceCalls = 0;
+    const command = createWorkDispatchClaimCommand(undefined, () => {
+      sourceCalls++; throw new Error('source must not enter without a genuine stage');
+    });
+    await assert.rejects(runStage(command.stage,
+      { intentId: 'op_1#0', claimId: 'claim', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE },
+      fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row: dispatchRow('op_1#0') }]))));
+    assert.equal(sourceCalls, 0);
+
+    const f = await fixture(); const originalLoad = f.store.load;
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    Object.defineProperty(f.store, 'load', { value: async (model: ModelName, id: RecordId) => {
+      if (model === 'Membership') await waiting;
+      return originalLoad(model, id);
+    } });
+    let reader!: Promise<StoredRow | null>;
+    await assert.rejects(f.run(async input => {
+      reader = input.context.load('Membership' as ModelName, 'u1' as RecordId);
+      // Handle the eventual rejection without awaiting it in the source guard.
+      void reader.catch(() => undefined);
+      return { phase: await runDispatchGuardPhase({ stage: input.context, predicate: 'current.membership', frozenInputs: {},
+        stateSnapshot: input.row, checkpoint: { revision: input.revision, owner: 'team-1' },
+        intent: f.intent, evaluateGuard: () => false }), currentAuthority: () => true };
+    }), /unawaited reader/);
+    release(); await assert.rejects(reader, /crossed its original stage/);
+    assert.equal(await f.store.readRevision(), f.revision); assert.deepEqual(await f.current(), f.row);
+    assert.equal((await f.store.outboxGet(f.intent.item.id))?.status, 'pending');
   });
 });
 

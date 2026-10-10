@@ -31,6 +31,7 @@ import type {
 } from '@canlang/contracts';
 import { StateError, storageToStateError } from '../errors.js';
 import { jsonClone } from '../internal/json.js';
+import { deepFreeze } from '../internal/own-data.js';
 import {
   STAGING_MAX_ID_LENGTH,
   stageOutboxIntents,
@@ -59,6 +60,56 @@ export interface SystemCommandContext {
   readonly operation: string;
   readonly load: StoragePort['load'];
   readonly query: StoragePort['query'];
+}
+
+/** Actual registry-issued staging capability, separate from caller context. */
+interface SystemStageLedger {
+  readonly revision: Revision;
+  readonly checks: Array<() => boolean | Promise<boolean>>;
+  phase: 'stage' | 'checks' | 'closed';
+  pendingReads: number;
+  poisoned: boolean;
+}
+const systemStages = new WeakMap<SystemCommandContext, SystemStageLedger>();
+const stageReaders = new WeakMap<object, SystemStageLedger>();
+const MAX_SYSTEM_COMMIT_CHECKS = 128;
+function stageFailure(ledger: SystemStageLedger | undefined, message: string): never {
+  if (ledger !== undefined) ledger.poisoned = true;
+  throw new StateError('validation', message);
+}
+function actualStage(ctx: SystemCommandContext): SystemStageLedger {
+  if (typeof ctx !== 'object' || ctx === null) return stageFailure(undefined, 'System stage context was not issued by the registry.');
+  const ledger = systemStages.get(ctx);
+  if (ledger === undefined) {
+    // A copied issued reader must not let a caught provenance failure leave
+    // its original run healthy. Inspect own values without executing getters.
+    for (const name of ['load', 'query']) {
+      const value = Object.getOwnPropertyDescriptor(ctx, name);
+      if (value !== undefined && 'value' in value && typeof value.value === 'function') {
+        const original = stageReaders.get(value.value);
+        if (original !== undefined) original.poisoned = true;
+      }
+    }
+    return stageFailure(undefined, 'System stage context was not issued by the registry.');
+  }
+  if (ledger.poisoned || ledger.phase !== 'stage') return stageFailure(ledger, 'System stage context is closed or poisoned.');
+  return ledger;
+}
+/** The original physical checkpoint; this grants neither a store nor authority. */
+export function systemCommandStageRevision(ctx: SystemCommandContext): Revision {
+  return actualStage(ctx).revision;
+}
+/** Enroll only during this actual stage. Registry closes and consumes once. */
+export function enrollSystemCommandCommitCheck(ctx: SystemCommandContext,
+  check: () => boolean | Promise<boolean>): void {
+  const ledger = actualStage(ctx);
+  if (typeof check !== 'function' || ledger.checks.length >= MAX_SYSTEM_COMMIT_CHECKS) {
+    return stageFailure(ledger, 'System stage requires a bounded commit check function.');
+  }
+  ledger.checks.push(check);
+}
+function stageHealthy(ledger: SystemStageLedger): void {
+  if (ledger.poisoned) stageFailure(ledger, 'System stage context is poisoned.');
 }
 
 /** Privileged command definition: validated name plus staging function. */
@@ -156,39 +207,64 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
         throw new StateError('validation', 'System runs need a non-empty operation identity.');
       }
       const revision = await deps.store.readRevision();
-      const staged = await command.stage(clonedArgs, {
-        actor: ctx.actor,
-        now: ctx.now,
-        operation: ctx.operation,
-        load: (model, id) => deps.store.load(model, id),
-        query: (spec) => deps.store.query(spec),
+      const ledger: SystemStageLedger = { revision, checks: [], phase: 'stage', pendingReads: 0, poisoned: false };
+      const read = async <T>(work: () => Promise<T>): Promise<T> => {
+        if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
+        ledger.pendingReads++;
+        try {
+          const value = await work();
+          if (ledger.phase !== 'stage' || ledger.poisoned) return stageFailure(ledger, 'System reader crossed its original stage.');
+          return value;
+        } finally { ledger.pendingReads--; }
+      };
+      const stageContext: SystemCommandContext = Object.freeze<SystemCommandContext>({
+        actor: ctx.actor, now: ctx.now, operation: ctx.operation,
+        load: (model, id) => read(() => deps.store.load(model, id)),
+        query: (spec) => read(() => deps.store.query(spec)),
       });
-      if (typeof staged !== 'object' || staged === null || Array.isArray(staged)) {
-        throw new StateError('validation', 'System command staging must be an object.');
-      }
-      const outbox = stageOutboxIntents(staged.outbox ?? [], { operationId: ctx.operationId });
-      const schedules = stageScheduleOps(staged.schedules ?? []);
-      const outboxAck = checkOutboxAck(staged.outboxAck ?? []);
-      let committed: CommitResult;
+      systemStages.set(stageContext, ledger);
+      stageReaders.set(stageContext.load, ledger); stageReaders.set(stageContext.query, ledger);
+      let staged: SystemStaging;
+      try { staged = await command.stage(clonedArgs, stageContext); }
+      catch (error) { ledger.poisoned = true; ledger.phase = 'closed'; throw error; }
+      ledger.phase = 'checks';
+      if (ledger.pendingReads !== 0) return stageFailure(ledger, 'System stage left an unawaited reader.');
+      stageHealthy(ledger);
       try {
-        committed = await deps.store.commit({
+        if (typeof staged !== 'object' || staged === null || Array.isArray(staged)) {
+          throw new StateError('validation', 'System command staging must be an object.');
+        }
+        const outbox = stageOutboxIntents(staged.outbox ?? [], { operationId: ctx.operationId });
+        const schedules = stageScheduleOps(staged.schedules ?? []);
+        const outboxAck = checkOutboxAck(staged.outboxAck ?? []);
+        const result = ledger.checks.length === 0 ? staged.result ?? null
+          : jsonClone(staged.result ?? null, 'System staging result');
+        // Detach exact staged effects before any retained callback can await or
+        // mutate the producer's output. All existing owning validators still run.
+        const batch = deepFreeze(jsonClone({
           expectedRevision: revision,
           writes: checkStagedArray<DomainWrite>(staged.writes ?? [], 'writes'),
           history: checkStagedArray<HistoryEntry>(staged.history ?? [], 'history'),
-          receipt: null,
-          outbox,
-          schedules,
+          receipt: null, outbox, schedules,
           uniqueClaims: checkStagedArray<UniqueClaim>(staged.uniqueClaims ?? [], 'uniqueClaims'),
-          uniqueReleases: checkStagedArray<UniqueRelease>(
-            staged.uniqueReleases ?? [],
-            'uniqueReleases',
-          ),
+          uniqueReleases: checkStagedArray<UniqueRelease>(staged.uniqueReleases ?? [], 'uniqueReleases'),
           outboxAck,
-        });
-      } catch (error) {
-        throw storageToStateError(error);
-      }
-      return { revision: committed.revision, result: staged.result ?? null };
+        }, 'System staging effects'));
+        for (const check of ledger.checks) {
+          stageHealthy(ledger);
+          const verdict = check();
+          const accepted = typeof verdict === 'boolean' ? verdict : await verdict;
+          stageHealthy(ledger);
+          if (typeof accepted !== 'boolean') return stageFailure(ledger, 'System commit check must return a boolean.');
+          if (!accepted) throw new StateError('forbidden', 'System commit evidence or current authority changed.');
+        }
+        stageHealthy(ledger);
+        let committed: CommitResult;
+        try { committed = await deps.store.commit(batch); }
+        catch (error) { throw storageToStateError(error); }
+        return { revision: committed.revision, result };
+      } finally { ledger.phase = 'closed'; }
+
     },
   };
 }

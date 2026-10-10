@@ -30,13 +30,18 @@ import type {
   ModelName,
   ReceiptResultContext,
   RecordId,
+  Revision,
   StoredRow,
 } from '@canlang/contracts';
 import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import { RECEIPT_MODEL, readReceiptRow, withReceiptRowData } from '@canlang/state/receipt/tables';
 import type {
+  SystemCommandContext,
   SystemCommandDef,
 } from '@canlang/state';
+import { enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
+import { transferDispatchGuardPhase, type DispatchGuardPhase } from '../dispatch/index.js';
+import { freezeRequest } from '../intent/staging.js';
 import type {
   ClaimId,
   OccurrenceId,
@@ -109,6 +114,25 @@ async function loadDispatchRow(
 /** Deployment-static, exact-intent availability; never transport or authority. */
 export type DispatchClaimAvailability = (intentId: OutboxId, target: string) => boolean;
 
+/** Installed source adapter only. Work supplies the actual eligible row and
+ * original State stage; Dev owns source/lexical/owner correspondence. */
+export interface DispatchClaimGuardInput {
+  readonly row: StoredRow;
+  readonly data: DispatchRowData;
+  readonly context: SystemCommandContext;
+  readonly revision: Revision;
+}
+export interface DispatchClaimGuardResult {
+  readonly phase: DispatchGuardPhase;
+  readonly currentAuthority: () => boolean | Promise<boolean>;
+}
+export type DispatchClaimGuard = (input: DispatchClaimGuardInput) =>
+  DispatchClaimGuardResult | Promise<DispatchClaimGuardResult>;
+
+function guardFalseDispatchData(data: DispatchRowData): DispatchRowData & Record<string, unknown> {
+  return { ...data, state: 'pending', guardVerdict: false, claimId: null, claimedAtMs: null };
+}
+
 /**
  * Build the existing claim stage with an optional installed-target gate.
  * Existing lifecycle refusals precede availability. The callback sees the
@@ -117,7 +141,11 @@ export type DispatchClaimAvailability = (intentId: OutboxId, target: string) => 
  */
 export function createWorkDispatchClaimCommand(
   availability?: DispatchClaimAvailability,
+  guard?: DispatchClaimGuard,
 ): SystemCommandDef {
+  if (guard !== undefined && typeof guard !== 'function') {
+    throw new TypeError('dispatch claim guard must be an installed function');
+  }
   return {
     name: 'work.dispatch.claim',
     stage: async (args, ctx) => {
@@ -156,6 +184,43 @@ export function createWorkDispatchClaimCommand(
       }
       if (availability !== undefined && availability(intentId as OutboxId, data.source) !== true) {
         return { result: { claimed: false, reason: 'unavailable', intentId, target: data.source } };
+      }
+      if (guard !== undefined) {
+        const revision = systemCommandStageRevision(ctx);
+        const snapshot = freezeRequest(row) as unknown as StoredRow;
+        const guarded = await guard(Object.freeze({ row: snapshot,
+          data: Object.freeze(readDispatchRow(snapshot)), context: ctx, revision }));
+        const authorityDescriptor = guarded !== null && typeof guarded === 'object'
+          ? Object.getOwnPropertyDescriptor(guarded, 'currentAuthority') : undefined;
+        const phaseDescriptor = guarded !== null && typeof guarded === 'object'
+          ? Object.getOwnPropertyDescriptor(guarded, 'phase') : undefined;
+        if (authorityDescriptor === undefined || !('value' in authorityDescriptor) ||
+            typeof authorityDescriptor.value !== 'function' || phaseDescriptor === undefined ||
+            !('value' in phaseDescriptor)) {
+          throw new KernelTableError(`${what}: actual closed guard phase and current authority required.`);
+        }
+        const phase = transferDispatchGuardPhase(phaseDescriptor.value as DispatchGuardPhase, ctx);
+        const original = phase.context.intent;
+        if (typeof phase.context.predicate !== 'string' || phase.context.predicate === '' ||
+            phase.context.checkpoint?.revision !== revision ||
+            typeof phase.context.checkpoint.owner !== 'string' || phase.context.checkpoint.owner === '' ||
+            typeof original.commit !== 'object' || original.commit === null ||
+            !Number.isInteger(original.commit.revision) || original.commit.revision < 1 ||
+            original.commit.revision > revision || !Number.isFinite(original.commit.committedAtMs) ||
+            original.commit.committedAtMs < 0 || original.item.id !== intentId ||
+            original.item.operationId !== data.operationId || original.item.source !== data.source ||
+            original.item.occurrenceIndex !== data.occurrenceIndex ||
+            original.item.originOccurrence !== data.originOccurrence) {
+          throw new KernelTableError(`${what}: guard phase must match the original stage and eligible intent.`);
+        }
+        const currentAuthority = authorityDescriptor.value as DispatchClaimGuardResult['currentAuthority'];
+        enrollSystemCommandCommitCheck(ctx, phase.revalidate);
+        enrollSystemCommandCommitCheck(ctx, () => currentAuthority.call(guarded));
+        enrollSystemCommandCommitCheck(ctx, () => { phase.assertHealthy(); return true; });
+        if (!phase.result) {
+          return { writes: [updateWrite(row, guardFalseDispatchData(data), ctx, WORK_DISPATCH_MODEL, what)],
+            outboxAck: [intentId], result: { claimed: false, reason: 'guard-false', intentId } };
+        }
       }
       const writes = [updateWrite(
         row,
@@ -368,13 +433,7 @@ export const workDispatchRecordAttemptCommand: SystemCommandDef = {
           `${what}: pending outcomes require guardVerdict false.`,
         );
       }
-      next = {
-        ...data,
-        state: 'pending',
-        guardVerdict: false,
-        claimId: null,
-        claimedAtMs: null,
-      };
+      next = guardFalseDispatchData(data);
     } else {
       if (!TERMINAL_ATTEMPT_STATES.has(stateValue)) {
         throw new KernelTableError(
