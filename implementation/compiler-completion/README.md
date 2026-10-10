@@ -2522,6 +2522,15 @@ The actual scenario3000 crash trace reaches recursive IrItem/IrExpr cloning in
 identity emission. All13 read-only whole-program emitter loops now borrow the
 existing IR through a copied reference; required local metadata copies remain.
 Output order, source admission and expression semantics are unchanged. Owning
-codegen121/121 passes. The new query correspondence case currently declines and
-is being corrected before remaining flat/order/schedule checks and final whole
-qualification; no stack increase, smaller fixture or skipped body.
+codegen121/121 and the existing native flat6/6, including scenario3000, pass.
+Original query-order2/2 and disclosure18/18 also pass after preserving the owning
+unsupported-query refusal. Final whole qualification follows; no stack increase,
+smaller fixture or skipped body.
+
+
+**Schedule fixture correction (unfinished whole qualification), 2026-10-10.**
+Model references are now qualified ordinary contract leaves. Keep the existing
+unsupported event contract control by including the still-unsupported email leaf,
+retaining whole-descriptor/inventory withholding and every actual schedule/cancel
+payload, declaring-owner, carrier, authored-order and failure assertion. Owning
+schedule2/2 passes; unchanged real model-reference positives are reused.
