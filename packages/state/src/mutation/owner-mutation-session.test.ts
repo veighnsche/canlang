@@ -6,7 +6,7 @@ import { bindOwnerModelPolicies, type OwnerModelPolicyBinding } from './model-po
 import { buildModelTable } from './models.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { StateError } from '../errors.js';
-import { asId, asModel, makeBatch, seedRow } from '../../test/invocation/fixtures.js';
+import { asId, asModel, asOperation, makeBatch, seedRow } from '../../test/invocation/fixtures.js';
 import { field, hook, modelDef, pipelineContext, invariant, refDef } from '../../test/mutation/fixtures.js';
 
 const ITEM = asModel('Acme.Item');
@@ -20,7 +20,7 @@ async function commit(store: ReturnType<typeof createTestMemoryStorage>['store']
     uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases, schedules: output.schedules }));
 }
 
-test('owner session defers invariants, keeps entry snapshots and nets one version/history/unique change', async () => {
+test('owner session defers invariants, preserves ordered history and nets one version/write/unique change', async () => {
   const { store } = createTestMemoryStorage();
   await seedRow(store, ITEM, { id: 'item', version: 4, data: { title: 'entry', left: 1, right: 1 } });
   let checks = 0;
@@ -45,9 +45,12 @@ test('owner session defers invariants, keeps entry snapshots and nets one versio
   if (output.writes[0]?.kind !== 'update') throw Error('Expected update');
   assert.equal(output.writes[0].expectedVersion, 4);
   assert.equal(output.writes[0].row.version, 5);
-  assert.equal(output.history.length, 1);
+  assert.equal(output.history.length, 2);
   assert.deepEqual(output.history[0]?.before, before?.data);
-  assert.deepEqual(output.history[0]?.after, { title: 'final', left: 2, right: 2 });
+  assert.deepEqual(output.history[0]?.after, { title: 'intermediate', left: 2, right: 1 });
+  assert.deepEqual(output.history[1]?.before, output.history[0]?.after);
+  assert.deepEqual(output.history[1]?.after, { title: 'final', left: 2, right: 2 });
+  assert.deepEqual(output.history.map(entry => entry.version), [5, 5]);
   assert.deepEqual(output.uniqueReleases, [{ model: ITEM, keyName: 'title', keyValue: 'entry' }]);
   assert.deepEqual(output.uniqueClaims, [{ model: ITEM, keyName: 'title', keyValue: 'final', recordId: 'item' }]);
   assert.deepEqual(await store.load(ITEM, asId('item')), before);
@@ -56,6 +59,118 @@ test('owner session defers invariants, keeps entry snapshots and nets one versio
   await assert.rejects(session.read(ITEM, asId('item')), /finalized/);
   await assert.rejects(session.stage(update('item', { title: 'late' }), options), /finalized/);
   await assert.rejects(session.finalize(), /finalized/);
+});
+
+test('existing-row A/B/A effects keep source-order history and per-stage operation attribution at one reserved version', async () => {
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, ITEM, { id: 'a', data: { value: 0 } });
+  await seedRow(store, ITEM, { id: 'b', data: { value: 0 } });
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { value: field() } })]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  const root = session.views.context;
+  const stages = [
+    { id: 'a', value: 1, operation: 'Acme.first' },
+    { id: 'b', value: 1, operation: 'Acme.second' },
+    { id: 'a', value: 2, operation: 'Acme.third' },
+  ];
+  for (const stage of stages) {
+    await session.stage(update(stage.id, { value: stage.value }), {
+      ...options, context: Object.freeze({ ...root, operation: asOperation(stage.operation) }),
+    });
+  }
+  const output = await session.finalize();
+  assert.deepEqual(output.history.map(entry => ({ id: entry.recordId, before: entry.before,
+    after: entry.after, version: entry.version, operation: entry.operation, operationId: entry.operationId })), [
+    { id: 'a', before: { value: 0 }, after: { value: 1 }, version: 2, operation: 'Acme.first', operationId: root.operationId },
+    { id: 'b', before: { value: 0 }, after: { value: 1 }, version: 2, operation: 'Acme.second', operationId: root.operationId },
+    { id: 'a', before: { value: 1 }, after: { value: 2 }, version: 2, operation: 'Acme.third', operationId: root.operationId },
+  ]);
+  assert.equal(output.writes.length, 2);
+  for (const write of output.writes) {
+    assert.equal(write.kind, 'update');
+    if (write.kind !== 'update') throw Error('Expected existing-row update');
+    assert.equal(write.expectedVersion, 1); assert.equal(write.row.version, 2);
+    assert.equal(write.row.data.value, write.id === 'a' ? 2 : 1);
+  }
+  assert.deepEqual(await store.historyFor(ITEM, asId('a')), []);
+  assert.deepEqual(await store.historyFor(ITEM, asId('b')), []);
+  let commits = 0;
+  const actualCommit = store.commit;
+  store.commit = async batch => { commits++; return actualCommit(batch); };
+  await commit(store, output); assert.equal(commits, 1);
+  assert.equal((await store.load(ITEM, asId('a')))?.data.value, 2);
+  assert.equal((await store.load(ITEM, asId('b')))?.data.value, 1);
+  assert.deepEqual(await store.historyFor(ITEM, asId('a')), output.history.filter(entry => entry.recordId === 'a'));
+  assert.deepEqual(await store.historyFor(ITEM, asId('b')), output.history.filter(entry => entry.recordId === 'b'));
+});
+
+test('a later owner-stage failure leaves earlier effects and ordered history uncommitted', async () => {
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, ITEM, { id: 'a', data: { value: 0 } });
+  const before = await store.load(ITEM, asId('a')), revision = await store.readRevision();
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { value: field() } })]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  let commits = 0;
+  const actualCommit = store.commit;
+  store.commit = async batch => { commits++; return actualCommit(batch); };
+  await session.stage(update('a', { value: 1 }), options);
+  await session.stage(update('a', { value: 2 }), options);
+  await assert.rejects(session.stage(update('missing', { value: 3 }), options));
+  await assert.rejects(session.finalize(), /poisoned/);
+  assert.equal(commits, 0); assert.equal(await store.readRevision(), revision);
+  assert.deepEqual(await store.load(ITEM, asId('a')), before);
+  assert.deepEqual(await store.historyFor(ITEM, asId('a')), []);
+});
+
+test('mixed existing effects retain source order while new rows net creation and self-cancellation', async () => {
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, ITEM, { id: 'a', data: { title: 'a', value: 0 } });
+  await seedRow(store, ITEM, { id: 'b', data: { title: 'b', value: 0 } });
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { title: field(), value: field() },
+    uniqueKeys: ['title'], deleteMode: 'remove' })]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await session.stage(update('a', { value: 1 }), options);
+  await session.stage({ op: 'create', model: ITEM, id: asId('new'), data: { title: 'first', value: 0 } }, options);
+  await session.stage(update('b', { value: 1 }), options);
+  await session.stage(update('new', { title: 'final', value: 1 }), options);
+  await session.stage(update('a', { value: 2 }), options);
+  await session.stage({ op: 'create', model: ITEM, id: asId('cancelled'), data: { title: 'cancelled', value: 0 } }, options);
+  await session.stage({ op: 'remove', model: ITEM, id: asId('cancelled') }, options);
+  const output = await session.finalize();
+  assert.deepEqual(output.history.map(entry => ({ id: entry.recordId, change: entry.change,
+    version: entry.version, before: entry.before, after: entry.after })), [
+    { id: 'a', change: 'update', version: 2, before: { title: 'a', value: 0 }, after: { title: 'a', value: 1 } },
+    { id: 'b', change: 'update', version: 2, before: { title: 'b', value: 0 }, after: { title: 'b', value: 1 } },
+    { id: 'new', change: 'create', version: 1, before: null, after: { title: 'final', value: 1 } },
+    { id: 'a', change: 'update', version: 2, before: { title: 'a', value: 1 }, after: { title: 'a', value: 2 } },
+  ]);
+  assert.equal(output.writes.length, 3);
+  const created = output.writes.find(write => write.kind === 'insert');
+  assert.ok(created?.kind === 'insert'); assert.equal(created.row.id, 'new'); assert.equal(created.row.version, 1);
+  assert.deepEqual(output.uniqueClaims, [{ model: ITEM, recordId: 'new', keyName: 'title', keyValue: 'final' }]);
+  assert.deepEqual(output.uniqueReleases, []);
+  await commit(store, output);
+  assert.equal(await store.load(ITEM, asId('cancelled')), null);
+  assert.deepEqual(await store.historyFor(ITEM, asId('cancelled')), []);
+  assert.deepEqual(await store.historyFor(ITEM, asId('new')), output.history.filter(entry => entry.recordId === 'new'));
+});
+
+test('existing-row update then permanent removal keeps both ordered effects at the reserved removal version', async () => {
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, ITEM, { id: 'a', version: 4, data: { value: 0 } });
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { value: field() }, deleteMode: 'remove' })]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await session.stage(update('a', { value: 1 }), options);
+  await session.stage({ op: 'remove', model: ITEM, id: asId('a') }, options);
+  const output = await session.finalize();
+  assert.deepEqual(output.writes, [{ kind: 'remove', model: ITEM, id: 'a', expectedVersion: 4 }]);
+  assert.deepEqual(output.history.map(entry => ({ change: entry.change, version: entry.version,
+    before: entry.before, after: entry.after })), [
+    { change: 'update', version: 5, before: { value: 0 }, after: { value: 1 } },
+    { change: 'remove', version: 5, before: { value: 1 }, after: null },
+  ]);
+  await commit(store, output); assert.equal(await store.load(ITEM, asId('a')), null);
+  assert.deepEqual(await store.historyFor(ITEM, asId('a')), output.history);
 });
 
 test('owner session validates final references and disposal, including target-first co-removal and repaired intermediate references', async () => {
@@ -75,6 +190,9 @@ test('owner session validates final references and disposal, including target-fi
     { op: 'remove', model: LINK, id: asId('link') }], options);
   const disposed = await removed.finalize();
   assert.equal(disposed.writes.length, 2);
+  assert.deepEqual(disposed.history.map(entry => [entry.model, entry.change, entry.version]), [
+    [ITEM, 'remove', 2], [LINK, 'remove', 2],
+  ]);
   await commit(store, disposed);
   assert.equal(await store.load(ITEM, asId('target')), null);
   assert.equal(await store.load(LINK, asId('link')), null);
