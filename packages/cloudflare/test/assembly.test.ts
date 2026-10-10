@@ -204,6 +204,40 @@ describe("assembleWorker", () => {
     expect(slashed.headers.get("location")).toBe("/nope?a=1");
   });
 
+  it("forwards only the explicit host base to actual full and partial page contexts", async () => {
+    const dir = tempDir();
+    // This remains the existing hand-written assembly fixture, not Compiler acceptance.
+    const source = VALID_PAGE_SOURCE.replace('render: async () => "<h1>fixture-home</h1>"',
+      'render: async (c) => "<h1>" + (c.deploymentBase ?? "unconfigured") + "</h1>"');
+    const url = writeModule(dir, "home.mjs", source);
+    const artifact = fixtureArtifact([{ owner: "fixture", path: "/", module: "home.mjs", export: "home" }], []);
+    for (const deploymentBase of ['https://app.example/', undefined]) {
+      const worker = await assembleWorker(artifact, stubAsm(dir, { "home.mjs": url }), {
+        ...stubDeps(), ...(deploymentBase === undefined ? {} : { deploymentBase }),
+      }, { active: true });
+      for (const partial of [false, true]) {
+        const response = await worker.fetch(new Request('https://spoof.example/', { headers: {
+          Origin: 'https://spoof.example', 'X-Forwarded-Host': 'spoof.example',
+          'X-Deployment-Base': 'https://spoof.example/', ...(partial ? { 'HX-Request': 'true' } : {}),
+        } }));
+        expect(response.status).toBe(200);
+        const body = await response.text();
+        expect(body).toContain(`<h1>${deploymentBase ?? 'unconfigured'}</h1>`);
+        expect(body.includes('<!DOCTYPE html>')).toBe(!partial);
+      }
+    }
+  });
+
+  it("refuses invalid or unsupported mounted host bases before loading page modules", async () => {
+    const dir = tempDir();
+    const artifact = fixtureArtifact([{ owner: "fixture", path: "/", module: "missing.mjs", export: "home" }], []);
+    for (const deploymentBase of ['', 'ftp://app.example/', 'https://user@app.example/',
+      'https://app.example/?query=1', 'https://app.example/#fragment', 'https://app.example/tenant/']) {
+      await expect(assembleWorker(artifact, stubAsm(dir, {}), { ...stubDeps(), deploymentBase }, { active: true }))
+        .rejects.toThrow(/deployment-configuration/);
+    }
+  });
+
   it("fails loud naming page+module when the module URL is missing", async () => {
     const dir = tempDir();
     const artifact = fixtureArtifact(

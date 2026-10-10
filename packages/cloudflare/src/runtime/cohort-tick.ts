@@ -8,6 +8,7 @@ import { FANOUT_OWNER_SCAN_MODEL, fanoutOwnerScanRowId, fanoutOwnerIntentQuery }
 import { admitRetainedFanoutChunk } from '@canlang/state/fanout/membership';
 import { mintOperationId } from '@canlang/ui';
 import { hasAssemblerModuleCapability, importVerifiedAssemblyModule } from './assembly-verification.js';
+import { validateDeploymentBase } from './env-assembly.js';
 import {
   createCanonicalDueCohortBody, createCanonicalCommittedCohortBody, invokeDueSourceRoutingCanonical, loadCanonicalDescriptors,
   invokeRetainedHandlerOccurrenceCanonical, loadFanoutStateProducers,
@@ -28,9 +29,11 @@ export async function createBoundCohortTick(input: {
   readonly ownerStorage: TeamOwnerStorageBoundary;
   readonly scope: WorkScope;
   readonly now: () => number;
+  readonly deploymentBase?: string;
 }): Promise<CohortTickBinding> {
   const { artifact, asm, identities, ownerStorage, now: clock } = input;
   const scope = Object.freeze({ ...input.scope });
+  const deploymentBase = input.deploymentBase === undefined ? undefined : validateDeploymentBase(input.deploymentBase);
   if (scope.app !== ownerStorage.app) throw new Error('Cohort tick app disagrees with its owner boundary.');
   await loadCanonicalDescriptors(asm, artifact);
   const verified = hasAssemblerModuleCapability(asm);
@@ -68,7 +71,7 @@ export async function createBoundCohortTick(input: {
       if (handler === undefined) throw new Error('Cohort tick due event has no declared handler.');
       outputs.push(await invokeDueSourceRoutingCanonical({ artifact, asm, app: scope.app, handler,
         due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
-        store, identities, now: () => now,
+        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }),
         cohortBounds: { pageLimit: INSTALLED_SLICE_LIMIT, chunkSize: INSTALLED_SLICE_LIMIT } }));
     }
     const routes = await store.query(handlerOccurrencePendingQuery(scope, { cursor: null, limit: 1 }));
@@ -76,7 +79,7 @@ export async function createBoundCohortTick(input: {
       const route = readHandlerOccurrenceRow(row);
       outputs.push(await invokeRetainedHandlerOccurrenceCanonical({ artifact, asm, app: scope.app,
         selector: { sourceOccurrence: route.sourceOccurrence, handler: route.handler, event: route.event, scope },
-        store, identities, now: () => now }));
+        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }) }));
     }
     const scan = await store.load(FANOUT_OWNER_SCAN_MODEL as ModelName, fanoutOwnerScanRowId(scope.owner) as RecordId);
     const intents = await store.query(fanoutOwnerIntentQuery({ row: scan, owner: scope.owner, limit: 1 }));
@@ -96,7 +99,7 @@ export async function createBoundCohortTick(input: {
       }
       body = await createCanonicalDueCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
         due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
-        store, identities, now: () => now });
+        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
     } else {
       const row = await store.load(WORK_OCCURRENCE_MODEL, intent.sourceOccurrence as RecordId);
       if (row === null) throw new Error('Cohort tick retained intent lost its authoritative source.');
@@ -107,7 +110,7 @@ export async function createBoundCohortTick(input: {
         throw new Error('Cohort tick retained intent lacks a checked source receipt.');
       }
       body = await createCanonicalCommittedCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
-        source: { occurrenceId: intent.sourceOccurrence, event: result.event, scope }, store, identities, now: () => now });
+        source: { occurrenceId: intent.sourceOccurrence, event: result.event, scope }, store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
     }
     const checkpoint = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, intentRow.id);
     if (checkpoint === null) throw new Error('Cohort tick retained intent lost its checkpoint.');

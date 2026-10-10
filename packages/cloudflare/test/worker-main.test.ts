@@ -568,3 +568,27 @@ describe("deploy worker main", () => {
     expect(assembleCalls).toBe(1);
   });
 });
+
+
+it("forwards the original explicit production deployment base without a request-origin fallback", async () => {
+  const deploymentBase = "https://DEPLOY.example/";
+  let observed: string | undefined;
+  const fetch = createMainFetch({
+    loadEntry: async () => createWorkerApp,
+    loadStagedDeployment: async () => stagedDeployment(),
+    loadProductionDeps: async () => ({ ...productionDeps({}), deploymentBase }),
+    loadMcpHandlerFactory: async () => undefined,
+    loadHttpOperationsFactory: async () => undefined,
+    loadHttpCsvFactory: async () => undefined,
+    loadHttpPageFactory: async () => undefined,
+    loadHttpAuthJoin: async () => undefined,
+    loadDerivedInputs: async () => undefined,
+    loadAssembleWorker: async () => async (_artifact, _modules, deps) => {
+      observed = deps.deploymentBase;
+      return { pageCount: 0, opCount: 0, fetch: async () => new Response("configured") };
+    },
+  });
+  const response = await fetch(new Request("https://untrusted-request.example/"), fullEnv());
+  expect(response.status).toBe(200);
+  expect(observed).toBe(deploymentBase);
+});

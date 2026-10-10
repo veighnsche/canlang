@@ -138,6 +138,7 @@ interface BrowserAssetsManifest {
 
 /** P-C `buildProductionDeps(env)` result: `{ store, identityStore }`. */
 export interface ProductionDeps {
+  readonly deploymentBase?: string;
   /** Explicit trusted host configuration; no production default limiter or mail binding. */
   readonly auth?: HttpAuthConfiguration;
   readonly store: StoragePort;
@@ -742,6 +743,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       catch { throw new Error("deploy main: invalid CAN_FORM_BINDING_KEY configuration"); }
     }
     const deps = await prodDepsFor(env);
+    const deploymentBase = deps.deploymentBase;
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
     const csvFactory = await getHttpCsvFactory();
@@ -807,9 +809,11 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler');
     const cohorts = staged.verdict.active && needsTick && ownerStorage !== undefined && scope !== undefined
       ? await (await getCohortTickFactory())({ artifact: staged.artifact, asm: staged.modules,
-          identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now })
+          identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now,
+          ...(deploymentBase === undefined ? {} : { deploymentBase }) })
       : undefined;
     const assemblyDeps: AssemblyDeps = {
+      ...(deploymentBase === undefined ? {} : { deploymentBase }),
       store: deps.store,
       identityStore: deps.identityStore,
       ...(ownerStorage === undefined ? {} : { ownerStorage }),

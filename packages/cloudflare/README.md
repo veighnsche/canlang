@@ -42,6 +42,17 @@ requires canonical output parents, rejecting existing symlinks. Browser routing
 is still the serving host's responsibility. See the
 [installed regression evidence](../../implementation/installed-worker-assets/README.md).
 
+## Deployment links
+
+Set optional `CAN_DEPLOYMENT_BASE` to the trusted HTTP(S) root base for the
+installed app, for example `https://app.example/`. The host preserves this
+configuration separately from `CAN_AUTH_ORIGIN` and forwards it to page and
+handler contexts. `app_url(path)` requires that context when executed; request
+headers and auth origins supply no fallback, and a generated link grants no
+access. Nonroot mounts currently refuse until all route and link consumers are
+joined. Protected local previews supply their actual bound loopback root base
+and reject overrides pointing elsewhere.
+
 ## `can-platform` CLI (L1 IR-03 delegation target)
 
 Thin `can run|test|build|deploy` entries exec this binary, resolved from

@@ -366,6 +366,8 @@ export interface SourceFormBindings {
 }
 
 export interface HttpDeps {
+  /** Explicit installed host root base; never request or authentication derived. */
+  readonly deploymentBase?: string;
   readonly formBindings?: SourceFormBindings;
   readonly inputChoices?: InputChoiceLookup;
   readonly app: AppInfo;
@@ -415,6 +417,8 @@ export type HttpCsvHandlerFactory = (deps: HttpDeps) => (req: Request) => Promis
  */
 /** Narrow defining page-handler dependencies (Interfaces PageHttpDeps). */
 export interface PageHttpDeps {
+  /** Explicit installed host root base; never request or authentication derived. */
+  readonly deploymentBase?: string;
   readonly formBindings?: SourceFormBindings;
   readonly preferences?: PagePreferenceStore;
   readonly app: AppInfo;
@@ -626,6 +630,8 @@ export interface CohortTickBinding {
 }
 
 export interface AssemblyDeps {
+  /** Explicit installed host root base; never request or authentication derived. */
+  readonly deploymentBase?: string;
   store: StoragePort;
   identityStore: unknown;
   now?: () => number;
@@ -1035,6 +1041,8 @@ export async function createTeamOwnerStorageBoundary<TStore extends StoragePort 
 }
 
 export interface CanonicalInvokerOpts {
+  /** Explicit installed host root base; never request or authentication derived. */
+  readonly deploymentBase?: string;
   /**
    * Membership reader for canonical admission (the IdentityStore,
    * validated structurally at the canonical boundary). REQUIRED for
@@ -1116,6 +1124,7 @@ export function buildInvoker(
         const result = await invokeCanonical({
           asm,
           artifact,
+          ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
           operation: envelope.operation,
           operationId: envelope.operation_id,
           inputs: envelope.inputs,
@@ -1162,6 +1171,7 @@ export function buildInvoker(
         const result = await invokeCanonical({
           asm,
           artifact,
+          ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
           operation: envelope.operation,
           inputs: envelope.inputs,
           identity,
@@ -1326,6 +1336,8 @@ async function loadAppInfo(artifact: CompileArtifact, asm: AssembledModules): Pr
  * carries both.
  */
 interface InterimDispatchContext {
+  /** Explicit installed host root base; never request or authentication derived. */
+  readonly deploymentBase?: string;
   readonly app: AppInfo;
   readonly now: () => number;
   readonly files: InterimFilesBinding | undefined;
@@ -1401,6 +1413,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
     // identity store, the source label, the worker clock). T17b: the
     // interim direct path is retired — descriptor-less artifacts refuse.
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
+      ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "mcp",
       appInfo: ctx.app,
@@ -1483,6 +1496,7 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
     throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the operation/CSV routes)`);
   };
   const deps: HttpDeps = {
+    ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
     ...(ctx.http?.formBindings === undefined ? {} : { formBindings: ctx.http.formBindings }),
     inputChoices: async ({ identity, ...draft }) => {
       const lookup = await loadSiblingFn<typeof import('../runtime/input-choices.js').lookupInputChoicesCanonical>(
@@ -1490,12 +1504,14 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
       );
       const store = ctx.ownerStorage === undefined ? ctx.store : await ctx.ownerStorage.forIdentity(identity);
       return lookup({ ...draft, identity, artifact: ctx.artifact, asm: ctx.asm, store,
+        ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
         memberships: ctx.identityStore as CanonicalMembershipReader, source: 'http', now,
         formatting: { appDefault: ctx.app.appDefaultLocale } });
     },
     app: ctx.app,
     pages: { descriptors: (): readonly PageDescriptor[] => [] },
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
+      ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "http",
       appInfo: ctx.app,
@@ -1867,6 +1883,12 @@ export async function assembleWorker(
       "assembly: deps.identityStore is required (reserved for HttpDeps.identity.store at the identity join)",
     );
   }
+  if (deps.deploymentBase !== undefined) {
+    const validateDeploymentBase = await loadSiblingFn<typeof import('../runtime/env-assembly.js').validateDeploymentBase>(
+      '../runtime/env-assembly.js', 'runtime/env-assembly.ts', 'validateDeploymentBase',
+    );
+    validateDeploymentBase(deps.deploymentBase);
+  }
   if (!verdict.active) {
     return buildRefusalFetch(verdict);
   }
@@ -1927,12 +1949,14 @@ export async function assembleWorker(
       assertPageBinding(identity);
       return createReadScope({
         asm, artifact, identity, store,
+        ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
         memberships: deps.identityStore as CanonicalMembershipReader, now,
         ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }),
         ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
       });
     };
     pageHandler = deps.http.createPageHandler({
+      ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
       ...(deps.http.formBindings === undefined ? {} : { formBindings: deps.http.formBindings }),
       ...(deps.http.preferences === undefined ? {} : { preferences: deps.http.preferences }),
       app: appInfo, pages: { descriptors: () => descriptors },
@@ -1977,6 +2001,7 @@ export async function assembleWorker(
     });
   }
   const innerFetch = buildInterimFetch({
+    ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
     app: appInfo,
     now,
     files: deps.files,

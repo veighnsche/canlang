@@ -3402,6 +3402,8 @@ function assertCanonicalMemberships(
  * assembly maps both through its established `toBusinessError` rule.
  */
 export interface CanonicalMutationOpts {
+  /** Explicit installed host configuration, independent of invocation identity/source. */
+  readonly deploymentBase?: string;
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
   readonly operation: string;
@@ -4292,7 +4294,7 @@ interface LocalOwnerPolicyControl {
   readonly policies: CheckedOwnerModelPolicies;
   readonly hookCallables: ReadonlySet<string>;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
-  createOwnerFrame(input: { readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
+  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
 
@@ -4384,7 +4386,7 @@ async function loadLocalOwnerPolicyControl(input: {
       throw new Error('Local owner policies require nonempty claims without unjoined invariant dependencies.');
     }
   }
-  const activeFrames = new WeakMap<InvocationContext, { active: boolean }>();
+  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string }>();
   const hookCallables = new Set<string>();
   const modules: { path: string; registry: unknown }[] = [];
   for (const emitted of input.artifact.modules) {
@@ -4466,6 +4468,7 @@ async function loadLocalOwnerPolicyControl(input: {
             }));
             const view = (row: StoredRow | null) => row === null ? null : nativeProjectedRecord(input.native, descriptor.model, row);
             const c = createContext({
+              ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
               caller: Object.freeze({ userId: original.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
               store, clock: () => guarded(() => original.context.now),
               memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
@@ -4548,6 +4551,7 @@ async function loadLocalOwnerPolicyControl(input: {
             }
             const nativeRow = nativeProjectedRecord(input.native, descriptor.model, row);
             const c = createContext({
+              ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
               caller: Object.freeze({ userId: owner.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
               store, clock: () => { assertLive(); return owner.context.now; },
               memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
@@ -4635,12 +4639,12 @@ async function loadLocalOwnerPolicyControl(input: {
     catch {
       throw new input.native.producers.errors('validation', 'Native owner assembly no longer matches its captured artifact or module closure.');
     }
-  }, createOwnerFrame({ call, session }: { call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
+  }, createOwnerFrame({ call, session, deploymentBase }: { readonly deploymentBase?: string; call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
     const context = session.views.context;
     if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(call.context) || activeFrames.has(context)) {
       throw new input.native.producers.errors('validation', 'Owner model frame requires the exact fresh admitted session context.');
     }
-    const frame = { active: true };
+    const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }) };
     activeFrames.set(context, frame);
     return Object.freeze({ close() { frame.active = false; } });
   } });
@@ -4809,7 +4813,8 @@ async function runScenarioExecution(
   let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
   try {
   if (ownerSession !== undefined && ownerControl !== undefined) {
-    ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession });
+    ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession,
+      ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
   }
   const staged: Map<string, StoredRow | null> = new Map();
   const ownerRows = new Map<string, StoredRow | null>();
@@ -5447,6 +5452,7 @@ async function runScenarioExecution(
   };
   const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
+    ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
     caller:
       actorUserId === null
         ? { userId: "anonymous", roles: [] }
@@ -6083,7 +6089,8 @@ async function invokeCanonicalMutation(
         secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
         ownerPolicies: ownerControl.policies,
         ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
-        createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session }),
+        createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session,
+          ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) }),
       });
       // Canonical admission supplies the defining State call at this seam.
       crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
@@ -6370,6 +6377,8 @@ export async function stageCheckedDeliveryProgress(producer: CheckedDeliveryProg
 }
 
 export interface CanonicalDueScheduleOpts {
+  /** Explicit installed host configuration, independent of invocation identity/source. */
+  readonly deploymentBase?: string;
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
   readonly app: string;
@@ -7628,6 +7637,8 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
 }
 
 export interface CanonicalRetainedHandlerOccurrenceOpts {
+  /** Explicit installed host configuration, independent of invocation identity/source. */
+  readonly deploymentBase?: string;
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
   readonly app: string;
@@ -8346,6 +8357,8 @@ export async function invokeSelectedReceiptRead(
  * maps both through its established `toBusinessError` rule.
  */
 export interface CanonicalReadOpts {
+  /** Explicit installed host configuration, independent of invocation identity/source. */
+  readonly deploymentBase?: string;
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
   readonly operation: string;
@@ -8565,6 +8578,7 @@ async function runReadScenarioSeam(
   const now = (opts.now ?? Date.now)();
   const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
+    ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
     caller: { userId: call.actorUserId ?? 'anonymous', roles },
     memberships: roles, store: readonlyStore, canonical: scope,
     clock: () => now,

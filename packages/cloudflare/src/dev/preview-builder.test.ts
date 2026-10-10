@@ -73,12 +73,18 @@ test("preview admission refuses missing D1, Identity and portable input evidence
 
 test("preview auth origin comes from the selected protected loopback port", () => {
   const origin = "http://127.0.0.1:43217";
-  assert.deepEqual(selectPreviewWorkerVars({ resources: {} }, origin), { CAN_AUTH_ORIGIN: origin });
+  assert.deepEqual(selectPreviewWorkerVars({ resources: {} }, origin), { CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin });
   assert.deepEqual(selectPreviewWorkerVars({ resources: {}, workerVarsForOrigin: () => ({ CAN_AUTH_COOKIE_SECURE: false }) }, origin),
-    { CAN_AUTH_COOKIE_SECURE: false, CAN_AUTH_ORIGIN: origin });
+    { CAN_AUTH_COOKIE_SECURE: false, CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin });
   assert.throws(() => selectPreviewWorkerVars({
     resources: {}, workerVarsForOrigin: () => ({ CAN_AUTH_ORIGIN: "http://127.0.0.1:1" }),
   }, origin), error => error instanceof PreviewAdmissionError && error.code === "RESOURCE_INVALID");
+  assert.deepEqual(selectPreviewWorkerVars({ resources: {}, workerVarsForOrigin: () => ({ CAN_DEPLOYMENT_BASE: origin }) }, origin),
+    { CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin });
+  for (const base of ["http://127.0.0.1:1", `${origin}/mounted/`, "https://deployment.example"]) {
+    assert.throws(() => selectPreviewWorkerVars({ resources: {}, workerVarsForOrigin: () => ({ CAN_DEPLOYMENT_BASE: base }) }, origin),
+      error => error instanceof PreviewAdmissionError && error.code === "RESOURCE_INVALID");
+  }
   assert.throws(() => selectPreviewWorkerVars({ resources: {} }, "http://example.com"), error =>
     error instanceof PreviewAdmissionError && error.code === "ORIGIN_INVALID");
 });
