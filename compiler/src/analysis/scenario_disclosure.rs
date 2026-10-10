@@ -1463,273 +1463,9 @@ impl<'a> Closure<'a> {
                 }
                 self.expr(NodeKey::of(children[0]), module, env, calls)
             }
-            SyntaxKind::Array => {
-                let base = match ty {
-                    ResolvedType::Nullable(inner) => inner.as_ref(),
-                    ty => ty,
-                };
-                let ResolvedType::Array { element, .. } = base else {
-                    return Err(self.fail(key, "unsupported array expression type"));
-                };
-                let composite = matches!(element.as_ref(), ResolvedType::Object(_));
-                let empty_files = children.is_empty()
-                    && matches!(element.as_ref(), ResolvedType::Scalar(Scalar::File));
-                if !primitive_type(element) && !composite && !empty_files {
-                    return Err(self.fail(key, "unsupported array expression type"));
-                }
-                let mut paths = vec![ValuePath::default()];
-                for child in children {
-                    let element_ty = self
-                        .types
-                        .node_types
-                        .get(&NodeKey::of(child))
-                        .ok_or_else(|| self.fail(key, "missing checked array element type"))?;
-                    if !primitive_type(element_ty) && !matches!(element_ty, ResolvedType::Object(_))
-                    {
-                        return Err(self.fail(key, "unsupported array element type"));
-                    }
-                    let element = self.expr(NodeKey::of(child), module, env, calls)?;
-                    if composite
-                        && element
-                            .iter()
-                            .any(|value| value.schema.as_deref() != Some("TextMessage"))
-                    {
-                        return Err(self.fail(key, "array needs checked TextMessage values"));
-                    }
-                    paths = self.product(key, &paths, &element)?;
-                }
-                Ok(paths)
-            }
-            SyntaxKind::Binary => {
-                if children.len() != 2 {
-                    return Err(self.fail(key, "invalid binary shape"));
-                }
-                let op = node
-                    .children
-                    .iter()
-                    .find(|n| matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
-                    .and_then(|n| {
-                        self.db
-                            .get(n.span.file)?
-                            .text
-                            .get(n.span.start as usize..n.span.end as usize)
-                    })
-                    .ok_or_else(|| self.fail(key, "missing checked operator"))?;
-                if matches!(op, "??" | "==" | "!=")
-                    && children.iter().any(|operand| {
-                        matches!(self.types.node_types.get(&NodeKey::of(operand)),
-                            Some(ResolvedType::Nullable(inner))
-                                if matches!(inner.as_ref(), ResolvedType::Record { .. }))
-                    })
-                {
-                    return Err(self.influence(
-                        key,
-                        module,
-                        &[InfluenceKind::AbsentReference],
-                        "nullable reference selection or comparison",
-                    ));
-                }
-                let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
-                if matches!(op, "and" | "or" | "??") {
-                    let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
-                    if left.len().saturating_mul(right.len().saturating_add(1)) > 1024 {
-                        return Err(self.fail(key, "short-circuit path bound"));
-                    }
-                    let mut out = Vec::new();
-                    for lhs in left {
-                        let mut skipped = lhs.clone();
-                        skipped.join(&self.control(lhs.clone())?);
-                        skipped.decisions.push(DisclosureDecision {
-                            node: key,
-                            calls: calls.to_vec(),
-                            choice: DisclosureChoice::RhsSkipped,
-                        });
-                        out.push(skipped);
-                        for rhs in &right {
-                            if !compatible(&lhs.decisions, &rhs.decisions) {
-                                continue;
-                            }
-                            let mut selected = lhs.clone();
-                            selected.join(&self.control(lhs.clone())?);
-                            selected.decisions.push(DisclosureDecision {
-                                node: key,
-                                calls: calls.to_vec(),
-                                choice: DisclosureChoice::RhsEvaluated,
-                            });
-                            selected.join(rhs);
-                            selected.record = None;
-                            selected.reference = None;
-                            out.push(selected);
-                        }
-                    }
-                    self.bounded(key, out)
-                } else {
-                    if !matches!(
-                        op,
-                        "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | "<=" | ">" | ">="
-                    ) {
-                        return Err(self.fail(key, "unsupported scalar operator"));
-                    }
-                    let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
-                    self.product(key, &left, &right)
-                }
-            }
-            SyntaxKind::Member => {
-                let base = children
-                    .first()
-                    .ok_or_else(|| self.fail(key, "missing member base"))?;
-                let base_key = NodeKey::of(base);
-                if matches!(
-                    self.types.node_types.get(&base_key),
-                    Some(ResolvedType::Nullable(_))
-                ) {
-                    return Err(self.influence(
-                        key,
-                        module,
-                        &[InfluenceKind::AbsentReference],
-                        "nullable record traversal",
-                    ));
-                }
-                let field_name = node
-                    .children
-                    .iter()
-                    .rev()
-                    .find(|n| n.kind == SyntaxKind::Name)
-                    .and_then(|n| {
-                        self.db
-                            .get(n.span.file)?
-                            .text
-                            .get(n.span.start as usize..n.span.end as usize)
-                    })
-                    .ok_or_else(|| self.fail(key, "missing member identity"))?;
-                if matches!(
-                    self.types.node_types.get(&base_key),
-                    Some(ResolvedType::OperationContext)
-                ) {
-                    if field_name != "id"
-                        || *ty != ResolvedType::Scalar(Scalar::Text)
-                        || !self.operation_context(base_key)
-                    {
-                        return Err(self.fail(key, "unsupported operation intrinsic"));
-                    }
-                    return Ok(vec![self.intrinsic(
-                        key,
-                        module,
-                        calls,
-                        DisclosureIntrinsicKind::OperationId,
-                        Scalar::Text,
-                    )?]);
-                }
-                let mut values = self.expr(base_key, module, env, calls)?;
-                for value in &mut values {
-                    if let Some(members) = &value.members {
-                        let ResolvedType::Object(fields) = self
-                            .types
-                            .node_types
-                            .get(&base_key)
-                            .ok_or_else(|| self.fail(key, "missing composite receiver type"))?
-                        else {
-                            return Err(self.fail(key, "unestablished composite receiver"));
-                        };
-                        if !fields
-                            .iter()
-                            .any(|(name, field_ty)| name == field_name && field_ty == ty)
-                            || !result_type(ty)
-                        {
-                            return Err(self.fail(key, "unsupported schema member selection"));
-                        }
-                        let mut selected = members
-                            .iter()
-                            .find(|(name, _)| name == field_name)
-                            .map(|(_, value)| value.clone())
-                            .ok_or_else(|| self.fail(key, "missing composite member provenance"))?;
-                        selected.observed = value.observed.clone();
-                        let mut decisions = value.decisions.clone();
-                        for decision in &selected.decisions {
-                            if !decisions.contains(decision) {
-                                decisions.push(decision.clone());
-                            }
-                        }
-                        selected.decisions = decisions;
-                        *value = selected;
-                        continue;
-                    }
-                    if value.delivery.is_some() {
-                        return Err(self.fail(
-                            key,
-                            "delivery inspection needs its defining observation closure",
-                        ));
-                    }
-                    let model = value
-                        .record
-                        .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
-                    if field_name == "version" {
-                        if *ty != ResolvedType::Scalar(Scalar::Int) {
-                            return Err(self.fail(key, "unestablished intrinsic version type"));
-                        }
-                        let kind = value.reference.clone().ok_or_else(|| {
-                            self.fail(
-                                key,
-                                "version needs required original versioned scenario reference",
-                            )
-                        })?;
-                        if !matches!(&kind, DisclosureIntrinsicKind::AdmittedReferenceVersion {model: original,..} if *original == model)
-                        {
-                            return Err(self.fail(key, "original reference model mismatch"));
-                        }
-                        let intrinsic = self.intrinsic(key, module, calls, kind, Scalar::Int)?;
-                        value.join(&intrinsic);
-                        value.record = None;
-                        value.reference = None;
-                        continue;
-                    }
-                    let owner = self
-                        .resolve
-                        .symbols
-                        .get(model.0 as usize)
-                        .ok_or_else(|| self.fail(key, "missing model owner"))?;
-                    let SymbolKind::Model { fields, .. } = &owner.kind else {
-                        return Err(self.fail(key, "non-model field owner"));
-                    };
-                    let field = fields
-                        .iter()
-                        .find_map(|id| {
-                            self.resolve
-                                .symbols
-                                .get(id.0 as usize)
-                                .filter(|s| s.name == field_name)
-                        })
-                        .ok_or_else(|| self.fail(key, "reserved or unresolved stored field"))?;
-                    let field_ty = self
-                        .types
-                        .symbol_types
-                        .get(&field.id)
-                        .ok_or_else(|| self.fail(key, "missing stored field type"))?;
-                    if !matches!(field.kind, SymbolKind::Field { owner, .. } if owner == model) {
-                        return Err(
-                            self.fail(key, "derived field requires its complete body closure")
-                        );
-                    }
-                    let type_id = self.field_type_id(key, field.id, field_ty)?;
-                    value.reads.push(DisclosureDependency {
-                        id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
-                        source: self.source(module, key)?,
-                        node: key,
-                        calls: calls.to_vec(),
-                        role: DependencyRole::Data,
-                        model,
-                        field: field.id,
-                        model_name: owner.canonical.clone(),
-                        field_name: field.name.clone(),
-                        ty: field_ty.clone(),
-                        type_id,
-                    });
-                    value.observed.push((key, calls.to_vec()));
-                    value.record = None;
-                    value.reference = None;
-                }
-                Ok(values)
-            }
+            SyntaxKind::Array => self.expr_array(key, module, env, calls, children),
+            SyntaxKind::Binary => self.expr_binary(key, module, env, calls, node, children),
+            SyntaxKind::Member => self.expr_member(key, module, env, calls, node, children),
             SyntaxKind::Call => self.call(key, module, env, calls),
             SyntaxKind::Query => Err(self.influence(
                 key,
@@ -1746,6 +1482,305 @@ impl<'a> Closure<'a> {
         }
     }
 
+    fn expr_member(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+        node: &SyntaxNode,
+        children: Vec<&SyntaxNode>,
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        let ty = self
+            .types
+            .node_types
+            .get(&key)
+            .ok_or_else(|| self.fail(key, "missing checked expression type"))?;
+        let base = children
+            .first()
+            .ok_or_else(|| self.fail(key, "missing member base"))?;
+        let base_key = NodeKey::of(base);
+        if matches!(
+            self.types.node_types.get(&base_key),
+            Some(ResolvedType::Nullable(_))
+        ) {
+            return Err(self.influence(
+                key,
+                module,
+                &[InfluenceKind::AbsentReference],
+                "nullable record traversal",
+            ));
+        }
+        let field_name = node
+            .children
+            .iter()
+            .rev()
+            .find(|n| n.kind == SyntaxKind::Name)
+            .and_then(|n| {
+                self.db
+                    .get(n.span.file)?
+                    .text
+                    .get(n.span.start as usize..n.span.end as usize)
+            })
+            .ok_or_else(|| self.fail(key, "missing member identity"))?;
+        if matches!(
+            self.types.node_types.get(&base_key),
+            Some(ResolvedType::OperationContext)
+        ) {
+            if field_name != "id"
+                || *ty != ResolvedType::Scalar(Scalar::Text)
+                || !self.operation_context(base_key)
+            {
+                return Err(self.fail(key, "unsupported operation intrinsic"));
+            }
+            return Ok(vec![self.intrinsic(
+                key,
+                module,
+                calls,
+                DisclosureIntrinsicKind::OperationId,
+                Scalar::Text,
+            )?]);
+        }
+        let mut values = self.expr(base_key, module, env, calls)?;
+        for value in &mut values {
+            if let Some(members) = &value.members {
+                let ResolvedType::Object(fields) = self
+                    .types
+                    .node_types
+                    .get(&base_key)
+                    .ok_or_else(|| self.fail(key, "missing composite receiver type"))?
+                else {
+                    return Err(self.fail(key, "unestablished composite receiver"));
+                };
+                if !fields
+                    .iter()
+                    .any(|(name, field_ty)| name == field_name && field_ty == ty)
+                    || !result_type(ty)
+                {
+                    return Err(self.fail(key, "unsupported schema member selection"));
+                }
+                let mut selected = members
+                    .iter()
+                    .find(|(name, _)| name == field_name)
+                    .map(|(_, value)| value.clone())
+                    .ok_or_else(|| self.fail(key, "missing composite member provenance"))?;
+                selected.observed = value.observed.clone();
+                let mut decisions = value.decisions.clone();
+                for decision in &selected.decisions {
+                    if !decisions.contains(decision) {
+                        decisions.push(decision.clone());
+                    }
+                }
+                selected.decisions = decisions;
+                *value = selected;
+                continue;
+            }
+            if value.delivery.is_some() {
+                return Err(self.fail(
+                    key,
+                    "delivery inspection needs its defining observation closure",
+                ));
+            }
+            let model = value
+                .record
+                .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
+            if field_name == "version" {
+                if *ty != ResolvedType::Scalar(Scalar::Int) {
+                    return Err(self.fail(key, "unestablished intrinsic version type"));
+                }
+                let kind = value.reference.clone().ok_or_else(|| {
+                    self.fail(
+                        key,
+                        "version needs required original versioned scenario reference",
+                    )
+                })?;
+                if !matches!(&kind, DisclosureIntrinsicKind::AdmittedReferenceVersion {model: original,..} if *original == model)
+                {
+                    return Err(self.fail(key, "original reference model mismatch"));
+                }
+                let intrinsic = self.intrinsic(key, module, calls, kind, Scalar::Int)?;
+                value.join(&intrinsic);
+                value.record = None;
+                value.reference = None;
+                continue;
+            }
+            let owner = self
+                .resolve
+                .symbols
+                .get(model.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing model owner"))?;
+            let SymbolKind::Model { fields, .. } = &owner.kind else {
+                return Err(self.fail(key, "non-model field owner"));
+            };
+            let field = fields
+                .iter()
+                .find_map(|id| {
+                    self.resolve
+                        .symbols
+                        .get(id.0 as usize)
+                        .filter(|s| s.name == field_name)
+                })
+                .ok_or_else(|| self.fail(key, "reserved or unresolved stored field"))?;
+            let field_ty = self
+                .types
+                .symbol_types
+                .get(&field.id)
+                .ok_or_else(|| self.fail(key, "missing stored field type"))?;
+            if !matches!(field.kind, SymbolKind::Field { owner, .. } if owner == model) {
+                return Err(self.fail(key, "derived field requires its complete body closure"));
+            }
+            let type_id = self.field_type_id(key, field.id, field_ty)?;
+            value.reads.push(DisclosureDependency {
+                id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                source: self.source(module, key)?,
+                node: key,
+                calls: calls.to_vec(),
+                role: DependencyRole::Data,
+                model,
+                field: field.id,
+                model_name: owner.canonical.clone(),
+                field_name: field.name.clone(),
+                ty: field_ty.clone(),
+                type_id,
+            });
+            value.observed.push((key, calls.to_vec()));
+            value.record = None;
+            value.reference = None;
+        }
+        Ok(values)
+    }
+
+    fn expr_array(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+        children: Vec<&SyntaxNode>,
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        let ty = self
+            .types
+            .node_types
+            .get(&key)
+            .ok_or_else(|| self.fail(key, "missing checked expression type"))?;
+        let base = match ty {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            ty => ty,
+        };
+        let ResolvedType::Array { element, .. } = base else {
+            return Err(self.fail(key, "unsupported array expression type"));
+        };
+        let composite = matches!(element.as_ref(), ResolvedType::Object(_));
+        let empty_files =
+            children.is_empty() && matches!(element.as_ref(), ResolvedType::Scalar(Scalar::File));
+        if !primitive_type(element) && !composite && !empty_files {
+            return Err(self.fail(key, "unsupported array expression type"));
+        }
+        let mut paths = vec![ValuePath::default()];
+        for child in children {
+            let element_ty = self
+                .types
+                .node_types
+                .get(&NodeKey::of(child))
+                .ok_or_else(|| self.fail(key, "missing checked array element type"))?;
+            if !primitive_type(element_ty) && !matches!(element_ty, ResolvedType::Object(_)) {
+                return Err(self.fail(key, "unsupported array element type"));
+            }
+            let element = self.expr(NodeKey::of(child), module, env, calls)?;
+            if composite
+                && element
+                    .iter()
+                    .any(|value| value.schema.as_deref() != Some("TextMessage"))
+            {
+                return Err(self.fail(key, "array needs checked TextMessage values"));
+            }
+            paths = self.product(key, &paths, &element)?;
+        }
+        Ok(paths)
+    }
+
+    fn expr_binary(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+        node: &SyntaxNode,
+        children: Vec<&SyntaxNode>,
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if children.len() != 2 {
+            return Err(self.fail(key, "invalid binary shape"));
+        }
+        let op = node
+            .children
+            .iter()
+            .find(|n| matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
+            .and_then(|n| {
+                self.db
+                    .get(n.span.file)?
+                    .text
+                    .get(n.span.start as usize..n.span.end as usize)
+            })
+            .ok_or_else(|| self.fail(key, "missing checked operator"))?;
+        if matches!(op, "??" | "==" | "!=")
+            && children.iter().any(|operand| {
+                matches!(self.types.node_types.get(&NodeKey::of(operand)),
+                            Some(ResolvedType::Nullable(inner))
+                                if matches!(inner.as_ref(), ResolvedType::Record { .. }))
+            })
+        {
+            return Err(self.influence(
+                key,
+                module,
+                &[InfluenceKind::AbsentReference],
+                "nullable reference selection or comparison",
+            ));
+        }
+        let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
+        if matches!(op, "and" | "or" | "??") {
+            let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
+            if left.len().saturating_mul(right.len().saturating_add(1)) > 1024 {
+                return Err(self.fail(key, "short-circuit path bound"));
+            }
+            let mut out = Vec::new();
+            for lhs in left {
+                let mut skipped = lhs.clone();
+                skipped.join(&self.control(lhs.clone())?);
+                skipped.decisions.push(DisclosureDecision {
+                    node: key,
+                    calls: calls.to_vec(),
+                    choice: DisclosureChoice::RhsSkipped,
+                });
+                out.push(skipped);
+                for rhs in &right {
+                    if !compatible(&lhs.decisions, &rhs.decisions) {
+                        continue;
+                    }
+                    let mut selected = lhs.clone();
+                    selected.join(&self.control(lhs.clone())?);
+                    selected.decisions.push(DisclosureDecision {
+                        node: key,
+                        calls: calls.to_vec(),
+                        choice: DisclosureChoice::RhsEvaluated,
+                    });
+                    selected.join(rhs);
+                    selected.record = None;
+                    selected.reference = None;
+                    out.push(selected);
+                }
+            }
+            self.bounded(key, out)
+        } else {
+            if !matches!(
+                op,
+                "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | "<=" | ">" | ">="
+            ) {
+                return Err(self.fail(key, "unsupported scalar operator"));
+            }
+            let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
+            self.product(key, &left, &right)
+        }
+    }
     fn bounded(
         &self,
         key: NodeKey,
