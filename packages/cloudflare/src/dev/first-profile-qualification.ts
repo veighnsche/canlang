@@ -385,6 +385,11 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
           'browser producer belongs to the original full capture');
       }
       if (availability.available) {
+        const pages = compiled.artifact.pages?.filter(page=>page.path==='/') ?? [];
+        assert.equal(pages.length,1,'browser qualification requires one actual compiled root page descriptor');
+        const page = pages[0]!;
+        assert.equal(page.owner,app,'browser preference owner must be the compiled HelpOffice declaring package');
+        const preferenceOwner = page.owner;
         const driver = fixture.inputs.find(item=>item.canonicalPath===availability.identity.driverEntryPath);
         const executable = fixture.inputs.find(item=>item.name==='extra:browser:executable');
         assert.ok(driver?.state==='present');
@@ -420,10 +425,10 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
               const old=before.Identity!.page_preferences!, current=after.Identity!.page_preferences!;
               const actor=browserActors.get(label)!;
               const matches=(entry:string)=>{const row=object(JSON.parse(entry)); return row.app_id===app &&
-                row.actor_user_id===actor.principal && row.team_id===actor.owner && row.owner===actor.owner && row.field==='view';};
+                row.actor_user_id===actor.principal && row.team_id===actor.owner && row.owner===preferenceOwner && row.field==='view';};
               const previous=old.filter(matches), selected=current.filter(matches); assert.equal(selected.length,1);
               assert.deepEqual(object(JSON.parse(selected[0]!)),{app_id:app,actor_user_id:actor.principal,
-                team_id:actor.owner,owner:actor.owner,field:'view',value,version:previous.length ? Number(object(JSON.parse(previous[0]!)).version)+1 : 1});
+                team_id:actor.owner,owner:preferenceOwner,field:'view',value,version:previous.length ? Number(object(JSON.parse(previous[0]!)).version)+1 : 1});
               assert.deepEqual(current.filter(entry=>!matches(entry)),old.filter(entry=>!matches(entry)));
               for(const [owner,tables] of Object.entries(before)) for(const [name,rows] of Object.entries(tables))
                 if(owner!=='Identity' || name!=='page_preferences') assert.deepEqual(after[owner]?.[name],rows);
@@ -443,7 +448,7 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
               const original=ownBefore.records!.map(entry=>object(JSON.parse(entry))).find(entry=>entry.id===current.id);
               const data={name:expected.name,quantity:expected.quantity,available:expected.available,stock:'0',locked:false};
               const reference=original ? {id:string(original.id),version:String(original.version)} : undefined;
-              const submitted=kind==='create' ? {name:expected.name,quantity:expected.quantity}
+              const submitted=kind==='create' ? {name:expected.name,...(expected.quantity===null ? {} : {quantity:expected.quantity})}
                 : kind==='delete' ? {record:reference}
                 : {record:reference,name:expected.name,quantity:expected.quantity,available:expected.available};
               assert.equal(receipt.input_hash,await hashInputs(submitted),'generated form preserves exact source inputs');
