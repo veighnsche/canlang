@@ -197,15 +197,17 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     assert.equal(evidence.artifactJsonSha256, digest(artifact));
     assert.equal(await captureIsCurrent(capture), true);
 
-    // The only test adapter is a trusted host for the dedicated recovery API.
+    // Trusted fixed routes exercise dedicated recovery and expired public HTTP.
     // Ordinary auth/HTTP/MCP continue through the actual installed Worker main.
     // No request can register assembly evidence, provide a verdict, or select
     // a State admission mode. Fixed adapter routes select owning host methods.
     const nonce = randomBytes(32).toString('hex');
     const testHost = `
       import original from './main.js';
-      import { artifact, modules } from './artifact.js';
-      import { buildInvoker, createTeamOwnerStorageBoundary } from './assembly.js';
+      import { artifact, modules, verdict } from './artifact.js';
+      import { derivedInputs } from './derived-inputs.js';
+      import { handleOperationRequest, handleCsvRequest, INPUT_CHOICES_VERSION } from './http-operations.js';
+      import { assembleWorker, buildInvoker, createTeamOwnerStorageBoundary } from './assembly.js';
       import { createD1Storage } from '../vendor/state/storage/d1.js';
       import { createD1OwnerRouter } from '../vendor/state/storage/owner-router.js';
       import { createD1IdentityStore, resolveIdentity, parseSessionCookie } from '../vendor/identity/index.js';
@@ -226,9 +228,27 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
         let commits=0,files=0;
         const ownerStorage={...boundary,forIdentity:async caller=>{
           const selected=await boundary.forIdentity(caller);
-          return {...selected,store:{...selected.store,commit:async()=>{commits++;throw new Error('retained commit tripwire');}}};
+          return {...selected,commit:async()=>{commits++;throw new Error('retained commit tripwire');}};
         }};
         const filesPort=new Proxy({},{get(){files++;throw new Error('retained file tripwire');}});
+        const csvRoute=path.startsWith('/__native_saved/csv/');
+        if(path.startsWith('/__native_saved/http/') || csvRoute) {
+          // Public HTTP expires at 24 hours; the genuine seven-day session stays live.
+          // Use the installed operation factory, baked catalog and activation verdict.
+          const now=()=>Date.now()+25*60*60000;
+          const installed=await assembleWorker(artifact,modules,{store:createD1Storage(env.DB),identityStore:identities,
+            ownerStorage,now,files:{usesFiles:false,canonical:filesPort},http:{derivedInputs,
+              createCsvHandler:deps=>req=>handleCsvRequest(deps,req),
+              createOperationHandler:Object.assign(deps=>(req,op)=>handleOperationRequest(deps,req,op),
+                {inputChoicesVersion:INPUT_CHOICES_VERSION})}},verdict);
+          const target=new URL(request.url);
+          target.pathname=csvRoute?'/api/csv/'+path.slice('/__native_saved/csv/'.length):
+            '/api/operations/'+path.slice('/__native_saved/http/'.length);
+          const response=await installed.fetch(new Request(target,request));
+          const headers=new Headers(response.headers);
+          headers.set('x-native-retained-commits',String(commits));headers.set('x-native-retained-files',String(files));
+          return new Response(response.body,{status:response.status,headers});
+        }
         const chosen=path==='/__native_saved/issuer-copy'?{...modules}:modules;
         const drift=['source-change','js-change','map-change'].find(name=>path==='/__native_saved/'+name);
         const current=drift?JSON.parse(JSON.stringify(artifact)):artifact;
@@ -355,6 +375,24 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const value=object(await response.json()); assert.equal(value.commits,0); assert.equal(value.files,0);
       return object(value.outcome);
     }
+    async function expiredHttp(actor: Actor | null, envelope: { operation: string; operation_id: string; inputs: ClosedInputs }) {
+      const response=await request(actor,`/__native_saved/http/${envelope.operation}`,
+        {operation_id:envelope.operation_id,inputs:envelope.inputs});
+      assert.equal(response.headers.get('x-native-retained-commits'),'0');
+      assert.equal(response.headers.get('x-native-retained-files'),'0');
+      const raw=await response.json();
+      assert.equal(JSON.stringify(raw).includes('scenario-result/v1'),false,'private association never crosses HTTP');
+      const body=mutationWire(raw);
+      return {response,body};
+    }
+    async function expiredCsv(actor: Actor | null, body: unknown) {
+      const response=await request(actor,'/__native_saved/csv/commit',body);
+      assert.equal(response.headers.get('x-native-retained-commits'),'0');
+      assert.equal(response.headers.get('x-native-retained-files'),'0');
+      const raw=object(await response.json());
+      assert.equal(JSON.stringify(raw).includes('scenario-result/v1'),false,'private association never crosses CSV');
+      return {response,body:raw};
+    }
     async function receipt(id: string) {
       const stored=await cedar.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(id).first<ReceiptRow>(); assert.ok(stored);
       assert.equal(stored.app,'NativeSavedScenario'); assert.equal(stored.owner,ava.owner); assert.equal(stored.principal,ava.principal);
@@ -389,6 +427,77 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.deepEqual(await resources(), before, 'public malformed array admission changes no table');
       assert.equal(await cedar.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(operation_id).first(), null);
     }
+    // Exact existing CSV grammar maps the single quoted blank nullable array to null.
+    // Review and fresh commit use the installed production main, with no test-only CSV mount.
+    const csv='values\n""', csvBody={operation:arrayInput.name,csv};
+    const beforeCsvReview=await resources();
+    const csvFence=await cedar.prepare('SELECT * FROM fence').first<{id:number;revision:number}>(); assert.ok(csvFence);
+    const reviewedCsv=await request(ava,'/api/csv/review',csvBody); assert.equal(reviewedCsv.status,200);
+    const csvReview=object(await reviewedCsv.json());
+    assert.equal(JSON.stringify(csvReview).includes('scenario-result/v1'),false);
+    assert.equal(csvReview.operation,arrayInput.name);
+    assert.deepEqual(csvReview.rows,[{index:0,status:'valid',inputs:{values:null}}]);
+    assert.deepEqual(csvReview.counts,{total:1,valid:1,invalid:0,duplicate:0});
+    const csvConsent=object(csvReview.consent); assert.equal(csvConsent.principal,ava.principal);
+    assert.equal(csvConsent.operation,arrayInput.name); assert.equal(csvConsent.review_id,csvReview.review_id);
+    assert.deepEqual(await resources(),beforeCsvReview,'review changes no Identity or owner table');
+    const csvId=operationId(), csvSelection={...csvBody,consent:csvConsent,rows:[{index:0,operation_id:csvId}]};
+    const committedCsv=await request(ava,'/api/csv/commit',csvSelection); assert.equal(committedCsv.status,200);
+    const csvCommit=object(await committedCsv.json());
+    assert.equal(JSON.stringify(csvCommit).includes('scenario-result/v1'),false);
+    assert.ok(Array.isArray(csvCommit.rows)); assert.equal(csvCommit.rows.length,1);
+    const csvFreshRow=object(csvCommit.rows[0]), csvFresh=object(csvFreshRow.result);
+    assert.equal(csvFreshRow.index,0); assert.equal(csvFreshRow.operation_id,csvId); assert.equal(csvFreshRow.status,'committed');
+    assert.equal(csvFresh.status,'committed'); assert.equal(csvFresh.operation_id,csvId); assert.equal(csvFresh.result,null);
+    assert.deepEqual(csvFresh.records,[]);
+    const csvPhysical=await receipt(csvId);
+    assert.equal(csvPhysical.operation,arrayInput.name); assert.equal(csvPhysical.input_hash,await hashInputs({values:null}));
+    assert.equal(csvPhysical.committed_revision,csvFence.revision+1);
+    assert.deepEqual(await cedar.prepare('SELECT * FROM fence').first(),{...csvFence,revision:csvPhysical.committed_revision});
+    assert.deepEqual(await cedar.prepare('SELECT * FROM fence_log WHERE revision=?').bind(csvPhysical.committed_revision).first(),
+      {revision:csvPhysical.committed_revision,operation:csvPhysical.operation,at:csvPhysical.created_at});
+    assert.deepEqual(JSON.parse(csvPhysical.resolved_defaults),{});
+    const csvOutcome=object(JSON.parse(csvPhysical.outcome)); assert.equal(csvOutcome.result,null);
+    const csvAssociation=object(csvOutcome.scenario);
+    assert.equal(csvAssociation.kind,'scenario-result/v1'); assert.equal(csvAssociation.resultType,'int[]?');
+    assert.deepEqual(csvAssociation.plan,arrayInput.result.disclosure);
+    const afterCsvCommit=await resources(), csvOwner=`owner:${ava.owner}`;
+    const oldCsvReceipts=(await cedar.prepare('SELECT * FROM receipts').all()).results.filter(value=>value.operation_id!==csvId);
+    assert.equal(digest(oldCsvReceipts.map(value=>JSON.stringify(value)).sort()),beforeCsvReview[csvOwner]!.receipts!.digest);
+    const oldCsvFenceLog=(await cedar.prepare('SELECT * FROM fence_log').all()).results.filter(value=>value.revision!==csvPhysical.committed_revision);
+    assert.equal(digest(oldCsvFenceLog.map(value=>JSON.stringify(value)).sort()),beforeCsvReview[csvOwner]!.fence_log!.digest);
+    for (const key of Object.keys(beforeCsvReview)) {
+      if (key!==csvOwner) { assert.deepEqual(afterCsvCommit[key],beforeCsvReview[key]); continue; }
+      for (const table of Object.keys(beforeCsvReview[key]!)) if (!['receipts','fence','fence_log'].includes(table))
+        assert.deepEqual(afterCsvCommit[key]![table],beforeCsvReview[key]![table],`CSV commit leaves ${table} unchanged`);
+      assert.equal(afterCsvCommit[key]!.receipts!.count,beforeCsvReview[key]!.receipts!.count+1);
+      assert.equal(afterCsvCommit[key]!.fence_log!.count,beforeCsvReview[key]!.fence_log!.count+1);
+    }
+    const recoveredCsv=await expiredCsv(ava,csvSelection); assert.equal(recoveredCsv.response.status,200);
+    assert.equal(recoveredCsv.body.operation,arrayInput.name); assert.equal(recoveredCsv.body.review_id,csvReview.review_id);
+    const csvPrincipal=object(recoveredCsv.body.principal);
+    assert.equal(csvPrincipal.user_id,ava.principal); assert.equal(csvPrincipal.team_id,ava.owner);
+    assert.ok(Array.isArray(recoveredCsv.body.rows)); assert.equal(recoveredCsv.body.rows.length,1);
+    const csvReplayRow=object(recoveredCsv.body.rows[0]), csvReplay=object(csvReplayRow.result);
+    assert.equal(csvReplayRow.index,0); assert.equal(csvReplayRow.operation_id,csvId); assert.equal(csvReplayRow.status,'committed');
+    assert.equal(csvReplay.status,'replayed'); assert.equal(csvReplay.operation_id,csvId); assert.equal(csvReplay.result,null);
+    assert.deepEqual(csvReplay.records,[]);
+    const missingCsv=await expiredCsv(ava,{...csvSelection,rows:[{index:0,operation_id:operationId()}]});
+    assert.equal(missingCsv.response.status,200); assert.ok(Array.isArray(missingCsv.body.rows));
+    assert.equal(missingCsv.body.rows.length,1); const missingCsvRow=object(missingCsv.body.rows[0]);
+    assert.equal(missingCsvRow.status,'failed'); assert.equal(object(missingCsvRow.error).code,'not_found');
+    for (const actor of [ben,cal,dee,null]) {
+      const denied=await expiredCsv(actor,csvSelection);
+      assert.equal(denied.response.status,403); assert.equal(denied.body.code,'forbidden');
+    }
+    for (const path of ['/api/csv/review','/api/csv/commit']) {
+      const denied=await fetch(new URL(path,origin),{method:'POST',redirect:'manual',headers:{origin,
+        cookie:[bridgeCookie,ava.cookie].join('; '),'content-type':'application/json','x-csrf-token':'wrong'},
+        body:JSON.stringify(csvSelection)});
+      assert.equal(denied.status,403); assert.equal(object(await denied.json()).code,'forbidden');
+    }
+    assert.deepEqual(await resources(),afterCsvCommit,'saved CSV and every refusal change no table');
+    assert.deepEqual(await receipt(csvId),csvPhysical,'CSV retains the original source-owned receipt and hash');
     const saved=[];
     for (const [shapeIndex, shape] of [
       { values: null, flags: [], names: [], optional: null, available: true },
@@ -493,7 +602,8 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
         assert.deepEqual(ownerAfter[table],ownerBefore[table],`transition leaves ${table} unchanged`);
       }
       assert.equal(ownerAfter.records!.count,ownerBefore.records!.count);
-      assert.equal(ownerAfter.history!.count,ownerBefore.history!.count+changed.length);
+      const stageStatuses = name === 'advance' ? ['queued','generating'] : changed.length ? ['ready'] : [];
+      assert.equal(ownerAfter.history!.count,ownerBefore.history!.count+stageStatuses.length);
       assert.equal(ownerAfter.receipts!.count,ownerBefore.receipts!.count+1);
       assert.equal(ownerAfter.fence_log!.count,ownerBefore.fence_log!.count+1);
       assert.equal(physical.committed_revision,fence.revision+1);
@@ -506,19 +616,21 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.equal(digest(oldFenceLog.map(value => JSON.stringify(value)).sort()),ownerBefore.fence_log!.digest);
       const finalHistory = await jobs.historyFor(jobModelName,asRecordId(jobId));
       assert.deepEqual(finalHistory.slice(0,history.length),history);
-      assert.equal(finalHistory.length,history.length+changed.length);
-      if (changed.length) {
-        const net = finalHistory.at(-1)!;
-        assert.equal(net.operation,envelope.operation); assert.equal(net.operationId,envelope.operation_id);
-        assert.equal(net.actor,ava.principal); assert.equal(net.version,entry.version+1);
-        assert.deepEqual(net.before,entry.data); assert.deepEqual(net.after,final.data);
+      assert.equal(finalHistory.length,history.length+stageStatuses.length);
+      for (const [index,status] of stageStatuses.entries()) {
+        const stage = finalHistory[history.length+index]!;
+        assert.equal(stage.operation,envelope.operation); assert.equal(stage.operationId,envelope.operation_id);
+        assert.equal(stage.actor,ava.principal); assert.equal(stage.version,entry.version+1);
+        assert.deepEqual(stage.before,index === 0 ? entry.data : {...entry.data,status:stageStatuses[index-1]});
+        assert.deepEqual(stage.after,{...entry.data,status});
       }
+      if (stageStatuses.length) assert.deepEqual(finalHistory.at(-1)!.after,final.data);
       assert.equal(JSON.stringify(fresh.body).includes('scenario-result/v1'),false);
       machineSaved.push({envelope,physical,records:fresh.body.records!,expected:fresh.body.result,jobId,rowDependent:selected.dependencies.length>0});
       return {entry,final,fresh,physical,outcome,association,selected,observations,changed};
     }
     // Two real stages expose the issued intermediate snapshot and one final
-    // owner write/version/history entry through this same portable execution.
+    // owner write/version with both ordered authored history entries.
     const advancedId = operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},advancedId);
     const advanced = await machineCall('advance',advancedId);
     assert.equal(advanced.entry.data.status,'idle'); assert.equal(advanced.final.data.status,'generating');
@@ -675,6 +787,8 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.equal(ordinary.body.code,'conflict'); assert.ok(ordinary.response.status>=400);
       const retained=await recovery(ava,{...witness.envelope,inputs:supplied});
       assert.equal(object(retained.error).code,'conflict','same resolved value never erases original raw omission');
+      const http=await expiredHttp(ava,{...witness.envelope,inputs:supplied});
+      assert.equal(http.response.status,409); assert.equal(http.body.code,'conflict');
       assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(witness.envelope.operation_id),witness.physical);
     }
     // Later physical changes invalidate the original supplied refs. Recovery
@@ -695,13 +809,19 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.ok(Array.isArray(replay.records));
       assert.deepEqual(replay.records.map(value => {const record=object(value);return {id:record.id,data:record.data};}),value.records);
       assert.equal(JSON.stringify({ordinary:ordinary.body,retained}).includes('scenario-result/v1'),false);
+      const http = await expiredHttp(ava,value.envelope);
+      assert.equal(http.response.status,200); assert.equal(http.body.status,'replayed');
+      assert.deepEqual(http.body.result,value.expected); assert.deepEqual(http.body.records,value.records);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     assert.deepEqual(await resources(),beforeMachineReplay);
     const machineWitness = machineSaved[0]!;
     for (const actor of [cal,dee,null]) {
       const before = await resources(), denied = await recovery(actor,machineWitness.envelope);
-      assert.ok(denied.error); assert.deepEqual(await resources(),before);
+      assert.ok(denied.error);
+      const http = await expiredHttp(actor,machineWitness.envelope);
+      assert.ok(http.response.status>=400); assert.equal(http.body.code,object(denied.error).code);
+      assert.deepEqual(await resources(),before);
       const refused = await mutation(actor,machineWitness.envelope.operation,machineWitness.envelope.inputs);
       assert.ok(refused.response.status>=400); assert.deepEqual(await resources(),before);
     }
@@ -714,6 +834,8 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     for(const witness of authorityWitnesses) for(const actor of [cal,dee,null]) {
       const before=await resources(), denied=await recovery(actor,witness.envelope);
       assert.ok(denied.error,'foreign owner/nonmember/public retained authority refused');
+      const http=await expiredHttp(actor,witness.envelope);
+      assert.ok(http.response.status>=400); assert.equal(http.body.code,object(denied.error).code);
       assert.deepEqual(await resources(),before);
     }
     for(const [envelope, expected] of [
@@ -722,6 +844,8 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     ] as const) {
       const before=await resources(), denied=await recovery(ava,envelope);
       assert.equal(object(denied.error).code,expected);
+      const http=await expiredHttp(ava,envelope);
+      assert.equal(http.body.code,expected); assert.equal(http.response.status,expected==='not_found'?404:409);
       assert.deepEqual(await resources(),before);
     }
     const current=await row(id); assert.ok(current);
@@ -734,6 +858,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const ordinary=await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
       assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.expected);
       const retained=await recovery(ava,value.envelope); assert.deepEqual(object(retained.result).result,value.expected);
+      const http=await expiredHttp(ava,value.envelope);
+      assert.equal(http.response.status,200); assert.equal(http.body.status,'replayed');
+      assert.deepEqual(http.body.result,value.expected); assert.deepEqual(http.body.records,[]);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
       // Fresh source would now return changed scalar/array values; old refs are stale.
       // Exact original wire values and full stores prove no fresh execution or commit.
@@ -761,6 +888,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const ordinary=await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
       assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.rowDependent ? null : value.expected); assert.deepEqual(ordinary.body.records,[]);
       const retained=await recovery(ava,value.envelope); assert.deepEqual(object(retained.result).result,value.rowDependent ? null : value.expected);
+      const http=await expiredHttp(ava,value.envelope);
+      assert.equal(http.response.status,200); assert.equal(http.body.status,'replayed');
+      assert.deepEqual(http.body.result,value.rowDependent ? null : value.expected); assert.deepEqual(http.body.records,[]);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     for (const value of machineSaved) {
@@ -768,6 +898,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.rowDependent?null:value.expected); assert.deepEqual(ordinary.body.records,[]);
       const retained = await recovery(ava,value.envelope), replay = object(retained.result);
       assert.equal(replay.status,'replayed'); assert.deepEqual(replay.result,value.rowDependent?null:value.expected); assert.deepEqual(replay.records,[]);
+      const http=await expiredHttp(ava,value.envelope);
+      assert.equal(http.response.status,200); assert.equal(http.body.status,'replayed');
+      assert.deepEqual(http.body.result,value.rowDependent?null:value.expected); assert.deepEqual(http.body.records,[]);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     assert.deepEqual(await resources(),beforeWithheld);
@@ -778,7 +911,11 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     const pureOverride = saved.find(value => value.envelope.operation === 'NativeSavedScenario.derived_override'); assert.ok(pureOverride);
     for (const witness of [...authorityWitnesses, pureOverride, machineWitness, ...defaultWitnesses]) {
       const revoked=await recovery(ava,witness.envelope); assert.equal(object(revoked.error).code,'forbidden');
+      const http=await expiredHttp(ava,witness.envelope); assert.equal(http.response.status,403); assert.equal(http.body.code,'forbidden');
     }
+    const revokedCsv=await expiredCsv(ava,csvSelection);
+    assert.equal(revokedCsv.response.status,403); assert.equal(revokedCsv.body.code,'forbidden');
+    assert.deepEqual(await receipt(csvId),csvPhysical);
     assert.deepEqual(await resources(),beforeRevoked);
     assert.equal(await captureIsCurrent(capture), true);
   } finally {
