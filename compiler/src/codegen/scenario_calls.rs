@@ -39,6 +39,204 @@ pub struct StaticScenarioCall {
     pub inputs: Vec<CallInput>,
 }
 
+/// Checked authored call/source correspondence, including reads, references,
+/// composite results and `as`. It is not a disclosure or execution grant.
+#[derive(Debug, Clone)]
+pub struct ScenarioSourceCall {
+    pub source: CallSource,
+    pub span: Span,
+    pub parent: String,
+    pub target: String,
+    pub operation: SymbolId,
+    pub read: bool,
+    pub binding: Option<String>,
+    pub result: Option<ResolvedType>,
+    pub inputs: Vec<CallInput>,
+}
+
+/// Join the real checked source facts to the actual lowered body and owning
+/// checked declaration. Unsupported runtime profiles may have this structural
+/// correspondence while their disclosure remains explicitly declined.
+pub fn collect_scenario_source_calls(
+    ir: &IrProgram,
+    parent: &IrItem,
+    db: &SourceDb,
+) -> Option<Vec<ScenarioSourceCall>> {
+    let source = checked_source(ir, parent, db)?;
+    let IrItemKind::Scenario {
+        guards, effects, ..
+    } = &parent.kind
+    else {
+        return None;
+    };
+    let mut pending: Vec<_> = guards.iter().chain(effects).collect();
+    pending.reverse();
+    let mut sites = Vec::new();
+    let mut matched = HashSet::new();
+    let mut steps = 0usize;
+    while let Some(stmt) = pending.pop() {
+        steps += 1;
+        if steps > 16384 || pending.len() > 16384 {
+            return None;
+        }
+        match stmt {
+            IrStmt::Call {
+                target:
+                    IrEffectCallTarget::Operation {
+                        source: target_source,
+                        operation,
+                    },
+                inputs,
+                binding,
+                result,
+                span,
+            } => {
+                let mut proofs = source.calls.iter().filter(|proof| {
+                    proof.node.file == span.file
+                        && proof.node.start == span.start
+                        && proof.node.end == span.end
+                });
+                let proof = proofs.next()?;
+                let node = proof.node;
+                if proofs.next().is_some()
+                    || !matched.insert(node)
+                    || source.calls.get(sites.len()).map(|proof| proof.node) != Some(node)
+                    || proof.operation != *operation
+                    || proof.binding != *binding
+                    || proof.result != *result
+                    || proof.target_node.file != target_source.file
+                    || proof.target_node.start != target_source.start
+                    || proof.target_node.end != target_source.end
+                {
+                    return None;
+                }
+                let child = ir.items.get(operation.0 as usize)?;
+                let child_source = checked_source(ir, child, db)?;
+                if child.id != *operation || child_source.result != *result {
+                    return None;
+                }
+                let IrExpr::Object(entries) = &inputs.expr else {
+                    return None;
+                };
+                if entries.len() != proof.inputs.len() || sites.len() >= 200 {
+                    return None;
+                }
+                let mut keys = HashSet::new();
+                let mut authored = Vec::new();
+                for ((name, value), fact) in entries.iter().zip(&proof.inputs) {
+                    if !keys.insert(name)
+                        || name != &fact.name
+                        || value.ty != fact.ty
+                        || value.span.file != fact.node.file
+                        || value.span.start != fact.node.start
+                        || value.span.end != fact.node.end
+                    {
+                        return None;
+                    }
+                    authored.push(CallInput {
+                        name: name.clone(),
+                        source: value.span,
+                        ty: value.ty.clone(),
+                    });
+                }
+                sites.push(ScenarioSourceCall {
+                    source: CallSource {
+                        path: source.source.path.clone(),
+                        sha256: source.source.sha256.clone(),
+                        module: source.source.module.clone(),
+                    },
+                    span: *span,
+                    parent: parent.canonical.clone(),
+                    target: child.canonical.clone(),
+                    operation: *operation,
+                    read: child_source.read,
+                    binding: binding.clone(),
+                    result: result.clone(),
+                    inputs: authored,
+                });
+            }
+            IrStmt::Call { .. } | IrStmt::Unsupported { .. } => return None,
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                pending.extend(else_branch.iter().rev());
+                pending.extend(then_branch.iter().rev());
+            }
+            IrStmt::Match { arms, .. } => {
+                for arm in arms.iter().rev() {
+                    pending.extend(arm.body.iter().rev());
+                }
+            }
+            IrStmt::For { body, .. } => pending.extend(body.iter().rev()),
+            _ => {}
+        }
+    }
+    if matched.len() != source.calls.len() {
+        return None;
+    }
+    Some(sites)
+}
+
+fn checked_source<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedScenarioSource> {
+    let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let module = ir.modules.get(owner.module.0 as usize)?;
+    let file = db.get(module.file)?;
+    let IrItemKind::Scenario {
+        params,
+        result,
+        read,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    if source.scenario != owner.id
+        || source.read != *read
+        || source.result != *result
+        || source.source.path != file.path
+        || source.source.sha256 != file.sha256
+        || source.source.module != module.name
+        || file.sha256 != sha256_hex(file.text.as_bytes())
+        || source.node.file != module.file
+        || source.node.start >= source.node.end
+        || source.node.end as usize > file.text.len()
+        || db
+            .iter()
+            .filter(|(_, candidate)| candidate.path == file.path)
+            .count()
+            != 1
+        || params.len() != source.parameters.len()
+    {
+        return None;
+    }
+    for (id, fact) in params.iter().zip(&source.parameters) {
+        let parameter = ir.items.get(id.0 as usize)?;
+        let IrItemKind::Param {
+            owner: parent,
+            ty: IrType::Known(ty),
+            default_node,
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        if parameter.id != fact.parameter
+            || *parent != owner.id
+            || ty != &fact.ty
+            || *default_node != fact.default
+        {
+            return None;
+        }
+    }
+    Some(source)
+}
+
 /// Arguments must come from the same checked IR/cohort and real operation
 /// producer. Refusal is whole-parent; source/descriptor facts alone activate no
 /// runtime producer. The finite closure excludes reads, dynamic calls and
