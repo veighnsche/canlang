@@ -1,0 +1,35 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "decision": "Choose the least necessary trustworthy State/Work join for the actual native dispatch guard before physical claim or terminal skip. All proposals are unfinished implementation alternatives, not implemented APIs or acceptance.",
+    "verified_repository": [
+      "State createSystemRegistry.run reads one physical revision, invokes actual registered SystemCommandDef.stage with readers-only context, validates staged effects, commits once with original expectedRevision. Context currently has actor, now, operation, load/query only, no checkpoint/private lifetime/guard enrollment.",
+      "Work createWorkDispatchClaimCommand.stage owns row identity/load, supersession, pending guard-false, defer time, held/live vs stale reclaim, settled status and availability. Only eligible path stages claimed row update. Default command is used by existing native registry.",
+      "Work attemptDispatchAsync opens private branded guard execution only during real callback, snapshots lexical inputs/state/intent/checkpoint, closes then compares enrolled positive/negative evidence before guard-false skip or authority/claim. It is a decision API, not durable claim persistence. Its eligibility only permits pending, so calling it with a fabricated pending row would duplicate real command logic and break stale reclaim.",
+      "State bindScenarioDispatchMembershipProducer opens once on actual Work execution before native code, privately retains current Identity Team/admission, exact source occurrence and fresh UserRef/Team pair per actual evaluation. Enrolled revalidation compares actual positive/negative Bool and original State revision after handle closes, without native replay.",
+      "Native Dev invoke.ts currently physically commits work.dispatch.claim before runFenceGate then opens a fresh scope and uses earlier cached authority. Dev solely owns that file and will consume the selected literal continuation.",
+      "Work record-attempt requires matching held claim then guard-false pending update clears claim and preserves attempts. New preclaim false path must reuse owning outcome shape without first physically claiming. Dispatch table has source, operationId, occurrence identity, attempts, lifecycle fields but no request/frozen lexical/predicate/commit marker. Actual original intent is separately source verified.",
+      "Identity reads and State physical revision are separate storage domains; this finite join cannot establish cross-store atomicity or complete source correspondence. Compiler/Dev own verified full native binding and later original workflow qualification."
+    ],
+    "requirements": [
+      "One actual owning eligibility implementation; unavailable/superseded/deferred/settled/live claim must not run source guard or provider.",
+      "Run actual source guard once only on eligible command stage before any physical claim/skip mutation. Exact private execution derived from original registry checkpoint and verified original source intent/lexical bindings; no request-selected handle/raw store grant.",
+      "Close handle before consuming evidence. Retain original State revision, all positive/negative observation checks and fresh current authority through final bounded single expectedRevision commit; do not cache early authority or replay source predicate.",
+      "Actual false stages owning guard-false outcome without claim/attempt increment; false evidence and authority validated before skip writes commit. Stale claim reclaim remains valid and same existing owning eligibility.",
+      "Caught source/provenance/concurrency/unawaited/unknown-Bool failures refuse, poisoned/closed/copied contexts cannot bypass. Checkpoint conflict/storage errors retain existing behavior. Legacy synchronous API/default commands stay compatible.",
+      "Implement full port behavior rather than metadata-only scaffolding or broader unproven workflow claims. Minimal owned records and finite defining tests; Dev native adoption remains exact separately owned prerequisite."
+    ],
+    "evaluation": "Compare all alternatives against identical complete outcomes, necessary trusted machinery, lifetime/provenance, single evaluation and stage-to-commit evidence. No alternative gets credit for assuming an absent API; evaluate proposed implementations as proposed."
+  },
+  "questions": {
+    "join": {
+      "type": "choice",
+      "instructions": "Which proposed execution join best delivers the complete real dispatch guard-before-physical-claim workflow with the smallest necessary change while preserving all stated evidence, lifetime, lazy refusal and stale reclaim rules? Weigh the three designs fairly and do not mistake fixture passing or metadata for a released native workflow.",
+      "criteria": {
+        "A": "State private registry-stage ledger keyed by actual context exposes read-only original checkpoint and bounded commit-check enrollment; closes staging enrollment after actual command.stage and consumes checks immediately before original single commit. Work claim factory adds a literal trusted guard-phase callback only after owning eligibility/availability; factors Work private handle phase out of async decision, closes it then transfers retained checks/current authority into State ledger. Guard true stages existing claim; false reuses owning pending false shape without claim. Dev callback binds verified original intent/lexical/native source and current Identity, checks row/source correspondence. Adds small State and Work private ports without copying eligibility.",
+        "B": "State registry binds a post-stage precommit continuation to actual command output. Work returns an opaque eligible-claim continuation containing original row and owning false replacement; after stage validation State/Dev continuation runs actual guard with private Work handle and original checkpoint, then selects existing claim writes or owning skip effects and consumes evidence before original commit. Requires private Work continuation plus State effect-choice binding, prevents generic write replacement, keeps owning eligibility once but stages claim before source evaluation.",
+        "C": "State adds suspend/resume system execution API returning opaque original staged run and checkpoint with bounded lifetime. Dev suspends after Work eligibility, evaluates actual guard through Work private execution and then resumes choosing owning claim or skip continuation; State validates evidence/current authority and commits original revision once. Requires explicit cancellation/replay/one-shot handling and new resumable ABI; retains readers-only/raw-write restrictions and owning eligibility without duplication."
+      }
+    }
+  }
+}
