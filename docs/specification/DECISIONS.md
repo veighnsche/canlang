@@ -5205,3 +5205,26 @@ Owning graph24/24 passes10.628s; final changed loader emission and root noEmit p
 Consume exact coordinator-reviewed LOCAL172340d1d8f9fc2333147fc80ff7359f013519c3 onto preserved Deva43b38e5. Packages e038b2c8 supplies only actual same-suite raw user recipes to the load-time caller probe, validates exact user kind, and preserves one user extraction, no business provisioning and foreign/non-user refusals. Reuse its graph24/24, affected38/38 and installed-root checks at their defining scopes. Reconcile the authoritative staged merge tree with existing owners/allocations and complete checkpoint unadvanced. Refresh Testkit/CF, then Dev alone reruns the same full41 source/all3 callers/rename through its actual installed Node qualifier. No borrowed generated result constitutes local D1 Identity acceptance; browser tooling absence does not block the core26 consumer, and all publication/recipient holds remain.
 
 The SAME complete41-card native/private-session case at this reviewed intake now passes1/1 in43.733s: real CRUD/rename, original and isolated authored callers, authorization, source/resources, receipt/history/fence, replay/readback and owned cleanup retain all assertions. The finite26 core cards qualify; unknown candidate coverage, empty messageKinds, false intent evidence, zero external calls and immutable bundle/cache behavior remain. UI cards and whole T04/T11/Office/G2–G3 stay unfinished. Testkit/CF emissions, root noEmit and zero-violation boundaries13packages/893files/1204expressions pass; reuse the unchanged originating diagnostic. Save this outcome in the same local intake unit before proceeding to the independently ready browser consumer.
+
+## 2026-10-10 — retain checked production call operands and declaring schemas
+
+Preserve a static operation's checked symbol/source and a dynamic call's actual
+typed operand separately from its declaration-derived allowed target IDs.
+Those IDs index existing owning parameter/model/result declarations; authored
+inputs retain order and typed shorthand anchors. Publish checked statement
+result/void/opaque facts for `as` binding without inventing compatible results
+for heterogeneous targets. Only an exact checked read-scenario call preserves
+member-path narrowing; potentially mutating or unknown calls still invalidate.
+
+This is the compiler producer for existing Task39, not executable acceptance.
+State owns same-caller admission inside the existing owner session/outer fence;
+Dev owns a source-bound private native facade, once-evaluated values and bounded
+result/dependency correspondence. Keep E6008 until that defining consumer is
+released. Structural InvocationRef data, direct handlers, child contexts and
+nested invocation/receipt/commit cannot replace it. Precise BDD3/Task22 holds
+remain separate; all changes stay local for coordinator review.
+
+Owning invocation target5/5 and existing call controls8/8 pass on the actual
+installed catalog/Node24; unchanged emitter121/121 is reused after the isolated
+read-narrowing correction. Strict all-target lint/format pass. The actual CLI
+still refuses call publication with E6008 and no generic producer decode gap.
