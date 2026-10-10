@@ -38,6 +38,7 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
     let mut profile = HookProfile {
         program,
         model: hook.model,
+        op: hook.op,
         module: item.module,
         remaining: 4096,
     };
@@ -52,6 +53,7 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
 struct HookProfile<'a> {
     program: &'a IrProgram,
     model: SymbolId,
+    op: CrudOp,
     module: ModuleId,
     remaining: usize,
 }
@@ -140,6 +142,15 @@ impl HookProfile<'_> {
                 && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
     }
 
+    fn before(&self, expr: &TypedExpr) -> bool {
+        // Only update has a nonnull, immutable owning snapshot. Create's null
+        // side and every delete profile retain their existing refusals.
+        self.op == CrudOp::Update
+            && matches!(&expr.expr, IrExpr::Member { base, field }
+                if field == "before" && base.ty == ResolvedType::Unknown
+                    && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
+    }
+
     fn context(expr: &TypedExpr) -> bool {
         let IrExpr::Member { base, field } = &expr.expr else {
             return false;
@@ -215,9 +226,10 @@ impl HookProfile<'_> {
             IrExpr::Name(name) if matches!(&expr.ty, ResolvedType::Enum { cases, .. } if self.leaf(&expr.ty) && cases.contains(name)) => {
                 Some(())
             }
-            IrExpr::Member { base, field } if Self::after(base) => {
+            IrExpr::Member { base, field } if Self::after(base) || self.before(base) => {
                 // Flattened IR may leave an intermediate wrapper untyped; only
-                // this exact candidate path and its checked business leaf qualify.
+                // this exact owning candidate/update-before path and its checked
+                // business leaf qualify. Nullable/foreign snapshot shells refuse.
                 if base.ty != ResolvedType::Unknown
                     && base.ty
                         != (ResolvedType::Record {
