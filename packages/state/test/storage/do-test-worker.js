@@ -29,6 +29,8 @@ const TABLES = [
   'migration_progress',
   'migration_outcomes',
   'migration_failures',
+  'file_reference_authority', 'file_reference_inventories', 'file_reference_migrations',
+  'file_reference_publications', 'file_retirements',
 ];
 
 function serializeError(error) {
@@ -70,8 +72,9 @@ export class TestDO {
         return Response.json({ ok: true });
       }
       if (request.method === 'POST' && url.pathname === '/reopen') {
+        const body = await request.json();
         await ensureSchema(this.state.storage);
-        this.store = createDOStorage(this.state.storage);
+        this.store = body.authority === undefined ? createDOStorage(this.state.storage) : createDOStorage(this.state.storage, body.authority);
         return Response.json({ ok: true });
       }
       if (request.method === 'POST' && url.pathname === '/exec') {

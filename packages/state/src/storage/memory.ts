@@ -41,10 +41,15 @@ import type {
   StagedRow,
   StagedRowCursor,
   StoredRow,
+  FileReferenceStoragePort, FileRetirementAuthority, FileReferencePublishMigrationChunk,
+  FileReferenceFlipInstalledSnapshot,
 } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import { INITIAL_REVISION } from './schema.js';
+import { checkedFileAuthority, checkFileBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
+  guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
+  type FileGuardState, type FileGuardRow } from './file-retirement.js';
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -102,6 +107,7 @@ interface MemoryState {
   outcomes: Map<string, MigrationOutcome[]>;
   // B3: durable failure records (survive abort as operator audit).
   failures: Map<string, MigrationFailure>;
+  fileGuard: FileGuardState;
 }
 
 function freshState(): MemoryState {
@@ -120,6 +126,7 @@ function freshState(): MemoryState {
     progress: new Map(),
     outcomes: new Map(),
     failures: new Map(),
+    fileGuard: emptyFileGuard(),
   };
 }
 
@@ -481,8 +488,10 @@ export interface MemoryStoreProbe {
   } | null;
 }
 
-function buildMemoryStorage(state: MemoryState): StoragePort {
-  return {
+function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthority): StoragePort | FileReferenceStoragePort {
+  const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
+  const live = (records = state.records): readonly FileGuardRow[] => [...records.values()];
+  const store: StoragePort = {
     async readRevision(): Promise<Revision> {
       return state.revision as Revision;
     },
@@ -537,6 +546,7 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
     },
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
+      if (binding !== undefined || state.fileGuard.authority !== null) batch = fileGuardCopy(batch);
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
         throw new Error(`Invalid expectedRevision: ${JSON.stringify(batch.expectedRevision)}`);
@@ -631,13 +641,18 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
           }
           records.set(key, { model: write.model as string, row: storedRow as StoredRow });
         } else if (write.kind === 'update') {
-          if (records.has(key)) {
-            records.set(key, { model: write.model as string, row: storedRow as StoredRow });
+          const original = records.get(key);
+          if (original !== undefined) {
+            const actual = state.fileGuard.authority === null ? storedRow as StoredRow : {
+              ...storedRow as StoredRow, id: original.row.id, created: original.row.created, createdBy: original.row.createdBy,
+            };
+            records.set(key, { model: write.model as string, row: actual });
           }
         } else {
           records.delete(key);
         }
       }
+      guardFileCommit(state.fileGuard, binding, live(), live(records));
       const outboxState = new Map(state.outbox);
       const next = expected + 1;
       const at = receipt?.createdAt ?? Date.now();
@@ -818,6 +833,7 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
     },
 
     async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
+      if (binding !== undefined || state.fileGuard.authority !== null) input = fileGuardCopy(input);
       // S7: ONE fenced write: upsert live records from staged rows at their
       // target versions, insert history, dispose drops (remove + drop
       // history), and upsert progress — atomically. Validate (fence plus
@@ -858,7 +874,12 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
         }
         claims.set(key, claim.recordId as string);
       }
+      const nextGuard = guardFilePublish(state.fileGuard, binding, input.migrationId,
+        (input as Partial<FileReferencePublishMigrationChunk>).fileReferenceInventory, live(), live(records),
+        rows.map(row => ({ model: row.targetModel as string, id: row.recordId as string })),
+        drops.map(drop => ({ model: drop.model as string, id: drop.recordId as string })));
       state.records = records;
+      state.fileGuard = nextGuard;
       state.uniqueClaims = claims;
       for (const entry of history) {
         state.historySeq += 1;
@@ -878,6 +899,7 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
     },
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
+      if (binding !== undefined || state.fileGuard.authority !== null) input = fileGuardCopy(input);
       // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
       // (dropOwner): the pointer is deleted instead of installed. Removal
       // renames nothing and installs nothing, so contradictory inputs are
@@ -894,6 +916,8 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
         throw new Error('flipInstalledSnapshot: snapshot.owner must equal the flip owner.');
       }
       const installed = state.snapshots.get(input.owner) ?? null;
+      const nextGuard = guardFileFlip(state.fileGuard, binding, input as FileReferenceFlipInstalledSnapshot,
+        live(), (state.revision + 1) as Revision, installed);
       if (input.snapshot === null) {
         if (installed === null) {
           return { revision: state.revision as Revision, flipped: false };
@@ -908,6 +932,7 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
       checkFencedExpected(input.expectedRevision, state.revision);
       const outcomes = input.outcomes.map((outcome) => jsonCopy(outcome));
       const next = state.revision + 1;
+      state.fileGuard = nextGuard;
       if (input.snapshot === null) {
         state.snapshots.delete(input.owner);
       } else {
@@ -1018,21 +1043,76 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
       return found === null ? null : jsonCopy(found);
     },
   };
+  if (binding === undefined) return store;
+  const extension: FileReferenceStoragePort = {
+    ...store,
+    fileRetirementAuthority: binding,
+    async installFileReferenceInventory(input) {
+      const request = fileGuardCopy(input);
+      checkFencedExpected(request.expectedRevision, state.revision);
+      const next = (state.revision + 1) as Revision;
+      const plan = planFileInstall(state.fileGuard, binding, request, [...state.snapshots.values()], live(), next);
+      if (!plan.changed) return { revision: state.revision as Revision };
+      state.fileGuard = plan.state;
+      state.snapshots.set(plan.snapshot.owner, plan.snapshot);
+      state.revision = next;
+      state.fenceLog.set(next, { at: request.snapshot.installedAt, operation: 'storage:file-inventory/v1' });
+      return { revision: next };
+    },
+    async readFileReferenceInventory(owner) {
+      return fileGuardCopy(state.fileGuard.inventories.find(item => item.inventory.owner === owner) ?? null);
+    },
+    async retireFinalizedFile(input) {
+      const request = fileGuardCopy(input), next = (state.revision + 1) as Revision;
+      if (!state.fileGuard.retirements.some(fact => fact.file.ref === request.file.ref)) checkFencedExpected(request.expectedRevision, state.revision);
+      const plan = planFileRetirement(state.fileGuard, binding, request, live(), next);
+      if (!plan.fresh) return plan.fact;
+      state.fileGuard = { ...state.fileGuard, retirements: [...state.fileGuard.retirements, plan.fact] };
+      state.revision = next;
+      state.fenceLog.set(next, { at: request.atMs, operation: 'storage:file-retirement/v1' });
+      return fileGuardCopy(plan.fact);
+    },
+    async readFinalizedFileRetirement(ref) {
+      return fileGuardCopy(state.fileGuard.retirements.find(fact => fact.file.ref === ref) ?? null);
+    },
+  };
+  return Object.fromEntries(Object.entries(extension).map(([name, value]) => [name,
+    typeof value !== 'function' ? value : (...args: unknown[]) => {
+      checkFileBinding(state.fileGuard, binding);
+      checkFileGuardSnapshots(state.fileGuard, [...state.snapshots.values()]);
+      return value(...args);
+    }])) as unknown as FileReferenceStoragePort;
 }
 
 /** Fresh isolated TEST-ONLY store; every instance starts at revision 0. */
-export function createMemoryStorage(): StoragePort {
-  return buildMemoryStorage(freshState());
+export function createMemoryStorage(authority: FileRetirementAuthority): FileReferenceStoragePort;
+export function createMemoryStorage(): StoragePort;
+export function createMemoryStorage(authority?: FileRetirementAuthority): StoragePort | FileReferenceStoragePort {
+  return buildMemoryStorage(freshState(), authority);
 }
 
 /** TEST-ONLY store plus a probe over history/outbox/schedules for conformance. */
+export function createTestMemoryStorage(authority: FileRetirementAuthority): {
+  readonly store: FileReferenceStoragePort;
+  readonly probe: MemoryStoreProbe;
+  readonly reopen: { (): StoragePort; (authority: FileRetirementAuthority): FileReferenceStoragePort };
+};
 export function createTestMemoryStorage(): {
   readonly store: StoragePort;
   readonly probe: MemoryStoreProbe;
+  readonly reopen: { (): StoragePort; (authority: FileRetirementAuthority): FileReferenceStoragePort };
+};
+export function createTestMemoryStorage(authority?: FileRetirementAuthority): {
+  readonly store: StoragePort | FileReferenceStoragePort;
+  readonly probe: MemoryStoreProbe;
+  readonly reopen: { (): StoragePort; (authority: FileRetirementAuthority): FileReferenceStoragePort };
 } {
   const state = freshState();
   return {
-    store: buildMemoryStorage(state),
+    store: buildMemoryStorage(state, authority),
+    reopen: ((binding?: FileRetirementAuthority) => buildMemoryStorage(state, binding)) as {
+      (): StoragePort; (authority: FileRetirementAuthority): FileReferenceStoragePort;
+    },
     probe: {
       historyFor(model: ModelName, recordId: RecordId): ReadonlyArray<HistoryEntry> {
         return state.history

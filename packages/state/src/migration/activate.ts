@@ -62,6 +62,7 @@ import type {
   UniqueClaim,
   UniqueRelease,
   WorkInventoryItem,
+  FileReferenceInventory,
 } from '@canlang/contracts';
 import type { ClockPort } from '../invocation/context.js';
 import type { ModelTable } from '../mutation/models.js';
@@ -70,6 +71,7 @@ import { noteUnexpectedFailure } from './recover.js';
 import type { RetainedSet } from './retain.js';
 import { canonicalUniqueValue } from './validate.js';
 import type { ValidatedMigrationPlan } from './transition.js';
+import { checkedFileInventory } from '../storage/file-retirement.js';
 
 /** One activation call: store, plan, inventory, tables, bounds, clock. */
 export interface ActivateInput {
@@ -84,6 +86,9 @@ export interface ActivateInput {
   readonly retained?: RetainedSet | ReadonlySet<string>;
   readonly oldModels: ModelTable;
   readonly desiredModels: ModelTable;
+  /** Exact checked target declarations from the owning installed loader.
+   * Required by protected storage; model tables cannot fabricate this evidence. */
+  readonly fileReferenceInventory?: FileReferenceInventory;
   readonly chunkSize: number;
   readonly clock: ClockPort;
   /**
@@ -140,8 +145,8 @@ export async function activate(input: ActivateInput): Promise<FlipResult> {
       throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
     }
     const actor = `migration:${plan.toSnapshotId}`;
-    await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow);
-    const result = await flipToInstalled(store, plan, now, disposition);
+    await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow, input.fileReferenceInventory);
+    const result = await flipToInstalled(store, plan, now, disposition, input.fileReferenceInventory);
     if (!result.flipped) {
       // The evidence gate proved installed == from (and from != target) up
       // front, so a no-op flip means the pointer moved under us past the
@@ -410,7 +415,10 @@ export async function publishStagedAndDrops(
   now: number,
   actor: string,
   isExpiredRow?: (row: StoredRow) => boolean,
+  fileReferenceInventory?: FileReferenceInventory,
 ): Promise<void> {
+  const declarations = migrationFileInventory(plan, fileReferenceInventory);
+  let published = false;
   await checkActivationEvidence(store, plan);
   if (isExpiredRow !== undefined) {
     await checkDropExpiry(store, plan, isExpiredRow);
@@ -428,7 +436,8 @@ export async function publishStagedAndDrops(
     }
     const staged = await store.readStagedRows(plan.migrationId, progress.publishCursor, chunkSize);
     const drops = await enumerateDrops(store, plan, chunkSize);
-    if (staged.length === 0 && drops.length === 0) {
+    const empty = staged.length === 0 && drops.length === 0;
+    if (empty && (declarations === undefined || published)) {
       return;
     }
     const history: HistoryEntry[] = [];
@@ -478,7 +487,10 @@ export async function publishStagedAndDrops(
         progress: next,
         uniqueClaims,
         uniqueReleases,
+        ...(declarations === undefined ? {} : { fileReferenceInventory: declarations }),
       });
+      published = true;
+      if (empty) return;
     } catch (error) {
       throw storageToStateError(error);
     }
@@ -783,7 +795,9 @@ export async function flipToInstalled(
   plan: ValidatedMigrationPlan,
   now: number,
   disposition: ActivationDisposition,
+  fileReferenceInventory?: FileReferenceInventory,
 ): Promise<FlipResult> {
+  const declarations = migrationFileInventory(plan, fileReferenceInventory);
   const revision = await store.readRevision();
   const dropping = plan.ownerAction.kind === 'drop';
   if (dropping && (await store.readInstalledSnapshot(plan.owner)) === null) {
@@ -819,10 +833,22 @@ export async function flipToInstalled(
     renameFromOwner: plan.ownerAction.kind === 'rename' ? plan.ownerAction.from : null,
     invalidatedIntentIds: disposition.invalidatedIntentIds,
     outcomes: disposition.outcomes,
+    ...(declarations === undefined ? {} : { fileReferenceInventory: dropping ? null : declarations }),
   };
   try {
     return await store.flipInstalledSnapshot(input);
   } catch (error) {
     throw storageToStateError(error);
   }
+}
+
+function migrationFileInventory(plan: ValidatedMigrationPlan, input?: FileReferenceInventory): FileReferenceInventory | undefined {
+  if (input === undefined) return undefined;
+  try {
+    const declarations = checkedFileInventory(input);
+    if (declarations.owner !== plan.owner || declarations.snapshotId !== plan.toSnapshotId || declarations.digest !== plan.toDigest) {
+      throw new StateError('validation', 'Migration File declarations must match the exact target snapshot.');
+    }
+    return declarations;
+  } catch (error) { throw storageToStateError(error); }
 }
