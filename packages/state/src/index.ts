@@ -144,6 +144,10 @@ export {
   type TransactionPort,
 } from './ports/index.js';
 export type { MembershipReader } from './policy/roles.js';
+export { bindScenarioDispatchMembershipProducer,
+  type ScenarioDispatchMembershipPorts, type ScenarioDispatchMembershipProducer,
+  type ScenarioDispatchMembershipExecution, type ScenarioDispatchMembershipHandle,
+} from './invocation/dispatch-membership.js';
 export type { PolicyTable } from './policy/grants.js';
 export type { OperationRegistry } from './invocation/registry.js';
 export type { ClockPort } from './invocation/context.js';
