@@ -6855,8 +6855,11 @@ lexical-first source repair under accepted rules, with no new language design.
 Local draftc626387/e11d492 exact same Dev25 ordinary compile2.244s clears the nine
 related findings, all25 paths/hashes match and Desk/Event/Member each0. Other118
 findings still refuse artifact emission/native original qualification. Affected
-corpus failure only reflects Desk74→72/Event202→198/Member322→319 snapshots;
-49 other rows remain unchanged. Preserve counts pending exact coordinator
-source-review/disposition; reuse prior23cfd269 table1/1 and unchanged compiler
-production/strict/editor scopes. No Employees purity or guessed Volunteer
+corpus initial failure reflects only Desk74→72/Event202→198/Member322→319
+snapshots. Coordinator finite source review is CLEAR and explicitly authorizes
+only those new snapshots; all52 rows/full assertions and49 unchanged rows remain.
+Final affected table1/1 passes3.32s,36 unrelated tests unselected, superseding
+that failure. Reuse prior23cfd269 and unchanged compiler/strict/editor scopes.
+Released a9f87793 diverges from own source checkpoint (1 local/11 carrier);
+await its containing coordinator carrier for safe intake without reset/merge. No Employees purity or guessed Volunteer
 bindings, broad source rewrite/common gate repair, publication or hold change.
