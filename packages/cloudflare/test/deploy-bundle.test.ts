@@ -917,6 +917,62 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     }
   });
 
+  it.each(["runtime", "vendor"] as const)("restricts %s root Work imports to the selected genuine named stager", async (kind) => {
+    // Import-form controls exercise the real staging gate. They do not stand
+    // in for Dev's owning runtime consumer or its native workflow.
+    const runtime = dirname(resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build"));
+    const fixture = kind === "runtime" ? mkdtempSync(join(tmpdir(), "can-work-import-form-")) : undefined;
+    if (fixture !== undefined) {
+      for (const entry of readdirSync(runtime).filter(name => name.endsWith(".js"))) {
+        writeFileSync(join(fixture, entry), readFileSync(join(runtime, entry)));
+      }
+    }
+    const workDistribution = await import("@canlang/work/distribution");
+    const target = fixture === undefined
+      ? new URL("kernel/committed-model-source.js", workDistribution.distribution.modules)
+      : join(fixture, "context.js");
+    const original = readFileSync(target);
+    const key = kind === "runtime" ? "runtime/context.js" : "vendor/work/kernel/committed-model-source.js";
+    const options = { repoRoot, ...(fixture === undefined ? {} : { runtimeDistDir: fixture }), verdict: ACTIVE_VERDICT };
+    const selected = "createCommittedModelSourceStager";
+    try {
+      for (const source of [
+        `import { ${selected} as selectedWorkStager } from "@canlang/work";`,
+        `import { ${selected} as selectedWorkStager } from "@canlang/\\u0077ork";`,
+      ]) {
+        writeFileSync(target, `${original.toString("utf8")}\n${source}\nexport const importFormControl = selectedWorkStager;\n`);
+        const bundle = buildDeployBundle(testArtifact(), options);
+        const specifiers = scanModuleImports(bundle.modules[key]!, key).map(record => record.specifier);
+        expect(specifiers).toContain(kind === "runtime" ? "../vendor/work/kernel/committed-model-source.js" : "./committed-model-source.js");
+        expect(specifiers).not.toContain("@canlang/work");
+      }
+      for (const source of [
+        'import { createIntent } from "@canlang/work";',
+        `import { ${selected} as selectedWorkStager, createIntent } from "@canlang/work";`,
+        'import work from "@canlang/work";',
+        'import * as work from "@canlang/work";',
+        'import "@canlang/work";',
+        `export { ${selected} as exportedWorkStager } from "@canlang/work";`,
+        'export * from "@canlang/work";',
+        'const work = import("@canlang/work");',
+        'const work = import(`@canlang/work`);',
+        'const specifier = "@canlang/work"; const work = import(specifier);',
+        "const work = loadProducerModule('@canlang/work', 'committed model source finalizer');",
+        'import { createIntent } from "@canlang/\\u0077ork";',
+      ]) {
+        writeFileSync(target, `${original.toString("utf8")}\n${source}\n`);
+        expect(() => buildDeployBundle(testArtifact(), options), source).toThrow(/only.*named.*createCommittedModelSourceStager/);
+      }
+      if (kind === "vendor") {
+        writeFileSync(target, "export function {\n");
+        expect(() => buildDeployBundle(testArtifact(), options)).toThrow(/committed-model-source\.js.*invalid JavaScript syntax/);
+      }
+    } finally {
+      writeFileSync(target, original);
+      if (fixture !== undefined) rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 15000);
+
   it("stages the genuine public Files finalizer closure with shared noble dependencies", () => {
     // This overlay exercises runtime import/constant rewriting only. The Files
     // bodies remain genuine public emissions; it is not a State consumer fixture.
