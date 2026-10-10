@@ -47,6 +47,40 @@ test('unproved, skewed, malformed and inherited selectors refuse instead of broa
   assert.throws(() => mapReadRulesToPolicy('App.Model', entry, fields, inheritedFields), /inherited/);
 });
 
+test('transcribes exact owning row subjects without widening actor or public predicates', () => {
+  const role = 'App.reviewer', model = 'App.Model';
+  const subject = { roleSubject: { role, person: { model, field: 'by' } } };
+  const rowProof = (by: unknown) => ({ secretFields: ['token'], declaration: {
+    fields: Object.fromEntries(fields.map(name => [name, { type: name === 'by' ? 'user?' : 'text' }])),
+    readGrants: [{ rule: 'Model.read.1', fields: ['label'], by }],
+  }, readRules: { 'Model.read.1': () => true } });
+  const rowEntry = { read: ['Model.read.1'] };
+  assert.deepEqual(mapReadRulesToPolicy(model, rowEntry, fields, rowProof([subject])).input!.grants,
+    [{ by: subject, fields: ['label'] }]);
+  assert.deepEqual(mapReadRulesToPolicy(model, rowEntry, fields, rowProof([role])).input!.grants,
+    [{ by: { role }, fields: ['label'] }]);
+  assert.throws(() => mapReadRulesToPolicy(model, entry, fields, rowProof([subject])), /public mark/);
+  for (const person of [{ model: 'Other.Model', field: 'by' }, { model, field: 'missing' },
+    { model, field: 'profile.by' }, { model, field: 'by', extra: true }, 'actor']) {
+    assert.throws(() => mapReadRulesToPolicy(model, rowEntry, fields,
+      rowProof([{ roleSubject: { role, person } }])), /row read predicate/);
+  }
+  let getters = 0;
+  const accessor = Object.defineProperty({}, 'roleSubject', { enumerable: true, get() { getters++; return subject.roleSubject; } });
+  const inherited = Object.create({ roleSubject: subject.roleSubject });
+  const sparse = new Array(1), extended = Object.assign([subject], { extra: true });
+  for (const by of [[accessor], [inherited], sparse, extended, [], [subject, subject],
+    [{ ...subject, extra: true }], [{ roleSubject: { ...subject.roleSubject, extra: true } }]]) {
+    assert.throws(() => mapReadRulesToPolicy(model, rowEntry, fields, rowProof(by)), /predicate|accessor/);
+  }
+  const accessorPerson = Object.defineProperty({ model }, 'field', { enumerable: true, get() { getters++; return 'by'; } });
+  assert.throws(() => mapReadRulesToPolicy(model, rowEntry, fields,
+    rowProof([{ roleSubject: { role, person: accessorPerson } }])), /accessor/);
+  const noCallable = rowProof([subject]); Reflect.deleteProperty(noCallable.readRules, 'Model.read.1');
+  assert.throws(() => mapReadRulesToPolicy(model, rowEntry, fields, noCallable), /callable/);
+  assert.equal(getters, 0, 'metadata parsing never evaluates a getter');
+});
+
 // Hand-written policy profiles over the historical emitted T18 artifact. These
 // test the actual canonical consumer; they do not prove a fresh compiler join.
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -89,6 +123,22 @@ function profile(selected?: string[], variant: 'public' | 'absent' | 'missing' |
   writeFileSync(module, source);
   return { artifact, asm: { dir, entryUrl: pathToFileURL(module).href, moduleUrls: { 'shop.mjs': pathToFileURL(module).href } }, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
+
+test('row metadata refuses an unissued module assembly before policy admission', async () => {
+  // This is a negative source-correspondence control over the historical
+  // component fixture, not an authored/compiler row-policy acceptance case.
+  const world = profile(undefined, 'historical');
+  try {
+    const original = world.artifact.modules[0]!.js;
+    const carrier = { roleSubject: { role: 'Shop.reviewer', person: { model: 'Shop.Team', field: 'name' } } };
+    const changed = original.replace('readGrants:[{rule:"Team.read.1"}]',
+      `readGrants:[{rule:"Team.read.1",by:[${JSON.stringify(carrier)}]}]`);
+    assert.notEqual(changed, original, 'existing owning metadata occurrence is selected exactly');
+    writeFileSync(join(world.asm.dir, 'shop.mjs'), changed.replace('"@canlang/stdlib"',
+      JSON.stringify(new URL('../src/runtime/stdlib.js', import.meta.url).href)));
+    await assert.rejects(() => loadCanonicalDescriptors(world.asm, world.artifact), /assembler-owned/);
+  } finally { world.cleanup(); }
+});
 
 test('actual canonical create stores plain generated hex; read/query omit it but retain actor/now stamps', async () => {
   const { store } = createTestMemoryStorage();

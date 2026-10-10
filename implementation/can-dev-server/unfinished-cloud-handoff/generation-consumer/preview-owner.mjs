@@ -148,7 +148,7 @@ try{
   assert.equal(examples.ok,true,'authored success, rule refusal and forbidden rows pass');
   assert.deepEqual(changes(beforeExamples,await snapshot()),[],'example row isolation preserves serving D1');
   assert.equal(await captureIsCurrent(capture),true,'capture changed during consumer check');
-}catch(error){process.exitCode=1;out.error={stage,name:error?.name??'Error',code:typeof error?.code==='string'?error.code:null};}
+}catch(error){process.exitCode=1;out.error={stage,name:error?.name??'Error',code:typeof error?.code==='string'?error.code:null};if(stage==='installed real preview activation'&&typeof error?.message==='string')out.error.reason=error.message.slice(0,1000);}
 finally{
   try{await preview?.dispose();}catch{process.exitCode=1;out.disposalFailed=true;}
   mkdirSync(resolve(resultPath,'..'),{recursive:true});
