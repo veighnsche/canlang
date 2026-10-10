@@ -23,6 +23,7 @@ import { admitOwnerStageCall, type AdmittedCall } from './admission.js';
 import { assertScenarioReceiptExecution, scenarioReceiptMemberships, type ExecutionEffects } from './invoke.js';
 import { beginOwnerMutation, type OwnerMutationInput, type OwnerMutationReadView,
   type OwnerMutationSession, type MutationWritesResult } from '../mutation/pipeline.js';
+import { ownerMutationBusinessWrites } from '../mutation/source-finalization.js';
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { stableStringify, hashInputs } from './replay.js';
 import type { SystemCommandContext, SystemStaging } from '../ports/system.js';
@@ -1279,7 +1280,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.intrinsics.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
     if (typeof input !== 'object' || input === null || Array.isArray(input) ||
         ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
-        Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField'].includes(key) ||
+        Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField', 'stageSources'].includes(key) ||
           !('value' in Object.getOwnPropertyDescriptor(input, key)!))) return invalid('owner session accepts only its defining mutation options.');
     if (typeof input.bounds !== 'object' || input.bounds === null || Array.isArray(input.bounds)) return invalid('owner session requires finite bounds.');
     const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
@@ -1339,13 +1340,21 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
         try {
           if (owner.computedIndex !== owner.computedDefaults.length) return invalid('generated handler omitted a required computed-default contribution.');
           const result = await ownerOperation(owner, () => session.finalize());
-          if (result.writes.length > MAX_ITEMS) return invalid('changed snapshot budget exceeded.');
+          const businessWrites = ownerMutationBusinessWrites(result);
+          if (businessWrites.length > MAX_ITEMS) return invalid('changed snapshot budget exceeded.');
           // The actual seal must not alias mutable output from the ordinary
           // model pipeline; both consumer and retention receive this copy.
-          owner.finalized = deepFreeze(dataCopy({ ...result, resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) }));
-          owner.commitEffects = owner.framework === null ? owner.finalized : deepFreeze(dataCopy({ ...owner.finalized,
-            writes: [...owner.finalized.writes, ...frameworkNetWrites(owner.framework)], outbox: [...owner.framework.queued.values()] }));
-          return owner.commitEffects;
+          const finalized = deepFreeze(dataCopy({ ...result, writes: [...businessWrites],
+            resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) }));
+          owner.finalized = finalized;
+          // Disclosure names business changes only. Source/framework effects
+          // still reach Invoke together under this exact original fence.
+          const commitEffects = owner.framework === null && businessWrites === result.writes ? finalized :
+            deepFreeze(dataCopy({ ...finalized,
+              writes: [...result.writes, ...(owner.framework === null ? [] : frameworkNetWrites(owner.framework))],
+              ...(owner.framework === null ? {} : { outbox: [...owner.framework.queued.values()] }) }));
+          owner.commitEffects = commitEffects;
+          return commitEffects;
         } catch (error) { state.poisoned = true; throw error; }
       },
     });

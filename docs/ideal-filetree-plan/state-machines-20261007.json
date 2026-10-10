@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "44abe81f25d6d0480584fc09341c56c3980fc7e4",
+  "integrated_source_pin": "f89d12fadd3ec7f075799a870635f7963c70ac1d",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1897,
-    "net_path_deltas": 10861,
-    "history_touched_paths": 11405,
+    "commit_count_since_checkpoint": 1904,
+    "net_path_deltas": 10864,
+    "history_touched_paths": 11408,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9358,
-    "scope": "Local main integration of committed source 44abe81f25d6d0480584fc09341c56c3980fc7e4 onto 44c032c5d308b00cd6d11794a9c4f38ecc893c99, including reviewed merge parents 44abe81f25d6d0480584fc09341c56c3980fc7e4; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9361,
+    "scope": "Local main integration of committed source f89d12fadd3ec7f075799a870635f7963c70ac1d onto b9bd0a2b4e93637056e00eaedba067c2dcd76cc2, including reviewed merge parents f89d12fadd3ec7f075799a870635f7963c70ac1d; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -62240,6 +62240,12 @@
     ],
     [
       "A",
+      "packages/state/src/mutation/source-finalization.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/state/src/mutation/t18-defaults-durable.test.ts",
       "packages/state",
       "inherited"
@@ -64580,6 +64586,12 @@
     ],
     [
       "A",
+      "packages/work/src/kernel/committed-model-source.ts",
+      "packages/work",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/work/src/kernel/dispatch-staging.ts",
       "packages/work",
       "inherited-unallocated"
@@ -64727,6 +64739,12 @@
       "packages/work/test/b3-mirror-conformance.test.ts",
       "packages/work",
       "inherited"
+    ],
+    [
+      "A",
+      "packages/work/test/committed-model-source.test.ts",
+      "packages/work",
+      "inherited-unallocated"
     ],
     [
       "M",
@@ -67802,7 +67820,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9358,
+    "count": 9361,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67816,5 +67834,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main integration of committed source 44abe81f25d6d0480584fc09341c56c3980fc7e4 onto 44c032c5d308b00cd6d11794a9c4f38ecc893c99, including reviewed merge parents 44abe81f25d6d0480584fc09341c56c3980fc7e4; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+  "current_maintenance_summary": "Local main integration of committed source f89d12fadd3ec7f075799a870635f7963c70ac1d onto b9bd0a2b4e93637056e00eaedba067c2dcd76cc2, including reviewed merge parents f89d12fadd3ec7f075799a870635f7963c70ac1d; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
 }

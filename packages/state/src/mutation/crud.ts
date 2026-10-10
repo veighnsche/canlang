@@ -28,6 +28,7 @@ import { StateError } from '../errors.js';
 import { beginOwnerMutation, runMutationWrites, type MutationWrite, type MutationWritesInput,
   type OwnerMutationInput, type OwnerMutationSession } from './pipeline.js';
 import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies } from './model-policies.js';
+import { ownerMutationBusinessWrites } from './source-finalization.js';
 import type { ModelTable } from './models.js';
 
 /** INTERIM CRUD def: an operation def with an optional candidate `when`. */
@@ -329,6 +330,8 @@ export interface GeneratedCrudExecuteInput {
   readonly ownerBounds?: OwnerMutationInput['bounds'];
   /** Install the host's native frame over State's real session; never replace it. */
   readonly createOwnerFrame?: GeneratedCrudOwnerFrameFactory;
+  /** Installed source routing joins the real owner finalizer and original commit. */
+  readonly stageSources?: OwnerMutationInput['stageSources'];
 }
 
 export interface GeneratedCrudOwnerFrame {
@@ -478,8 +481,14 @@ export function generatedCrudExecuteOwnerSession(
 function buildGeneratedCrudExecutor(
   input: GeneratedCrudExecuteInput, forceOwnerSession: boolean,
 ): (call: AdmittedCall) => Promise<ExecutionEffects> {
+  const source = Object.getOwnPropertyDescriptor(input, 'stageSources');
+  if (source !== undefined && (!('value' in source) || !source.enumerable || typeof source.value !== 'function') ||
+      source === undefined && 'stageSources' in input) {
+    throw new StateError('validation', 'Generated owner CRUD source staging requires an own installed function.');
+  }
+  const stageSources = source?.value as OwnerMutationInput['stageSources'];
   const { table, store, encodeField, secretFields, ownerPolicies, ownerBounds, createOwnerFrame } = input;
-  const ownerExecution = forceOwnerSession || ownerPolicies !== undefined || ownerBounds !== undefined || createOwnerFrame !== undefined;
+  const ownerExecution = forceOwnerSession || ownerPolicies !== undefined || ownerBounds !== undefined || createOwnerFrame !== undefined || stageSources !== undefined;
   if (ownerExecution && ownerBounds === undefined) {
     throw new StateError('validation', 'Generated owner CRUD requires explicit mutation bounds.');
   }
@@ -492,7 +501,8 @@ function buildGeneratedCrudExecutor(
     const effects = await (async () => {
       if (!ownerExecution) return runMutationWrites({ ...common, writes: [write] });
       const session = await beginOwnerMutation({ ...common, bounds: ownerBounds!,
-        ...(ownerPolicies !== undefined ? { policies: ownerPolicies } : {}) });
+        ...(ownerPolicies !== undefined ? { policies: ownerPolicies } : {}),
+        ...(stageSources !== undefined ? { stageSources } : {}) });
       let close: GeneratedCrudOwnerFrame['close'] | undefined;
       let closeReceiver: GeneratedCrudOwnerFrame | undefined;
       try {
@@ -521,7 +531,7 @@ function buildGeneratedCrudExecutor(
     })();
     // Owner finalization coalesces hook/secondary writes and reserves one final
     // version per row. The target need not be the first (sorted) net write.
-    const target = effects.writes.find(candidate => candidate.model === write.model &&
+    const target = ownerMutationBusinessWrites(effects).find(candidate => candidate.model === write.model &&
       (candidate.kind === 'remove' ? candidate.id : candidate.row.id) === write.id);
     if (!ownerExecution && target === undefined) throw new Error(`Mutation pipeline returned no target write for a ${write.op}.`);
     const row = target === undefined || target.kind === 'remove' ? null : target.row;
