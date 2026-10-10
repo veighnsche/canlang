@@ -1379,10 +1379,30 @@ pub fn emit_program_with_native_source_receipts(
     emit_program_with_receipt_sources(ir, native_receipts, Some(db))
 }
 
+/// Emit source-bound, nongrant query recipes alongside the original module.
+/// They never populate operation disclosure or grant a native frame.
+pub(super) fn emit_program_with_query_sources(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: &crate::source::SourceDb,
+    queries: &std::collections::BTreeMap<String, serde_json::Value>,
+) -> JsOutput {
+    emit_program_with_sources(ir, native_receipts, Some(db), Some(queries))
+}
+
 fn emit_program_with_receipt_sources(
     ir: &IrProgram,
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
+) -> JsOutput {
+    emit_program_with_sources(ir, native_receipts, db, None)
+}
+
+fn emit_program_with_sources(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: Option<&crate::source::SourceDb>,
+    queries: Option<&std::collections::BTreeMap<String, serde_json::Value>>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.validate_model_field_bounds();
@@ -1396,6 +1416,32 @@ fn emit_program_with_receipt_sources(
         0,
     ));
     let local_policies = collect_local_policies(ir, &module_path(&entry_name));
+    if let Some(queries) = queries {
+        for item in &ir.items {
+            let Some(plan) = queries.get(&item.canonical) else {
+                continue;
+            };
+            let Some(query) = ir
+                .scenario_disclosures
+                .get(&item.id)
+                .and_then(|fact| fact.source_facts())
+                .and_then(|source| source.queries.as_ref())
+                .and_then(|queries| (queries.len() == 1).then(|| queries[0].clone()))
+            else {
+                continue;
+            };
+            let Some(return_id) = plan["returns"][0]["id"].as_str() else {
+                continue;
+            };
+            emitter.native_query_sources.insert(
+                item.id,
+                NativeQuerySource {
+                    query,
+                    return_id: return_id.into(),
+                },
+            );
+        }
+    }
     if native_receipts {
         let models = emitter.collect_models();
         for item in &ir.items {
@@ -1410,6 +1456,16 @@ fn emit_program_with_receipt_sources(
         }
     }
     let mut body = JsWriter::new();
+    if let Some(queries) = queries.filter(|queries| !queries.is_empty()) {
+        // Return fresh own data: readers cannot mutate another consumer's
+        // checked recipe. The verified loader still owns all runtime binding.
+        let payload = descriptor_json(&descriptor_json(queries));
+        body.push(
+            entry_span,
+            Some("canScenarioQuerySources".into()),
+            &format!("export function canScenarioQuerySources(){{return JSON.parse({payload});}}"),
+        );
+    }
     // Operation descriptors derive once, up front: the `canApp()`
     // registry and the artifact envelope share them verbatim.
     let mut operations = emitter.collect_operations();
@@ -1503,7 +1559,7 @@ fn emit_program_with_receipt_sources(
 
 /// Pick the entrypoint: first composed app, else first implicit app, else
 /// first package, else none.
-fn pick_entrypoint(ir: &IrProgram) -> Option<crate::analysis::resolve::ModuleId> {
+pub(super) fn pick_entrypoint(ir: &IrProgram) -> Option<crate::analysis::resolve::ModuleId> {
     ir.modules
         .iter()
         .find(|m| m.kind == ModuleKind::ComposedApp)
@@ -1895,6 +1951,14 @@ pub struct Emitter<'a> {
     receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
     receipt_calls: Vec<Span>,
+    native_query_sources: HashMap<SymbolId, NativeQuerySource>,
+    query_capture: Option<NativeQuerySource>,
+}
+
+#[derive(Clone)]
+struct NativeQuerySource {
+    query: crate::analysis::scenario_disclosure::DisclosureQuery,
+    return_id: String,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -1946,6 +2010,8 @@ impl<'a> Emitter<'a> {
             receipt_call_sites: Vec::new(),
             receipt_capture: None,
             receipt_calls: Vec::new(),
+            native_query_sources: HashMap::new(),
+            query_capture: None,
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -3128,6 +3194,38 @@ impl<'a> Emitter<'a> {
             && args.iter().any(|arg| self.expr_formatted(arg))
         {
             return self.formatted_refusal("formatted formatting argument", span);
+        }
+        if let IrExpr::Member { base, field } = &expr.expr
+            && let Some(dependency) = self.query_capture.as_ref().and_then(|source| {
+                source
+                    .query
+                    .dependencies
+                    .iter()
+                    .find(|dependency| {
+                        dependency.node.file == span.file
+                            && dependency.node.start == span.start
+                            && dependency.node.end == span.end
+                            && dependency.field_name == *field
+                    })
+                    .cloned()
+            })
+        {
+            self.stdlib
+                .insert("observeScenarioReceiptQueryDependency".into());
+            let receiver = self.lower_expr(base);
+            let value = if expr.ty.nullable_inner().is_some() {
+                format!("($queryRow[{}]??null)", js_string(field))
+            } else {
+                format!("$queryRow[{}]", js_string(field))
+            };
+            // Observe immediately after the one original protected read. A
+            // synchronous bridge preserves lazy predicates and evaluation order.
+            return format!(
+                "(($queryRow)=>{{const $queryValue={value};observeScenarioReceiptQueryDependency(c,{},$queryRow,{},{});return $queryValue;}})({receiver})",
+                js_string(&dependency.model_name),
+                js_string(field),
+                js_string(&dependency.id)
+            );
         }
         if let IrExpr::Name(name) = &expr.expr
             && let Some(intrinsics) = self
@@ -4333,6 +4431,41 @@ impl<'a> Emitter<'a> {
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, _span: Span) -> String {
+        if let Some(source) = self.query_capture.clone()
+            && let Some(fact) = query.source.as_ref()
+        {
+            if fact.node == source.query.node {
+                self.stdlib.insert("executeScenarioReceiptQuery".into());
+                self.enter_scope();
+                let row = self.bind("row");
+                let predicate = query
+                    .where_pred
+                    .as_ref()
+                    .map(|predicate| self.lower_expr(predicate))
+                    .expect("checked source query predicate");
+                self.exit_scope();
+                return format!(
+                    "await executeScenarioReceiptQuery(c,{},async({row})=>{predicate})",
+                    js_string(&source.query.id)
+                );
+            }
+            if fact.node == source.query.projection.node {
+                let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain else {
+                    unreachable!("checked source local projection domain");
+                };
+                let selected = self.lower_expr(base);
+                let projected = self.append_select("$querySelected", false, query);
+                self.stdlib.insert("bindScenarioReceiptQueryResult".into());
+                self.stdlib.insert("selectScenarioReceiptReturn".into());
+                // Preserve exact selected-array identity, source-order map and
+                // reference/version values. The host alone binds private slots.
+                return format!(
+                    "(($querySelected)=>{{const $queryResult={projected};bindScenarioReceiptQueryResult(c,{},$querySelected,$queryResult);selectScenarioReceiptReturn(c,{});return $queryResult;}})({selected})",
+                    js_string(&source.return_id),
+                    js_string(&source.return_id)
+                );
+            }
+        }
         match &query.domain {
             crate::codegen::ir::IrQueryDomain::Model(model) => {
                 self.stdlib.insert("records".to_string());
@@ -9697,6 +9830,7 @@ impl<'a> Emitter<'a> {
                     }
                     self.receipt_calls.clear();
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
+                    self.query_capture = self.native_query_sources.get(&item.id).cloned();
                     self.receipt_call_sites = self
                         .native_call_sites
                         .get(&item.id)
@@ -9784,6 +9918,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.receipt_capture = None;
+                    self.query_capture = None;
                     self.receipt_call_sites.clear();
                     self.receipt_calls.clear();
                     out.push(item.span, Some(item.canonical.clone()), "},");

@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T04:59:30.462658+00:00",
+  "updated_utc": "2026-10-10T12:53:19.784561+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Exact14b07710e1bde23336142b8b9e6a1b65ec9da652 passes complete required current-source validation:133targets1386passed/0failed/0ignored/0filtered/0SKIP, real Node24.19 completion/native/permission bodies. Strict all-targetClippy/fmt0; actual released5fa graph22/22 uncached. Coordinator reviewed and integrated the bounded loop plus related prior result records at LOCAL64e64099, safely FF consumed after the unchanged run. Dev actualD1 stops before replay on history mismatch: receipt-aware State owner session emits two net history entries instead of the fixture's three staged entries. State owns contract/producer resolution; Dev preserves and qualifies the existing consumer assertion afterward. Compiler whole/Memory results do not qualify that history/D1 workflow. Original58/67 and precise State/Dev/runtime/application dependencies plus BDD3/Task22 holds remain.",
+  "current_source_work": "Compiler14b full1386/133/zero failed/ignored/filtered/SKIP remains qualified at its original installed5fa tuple, with unchanged focused301/strictlint/fmt reused. Exact reviewed LOCAL61240891 State72a4ce23 ordered-stage history correction safely FF consumed; actual changed graph22/22 builds uncached on Node24.19. ONLY affected native_scenario_receipts4/4 passes once (1.32s), retaining actual public invoker/receipt/current/order/replay controls. State owns history repair/94 accepted producer checks; Dev owns actual existing D1 consumer qualification. Original58/67 and precise broader dependencies/BDD3/Task22 holds remain.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -320,7 +320,7 @@
     "consumer": "compiler/tests/fixtures/localized-format-consumer.mjs --label-parameter",
     "first_failure": "Same affected case0/1 (0.58s): two E3016 diagnostics anchored at text types of valid label parameters.",
     "repair": "resolve_param_defaults recognizes label metadata only when followed by =, preserving earlier seed default binding. check_param_defaults uses the existing field_parts.label owner; no parser or formatter facade change.",
-    "verified": "Same affected case1/1 (0.68s), production CLI/installed catalog \u2192 actual loadArtifactFile/assembleModules \u2192 unchanged generated derives/installed formatter. Explicit expression context formatting.appDefault=en, team=null. Dependent default yields {text:Ready|Ready|T,locale:en}; explicit binding yields {text:S|Bound|T,locale:en}.",
+    "verified": "Same affected case1/1 (0.68s), production CLI/installed catalog → actual loadArtifactFile/assembleModules → unchanged generated derives/installed formatter. Explicit expression context formatting.appDefault=en, team=null. Dependent default yields {text:Ready|Ready|T,locale:en}; explicit binding yields {text:S|Bound|T,locale:en}.",
     "refusal": "Same source retains actual tail label=caption metadata. Replacing its static caption message with a parameterized message preserves exact E3016: label cannot reference 'caption'; parameterized messages need call syntax, with no modules.",
     "reused": "Existing selected-call/localized-format/branch matrices and outcomes reused unchanged. Earlier branch source still uses word; its prior contextual-name issue is qualified here.",
     "qualification": "No task-count/full S9-Q01, carrier/public human sink, State/native authority, parser or facade claim.",
@@ -333,7 +333,7 @@
     "direct_case": "compiler/tests/query_order.rs::production_model_query_order_preserves_direct_alias_fields_and_refuses_expressions",
     "prepatch": "Actual genuine fixture compilation produced two E6008 expression-query-order diagnostics and no modules for entry.count and -entry.count.",
     "repair": "Minimal ir.rs decoder admits only the checked current model alias/direct stored field satisfying the existing Cloudflare native scalar-order contract, optionally unary descending. Existing IrOrder and native selector string emission reused; this case qualifies int ordering.",
-    "verified": "Same production CLI/installed Values catalog case1/1 (0.40s). Actual ascending/descending authored callables emit count/-count exactly. Same-source arithmetic entry.count+1 and correctly typed foreign root entryRecord:Entry order=entryRecord.count each refuse exact E6008 cannot lower expression query order: no \u00a713 lowering exists, with no modules.",
+    "verified": "Same production CLI/installed Values catalog case1/1 (0.40s). Actual ascending/descending authored callables emit count/-count exactly. Same-source arithmetic entry.count+1 and correctly typed foreign root entryRecord:Entry order=entryRecord.count each refuse exact E6008 cannot lower expression query order: no §13 lowering exists, with no modules.",
     "reused": "Original matched/all-false, revoke, provisional-read and rollback outcomes reused at recorded scope; no broad or unchanged matrix repeated.",
     "qualification": "Finite direct int-field source/artifact/authorized D1 order slice only. Full S9-Q02/Q08 and metadata/computed ordering remain open. Counters58/67 with9open unchanged.",
     "ownership": "Compiler ir.rs/query_order.rs/own notes frozen for capture; Work owns Cloudflare invoke.ts and genuine fixture/native consumer capture; coordinator owns DECISIONS/coverage/index.",
@@ -454,9 +454,9 @@
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
     "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
-    "remaining_dependencies": "State receipt-aware owner-session history contract/producer resolution (actualD1 A/B/A emits A0\u21922/B0\u21921 versus retained three-stage assertion); Dev existing actualD1 replay qualification after exact owner release. Original Workbench/current-membership/read-query Fact[], protected dynamic/as/CRUD/default/framework/composite, T11/application/browser and precise BDD3/Task22 holds remain. Compiler qualification is unchanged; no history/D1 acceptance.",
+    "remaining_dependencies": "Dev actual existing D1 replay/history consumer after reviewed State72 ordered-stage producer release; original Workbench/current-membership/read-query Fact[], protected dynamic/as/CRUD/default/framework/composite, T11/application/browser and precise BDD3/Task22 holds remain. State history producer prerequisite is resolved; actual D1 acceptance remains separate.",
     "subsequent_focused_qualification": "Clean fast-forward to reviewed LOCAL2ee246ab adds owner Dev qualification sources but leaves compiler/tests/receipt runtime core unchanged. Fresh actual graph26/26 zero cached builds on Node24; owning actual CLI/emitter/imported-module1/1 passes with current outputs. Unchanged whole1356 and other five cases reused.",
-    "scope": "Exact14b07710 compiler source and actual installed reviewed5fa outputs qualify all133 compiler/corpus/editor/LSP/completion/native/permission targets, zero skips; strictalltargetClippy/fmt0. Safe reviewed LOCAL64 intake is source/runtime unchanged; no redundant rerun. Earlier96fa whole1381/6530 whole1356 remain historical in existing records. No original Workbench/application/general-loop or broader-reference acceptance.",
+    "scope": "Exact14b compiler whole1386/133/zero failed/ignored/filtered/SKIP belongs to original installed5fa tuple. Compiler source/fixture unchanged at reviewed LOCAL61240891; changed State72 history dependency is qualified by actual graph22/22 uncached and only affected native_scenario_receipts4/4 once. Unchanged focused301/lint/fmt/full results reused by scope; no new full run or D1/application/general-loop acceptance.",
     "changed_source_failure": "Historical07996dbf whole:133targets1377passed/3failed, zero ignored/filtered/SKIP. Actual emitter clone stack overflow and masked unsupported query refusal are repaired; stale schedule negative retains unsupported email control. All three owning targets and the complete96fa run now pass."
   },
   "construct_help_first_profile": {
@@ -596,7 +596,7 @@
       },
       "reviewed_main": "2ee246ab07dbed47919e0d510d725e91b3ee0fce"
     },
-    "native_consumer": "Consumed coordinator-reviewed LOCALdf394abbaa7ab60a79079e667e8d3889f9546e73: actual NativeStaticCalls.can CLI\u2192portable global D1\u2192ordinary Identity/member HTTP and granted MCP1/1 in22.00s, actual scalar/void physical child associations, one root receipt/fence and no-effect replay, nonmember/Public403, currency/correspondence/awaited cleanup. Reuse owning evidence in implementation/can-dev-server/PLAN.md; no original Workbench credit.",
+    "native_consumer": "Consumed coordinator-reviewed LOCALdf394abbaa7ab60a79079e667e8d3889f9546e73: actual NativeStaticCalls.can CLI→portable global D1→ordinary Identity/member HTTP and granted MCP1/1 in22.00s, actual scalar/void physical child associations, one root receipt/fence and no-effect replay, nonmember/Public403, currency/correspondence/awaited cleanup. Reuse owning evidence in implementation/can-dev-server/PLAN.md; no original Workbench credit.",
     "source_query_producer": {
       "state": "implemented_affected_tested_unfinished_runtime_join",
       "source": "TypeTable.checked_queries; ScenarioDisclosure.source_facts(); IrQuery.source; collect_scenario_source_calls",
@@ -638,6 +638,35 @@
         "behavior": "Actual selected any/all/count/first retain query/model/alias and external predicate anchors; IR joins actual typed Query/Lambda/canonical slots and retains association without fabricating Where or granting native admission. Named argument authored order and grouped predicate source retained.",
         "validation": "Affected154/154: query8, invocation7, codegen121, disclosure18; strict all-target Clippy/fmt0; finite independent review clear. Altered owner/model/out-of-range/query/alias/predicate node/type/missing/builtin/overload refuse.",
         "remaining": "Async membership predicate sequential runtime and bounded decision-context/source contract; original cohort, State/Dev query/policy/result join."
+      },
+      "receipt_carrier": {
+        "state": "unfinished_checked_source_emitted_owning_state_inventory_blocked",
+        "api": "codegen::scenario_queries::serialize_query_sources; native compile canScenarioQuerySources() fresh own-data map",
+        "behavior": "Genuine checked model scan/local select/count guard, exact input/alias/model/contract identities, six potential owning field dependencies (location control; title/description/due/priority/done data), seven Fact reference/original-version/data mappings and all four query influences. Exact default order[]/limit null/archive exclude. Immutable source facts plus fresh guard/body/parameter/typed IR join reject source and executable skew. Native opt-in exact execute/read/result/select façades follow real lazy getter sites; ordinary emission unchanged. Metadata does not populate operation.disclosure or upgrade Declined.",
+        "validation": "Current library159/159, codegen121/121, checked_query_facts8/8, decision7/7, invocation7/7, disclosure19/19, actual native4/4 and new transport skew1/1 pass:326 outcomes. Strict all-target Clippy/fmt0 and finite source review clear. New installed query consumer remains1 failed: actual State DTO parser accepts/freeze-preserves emitted data; owning inventory rejects canonical nominal Task.priority. No body skips. Earlier focused filter selected only2 library queries and is not counted as other target execution.",
+        "blocked": [
+          {
+            "prerequisite": "State scenario-query-plan artifactType admits genuine canonical named-enum field tag against owning normalized enum schema/cases",
+            "owner": "Capability/State; coordinator exact released intake",
+            "evidence": "Actual generated field nominal todo.Task.priority + owning valueTypes enum; installed checkQueryInventory throws unsupported owning query field. Keep original named-enum tag/type; no inline workaround."
+          },
+          {
+            "prerequisite": "Defining State lazy candidate/read correspondence with full domain and private query slots",
+            "owner": "Capability/State; Dev live adapter",
+            "evidence": "Original membership false skips location getter/marker; current State requires every potential control dep observed per false candidate. Do not hoist/fabricate source reads; coordinator assigned exact owner reconciliation."
+          },
+          {
+            "prerequisite": "Verified Dev exported native frame/query/read/result façades and generic unbound behavior qualification",
+            "owner": "Dev native adapter",
+            "evidence": "Generated signatures executeScenarioReceiptQuery(c,queryId,async row=>predicate), sync observeScenarioReceiptQueryDependency(c,model,row,field,depId), sync bindScenarioReceiptQueryResult(c,returnId,selected,facts) then selectReturn. Metadata-only consumer does not qualify live binding or generic fallback."
+          },
+          {
+            "prerequisite": "Original clean cohort and accepted pure-membership/authorization/context source contract",
+            "owner": "Defining Compiler/State/Dev design prerequisite; existing decision-context advice only",
+            "evidence": "Unchanged original29-file149 diagnostics (Employees pureStateRead and wider composition); no original source/guard replacements. New finite test uses exact three original body lines with declared test owners and genuine membership guard; CLI preserves active_member external E6007."
+          }
+        ],
+        "remaining": "Original Workbench full source/context/approval/protected proposal/rollback/native result workflow and current-source whole qualification remain unfinished. No new API grant, widened human hold or58/67 closure."
       }
     },
     "capability_fixture_attribution": {
@@ -658,7 +687,7 @@
       "behavior": "Actual reused array parameter source layer retains exact compatible min/max inclusive JS-safe integer lengths in IR, top-level operation input metadata and generated scenario/capability schemas; field-only !, normalization, uniqueness/distinctness are not borrowed. Outer scalar-field[] wrapper does not promote element bounds to cardinality.",
       "validation": "Owning actual IR/CLI/artifact/generated-schema target3/3: imported Task[] min1/max10, narrowed min2/max5, nullable/read-versus-mutation versions, legal default[] and unbounded/scalar-element wrapper controls; unsafe/symbolic no modules. Direct parameter modifiers already refuse parser E1200; no new unsupported-syntax inference. Strict all-targetClippy/fmt0 and current14b whole133targets1386/0failed/0ignored/0filtered/0SKIP pass.",
       "owner_release": "Packages exact shared envelope top-level min/max:number for safe nonnegative array lengths, existing array/nullable/ref requireVersion. State per-element current reference/outer checkpoint; Dev private input-array view/slot correspondence. Native array admission remains withheld.",
-      "remaining": "Finite direct admitted array/literal-bound/unconditional Set Compiler+nativeMemory+whole source is qualified. State owns the newly observed owner-session history mismatch (two net entries versus existing three-stage D1 assertion); Dev owns actual D1 qualification after released resolution. General computed/query/nullable/nested/conditional loop coverage remains declined; no new human hold."
+      "remaining": "Finite admitted array/literal-bound/unconditional Set Compiler/nativeMemory/whole14b and actual DevD1 history/replay now qualified at recorded scopes. General query/computed/nullable/nested/conditional loops remain declined; no new human hold."
     },
     "nominal_model_references": {
       "state": "implemented_real_values_and_state_loader_tested_native_query_unfinished",
@@ -667,12 +696,13 @@
       "next": "Real query/source/policy/native result provenance and private captures remain owner joins. Current14b whole133targets1386 qualifies the existing producer/ordinary consumer source."
     },
     "reference_array_loop": {
-      "state": "compiler_reviewed_current_whole_qualified_state_history_dev_d1_blocked",
+      "state": "finite_compiler_whole_and_dev_d1_history_replay_qualified",
       "source": "tests/integration/can-dev-server/NativeRefArrays.can exact Dev2a1a07a1 at reviewed LOCAL5fa76b27",
       "behavior": "Direct admitted nonnullable owning stored-model array, positive literal bound, one straight-line current-item Set loop, exact parameter/model/item/domain/limit/ordered-body IR bijection; existing private Then/Else empty/nonempty selection and repeated static current-row markers. Original order/duplicates, once domain fetch and pre-body length check retained. Repeated observations and executions each bounded200; general query/nested/conditional/helper/version/result-control profiles remain declined.",
-      "validation": "Library157 and codegen121 pass; final owning native4/disclosure19 pass, total301. Actual CLI/native public State Memory A/B/A captures values0/0/1 and versions1/1/2, same dependency ID; final A2/B1 bothversion2, one rootcommit, originalslots unchanged, saved replay no effects. Empty/omitted capture/replay, genuine same-team nonmember/stale/malformed/overlimit refusals, nine IRskew controls and source budget/general-profile controls pass. Exact owner graph22/22 uncached; strict all-targetClippy/fmt0 and finite source review clear. Initial test-only setup catalog-owner mismatch and unsupported cross-team isolation assumption corrected to actual cohort/policy; no production gate weakened. Current whole14b:133targets1386/0failed/0ignored/0filtered/0SKIP, real required engines/native/permission bodies; strictalltargetClippy/fmt0. Coordinator analyzer and independent codegen/native reviews clear; reviewed LOCAL64 safely consumed after exact whole run.",
-      "remaining": "State owns receipt-aware owner-session history contract/producer resolution. Dev actualD1 has correct final A2/B1 but two net history entries A0\u21922/B0\u21921, while the existing assertion requires A0\u21921/A1\u21922/B0\u21921; it stops before replay. Preserve assertion and no nativeD1/history acceptance. Compiler emitted disclosure routes CF runScenarioExecution receiptAware/useOwnerSession to State beginScenarioReceiptMutation\u2192beginOwnerMutation.finalize; no compiler bypass/shared mutation patch. Consume exact released defining resolution then Dev owns unchanged actual consumer qualification. Original broader refs/precise holds remain.",
-      "reviewed_main": "64e64099a4a2e2261ed4ce9bae45e598b3624979"
+      "validation": "Library157 and codegen121 pass; final owning native4/disclosure19 pass, total301. Actual CLI/native public State Memory A/B/A captures values0/0/1 and versions1/1/2, same dependency ID; final A2/B1 bothversion2, one rootcommit, originalslots unchanged, saved replay no effects. Empty/omitted capture/replay, genuine same-team nonmember/stale/malformed/overlimit refusals, nine IRskew controls and source budget/general-profile controls pass. Exact owner graph22/22 uncached; strict all-targetClippy/fmt0 and finite source review clear. Initial test-only setup catalog-owner mismatch and unsupported cross-team isolation assumption corrected to actual cohort/policy; no production gate weakened. Current whole14b:133targets1386/0failed/0ignored/0filtered/0SKIP, real required engines/native/permission bodies; strictalltargetClippy/fmt0. Coordinator analyzer and independent codegen/native reviews clear; reviewed LOCAL64 safely consumed after exact whole run. Exact reviewed LOCAL61240891/State72a4ce23 consumes the ordered-stage producer correction without compiler/sourcefixture edits; changed actual graph22/22 uncached on Node24.19. ONLY owning native_scenario_receipts4/4 passes once (1.32s), with actual public invoker/receipt/current/order/replay controls preserved. Full1386/focused301/strictlint/fmt unchanged and reused, no whole rerun.",
+      "remaining": "Exact Dev eb8aad653cae5f0362dfeae9a03b943fb5db3c7a records actual preserved D1 consumer1/1 with original three stages/history, one commit/receipt and populated/empty/omitted no-effect replay; earlier history blocker resolved. General loop/query/conditional/nested profiles and original Workbench remain separate. New query source current native target4/4 preserves the unchanged loop behavior.",
+      "reviewed_main": "64e64099a4a2e2261ed4ce9bae45e598b3624979",
+      "history_intake": "61240891583ddf7e1cdd612b54aaa693dae6d940 / State72a4ce23"
     }
   }
 }
