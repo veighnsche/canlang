@@ -200,7 +200,10 @@ const hookEntry=await import(pathToFileURL(resolve(dirname(new URL(import.meta.u
 const hookRegistry=hookEntry.canApp();
 function hookCallable(id){const desc=hooks.callables.find(item=>item.id===id);assert(desc,id);let fn=hookRegistry;for(const part of desc.member)fn=fn[part];assert.equal(typeof fn,'function',id);return fn;}
 const candidate={t:'candidate'};
-assert.equal(await hookCallable('Hooks.h')(candidate,{triggerId:'trigger',before:null}),candidate);
+// Match the native callback ABI: readonly flat State views and original context.
+const after=Object.freeze({...candidate,id:'trigger',version:1});
+assert.equal(await hookCallable('Hooks.h')(candidate,{triggerId:'trigger',before:null,after},context),candidate);
+assert.deepEqual(after,{t:'candidate',id:'trigger',version:1},'hook cannot alter the readonly after view');
 assert.equal(await hookCallable('Hooks.N.create')(context,{t:'created'}),undefined);
 assert.deepEqual(trace.at(-1),['create','Hooks.N',{t:'created'}]);
 const record={id:'record',t:'before'};
