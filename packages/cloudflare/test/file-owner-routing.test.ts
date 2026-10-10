@@ -10,13 +10,16 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
+import { DatabaseSync } from 'node:sqlite';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, MutationEnvelope, StoragePort } from '@canlang/contracts';
 import type { UploadDeps } from '@canlang/interfaces';
 import { distribution } from '@canlang/values/distribution';
 import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import { ensureSchema } from '@canlang/state/storage/d1';
-import { asId, asModel, asOperationId, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
+import { asId, asModel, asOperation, asOperationId, asVersion, FIXED_NOW, makeBatch, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
+import { createD1Storage, STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
+import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import { buildSessionCookie, createD1IdentityStore, ensureIdentitySchema, issueMcpGrant, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createSqliteFileBindings, createSqliteFileStore, type SqliteFileStore } from '@canlang/files/host/sqlite';
 import { blobKeyForFile } from '@canlang/files/finalize';
@@ -25,6 +28,7 @@ import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, createTeamOwnerStorageBoundary } from '@canlang/cloudflare/worker/assembly';
 import { createBoundFileHandler, createCanonicalFileBinding } from '@canlang/cloudflare/runtime/bound-files';
+import { createNativeFileRetirementBinding } from '../dist/dev/file-retirement.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const APP = 'TypedFileJourney', MODEL = asModel(`${APP}.Entry`);
@@ -347,4 +351,239 @@ test('native typed File downloads select the current D1 owner without fallback a
       assert.deepEqual(await readFile(stagedModule),originalModule);
       assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
     } finally {gate?.release.resolve();finalReadGate?.release.resolve();physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
+  });
+
+test('native File retirement guards every owner writer and resumes original SQLite deletion after interruption and reopen',
+  {timeout:120000}, async () => {
+    const fixture=fileURLToPath(new URL('./fixtures/native-file-retirement.can',import.meta.url));
+    const compiler=join(root,'compiler/target/debug/can'),catalog=fileURLToPath(distribution.catalog);
+    const paths=[fixture,compiler,catalog],digest=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
+    const hashes=await Promise.all(paths.map(async path=>digest(await readFile(path))));
+    const dir=await mkdtemp(join(tmpdir(),'can-native-file-retirement-'));
+    const app='NativeFileRetirement',model=asModel(`${app}.Entry`),filePath=join(dir,'files.sqlite');
+    let worker:Miniflare|undefined,physical:SqliteFileStore|undefined,sequence=0,now=FIXED_NOW;
+    const clock={nowMs:()=>now},retention={unattachedHorizonMs:120000,retentionMs:600000};
+    const nextId=()=>asOperationId(uuidv7(FIXED_NOW,++sequence));
+    try {
+      const env={...process.env};delete env.CAN_CATALOG;
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,fixture],
+        {cwd:root,env,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact,originalArtifact=JSON.stringify(artifact);
+      assert.ok(artifact.sources.some(source=>resolve(source.path)===fixture&&source.sha256===hashes[0]));
+      assert.deepEqual(artifact.valueTypes?.contracts.map(contract=>contract.name),[`${app}.Metadata`]);
+      assert.equal(artifact.operations?.find(operation=>operation.name===`${app}.attach`)?.result?.disclosure?.version,1);
+      const asm=await assembleModules({artifact,sourcePath:fixture},{workDir:join(dir,'modules'),
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,script:'export default {fetch(){return new Response("ok")}}',
+        d1Databases:{IDENTITY:'retirement-identity',A:'retirement-a',B:'retirement-b'},d1Persist:join(dir,'d1')});
+      const idDb=await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const a=await worker.getD1Database('A') as unknown as D1Database,b=await worker.getD1Database('B') as unknown as D1Database;
+      await ensureIdentitySchema(idDb);await ensureSchema(a);await ensureSchema(b);
+      const identities=createD1IdentityStore(idDb,{clock}),team=await identities.createTeam({timezone:'UTC'}),otherTeam=await identities.createTeam({timezone:'UTC'});
+      const user=await identities.createUser({email:'native-retirement@example.test',password_hash:'unused',email_verified:true});
+      for(const selected of [team,otherTeam])await identities.createMembership({user_id:user.user_id,team_id:selected.team_id,is_owner:true,roles:[]});
+      const grant=await issueMcpGrant(identities,{user_id:user.user_id,team_id:team.team_id,client_id:'native-retirement'},{clock});
+      const otherGrant=await issueMcpGrant(identities,{user_id:user.user_id,team_id:otherTeam.team_id,client_id:'native-retirement-other'},{clock});
+      const identity=await resolveIdentity(identities,{mcp_grant_token:grant.token},{clock});
+      const foreign=await resolveIdentity(identities,{mcp_grant_token:otherGrant.token},{clock});
+      // Existing adapters opened before installation must obey the permanent
+      // guard too; their absence of an issuer never creates a bypass.
+      const legacy=createD1Storage(a),participating=createD1Storage(a,undefined,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+      physical=createSqliteFileStore(filePath);
+      const scope={app,ownerPackage:app,owner:team.team_id};
+      const input={artifact,asm,scope,identities,db:a,stateStoreId:'native-retirement-owner-a',physicalSqliteFileStore:physical,
+        initializeFresh:true as const,clock,intentTtlMs:60000,urlBase:'https://test.invalid',retention,maxRows:100,maxReferences:100};
+      let binding=await createNativeFileRetirementBinding(input);
+      const installed=await binding.store.readFileReferenceInventory(app);assert.ok(installed);
+      assert.equal(installed.inventory.frameworkModels.length,13);
+      assert.deepEqual(installed.inventory.artifactModels,artifact.models);
+      assert.deepEqual(installed.inventory.valueTypes,artifact.valueTypes);
+      assert.equal(binding.store.fileRetirementAuthority.fileStoreId,physical.fileStoreId);
+      const routed=await binding.ownerStorage.forIdentity(identity);
+      assert.deepEqual(routed.fileRetirementAuthority,binding.store.fileRetirementAuthority);
+      assert.deepEqual(await routed.readFileReferenceInventory(app),installed,'each genuine routed adapter retains the same original inventory');
+      const physicalState=()=>({fileStoreId:physical!.fileStoreId,files:physical!.files.listAll(),intents:physical!.intents.listAll(),
+        bytes:physical!.files.listAll().map(record=>physical!.blobs.read(blobKeyForFile(record.file.id))),
+        staging:physical!.intents.listAll().map(intent=>physical!.blobs.read(stagingKeyForIntent(intent.intentId)))});
+      const resources=async()=>({a:await snapshot(a),b:await snapshot(b),identity:await snapshot(idDb),files:physicalState()});
+      const noEffects=async(action:()=>Promise<unknown>)=>{const before=await resources();await assert.rejects(action);assert.deepEqual(await resources(),before);};
+      await noEffects(()=>createNativeFileRetirementBinding({...input,asm:{...asm}}));
+      await noEffects(()=>createNativeFileRetirementBinding({...input,stateStoreId:'copied-store-pin'}));
+      await noEffects(()=>createNativeFileRetirementBinding({...input,scope:{...scope,owner:otherTeam.team_id}}));
+      await noEffects(()=>binding.ownerStorage.forIdentity(foreign));
+      const kernel=createFileJourneyKernel(binding.bindings);
+      const upload:UploadDeps&{kernel:typeof kernel}={app:{appId:app,brand:app,appDefaultLocale:'en',ownerLabels:new Map()},
+        files:{usesFiles:()=>true},kernel,clock,logger:{log:()=>{}},
+        identity:{store:identities,clock,mail:{sendMail:async()=>{}},verifyBaseUrl:'',recoveryBaseUrl:'',inviteBaseUrl:'',sessionMaxAgeSeconds:3600}};
+      const handler=createBoundFileHandler({artifact,asm,store:binding.store,memberships:identities,identityStore:identities,
+        clock,upload,ownerStorage:binding.ownerStorage,retention,physicalFiles:physical.files,fileReferenceBounds:{maxRows:100,maxReferences:100}});
+      const request=(path:string,method:string,body:string|Uint8Array)=>new Request(path.startsWith('https:')?path:`https://test.invalid${path}`,
+        {method,headers:{authorization:`Bearer ${grant.token}`,'content-type':body instanceof Uint8Array?'application/octet-stream':'application/json',
+          ...(method==='PUT'?{'upload-offset':'0'}:{})},body});
+      const uploadFile=async(uploadId:string)=>{
+        const response=await handler(request('/files/intents','POST',JSON.stringify({upload_id:uploadId,operation:`${app}.attach`,field:'/attachment',
+          arguments:{},name:'retirement.pdf',type:'application/pdf',size:String(A_BYTES.length)})));
+        assert.equal(response.status,200,await response.clone().text());
+        const intent=await response.json() as {content:string;finalize:string};
+        assert.equal((await handler(request(intent.content,'PUT',A_BYTES))).status,200);
+        const finalized=await handler(request(intent.finalize,'POST',JSON.stringify({upload_id:uploadId,bytes_digest:sha256Hex(A_BYTES)})));
+        assert.equal(finalized.status,200,await finalized.clone().text());
+        return (await finalized.json() as {file:string}).file;
+      };
+      let invoker=buildInvoker(artifact,asm,binding.store,{appId:app,memberships:identities,now:clock.nowMs,
+        files:createCanonicalFileBinding(kernel,retention),ownerStorage:binding.ownerStorage});
+      const invoke=async(operation:string,inputs:MutationEnvelope['inputs'],id=nextId())=>{
+        const result=await invoker.invokeMutation({operation:`${app}.${operation}`,operation_id:id,inputs},identity);
+        assert.ok('result' in result,JSON.stringify(result));return result.result;
+      };
+      const create=async()=>{const id=nextId();assert.equal((await invoke('Entry.create',{},id)).status,'committed');return id;};
+      const attach=async(id:string,ref:string,accept=true)=>{
+        const row=await binding.store.load(model,asId(id));assert.ok(row);
+        const operationId=nextId(),inputs={entry:{id,version:String(row.version)},attachment:{id:ref},accept};
+        const result=await invoke('attach',inputs,operationId);return {result,inputs,operationId};
+      };
+      const shared=await uploadFile('shared'),replacement=await uploadFile('replacement'),raceFile=await uploadFile('race'),interrupted=await uploadFile('interrupted');
+      const first=await create(),second=await create();
+      const sharedFirst=await attach(first,shared),sharedSecond=await attach(second,shared);
+      assert.equal(sharedFirst.result.status,'committed');assert.equal(sharedSecond.result.status,'committed');
+      const replacementOwner=await create();
+      assert.equal((await attach(replacementOwner,replacement)).result.status,'committed','replacement receives a genuine timely attachment before the horizon');
+      now=FIXED_NOW+retention.unattachedHorizonMs+1;
+      await noEffects(()=>binding.retireAndDelete(shared,'orphaned'));
+      assert.equal((await attach(first,replacement)).result.status,'committed');
+      await noEffects(()=>binding.retireAndDelete(shared,'orphaned'));
+      assert.equal((await attach(second,replacement)).result.status,'committed');
+      const beforeReplay=await resources();
+      for(const original of [sharedFirst,sharedSecond]) {
+        const expected=JSON.parse(JSON.stringify(original.result));expected.status='replayed';delete expected.deliveries;
+        // Saved File observations authorize the original scalar result; the
+        // receipt projection withholds File fields from saved record views.
+        for(const record of expected.records)delete record.data.attachment;
+        assert.deepEqual(await invoke('attach',original.inputs,original.operationId),expected);
+      }
+      assert.deepEqual(await resources(),beforeReplay,'saved replay after replacement cannot restore removed slots');
+      const beforeRejected=await resources(),rejectedRevision=await binding.store.readRevision();
+      const rejectRow=await binding.store.load(model,asId(first));assert.ok(rejectRow);
+      const rejectedOperation=nextId(),rejectedInputs={entry:{id:first,version:String(rejectRow.version)},attachment:{id:replacement},accept:false};
+      const rejectedEnvelope={operation:`${app}.attach`,operation_id:rejectedOperation,inputs:rejectedInputs};
+      const authoredRejection=await invoker.invokeMutation(rejectedEnvelope,identity);
+      assert.ok('error' in authoredRejection);assert.equal(authoredRejection.error.code,'rule_failed');
+      const rejectedReceipt=await binding.store.readReceipt({app,owner:team.team_id,principal:user.user_id,
+        operation:asOperation(`${app}.attach`),operationId:rejectedOperation});assert.ok(rejectedReceipt);
+      assert.deepEqual(rejectedReceipt.outcome,{status:'rejected',code:'rule_failed',message:'forbidden'});
+      const rejectedState=await snapshot(a);
+      assert.equal(await binding.store.readRevision(),rejectedRevision+1);
+      for(const table of Object.keys(beforeRejected.a))if(!['receipts','fence','fence_log'].includes(table))assert.deepEqual(rejectedState[table],beforeRejected.a[table],table);
+      assert.equal(rejectedState.receipts!.length,beforeRejected.a.receipts!.length+1);
+      assert.equal(rejectedState.fence_log!.length,beforeRejected.a.fence_log!.length+1);
+      assert.deepEqual(physicalState(),beforeRejected.files);assert.deepEqual(await snapshot(b),beforeRejected.b);assert.deepEqual(await snapshot(idDb),beforeRejected.identity);
+      const rejectedSnapshot=await resources();
+      assert.deepEqual(await invoker.invokeMutation(rejectedEnvelope,identity),authoredRejection);
+      assert.deepEqual(await resources(),rejectedSnapshot,'late authored rejection replays its canonical receipt without effects');
+      // A genuine independently opened writer races the real retirement.
+      // Exactly one fence may win; neither outcome permits a dangling reference.
+      const beforeRace=await resources(),raceRow=await binding.store.load(model,asId(first));assert.ok(raceRow);
+      const raceRevision=await binding.store.readRevision();
+      const writerBatch=makeBatch(raceRevision,{writes:[{kind:'update',model,id:raceRow.id,expectedVersion:raceRow.version,
+        row:{...raceRow,version:asVersion(raceRow.version+1),data:{...raceRow.data,attachment:{id:raceFile}}}}]});
+      const [retiredRace,writerRace]=await Promise.allSettled([binding.retireAndDelete(raceFile,'orphaned'),participating.commit(writerBatch)]);
+      assert.equal(Number(retiredRace.status==='fulfilled')+Number(writerRace.status==='fulfilled'),1,'one original State fence wins');
+      assert.deepEqual(await snapshot(b),beforeRace.b);assert.deepEqual(await snapshot(idDb),beforeRace.identity);
+      if(writerRace.status==='fulfilled') {
+        assert.equal(await binding.store.readFinalizedFileRetirement(raceFile),null);
+        assert.deepEqual(physical.blobs.read(blobKeyForFile(raceFile)),A_BYTES);
+        await noEffects(()=>binding.retireAndDelete(raceFile,'orphaned'));
+        assert.equal((await attach(first,replacement)).result.status,'committed');
+      } else {
+        assert.ok(await binding.store.readFinalizedFileRetirement(raceFile));
+        assert.equal(physical.blobs.read(blobKeyForFile(raceFile)),null);
+        assert.deepEqual((await binding.store.load(model,asId(first)))?.data.attachment,{id:replacement});
+      }
+      const raceFinished=await binding.retireAndDelete(raceFile,'orphaned');
+      assert.ok(['deleted','already-deleted'].includes(raceFinished.result));
+      const retired=await binding.retireAndDelete(shared,'orphaned');assert.equal(retired.result,'deleted');
+      assert.equal(physical.files.get(shared)?.state,'orphaned');assert.equal(physical.blobs.read(blobKeyForFile(shared)),null);
+      const afterRetired=await resources();
+      for(const original of [sharedFirst,sharedSecond]) {
+        const result=await invoker.invokeMutation({operation:`${app}.attach`,operation_id:original.operationId,inputs:original.inputs},identity);
+        const expected=JSON.parse(JSON.stringify(original.result));expected.status='replayed';delete expected.deliveries;
+        for(const record of expected.records)delete record.data.attachment;
+        assert.ok('result' in result);assert.deepEqual(result.result,expected,'original independent scalar replays while retired File fields remain withheld');
+      }
+      assert.deepEqual(await resources(),afterRetired,'withheld retired saved results cannot restore references or bytes');
+      const current=await binding.store.load(model,asId(first));assert.ok(current);
+      const reintroduce=makeBatch(await binding.store.readRevision(),{writes:[{kind:'update',model,id:current.id,expectedVersion:current.version,
+        row:{...current,version:asVersion(current.version+1),data:{...current.data,attachment:{id:shared}}}}]});
+      await noEffects(()=>legacy.commit(reintroduce));await noEffects(()=>participating.commit(reintroduce));
+      const retiredInputs={entry:{id:first,version:String(current.version)},attachment:{id:shared},accept:true},retiredOperation=nextId();
+      const retiredAttemptRevision=await binding.store.readRevision();
+      const retiredAttempt=await invoker.invokeMutation({operation:`${app}.attach`,operation_id:retiredOperation,inputs:retiredInputs},identity);
+      assert.ok('error' in retiredAttempt);assert.equal(retiredAttempt.error.code,'validation');
+      const retiredReceipt=await binding.store.readReceipt({app,owner:team.team_id,principal:user.user_id,
+        operation:asOperation(`${app}.attach`),operationId:retiredOperation});assert.ok(retiredReceipt);
+      assert.equal(retiredReceipt.outcome.status,'rejected');
+      const afterAttempt=await snapshot(a);
+      for(const table of Object.keys(afterRetired.a))if(!['receipts','fence','fence_log'].includes(table))assert.deepEqual(afterAttempt[table],afterRetired.a[table],table);
+      assert.equal(afterAttempt.receipts!.length,afterRetired.a.receipts!.length+1);
+      assert.equal(retiredReceipt.committedRevision,retiredAttemptRevision+1);
+      assert.equal(await binding.store.readRevision(),retiredAttemptRevision+1);
+      assert.equal(afterAttempt.fence_log!.length,afterRetired.a.fence_log!.length+1);
+      assert.deepEqual(physicalState(),afterRetired.files);assert.deepEqual(await snapshot(b),afterRetired.b);assert.deepEqual(await snapshot(idDb),afterRetired.identity);
+      const afterAttemptResources=await resources();
+      assert.deepEqual(await invoker.invokeMutation({operation:`${app}.attach`,operation_id:retiredOperation,inputs:retiredInputs},identity),retiredAttempt);
+      assert.deepEqual(await resources(),afterAttemptResources,'retired File rejection replays without restoring anything');
+      // An actual SQLite DELETE failure occurs AFTER permanent State retirement.
+      // Metadata, byte deletion and the terminal journal must roll back together.
+      const inspection=new DatabaseSync(filePath);
+      try {
+        const blob=blobKeyForFile(interrupted).replaceAll("'","''");
+        inspection.exec(`CREATE TRIGGER interrupt_retired_bytes BEFORE DELETE ON files_blobs WHEN OLD.key='${blob}' BEGIN SELECT RAISE(ABORT,'intentional native deletion interruption'); END;`);
+        const beforeInterrupted=await resources(),revision=await binding.store.readRevision();
+        await assert.rejects(()=>binding.retireAndDelete(interrupted,'orphaned'),/intentional native deletion interruption/);
+        const decision=await binding.store.readFinalizedFileRetirement(interrupted);assert.ok(decision);
+        assert.equal(await binding.store.readRevision(),revision+1);
+        assert.deepEqual(physicalState(),beforeInterrupted.files);
+        assert.equal(inspection.prepare('SELECT json FROM files_retirement_journal WHERE id=?').get(interrupted),undefined);
+        const after=await snapshot(a);
+        for(const table of Object.keys(beforeInterrupted.a))if(!['file_retirements','fence','fence_log'].includes(table))assert.deepEqual(after[table],beforeInterrupted.a[table],table);
+        assert.deepEqual(await snapshot(b),beforeInterrupted.b);assert.deepEqual(await snapshot(idDb),beforeInterrupted.identity);
+        inspection.exec('DROP TRIGGER interrupt_retired_bytes');
+      } finally {inspection.close();}
+      const originalDecision=await binding.store.readFinalizedFileRetirement(interrupted),beforeReopen=await resources();
+      const fileStoreId=physical.fileStoreId;physical.close();physical=createSqliteFileStore(filePath);
+      // A restarted host receives a freshly verified issuing assembly. Reusing
+      // the old issuer cannot substitute its already installed receiving port.
+      const reopenedArtifact=JSON.parse(originalArtifact) as CompileArtifact;
+      const reopenedAssembly=await assembleModules({artifact:reopenedArtifact,sourcePath:fixture},{workDir:join(dir,'reopened-modules'),
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      binding=await createNativeFileRetirementBinding({...input,artifact:reopenedArtifact,asm:reopenedAssembly,physicalSqliteFileStore:physical});
+      assert.equal(physical.fileStoreId,fileStoreId);assert.deepEqual(await resources(),beforeReopen,'genuine rebind preserves original inventory and fence');
+      const resumed=await binding.retireAndDelete(interrupted,'orphaned');assert.equal(resumed.result,'deleted');
+      assert.deepEqual(resumed.retirement,originalDecision);assert.equal(physical.blobs.read(blobKeyForFile(interrupted)),null);
+      const journal=new DatabaseSync(filePath);
+      try {const entry=journal.prepare('SELECT json FROM files_retirement_journal WHERE id=?').get(interrupted);assert.equal(typeof entry?.json,'string');
+        assert.deepEqual(JSON.parse(entry!.json as string).retirement,originalDecision);}finally{journal.close();}
+      const completed=await resources();
+      const replay=await binding.retireAndDelete(interrupted,'orphaned');assert.equal(replay.result,'already-deleted');assert.deepEqual(replay.retirement,originalDecision);
+      assert.deepEqual(await resources(),completed,'durable terminal retry advances neither State nor physical stores');
+      const reopenedKernel=createFileJourneyKernel(binding.bindings);
+      const reopenedFiles=createCanonicalFileBinding(reopenedKernel,retention);
+      const replacedPort=buildInvoker(artifact,asm,binding.store,{appId:app,memberships:identities,now:clock.nowMs,
+        files:reopenedFiles,ownerStorage:binding.ownerStorage});
+      const reopenedBefore=await resources(),originalPortRow=await binding.store.load(model,asId(first));assert.ok(originalPortRow);
+      const portRefusal=await replacedPort.invokeMutation({operation:`${app}.attach`,operation_id:nextId(),
+        inputs:{entry:{id:first,version:String(originalPortRow.version)},attachment:{id:replacement},accept:true}},identity);
+      assert.ok('error' in portRefusal);assert.equal(portRefusal.error.code,'validation');
+      assert.match(portRefusal.error.message,/original installed receiving port/);assert.deepEqual(await resources(),reopenedBefore);
+      invoker=buildInvoker(reopenedArtifact,reopenedAssembly,binding.store,{appId:app,memberships:identities,now:clock.nowMs,
+        files:reopenedFiles,ownerStorage:binding.ownerStorage});
+      assert.equal((await attach(first,replacement)).result.status,'committed','genuine reopened owner continues canonical writes');
+      const reopenedRow=await binding.store.load(model,asId(first));assert.ok(reopenedRow);
+      const reopenedRevision=await binding.store.readRevision();
+      await noEffects(()=>participating.commit(makeBatch(reopenedRevision,{writes:[{kind:'update',model,
+        id:reopenedRow.id,expectedVersion:reopenedRow.version,row:{...reopenedRow,version:asVersion(reopenedRow.version+1),
+          data:{...reopenedRow.data,attachment:{id:interrupted}}}}]})));
+      assert.equal(JSON.stringify(artifact),originalArtifact);
+      assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
+    } finally {physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
   });
