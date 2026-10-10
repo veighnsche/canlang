@@ -266,7 +266,7 @@ test('saved nominal count requires complete current owning authority, lifetime a
     let currentPolicy = w.policy, registry = w.registry;
     if (mode === 'partial') currentPolicy = policy(['input.facts', 'state', 'visible']);
     if (mode === 'none') currentPolicy = policy(['state', 'visible']);
-    if (mode === 'secret-policy') currentPolicy = policy(['input', 'state', 'visible'], ['input']);
+    if (mode === 'secret-policy') currentPolicy = policy(['state', 'visible'], ['input']);
     if (mode === 'membership') await w.memberships.removeMembership(w.member.membership.membership_id);
     const current = await w.store.load(STEP, w.row.id); assert.ok(current);
     if (mode === 'archive') await updateCurrent(w, { archivedAt: FIXED_NOW + 1 });
