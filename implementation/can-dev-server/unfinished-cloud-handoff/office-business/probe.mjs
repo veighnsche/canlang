@@ -1,28 +1,32 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash, randomBytes } from 'node:crypto';
-const root = fileURLToPath(new URL('../../../../', import.meta.url));
-const require = createRequire(join(root, 'package.json'));
-const local = path => import(pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href);
-const { prepareLocalPreviewCapture } = await local('dev/preview-inputs.js');
-const { captureSingleFileSource, verifyCompilerSources } = await local('dev/source-capture.js');
-const { compileCapturedSingleFile } = await local('dev/compiler-check.js');
-const { createLocalPreviewBuilder } = await local('dev/preview-builder.js');
-const { preflightLocalPreviewActivation, localPreviewActivationVerdict, produceInstalledPortableBundle, seedLocalPreviewActors } = await local('dev/preview-host.js');
-const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
-const { hashInputs } = await import(pathToFileURL(require.resolve('@canlang/state/invocation/replay')).href);
-const output = join(root, 'test-results/can-dev-server/office-business-result.json');
+const installedRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const sha = value => createHash('sha256').update(value).digest('hex');
 function operationId() {
   const time = Date.now().toString(16).padStart(12, '0');
   const rand = randomBytes(10).toString('hex');
   return `${time.slice(0, 8)}-${time.slice(8, 12)}-7${rand.slice(0, 3)}-8${rand.slice(4, 7)}-${rand.slice(7, 19)}`;
 }
+/** Consume the unchanged Office workflow; supplied preview/resources remain caller-owned.
+ * runExamples may return the actual runner result or actual session example.run result.
+ */
+export async function runOfficeBusinessProbe(options = {}) {
+const root = await realpath(options.checkoutRoot ?? installedRoot);
+const require = createRequire(join(installedRoot, 'package.json'));
+const local = path => import(pathToFileURL(join(installedRoot, 'packages/cloudflare/dist', path)).href);
+const { prepareLocalPreviewCapture } = await local('dev/preview-inputs.js');
+const { captureSingleFileSource, verifyCompilerSources, captureIsCurrent } = await local('dev/source-capture.js');
+const { compileCapturedSingleFile } = await local('dev/compiler-check.js');
+const { createLocalPreviewBuilder } = await local('dev/preview-builder.js');
+const { preflightLocalPreviewActivation, localPreviewActivationVerdict, produceInstalledPortableBundle, seedLocalPreviewActors, localPreviewWorkerVars } = await local('dev/preview-host.js');
+const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
+const { hashInputs } = await import(pathToFileURL(require.resolve('@canlang/state/invocation/replay')).href);
 const facts = { schema: 'office-business-local.v1', outcome: 'incomplete', operations: [] };
-let preview, identityDb;
+let preview, identityDb, ownsPreview=false;
 const ownerDbs=new Map();
 const ownerLabels=new Map();
 let origin, bridgeCookie;
@@ -212,18 +216,43 @@ async function read(actor,label,checkDenied=false) {
   return result;
 }
 try {
-  const request=prepareLocalPreviewCapture({checkoutRoot:root,appPath:'tests/integration/can-dev-server/OfficeSupplies.can',compilerPath:'compiler/target/debug/can',catalogPath:'packages/values/dist/catalog.json',helpIndexPath:'docs/specification/CONSTRUCT-HELP.md'});
-  const capture=await captureSingleFileSource(request);
-  const compiled = await compileCapturedSingleFile(capture);
-  assert.equal(compiled.kind, 'artifact', 'captured Office compile: ' + (compiled.reason ?? compiled.kind));
-  const { artifact, artifactBytes: bytes } = compiled;
+  const supplied=['artifact','capture','artifactBytes','preview','identityDb','ownerDbs','ownerLabels'].some(key=>options[key]!==undefined);
+  let capture, artifact, bytes;
+  if(supplied) {
+    for(const key of ['artifact','capture','artifactBytes','preview','identityDb','ownerDbs','ownerLabels'])
+      assert.ok(options[key]!==undefined,`joined Office consumer requires actual ${key}`);
+    ({capture,artifact,artifactBytes:bytes,preview,identityDb}=options);
+    assert.ok(options.ownerDbs instanceof Map && options.ownerLabels instanceof Map,'observed actual owner D1 maps');
+    for(const [owner,db] of options.ownerDbs)ownerDbs.set(owner,db);
+    for(const [owner,label] of options.ownerLabels)ownerLabels.set(owner,label);
+  } else {
+    const request=prepareLocalPreviewCapture({checkoutRoot:root,appPath:'tests/integration/can-dev-server/OfficeSupplies.can',compilerPath:'compiler/target/debug/can',catalogPath:'packages/values/dist/catalog.json',helpIndexPath:'docs/specification/CONSTRUCT-HELP.md'});
+    capture=await captureSingleFileSource(request);
+    const compiled = await compileCapturedSingleFile(capture);
+    assert.equal(compiled.kind, 'artifact', 'captured Office compile: ' + (compiled.reason ?? compiled.kind));
+    ({artifact,artifactBytes:bytes}=compiled);
+  }
+  assert.equal(capture.root,root,'actual selected checkout capture');
+  assert.equal(capture.compilerOperand,'tests/integration/can-dev-server/OfficeSupplies.can','original Office source operand');
+  assert.equal(sha(capture.sourceText),capture.sourceSha256,'exact captured Office source bytes');
+  assert.equal(sha(await readFile(capture.appPath)),capture.sourceSha256,'current Office source hash');
+  assert.equal(await captureIsCurrent(capture),true,'current complete consumed Office inputs');
+  assert.deepEqual(JSON.parse(Buffer.from(bytes).toString('utf8')),artifact,'exact supplied artifact bytes');
   facts.sourceSha256 = capture.sourceSha256;
   facts.artifactSha256 = sha(bytes);
   const exact=verifyCompilerSources(capture,{complete:true,sources:artifact.sources});
   if(!exact.ok)throw new Error(`artifact source ${exact.reason}`);
   facts.capture={sourceRevision:capture.sourceRevision,epochMaterial:capture.epochMaterial,inputs:capture.inputs.length,source:capture.compilerOperand};
-  const build=createLocalPreviewBuilder({resources:{d1:{binding:'DB',availability:'real_local'},identity:{backingBinding:'DB',availability:'real_local'}},activationVerdict:preflightLocalPreviewActivation,confirmRunningActivation:async (artifact,capture,ownerDb,id,owner,identities)=>{identityDb=identities;ownerDbs.set(owner,ownerDb);return localPreviewActivationVerdict(artifact,capture,ownerDb,id,owner,identities)},produceBundle:produceInstalledPortableBundle,seedLocalActors:async handle=>{const seed=await seedLocalPreviewActors(handle);for(const row of seed.owners)ownerLabels.set(row.owner,row.binding==='STATE_CEDAR_DB'?'Cedar':'Oak');return seed}});
-  preview=await build(artifact,capture,bytes);
+  if(!supplied) {
+    const build=createLocalPreviewBuilder({resources:{d1:{binding:'DB',availability:'real_local'},identity:{backingBinding:'DB',availability:'real_local'}},activationVerdict:preflightLocalPreviewActivation,confirmRunningActivation:async (artifact,capture,ownerDb,id,owner,identities)=>{identityDb=identities;ownerDbs.set(owner,ownerDb);return localPreviewActivationVerdict(artifact,capture,ownerDb,id,owner,identities)},produceBundle:produceInstalledPortableBundle,seedLocalActors:async handle=>{const seed=await seedLocalPreviewActors(handle);for(const row of seed.owners)ownerLabels.set(row.owner,row.binding==='STATE_CEDAR_DB'?'Cedar':'Oak');return seed},workerVarsForOrigin:localPreviewWorkerVars});
+    preview=await build(artifact,capture,bytes);ownsPreview=true;
+  }
+  const exampleInput=preview.exampleInput();
+  assert.equal(exampleInput.sourceRevision,capture.sourceRevision,'serving preview uses captured source');
+  assert.equal(sha(exampleInput.artifactBytes),facts.artifactSha256,'serving preview uses exact artifact bytes');
+  assert.deepEqual(JSON.parse(Buffer.from(exampleInput.artifactBytes).toString('utf8')),artifact,'serving preview uses captured artifact');
+  assert.deepEqual([...ownerLabels.values()].sort(),['Cedar','Oak'],'distinct actual seeded owner labels');
+  assert.deepEqual([...ownerDbs.keys()].sort(),[...ownerLabels.keys()].sort(),'complete actual serving owner inventory');
   const bootstrap=await fetch(preview.issueOpenUrl(),{redirect:'manual'});
   origin=new URL(bootstrap.url).origin;
   bridgeCookie=bootstrap.headers.get('set-cookie')?.split(';',1)[0];
@@ -344,28 +373,53 @@ try {
   // row scopes from this exact installed preview bundle, independently of the
   // serving owner databases inspected throughout the business journey.
   const {loadInstalledExampleTestkit,runCompiledExamples}=await local('dev/example-runner.js');
-  const applicationTestkit=await loadInstalledExampleTestkit(root);
+  const applicationTestkit=options.runExamples===undefined ? await loadInstalledExampleTestkit(root) : undefined;
   facts.examples=[];
   for(let attempt=1;attempt<=2;attempt++) {
     const beforeExamples=await snapshot();
-    const result=await runCompiledExamples({...preview.exampleInput(),testkit:applicationTestkit,runId:operationId()});
+    const runId=options.runExamples===undefined ? operationId() : null;
+    const result=options.runExamples===undefined
+      ? await runCompiledExamples({...preview.exampleInput(),testkit:applicationTestkit,runId})
+      : await options.runExamples({attempt,capture,artifact,artifactBytes:bytes,preview});
+    const resultSummary=result.report?.summary ?? result.summary;
+    assert.equal(result.report?.artifact?.sourceRevision ?? result.source_revision,capture.sourceRevision,'examples use exact captured source');
+    assert.equal(result.report?.artifact?.digest ?? result.artifact_digest,facts.artifactSha256,'examples use exact compiled artifact');
+    if(result.schema==='can.dev.example-run.v1') {
+      assert.equal(result.current,true,'session examples remain current');
+      assert.equal(result.serving_build,preview.id,'session examples use actual serving build');
+      assert.equal(result.replay?.available,false,'isolated execution is not saved-outcome replay');
+      assert.equal(typeof result.run_id,'string','actual session example run identity');
+    }
     const changedTables=changes(beforeExamples,await snapshot());
-    facts.examples.push({attempt,ok:result.ok,executed:result.executed,summary:result.report.summary,changedTables});
+    const actualRunId=result.run_id ?? runId;
+    if(actualRunId!==null && attempt===2)assert.notEqual(actualRunId,facts.examples[0].runId,'fresh second example run');
+    facts.examples.push({attempt,runId:actualRunId,sourceRevision:result.report?.artifact?.sourceRevision ?? result.source_revision,
+      artifactDigest:result.report?.artifact?.digest ?? result.artifact_digest,
+      ok:result.ok,executed:result.executed,summary:resultSummary,changedTables});
     assert.equal(result.executed,2,'both authored Office rows execute');
-    assert.equal(result.report.summary.total,2);
-    assert.equal(result.report.summary.passed,2);
-    assert.equal(result.report.summary.failed,0);
-    assert.equal(result.report.summary.setupFailed,0);
-    assert.equal(result.report.summary.unsupported,0);
+    assert.equal(resultSummary.total,2);
+    assert.equal(resultSummary.passed,2);
+    assert.equal(resultSummary.failed,0);
+    assert.equal(resultSummary.setupFailed,0);
+    assert.equal(resultSummary.unsupported,0);
     assert.equal(result.ok,true,'authored shared-team update and forbidden outsider pass');
     assert.deepEqual(changedTables,[],'fresh example scopes leave every serving D1 table unchanged');
   }
+  assert.equal(await captureIsCurrent(capture),true,'complete Office capture remains current after workflow');
   facts.outcome = 'passed';
-} catch(error) {facts.outcome='failed';facts.error={name:error?.name??'Error',code:error?.code??null,message:String(error?.message??error).split('\n',1)[0].slice(0,400)};process.exitCode=1;}
+ } catch(error) {facts.outcome='failed';facts.error={name:error?.name??'Error',code:error?.code??null,message:String(error?.message??error).split('\n',1)[0].slice(0,400)};}
 finally {
-  try { await preview?.dispose(); }
-  catch(error) {facts.outcome='failed';facts.cleanupError={name:error?.name??'Error',message:String(error?.message??error).split('\n',1)[0].slice(0,250)};process.exitCode=1;}
+  try { if(ownsPreview)await preview?.dispose(); }
+  catch(error) {facts.outcome='failed';facts.cleanupError={name:error?.name??'Error',message:String(error?.message??error).split('\n',1)[0].slice(0,250)};}
+}
+return facts;
+}
+
+if(process.argv[1] && pathToFileURL(resolve(process.argv[1])).href===import.meta.url) {
+  const facts=await runOfficeBusinessProbe();
+  const output=join(installedRoot,'test-results/can-dev-server/office-business-result.json');
   await mkdir(dirname(output), { recursive:true });
   await writeFile(output, JSON.stringify(facts,null,2)+'\n', {mode:0o600});
   console.log(JSON.stringify(facts,null,2));
+  if(facts.outcome!=='passed')process.exitCode=1;
 }
