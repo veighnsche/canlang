@@ -16447,6 +16447,11 @@ impl<'a> Typer<'a> {
             ResolvedType::Scalar(Scalar::User) | ResolvedType::Scalar(Scalar::Member) => {
                 ResolvedType::Scalar(Scalar::Bool)
             }
+            ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User)) =>
+            {
+                ResolvedType::Scalar(Scalar::Bool)
+            }
             ResolvedType::Opaque(_) | ResolvedType::Unknown => ResolvedType::Opaque("role subject"),
             other => {
                 if cx.strict {
