@@ -563,6 +563,16 @@ pub struct CheckedStdDeliveryCompletion {
     pub payload: ResolvedType,
 }
 
+/// Exact standard verified-event declaration accepted by source analysis.
+/// Its payload does not grant inbound verification or runtime handler enrollment.
+#[derive(Debug, Clone)]
+pub struct CheckedStdCapabilityEvent {
+    pub capability: String,
+    pub event: String,
+    pub source: String,
+    pub payload: ResolvedType,
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
@@ -606,6 +616,8 @@ pub struct TypeTable {
     pub delivery_progress_handlers: HashMap<NodeKey, String>,
     /// Checked standard terminal sources; no fabricated declaration symbols.
     pub std_delivery_completion_handlers: HashMap<NodeKey, CheckedStdDeliveryCompletion>,
+    /// Checked standard declared events, retaining their owning field payload.
+    pub std_capability_event_handlers: HashMap<NodeKey, CheckedStdCapabilityEvent>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
     /// Checked production statement-call results (`None` is void). Opaque
@@ -3813,20 +3825,14 @@ impl<'a> Typer<'a> {
         // `event` carries the event's record instead of `{opaque}`.
         let on_event = attribute_value(node, "on", text)
             .and_then(|on| self.on_event_payload(module, text, on));
-        let mut example_event = on_event.map(|event| ResolvedType::Record {
-            symbol: event,
-            stored: false,
-        });
+        let mut example_event = on_event.clone();
         if let Some(event) = on_event {
             env.insert(
                 NarrowKey {
                     decl: DeclKey::CtxEvent,
                     path: Vec::new(),
                 },
-                ResolvedType::Record {
-                    symbol: event,
-                    stored: false,
-                },
+                event,
             );
         }
         // Only the validated model-source branch admits these immutable
@@ -3958,17 +3964,29 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Event symbol behind a handler's `on=`, when it names a
+    /// Event payload behind a handler's `on=`, when it names a
     /// validated declared event: single-segment local events and
     /// `Cap.event` capability events. Queues, timers, model hooks,
     /// change events, completions and unknown sources yield `None`
     /// (their payloads stay opaque).
-    fn on_event_payload(&self, module: ModuleId, text: &str, on: &SyntaxNode) -> Option<SymbolId> {
+    fn on_event_payload(
+        &self,
+        module: ModuleId,
+        text: &str,
+        on: &SyntaxNode,
+    ) -> Option<ResolvedType> {
         if on.kind != SyntaxKind::Path {
             return None;
         }
+        if let Some(event) = self
+            .types
+            .std_capability_event_handlers
+            .get(&NodeKey::of(on))
+        {
+            return Some(event.payload.clone());
+        }
         let segments = path_segments(on, text);
-        match segments.len() {
+        let symbol = match segments.len() {
             1 => self.prod_or_imported(module, segments[0]).filter(|id| {
                 matches!(
                     self.tables.symbols[id.0 as usize].kind,
@@ -3986,7 +4004,11 @@ impl<'a> Typer<'a> {
                 }
             }
             _ => None,
-        }
+        };
+        symbol.map(|symbol| ResolvedType::Record {
+            symbol,
+            stored: false,
+        })
     }
 
     /// Delivery envelope behind a handler's `on=Cap.op.completed`
@@ -4787,6 +4809,45 @@ impl<'a> Typer<'a> {
         // `Scenario.completed` for exported user operations.
         if segments[1] == "completed" {
             return self.check_on_scenario_completed(cx, on, segments);
+        }
+        let scopes = &self.tables.module_scopes[cx.module.0 as usize];
+        if let Some(ScopedName::External { provider, name }) = scopes.prod.get(segments[0])
+            && provider == "std"
+            && let Some(cap) = std_capability(name)
+        {
+            if let Some(event) = cap.events.iter().find(|event| event.name == segments[1]) {
+                let owner = &self.tables.modules[cx.module.0 as usize].name;
+                self.types.std_capability_event_handlers.insert(
+                    NodeKey::of(on),
+                    CheckedStdCapabilityEvent {
+                        capability: cap.name.to_string(),
+                        event: event.name.to_string(),
+                        source: format!("{owner}.{}", segments.join(".")),
+                        payload: ResolvedType::Object(
+                            event
+                                .fields
+                                .iter()
+                                .map(|(name, declared)| {
+                                    (name.to_string(), std_nominal_leaf_type(declared))
+                                })
+                                .collect(),
+                        ),
+                    },
+                );
+                return None;
+            }
+            if cap.operations.iter().any(|op| op.name == segments[1]) {
+                self.diags.push(Diagnostic::error(
+                    "E3010",
+                    format!(
+                        "on={} names an operation; delivery completions use {}.completed",
+                        segments.join("."),
+                        segments.join("."),
+                    ),
+                    tight_span(cx.text, on),
+                ));
+                return None;
+            }
         }
         let Some(head) = self.prod_or_imported(cx.module, segments[0]) else {
             self.diags.push(Diagnostic::error(

@@ -2564,6 +2564,9 @@ fn scenario_event_envelope(
             }
         }
         2 => {
+            if let Some(event) = types.std_capability_event_handlers.get(&NodeKey::of(on)) {
+                return Some(event.payload.clone());
+            }
             let head = prod_symbol(tables, module, segments[0])?;
             match &tables.symbols[head.0 as usize].kind {
                 SymbolKind::Capability { events, .. } => {

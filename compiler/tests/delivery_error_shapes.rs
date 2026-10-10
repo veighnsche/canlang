@@ -8,6 +8,35 @@ use std::path::Path;
 
 const SOURCE: &str = "app DeliveryErrors\nuse std {EmailV1 as Mail} from=deployment.mail\nuse producer {Documents} from=deployment.documents\nGiven\n Entry {local:delivery(Documents.invoice)?,standard:delivery(Mail.send)?}\n policy Entry read=members fields=local.error,standard.error\n derive local(entry:Entry):text? = entry.local?.error?.code\n derive standard(entry:Entry):text? = entry.standard?.error?.message\nWhen\n scenario completed on=Documents.invoice.completed\n  do\n   let message=event.error?.message\n   let code=event.error?.code\n   let status=event.status\nThen\npackage producer\n Given\n  export contract Ack {ok:bool}\n  export capability Documents version=1\n   invoice() -> Ack\n When\n Then\n";
 
+const STANDARD_EVENT_SOURCE: &str = r#"app StandardEvents
+use std {PaymentsV1 as Cash} from=deployment.cash
+use std {MailboxV1 as Post} from=deployment.post
+Given
+ derive text_value(value:text):text = value
+When
+ scenario payment_changed on=Cash.changed
+  do
+   let payload=event
+   let status=event.status
+   let waiting=event.status==pending
+   let caller=actor
+   if event.provider_reference!=null
+    let provider=text_value(event.provider_reference)
+  examples event={reference="payment",revision=1,provider_reference=null,amount=money("1.00","EUR"),status=pending,checkout_url=null,failure=null}
+   event.status -> event.status
+   pending -> pending
+   succeeded -> succeeded
+ scenario mail_received on=Post.received
+  do
+   let email=event.value
+   let source=event.value.source
+   let files=event.value.attachments
+  examples event={value={mailbox="box",source="source",thread="thread",sender="sender",reply_to=null,subject="subject",body="body",body_complete=true,attachments=[],attachment_count=0,attachments_complete=true,received=datetime("2026-10-01T00:00:00Z")}}
+   event.value.source -> event.value.subject
+   "source" -> "subject"
+Then
+"#;
+
 fn catalog() -> Catalog {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let path = root.join("packages/values/dist/catalog.json");
@@ -232,6 +261,154 @@ fn standard_completion_checks_reject_unknown_targets_unsafe_reads_and_wrong_exam
         !output.status.success(),
         "unreleased terminal transport must not compile"
     );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        value["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008"
+                && diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("handler triggers")),
+        "{value}"
+    );
+}
+
+#[test]
+fn standard_declared_events_share_their_own_fields_with_body_examples_and_effects() {
+    use canlang_compiler::analysis::effects::HandlerSource;
+    use canlang_compiler::analysis::types::Scalar;
+    let catalog = catalog();
+    let (checked, diagnostics) = check(STANDARD_EVENT_SOURCE, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let start = STANDARD_EVENT_SOURCE.find("let payload=event").unwrap() + "let payload=".len();
+    let payload = checked
+        .types
+        .node_types
+        .iter()
+        .find_map(|(key, ty)| {
+            (key.start <= start as u32
+                && (start as u32) < key.end
+                && STANDARD_EVENT_SOURCE[key.start as usize..key.end as usize].trim() == "event")
+                .then_some(ty)
+        })
+        .unwrap();
+    let ResolvedType::Object(fields) = payload else {
+        panic!("changed event must retain its declared object");
+    };
+    assert!(fields.iter().map(|(name, _)| name.as_str()).eq([
+        "reference",
+        "revision",
+        "provider_reference",
+        "amount",
+        "status",
+        "checkout_url",
+        "failure"
+    ]));
+    assert!(
+        matches!(type_at(&checked, STANDARD_EVENT_SOURCE, "event.status"), ResolvedType::Enum {cases,owner:None}
+        if cases == &["pending","unknown","succeeded","failed"])
+    );
+    assert_eq!(
+        type_at(&checked, STANDARD_EVENT_SOURCE, "actor"),
+        &ResolvedType::Null
+    );
+    assert!(
+        matches!(type_at(&checked, STANDARD_EVENT_SOURCE, "event.value"), ResolvedType::Object(fields)
+        if fields.iter().map(|(name,_)| name.as_str()).eq(["mailbox","source","thread","sender","reply_to","subject","body","body_complete","attachments","attachment_count","attachments_complete","received"]))
+    );
+    assert_eq!(
+        type_at(&checked, STANDARD_EVENT_SOURCE, "event.value.source"),
+        &ResolvedType::Scalar(Scalar::Text)
+    );
+    assert!(
+        matches!(type_at(&checked, STANDARD_EVENT_SOURCE, "event.value.attachments"), ResolvedType::Array {element,..}
+        if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
+    );
+    for (scenario, capability, event, source) in [
+        (
+            "payment_changed",
+            "std.PaymentsV1",
+            "changed",
+            "StandardEvents.Cash.changed",
+        ),
+        (
+            "mail_received",
+            "std.MailboxV1",
+            "received",
+            "StandardEvents.Post.received",
+        ),
+    ] {
+        let symbol = checked
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == format!("StandardEvents.{scenario}"))
+            .unwrap();
+        assert!(
+            matches!(&checked.effects.scenarios[&symbol.id].on, Some(HandlerSource::StdCapabilityEvent {capability:c,event:e,source:s})
+            if c==capability && e==event && s==source)
+        );
+    }
+}
+
+#[test]
+fn standard_declared_events_refuse_unknown_fields_targets_and_transport() {
+    let catalog = catalog();
+    for (before, after, code) in [
+        ("Cash.changed", "Cash.missing", "E3010"),
+        ("Cash.changed", "Cash.collect", "E3010"),
+        ("Post.received", "Post.reply", "E3010"),
+        ("use std", "use vendor", "E3010"),
+        ("PaymentsV1 as Cash", "MissingV1 as Cash", "E3010"),
+        ("PaymentsV1 as Cash", "PaymentState as Cash", "E3010"),
+        ("event.status==pending", "event.status==skipped", "E2001"),
+        ("let status=event.status", "let error=event.error", "E2013"),
+        ("event.value.source", "event.value.unknown", "E2013"),
+        (
+            "if event.provider_reference!=null",
+            "if event.status==succeeded",
+            "E3001",
+        ),
+        (
+            "let waiting=event.status==pending",
+            "let pending=\"shadow\"\n   let waiting=event.status==pending",
+            "E3002",
+        ),
+        (
+            "status=pending,checkout_url",
+            "status=skipped,checkout_url",
+            "E2001",
+        ),
+        ("event.status ->", "event.unknown ->", "E5002"),
+    ] {
+        let source = STANDARD_EVENT_SOURCE.replace(before, after);
+        assert_ne!(source, STANDARD_EVENT_SOURCE, "{before}");
+        let (_, diagnostics) = check(&source, &catalog);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic.code == code),
+            "{after}: expected{code}, {diagnostics:?}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.code.starts_with("E1")),
+            "semantic negative must parse: {after}: {diagnostics:?}"
+        );
+    }
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("standard-events.can");
+    std::fs::write(&path, STANDARD_EVENT_SOURCE).unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(path)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(
         value["diagnostics"]
