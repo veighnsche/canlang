@@ -120,7 +120,8 @@ import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioRece
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
-import { createCommittedModelSourceStager, createStandardCompletionSourceCommand, isConsistentCompletion } from '@canlang/work';
+import { createCommittedModelSourceStager, createStandardCompletionSourceCommand } from '@canlang/work';
+import { isConsistentCompletion } from '@canlang/work/receipt';
 import { enrollSystemCommandCommitCheck } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';

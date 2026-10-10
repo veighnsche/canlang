@@ -283,6 +283,7 @@ const WORK_DISPATCH_SOURCE_SPECIFIER = "@canlang/work/kernel/dispatch-staging";
 const WORK_SOURCE_SPECIFIER = "@canlang/work";
 /** Selected root export; the public barrel also exposes Node-only producers. */
 const WORK_VENDOR_ENTRY = "vendor/work/kernel/committed-model-source.js";
+const WORK_COMPLETION_VENDOR_ENTRY = "vendor/work/kernel/standard-completion-source.js";
 const WORK_DISPATCH_VENDOR_ENTRY = "vendor/work/kernel/dispatch-staging.js";
 const WORK_SCHEDULE_SOURCE_SPECIFIER = "@canlang/work/kernel/schedule-staging";
 const WORK_SCHEDULE_VENDOR_ENTRY = "vendor/work/kernel/schedule-staging.js";
@@ -570,8 +571,8 @@ const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 const JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER = "@canlang/services/judgments/specification";
 const JUDGMENT_SPECIFICATION_VENDOR_ENTRY = "vendor/services/judgments/specification.js";
 
-/** The selected Work leaf implements one named root export, not the root namespace. */
-function validateWorkRootImports(js: string, moduleKey: string): void {
+/** Split only the selected public Work factories into their genuine portable leaves. */
+function rewriteWorkRootImports(js: string, moduleKey: string): string {
   let ast: Parameters<typeof walkJavaScript>[0];
   try {
     ast = parseJavaScript(js, { ecmaVersion: 2025, sourceType: "module", ranges: true }) as unknown as Parameters<typeof walkJavaScript>[0];
@@ -581,17 +582,35 @@ function validateWorkRootImports(js: string, moduleKey: string): void {
     throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} has invalid JavaScript syntax at offset ${offset}`);
   }
   const acceptedSources = new Set<object>();
+  const leaves = new Map([
+    ['createCommittedModelSourceStager', WORK_VENDOR_ENTRY],
+    ['createStandardCompletionSourceCommand', WORK_COMPLETION_VENDOR_ENTRY],
+  ]);
+  const replacements: { start: number; end: number; text: string }[] = [];
   const refuse = (): never => {
-    throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} uses unsupported @canlang/work root access; only static named createCommittedModelSourceStager imports are staged`);
+    throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} uses unsupported @canlang/work root access; only static named createCommittedModelSourceStager and createStandardCompletionSourceCommand imports are staged`);
   };
   walkJavaScript(ast, {
     enter(node) {
       if (node.type === "ImportDeclaration" && node.source.value === WORK_SOURCE_SPECIFIER) {
-        if (node.specifiers.length === 0 || node.specifiers.some(specifier =>
+        if (node.specifiers.length === 0 || (node as unknown as { attributes?: readonly unknown[] }).attributes?.length || node.specifiers.some(specifier =>
           specifier.type !== "ImportSpecifier" ||
-          (specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value) !== "createCommittedModelSourceStager",
+          !leaves.has(String(specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value)),
         )) refuse();
         acceptedSources.add(node.source);
+        const groups = new Map<string, string[]>();
+        for (const specifier of node.specifiers) {
+          const named = specifier.type === 'ImportSpecifier' ? specifier : refuse();
+          const name = String(named.imported.type === 'Identifier' ? named.imported.name : named.imported.value);
+          const leaf = leaves.get(name)!;
+          const members = groups.get(leaf) ?? [];
+          const range = specifier as unknown as { start: number; end: number };
+          members.push(js.slice(range.start, range.end));
+          groups.set(leaf, members);
+        }
+        const range = node as unknown as { start: number; end: number };
+        replacements.push({ start: range.start, end: range.end, text: [...groups].map(([leaf, members]) =>
+          `import { ${members.join(', ')} } from ${JSON.stringify(relativeSpecifier(moduleKey, leaf))};`).join('\n') });
       }
       // Reject re-exports, dynamic imports, constant loaders and other exact
       // root values. Decoded AST values also catch escaped literals/templates.
@@ -599,11 +618,15 @@ function validateWorkRootImports(js: string, moduleKey: string): void {
       if (node.type === "TemplateElement" && node.value.cooked === WORK_SOURCE_SPECIFIER) refuse();
     },
   });
+  for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
+    js = js.slice(0, replacement.start) + replacement.text + js.slice(replacement.end);
+  }
+  return js;
 }
 
 /** Rewrite worker/runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
-  validateWorkRootImports(js, moduleKey);
+  js = rewriteWorkRootImports(js, moduleKey);
   const mapped = (spec: string): string => {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
@@ -674,6 +697,7 @@ function stageWorkStagingProducers(): Record<string, string> {
     "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
   entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "committed-model-source.js"));
+  entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "standard-completion-source.js"));
   const base = dirname(dirname(entries[0]!));
   const modules: Record<string, string> = {};
   const visit = (file: string): void => {
@@ -723,7 +747,7 @@ function stageFilesFinalizeProducer(): Record<string, string> {
  * mappings with no occurrence are exact no-ops.
  */
 function rewriteVendorImports(js: string, moduleKey: string): string {
-  validateWorkRootImports(js, moduleKey);
+  js = rewriteWorkRootImports(js, moduleKey);
   const mapped = (spec: string): string => {
     if (moduleKey.startsWith("vendor/identity/")) {
       if (spec === "#identity-byte-compare") return relativeSpecifier(moduleKey, "vendor/identity/sessions/comparison-worker.js");
