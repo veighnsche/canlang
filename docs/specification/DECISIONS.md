@@ -7612,3 +7612,17 @@ question-mark and raw-IR fixture census corrections; related typed_bdd2/2
 pass0.00s,136 distinct affected checks total. Current whole follows
 related ready work; historical1429/138 stays frozen.58/67/nine and all exact
 holds remain. Local only.
+
+
+### 2026-10-10 — require unique completion census (unfinished native join)
+
+JS private publication now requires unique sealed handler IDs and exact coverage
+of all lowered handlers. Equal-length duplicate substitution cannot omit an
+original handler. The actual checked two-handler source emits first; its edited
+sealed census then refuses E6008 with no partial carrier. Owning mutation1/1
+(0.02s) and existing projection2/2 (0.08s) pass; fmt/diff0. Reuse unrelated136 and
+strict28.79s at their frozen scope. Hook profile/registry work remains separately
+unfinished; no current whole or native terminal acceptance. Capability's genuine
+readonly State/Work a8e source and Dev's live hook234ac adapter are released through
+coordinator carriers, pending safe exact intake and actual consuming qualification.
+E6008/void/anchored/WorkflowField and every precise hold remain. Local only.
