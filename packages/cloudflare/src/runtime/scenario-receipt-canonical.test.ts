@@ -495,17 +495,23 @@ it('joins receipt-aware stage/read/finalize into one net State row and saved int
   assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
   assert.equal(fresh.result.result,'committed visible|middle visible');
   assert.equal(batches.length,1,'one actual State commit');
-  const batch=batches[0]!; assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1);
+  const batch=batches[0]!; assert.equal(batch.writes.length,1); assert.equal(batch.history.length,2);
   const write=batch.writes[0]!; assert.equal(write.kind,'update');
   if(write.kind!=='update') throw new Error('expected one net update');
   assert.equal(write.expectedVersion,entry.version); assert.equal(write.row.version,entry.version+1);
   assert.deepEqual(write.row.data,{...entry.data,visible:'final visible'});
-  assert.deepEqual(batch.history[0]!.before,entry.data); assert.deepEqual(batch.history[0]!.after,write.row.data);
+  const middleData={...entry.data,visible:'middle visible'};
+  assert.deepEqual(batch.history,[
+    {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:entry.data,after:middleData},
+    {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:middleData,after:write.row.data},
+  ],'both authored updates retain order and attribution at one reserved version');
   assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
   const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
   assert.deepEqual(physical.resolvedDefaults,{},'no default is invented for updates');
   assert.deepEqual(await w.store.load(model,entry.id),write.row);
-  assert.equal((await w.store.historyFor(model,entry.id)).length,beforeHistory.length+1);
+  assert.deepEqual(await w.store.historyFor(model,entry.id),[...beforeHistory,...batch.history]);
   const association=readScenarioReceiptAssociation(physical); assert.ok(association);
   assert.deepEqual(association.plan,ownerPlan()); assert.equal(association.returnId,'selected');
   assert.deepEqual(association.observations.map(observation=>observation.dependencyId),['old-visible','middle-visible']);
@@ -849,18 +855,25 @@ it('retains actual operation, original same-view parameter versions and required
     entry.data['visible'],'intrinsic middle','required original prompt',false]);
   assert.equal(fresh.result.result,expected); assert.equal(w.counters().executions,1);
   assert.equal(batches.length,1,'one actual canonical owner commit');
-  const batch=batches[0]!; assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1);
+  const batch=batches[0]!; assert.equal(batch.writes.length,1); assert.equal(batch.history.length,2);
   const write=batch.writes[0]!; assert.equal(write.kind,'update'); if(write.kind!=='update') throw new Error('expected net update');
   assert.equal(write.expectedVersion,entry.version); assert.equal(write.row.version,entry.version+1);
   assert.deepEqual(write.row.data,{...entry.data,visible:'intrinsic final'});
-  assert.deepEqual(batch.history[0]!.before,entry.data); assert.deepEqual(batch.history[0]!.after,write.row.data);
+  const middleData={...entry.data,visible:'intrinsic middle'};
+  assert.deepEqual(batch.history,[
+    {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:entry.data,after:middleData},
+    {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:middleData,after:write.row.data},
+  ]);
   assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
   assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
   const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
   assert.equal(physical.outcome.status,'committed'); assert.deepEqual(physical.resolvedDefaults,{});
   assert.equal(physical.inputHash,await hashInputs(envelope.inputs));
   assert.equal(physical.identity.operationId,envelope.operation_id); assert.deepEqual(await w.store.load(model,entry.id),write.row);
-  const after=await w.snapshot(); assert.equal(after.revision,before.revision+1); assert.equal(after.history.length,before.history.length+1);
+  const after=await w.snapshot(); assert.equal(after.revision,before.revision+1);
+  assert.deepEqual(after.history,[...before.history,...batch.history]);
   assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
   const association=readScenarioReceiptAssociation(physical); assert.ok(association);
   assert.deepEqual(association.plan,ownerIntrinsicPlan()); assert.equal(association.returnId,'selected');
@@ -1093,11 +1106,18 @@ it('joins installed Text sends and assigned deliveries in one saved-scenario fen
       const intentId=deriveOutboxId(w.envelope.operation_id,sourceOperation,0);
       assert.deepEqual(dispatchLoads,[intentId],'Work reads exactly its actual deterministic dispatch identity');
       assert.equal(batch.writes.length,mode==='assigned-delivery'?4:2);
-      assert.equal(batch.history.length,1); assert.equal(batch.outbox.length,1);
+      assert.equal(batch.history.length,mode==='assigned-delivery'?2:1); assert.equal(batch.outbox.length,1);
       assert.equal(batch.writes.filter(write=>write.model===model).length,1,'source stages coalesce into one business net row');
       const final=await w.store.load(model,w.row.id); assert.ok(final);
       assert.equal(final.version,w.row.version+1); assert.equal(final.data['visible'],'committed Text send');
       assert.equal(final.data['private'],w.row.data['private']); assert.equal(final.data['token'],w.row.data['token']);
+      const intermediate={...w.row.data,visible:'committed Text send'};
+      const historyBase={model,recordId:w.row.id,version:w.row.version+1,operation,
+        operationId:w.envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update'};
+      assert.deepEqual(batch.history,[
+        {...historyBase,before:w.row.data,after:intermediate},
+        ...(mode==='assigned-delivery'?[{...historyBase,before:intermediate,after:final.data}]:[]),
+      ],'framework send keeps authored business history without adding framework rows');
       const intent=batch.outbox[0]!;
       assert.equal(intent.intentId,intentId); assert.equal(intent.operation,operation); assert.equal(intent.operationId,w.envelope.operation_id);
       assert.equal(intent.target,sourceOperation); assert.equal(intent.arguments['binding'],binding);
@@ -1118,7 +1138,8 @@ it('joins installed Text sends and assigned deliveries in one saved-scenario fen
       assert.equal(projectedRecords(fresh.result)[0]!.data['visible'],'committed Text send');
       assert.equal(Object.hasOwn(projectedRecords(fresh.result)[0]!.data,'token'),false);
       assert.equal(Object.hasOwn(projectedRecords(fresh.result)[0]!.data,'request'),false,'raw delivery identity is not a public field');
-      assert.deepEqual(after.state.outbox,batch.outbox); assert.equal(after.state.history.length,before.state.history.length+1);
+      assert.deepEqual(after.state.outbox,batch.outbox);
+      assert.deepEqual(after.state.history,[...before.state.history,...batch.history]);
       assert.deepEqual(after.framework[WORK_SCHEDULE_MODEL],before.framework[WORK_SCHEDULE_MODEL]);
       if(mode==='assigned-delivery') {
         assert.deepEqual(final.data['request'],encodeValue(`delivery(${sourceOperation})?`,makeDeliveryRef(intentId,sourceOperation)));
@@ -1222,7 +1243,14 @@ it('joins checked static nested scalar/void calls into one owner commit and reta
   const childRows=(await w.store.query({model,authority:'owner'})).filter(row=>row.id!==w.row.id);
   assert.equal(childRows.length,1); assert.equal(childRows[0]!.data['visible'],'child final');
   assert.equal(childRows[0]!.version,1,'child create and update remain one net inserted row');
-  assert.equal(batch.history.length,2); assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+  assert.equal(batch.history.length,3); assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+  const middleData={...w.row.data,visible:'parent middle'};
+  const historyBase={model,operationId:w.envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW};
+  assert.deepEqual(batch.history,[
+    {...historyBase,recordId:w.row.id,version:w.row.version+1,operation,change:'update',before:w.row.data,after:middleData},
+    {...historyBase,recordId:childRows[0]!.id,version:1,operation:'Shop.leaf',change:'create',before:null,after:childRows[0]!.data},
+    {...historyBase,recordId:w.row.id,version:w.row.version+1,operation,change:'update',before:middleData,after:parent.data},
+  ],'child net creation remains between the two original parent effects with root invocation identity');
   const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
   assert.equal(physical.outcome.status,'committed');
   const association=readScenarioReceiptAssociation(physical); assert.ok(association);
