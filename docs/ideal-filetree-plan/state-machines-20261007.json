@@ -1,18 +1,18 @@
 {
   "date": "2026-10-11",
-  "integrated_source_pin": "f57f423c84db4974246067ebc8fe5be8ae235410",
+  "integrated_source_pin": "55c49a0e963358b1112cf5844c212ad22ac36fc8",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2053,
+    "commit_count_since_checkpoint": 2054,
     "net_path_deltas": 10894,
     "history_touched_paths": 11438,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9391,
-    "scope": "Local main intake of exact selected coherent commit f57f423c84db4974246067ebc8fe5be8ae235410 onto 0a2dc9407fadda782c86229918d5bdca97657eeb; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
+    "scope": "Local main intake of exact selected coherent commit 55c49a0e963358b1112cf5844c212ad22ac36fc8 onto a0c0ab1312bfaaf4aaca78130fa9904bead83364; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -68014,5 +68014,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main intake of exact selected coherent commit f57f423c84db4974246067ebc8fe5be8ae235410 onto 0a2dc9407fadda782c86229918d5bdca97657eeb; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
+  "current_maintenance_summary": "Local main intake of exact selected coherent commit 55c49a0e963358b1112cf5844c212ad22ac36fc8 onto a0c0ab1312bfaaf4aaca78130fa9904bead83364; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
 }

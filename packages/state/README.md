@@ -46,6 +46,22 @@ original physical receiver; the current authorized reader is a separate identity
 Host credential provenance, native download wiring and serialization through
 retention deletion remain owning host/Files integration requirements.
 
+The trusted D1 owner router accepts `fileRetirementAuthority` and
+`fileReferenceProducers` on its existing `TrustedD1OwnerBinding`. Pass the original
+State/Files assignment and actual same-load owning framework exports. The D1
+constructor captures both before inspecting the database; the router retains that
+same registered adapter while guarding receipt app/owner identity. A resolver
+whose binding requires the authority returns a typed `FileReferenceStoragePort`,
+including durable inventory, retirement and migration methods after physical
+reopen. Existing bindings retain the generic `StoragePort` API.
+
+The assignment's app and physical receiver owner must match the resolved route.
+Its `stateOwner` remains the installed package/snapshot owner. The existing
+persisted owner pin, complete declaration census and revision transaction still
+govern issuance; copied ports lack the original migration validator binding.
+The genuine physical Files transaction and native owner routing need their
+separate owning consumer qualification.
+
 ## Build and test
 
 ```sh

@@ -10,6 +10,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
+import type { ArtifactModel, CanTypeId, FileReferenceInventory, FileReferenceStoragePort,
+  FileRetirementAuthority, FinalizedFileIdentity, FrameworkFileReferenceProducer, InstalledSnapshot } from '@canlang/contracts';
 import {
   StorageConstraintError,
   FenceConflictError,
@@ -32,6 +34,13 @@ import {
 // Adjustment point: worker A's actual D1 module location/signatures.
 import { createD1Storage, ensureSchema } from '../../src/storage/d1.js';
 import { createD1OwnerRouter, type TrustedD1OwnerBinding } from '../../src/storage/owner-router.js';
+import { STATE_FILE_REFERENCE_PRODUCER } from '../../src/storage/index.js';
+import { newAssociationRow, RECEIPT_ASSOCIATION_MODEL } from '../../src/receipt/tables.js';
+import { stageFanoutOwnerScanWrite, FANOUT_OWNER_SCAN_MODEL } from '../../src/fanout/navigation.js';
+import { loadArtifactDescriptors } from '../../src/invocation/registry.js';
+import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
+import { activate, validateTransition } from '../../src/migration/index.js';
+import { StateError } from '../../src/errors.js';
 
 let mf: Miniflare | undefined;
 let db: D1Database;
@@ -472,4 +481,222 @@ it('routes fresh pinned owner D1 stores and refuses aliases and unassigned legac
     await host.dispose();
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+
+describe('D1 owning router File bindings', () => {
+  const scope = { app: 'documents', owner: 'team-a' };
+  const authority: FileRetirementAuthority = { app: scope.app, stateOwner: 'Documents',
+    stateStoreId: 'routed-state', fileStoreId: 'routed-files',
+    receiver: { app: scope.app, team: 'team-a', owner: scope.owner } };
+  const model = asModel('Documents.Record');
+  const snapshot: InstalledSnapshot = { owner: 'Documents', snapshotId: 'router-old', digest: 'router-old-digest',
+    installedRevision: asRevision(0), installedAt: 100 };
+  function inventory(target = false): FileReferenceInventory {
+    const artifactModels: ArtifactModel[] = [{ name: model, deleteMode: 'archive', fields: [
+      { name: 'attachment', field: { kind: 'file' }, valueType: 'file' as CanTypeId, required: false, serverOnly: false },
+      { name: 'label', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: false, serverOnly: false },
+    ] }];
+    const valueTypes = { contracts: [] };
+    const loaded = loadArtifactDescriptors({ artifact_version: 1, models: artifactModels, operations: [], valueTypes }, { by: 'members' });
+    return { owner: snapshot.owner, snapshotId: target ? 'router-new' : snapshot.snapshotId,
+      digest: target ? 'router-new-digest' : snapshot.digest, canonicalModels: loaded.models, artifactModels, valueTypes,
+      frameworkModels: STATE_FILE_REFERENCE_PRODUCER.models };
+  }
+  function file(ref = 'router-orphan'): FinalizedFileIdentity {
+    return { ref, receiver: { ...authority.receiver, principal: 'alice' },
+      provenance: { kind: 'event', source: 'documents.mail', adapter: 'documents.mail',
+        occurrenceId: 'router-delivery', fieldPath: 'attachments', itemIndex: 0 },
+      contentType: 'text/plain', sizeBytes: 4, bytesDigest: 'sha256-router', finalizedAtMs: 1_000 };
+  }
+  function retirement(revision: number, declarations = inventory(), ref = 'router-orphan') {
+    return { expectedRevision: asRevision(revision),
+      inventory: { owner: declarations.owner, snapshotId: declarations.snapshotId, digest: declarations.digest },
+      file: file(ref), disposition: 'orphaned' as const, retention: { unattachedHorizonMs: 100, retentionMs: 500 },
+      atMs: 1_100, maxRows: 20, maxReferences: 100 };
+  }
+  async function install(store: FileReferenceStoragePort, declarations = inventory()) {
+    await store.installFileReferenceInventory({ expectedRevision: await store.readRevision(), authority,
+      snapshot: { ...snapshot, owner: declarations.owner, snapshotId: declarations.snapshotId, digest: declarations.digest },
+      inventory: declarations });
+  }
+  // One coherent observation checks that refusals leave the actual D1 effects intact.
+  async function checkpoint(database: D1Database) {
+    return (await database.batch([
+      database.prepare('SELECT revision FROM fence WHERE id = 1'),
+      database.prepare('SELECT model, id, data FROM records ORDER BY model, id'),
+      database.prepare('SELECT "key", payload FROM schedules ORDER BY "key"'),
+      database.prepare('SELECT COUNT(*) AS count FROM fence_log'),
+      database.prepare('SELECT installed FROM file_reference_inventories ORDER BY owner'),
+      database.prepare('SELECT retirement FROM file_retirements ORDER BY ref'),
+      database.prepare('SELECT phase, updated_revision FROM migration_progress ORDER BY migration_id'),
+    ])).map(result => result.results);
+  }
+
+  it('captures trusted decisions before inspection and preserves genuine controls and retirement after physical reopen', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-owner-file-d1-'));
+    const options = { modules: true, script: 'export default { fetch() { return new Response("ok"); } }',
+      d1Databases: { A: 'owner-file', ALIAS: 'owner-file', OTHER: 'other-file' }, d1Persist: directory };
+    let host = new Miniflare(options);
+    try {
+      const database = await host.getD1Database('A'), other = await host.getD1Database('OTHER');
+      let releaseInspection!: () => void, inspectionStarted!: () => void;
+      const paused = new Promise<void>(resolve => { releaseInspection = resolve; });
+      const started = new Promise<void>(resolve => { inspectionStarted = resolve; });
+      let firstInspection = true;
+      const delayedDatabase = new Proxy(database, { get(target, key) {
+        if (key === 'prepare') return (sql: string) => {
+          const statement = target.prepare(sql);
+          if (firstInspection && sql.includes('sqlite_master')) {
+            firstInspection = false;
+            return new Proxy(statement, { get(prepared, method) {
+              if (method === 'all') return async () => {
+                inspectionStarted(); await paused; return prepared.all();
+              };
+              const member = Reflect.get(prepared, method);
+              return typeof member === 'function' ? member.bind(prepared) : member;
+            } });
+          }
+          return statement;
+        };
+        const value = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      } });
+      const mutableAuthority = { ...authority, receiver: { ...authority.receiver } };
+      const producers: FrameworkFileReferenceProducer[] = [STATE_FILE_REFERENCE_PRODUCER];
+      const route = { ...scope, db: delayedDatabase, initializeFresh: true as const,
+        fileRetirementAuthority: mutableAuthority, fileReferenceProducers: producers };
+      const router = createD1OwnerRouter({ resolveBinding: () => route });
+      const opening = router.ownerScopedStoragePort(scope);
+      await started;
+      mutableAuthority.app = 'foreign'; mutableAuthority.receiver.app = 'foreign';
+      mutableAuthority.receiver.owner = 'foreign'; mutableAuthority.fileStoreId = 'foreign-files';
+      producers.length = 0; route.db = other; delete (route as { initializeFresh?: true }).initializeFresh;
+      releaseInspection();
+      const store = await opening;
+      assert.equal(await store.readRevision(), 1);
+      assert.deepEqual(store.fileRetirementAuthority, authority);
+      assert.equal(await other.prepare("SELECT name FROM sqlite_master WHERE name = 'fence'").first(), null);
+      await install(store);
+      const association = newAssociationRow({ recordModel: model, recordId: 'row', field: 'delivery',
+        deliveryId: 'router-delivery', source: 'Documents.send', revision: 0 }, { nowMs: 100, actor: 'alice' });
+      const scan = stageFanoutOwnerScanWrite({ owner: scope.owner, row: null, visitedIntentRow: null,
+        meta: { nowMs: 100, actor: 'alice' } });
+      assert.equal(scan.kind, 'insert');
+      if (scan.kind !== 'insert') throw new Error('expected owning owner-scan insert');
+      await store.commit(makeBatch(2, { writes: [
+        { kind: 'insert', model, row: makeRow({ id: 'row', data: { attachment: { id: 'router-live' } } }) },
+        { kind: 'insert', model: asModel(RECEIPT_ASSOCIATION_MODEL), row: association }, scan,
+      ] }));
+      assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL), association.id), association);
+      assert.deepEqual(await store.load(asModel(FANOUT_OWNER_SCAN_MODEL), scan.row.id), scan.row);
+      const beforeRetirement = await checkpoint(database);
+      await assert.rejects(store.retireFinalizedFile(retirement(3, inventory(), 'router-live')), StorageConstraintError);
+      assert.deepEqual(await checkpoint(database), beforeRetirement);
+      const fact = await store.retireFinalizedFile(retirement(3));
+      assert.equal(fact.retiredRevision, 4);
+      const alias = await host.getD1Database('ALIAS');
+      const sameOwner = await createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: alias,
+        fileRetirementAuthority: authority, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) }).ownerScopedStoragePort(scope);
+      const beforeMismatch = await checkpoint(database);
+      const foreignReceipt = makeReceipt({ app: scope.app, owner: 'team-b', operationId: 'routed-foreign' });
+      await assert.rejects(store.readReceipt(foreignReceipt.identity), /receipt.*mismatch/);
+      await assert.rejects(store.commit(makeBatch(4, { receipt: foreignReceipt, writes: [
+        { kind: 'insert', model, row: makeRow({ id: 'foreign-receipt', data: {} }) },
+      ] })), /receipt.*mismatch/);
+      assert.deepEqual(await checkpoint(database), beforeMismatch);
+      const race = await Promise.allSettled([store.commit(makeBatch(4)), sameOwner.commit(makeBatch(4))]);
+      assert.equal(race.filter(result => result.status === 'fulfilled').length, 1);
+      const loser = race.find(result => result.status === 'rejected');
+      assert.ok(loser?.status === 'rejected' && loser.reason instanceof FenceConflictError);
+      await host.dispose(); host = new Miniflare(options);
+      const reopenedDb = await host.getD1Database('A');
+      const reopen = (binding: FileRetirementAuthority = authority, boundProducers: readonly FrameworkFileReferenceProducer[] = [STATE_FILE_REFERENCE_PRODUCER]) =>
+        createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: reopenedDb,
+          fileRetirementAuthority: binding, fileReferenceProducers: boundProducers }) }).ownerScopedStoragePort(scope);
+      const restored = await reopen();
+      assert.equal(await restored.readRevision(), 5);
+      assert.deepEqual((await restored.readFileReferenceInventory(snapshot.owner))?.inventory, inventory());
+      assert.deepEqual(await restored.load(asModel(FANOUT_OWNER_SCAN_MODEL), scan.row.id), scan.row);
+      assert.deepEqual(await restored.readFinalizedFileRetirement(file().ref), fact);
+      assert.deepEqual(await restored.retireFinalizedFile(retirement(3)), fact);
+      const beforeRefusals = await checkpoint(reopenedDb);
+      for (const denied of [() => reopen(authority, []), () => reopen({ ...authority, fileStoreId: 'other-files' })]) {
+        await assert.rejects(async () => { const port = await denied(); await port.readFileReferenceInventory(snapshot.owner); }, StorageConstraintError);
+        await assert.rejects(async () => { const port = await denied(); await port.commit(makeBatch(5, { writes: [
+          { kind: 'insert', model, row: makeRow({ id: 'missing-binding', data: {} }) },
+        ], schedules: [{ op: 'replace', key: 'missing-binding', at: 1, event: asOperation('Documents.due'), payload: {} }] })); }, StorageConstraintError);
+      }
+      const unbound = createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: reopenedDb }) });
+      await assert.rejects(async () => { const port = await unbound.ownerScopedStoragePort(scope);
+        await port.commit(makeBatch(5)); }, StorageConstraintError);
+      assert.deepEqual(await checkpoint(reopenedDb), beforeRefusals);
+      assert.equal(await restored.load(model, asId('missing-binding')), null);
+      assert.equal(await restored.scheduleGet('missing-binding'), null);
+    } finally { await host.dispose(); await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('refuses authority app and receiver-owner mismatch before initializing a fresh route', async () => {
+    const host = new Miniflare({ modules: true, script: 'export default { fetch() { return new Response("ok"); } }',
+      d1Databases: ['APP', 'OWNER'] });
+    try {
+      for (const [name, foreign] of [
+        ['APP', { ...authority, app: 'other-app', receiver: { ...authority.receiver, app: 'other-app' } }],
+        ['OWNER', { ...authority, receiver: { ...authority.receiver, owner: 'other-owner' } }],
+      ] as const) {
+        const database = await host.getD1Database(name);
+        const router = createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: database, initializeFresh: true,
+          fileRetirementAuthority: foreign, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) });
+        await assert.rejects(router.ownerScopedStoragePort(scope), /File assignment app\/owner mismatch/);
+        assert.equal(await database.prepare("SELECT name FROM sqlite_master WHERE name IN ('fence', 'state_owner_pin')").first(), null);
+      }
+    } finally { await host.dispose(); }
+  });
+
+  it('activates a nonempty migration through the original registered routed adapter and refuses a copied port', async () => {
+    const host = new Miniflare({ modules: true, script: 'export default { fetch() { return new Response("ok"); } }', d1Databases: ['DB'] });
+    try {
+      const database = await host.getD1Database('DB');
+      const store = await createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: database, initializeFresh: true,
+        fileRetirementAuthority: authority, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) }).ownerScopedStoragePort(scope);
+      const old = inventory(), target = inventory(true);
+      await install(store, old);
+      const row = makeRow({ id: 'engine-row', data: { attachment: { id: 'router-migration-live' }, label: 'old' } });
+      const scan = stageFanoutOwnerScanWrite({ owner: scope.owner, row: null, visitedIntentRow: null,
+        meta: { nowMs: 100, actor: 'alice' } });
+      await store.commit(makeBatch(2, { writes: [{ kind: 'insert', model, row }, scan] }));
+      const installed = (await store.readInstalledSnapshot(old.owner))!;
+      const oldModels = buildModelTableFromCanonical(old.canonicalModels);
+      const desiredModels = buildModelTableFromCanonical(target.canonicalModels);
+      const migrationId = 'routed-framework-activation';
+      const plan = validateTransition(installed, { migrationId, owner: installed.owner,
+        fromSnapshotId: installed.snapshotId, fromDigest: installed.digest,
+        toSnapshotId: target.snapshotId, toDigest: target.digest, bodyDigest: 'routed-body', directives: [] }, oldModels, desiredModels);
+      await store.stageMigrationRows({ expectedRevision: asRevision(3), migrationId, rows: [{ targetModel: model,
+        recordId: row.id, version: asVersion(2), data: { ...row.data, label: 'new' }, parent: null, converted: true,
+        created: row.created, createdBy: row.createdBy, archivedAt: row.archivedAt }],
+      progress: { migrationId, phase: 'staged', stagedCursor: null, publishCursor: null, updatedRevision: asRevision(4) } });
+      const input = { plan, oldModels, desiredModels, inventory: [], chunkSize: 1,
+        clock: { nowMs: () => 888 }, fileReferenceInventory: target };
+      const beforeCopy = await checkpoint(database);
+      await assert.rejects(activate({ store: { ...store }, ...input }), error => {
+        assert.ok(error instanceof StateError);
+        assert.equal(error.code, 'validation');
+        assert.equal(error.message, 'Invalid reference.');
+        return true;
+      });
+      assert.deepEqual(await checkpoint(database), beforeCopy);
+      const result = await activate({ store, ...input });
+      assert.equal(result.flipped, true);
+      assert.equal((await store.readMigrationProgress(migrationId))?.phase, 'active');
+      assert.equal((await store.load(model, row.id))?.data['label'], 'new');
+      assert.equal((await store.query({ model: asModel(FANOUT_OWNER_SCAN_MODEL), authority: 'owner' })).length, 1);
+      const installedTarget = (await store.readFileReferenceInventory(target.owner))!;
+      assert.deepEqual(installedTarget.inventory, target);
+      assert.equal(installedTarget.snapshot.installedRevision, result.revision);
+      assert.equal(installedTarget.snapshot.installedAt, 888);
+      const fact = await store.retireFinalizedFile(retirement(result.revision, target));
+      assert.deepEqual(fact.snapshot, installedTarget.snapshot);
+    } finally { await host.dispose(); }
+  });
 });
