@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T02:00:21.730068+00:00",
+  "updated_utc": "2026-10-10T02:05:27.494418+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -163,7 +163,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Finite native static CALL activation is implemented and actual CLI/artifact tested6/6 after exact reviewed Dev31159eb9 binder intake/build26/26. Strict all-target Clippy/fmt0 and independent review clear. Default nonnative and unsupported read/dynamic/as/CRUD/default/ref/array/composite/framework-child/overbound profiles retain E6008/no artifact. Genuine Dev CLI/native consumer and final changed-source whole qualification remain required; broad nine refs/precise holds unchanged.",
+  "current_source_work": "Finite native static CALL activation is implemented, actual CLI/artifact6/6 tested, manually reviewed and integrated LOCAL2ee246ab. Exact compiler source6530a74e completes129targets1356/0failed/0ignored/0filtered with real required completion engines/native/permission bodies and zero body skips; strict all-target lint/fmt0. Reviewed-main intake leaves compiler/receipt runtime core unchanged; fresh graph26/26 zero cached and owning actual CLI/module1/1 pass. Genuine Dev native child execution and broader original owner joins/precise holds remain; nine refs stay open.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -440,7 +440,7 @@
     "completion_header": "types.rs reuses the exact checked handler completion envelope for example event literals; enum claim machinery accepts succeeded with declared Outcome.state=unavailable. Nullable generic Object field expectation reuses imported std OperationOutcome schema. b4_check::completion_example_headers_claim_status_and_declared_result_enum_cases final1/1(0.06s), with actual installed schema and CLI positive local/std fixtures, anchored foreign HEADER status/state E2001, null/omission and equal/ancestor input replacement preserving Error/unclaimed. General foreign ROW remains diagnostic-free/unclaimed; no refusal claim. t10_examples_event_claims_nested_cases1/1(0.00s) reused. Earlier0/1(0.42s) was false row-diagnostic expectation; same case passed after correction. Later0/1(0.01s) added inadmissible trusted-handler sequence E1210; removed to restore original DoBlock scope/no sequence policy change. Final focused build0(7.04s); focused lib/bin Clippy0(3.33s) preceded temporary control; scoped formatting passes. Coordinator's single Roadmap CanBook check reports complete=true, omitted0, exit10 overall: CanBook0 diagnostics, 437 transitive files present, no E2005. No BDD3 carrier/runtime/disclosure, guard/send invalidation/full-task credit; count58/67 unchanged."
   },
   "current_whole_qualification": {
-    "source_commit": "6e51abc5c562ae9c21e1129ce2a1b48f592ed577",
+    "source_commit": "6530a74e3225ce3b599927519e78241c680c1fb3",
     "passed": 1356,
     "failed": 0,
     "ignored": 0,
@@ -449,14 +449,14 @@
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
-    "current_head_is_qualified": false,
+    "current_head_is_qualified": true,
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
     "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
-    "remaining_dependencies": "Exact released Statee73/Deve090 and corrected Dev31159eb9 genuine binder are consumed and built. Finite native static CALL CLI activation passes. Dev owns genuine actual CLI/native transaction qualification next; final changed-source compiler whole is due. Original Workbench/read/query Fact[], protected dynamic/as/CRUD/default/framework/composite joins remain separate.",
-    "subsequent_focused_qualification": "After clean fast-forward to reviewed LOCALmain4923733f, actual graph26/26 zero cached rebuilt the additional Dev preview sources. Existing actual carrier/body import case1/1 passes against fresh native stdlib outputs; other five cases and full1356 unchanged compiler/core results reused. Dev preview/application/browser acceptance remains owner-specific.",
-    "scope": "Historical full1356 remains exact saved6e51. Current finite activation and child-Send collector source pass owning6/6 and strict all-target lint/format, with fresh released binder outputs26/26. Final changed-source whole qualification is due; actual native CALL execution and wider application/reference acceptance remain separate."
+    "remaining_dependencies": "Dev genuine CLI/native child consumer qualification remains required before finite execution acceptance. Original Workbench/read/query Fact[], protected dynamic/as/CRUD normalization/default/framework/composite remain separate State/Dev/Compiler source joins. T11 accepted source-evidence contract and Dev exact branch qualification remain unavailable; broader owning application/format profiles and precise human holds remain.",
+    "subsequent_focused_qualification": "Clean fast-forward to reviewed LOCAL2ee246ab adds owner Dev qualification sources but leaves compiler/tests/receipt runtime core unchanged. Fresh actual graph26/26 zero cached builds on Node24; owning actual CLI/emitter/imported-module1/1 passes with current outputs. Unchanged whole1356 and other five cases reused.",
+    "scope": "Current full compiler qualification at exact6530a74e activation/child-Send collector source with reviewed Dev31159eb9 binder and Statee73/Deve090 runtime inputs. Clean fast-forward to reviewed LOCAL2ee246ab preserves compiler/tests and receipt runtime core; reuse unchanged whole results. No genuine native child execution or whole application/reference acceptance follows."
   },
   "construct_help_first_profile": {
     "state": "compiler_prerequisite_and_selected_native_core_qualified_full_profile_open",
@@ -531,14 +531,14 @@
     "whole_result": "129targets1349/0/0/0 at12a3209b/ec3c2f50, zero body skips"
   },
   "task39_checked_calls": {
-    "state": "finite_native_cli_activated_actual_native_consumer_and_whole_pending",
+    "state": "finite_native_cli_implemented_current_whole_qualified_native_consumer_pending",
     "source": "compiler/src/analysis/types.rs; compiler/src/analysis/effects.rs; compiler/src/codegen/ir.rs; compiler/src/codegen/js.rs; compiler/src/analysis/scenario_disclosure.rs; compiler/src/codegen/scenario_calls.rs; compiler/src/codegen/scenario_receipts.rs",
     "target": "compiler/tests/invocation_references.rs",
     "result": "5/5 Node24 actual installed catalog/CLI; call controls8/8; emitter121/121 prior unchanged after isolated read-narrow correction; strict all-target lint/format0.",
     "behavior": "Actual dynamic operands separated from declaring SymbolIds; owning parameter/model/result schemas retained by index, authored input order/typed shorthand/source anchors, as bindings and value/void/opaque result facts. Exact read-scenario static calls preserve member-path narrowing; mutating/dynamic/unknown calls invalidate.",
-    "blocked_on": "Exact released Statee73/Deve090 and corrected Dev31159eb9 genuine binder are consumed and built. Finite native static CALL CLI activation passes. Dev owns genuine actual CLI/native transaction qualification next; final changed-source compiler whole is due. Original Workbench/read/query Fact[], protected dynamic/as/CRUD/default/framework/composite joins remain separate.",
+    "blocked_on": "Dev genuine CLI/native child consumer qualification remains required before finite execution acceptance. Original Workbench/read/query Fact[], protected dynamic/as/CRUD normalization/default/framework/composite remain separate State/Dev/Compiler source joins. T11 accepted source-evidence contract and Dev exact branch qualification remain unavailable; broader owning application/format profiles and precise human holds remain.",
     "refusal": "Default nonnative CLI and unsupported native call profiles retain canonical E6008/no modules. Only complete exact source-aware static mutation no-as/discarded scalar-or-void profile with required builtin child inputs publishes through --native-scenario-receipts. No direct-handler/fake-frame substitute.",
-    "qualification": "Exact saved6e51 full129targets1356/0/0/0, required engines/native/permission bodies zero skips, lint/fmt0. Reviewed LOCALmain492 leaves compiler/receipt core unchanged; graph26/26 fresh outputs and carrier/body1/1 qualify intake. No native child execution, original Task39 or broader reference acceptance/hold lift.",
+    "qualification": "Exact6530a74e full129targets1356/0failed/0ignored/0filtered, required real completion engines/native/permission bodies zero skips, strict all-target lint/fmt0. Manually reviewed LOCAL2ee246ab preserves compiler/receipt core; fresh graph26/26 and owning real CLI/module1/1 pass. No genuine native child execution, original Task39 or wider reference acceptance/hold lift.",
     "related_argument_correction": "Existing check_action_call consumes explicit value or typed shorthand key_node for additional declaration targets. heterogeneous_action_call1/1 passes original literal, shorthand/explicit-binding exact diagnostic span parity and compatible positives. No executable call or held policy claim.",
     "static_preparation": {
       "profile": "Static mutation scenario, unused scalar/void result, complete acyclic child, required direct builtin scalar inputs in authored order. Every transitive child excludes framework Send; root/standalone receipt Send retains existing support. No read/dynamic/as/CRUD/default/composite widening.",
@@ -550,7 +550,7 @@
       "framework_child_correction": {
         "behavior": "Actual clean CallFramework source previously prepared a child TextGenerationV1.cancel Send despite the defining finite consumer rejecting child framework effects. collect_owner now refuses Send for every transitive child, including nested If/Match traversal; root and standalone source profiles remain intact.",
         "validation": "Existing actual owning invocation_references source/emitter/Node24 module case1/1 passes. Parent omits disclosure/callSites/facade, standalone child retains disclosure, E6008 remains. Existing aggregate200 and real16/17 controls run in this same case. Focused strict lib/bin/owning invocation/codegen Clippy and formatting exit0; finite independent source review clear. No native handler executes.",
-        "remaining": "Corrected Dev binder component/coordinator release before finite activation; actual native CLI/output/consumer qualification before acceptance. Whole1356 remains at saved6e51, not changed collector source."
+        "remaining": "Corrected Dev binder is consumed and finite CLI activation/current whole qualify the collector. Genuine Dev native child execution remains required; original/broader call profiles and precise holds stay separate."
       }
     },
     "carrier": {
@@ -573,7 +573,7 @@
       "profile": "Exact complete native static no-as mutation scalar/void call sites only.",
       "producer": "Active parent site inventory matches actual Call span, target SymbolId and result; emit awaited real native stdlib facade with source-derived site ID, canonical target and actual authored inputs lowered once in source order. Clear inventory after each handler.",
       "validation": "Owning invocation/carrier6/6 on Node24.19; actual generated-module body/metadata assertions, omitted/skewed/duplicate source joins retain throwing refusal body. No handler executes. Included in exact6e51 full1356; after reviewedmain intake/rebuild, same real carrier/body1/1 passes. Source review clear.",
-      "remaining": "Dev binder component and coordinator release precede finite static activation; actual native child workflow qualification follows activation, before acceptance. No original Workbench read/query Fact[], dynamic/as/CRUD/default/composite or broader reference acceptance.",
+      "remaining": "Finite static native activation is manually reviewed/integrated and current-whole qualified. Dev genuine native child workflow qualification remains before execution acceptance. Original Workbench/read/query Fact[], dynamic/as/CRUD/default/composite and broader references remain open.",
       "strict_clippy_exit": 0,
       "format_exit": 0,
       "reviewed_main": "4923733f714d7c3d1321d8a13fdc1575f33d2c44"
@@ -582,7 +582,7 @@
       "state": "finite_compiler_activation_tested_native_consumer_pending",
       "owner": "Dev binder implementation; coordinator exact reviewed release; compiler finite activation/CLI artifact checks; Dev actual native workflow",
       "existing_route": "packages/cloudflare/src/dev/compiler-check.ts runStagedCompiler already invokes canonical compile --native-scenario-receipts. Source-aware emitter uses the existing complete static_preparation profile/body/carrier.",
-      "next": "Dev executes genuine CLI/native workflow from this exact compiler source; final changed-source whole qualification follows. Retain unmatched/non-native/read/dynamic/as/CRUD/default/ref/array/composite/framework-child/overbound refusals and all precise holds.",
+      "next": "Dev qualifies genuine CLI/native execution from this exact reviewed compiler source. Whole/compiler producer qualification is complete; retain unsupported profile refusals, original owner joins and precise holds.",
       "binder_review": "Coordinator manually released corrected genuine binder: memoized remaining depth accepts16/refuses17 including shared tails. Grouped genuine loader/State/Identity1/1 five modes204.40ms; prior2/25 and finite whole41 reused. Source/authority and transaction/result/lifetime reviews clear. Compiler collector exclusion is committed before intake/activation; no native CALL acceptance yet.",
       "released_main": "eb586551e72be288a00aeb03ddc78c27fe6cdbcf",
       "released_component": "31159eb96b29225341d95b3f97e9058df1661056",
@@ -590,8 +590,10 @@
       "compiler_activation": {
         "behavior": "Emit the existing awaited facade only for the unique exact checked active-parent static site; E6008 is recorded after this branch for all unmatched profiles. No input/result/source/authority profile broadening.",
         "validation": "Actual owning invocation_references6/6 on Node24.19. Real CLI positive carrier/two awaited facade sites, depth16 and aggregate200 publish; nonnative/read/as/default/array/dynamic/CRUD/childSend/depth17/aggregate201 refuse without modules. Actual imported-module source/body/tamper controls pass; no handler executes. Strict all-target Clippy/fmt0 and independent finite source review clear.",
-        "remaining": "Genuine Dev native consumer and changed-source whole compiler result required before finite acceptance; original Task39/Workbench and broad refs remain open."
-      }
+        "remaining": "Current whole/compiler source qualification is complete at6530a74e. Genuine Dev native consumer is required before finite execution acceptance; original Task39/Workbench and broad refs remain open.",
+        "whole": "129targets1356/0failed/0ignored/0filtered, real required engines/native/permission bodies, zero body skips. Reviewed-main fresh graph26/26 zero cached + actual owning CLI/module1/1 pass; unchanged full results reused."
+      },
+      "reviewed_main": "2ee246ab07dbed47919e0d510d725e91b3ee0fce"
     }
   }
 }
