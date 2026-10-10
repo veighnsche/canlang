@@ -1060,6 +1060,117 @@ describe("B1 L3 creation agreement", () => {
 });
 
 
+describe("checked value inventory model references", () => {
+  const inventory = () => ({
+    contracts: [{ name: "Snapshot", fields: [
+      { name: "record", type: "shop.Customer" },
+      { name: "version", type: "int", min: 1 },
+      { name: "note", type: "text", max: 3 },
+      { name: "when", type: "date?" },
+      { name: "status", type: "OrderStatus" },
+    ] }],
+    enums: [{ name: "OrderStatus", cases: ["open", "paid"] }],
+  });
+
+  it("decodes named contract arrays with exact stored reference and scalar versions", () => {
+    const { valueTypes, valueSchema } = normalizeValueTypes(inventory(), ["shop.Customer"]);
+    const wire = [
+      { record: { id: "second", version: "9007199254740993" }, version: "9007199254740993", note: "abc", when: null, status: "open" },
+      { record: { id: "first", version: "2" }, version: "2", note: "", when: null, status: "paid" },
+    ];
+    const native = validateValue(valueSchema, "Snapshot[]", wire, "create");
+    assert.deepEqual(native, [
+      { record: makeRecordRef("shop.Customer", "second", 9007199254740993n), version: 9007199254740993n, note: "abc", when: null, status: "open" },
+      { record: makeRecordRef("shop.Customer", "first", 2n), version: 2n, note: "", when: null, status: "paid" },
+    ]);
+    assert.deepEqual(encodeValue("Snapshot[]", native), wire);
+    assert.deepEqual(validateValue(valueSchema, "Snapshot[]", [], "create"), []);
+    assert.equal(valueTypes.contracts[0]!.fields[1]!.min, 1);
+    assert.equal(valueSchema.contracts["Snapshot"]!.fields["version"]!.valueMin, 1n);
+    assert.equal(valueSchema.contracts["shop.Customer"], undefined, "model identity is never a structural contract");
+    assert.ok(Object.isFrozen(native));
+    assert.ok(Object.isFrozen((native as readonly ContractValue[])[0]!.record));
+  });
+
+  it("retains closed field, model reference, bound and enum validation", () => {
+    const { valueSchema } = normalizeValueTypes(inventory(), ["shop.Customer"]);
+    const wire = { record: { id: "customer", version: "1" }, version: "1", note: "abc", when: null, status: "open" };
+    for (const changed of [
+      { ...wire, extra: "hidden" },
+      { ...wire, record: { ...wire.record, data: { note: "copied row" } } },
+      { ...wire, record: { id: "customer", version: 1 } },
+      { ...wire, version: "0" },
+      { ...wire, note: "abcd" },
+      { ...wire, status: "shipped" },
+    ]) assertSchemaError(() => validateValue(valueSchema, "Snapshot[]", [changed], "create"));
+    assert.throws(() => encodeValue("shop.Customer", makeRecordRef("Other", "customer", 1n)), ValueError);
+  });
+
+  it("requires a canonical same-load model name without changing no-context dangling refusal", () => {
+    const dangling = (fn: () => unknown) => assert.throws(fn,
+      (error: unknown) => error instanceof ValueTypesError && error.code === "dangling");
+    dangling(() => normalizeValueTypes(inventory()));
+    dangling(() => normalizeValueTypes(inventory(), ["Other"]));
+    for (const names of [["shop.Customer[]"], ["shop.Customer?"], ["int"], ["shop.Customer", "shop.Customer"], ["Snapshot"], ["OrderStatus"]]) {
+      assert.throws(() => normalizeValueTypes(inventory(), names), ValueTypesError);
+    }
+    assert.throws(() => normalizeValueTypes(inventory(), "shop.Customer" as never), ValueTypesError);
+  });
+
+  it("refuses lossy integer bound metadata", () => {
+    for (const min of [1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN]) {
+      const raw = inventory(); raw.contracts[0]!.fields[1]!.min = min;
+      assert.throws(() => normalizeValueTypes(raw, ["shop.Customer"]),
+        (error: unknown) => error instanceof ValueTypesError && error.code === "malformed");
+    }
+  });
+
+  it("preserves exact scalar wire bounds and receiving text normalization", () => {
+    const raw = { contracts: [{ name: "Bounded", fields: [
+      { name: "count", type: "int", min: "9007199254740993", max: "9223372036854775807" },
+      { name: "note", type: "text", trim: true, min: 1, max: 3 },
+      { name: "description", type: "text?", max: 8 },
+      { name: "when", type: "datetime?", min: "2026-01-01T00:00:00.000Z" },
+    ] }] };
+    const { valueTypes, valueSchema } = normalizeValueTypes(raw);
+    const wire = { count: "9007199254740993", note: "  abc  ", description: null, when: null };
+    const native = validateValue(valueSchema, "Bounded", wire, "create");
+    assert.deepEqual(encodeValue("Bounded", native), { ...wire, note: "abc" });
+    assert.deepEqual(valueTypes.contracts[0]!.fields, raw.contracts[0]!.fields);
+    assert.equal(valueSchema.contracts["Bounded"]!.fields["count"]!.valueMin, 9007199254740993n);
+    for (const changed of [{ ...wire, count: "9007199254740992" }, { ...wire, note: "   " },
+      { ...wire, note: "  abcd  " }, { ...wire, description: "123456789" },
+      { ...wire, when: "2025-12-31T23:59:59.999Z" }]) {
+      assertSchemaError(() => validateValue(valueSchema, "Bounded", changed, "create"));
+    }
+  });
+
+  it("delegates type-appropriate bound and trim refusals to the core", () => {
+    for (const constraints of [
+      { type: "int", min: "1.5" }, { type: "int", max: "9223372036854775808" },
+      { type: "text", min: "1" }, { type: "int[]", min: "1" },
+      { type: "int", trim: true }, { type: "shop.Customer", trim: true },
+      { type: "text?", trim: "true" }, { type: "datetime?", min: "yesterday" },
+      { type: "money", min: { minor: 1, currency: "USD" } },
+      { type: "money", min: { minor: "1", currency: "USD", extra: "ignored" } },
+      { type: "text", default: "unsupported" },
+    ]) assert.throws(() => normalizeValueTypes({ contracts: [{ name: "Bounded", fields: [{ name: "value", ...constraints }] }] }, ["shop.Customer"]), ValueTypesError);
+  });
+
+  it("detaches and freezes admitted object bounds without weakening the typed codec", () => {
+    const min = { minor: "9007199254740993", currency: "USD" };
+    const raw = { contracts: [{ name: "Bounded", fields: [{ name: "amount", type: "money", min }] }] };
+    const { valueTypes, valueSchema } = normalizeValueTypes(raw);
+    min.minor = "0"; min.currency = "EUR";
+    const captured = valueTypes.contracts[0]!.fields[0]!.min;
+    assert.deepEqual(captured, { minor: "9007199254740993", currency: "USD" });
+    assert.ok(Object.isFrozen(captured));
+    const wire = { amount: { minor: "9007199254740993", currency: "USD" } };
+    assert.deepEqual(encodeValue("Bounded", validateValue(valueSchema, "Bounded", wire, "create")), wire);
+    assertSchemaError(() => validateValue(valueSchema, "Bounded", { amount: { minor: "1", currency: "USD" } }, "create"));
+  });
+});
+
 function candidateInventory() {
   const choice = "Review.pick.choice";
   const candidate = "Review.pick.option";
@@ -1081,6 +1192,15 @@ function candidateInventory() {
 const candidateValue = (id: string, description = "An alternative") => ({ id, description });
 
 describe("checked runtime candidate value constraints", () => {
+  it("carries receiving alias trim through the checked nominal envelope", () => {
+    const raw = candidateInventory();
+    Object.assign(raw.contracts[0]!.fields[0]!, { trim: true });
+    const { valueTypes, valueSchema } = normalizeValueTypes(raw);
+    assert.equal(valueTypes.contracts[0]!.fields[0]!.trim, true);
+    assert.deepEqual(validateValue(valueSchema, "Review.pick.option", candidateValue("  change_a  "), "create"), candidateValue("change_a"));
+    assertSchemaError(() => validateValue(valueSchema, "Review.pick.option", candidateValue("  bad-id  "), "create"));
+  });
+
   it("reuses candidate-array constraints and one bounded TEXT alias for every result key", () => {
     const { valueSchema } = normalizeValueTypes(candidateInventory());
     const choices = [candidateValue("change_b"), candidateValue("change_a")];

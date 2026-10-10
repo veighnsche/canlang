@@ -1119,9 +1119,11 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
 function queryModelDescriptor(bound: BoundPlan, query: ScenarioReceiptQueryPlan) {
   const model = bound.artifactModels.get(query.model)!;
   return { name: query.model, deleteMode: model.deleteMode,
-    fields: Object.fromEntries(model.fields.map(field => [field.name, { required: field.required,
-      serverOnly: field.serverOnly, ...(field.valueType === undefined ? {} : { valueType: field.valueType }),
-      ...(field.array === undefined ? {} : { array: field.array }) }])) };
+    fields: Object.fromEntries(model.fields.map(field => {
+      const type = field.valueType ?? ({ integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime', string: 'text', boolean: 'bool', date: 'date', duration: 'duration', user: 'user' } as Record<string,string>)[field.field.kind];
+      return [field.name, { required: field.required, serverOnly: field.serverOnly,
+        ...(type === undefined ? {} : { valueType: type }), ...(field.array === undefined ? {} : { array: field.array }) }];
+    })) };
 }
 /** Runs the real viewer engine over this transaction's complete bounded owner
  * stage. Native source runs once, sequentially; handles preserve original rows. */
@@ -1148,7 +1150,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       const adapter = { ...store, readRevision: () => store.readRevision(), query: async () => domain };
       const base = { model: plan.model, modelDescriptor: queryModelDescriptor(state.bound, plan), authority: 'viewer' as const,
         policy: producer.policy, context, memberships, store: adapter, archived: plan.archived,
-        order: plan.order, ...(plan.limit === null ? {} : { limit: plan.limit }) };
+        ...(plan.order.length === 0 ? {} : { order: plan.order }), ...(plan.limit === null ? {} : { limit: plan.limit }) };
       const observed = await queryRecordsObserved(base, async (record, row) => {
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
@@ -1172,7 +1174,8 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       if (owner.callGuards.length >= MAX_ITEMS) return invalid('query commit guard budget exceeded.');
       owner.callGuards.push(Object.freeze({ name: `query:${call.def.name}:${plan.id}`, evaluate: async () => {
         if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
-        const current = await queryRecords({ ...base, limit: undefined });
+        const guardInput = { ...base }; delete guardInput.limit;
+        const current = await queryRecords(guardInput);
         const original = observed.candidates.map(candidate => candidate.record).sort((a, b) =>
           current.records.findIndex(row => row.id === a.id) - current.records.findIndex(row => row.id === b.id));
         if (stableStringify(current.records) !== stableStringify(original)) throw new StateError('forbidden', 'Original query domain or field authority changed before commit.');
@@ -1597,14 +1600,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const project = async (member: Awaited<ReturnType<typeof membership>>) => {
     const context = { actorUserId, teamId, membership: member, memberships };
     if (!await evaluateBy(def.by, context)) return withheld;
-    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[]) => {
+    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = []) => {
       const current = await input.store.load(model, saved.id); const inventory = currentBound.models.get(model);
       if (inventory === undefined || current === null || current.archivedAt !== null || current.version < saved.version ||
           current.created !== saved.created || current.createdBy !== saved.createdBy ||
           (current.parent?.model ?? null) !== (saved.parent?.model ?? null) ||
           (current.parent?.id ?? null) !== (saved.parent?.id ?? null)) return null;
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
-        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld] });
+        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field))] });
     };
     let dependenciesReadable = true;
     for (const saved of association.calls ?? []) {
@@ -1624,7 +1627,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         dependenciesReadable = false; continue;
       }
       const returned = child.plan.returns.find(entry => entry.id === child.returnId)!;
-      if (!await savedQueriesReadable(current, child, saved.result, savedProjection)) dependenciesReadable = false;
+      if (!await savedQueriesReadable(current, child, saved.result, (model, row, secrets, blocked) =>
+        savedProjection(model, row, secrets, blocked, current.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
       for (const observed of child.observations) {
         const dependency = returned.dependencies.find(dep => dep.id === observed.dependencyId)!;
         const projection = await savedProjection(observed.model, observed.row, observed.secretFields, []);
@@ -1642,7 +1646,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     }
     const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
     if (stableStringify(currentBound.plan) !== stableStringify(association.plan) ||
-        !await savedQueriesReadable(currentBound, association, receipt.outcome.result, savedProjection)) dependenciesReadable = false;
+        !await savedQueriesReadable(currentBound, association, receipt.outcome.status === 'committed' ? receipt.outcome.result : null, (model, row, secrets, blocked) =>
+          savedProjection(model, row, secrets, blocked, currentBound.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
     for (const observation of association.observations) {
       const dependency = returned.dependencies.find(dep => dep.id === observation.dependencyId)!;
       const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);

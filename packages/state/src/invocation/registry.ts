@@ -312,7 +312,21 @@ function checkValueTypes(holder: Record<string, unknown>): {
   valueTypes?: CanonicalValueTypes; valueSchema?: NormalizedSchema;
 } {
   if (!Object.hasOwn(holder, 'valueTypes')) return {};
-  try { return normalizeValueTypes(holder['valueTypes']); }
+  try {
+    // Names come only from actual same-load declarations. The ordinary model
+    // checker below still owns their complete descriptors and relationships.
+    const declarations = holder['models'] ?? [];
+    if (!Array.isArray(declarations)) fail('malformed_descriptor', 'Same-load models require an actual declaration array.');
+    const modelNames: string[] = [];
+    for (let index = 0; index < declarations.length; index += 1) {
+      const member = Object.getOwnPropertyDescriptor(declarations, String(index));
+      if (member === undefined || !('value' in member) || !isRecord(member.value)) fail('malformed_descriptor', 'Same-load model declarations require own data.');
+      const name = Object.getOwnPropertyDescriptor(member.value, 'name');
+      if (name === undefined || !('value' in name) || typeof name.value !== 'string') fail('malformed_descriptor', 'Same-load model identities require own data.');
+      modelNames.push(name.value);
+    }
+    return normalizeValueTypes(holder['valueTypes'], modelNames);
+  }
   catch (error) {
     const reason = error instanceof ValueTypesError
       ? error.code === 'duplicate' ? 'duplicate_name' : error.code === 'dangling' ? 'dangling_reference' : 'malformed_descriptor'

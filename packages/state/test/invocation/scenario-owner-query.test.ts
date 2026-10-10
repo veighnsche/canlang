@@ -2,7 +2,7 @@
  * invoke's existing owner frame. These do not qualify generated Compiler code. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CanTypeId, ClosedInputs, Receipt } from '@canlang/contracts';
+import type { CanTypeId, ClosedInputs, Receipt, StoredRow } from '@canlang/contracts';
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTable } from '../../src/mutation/models.js';
@@ -29,6 +29,7 @@ function disclosure() {
     order: [{ field: 'key', direction: 'asc' as const }], limit: null, archived: 'exclude' as const,
     dependencies: [
       { id: 'done-control', source: source(), role: 'control' as const, field: 'done', type: 'bool' as CanTypeId },
+      { id: 'key-order', source: source(), role: 'control' as const, field: 'key', type: 'text' as CanTypeId },
       { id: 'key-data', source: source(), role: 'data' as const, field: 'key', type: 'text' as CanTypeId },
     ],
   }], returns: [{ id: 'facts-return', source: source(), dependencies: [],
@@ -71,7 +72,7 @@ async function world(options: { child?: boolean; empty?: boolean } = {}) {
   const parent = loaded.registry.get(ROOT); assert.ok(parent && isGeneratedOperationDef(parent));
   const read = loaded.registry.get(READ);
   if (options.child) assert.ok(read && isGeneratedOperationDef(read));
-  const rows = options.empty ? [] : await Promise.all([
+  const rows: StoredRow[] = options.empty ? [] : await Promise.all([
     seedRow(store, MODEL, { id: 'task-c', data: { key: 'c', done: true, approved: false } }),
   ]);
   if (!options.empty) {
@@ -91,13 +92,16 @@ async function world(options: { child?: boolean; empty?: boolean } = {}) {
 type World = Awaited<ReturnType<typeof world>>;
 type Query = Awaited<ReturnType<typeof executeScenarioReceiptQuery>>;
 function wire(rows: Query['rows']) {
-  return rows.map(({ record }) => ({ task: { id: record.id, version: String(record.version) },
-    version: String(record.version), key: record.data['key'] }));
+  return rows.map(({ record }) => {
+    const key = record.data['key']; assert.ok(typeof key === 'string');
+    return { task: { id: record.id, version: String(record.version) }, version: String(record.version), key };
+  });
 }
 async function query(call: AdmittedCall, w: World, seen: string[] = []) {
   return executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot, record }) => {
     seen.push(record.id);
     observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'done-control' });
+    observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'key-order' });
     return record.data['done'] === true;
   } });
 }
@@ -118,7 +122,8 @@ for (const vacant of [false, true]) test(`actual ordered query retains ${vacant 
     assert.deepEqual(result.rows.map(row => row.record.id), vacant ? [] : ['task-a', 'task-c']);
     const value = select(call, w, result);
     if (!vacant) await session.stage({ op: 'update', model: MODEL, id: w.rows[0]!.id, data: { approved: true } }, cause);
-    return { ...await session.finalize(), result: value };
+    const final = await session.finalize();
+    return { ...final, outbox: final.outbox ?? [], result: value };
   }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
   assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
   assert.equal(seen.length, vacant ? 0 : 3); assert.equal(new Set(seen).size, seen.length);
@@ -126,11 +131,15 @@ for (const vacant of [false, true]) test(`actual ordered query retains ${vacant 
   assert.equal(saved.length, 1); assert.equal(saved[0]!.candidates.length, vacant ? 0 : 3);
   if (!vacant) {
     assert.equal(saved[0]!.candidates.find(item => item.row.id === 'task-b')!.matched, false);
-    for (const candidate of saved[0]!.candidates) assert.ok(candidate.dependencies.includes('done-control'));
+    for (const candidate of saved[0]!.candidates) {
+      assert.ok(candidate.dependencies.includes('done-control'));
+      assert.ok(candidate.dependencies.includes('key-order'));
+    }
   }
   const before = await domain(w), retained = receipt;
   assert.equal((await invoke(input)).status, 'replayed'); assert.equal(executions, 1);
   assert.equal(seen.length, vacant ? 0 : 3); assert.deepEqual(receipt, retained); assert.deepEqual(await domain(w), before);
+  assert.ok(receipt.outcome.status === 'committed');
   assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, receipt.outcome.result);
   const hidden = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['key', 'approved'] }] }]);
   assert.deepEqual(await projectScenarioReceipt({ ...w, receipt, policy: hidden }), { result: null, records: [] });
@@ -146,7 +155,8 @@ for (const mode of ['copy-slot', 'foreign-slot', 'count', 'order', 'reference', 
         const session = await beginScenarioReceiptMutation(call, other.store, { table: other.table, bounds });
         const result = await query(call, other); foreignSlot = result.rows[0]!.slot;
         const value = select(call, other, result);
-        return { ...await session.finalize(), result: value };
+        const final = await session.finalize();
+        return { ...final, outbox: final.outbox ?? [], result: value };
       } });
       assert.ok(foreignSlot);
     }
@@ -158,7 +168,7 @@ for (const mode of ['copy-slot', 'foreign-slot', 'count', 'order', 'reference', 
       if (mode === 'foreign-slot') slots[0] = foreignSlot!;
       if (mode === 'count') { value.pop(); slots.pop(); }
       if (mode === 'order') { value.reverse(); slots.reverse(); }
-      if (mode === 'reference') value[0]!.task.id = 'task-b';
+      if (mode === 'reference') value[0]!.task.id = w.rows.find(row => row.id === 'task-b')!.id;
       if (mode === 'version') value[0]!.version = '999';
       if (mode === 'reference-version') value[0]!.task.version = '999';
       if (mode === 'scalar') value[0]!.key = 'fabricated';
@@ -177,7 +187,8 @@ for (const revoke of [false, true]) test(`${revoke ? 'current membership revocat
     const value = select(call, w, await query(call, w, seen));
     if (revoke) await w.memberships.removeMembership(w.member.membership.membership_id);
     else throw new StateError('rule_failed', 'Post-query workflow requirement failed.');
-    return { ...await session.finalize(), result: value };
+    const final = await session.finalize();
+    return { ...final, outbox: final.outbox ?? [], result: value };
   } }), stateError);
   assert.equal(seen.length, 3); assert.deepEqual(await domain(w), before);
 });
@@ -193,7 +204,8 @@ test('query result retains actual provisional reference and version before a lat
     assert.equal(fact.key, 'intermediate'); assert.equal(fact.version, String(row.version + 1));
     assert.equal(fact.task.version, fact.version);
     await session.stage({ op: 'update', model: MODEL, id: row.id, data: { key: 'final', approved: true } }, cause);
-    return { ...await session.finalize(), result: value };
+    const final = await session.finalize();
+    return { ...final, outbox: final.outbox ?? [], result: value };
   }, observeCommittedReceipt: value => { receipt = value; } });
   assert.ok(receipt); assert.equal((await w.store.load(MODEL, w.rows[0]!.id))!.data['key'], 'final');
   const facts = (await projectScenarioReceipt({ ...w, receipt })).result as ReturnType<typeof wire>;
@@ -214,6 +226,7 @@ for (const mode of ['copy-call', 'foreign-store', 'concurrent'] as const)
         const gate = new Promise<void>(resolve => { release = resolve; });
         const first = executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot }) => {
           observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'done-control' });
+          observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'key-order' });
           entered(); await gate; return true;
         } });
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -261,7 +274,8 @@ test('genuine same-owner read child returns its checked query closure and refuse
       const value = await invokeScenarioReceiptCall(call, w.store, { site: 'facts-site', target: READ, inputs: {} });
       assert.deepEqual((value as ReturnType<typeof wire>).map(item => item.key), ['a', 'c']);
       selectScenarioReceiptReturn(call, w.store, 'root-return');
-      return { ...await session.finalize(), result: null };
+      const final = await session.finalize();
+      return { ...final, outbox: final.outbox ?? [], result: null };
     }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
     if (illegalStage) {
       await assert.rejects(invoke(input), stateError); assert.deepEqual(await domain(w), before);
@@ -287,6 +301,7 @@ for (const mode of ['missing-control', 'wrong-dependency', 'copied-predicate-slo
       const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
       await session.stage({ op: 'update', model: MODEL, id: w.rows[0]!.id, data: { approved: true } }, cause);
       await assert.rejects(executeScenarioReceiptQuery(call, w.store, { queryId: 'tasks', predicate: async ({ slot }) => {
+        observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'key-order' });
         if (mode !== 'missing-control') assert.throws(() => observeScenarioReceiptQueryDependency(call, w.store, {
           slot: mode === 'copied-predicate-slot' ? { ...slot } : slot,
           dependencyId: mode === 'wrong-dependency' ? 'undeclared-control' : 'done-control',

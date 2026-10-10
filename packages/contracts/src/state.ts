@@ -1097,9 +1097,10 @@ export interface ExampleStateObservation {
 export interface CanonicalNominalLeaf {
   readonly name: string;
   readonly type: string;
-  /** Value constraints survive source field-type reuse; defaults and authority do not. */
-  readonly min?: number;
-  readonly max?: number;
+  /** Normalization and typed wire bounds survive field reuse; defaults and authority do not. */
+  readonly trim?: boolean;
+  readonly min?: WireValue;
+  readonly max?: WireValue;
   readonly format?: 'name';
   /** Request-local array identity constraints, independent of stored unique indexes. */
   readonly distinctBy?: 'id';
@@ -1117,7 +1118,11 @@ export interface CanonicalNominalResult {
   readonly fields: ReadonlyArray<CanonicalNominalLeaf>;
 }
 
-/** The one checked nominal schema inventory carried by an artifact. */
+/**
+ * The one checked nominal value inventory carried by an artifact.
+ * Stored model references resolve against the loader's same-load model names,
+ * separately from these structural contracts, enums and aliases.
+ */
 export interface CanonicalValueTypes {
   readonly contracts: ReadonlyArray<CanonicalNominalResult>;
   /** Finite bounded text aliases; nominal names resolve through the checked schema. */
