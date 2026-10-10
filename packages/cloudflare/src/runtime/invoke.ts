@@ -2622,8 +2622,8 @@ async function collectUnsupportedHookOperations(asm: AssembledModules, artifact:
   return targets;
 }
 
-/** Only assembler-verified static scalar calls are admitted by this first
- * consumer profile. Public contexts and operation ids cannot select a frame. */
+/** Only assembler-verified static scalar and checked query calls are admitted.
+ * Public contexts and operation ids cannot select a frame. */
 const nativeScenarioCalls = new WeakMap<LoadedCanonicalDescriptors,
   ReadonlyMap<string, ReadonlyMap<string, GeneratedOperationDef>>>();
 interface NativeScenarioExecution {
@@ -2638,24 +2638,43 @@ interface NativeScenarioExecution {
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
 function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): void {
-  if (def.kind !== 'scenario' || def.descriptor.result?.disclosure === undefined ||
-      !['void', ...NATIVE_CALL_SCALARS].includes(def.descriptor.result.type) ||
-      Object.keys(def.inputArrays).length !== 0 || Object.keys(def.inputNullableRefs ?? {}).length !== 0 ||
-      loaded.unsupportedHookOperations.has(def.name) || def.descriptor.inputs.some(field =>
-        field.kind === 'ref' || field.kind === 'delivery' || field.kind === 'enum' || field.kind === 'nominal' || field.valueType === undefined ||
-        !NATIVE_CALL_SCALARS.has(field.valueType) || field.required !== true ||
-        field.default !== undefined || field.computedDefault === true)) {
-    throw new loaded.producers.errors('validation', 'Native child calls require a checked scenario with required builtin scalar inputs and scalar or void result.');
+  const result = def.descriptor.result, plan = result?.disclosure;
+  const query = def.kind === 'read' && result !== undefined && result.type.endsWith('[]') &&
+    loaded.valueSchema !== undefined && Object.hasOwn(loaded.valueSchema.contracts, result.type.slice(0, -2)) &&
+    plan !== undefined && (plan.queries?.length ?? 0) > 0 && plan.returns.length > 0 &&
+    plan.returns.every(returned => returned.projection?.kind === 'query-contract-array' &&
+      plan.queries!.some(occurrence => occurrence.id === returned.projection!.queryId));
+  const scalar = def.kind === 'scenario' && result !== undefined &&
+    ['void', ...NATIVE_CALL_SCALARS].includes(result.type) &&
+    Object.keys(def.inputArrays).length === 0 && Object.keys(def.inputNullableRefs ?? {}).length === 0;
+  if (plan === undefined || (!scalar && !query) || loaded.unsupportedHookOperations.has(def.name) ||
+      Object.keys(def.inputArrays).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
+      Object.keys(def.inputNullableRefs ?? {}).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
+      def.descriptor.inputs.some(field => field.required !== true || field.default !== undefined ||
+        ('computedDefault' in field && field.computedDefault === true) ||
+        (field.kind === 'ref' ? !query || !loaded.models.some(model => model.name === field.model)
+          : field.kind === 'delivery' || field.kind === 'enum' || field.kind === 'nominal' || field.valueType === undefined ||
+            !NATIVE_CALL_SCALARS.has(field.valueType)))) {
+    throw new loaded.producers.errors('validation', 'Native child calls require a checked scalar scenario or complete read query contract-array with required scalar/protected inputs.');
   }
 }
 function prepareNativeScenarioInputs(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef,
-  inputs: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  inputs: Readonly<Record<string, unknown>>, prepareReference: ScenarioReceiptFrame['prepareReference']): Record<string, unknown> {
   try {
     assertNativeScenarioTarget(loaded, def);
     const own = localPolicyObject(inputs, def.descriptor.inputs.map(field => field.name));
     const wire: Record<string, unknown> = Object.create(null);
     for (const field of def.descriptor.inputs) {
       if (!Object.hasOwn(own, field.name)) throw new loaded.producers.errors('validation', 'Native child input omitted its required owning field.');
+      if (field.kind === 'ref') {
+        const value = localPolicyMember(own, field.name);
+        // State admits the owning container's nullability and length. Only
+        // actual parent-issued views can provide each protected identity.
+        wire[field.name] = value === null ? null : Object.hasOwn(def.inputArrays, field.name)
+          ? nativeCallArray(value, Number.MAX_SAFE_INTEGER).map(view => prepareReference(view, field.model))
+          : prepareReference(value, field.model);
+        continue;
+      }
       if (!('valueType' in field) || field.valueType === undefined) {
         throw new loaded.producers.errors('validation', 'Native child input lacks its owning scalar type.');
       }
@@ -2683,7 +2702,7 @@ async function bindNativeScenarioCalls(asm: AssembledModules, artifact: CompileA
   const selected = new Map<string, ReadonlyMap<string, GeneratedOperationDef>>();
   for (const value of loaded.registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
-    if (def === undefined || def.kind !== 'scenario' || plan === undefined) continue;
+    if (def === undefined || (def.kind !== 'scenario' && def.kind !== 'read') || plan === undefined) continue;
     const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
       entry.module === plan.source.module);
     if (callable === undefined) throw new AssemblyCorrespondenceError('Native call source lacks its exact owning callable.');
@@ -3621,7 +3640,8 @@ function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCano
   }
 }
 
-/** Model results retain the identity of actually admitted native views. */
+/** Declared result schemas retain original native model identities at every
+ * contract/array position. Public reads never open a receipt frame. */
 async function readScenarioResult(
   call: Pick<CanonicalSeamCall, 'def'>,
   loaded: LoadedCanonicalDescriptors,
@@ -3629,37 +3649,78 @@ async function readScenarioResult(
   views: WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>,
   decodedRefs: WeakSet<object>,
   authorizeReference: (reference: ReturnType<typeof makeRecordRef>) => Promise<ReturnType<typeof makeRecordRef>>,
+  resolveRecord: (record: object) => { readonly model: string; readonly id: string; readonly version: number } | undefined,
 ): Promise<unknown> {
   const type = generatedScenarioDef(call)?.descriptor.result?.type;
-  const array = type?.endsWith('[]') === true;
-  const model = loaded.models.find(candidate => (array ? `${candidate.name}[]` : candidate.name) === type);
-  if (model === undefined) return scenarioResult(call, loaded, value);
+  if (type === undefined || type === 'void') return scenarioResult(call, loaded, value);
   const refuse = (): never => {
     throw new loaded.producers.errors('validation', 'Read model results require authorized records of the declared model.');
   };
-  if (array && !Array.isArray(value)) return refuse();
-  const references = [];
-  for (const record of array ? value as unknown[] : [value]) {
+  const reference = async (record: unknown, model: string) => {
     if (typeof record !== 'object' || record === null) return refuse();
     const binding = views.get(record);
     if (binding !== undefined) {
-      if (binding.model !== model.name || !Number.isSafeInteger(binding.version) || binding.version < 1) return refuse();
-      references.push(makeRecordRef(binding.model, binding.id, BigInt(binding.version)));
-      continue;
+      const original = nativeRecordReference(record);
+      if (binding.model !== model || !Number.isSafeInteger(binding.version) || binding.version < 1 ||
+          original?.model !== binding.model || original.id !== binding.id || original.version !== BigInt(binding.version)) return refuse();
+      return makeRecordRef(binding.model, binding.id, BigInt(binding.version));
     }
+    // A global identity tag alone cannot import a view from another read.
+    // Navigation must issue this exact link in the current private lifetime.
     const linked = nativeRecordReference(record);
-    if (linked !== undefined) {
-      if (linked.model !== model.name) return refuse();
-      references.push(await authorizeReference(linked));
-      continue;
+    if (linked !== undefined && resolveRecord(record) !== undefined) {
+      if (linked.model !== model) return refuse();
+      return authorizeReference(linked);
     }
-    if (decodedRefs.has(record) && isRecordRef(record) && record.model === model.name) {
-      references.push(await authorizeReference(record));
-      continue;
+    if (decodedRefs.has(record) && isRecordRef(record) && record.model === model) {
+      return authorizeReference(record);
     }
     return refuse();
+  };
+  const active = new Set<object>();
+  const convert = async (typeId: string, native: unknown, depth = 0): Promise<unknown> => {
+    if (depth > 64) return refuse();
+    const parsed = parseTypeId(typeId);
+    if (native === null && parsed.nullable) return null;
+    if (parsed.array) {
+      const values = localPolicyArray(native);
+      if (active.has(native as object)) return refuse();
+      active.add(native as object);
+      try {
+        const elementType = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+        const result: unknown[] = [];
+        for (const item of values) result.push(await convert(elementType, item, depth + 1));
+        return result;
+      } finally { active.delete(native as object); }
+    }
+    if (parsed.base.kind !== 'nominal') return native;
+    const name = parsed.base.path;
+    if (loaded.models.some(model => model.name === name)) return reference(native, name);
+    const contract = loaded.valueSchema?.contracts[name];
+    if (contract === undefined) return native;
+    const source = localPolicyObject(native, Object.keys(contract.fields));
+    if (active.has(source)) return refuse();
+    active.add(source);
+    try {
+      const result: Record<string, unknown> = Object.create(null);
+      for (const key of Object.keys(source)) {
+        const member = Object.getOwnPropertyDescriptor(source, key)!;
+        if (!member.enumerable) return refuse();
+        result[key] = await convert(contract.fields[key]!.typeId, member.value, depth + 1);
+      }
+      return result;
+    } finally { active.delete(source); }
+  };
+  try {
+    const converted = await convert(type, value);
+    const parsed = parseTypeId(type);
+    const name = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
+    const model = !parsed.array && name !== undefined && loaded.models.some(model => model.name === name);
+    return scenarioResult(call, loaded, converted, model && isRecordRef(converted) ? converted : undefined);
+  } catch (error) {
+    if (error instanceof loaded.producers.errors) throw error;
+    throw new loaded.producers.errors('validation', message(error));
   }
-  return array ? scenarioResult(call, loaded, references) : scenarioResult(call, loaded, value, references[0]);
 }
 function freezeScenarioSnapshot(value: unknown): unknown {
   if (value !== null && typeof value === "object") {
@@ -5094,7 +5155,10 @@ async function runScenarioExecution(
     const invokeCall = loaded.producers.invoke.invokeScenarioReceiptCall;
     const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
     const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
-      prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => prepareNativeScenarioInputs(loaded, def, inputs),
+      prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => {
+        if (scenarioReceiptFrame === undefined) return refuseRecordBinding('Native child preparation requires its original installed parent frame.');
+        return prepareNativeScenarioInputs(loaded, def, inputs, scenarioReceiptFrame.prepareReference);
+      },
       execute: async (frame: ScenarioReceiptCallFrame): Promise<unknown> => {
         if (frame.parent !== actualCall || nativeScenarioExecutions.get(actualCall) !== active) {
           return refuseRecordBinding('Child execution requires its exact live parent.');
@@ -5125,7 +5189,9 @@ async function runScenarioExecution(
         }
         const type = selected.descriptor.result?.type;
         if (type === 'void') { if (wire !== null) return refuseRecordBinding('Void child returned nonvoid wire.'); return undefined; }
-        if (type === undefined) return refuseRecordBinding('Child result lacks its owning scalar type.');
+        if (type === undefined) return refuseRecordBinding('Child result lacks its owning checked type.');
+        // Nominal query references remain Values carriers. They cannot issue
+        // raw owner views or replace the parent's protected reference frame.
         return decodeCanonicalValue(loaded.valueSchema, type, wire);
       }, {
         // Query candidates stay separate from admitted/current owner rows. Never
@@ -7121,7 +7187,8 @@ async function runReadScenarioSeam(
   }
   // A granted link permits identity comparison; returning the target also
   // requires its current viewer admission and exact-row projection.
-  const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs, navigation.authorizeReference);
+  const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs,
+    navigation.authorizeReference, navigation.resolveRecord);
   await navigation.revalidate();
   // Re-admit each original domain with current grants and the same state fence.
   // Source callbacks never run again: their complete observed domain includes
