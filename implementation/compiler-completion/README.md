@@ -3072,3 +3072,18 @@ Volunteer unresolved tabs, Employees pure authority claims and other findings
 remain outside that lease. Dev owns actual original native qualification and
 private source/runtime joins. No broad source rewrite/common gate repair or
 hold change;58/67 and precise BDD3/Task22 remain unchanged.
+
+**Next original operation shadows, 2026-10-10 — unfinished composition.**
+Assigned draftc626387/e11d492 rename Member revoke_membership, Desk reply_customer
+and Event expire_hold, updating the two actual forms. Original bodies, authority,
+effects, labels, examples and stored reply/expired/revoke cases are unchanged;
+no external actual operation consumers were found. Exact same Dev ordered25
+ordinary compile/catalog check2.244s clears all9 findings: Desk/Event/Member each0,
+complete=true/omitted0 and every current path/hash matches. Other118 findings
+still prevent artifact/modules/committedChanges; Volunteer source stays exact.
+The affected corpus table now fails only these three new source pins:
+Desk74→72,Event202→198,Member322→319;49 rows unchanged. Counts remain untouched
+pending coordinator finite review/disposition. Prior23cfd269 table1/1 and
+unchanged compiler/strict/editor outcomes retain their scoped qualification.
+Employees pure authority claims and Volunteer tab bindings are outside this
+lease; Dev owns original native qualification.58/67 and precise holds persist.

@@ -6845,3 +6845,18 @@ Desk reply/Event expired/Member revoke operation shadows and actual consumers.
 Other original diagnostics require exact assignments; Dev owns native original
 consumption.
 Original58/67 and precise BDD3/Task22 holds stay unchanged; no remote publication.
+
+### 2026-10-10 — remove the next assigned operation shadows (unfinished composition)
+
+Rename only Desk.reply_customer, Events.expire_hold and Member.revoke_membership
+plus the two actual forms. Preserve original bodies, current permissions,
+labels, effects, examples and stored reply/expired/revoke enum cases. This is
+lexical-first source repair under accepted rules, with no new language design.
+Local draftc626387/e11d492 exact same Dev25 ordinary compile2.244s clears the nine
+related findings, all25 paths/hashes match and Desk/Event/Member each0. Other118
+findings still refuse artifact emission/native original qualification. Affected
+corpus failure only reflects Desk74→72/Event202→198/Member322→319 snapshots;
+49 other rows remain unchanged. Preserve counts pending exact coordinator
+source-review/disposition; reuse prior23cfd269 table1/1 and unchanged compiler
+production/strict/editor scopes. No Employees purity or guessed Volunteer
+bindings, broad source rewrite/common gate repair, publication or hold change.
