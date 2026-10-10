@@ -191,8 +191,10 @@ export interface MainHandlers { readonly fetch: WorkerFetch; readonly scheduled:
 export type CreateCohortTickFn = (input: { readonly artifact: CompileArtifact; readonly asm: AssembledModules;
   readonly identities: IdentityStore; readonly ownerStorage: TeamOwnerStorageBoundary;
   readonly scope: WorkScope; readonly now: () => number }) => Promise<CohortTickBinding>;
-type CreateOwnerRouterFn = typeof createD1OwnerRouter;
-type CreateOwnerStorageFn = typeof import('./assembly.js').createTeamOwnerStorageBoundary;
+// This worker configuration selects ordinary StoragePort routes. The trusted
+// Node File host separately consumes the authority-preserving generic ports.
+type CreateOwnerRouterFn = (input: Parameters<typeof createD1OwnerRouter>[0]) => ReturnType<typeof createD1OwnerRouter>;
+type CreateOwnerStorageFn = (input: Parameters<typeof import('./assembly.js').createTeamOwnerStorageBoundary>[0]) => Promise<TeamOwnerStorageBoundary>;
 
 /**
  * Join loaders. Every field defaults to the production dynamic import;
@@ -757,9 +759,19 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     if (deps.stateTeam !== undefined && deps.stateTeams !== undefined) {
       throw new Error('deploy main: selected State has both legacy and multi-owner routes');
     }
-    if (deps.stateTeams !== undefined &&
-        (cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler'))) {
-      throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+    if (deps.stateTeams !== undefined) {
+      if (cohortRequirement !== undefined) {
+        throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+      }
+      const handlers = staged.artifact.callables.filter(callable => callable.kind === 'handler');
+      if (handlers.length > 0) {
+        // Checked CRUD hooks run inside the selected original owner mutation.
+        // They do not require a separately selected scheduled/cohort scope.
+        const check = await loadSiblingFn<typeof import('../runtime/invoke.js').nativeHandlersUseOwnerMutationScope>(
+          '../runtime/invoke.js', 'runtime/invoke.ts', 'nativeHandlersUseOwnerMutationScope');
+        const ownerHooks = await check(staged.modules, staged.artifact);
+        if (!ownerHooks) throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+      }
     }
     if (staged.verdict.active && cohortRequirement !== undefined && deps.stateTeam === undefined) {
       throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
