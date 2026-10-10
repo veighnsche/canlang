@@ -642,9 +642,12 @@ pub struct TypeTable {
     pub enum_match_cases: HashMap<NodeKey, String>,
     /// Match statements with complete, unique checked subject-domain coverage.
     pub exhaustive_matches: HashSet<NodeKey>,
-    /// Name references with a lexical value binding. Retained for IR so
-    /// enum-valued locals are not reconstructed as case spellings.
+    /// Resolved value references, including fixed contexts. Retained for IR so
+    /// enum-valued bindings are not reconstructed as case spellings.
     pub bound_names: HashSet<NodeKey>,
+    /// Exact fixed-context identity from the original resolver, kept private
+    /// so IR can distinguish contextual roots from same-spelled lexical values.
+    pub(crate) contextual_references: HashMap<NodeKey, ContextVar>,
     /// Resolved type of each typed CST node (absent = untyped position).
     pub node_types: HashMap<NodeKey, ResolvedType>,
     /// Canonical delivery observation selectors checked against their source owner.
@@ -699,6 +702,14 @@ pub fn check_types(
             )
         })
         .map(|(key, _)| *key)
+        .collect();
+    typer.types.contextual_references = tables
+        .node_binding
+        .iter()
+        .filter_map(|(key, binding)| match binding {
+            Binding::Context(context) => Some((*key, context.clone())),
+            _ => None,
+        })
         .collect();
     typer.types.target_bindings = tables
         .node_binding
