@@ -1043,6 +1043,10 @@ fn draft_outcome_table() {
     // Mail3 source findings. Unknown terminal-source controls reproduce the
     // prior counts with the same byte positions; no new finding is hidden.
     // All52 rows/full assertions and the other49 expectations remain.
+    // Standard verified events clear Invoice2. Inbox removes its unknown
+    // source and two opaque-payload findings but exposes whole IncomingEmail
+    // comparison and its opaque DatetimeValue assignment seam (net -1).
+    // Keep both new semantic refusals, all52 rows and50 unchanged snapshots.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1069,8 +1073,8 @@ fn draft_outcome_table() {
         ("draft/CanGallery.can", 22),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
-        ("draft/CanInbox.can", 44),
-        ("draft/CanInvoice.can", 214),
+        ("draft/CanInbox.can", 43),
+        ("draft/CanInvoice.can", 212),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
         ("draft/CanLeave.can", 79),
