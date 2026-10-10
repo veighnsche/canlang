@@ -2441,3 +2441,12 @@ initial stricter fixture expectation was corrected against its owning contract.
 Finite independent source review is clear. Same-load State qualification and
 changed-source whole checks follow exact released owner intake; original read/
 query/native policy and result provenance remain unfinished.
+
+
+**Released original-source intake, 2026-10-10.**
+Own draft safely fast-forwards to exact CanDo nullable correctiond7d0dc6.
+The actual29-file original imports/app-use closure is checked once with current
+compiler1a033af0: complete=true, omitted0, exit10,149 diagnostics, zero Workbench
+and CanDo. The correction removes one source error; Employees pure membership
+helpers and broader composed business errors still withhold clean disclosure.
+No original native/read/query acceptance is inferred.
