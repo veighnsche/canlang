@@ -3072,3 +3072,22 @@ Volunteer unresolved tabs, Employees pure authority claims and other findings
 remain outside that lease. Dev owns actual original native qualification and
 private source/runtime joins. No broad source rewrite/common gate repair or
 hold change;58/67 and precise BDD3/Task22 remain unchanged.
+
+**Next original operation shadows, 2026-10-10 — unfinished composition.**
+Assigned draftc626387/e11d492 rename Member revoke_membership, Desk reply_customer
+and Event expire_hold, updating the two actual forms. Original bodies, authority,
+effects, labels, examples and stored reply/expired/revoke cases are unchanged;
+no external actual operation consumers were found. Exact same Dev ordered25
+ordinary compile/catalog check2.244s clears all9 findings: Desk/Event/Member each0,
+complete=true/omitted0 and every current path/hash matches. Other118 findings
+still prevent artifact/modules/committedChanges; Volunteer source stays exact.
+Coordinator finite source review is CLEAR. Only the explicitly authorized new
+Desk74→72,Event202→198,Member322→319 snapshots are reconciled, preserving all52
+rows/full diagnostic assertions and49 unchanged rows. Final affected table
+passes1/1 in3.32s,36 unrelated tests unselected, superseding stale-pin failure.
+Prior23cfd269 and unchanged compiler/strict/editor scopes are reused. Released
+LOCALa9f87793 diverges from own source checkpoint (1 local/11 carrier); the
+coordinator must release its containing integration carrier before safe intake.
+No local reset/merge or unrelated branch intake follows.
+Employees pure authority claims and Volunteer tab bindings are outside this
+lease; Dev owns original native qualification.58/67 and precise holds persist.
