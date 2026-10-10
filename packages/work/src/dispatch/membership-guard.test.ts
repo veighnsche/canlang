@@ -7,7 +7,7 @@ import type { CanTypeId, Membership, ResolvedIdentity, Team } from '@canlang/con
 import { makeUserRef } from '@canlang/values';
 import { bindScenarioDispatchMembershipProducer, type MembershipReader,
   type ScenarioDispatchMembershipExecution, type ScenarioDispatchMembershipHandle,
-  type ScenarioReceiptMembershipSite } from '@canlang/state';
+  type ScenarioDispatchMembershipPorts, type ScenarioReceiptMembershipSite } from '@canlang/state';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
 import { loadArtifactDescriptors, isGeneratedOperationDef,
   type ArtifactDescriptorSlice } from '@canlang/state/invocation/registry';
@@ -18,11 +18,11 @@ import { attemptDispatchAsync, readDispatchGuardExecution, registerDispatchGuard
 const ROOT = 'Membership.review', PREDICATE = 'Membership.current', APP = 'membership-owner-app';
 const NOW = '2026-10-10T00:00:00.000Z';
 const source = () => ({ path: 'membership.can', sha256: 'a'.repeat(64), module: 'membership.mjs' });
-function recipe(): ScenarioReceiptMembershipSite {
-  return { version: 1, source: source(), owner: ROOT, node: { start: 10, end: 30 },
-    statement: { start: 9, end: 31 }, stage: 'send-dispatch', position: [{ kind: 'body', index: 0 }], calls: [{
-      source: source(), node: { start: 11, end: 29 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
-      arguments: [{ node: { start: 12, end: 13 }, type: 'user' }, { node: { start: 14, end: 15 }, type: 'team' }],
+function recipe(offset = 10): ScenarioReceiptMembershipSite {
+  return { version: 1, source: source(), owner: ROOT, node: { start: offset, end: offset + 20 },
+    statement: { start: offset - 1, end: offset + 21 }, stage: 'send-dispatch', position: [{ kind: 'body', index: offset }], calls: [{
+      source: source(), node: { start: offset + 1, end: offset + 19 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
+      arguments: [{ node: { start: offset + 2, end: offset + 3 }, type: 'user' }, { node: { start: offset + 4, end: offset + 5 }, type: 'Team' }],
       slots: [0, 1], defaults: [], chain: [],
     }] };
 }
@@ -56,7 +56,7 @@ async function world(active = true, predicate = PREDICATE) {
   } };
   type Pair = { person: ReturnType<typeof makeUserRef>; team: Team };
   const frames = new WeakMap<DispatchGuardExecution, Pair>();
-  const producer = bindScenarioDispatchMembershipProducer(def, { source: source(), app: APP, predicate,
+  const ports: ScenarioDispatchMembershipPorts<DispatchGuardExecution> = { source: source(), app: APP, predicate,
     sites: [recipe()], store, memberships, readExecution: readDispatchGuardExecution,
     registerRevalidation: registerDispatchGuardRevalidation,
     admit: () => {
@@ -71,8 +71,9 @@ async function world(active = true, predicate = PREDICATE) {
       if (pair === undefined) throw new Error('missing actual private native pair');
       return pair;
     },
-  });
-  return { store, team, rows, memberships, producer, frames,
+  };
+  const producer = bindScenarioDispatchMembershipProducer(def, ports);
+  return { store, team, rows, memberships, producer, frames, def, ports,
     get reads() { return reads; }, get captures() { return captures; }, get admissions() { return admissions; },
     stage(execution: DispatchGuardExecution, person = 'subject', actualTeam = team) {
       assert.equal(frames.has(execution), false);
@@ -133,6 +134,78 @@ test('one source handle repeats with fresh evaluated persons/rows and no global 
     return true;
   });
   assert.equal((await a.run()).status, 'claimed'); assert.equal(w.captures, 3); assert.equal(w.reads, 6);
+});
+
+test('a SEND source occurrence cannot acquire a second predicate, including with changed position metadata', async () => {
+  const w = await world(), predicate = 'Membership.anotherSend', sameSite = recipe();
+  const original = structuredClone(sameSite);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.def, { ...w.ports, predicate, sites: [sameSite] }),
+    /source occurrence already bound/);
+  const movedPosition: ScenarioReceiptMembershipSite = { ...sameSite, position: [{ kind: 'body', index: 99 }] };
+  const changed = structuredClone(movedPosition);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.def, { ...w.ports, predicate, sites: [movedPosition] }),
+    /source occurrence already bound/);
+  assert.deepEqual(sameSite, original); assert.deepEqual(movedPosition, changed);
+  // Failed overlap checks must not reserve the attempted predicate. A real
+  // different node under that same new predicate still binds and evaluates.
+  const sibling = bindScenarioDispatchMembershipProducer(w.def, { ...w.ports, predicate, sites: [recipe(50)] });
+  const a = attempt(w, execution => w.evaluate(sibling.open(execution), execution, 'subject', sibling.sites[0]!));
+  a.input.guard = { predicate };
+  assert.equal((await a.run()).status, 'claimed'); assert.equal(a.claims, 1);
+  assert.equal(w.captures, 1); assert.equal(w.reads, 2);
+});
+
+test('two guarded SEND predicates in one genuine owner keep their own current execution and capture ports', async () => {
+  const w = await world(), siblingPredicate = 'Membership.secondSend';
+  const frames = new WeakMap<DispatchGuardExecution, { person: ReturnType<typeof makeUserRef>; team: Team }>();
+  let siblingCaptures = 0, siblingAdmissions = 0, siblingReads = 0;
+  // Distinct source anchors are finite fixture recipes. Native correspondence
+  // between predicate and source occurrence remains the trusted loader's gate.
+  const siblingPorts: ScenarioDispatchMembershipPorts<DispatchGuardExecution> = { ...w.ports,
+    predicate: siblingPredicate, sites: [recipe(50)],
+    memberships: { async findMembership(team, person) {
+      siblingReads++; return team === w.team.team_id && person === 'sibling' ? member('sibling') : null;
+    } },
+    admit: execution => {
+      assert.equal(readDispatchGuardExecution(execution).predicate, siblingPredicate);
+      siblingAdmissions++; return { actor: null, team: w.team, membership: null,
+        binding: { kind: 'none' }, admitted_at: NOW };
+    },
+    capture: (execution, site, index) => {
+      siblingCaptures++; assert.equal(readDispatchGuardExecution(execution).predicate, siblingPredicate);
+      assert.equal(site.node.start, 50); assert.equal(index, 0);
+      const pair = frames.get(execution); frames.delete(execution);
+      assert.ok(pair, 'actual privately staged sibling arguments required'); return pair;
+    },
+  };
+  const sibling = bindScenarioDispatchMembershipProducer(w.def, siblingPorts);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.def, w.ports), /predicate/);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.def, siblingPorts), /predicate/);
+  const first = attempt(w, execution => w.evaluate(w.producer.open(execution), execution));
+  const second = attempt(w, execution => {
+    const observer = sibling.open(execution);
+    frames.set(execution, { person: makeUserRef('sibling'), team: w.team });
+    return observer.evaluate({ site: sibling.sites[0]! });
+  });
+  second.input.guard = { predicate: siblingPredicate };
+  // Separate actual SEND intents, both under the same genuine scenario owner.
+  second.input.intent = commitOutboxIntent(stageOutboxIntent({
+    operationId: '0193f2c0-0000-7000-8000-000000000002', source: 'Mail.send', occurrenceIndex: 1,
+    request: { to: 'sibling@test' }, originOccurrence: null,
+  }), { revision: 1, committedAtMs: 50 });
+  assert.equal((await first.run()).status, 'claimed'); assert.equal((await second.run()).status, 'claimed');
+  assert.equal(first.claims, 1); assert.equal(second.claims, 1);
+  assert.equal(w.captures, 1); assert.equal(w.admissions, 1); assert.equal(w.reads, 2);
+  assert.equal(siblingCaptures, 1); assert.equal(siblingAdmissions, 1); assert.equal(siblingReads, 2);
+  // A sibling source handle fails on its first use, even if authored code
+  // catches the error and returns false; no capture/read port is replayed.
+  const misuse = attempt(w, async execution => {
+    const observer = w.producer.open(execution);
+    await assert.rejects(observer.evaluate({ site: sibling.sites[0]! }), /foreign source/);
+    return false;
+  });
+  assert.equal((await misuse.run()).status, 'refused-revoked'); noSpend(misuse);
+  assert.equal(w.captures, 1); assert.equal(siblingCaptures, 1);
 });
 
 for (const active of [true, false]) test(`${active ? 'positive removal' : 'negative activation'} refuses before claim or skip without guard/capture replay`, async () => {
