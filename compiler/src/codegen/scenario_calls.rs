@@ -162,6 +162,7 @@ fn collect_owner(
         .collect();
     pending.reverse();
     let mut sites = Vec::new();
+    let mut matched_calls = HashSet::new();
     let mut steps = 0;
     while let Some((stmt, depth)) = pending.pop() {
         steps += 1;
@@ -259,6 +260,7 @@ fn collect_owner(
                 });
                 let proof = proofs.next()?;
                 if proofs.next().is_some()
+                    || !matched_calls.insert(proof.node)
                     || proof.source != checked.source
                     || !matches!(&proof.kind, DisclosureEffectKind::Call {operation:checked_operation,input_keys} if checked_operation==operation && input_keys==&entries.iter().map(|(name,_)|name.clone()).collect::<Vec<_>>())
                 {
@@ -363,7 +365,10 @@ fn collect_owner(
             _ => return None,
         }
     }
-    if checked
+    if checked.effects.iter().any(|proof| {
+        matches!(proof.kind, DisclosureEffectKind::Call { .. })
+            && !matched_calls.contains(&proof.node)
+    }) || checked
         .effects
         .iter()
         .filter(|proof| matches!(proof.kind, DisclosureEffectKind::Call { .. }))
