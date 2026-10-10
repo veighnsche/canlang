@@ -7444,3 +7444,157 @@ Consume released679cb253 through the actual Memory/D1/DO storage fence. Persist 
 Preserve existing orphan/expiry policy: orphaning requires empty committed census and original unattached horizon; expiry may retire a currently referenced File after the original retention horizon. Permanent admission permits unchanged original expired occurrences and removal, but refuses new slots, moved paths and resurrected identities. Retirement retry preserves original physical identity, policy, disposition, snapshot and revision/time evidence; changing these never renews admission. Published mixed declarations block retirement and ordinary changing writes until complete activation. State activation/resume forwards actual owning target declarations, including empty publication, rather than synthesizing metadata from interim model tables.
 
 Final owning State emission and strict boundaries13/940/1400/zero pass. Actual Memory12/D113 plus migration-engine3 defining cases pass28/28 in6269.44ms, zero fail/cancel/skip; affected legacy Memory/migration82 reused. Real DO execution is blocked at the shared raw-worker package loader before assertions; Packages owns that repair. Packages exact frameworkModels/Work producer intake, State receipt/association/navigation classification and opaque correspondence remain required for full Work/File composition. Files authentic reopened issuance/terminal metadata+bytes transaction and Dev same-authoritative-store routing/native contention/interruption/reopen remain separate owning gates. This coherent local checkpoint remains unfinished, not backend/full-workflow acceptance; all human holds remain.
+
+
+**2026-10-10 — Genuine generated selector/native join (finite workflow tested; whole plan unfinished).** Compile untouched RequestBinding.can and run every original emitted table through installed Testkit ecc and the genuine default native adapter/current687 CLI. Dotted lexical request.title materializes only its bound current row; whole lexical request supplies the original fixture absent a baseline root; unbound request.note changes only the wire input and leaves all preparation resources untouched. Actual source guards, final canonical stored row/version/live observations, matching receipt/history operation identity, exact revision/fence/log and full unrelated Identity/other-owner/effect tables pass for all3 rows. Source map/artifact/modules/tests stay exact and owned cleanup is awaited. Complete native1/1 passes5446.65ms (6206.34ms total), zero failures/skips; final clean CF emit passes and unchanged root noEmit/boundary/prior component scopes are reused. An initial authored operation_id table header was correctly refused E5002 before native actions; use the defining declared-input wire note channel, with no Compiler/API/metadata patch. Compiler/coordinator received the identical unqualified owning port-fixture failure. This closes only this finite generated selector join; original application/Leave, Work/private completion/provider/File retirement, BDD3/S9-Q07 and Office/T04/T11/G2–G3/full-plan qualification and all publication holds remain.
+
+### 2026-10-10 — selected local integration of generated selector/native qualificationb31f4dca
+
+Finite manual review CLEAR; integrate the exact owning CF consumer test and directly related records without divergent Dev ancestry. Reuse its complete three-row genuine generated/native case1/1 at5446.65ms, final clean CF emit and unchanged prerequisite checks. Actual source, current fixture identity, independent wire input, complete business resources, original receipt/history/revision and awaited cleanup qualify this finite workflow. Work completion, native precommit hook lowering, File retirement, original applications and all recipient-specific holds remain separate. No remote push.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
+
+### 2026-10-10 — manual local integration of a7610b95
+
+Finite manual source review CLEAR. Resolve the same enabled owning CRUD grant before the precommit hook, retain authenticated actor proof only in that checked hook scope, and preserve public, foreign, disabled, unknown and committed-handler nullable/refusal behavior. Reuse owning analysis/hook controls and the exact complete25/catalog source delta35→33 with no new diagnostics or emitted original artifacts. Native actor/now/team/operation lowering remains E6008 until Compiler and Dev connect the genuine private invocation context; current whole/strict validation and original applications remain unfinished. Genuine generated selector/native qualification is independently integrated at a26623d9, not evidence for native hooks. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — qualify the current compiler and native selectors (unfinished plan)
+
+Original CLI stdout bytes now pass the installed Testkit and default Cloudflare
+D1/Identity adapter: both authored dotted and whole request input rows execute,
+with no patched modules, metadata, hooks or dispatch port. The separate port
+witness uses the actual declared request.task.version wire input and retains
+full business paths/caller separation. Focused2/2 pass3.35s; finite read-only
+review is CLEAR. Consumed reviewed ecc/94 via5b; genuine owner graph26/26 emits
+uncached in1m58.98s.
+
+Frozen a761 plus this related witness/draft8a2 whole passes1429 across138 targets,
+zero failed/ignored/filtered/bodySKIP, required completion engines and genuine
+native/permission bodies. Strict all-target Clippy0 in57.26s and fmt/diff0. All52
+full corpus assertions pass, including Inbox41/Invoice203/Leave74/Purchase138/
+Maintain110. Reuse unchanged outcomes; prior1422 is historical for these edits.
+Actual original25 remains33/no artifact. This fixture does not grant original
+application or full S9Q07 acceptance.58/67/nine and precise BDD3/Task22/T11 holds
+remain; Work issuer/private nested completion and genuine typed hook context
+joins retain their owners. Coordinator assigns only the five private Purchase
+parameter/reference sites next; exported Rent remains excluded. Local only.
+
+### 2026-10-10 — manual local integration of 4810e4bd
+
+Finite manual review CLEAR. The actual CLI stdout artifact runs unchanged through installed Testkit and the default native D1/Identity consumer for both authored dotted and whole-root model inputs; retain the separate corrected genuine wire invocation-port witness. Reuse focused2/2 in3.35s, frozen whole1429 across138 targets with zero failure/ignored/filtered/bodySKIP and real required engines/native/permission bodies, strict Clippy0 in57.26s/fmt/diff0 and genuine uncached graph26/26. The Compiler witness exercises the canonical receipt/history path but does not independently assert its stored ledger; the separately integrated Devb31 workflow retains its own complete resource/receipt/history scope. Current original33/noartifact, full58/67/nine open, native hook/completion producer-consumer joins and every recipient-specific hold remain. All52 actual corpus rows pass at this frozen source tuple; future Purchase source changes require their affected checks, not repetition of unchanged suites. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — preserve Purchase received state (unfinished composition)
+
+Assigned draft265b837 renames only private receive date parameter to received_on,
+its replay RHS, explicit Receipt received=received_on assignment, actual example
+binding and calendar input. Stored received cases/fields/table/order/labels and
+complete guards/locks/evaluation order/authority remain. Finite review CLEAR.
+Actual same CLI original25/catalog33→32 removes only one Purchase E3001 state/date
+capture, adds none, complete/omitted0/all25 current hashes/no artifact in1.564s.
+Isolated138→137 in0.071s; only Purchase corpus pin/comment changes. All52/full
+assertions and51 other expectations retained; owning table1/1 passes39.32s with36
+unrelated tests unselected. fmt/diff0; reuse unchanged production whole1429/138
+and strict57.26s. Safe FF481→reviewed containing4a6 consumes Workdc7/File679/
+selected Devb31 without source overlap or discarded edits. Private completion
+carrier and original typed hook context remain unfinished executable joins.
+58/67/nine and precise holds remain; exported Rent excluded. Local only.
+
+### 2026-10-10 — manual local integration of 50665f52
+
+Finite manual source review CLEAR. Exact draft265b837 changes only five assigned private receive date parameter and actual call/form sites to received_on, preserving stored received fields, explicit received=received_on assignment, state enum received, labels, guards, locks, order and authority. Reuse exact same-CLI original25/catalog33→32 removing only Purchase E3001 date/state capture, no additions, complete/omitted0/all25 current hashes/no artifact in1.564s; isolated138→137 in0.071s; all52/full corpus1/1 in39.32s with sole Purchase pin/comment correction; fmt/diff0. Compiler production is unchanged, so prior whole1429/138 and strict57.26s results retain their production scope without rerun or new whole-application claim. Full58/67/nine and every recipient-specific hold remain; exported Rent and native completion/hook/retirement joins retain separate owners. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — retain standard completion provenance (unfinished executable join)
+
+Keep selected canonical std operation and original result spelling before
+envelope nullability, plus exact own module/alias/import span and existing
+qualified binding/from, in the internal checked fact. Unique own correspondence
+is required; ambiguous aliases acquire no fact and unbound routes remain absent.
+This supplies actual producer inputs for the pinned private Dev/Work join without
+reconstructing declaration identity from nullable payloads. Payload/effects and
+existing publication E6008 remain unchanged. Owning delivery_error_shapes9/9
+pass1.14s, including distinct aliases/routes, unbound/duplicate/unknown controls
+and existing actual native observer/nullable set. fmt/diff0. Source32 witness
+reused; whole1429/138/strict retains frozen pre-provenance scope until the related
+join qualification.58/67/nine and precise holds unchanged. Local only.
+
+### 2026-10-10 — manual local integration of 0fc015ca
+
+Finite manual review CLEAR. Internal checked completion facts retain actual selected canonical operation/result, owning module/alias and exact std import span with optional original binding/from. Unique matching authored import is required; duplicate/mismatched/unknown sources do not acquire a fact, and unbound imports gain no deployment binding. Reuse owning delivery_error_shapes9/9 in1.14s, including genuine original native observer and route/ambiguity/unknown controls, plus fmt/diff0. Runtime E6008 remains; schema/census/IR/JS producer and matching private native consumer are still required. Changed production source does not inherit current whole acceptance from the prior frozen1429/138/strict tuple. Original source32/noartifact and all exact recipient holds remain unchanged. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
+
+### 2026-10-10 — manual local integration of a7610b95
+
+Finite manual source review CLEAR. Resolve the same enabled owning CRUD grant before the precommit hook, retain authenticated actor proof only in that checked hook scope, and preserve public, foreign, disabled, unknown and committed-handler nullable/refusal behavior. Reuse owning analysis/hook controls and the exact complete25/catalog source delta35→33 with no new diagnostics or emitted original artifacts. Native actor/now/team/operation lowering remains E6008 until Compiler and Dev connect the genuine private invocation context; current whole/strict validation and original applications remain unfinished. Genuine generated selector/native qualification is independently integrated at a26623d9, not evidence for native hooks. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — classify actual Work rows for File retirement (unfinished join)
+
+Separate Work framework inventory from compiler domain descriptors. The actual
+nine owning RowData interfaces supply closed scalar/ID control fields plus
+explicit opaque retained-result and deferred-input roles. Required
+FileReferenceInventory.frameworkModels persists their exact serializable
+source/shape correspondence; the trusted host binds the actual same-load
+producer validator outside JSON. Tags, copied metadata and successful readers
+confer no issuance or File absence. Unknown/colliding models, extra fields and
+unclassified payloads refuse; no work.* namespace exemption. State supplies its
+own receipt/association/navigation families and backend enforcement.
+
+The Work validator detaches bounded own JSON data before existing codecs, checks
+closed envelopes/fields and identities, includes archived rows, and preserves
+StoredRow pre-S5 missing/undefined parent semantics without mutating input.
+Owning Contracts/State dependency/Work emissions pass; four actual constructor/
+stager and refusal cases pass115.04ms, with public export identity and required
+framework inventory type controls. Finite review CLEAR after parent correction.
+This qualifies owning shape and roles only. State original-revision permanent
+retirement/all-writer migration/activation admission, genuine issuer readback,
+Files physical retry and Dev real host/reopen remain unfinished. Opaque payload
+source/input/result authority and authenticated durable ingress retain their
+owners. No fabricated Compiler model, backend change, synthetic installed map,
+native/publication activation or hold release.
+
+### 2026-10-10 — manual local integration of bfee7848
+
+Finite manual source/contract reviews CLEAR. Required serializable frameworkModels is separate from actual same-load owning producer validation. Work root export covers all9 actual RowData shapes via required-key mapping, closed detached bounded own-data/envelope/control checks, owning codecs/identity and explicit retained-result/deferred-input roles. Reuse owning4/4 constructor/handler-stage/refusal cases115.04ms, Contracts/State dependency/Work clean emissions, public root/type required-framework controls and diff0. Copied tags/descriptors/callbacks are not an issuer; successful row validation supplies no opaque File absence or current authority. Capability must join actual State framework families, new inventory schema, genuine producer/source correspondence and all-writer/migration/activation barriers; backend/Files/native workflow remains unqualified. Packages separately owns finite DO test-loader bundling prerequisite, preserving all genuine State protocol/reopen assertions and every recipient-specific hold. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+Worker merge upkeep: Worker exact reviewed7a582651 framework prerequisite intake onto unfinished State485217b9. Actual staged tree and both complete histories since824934: 2027 commits/10887 net deltas/11431 historical paths/513 history-only/9384 pending allocations. Register owning State retirement source/test and Work framework producer/test while retaining every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all precise holds. Complete checkpoint unadvanced; Memory/D1 finite results are not DO/framework/physical deletion acceptance. One direct exact-tuple/full-path consistency check passes; unchanged product checks reused.

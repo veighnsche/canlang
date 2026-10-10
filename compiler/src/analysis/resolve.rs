@@ -239,7 +239,8 @@ pub struct Symbol {
 }
 
 /// How `actor` types in one scope: nullable before authorization,
-/// non-null after member/role authorization, null in trusted handlers,
+/// non-null after member/role authorization, null in committed/trusted event handlers,
+/// authenticated in precommit hooks only through their owning CRUD grant,
 /// non-null in creation initializers (a trusted null actor is rejected
 /// at runtime per DESIGN §2, so initializers see an authenticated
 /// creator).
@@ -701,6 +702,9 @@ struct Resolver<'a> {
     current_module: Option<ModuleId>,
     /// Pending `in Parent` links: (model, parent path segments, span).
     pending_parents: Vec<(SymbolId, Vec<String>, Span)>,
+    /// Authentication proof from each exact owning CRUD declaration's grant.
+    crud_actor_proofs: HashMap<SymbolId, bool>,
+    resolved_crud_grants: HashSet<NodeKey>,
 }
 
 impl<'a> Resolver<'a> {
@@ -711,6 +715,8 @@ impl<'a> Resolver<'a> {
             tables: ResolveTables::default(),
             current_module: None,
             pending_parents: Vec::new(),
+            crud_actor_proofs: HashMap::new(),
+            resolved_crud_grants: HashSet::new(),
         }
     }
 
@@ -3392,6 +3398,19 @@ impl<'a> Resolver<'a> {
     ) -> Result<(), Diagnostic> {
         let root = self.module_root(module, node.span)?;
         self.resolve_description_refs(text, module, node, diags);
+        // Hook declarations may precede their CRUD owner. Resolve only the
+        // owning grants first; body/source order confers no authentication.
+        for section in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Section)
+        {
+            for crud in kids(section)
+                .into_iter()
+                .filter(|n| n.kind == SyntaxKind::Crud && !has_error(n))
+            {
+                self.resolve_crud_actor_proof(text, module, root, crud, diags)?;
+            }
+        }
         // Resolve declaration-owned view scopes before any page use, including
         // views written later in the same Then section.
         for section in kids(node)
@@ -4900,6 +4919,113 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    fn resolve_crud_actor_proof(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if !self.resolved_crud_grants.insert(NodeKey::of(node)) {
+            return Ok(());
+        }
+        let owner = self
+            .tables
+            .symbols
+            .iter()
+            .find(|symbol| {
+                symbol.module == module
+                    && symbol.span == node.span
+                    && matches!(symbol.kind, SymbolKind::Crud { .. })
+            })
+            .map(|symbol| symbol.id);
+        let mut authenticated = false;
+        if let Some(by) = attribute_value(node, "by", text) {
+            let scope = self.with_facts(root, ActorKind::Nullable, false, true, node.span)?;
+            self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags)?;
+            authenticated = self.hook_grant_proves_auth(by, text);
+        }
+        if let Some(owner) = owner {
+            self.crud_actor_proofs.insert(owner, authenticated);
+        }
+        Ok(())
+    }
+
+    fn hook_has_authenticated_crud(&self, text: &str, module: ModuleId, node: &SyntaxNode) -> bool {
+        let Some(on) = attribute_value(node, "on", text) else {
+            return false;
+        };
+        let path = path_segments(on, text);
+        let [name, operation] = path.as_slice() else {
+            return false;
+        };
+        let Some(ScopedName::Local(model)) = self.lookup_prod(module, name) else {
+            return false;
+        };
+        if self.tables.symbols[model.0 as usize].module != module
+            || !matches!(
+                self.tables.symbols[model.0 as usize].kind,
+                SymbolKind::Model { .. }
+            )
+        {
+            return false;
+        }
+        let Some(crud) = self.tables.crud_of_model.get(&model) else {
+            return false;
+        };
+        let SymbolKind::Crud {
+            create,
+            update,
+            delete,
+            ..
+        } = self.tables.symbols[crud.0 as usize].kind
+        else {
+            return false;
+        };
+        let enabled = match *operation {
+            "create" => create,
+            "update" => update,
+            "delete" => delete,
+            _ => false,
+        };
+        enabled && self.crud_actor_proofs.get(crud) == Some(&true)
+    }
+
+    /// Hook-only grant proof adds the already resolved literal-caller role
+    /// spelling to the existing authentication polarity rules.
+    fn hook_grant_proves_auth(&self, node: &SyntaxNode, text: &str) -> bool {
+        match node.kind {
+            SyntaxKind::NameRef => {
+                self.proves_auth(node, text)
+                    || matches!(self.tables.node_binding.get(&NodeKey::of(node)),
+                    Some(Binding::Symbol(id)) if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Role))
+            }
+            SyntaxKind::Group => kids(node)
+                .iter()
+                .filter(|child| child.kind != SyntaxKind::Punct)
+                .any(|child| self.hook_grant_proves_auth(child, text)),
+            SyntaxKind::Binary => {
+                let parts = kids(node);
+                if parts.len() != 3 {
+                    return false;
+                }
+                match super::op_text(node, text).unwrap_or("") {
+                    "and" => {
+                        self.hook_grant_proves_auth(parts[0], text)
+                            || self.hook_grant_proves_auth(parts[2], text)
+                    }
+                    "or" => {
+                        self.hook_grant_proves_auth(parts[0], text)
+                            && self.hook_grant_proves_auth(parts[2], text)
+                    }
+                    _ => false,
+                }
+            }
+            _ => self.proves_auth(node, text),
+        }
+    }
+
     fn resolve_crud_body(
         &mut self,
         text: &'a str,
@@ -4917,10 +5043,7 @@ impl<'a> Resolver<'a> {
                 row_scope = self.with_row(row_scope, model, node.span)?;
             }
         }
-        if let Some(by) = attribute_value(node, "by", text) {
-            let scope = self.with_facts(root, ActorKind::Nullable, false, true, node.span)?;
-            self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags)?;
-        }
+        self.resolve_crud_actor_proof(text, module, root, node, diags)?;
         if let Some(when) = attribute_value(node, "when", text) {
             self.walk_expr(module, row_scope, when, text, ExprCtx::bare(), diags)?;
         }
@@ -4978,7 +5101,12 @@ impl<'a> Resolver<'a> {
             }
         }
         if trusted {
-            let mut scope = self.with_facts(root, ActorKind::Null, true, true, node.span)?;
+            let actor = if self.hook_has_authenticated_crud(text, module, node) {
+                ActorKind::NonNull
+            } else {
+                ActorKind::Null
+            };
+            let mut scope = self.with_facts(root, actor, true, true, node.span)?;
             self.tables.scopes[scope.0 as usize]
                 .bindings
                 .insert("event".to_string(), Binding::Context(ContextVar::Event));

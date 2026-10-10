@@ -680,14 +680,51 @@ export interface FileReferenceInventoryIdentity {
   readonly digest: string;
 }
 
+/** Owning framework fields are separate from compiler domain declarations.
+ * Control values have their declared scalar/ID role, not File authority.
+ * Opaque input/results are NOT File-free: without a checked declaration join,
+ * census/admission refuses the row even after successful shape validation. */
+export type FrameworkFileReferenceField =
+  | {
+      readonly kind: 'control';
+      readonly value: 'string' | 'number' | 'boolean' | 'string-array';
+      readonly nullable?: true;
+      readonly optional?: true;
+    }
+  | { readonly kind: 'opaque'; readonly role: 'retained-result' | 'deferred-input' };
+
+/** Exact closed data fields from the actual owning row definition. Source tags
+ * record correspondence; copied descriptors/tags do not authenticate a producer.
+ * Unknown fields/models, domain collisions and duplicate framework names refuse.
+ * The common StoredRow envelope, including archived rows, remains covered. */
+export interface FrameworkFileReferenceModel {
+  readonly model: ModelName;
+  readonly source: { readonly package: string; readonly module: string; readonly export: string };
+  readonly fields: Readonly<Record<string, FrameworkFileReferenceField>>;
+}
+
+/** Trusted host binds the actual same-load owning export, checks its full model
+ * inventory against the persisted declarations and keeps the validator outside
+ * persisted JSON. A structural cast or caller-supplied callback is no issuer.
+ * Validation checks closed owning shape only; opaque payload reuse still needs
+ * checked source/input/result correspondence and current File authority. */
+export interface FrameworkFileReferenceProducer {
+  readonly models: ReadonlyArray<FrameworkFileReferenceModel>;
+  validateRow(model: ModelName, row: StoredRow): void;
+}
+
 /** Complete same-load declarations, detached and persisted after validation.
  * Explicit empty arrays/valueTypes are valid; omitted evidence is not empty.
  * Storage derives every File occurrence, including nested/collection/optional/
- * nullable and archived values, from this inventory, never a caller ref list. */
+ * nullable and archived values, from this inventory, never a caller ref list.
+ * Framework models come from actual bound producer exports, not fabricated
+ * domain descriptors or a namespace exemption. Missing family/source evidence,
+ * colliding names and unclassified opaque payloads fail closed. */
 export interface FileReferenceInventory extends FileReferenceInventoryIdentity {
   readonly canonicalModels: ReadonlyArray<CanonicalModelDescriptor>;
   readonly artifactModels: ReadonlyArray<ArtifactModel>;
   readonly valueTypes: CanonicalValueTypes;
+  readonly frameworkModels: ReadonlyArray<FrameworkFileReferenceModel>;
 }
 
 export interface InstalledFileReferenceInventory {
