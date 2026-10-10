@@ -154,6 +154,8 @@ export {
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   type ScenarioReceiptCallProducer, type ScenarioReceiptCallFrame,
+  bindScenarioReceiptQueryProducer, executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency, bindScenarioReceiptQueryResult,
+  type ScenarioReceiptQueryProducer, type ScenarioReceiptQueryResult, type ScenarioReceiptQuerySlot, type ScenarioReceiptQueryHandle,
   type ScenarioReceiptFrameworkProducer, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
   type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
