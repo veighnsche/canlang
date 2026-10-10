@@ -41,12 +41,11 @@ import {
 } from './conformance.js';
 
 /**
- * Compiled tests run from dist/...; this resolves back to the worker *source*
- * in test/storage (tsc never copies it to dist since allowJs is off). The
- * worker in turn imports the built adapter from dist (see do-test-worker.js).
+ * Compiled tests use the test worker rebuilt during the owning build:emit.
+ * It bundles the original worker and the actual emitted adapter/dependencies.
  */
 const workerPath = fileURLToPath(
-  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let mf: Miniflare | undefined;
@@ -192,9 +191,7 @@ before(async () => {
   mf = new Miniflare({
     modules: true,
     scriptPath: workerPath,
-    // The entry is ESM via `modules: true`, but imported `.js` files follow
-    // modulesRules (default CommonJS): force ESM so the built adapter graph
-    // (pure relative ESM, no bare imports) parses as modules.
+    // The owning worker asset is self-contained ESM.
     modulesRules: [{ type: 'ESModule', include: ['**/*.js'] }],
     compatibilityDate: '2025-01-01',
     durableObjects: {

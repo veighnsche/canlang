@@ -155,7 +155,7 @@ async function resetD1(): Promise<void> {
 }
 
 const doWorkerPath = fileURLToPath(
-  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;
