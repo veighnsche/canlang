@@ -5,6 +5,7 @@
 
 export { FenceConflictError, StorageConstraintError } from './port.js';
 export type { StorageConstraintKind, StoragePort } from './port.js';
+export type { FileReferenceStoragePort, FileRetirementAuthority } from '@canlang/contracts';
 export { createD1Storage, ensureSchema as ensureD1Schema } from './d1.js';
 export { createDOStorage, ensureSchema as ensureDOSchema } from './durable-object.js';
 export { createMemoryStorage, createTestMemoryStorage } from './memory.js';

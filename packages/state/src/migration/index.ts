@@ -49,6 +49,7 @@ import type {
   StoragePort,
   StoredRow,
   WorkInventoryItem,
+  FileReferenceInventory,
 } from '@canlang/contracts';
 import type { ClockPort } from '../invocation/context.js';
 import type { ModelTable } from '../mutation/models.js';
@@ -138,6 +139,7 @@ export interface ResumeMigrationInput {
   readonly mappers: ReadonlyMap<ModelName, MigrationMapper>;
   readonly oldModels: ModelTable;
   readonly desiredModels: ModelTable;
+  readonly fileReferenceInventory?: FileReferenceInventory;
   readonly oldLocks: OldLockSet;
   readonly inventory: ReadonlyArray<WorkInventoryItem>;
   /**
@@ -272,8 +274,9 @@ export async function resumeMigration(
           now,
           actor,
           input.isExpiredRow,
+          input.fileReferenceInventory,
         );
-        const flip = await flipToInstalled(store, plan, now, disposition);
+        const flip = await flipToInstalled(store, plan, now, disposition, input.fileReferenceInventory);
         const after = await store.readMigrationProgress(plan.migrationId);
         if (after?.phase !== 'active') {
           // Goal-state check (stronger than the flip flag): publish ran and
