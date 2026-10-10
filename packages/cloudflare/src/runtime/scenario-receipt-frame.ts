@@ -1,19 +1,38 @@
 /** Private framework bridge. Only actual State invoke can open a lifetime.
  * Generated source receives only observer/selection/call facades, never this constructor.
  */
-import type { CanValue, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanValue, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall } from '@canlang/state/invocation';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
   selectScenarioReceiptReturn as selectStateReturn,
+  executeScenarioReceiptQuery as executeStateQuery,
+  observeScenarioReceiptQueryDependency as observeStateQueryDependency,
+  bindScenarioReceiptQueryResult as bindStateQueryResult,
   assertScenarioReceiptCallExecution } from '@canlang/state/invocation';
 import { isGeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { StateError } from '@canlang/state/errors';
 import type { HandlerContext } from './context.js';
 import { encodeValue } from '@canlang/values';
 import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow,
-  bindNativeScenarioReceiptReference, captureNativeScenarioReceiptReference } from './native-records.js';
+  bindNativeScenarioReceiptReference, captureNativeScenarioReceiptReference, nativeRecordReference } from './native-records.js';
 
+interface NativeQueryProducer {
+  readonly record: (model: string, record: ProjectedRecord, read: (field: string) => void, current: () => ProjectedRecord) => Readonly<Record<string, unknown>>;
+  readonly encode: (value: unknown) => unknown;
+}
+interface NativeQueryExecution {
+  readonly plan: ScenarioReceiptQueryPlan;
+  result?: Awaited<ReturnType<typeof executeStateQuery>>;
+  active: object | null;
+  bound: boolean;
+}
+interface NativeQueryView {
+  readonly query: NativeQueryExecution;
+  readonly slot: object;
+  readonly dependencies: Set<string>;
+  readonly reads: string[];
+}
 interface Frame {
   readonly call: AdmittedCall;
   readonly store: StoragePort;
@@ -21,6 +40,10 @@ interface Frame {
   readonly failure: (error: unknown) => void;
   readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
   readonly invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>;
+  readonly queryProducer?: NativeQueryProducer;
+  readonly queryViews: WeakMap<object, NativeQueryView>;
+  readonly queryArrays: WeakMap<object, { readonly query: NativeQueryExecution; readonly views: readonly object[] }>;
+  readonly queryResults: WeakMap<object, () => unknown>;
   active: boolean;
   pending: number;
   failed: boolean;
@@ -54,6 +77,7 @@ export interface ScenarioReceiptFrame {
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
   bindAdmittedReference(view: object, reference: object): void;
   prepareReference(view: unknown, model: string): { readonly id: string; readonly version: string };
+  queryResult(value: unknown): { readonly wire: unknown } | undefined;
   assertCompleted(): void;
   close(): void;
 }
@@ -62,13 +86,15 @@ export interface ScenarioReceiptFrame {
  */
 export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   store: StoragePort, failure: (error: unknown) => void,
-  invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>): ScenarioReceiptFrame {
+  invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>,
+  queryProducer?: NativeQueryProducer): ScenarioReceiptFrame {
   assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
   const frame: Frame = { call, store, failure, intrinsics, ...(invokeCall === undefined ? {} : { invokeCall }),
+    ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
     owner: Object.freeze({}), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
@@ -96,6 +122,13 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
         if (original === undefined) return refuse('Scenario intrinsic requires the exact original admitted slot.');
         bindNativeScenarioReceiptReference(view, frame.owner, original);
       } catch (error) { fail(frame, error); }
+    },
+    queryResult(value: unknown) {
+      checked(c);
+      const encode = typeof value === 'object' && value !== null ? frame.queryResults.get(value) : undefined;
+      if (encode === undefined) return undefined;
+      try { return { wire: encode() }; }
+      catch (error) { return fail(frame, error); }
     },
     assertCompleted() {
       checked(c);
@@ -186,6 +219,146 @@ export function observeScenarioReceiptIntrinsic(c: HandlerContext, dependencyId:
   })();
   void operation.catch(() => {});
   return operation;
+}
+
+
+/** One checked source occurrence enters State's complete current-policy domain.
+ * Only native views escape; actual query handles and candidate slots stay private. */
+export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
+  predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>): Promise<readonly Readonly<Record<string, unknown>>[]> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario queries must run sequentially.'));
+    frame.pending += 1;
+    try {
+      const plan = isGeneratedOperationDef(frame.call.def)
+        ? frame.call.def.descriptor.result?.disclosure?.queries?.find(query => query.id === queryId) : undefined;
+      if (plan === undefined || frame.queryProducer === undefined || typeof predicate !== 'function') {
+        return refuse('Scenario query requires its checked occurrence and installed native producer.');
+      }
+      const query: NativeQueryExecution = { plan, active: null, bound: false };
+      const issued = new Map<object, { readonly view: Readonly<Record<string, unknown>>; readonly select: (record: ProjectedRecord) => void }>();
+      const result = await executeStateQuery(frame.call, frame.store, { queryId, predicate: async ({ slot, record }) => {
+        checked(c);
+        const reads: string[] = [];
+        let projected = record;
+        const view = frame.queryProducer!.record(plan.model, record, field => {
+          try {
+            checked(c);
+            if (query.bound || !plan.dependencies.some(dep => dep.field === field) ||
+                (query.active !== view && (frame.pending !== 0 || query.result === undefined ||
+                  !query.result.rows.some(row => row.slot === slot)))) {
+              return refuse('Query field read requires its checked live candidate or original selected projection.');
+            }
+            reads.push(field);
+          } catch (error) { fail(frame, error); }
+        }, () => projected);
+        const reference = nativeRecordReference(view);
+        if (!Object.isFrozen(view) || reference?.model !== plan.model || reference.id !== record.id ||
+            reference.version !== BigInt(record.version) || frame.queryViews.has(view)) {
+          return refuse('Query view requires its original native projected identity.');
+        }
+        frame.queryViews.set(view, { query, slot, dependencies: new Set(), reads });
+        issued.set(slot, { view, select: record => { projected = record; } }); query.active = view;
+        try {
+          const accepted = await predicate(view);
+          if (reads.length !== 0) return refuse('Query predicate omitted an actual field read marker.');
+          return accepted;
+        } finally { query.active = null; }
+      } });
+      checked(c); query.result = result;
+      const views = Object.freeze(result.rows.map(({ slot, record }) => {
+        const selected = issued.get(slot);
+        if (selected === undefined) return refuse('Query selection lost its original native candidate.');
+        selected.select(record);
+        return selected.view;
+      }));
+      frame.queryArrays.set(views, { query, views });
+      return views;
+    } catch (error) { return fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {});
+  return operation;
+}
+
+/** Immediate compiled field marker. Predicate observations use the live State
+ * slot; projection reads retain that same slot until exact result binding. */
+export function observeScenarioReceiptQueryDependency(c: HandlerContext, model: string,
+  nativeRow: unknown, field: string, dependencyId: string): void {
+  const frame = checked(c);
+  try {
+    const view = typeof nativeRow === 'object' && nativeRow !== null ? frame.queryViews.get(nativeRow) : undefined;
+    const dependency = view?.query.plan.dependencies.find(entry => entry.id === dependencyId);
+    if (view === undefined || dependency === undefined || view.query.plan.model !== model || dependency.field !== field || view.query.bound || view.reads[0] !== field) {
+      return refuse('Query observation requires its original native candidate and checked field.');
+    }
+    if (view.query.active === nativeRow) {
+      if (frame.pending !== 1) return refuse('Query predicate observation crossed its sequential source execution.');
+      observeStateQueryDependency(frame.call, frame.store, { slot: view.slot, dependencyId });
+    } else {
+      if (frame.pending !== 0 || dependency.role !== 'data' || view.query.result === undefined ||
+          !view.query.result.rows.some(row => row.slot === view.slot)) {
+        return refuse('Query projection observation requires its original selected candidate.');
+      }
+    }
+    view.reads.shift();
+    view.dependencies.add(dependencyId);
+  } catch (error) { fail(frame, error); }
+}
+
+/** Bind the authored nominal array, including empty, to the exact ordered query
+ * array. Values/State verify wire; source never receives or supplies slot IDs. */
+export function bindScenarioReceiptQueryResult(c: HandlerContext, returnId: string,
+  nativeRows: unknown, value: unknown): void {
+  const frame = checked(c);
+  try {
+    if (frame.pending !== 0 || frame.queryProducer === undefined) return refuse('Query result requires completed native execution.');
+    const issued = typeof nativeRows === 'object' && nativeRows !== null ? frame.queryArrays.get(nativeRows) : undefined;
+    const result = issued?.query.result;
+    const returned = isGeneratedOperationDef(frame.call.def)
+      ? frame.call.def.descriptor.result?.disclosure?.returns.find(entry => entry.id === returnId) : undefined;
+    if (issued === undefined || result === undefined || returned?.projection?.queryId !== issued.query.plan.id) {
+      return refuse('Query result requires its exact original array and checked return.');
+    }
+    for (const view of issued.views) {
+      const binding = frame.queryViews.get(view)!;
+      if (binding.reads.length !== 0 || issued.query.plan.dependencies.some(dep => dep.role === 'data' && !binding.dependencies.has(dep.id))) {
+        return refuse('Query result omitted an actual selected field observation.');
+      }
+    }
+    // Preserve evaluated fields; only native record identities need their owning
+    // Values carrier before nominal encoding. Never read a candidate field again.
+    if (!Array.isArray(value) || value.length !== issued.views.length) return refuse('Query result requires the complete authored nominal array.');
+    const encode = () => {
+      if (Reflect.ownKeys(value).length !== value.length + 1) return refuse('Query result requires a dense native array.');
+      const native = Array.from({ length: value.length }, (_, index) => {
+        const element = Object.getOwnPropertyDescriptor(value, String(index));
+        if (element === undefined || !('value' in element)) return refuse('Query result requires own evaluated array elements.');
+        const fact: unknown = element.value;
+        if (typeof fact !== 'object' || fact === null || Array.isArray(fact)) return refuse('Query result requires authored contract values.');
+        const fields: Record<string, unknown> = Object.create(null);
+        for (const key of Reflect.ownKeys(fact)) {
+          const descriptor = Object.getOwnPropertyDescriptor(fact, key)!;
+          if (typeof key !== 'string' || !('value' in descriptor)) return refuse('Query result requires own evaluated contract fields.');
+          fields[key] = descriptor.value as unknown;
+        }
+        for (const field of returned.projection!.fields) if (field.kind === 'reference') {
+          const reference = nativeRecordReference(fields[field.name]);
+          if (reference !== undefined) {
+            if (fields[field.name] !== issued.views[index]) return refuse('Query Fact reference differs from its original selected view.');
+            fields[field.name] = reference;
+          }
+        }
+        return fields;
+      });
+      return frame.queryProducer!.encode(native);
+    };
+    const wire = encode();
+    bindStateQueryResult(frame.call, frame.store, { query: result.query, returnId, wire, rows: result.rows.map(row => row.slot) });
+    issued.query.bound = true;
+    frame.queryResults.set(value, encode);
+  } catch (error) { fail(frame, error); }
 }
 
 /** Compiler selects only the actually evaluated return after its observations. */
