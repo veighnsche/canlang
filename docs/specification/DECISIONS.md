@@ -7945,3 +7945,18 @@ Carry the full original checked completion Values schema into ordinary and cohor
 ### 2026-10-11 — selected local integration of native completion consumer6bbb0fda
 
 Finite complete-schema consumer and actual native D1/Identity/Work route/replay/assertion reviews CLEAR. Integrate exact two owning CF paths and directly related existing Dev record only; preserve all root source and exclude divergent ancestry. Both ordinary and cohort consumers use checkedCompletionPayload with the original complete Values schema. Reuse owner real unchanged full Compiler artifact/localhost Email/Work claim/receipt/source/native readonly/ordinary/frozen-cohort/tick/replay case1/1 19485.36ms, zero fail/cancel/skip, and affected emit/types0; original source/module/catalog remain unchanged. Trusted host seed/send setup, controlled guard/provider callbacks and emitted noop bodies restrict this to the explicit consumer component, not authored SEND/provider authentication/original applications/public E6008. Packages exact fixture registration is already integrated. Root declared dependency graph refresh now passes26/26 with5cached tasks after stale installation restoration; joined boundary check follows this new source integration. File full actual host/all-writer/currentauthority/interruption/reopen and opaque payloads remain owned work. Preserve exact holds/allocations, reconcile existing living plan/coverage/decisions, complete checkpoint unadvanced; no publication.
+
+
+### 2026-10-11 — register the exact portable HookOrder fixture read
+
+Extend the same exact checkout-input policy to Dev's existing named
+native-local-rules-d1.integration.test.ts reader of the original Compiler
+hook_order_rollback.can. Both affected maintained policy cases2/2 pass254.53ms:
+all six canonical reads admitted, five wrong-consumer/other-target paths and
+four sibling imports refused. Actual new D1 consumer source and native checks
+remain Dev-owned, unpublished here. No broad exemption, behavior/fixture edit,
+unchanged gate repetition or precise hold change; coordinator review pending.
+
+### 2026-10-11 — selected local integration of e3c2ee7d
+
+Finite exact portable fixture-read policy/test review CLEAR. Integrate only the two owning checker paths and related existing shared-gate record; preserve every other accepted source and package task. Exactly native-local-rules-d1.integration.test.ts reading compiler/tests/fixtures/hook_order_rollback.can is registered, with the original literal consumer/target predicate retained. Wrong consumer/fixture and sibling source imports remain refused. Reuse two affected checker cases254.53ms, zero failure/cancel/skip; new owning D1 consumer source/runtime qualification remains due. No runtime/provider/full-plan acceptance is inferred. Preserve allocations/holds and reconcile the existing living plan/coverage/decisions with complete checkpoint unadvanced; no publication.

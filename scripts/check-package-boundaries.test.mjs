@@ -127,12 +127,20 @@ test('allows only registered canonical fixture reads from exact Cloudflare consu
       readFileSync(join(root, 'compiler/tests/fixtures/hook_order_rollback.can'));
       readFileSync(join(root, 'compiler/tests/fixtures/hook_order_rollback.can'));
     `,
+    'src/runtime/native-local-rules-d1.integration.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+      readFileSync(join(root, 'compiler/tests/fixtures/hook_order_rollback.can'));
+    `,
   };
   const f = fixture(t, { cloudflareConsumers: consumers });
   const result = f.check();
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
     'packages/cloudflare/src/dev/session-service.test.ts',
+    'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules.integration.test.ts',
     'packages/cloudflare/test/committed-model-consumer.test.ts',
@@ -167,10 +175,18 @@ test('rejects other fixture reads and cross-package source imports from Cloudfla
       const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
       readFileSync(join(root, 'compiler/tests/fixtures/Another.can'));
     `,
+    'src/runtime/native-local-rules-d1.integration.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      import '../../../a/src/index.js';
+      const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
+      readFileSync(join(root, 'compiler/tests/fixtures/Another.can'));
+    `,
   } });
   const result = f.check();
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 4);
-  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 3);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-path').length, 5);
+  assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 4);
   assert.deepEqual(result.registered, []);
 });
 
