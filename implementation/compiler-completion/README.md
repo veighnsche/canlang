@@ -2093,3 +2093,17 @@ Released owning22/5modes/40 results are reused. No native child call executes.
 Dev's genuine verified-operation binding remains the activation prerequisite;
 E6008 stays. Original Workbench read/query Fact[], dynamic/as/CRUD/default/
 composite joins, the nine open references and precise human holds remain.
+
+
+**Prepared native call body (unfinished), 2026-10-10.**
+Exact active-parent static no-as scalar/void call sites now lower to the real
+awaited native stdlib `invokeScenarioReceiptCall` facade. Match Call span,
+target SymbolId and result against the prepared inventory; lower the actual
+authored input object once in source order and clear inventory after the handler.
+The owning **6/6** target checks real imported-module body/metadata order and
+missing/skewed/duplicate joins; no handler executes. All canonical calls still
+report E6008 before publication. Dev's genuine verified-operation binding and
+actual native child qualification remain prerequisites, with original Workbench
+read/query Fact[], dynamic/as/CRUD/default/composite and broader references open.
+Strict all-target Clippy and formatting pass. The final changed-source whole
+qualification follows this coherent local unit.
