@@ -5759,8 +5759,18 @@ domain/limit/item/ordered-body source facts before native emission. Bound actual
 repeated observations and executions at200, decline unsupported per-element
 choices/query/helper/version/nested/computed profiles, and retain prior controls.
 No public array/index authority carrier is needed for this finite source. Owning
-301 checks and actual native Memory pass; current-source whole and Dev owning D1
-qualification remain before final acceptance. Broader loop workflows stay open.
+301 checks and actual native Memory pass. Exact14b whole133targets1386 passes
+with zero failed/ignored/filtered/skipped bodies and strictalltarget lint/format0;
+coordinator source review integrates LOCAL64. Dev owning D1 qualification remains
+before final native acceptance. Broader loop workflows stay open.
+
+
+The actual D1 consumer subsequently exposes a defining history-contract mismatch:
+receipt-aware owner finalization records A0→2/B0→1 while its existing fixture
+asserts three stage entries A0→1/A1→2/B0→1. Final values and Compiler/native
+Memory ordered observations are qualified; D1 replay is not reached. State owns
+history resolution and Dev preserves its consumer assertion. This observation
+is a dependency, not a decision to change history or evidence of D1 acceptance.
 
 
 ### 2026-10-10 — release rejected Jev response streams (unfinished live qualification)
@@ -5775,3 +5785,19 @@ Actual injected429/503 streams cover successful, rejected and pending cleanup
 without reads or reader acquisition, plus absent bodies. Transport/ranker12/12,
 clean CF emission, root noEmit and package boundaries pass; unchanged runtime
 results are reused at their recorded scopes.
+
+
+### 2026-10-10 — retain ordered history during bounded loop qualification (unfinished)
+
+Consume the exact reviewed Compiler bounded-reference-loop producer through the
+existing immutable source/artifact and real generated D1 invoker. Derive the
+empty/nonempty return and dependency IDs from its actual plan; retain original
+ordered observation, current-stage, one-commit, receipt/hash, full-table and
+Identity assertions. No private plan is fabricated and no public ABI is added.
+
+The first actual run fails at original A0→1 then1→2 history: State's owner-session
+finalization emits only net A0→2, despite the existing ordered-history contract
+in DESIGN.md503. State owns that correction. Preserve the required history gate
+and distinguish implemented later replay/refusal assertions from reached checks.
+Local native/CF builds, root noEmit and package boundaries pass; native D1 replay
+is not qualified. General loop outputs, query/preclaim and G2/G3 remain open.
