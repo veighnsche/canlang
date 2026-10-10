@@ -3149,3 +3149,21 @@ Required current whole/lint validation follows this coherent producer checkpoint
 prior whole success is historical. Dev owns protected native host/download and
 remaining defining deletion/provider contracts; original109 findings,58/67 and
 precise BDD3/Task22 holds remain. Local only; no native application acceptance.
+
+### 2026-10-10 — preserve release/refund state cases (unfinished composition)
+
+Assigned draft5cbdded renames only Field released→observe_release and Invoice
+refund→refund_payment plus its actual form. All stored cases, provider operations,
+original guards/permissions/evaluation order/effects/examples remain. Exact
+original25/catalog109→89 (Field10→0,Invoice41→31), complete/omitted0 and all25
+hashes match. No artifact/native original qualification. Isolated Field differs:
+113→121, with all113 prior diagnostic identities preserved and ONLY8 additional
+E2001 released uses at115/129/145/147/156/158/182/185 because its owning Schedule
+schema is absent. Invoice242→232; preserve all52 rows/full assertions and50
+unchanged rows. Correct only actual Field121/Invoice232 pins; affected table1/1
+passes3.32s,36 unrelated tests unselected, superseding predicted Field103 failure.
+Desired-output mjs identities remain proposals, not live/generated acceptance.
+Required current whole/lint starts at this coherent boundary including File73;
+broader native File/terminal event/source owners and original89 findings remain.
+No exported Rent rename, Employees purity/Volunteer binding guesses, publication
+or hold change;58/67 unchanged.

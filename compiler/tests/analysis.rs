@@ -1033,6 +1033,12 @@ fn draft_outcome_table() {
     // pending-replacement requirements. Both guards retain the stored state
     // enum cases; two findings clear without any other row change. Original
     // complete composition retains109 findings and no emitted artifact.
+    // Assigned draft5cbdded renames Field released and Invoice refund plus
+    // the actual invoice form. Ten stored-state captures clear per owning
+    // file in the complete composition, which still refuses with89 findings.
+    // Isolated Field lacks the owning Schedule schema: all113 prior findings
+    // remain and eight released uses now report E2001 instead of binding the
+    // handler. Invoice clears ten; all50 other rows and bodies are unchanged.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1055,12 +1061,12 @@ fn draft_outcome_table() {
         ("draft/CanEvent.can", 198),
         ("draft/CanExpense.can", 92),
         ("draft/CanFeedback.can", 13),
-        ("draft/CanField.can", 113),
+        ("draft/CanField.can", 121),
         ("draft/CanGallery.can", 22),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
         ("draft/CanInbox.can", 67),
-        ("draft/CanInvoice.can", 242),
+        ("draft/CanInvoice.can", 232),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
         ("draft/CanLeave.can", 79),
