@@ -6,13 +6,13 @@
   "checkpoint_advanced": false,
   "coverage": {
     "commit_count_since_checkpoint": 1956,
-    "net_path_deltas": 10876,
+    "net_path_deltas": 10877,
     "history_touched_paths": 11420,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9373,
-    "scope": "Capability worker merges only exact coordinator-reviewed LOCAL a22d44870f662806a3a4bdf39910e62738361699 into committed worker 858981957ecad5d7715bbc27918e33a56659361e. Actual staged resolved tree and both full ancestry histories since complete 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing physical owners, target allocations, accepted scopes, retirements, tasks and recipient holds remain; new paths remain inherited-unallocated. No complete source/target or full workflow acceptance; complete checkpoint unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9374,
+    "scope": "Capability worker merges only exact coordinator-reviewed LOCAL a22d44870f662806a3a4bdf39910e62738361699 into committed worker 858981957ecad5d7715bbc27918e33a56659361e. Actual staged resolved tree and both full ancestry histories since complete 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing physical owners, target allocations, accepted scopes, retirements, tasks and recipient holds remain; new paths remain inherited-unallocated. No complete source/target or full workflow acceptance; complete checkpoint unadvanced. The directly related unfinished State embedded File profile path is registered from its actual staged addition under State, with target allocation pending; prior both-history review and complete checkpoint remain unchanged."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged resolved Capability merge tree)",
@@ -62372,6 +62372,12 @@
     ],
     [
       "A",
+      "packages/state/src/ports/file-reference-profile.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/state/src/ports/file-references.test.ts",
       "packages/state",
       "inherited-unallocated"
@@ -67892,7 +67898,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9373,
+    "count": 9374,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67906,5 +67912,5 @@
   "lanes": "Existing four LOCAL worker plans and recipient-specific holds retained; Capability owns this finite State File-slot prerequisite. Packages owns Files/Interfaces/common gates, Dev native host/provider/serialization, Compiler genuine source. Coordinator alone integrates local main and manually releases components; no PR/remote publication.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker merges only exact coordinator-reviewed LOCAL a22d44870f662806a3a4bdf39910e62738361699 into committed worker 858981957ecad5d7715bbc27918e33a56659361e. Actual staged resolved tree and both full ancestry histories since complete 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing physical owners, target allocations, accepted scopes, retirements, tasks and recipient holds remain; new paths remain inherited-unallocated. No complete source/target or full workflow acceptance; complete checkpoint unadvanced."
+  "current_maintenance_summary": "Capability worker merges only exact coordinator-reviewed LOCAL a22d44870f662806a3a4bdf39910e62738361699 into committed worker 858981957ecad5d7715bbc27918e33a56659361e. Actual staged resolved tree and both full ancestry histories since complete 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Strongest existing physical owners, target allocations, accepted scopes, retirements, tasks and recipient holds remain; new paths remain inherited-unallocated. No complete source/target or full workflow acceptance; complete checkpoint unadvanced. The directly related unfinished State embedded File profile path is registered from its actual staged addition under State, with target allocation pending; prior both-history review and complete checkpoint remain unchanged."
 }
