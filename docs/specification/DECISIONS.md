@@ -6456,3 +6456,9 @@ Copies/general fields/first/helper uses remain refused. Affected313, strict
 lint/format and finite source/authority review CLEAR; genuine native guard,
 return, post-child rollback, retained cardinality, replay and withholding pass.
 Original approve source provenance, full58/67 and precise holds remain open.
+
+### 2026-10-10 — expose the genuine receiving principal in the portable HTTP entry
+
+The current Dev0bdf runtime statically consumes Interfaces receiverFromIdentity through the existing HTTP bundle mapping. Reexport its genuine defining uploads/principals.js function using the existing Interfaces distribution and require its marker and named export. Preserve private File identity, existing IdentityError closure, deterministic pure reexports and all security refusals; no root-barrel tree or substitute consumer.
+
+At reviewed e7b95 carrier scope, changed Cloudflare emission passes, the affected real HTTP case passes1/1 and HTTP cleanup passes12/12. Current isolated installed226-module graph requires the actual rewritten runtime import and named export, then real workerd production initialize returns401 without assembly failure. Existing actual Acorn/State Files, physical producer/refusal/finally, Work Node, WASM and browser/integrity controls pass; independent finite source review CLEAR. This qualifies common current linking and the auth seam only. Dev owns current G1 and original native File/current-authority/replay workflows; precise holds and complete checkpoint remain unchanged. Local coordinator integration only.
