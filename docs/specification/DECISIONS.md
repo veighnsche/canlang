@@ -7999,3 +7999,30 @@ coordinator review pending; no full/native rerun or precise hold release.
 ### 2026-10-11 — selected local integration of exact Node File host gate d88009cd
 
 Finite exact path/specifier/named-constructor whitelist review CLEAR. Integrate only the maintained worker boundary and related existing Packages records from d88009cd; all other accepted source/status preserved, no divergent branch ancestry. Reuse affected existing Node-host case1/1 27ms with original tree scan, literal/alias positive, prior example-runner constructor set and eleven disallowed forms/paths plus other-file/export refusals. This reviewed commit and current main contain no file-retirement.ts consumer; Dev has the actual named working-tree import and owes coherent original host/native source qualification. The allowance is not evidence of current host execution or physical lifecycle acceptance. Existing worker startup/portable original HookOrder a9 is separately reviewed/integrated at82ecfe98, with actual1/1, main18/18 and owning emission0 results reused. No repeated unrelated cases or full runtime/build/boundary. Preserve precise holds and allocations, reconcile living plan/coverage/decisions with complete checkpoint unadvanced; local only.
+
+
+## 2026-10-11 — Owning Email/Timezone input and model codecs
+
+Implement the finite consumers of reviewed Compiler `ca5b70da`: preserve
+canonical `email`/`timezone` TypeIds beside their collapsed artifact string tag
+in State model, artifact and canonical input metadata and Interfaces input/choice
+metadata. Bind submitted values with the existing owning Values codecs. Ordinary
+arrays/nullability and field constraints/bounds/trim remain, and required-array
+expansion stays refused. The existing result/disclosure vocabulary is unchanged;
+result metadata admission alone would not establish retained receipt support.
+
+State/Interfaces owning emissions pass. Four distinct focused maintained cases
+pass: model metadata1/1, artifact/canonical and constrained staging1/1, Interfaces
+binding1/1 and complete choices metadata1/1. Invalid email/zone/null/markers refuse;
+invalid writes have no store effects, valid values stage with original TypeIds and
+array maxima refuse. Initial checks identified necessary same-file association and
+decode seams; corrected harness assumptions respect framing-only admission,
+converter array hints and staging without claiming a commit. Finite source review
+CLEAR after restoring the original result gate; only State emission refreshed for
+that relevant edit. Unchanged input/model checks reused. Compiler owns its actual
+full contextual native rerun after coordinator review/intake. No native acceptance,
+human hold release, publication or unrelated suite repetition.
+
+### 2026-10-11 — selected local integration of owning scalar codecs35b1dff7
+
+Finite six-path source/metadata/staging/assertion reviews CLEAR. Integrate exact35b1dff7 State model/registry and Interfaces input/choice/codec consumers with original affected tests and directly related existing records only; no divergent ancestry or Compiler rewrite. Canonical Email/Timezone TypeIds survive collapsed string tags, preserve wrappers/nullability/ordinary arrays/element refusal/constraints/bounds/trim metadata and required-array exclusion; separate result/disclosure vocabulary is unchanged. Reuse four distinct focused model/artifact-canonical-staged/Interfaces binding/choice cases:1/1 5.66ms,1/1 67.34ms and2/2 24.61ms+3.79ms; own State/Interfaces emissions0. Genuine Values decoding rejects malformed email/zone/null; invalid writes leave no store effects, accepted values remain staged rather than committed, array maxima refuse. No separate trim-output/scalar-bound or native qualification is claimed. Compiler original full contextual source stays asserted and requires the affected native rerun after release. New empty File inventory producer is independently reviewed next; existing exact portable hook and File host gate already integrated. Preserve precise holds and original package allocations, reconcile living coverage/decisions with complete checkpoint unadvanced; local only.

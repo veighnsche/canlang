@@ -975,12 +975,13 @@ function checkArtifactInputChannels(
     }
     const base = type.base.kind === 'nominal' && nominalName === type.base.path ? 'nominal'
       : type.base.kind === 'scalar' ? type.base.name
+      : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name
       : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
     if (base === undefined || (type.requiredArray && fieldKind !== 'nominal')) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
     const expectedKind = base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
-      : base === 'text' || base === 'date' ? 'string' : base;
+      : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
     if (expectedKind !== fieldKind) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
     }
@@ -1195,8 +1196,9 @@ function modelChoiceType(field: Record<string, unknown>, what: string): ChoiceTy
     let type: ReturnType<typeof parseTypeId>;
     try { type = parseTypeId(claimed); }
     catch { failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`); }
-    const base = type.base.kind === 'scalar' ? type.base.name : type.base.kind;
-    const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' ? 'string' : base;
+    const base = type.base.kind === 'scalar' ? type.base.name
+      : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name : type.base.kind;
+    const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
     if (expected !== normalized || type.array !== (array !== undefined) || type.nullable !== (nullable === true) || type.requiredArray) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: checked type disagrees with owning field.`);
     }
@@ -1651,9 +1653,11 @@ export function checkBoundArgument(input: DerivedWritableInput, value: unknown):
     catch (error) { return bindingError(`/${input.name}`, error instanceof Error ? error.message : 'Invalid nominal value.'); }
   }
   const path = `/${input.name}`;
-  if (input.kind === 'user') {
+  const stringProfile = input.kind === 'string' && typeof input.valueType === 'string' &&
+    /^(email|timezone)(\[\])?\??$/.test(input.valueType) ? input.valueType : undefined;
+  if (input.kind === 'user' || stringProfile !== undefined) {
     // The owning codec validates the complete profile, including array element nulls.
-    const type = `user${input.array === undefined ? '' : '[]'}${input.nullable === true ? '?' : ''}`;
+    const type = stringProfile ?? `user${input.array === undefined ? '' : '[]'}${input.nullable === true ? '?' : ''}`;
     try {
       decodeValue(type, value);
     } catch (err) {

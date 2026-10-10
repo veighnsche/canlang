@@ -1,18 +1,18 @@
 {
   "date": "2026-10-11",
-  "integrated_source_pin": "d88009cd5bac8e96a360c62fa872daf7682e5063",
+  "integrated_source_pin": "35b1dff7bd7e2e2e5631fce73fcf6a2d632580ae",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2063,
-    "net_path_deltas": 10895,
+    "commit_count_since_checkpoint": 2064,
+    "net_path_deltas": 10896,
     "history_touched_paths": 11439,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9392,
-    "scope": "Local main intake of exact selected coherent commit d88009cd5bac8e96a360c62fa872daf7682e5063 onto 82ecfe9844c4092dab6976d4769c2374264b048c; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
+    "inherited_paths_without_prior_target_allocation": 9393,
+    "scope": "Local main intake of exact selected coherent commit 35b1dff7bd7e2e2e5631fce73fcf6a2d632580ae onto 20b20528dc1b6481adf0d2761adf32b86951f7a9; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -62785,6 +62785,12 @@
       "feature"
     ],
     [
+      "M",
+      "packages/state/test/mutation/models.test.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
       "A",
       "packages/state/test/mutation/staged-durable.test.ts",
       "packages/state",
@@ -68006,7 +68012,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9392,
+    "count": 9393,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -68020,5 +68026,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main intake of exact selected coherent commit d88009cd5bac8e96a360c62fa872daf7682e5063 onto 82ecfe9844c4092dab6976d4769c2374264b048c; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
+  "current_maintenance_summary": "Local main intake of exact selected coherent commit 35b1dff7bd7e2e2e5631fce73fcf6a2d632580ae onto 20b20528dc1b6481adf0d2761adf32b86951f7a9; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
 }
