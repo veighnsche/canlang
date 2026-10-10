@@ -532,11 +532,32 @@ pub struct CheckedCollectionPredicate {
     pub ty: ResolvedType,
 }
 
+/// Separate value-domain proof for a direct bound contract-array child result.
+/// It proves selected source/alias correspondence, never child completeness,
+/// native authority, or admission of the predicate's provenance closure.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckedContractCollectionCall {
+    pub node: NodeKey,
+    pub builtin: String,
+    pub overload: usize,
+    pub arguments: Vec<NodeKey>,
+    /// Domain and predicate indices in the authored argument list.
+    pub slots: [usize; 2],
+    pub query: NodeKey,
+    pub domain: NodeKey,
+    pub call: NodeKey,
+    pub alias: NodeKey,
+    pub contract: SymbolId,
+    pub predicate: CheckedCollectionPredicate,
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
     /// Selected query-domain collection calls; separate from authored Where clauses.
     pub checked_collection_calls: HashMap<NodeKey, CheckedCollectionCall>,
+    /// Direct bound contract-array any/all; distinct from stored-model proofs.
+    pub checked_contract_collection_calls: HashMap<NodeKey, CheckedContractCollectionCall>,
     /// Successful query typing, preserving domain and authored clause identities.
     pub checked_queries: HashMap<NodeKey, CheckedQuery>,
     /// Checked local view host models, without executable symbols.
@@ -15564,6 +15585,9 @@ impl<'a> Typer<'a> {
         self.types
             .checked_collection_calls
             .remove(&NodeKey::of(node));
+        self.types
+            .checked_contract_collection_calls
+            .remove(&NodeKey::of(node));
         let parts = kids(node);
         let callee = parts.iter().find(|n| is_expression(n.kind)).copied();
         let Some(callee) = callee else {
@@ -15859,6 +15883,20 @@ impl<'a> Typer<'a> {
                         .checked_collection_calls
                         .insert(NodeKey::of(node), fact);
                 }
+                if !result.is_error()
+                    && !self.diags[diagnostic_start..]
+                        .iter()
+                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+                    && let Some(fact) = self.checked_contract_collection_call(
+                        node,
+                        &overloads[index],
+                        &ordered_args,
+                    )
+                {
+                    self.types
+                        .checked_contract_collection_calls
+                        .insert(NodeKey::of(node), fact);
+                }
                 return result;
             }
             // Failure precedence: precise literal shape (`E3001`) >
@@ -16009,6 +16047,178 @@ impl<'a> Typer<'a> {
             alias,
             model: *model,
             predicate,
+        })
+    }
+
+    fn checked_contract_collection_call(
+        &self,
+        node: &SyntaxNode,
+        overload: &SigOverload,
+        ordered_args: &[CallArg],
+    ) -> Option<CheckedContractCollectionCall> {
+        let selected = self.types.selected_calls.get(&NodeKey::of(node))?;
+        let SelectedCallTarget::Builtin {
+            id,
+            overload: index,
+        } = &selected.target
+        else {
+            return None;
+        };
+        if !matches!(id.as_str(), "any" | "all")
+            || overload.params.len() != 2
+            || ordered_args.len() != 2
+            || selected.arguments.len() != 2
+            || selected.slots.len() != 2
+        {
+            return None;
+        }
+        let domain_param = &overload.params[0];
+        let predicate_param = &overload.params[1];
+        if domain_param.name != "domain"
+            || predicate_param.name != "predicate"
+            || !matches!(
+                domain_param.ty,
+                SigType::Collection(_)
+                    | SigType::OrderedCollection(_)
+                    | SigType::NonemptyCollection(_)
+            )
+            || domain_param.alias.is_none()
+            || predicate_param.in_scope != domain_param.alias
+            || predicate_param.ty != SigType::Named("bool".into())
+        {
+            return None;
+        }
+        let slots = [selected.slots[0]?, selected.slots[1]?];
+        if slots[0] == slots[1] {
+            return None;
+        }
+        for (slot, argument) in slots.iter().zip(ordered_args) {
+            if selected.arguments.get(*slot) != Some(&NodeKey::of(argument.value)) {
+                return None;
+            }
+        }
+        fn grouped(mut current: &SyntaxNode) -> Option<&SyntaxNode> {
+            for _ in 0..64 {
+                if current.kind != SyntaxKind::Group {
+                    return Some(current);
+                }
+                let mut children = current
+                    .children
+                    .iter()
+                    .filter(|child| is_expression(child.kind));
+                current = children.next()?;
+                if children.next().is_some() {
+                    return None;
+                }
+            }
+            None
+        }
+        let query_node = grouped(ordered_args[0].value)?;
+        if query_node.kind != SyntaxKind::Query {
+            return None;
+        }
+        let query = self.types.checked_queries.get(&NodeKey::of(query_node))?;
+        let [alias] = query.clauses.as_slice() else {
+            return None;
+        };
+        if !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+            || query.projection.is_some()
+            || !alias.expressions.is_empty()
+            || query.domain_type != query.result
+            || self
+                .types
+                .node_types
+                .get(&NodeKey::of(ordered_args[0].value))
+                != Some(&query.result)
+        {
+            return None;
+        }
+        let ResolvedType::Array { element, .. } = &query.domain_type else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: contract, ..
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        if !matches!(
+            self.tables.symbols.get(contract.0 as usize)?.kind,
+            SymbolKind::Contract { .. }
+        ) || self.aliases.get(&alias.node) != Some(element.as_ref())
+        {
+            return None;
+        }
+        let domain_node = grouped(
+            kids(query_node)
+                .into_iter()
+                .find(|child| is_expression(child.kind))?,
+        )?;
+        if domain_node.kind != SyntaxKind::NameRef {
+            return None;
+        }
+        let Some(Binding::CallAs { node: call }) =
+            self.tables.node_binding.get(&NodeKey::of(domain_node))
+        else {
+            return None;
+        };
+        if self
+            .types
+            .effect_call_results
+            .get(call)
+            .and_then(Option::as_ref)
+            != Some(&query.domain_type)
+        {
+            return None;
+        }
+        let predicate = ordered_args[1].value;
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        if self.types.node_types.get(&NodeKey::of(predicate)) != Some(&boolean) {
+            return None;
+        }
+        // Direct scalar/ref leaves and literals cannot suspend the Values
+        // callback. The disclosure producer still joins their actual fields,
+        // bindings, operators and complete child projection independently.
+        let mut pending = vec![predicate];
+        let mut visits = 0;
+        while let Some(expression) = pending.pop() {
+            visits += 1;
+            if visits > 4096
+                || !matches!(
+                    expression.kind,
+                    SyntaxKind::NameRef
+                        | SyntaxKind::Path
+                        | SyntaxKind::Literal
+                        | SyntaxKind::Member
+                        | SyntaxKind::Group
+                        | SyntaxKind::Unary
+                        | SyntaxKind::Binary
+                )
+            {
+                return None;
+            }
+            pending.extend(
+                expression
+                    .children
+                    .iter()
+                    .filter(|child| is_expression(child.kind)),
+            );
+        }
+        Some(CheckedContractCollectionCall {
+            node: NodeKey::of(node),
+            builtin: id.clone(),
+            overload: *index,
+            arguments: selected.arguments.clone(),
+            slots,
+            query: query.node,
+            domain: query.domain,
+            call: *call,
+            alias: alias.node,
+            contract: *contract,
+            predicate: CheckedCollectionPredicate {
+                node: NodeKey::of(predicate),
+                ty: boolean,
+            },
         })
     }
 

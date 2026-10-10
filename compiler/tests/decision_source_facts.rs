@@ -145,7 +145,7 @@ fn imported_query_decisions_join_actual_query_collection_and_predicate_sources()
     let IrExpr::Query(query) = &args[0].expr else {
         panic!("actual model query")
     };
-    let query_fact = query.source.as_ref().unwrap();
+    let query_fact = query.source.as_deref().unwrap();
     let collection = query.collection_call.as_ref().unwrap();
     assert_eq!(program.types.checked_queries[&query_fact.node], *query_fact);
     assert_eq!(

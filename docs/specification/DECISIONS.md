@@ -6409,3 +6409,18 @@ Copies/general fields/first/helper uses remain refused. Affected313, strict
 lint/format and finite source/authority review CLEAR; genuine native guard,
 return, post-child rollback, retained cardinality, replay and withholding pass.
 Original approve source provenance, full58/67 and precise holds remain open.
+
+Compiler bound child predicates, 2026-10-10 (unfinished original workflow):
+use a separate contract-array proof for synchronous any/all, preserving model-
+query attribution. Join actual CallAs occurrence/Complete child and its owning
+projection; admit only direct projected scalar/ref/version leaves and literals.
+Values owns per-element ordered lazy choices, with no invented parent scalar
+observation or row grant. Fresh typed source/IR correspondence includes static
+child calls and the optional proof. Box checked query source to keep IR size
+bounded. Genuine native predicate/ref/version/failure/rollback/replay/revocation
+passes with affected619, strict lint/format0 and finite review CLEAR; original
+Step.input count needs canonical Input stored observation,
+contained operands need current-stage Dev hydration, and old/fresh two-domain
+closure remains Compiler-owned after those releases. State File lifetime at
+LOCALa8de5109 releases the next assignment-only File source unit; broader original
+workflow/58 of67 and precise BDD3/Task22 holds remain open.
