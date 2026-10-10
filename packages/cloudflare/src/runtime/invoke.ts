@@ -109,7 +109,7 @@ import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
-import type { AdmittedCall } from '@canlang/state/invocation';
+import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite } from '@canlang/state/invocation';
 import { openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
@@ -1242,6 +1242,9 @@ interface StateInvokeProducer {
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
   readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
+  readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
+  readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
+  readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1565,6 +1568,15 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['stageScenarioReceiptSend'] !== 'function' ? {} : {
         stageScenarioReceiptSend: scenarioMod['stageScenarioReceiptSend'] as NonNullable<StateInvokeProducer['stageScenarioReceiptSend']>,
+      }),
+      ...(typeof scenarioMod['bindScenarioReceiptCallProducer'] !== 'function' ? {} : {
+        bindScenarioReceiptCallProducer: scenarioMod['bindScenarioReceiptCallProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptCallProducer']>,
+      }),
+      ...(typeof scenarioMod['invokeScenarioReceiptCall'] !== 'function' ? {} : {
+        invokeScenarioReceiptCall: scenarioMod['invokeScenarioReceiptCall'] as NonNullable<StateInvokeProducer['invokeScenarioReceiptCall']>,
+      }),
+      ...(typeof scenarioMod['assertScenarioReceiptCallExecution'] !== 'function' ? {} : {
+        assertScenarioReceiptCallExecution: scenarioMod['assertScenarioReceiptCallExecution'] as NonNullable<StateInvokeProducer['assertScenarioReceiptCallExecution']>,
       }),
       ...(typeof scenarioMod['stageScenarioReceiptDelivery'] !== 'function' ? {} : {
         stageScenarioReceiptDelivery: scenarioMod['stageScenarioReceiptDelivery'] as NonNullable<StateInvokeProducer['stageScenarioReceiptDelivery']>,
@@ -2605,6 +2617,143 @@ async function collectUnsupportedHookOperations(asm: AssembledModules, artifact:
   return targets;
 }
 
+/** Only assembler-verified static scalar calls are admitted by this first
+ * consumer profile. Public contexts and operation ids cannot select a frame. */
+const nativeScenarioCalls = new WeakMap<LoadedCanonicalDescriptors,
+  ReadonlyMap<string, ReadonlyMap<string, GeneratedOperationDef>>>();
+interface NativeScenarioExecution {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly store: StoragePort;
+  readonly nextCreateId: () => string;
+  readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => Record<string, unknown>;
+  readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
+}
+const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
+const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
+function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): void {
+  if (def.kind !== 'scenario' || def.descriptor.result?.disclosure === undefined ||
+      !['void', ...NATIVE_CALL_SCALARS].includes(def.descriptor.result.type) ||
+      Object.keys(def.inputArrays).length !== 0 || Object.keys(def.inputNullableRefs ?? {}).length !== 0 ||
+      loaded.unsupportedHookOperations.has(def.name) || def.descriptor.inputs.some(field =>
+        field.kind === 'ref' || field.kind === 'delivery' || field.kind === 'enum' || field.kind === 'nominal' || field.valueType === undefined ||
+        !NATIVE_CALL_SCALARS.has(field.valueType) || field.required !== true ||
+        field.default !== undefined || field.computedDefault === true)) {
+    throw new loaded.producers.errors('validation', 'Native child calls require a checked scenario with required builtin scalar inputs and scalar or void result.');
+  }
+}
+function prepareNativeScenarioInputs(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef,
+  inputs: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  try {
+    assertNativeScenarioTarget(loaded, def);
+    const own = localPolicyObject(inputs, def.descriptor.inputs.map(field => field.name));
+    const wire: Record<string, unknown> = Object.create(null);
+    for (const field of def.descriptor.inputs) {
+      if (!Object.hasOwn(own, field.name)) throw new loaded.producers.errors('validation', 'Native child input omitted its required owning field.');
+      if (!('valueType' in field) || field.valueType === undefined) {
+        throw new loaded.producers.errors('validation', 'Native child input lacks its owning scalar type.');
+      }
+      wire[field.name] = encodeCanonicalField(loaded.producers.errors, field.valueType,
+        localPolicyMember(own, field.name), loaded.valueSchema);
+    }
+    return wire;
+  } catch (error) {
+    if (error instanceof loaded.producers.errors) throw error;
+    throw new loaded.producers.errors('validation', message(error));
+  }
+}
+function nativeCallArray(value: unknown, maximum: number): unknown[] {
+  if (!Array.isArray(value)) throw new AssemblyCorrespondenceError('Native call inventory requires a dense own array.');
+  const length = readMetadataMember(value, 'length', 'Native call source')?.value;
+  if (typeof length !== 'number' || length > maximum || Reflect.ownKeys(value).length !== length + 1 ||
+      Reflect.ownKeys(value).some(key => typeof key !== 'string' || key !== 'length' && !/^(0|[1-9][0-9]*)$/.test(key))) {
+    throw new AssemblyCorrespondenceError('Native call inventory exceeds its closed finite array profile.');
+  }
+  return readMetadataArray(value, 'Native call source', 'call inventory');
+}
+async function bindNativeScenarioCalls(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  const inventories = new Map<string, { def: GeneratedOperationDef; app: string; sites: ScenarioReceiptCallSite[] }>();
+  const selected = new Map<string, ReadonlyMap<string, GeneratedOperationDef>>();
+  for (const value of loaded.registry.values()) {
+    const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
+    if (def === undefined || def.kind !== 'scenario' || plan === undefined) continue;
+    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
+      entry.module === plan.source.module);
+    if (callable === undefined) throw new AssemblyCorrespondenceError('Native call source lacks its exact owning callable.');
+    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const definition = readMetadataMember(module as object, 'appDefinition', 'Native call source')?.value;
+    if (!isUnknownRecord(definition)) continue;
+    const operations = readMetadataMember(definition, 'operations', 'Native call source')?.value;
+    const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, 'Native call source')?.value : undefined;
+    const raw = isUnknownRecord(operation) ? readMetadataMember(operation, 'callSites', 'Native call source')?.value : undefined;
+    if (raw === undefined) continue;
+    const entries = nativeCallArray(raw, 200);
+    if (entries.length === 0) continue;
+    if (callable.inputStyle !== 'parameters') throw new AssemblyCorrespondenceError('Native calls require their exact parameter callable.');
+    if (entries.length > 200) throw new AssemblyCorrespondenceError('Native call inventory exceeds its finite bound.');
+    const app = readMetadataMember(definition, 'id', 'Native call source')?.value;
+    if (typeof app !== 'string' || app.length === 0 || app.length > 256) throw new AssemblyCorrespondenceError('Native call source lacks its owning app.');
+    const ids = new Set<string>(), sites: ScenarioReceiptCallSite[] = [], targets = new Map<string, GeneratedOperationDef>();
+    for (const entry of entries) {
+      const site = localPolicyObject(entry, ['id', 'source', 'kind', 'targets', 'resultType']);
+      if (Object.keys(site).length !== 5) throw new AssemblyCorrespondenceError('Native call occurrence requires its closed owning fields.');
+      const id = localPolicyMember(site, 'id'), kind = localPolicyMember(site, 'kind');
+      const origin = localPolicyObject(localPolicyMember(site, 'source'), ['path', 'sha256', 'module']);
+      if (Object.keys(origin).length !== 3 || ['path', 'sha256', 'module'].some(key =>
+          localPolicyMember(origin, key) !== plan.source[key as keyof typeof plan.source]) ||
+          typeof id !== 'string' || id.length === 0 || id.length > 256 || ids.has(id) || kind !== 'operation') {
+        throw new AssemblyCorrespondenceError('Native call occurrence requires unique static identity and exact checked source.');
+      }
+      const names = nativeCallArray(localPolicyMember(site, 'targets'), 1);
+      if (typeof names[0] !== 'string') throw new AssemblyCorrespondenceError('Native call requires an own canonical target name.');
+      if (names.length !== 1 || names[0]!.length > 256) throw new AssemblyCorrespondenceError('Native call requires one static canonical target.');
+      const target = generatedScenarioDef({ def: loaded.registry.get(names[0]!) });
+      if (target === undefined || target.name !== names[0]) throw new AssemblyCorrespondenceError('Native call target lacks its actual generated registry owner.');
+      assertNativeScenarioTarget(loaded, target);
+      const resultType = target.descriptor.result!.type;
+      if (localPolicyMember(site, 'resultType') !== resultType) throw new AssemblyCorrespondenceError('Native call result differs from its owning target declaration.');
+      ids.add(id); targets.set(id, target);
+      sites.push(Object.freeze({ id, source: Object.freeze({ ...plan.source }), kind,
+        targets: Object.freeze([Object.freeze({ operation: target.name, interface: target.descriptor })]), resultType }));
+    }
+    if (inventories.size >= 200) throw new AssemblyCorrespondenceError('Native call closure exceeds its finite parent bound.');
+    inventories.set(def.name, { def, app, sites }); selected.set(def.name, targets);
+  }
+  // Complete closure must be acyclic before any producer is bound.
+  const visiting = new Set<string>(), visited = new Set<string>();
+  const visit = (name: string, depth = 0): void => {
+    if (depth >= 16) throw new AssemblyCorrespondenceError('Native call closure exceeds its defining depth bound.');
+    if (visiting.has(name)) throw new AssemblyCorrespondenceError('Native call closure must be acyclic.');
+    if (visited.has(name)) return;
+    visiting.add(name);
+    for (const target of selected.get(name)?.values() ?? []) visit(target.name, depth + 1);
+    visiting.delete(name); visited.add(name);
+  };
+  for (const name of inventories.keys()) visit(name);
+  if (inventories.size === 0) return;
+  const { bindScenarioReceiptCallProducer: bind, invokeScenarioReceiptCall: invoke,
+    assertScenarioReceiptCallExecution: assert } = loaded.producers.invoke;
+  if (bind === undefined || invoke === undefined || assert === undefined) {
+    throw new loaded.producers.errors('validation', 'Native calls require their installed State call producers.');
+  }
+  for (const { def, app, sites } of inventories.values()) {
+    const live = (parent: AdmittedCall): NativeScenarioExecution => {
+      const frame = nativeScenarioExecutions.get(parent);
+      if (frame === undefined || frame.loaded !== loaded || frame.asm !== asm || frame.artifact !== artifact ||
+          parent.def !== def) throw new loaded.producers.errors('validation', 'Native call has a closed or foreign parent tuple.');
+      return frame;
+    };
+    bind(def, Object.freeze({ source: Object.freeze({ ...def.descriptor.result!.disclosure!.source }), app,
+      registry: loaded.registry as Parameters<typeof bind>[1]['registry'], sites: Object.freeze(sites),
+      prepare: (target: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>, parent: AdmittedCall) => live(parent).prepare(target, inputs),
+      execute: (frame: ScenarioReceiptCallFrame) => live(frame.parent).execute(frame),
+    }));
+  }
+  nativeScenarioCalls.set(loaded, selected);
+}
+
 /** Bind framework authority only from the original checked source module and
  * literal installed producers. Request options cannot supply these ports. */
 async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: CompileArtifact,
@@ -2829,6 +2978,7 @@ export async function loadCanonicalDescriptors(
   };
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
+  await bindNativeScenarioCalls(asm, artifact, canonical);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }) });
   return canonical;
@@ -3704,7 +3854,7 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
 interface LocalOwnerPolicyControl {
   readonly policies: CheckedOwnerModelPolicies;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
-  createOwnerFrame(input: { readonly call: CanonicalSeamCall; readonly session: OwnerMutationSession }): { close(): void };
+  createOwnerFrame(input: { readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
 
@@ -3924,7 +4074,7 @@ async function loadLocalOwnerPolicyControl(input: {
     catch {
       throw new input.native.producers.errors('validation', 'Native owner assembly no longer matches its captured artifact or module closure.');
     }
-  }, createOwnerFrame({ call, session }: { call: CanonicalSeamCall; session: OwnerMutationSession }) {
+  }, createOwnerFrame({ call, session }: { call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
     const context = session.views.context;
     if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(call.context) || activeFrames.has(context)) {
       throw new input.native.producers.errors('validation', 'Owner model frame requires the exact fresh admitted session context.');
@@ -3961,7 +4111,7 @@ function workStageContext(
 // Work remains finite independently of authored source limits.
 const SCENARIO_RECEIPT_OWNER_BOUNDS = Object.freeze({ maxRows: 200, maxWork: 10_000 });
 
-async function runScenarioSeam(
+async function runScenarioExecution(
   loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts,
   call: CanonicalSeamCall,
@@ -3970,14 +4120,15 @@ async function runScenarioSeam(
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null },
   receiptStore?: StoragePort,
-): Promise<CanonicalExecutionEffects> {
+  child?: ScenarioReceiptCallFrame,
+): Promise<{ readonly effects: CanonicalExecutionEffects } | { readonly wire: unknown }> {
   const scenarioDef = generatedScenarioDef(call);
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
   const useOwnerSession = receiptAware;
   const ownerControl = localOwnerPolicyControls.get(loaded);
   const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
   const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
-  if (useOwnerSession && (receiptStore === undefined || beginReceiptMutation === undefined || due !== undefined || cohort !== undefined)) {
+  if (useOwnerSession && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || due !== undefined || cohort !== undefined)) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
   }
   if (useOwnerSession && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
@@ -3986,6 +4137,10 @@ async function runScenarioSeam(
   }
   if (ownerControl !== undefined && !useOwnerSession) {
     throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
+  }
+  if (child !== undefined && (!receiptAware || (scenarioDef?.descriptor.inputs ?? []).some(field =>
+      field.kind !== 'delivery' && (field.computedDefault === true || field.default !== undefined)))) {
+    throw new loaded.producers.errors('validation', 'Child scenarios require checked disclosure without input defaults.');
   }
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
@@ -4020,6 +4175,17 @@ async function runScenarioSeam(
           },
         ]
       : [];
+  if (child !== undefined) {
+    // Register evidence as it is observed, before an authored throw or caught
+    // engine refusal. A child never owns a finalization/effects return through
+    // which these guards could otherwise reach the outer commit.
+    for (const guard of seamGuards) child.guard(guard);
+    const append = seamGuards.push.bind(seamGuards);
+    Object.defineProperty(seamGuards, 'push', { value: (...guards: CanonicalGuardRevalidation[]) => {
+      for (const guard of guards) child.guard(guard);
+      return append(...guards);
+    } });
+  }
   // T32b: the pipeline `trigger` point for this pass (absent on
   // checkpoint-less calls, which revalidate by expectedRevision only).
   const seamTrigger = seamTriggerPoint(call);
@@ -4060,11 +4226,12 @@ async function runScenarioSeam(
   };
   // State derives context, trigger, archive gate and provenance from the exact
   // admitted call/physical receiptStore. A host overlay never enters this API.
-  const ownerSession = useOwnerSession ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, {
+  const rootOwnerSession = useOwnerSession && child === undefined ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, {
     table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
     ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
     encodeField: (type, value) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
   }) : undefined;
+  const ownerSession: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> | undefined = child?.session ?? rootOwnerSession;
   let ownerPolicyFrame: { close(): void } | undefined;
   let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
   try {
@@ -4169,6 +4336,15 @@ async function runScenarioSeam(
   const resolvedDefaults: Record<string, unknown> = Object.create(null);
   let callIndex = 0;
   let createIndex = 0;
+  const nextCreateId = child === undefined
+    ? () => `${call.context.operationId}#create:${createIndex++}`
+    : () => {
+      const parent = nativeScenarioExecutions.get(child.parent);
+      if (parent === undefined || parent.loaded !== loaded || parent.store !== receiptStore) {
+        return refuseRecordBinding('Child create requires its exact live owner allocator.');
+      }
+      return parent.nextCreateId();
+    };
   const applyStagedWrite = (write: CanonicalStagedDomainWrite): StoredRow | null => {
     if (typeof write.kind !== "string" || typeof write.model !== "string") {
       throw new Error(`t17b: staged write lost its kind/model (pipeline/dist skew?)`);
@@ -4194,6 +4370,7 @@ async function runScenarioSeam(
     );
   };
   const appendDeferredEffects = (effects: SystemStaging): void => {
+    if (child !== undefined) return refuseRecordBinding('Child scenario framework effects are not supported by the checked call profile.');
     // Canonical invocation has no acknowledgement channel; deferred stages
     // use domain writes/outbox/schedules, never a separate acknowledgement.
     if ((effects.outboxAck?.length ?? 0) !== 0) {
@@ -4212,6 +4389,9 @@ async function runScenarioSeam(
   };
   if (due !== undefined) appendDeferredEffects(due.effects);
   const stageDeliveryAssignments = async (modelName: string, row: StoredRow, data: Record<string, unknown>): Promise<void> => {
+    if (child !== undefined && [...(loaded.deliveryFields.get(modelName) ?? [])].some(field => Object.hasOwn(data, field))) {
+      return refuseRecordBinding('Child scenario delivery assignments require their defining owner-session join.');
+    }
     const model = opts.artifact.models?.find((candidate) => candidate.name === modelName);
     if (model === undefined) return;
     try {
@@ -4260,6 +4440,7 @@ async function runScenarioSeam(
     }),
     observeDelivery: async (locator, selected) => {
       try {
+        if (child !== undefined) return refuseRecordBinding('Child served receipt reads require their defining owner-session join.');
         if (!isUnknownRecord(locator.record)) {
           throw new StateError('validation', 'Delivery observation needs a bound record.');
         }
@@ -4327,7 +4508,7 @@ async function runScenarioSeam(
       }
     },
     createRecord: async (model, data) => {
-      const id = `${call.context.operationId}#create:${createIndex++}`;
+      const id = nextCreateId();
       const row = await scope.stageWrite({ op: "create", model, id, data });
       if (row === null) throw new StateError("validation", "Create staged no record.");
       if (ownerSession === undefined) await stageDeliveryAssignments(model, row, data);
@@ -4371,6 +4552,7 @@ async function runScenarioSeam(
         if (write.op !== 'remove' && write.data !== undefined) {
           for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
             if (field.field.kind !== 'file' || !Object.hasOwn(write.data, field.name) || write.data[field.name] === undefined) continue;
+            if (child !== undefined) return refuseRecordBinding('Child scenario file assignments require their defining owner-session join.');
             const assignment = { model: write.model, recordId: write.id, field: field.name };
             fileAssignments.set(JSON.stringify([assignment.model, assignment.recordId, assignment.field]), assignment);
           }
@@ -4640,6 +4822,7 @@ async function runScenarioSeam(
   };
   const admittedNow = call.context.now;
   const scheduleScope = async (ownerPackage: string) => {
+    if (child !== undefined) return refuseRecordBinding('Child scheduling requires its defining owner-session join.');
     const where = 'Keyed schedule';
     const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
     if (moduleUrl === undefined) throw new Error(`${where} has no owning compiled module.`);
@@ -4730,6 +4913,7 @@ async function runScenarioSeam(
     },
     sendDeferred: async (source, request, bindingKey) => {
       try {
+        if (child !== undefined) return refuseRecordBinding('Child sends require their defining owner-session join.');
         const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
         if (moduleUrl === undefined) throw new Error('Bound send has no owning compiled module.');
         const module: unknown = await import(moduleUrl);
@@ -4828,7 +5012,45 @@ async function runScenarioSeam(
   if (receiptStore !== undefined) {
     // This is the unchanged call pointer supplied by actual State.invoke.
     // State verifies the lifetime and selected store before opening the frame.
-    scenarioReceiptFrame = openScenarioReceiptFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
+    const actualCall = call as AdmittedCall;
+    const binding = nativeScenarioCalls.get(loaded);
+    const invokeCall = loaded.producers.invoke.invokeScenarioReceiptCall;
+    const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+    const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
+      prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => prepareNativeScenarioInputs(loaded, def, inputs),
+      execute: async (frame: ScenarioReceiptCallFrame): Promise<unknown> => {
+        if (frame.parent !== actualCall || nativeScenarioExecutions.get(actualCall) !== active) {
+          return refuseRecordBinding('Child execution requires its exact live parent.');
+        }
+        assertCall!(frame.call, receiptStore);
+        const result = await runScenarioExecution(loaded, { ...opts, operation: generatedScenarioDef(frame.call)!.name }, frame.call,
+          occurrenceIds, undefined, undefined, receiptStore, frame);
+        if (!('wire' in result)) return refuseRecordBinding('Child execution cannot return root effects.');
+        return result.wire;
+      },
+    });
+    nativeScenarioExecutions.set(actualCall, active);
+    scenarioReceiptFrame = openScenarioReceiptFrame(ctx, actualCall, receiptStore, recordEngineFailure,
+      async (site, target, inputs) => {
+        if (binding === undefined || invokeCall === undefined || assertCall === undefined ||
+            nativeScenarioExecutions.get(actualCall) !== active || typeof target !== 'string') {
+          return refuseRecordBinding('Native call requires its checked static source and live parent.');
+        }
+        assertCall(actualCall, receiptStore);
+        const selected = binding.get(scenarioDef!.name)?.get(site);
+        if (selected === undefined || selected.name !== target) return refuseRecordBinding('Native call target differs from its owning checked occurrence.');
+        const wire = await invokeCall(actualCall, receiptStore, { site, target, inputs });
+        // Parent native views retain original metadata while current fields track
+        // the same genuine owner session after the completed child stage.
+        for (const key of [...ownerRows.keys()]) {
+          const split = key.indexOf('\0');
+          await readOwnerRow(key.slice(0, split) as ModelName, key.slice(split + 1) as RecordId);
+        }
+        const type = selected.descriptor.result?.type;
+        if (type === 'void') { if (wire !== null) return refuseRecordBinding('Void child returned nonvoid wire.'); return undefined; }
+        if (type === undefined) return refuseRecordBinding('Child result lacks its owning scalar type.');
+        return decodeCanonicalValue(loaded.valueSchema, type, wire);
+      });
   }
   for (const ref of call.recordRefs ?? []) {
     const row = ownerSession === undefined ? ref.row : await readOwnerRow(ref.model as ModelName, ref.row.id);
@@ -4937,13 +5159,19 @@ async function runScenarioSeam(
   scenarioReceiptFrame?.assertCompleted();
   if (ownerSession !== undefined) {
     const result = scenarioResult(call, loaded, outcome.value);
-    const finalized = await ownerSession.finalize();
+    if (child !== undefined) {
+      if (fileAssignments.size !== 0 || deferredEffects.length !== 0 || servedReadings.length !== 0) {
+        return refuseRecordBinding('Child scenario effect profile requires an unreleased join.');
+      }
+      return { wire: result };
+    }
+    const finalized = await rootOwnerSession!.finalize();
     const ownedScheduleKeys = new Set(finalized.schedules.map(schedule => schedule.key));
     const extraSchedules = deferredEffects.flatMap(effects => effects.schedules ?? []);
     if (extraSchedules.some(schedule => ownedScheduleKeys.has(schedule.key))) {
       throw new StateError('validation', 'Saved scenario deferred schedule overrides an actual finalized owner schedule.');
     }
-    return {
+    return { effects: {
       writes: finalized.writes, history: finalized.history,
       uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
       resolvedDefaults: finalized.resolvedDefaults,
@@ -4953,7 +5181,7 @@ async function runScenarioSeam(
         (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
         write.row.id === assignment.recordId)),
       guards: seamGuards, readings: servedReadings,
-    };
+    } };
   }
   const uniques = netStagedUniques(stagedTouches);
   const returnedBinding = typeof outcome.value === 'object' && outcome.value !== null
@@ -4963,7 +5191,7 @@ async function runScenarioSeam(
       BigInt(reservedVersions.get(stagedKey(returnedBinding.model, returnedBinding.id)) ?? returnedBinding.version));
   const result = scenarioResult(call, loaded, outcome.value, modelReference);
   const writes = collapseStagedWrites(stagedWrites);
-  return {
+  return { effects: {
     writes,
     // A removed provisional target retains no final file assignment. The
     // validator still checks every returned intent against its actual net row.
@@ -4990,8 +5218,19 @@ async function runScenarioSeam(
     // and the rejected-receipt path revalidates the checkpoint alone).
     guards: seamGuards,
     readings: servedReadings,
-  };
-  } finally { scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
+  } };
+  } finally { nativeScenarioExecutions.delete(call as AdmittedCall); scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
+}
+
+async function runScenarioSeam(
+  loaded: LoadedCanonicalDescriptors, opts: CanonicalMutationOpts, call: CanonicalSeamCall,
+  occurrenceIds: string[], due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId },
+  cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
+    readonly refInput: string; readonly bind: string | null }, receiptStore?: StoragePort,
+): Promise<CanonicalExecutionEffects> {
+  const result = await runScenarioExecution(loaded, opts, call, occurrenceIds, due, cohort, receiptStore);
+  if (!('effects' in result)) throw new loaded.producers.errors('validation', 'Root scenario returned child wire.');
+  return result.effects;
 }
 
 export async function invokeMutationCanonical(

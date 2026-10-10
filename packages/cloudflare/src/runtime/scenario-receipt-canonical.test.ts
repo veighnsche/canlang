@@ -1160,3 +1160,126 @@ it('joins installed Text sends and assigned deliveries in one saved-scenario fen
     assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
   }
 });
+
+/** Declaration-labelled Task39 consumer: real State admission/child session,
+ * Identity and verified module loader; no native Compiler CALL acceptance. */
+function staticCallsFixture(artifact: CompileArtifact, mode: 'normal' | 'caught' | 'guard' | 'source-skew' = 'normal'): void {
+  const origin = { path: source, sha256: sha, module: modulePath };
+  const emptyPlan: ScenarioResultDisclosurePlan = { version: 1, source: origin,
+    returns: [{ id: 'selected', source: origin, influences: [], dependencies: [] }] };
+  const site = (id: string, target: string, resultType: string) => ({ id, source: origin,
+    kind: 'operation', targets: [target], resultType });
+  const declarations = {
+    [operation]: { inputs: { record: { type: model } }, result: { type: 'text' },
+      callSites: [site('root-inner', 'Shop.inner', 'text')] },
+    'Shop.inner': { inputs: { value: { type: 'text' } }, result: { type: 'text' },
+      callSites: [site('inner-leaf', 'Shop.leaf', 'void')] },
+    'Shop.leaf': { inputs: { value: { type: 'text' } }, callSites: [] },
+  };
+  if (mode === 'source-skew') declarations[operation].callSites[0]!.source = { ...origin, sha256: '0'.repeat(64) };
+  for (const [name, type] of [['Shop.inner', 'text'], ['Shop.leaf', 'void']] as const) {
+    artifact.operations!.push({ name, kind: 'scenario', description: '',
+      inputs: { fields: [{ name: 'value', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true }] },
+      result: { type: type as CanTypeId, disclosure: emptyPlan } });
+    artifact.callables.push({ id: name, kind: 'operation', module: modulePath,
+      export: name.split('.')[1]!, member: name.split('.'), inputStyle: 'parameters' });
+  }
+  const module = artifact.modules[0]!;
+  module.js = module.js.replace('selectScenarioReceiptReturn }', 'selectScenarioReceiptReturn, invokeScenarioReceiptCall, create }')
+    .replace('let executions=0;', 'let childContext; export const lateChildCall=()=>invokeScenarioReceiptCall(childContext,"inner-leaf","Shop.leaf",{value:"late"}); let executions=0;')
+    .replace('operations:{"Shop.saved":', 'operations:{"Shop.inner":{by:["members"]},"Shop.leaf":{by:["members"]},"Shop.saved":')
+    .replace('appDefinition={id:"SavedScenario",', `appDefinition={id:"SavedScenario",operations:${JSON.stringify(declarations)},`)
+    .replace('}}};}', `},inner:async(c,input)=>{ executions++; childContext=c;
+      await invokeScenarioReceiptCall(c,"inner-leaf","Shop.leaf",{value:input.value});
+      selectScenarioReceiptReturn(c,"selected"); return "child scalar";
+    },leaf:async(c,input)=>{ executions++;
+      const made=await create(c,"Shop.Record",{visible:input.value,private:"child private"});
+      await set(c,made,{visible:"child final"});
+      ${mode === 'guard' ? 'await handlerProbe();' : ''}
+    }}};}`);
+}
+
+it('joins checked static nested scalar/void calls into one owner commit and retains their actual associations and replay', async () => {
+  const w = await world(false,true,`
+    const original=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
+    await set(c,input.record,{visible:"parent middle"});
+    await invokeScenarioReceiptCall(c,"root-inner","Shop.inner",{value:"child initial"});
+    await set(c,input.record,{visible:"parent final"});
+    selectScenarioReceiptReturn(c,"selected"); return original;
+  `, artifact => staticCallsFixture(artifact), false);
+  const batches: Array<Parameters<StoragePort['commit']>[0]> = [];
+  const store: StoragePort = { ...w.store, commit: async batch => { batches.push(batch); return w.store.commit(batch); } };
+  const fresh = await buildInvoker(w.artifact,w.asm,store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(w.envelope,w.identity);
+  assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+  assert.equal(fresh.result.result,'original visible'); assert.equal(w.counters().executions,3);
+  assert.equal(batches.length,1); const batch=batches[0]!;
+  assert.equal(batch.writes.length,2,'parent update and child insert finalize once each');
+  assert.equal(batch.writes.filter(write=>write.model===model && write.kind==='update' && write.id===w.row.id).length,1);
+  const parent=await w.store.load(model,w.row.id); assert.ok(parent);
+  assert.equal(parent.version,w.row.version+1); assert.equal(parent.data['visible'],'parent final');
+  const childRows=(await w.store.query({model,authority:'owner'})).filter(row=>row.id!==w.row.id);
+  assert.equal(childRows.length,1); assert.equal(childRows[0]!.data['visible'],'child final');
+  assert.equal(childRows[0]!.version,1,'child create and update remain one net inserted row');
+  assert.equal(batch.history.length,2); assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+  const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
+  assert.equal(physical.outcome.status,'committed');
+  const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+  assert.deepEqual(association.calls?.map(call=>[call.site,call.caller,call.target,call.result]),
+    [['inner-leaf','Shop.inner','Shop.leaf',null],['root-inner',operation,'Shop.inner','child scalar']]);
+  assert.deepEqual(association.changed.map(change=>change.row.id).sort(),[parent.id,childRows[0]!.id].sort());
+  const before={snapshot:await w.snapshot(),physical};
+  const module: unknown=await import(w.asm.moduleUrls[modulePath]!);
+  assert.ok(module && typeof module==='object' && 'lateChildCall' in module && typeof module.lateChildCall==='function');
+  await assert.rejects(module.lateChildCall(), /closed|active|frame/i);
+  assert.deepEqual({snapshot:await w.snapshot(),physical:await w.store.readReceipt(w.receiptIdentity)},before);
+  for(const dedicated of [false,true]) {
+    const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity)
+      :await w.invoker().invokeMutation(w.envelope,w.identity);
+    assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+    assert.equal(replay.result.result,'original visible'); assert.equal(w.counters().executions,3);
+    assert.deepEqual({snapshot:await w.snapshot(),physical:await w.store.readReceipt(w.receiptIdentity)},before);
+    assert.equal(JSON.stringify(replay).includes('targetInterface'),false);
+  }
+  assert.deepEqual(w.counters(),{commits:0,files:0,executions:3});
+});
+
+it('refuses caught child input failures, child guard revocation and skewed occurrence source without partial owner effects', async () => {
+  for (const mode of ['caught','guard'] as const) {
+    const w=await world(false,true,`
+      await set(c,input.record,{visible:"discard parent stage"});
+      ${mode==='caught' ? 'try { await invokeScenarioReceiptCall(c,"root-inner","Shop.inner",{unexpected:"wrong"}); } catch {}' :
+        'await invokeScenarioReceiptCall(c,"root-inner","Shop.inner",{value:"discard child stage"});'}
+      await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
+      selectScenarioReceiptReturn(c,"selected"); return input.record.visible;
+    `, artifact=>staticCallsFixture(artifact,mode),false);
+    if(mode==='guard') {
+      const module: unknown=await import(w.asm.moduleUrls[modulePath]!);
+      assert.ok(module && typeof module==='object' && 'setHandlerProbe' in module && typeof module.setHandlerProbe==='function');
+      module.setHandlerProbe(async()=>{await w.identities.removeMembership(w.membership.membership_id);});
+    }
+    const before=await w.snapshot(), batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+    const store:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+    const outcome=await buildInvoker(w.artifact,w.asm,store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(w.envelope,w.identity);
+    assert.ok('error' in outcome,JSON.stringify(outcome));
+    assert.equal(outcome.error.code,mode==='guard'?'forbidden':'validation');
+    const after=await w.snapshot(); assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+    assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+    for(const batch of batches) { assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+      assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+      assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]); }
+    const receipt=await w.store.readReceipt(w.receiptIdentity);
+    if(mode==='caught') {
+      assert.ok(receipt); assert.equal(receipt.outcome.status,'rejected');
+      assert.equal(readScenarioReceiptAssociation(receipt),null); assert.equal(batches.length,1);
+      assert.equal(after.revision,before.revision+1,'caught child refusal retains exactly one rejected fence');
+    } else {
+      assert.equal(receipt,null,'revocation at the successful commit bar admits no receipt');
+      assert.equal(batches.length,0); assert.equal(after.revision,before.revision);
+    }
+  }
+  await assert.rejects(world(false,true,undefined,artifact=>staticCallsFixture(artifact,'source-skew'),false),
+    /exact checked source/);
+});
