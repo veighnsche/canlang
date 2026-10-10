@@ -2646,11 +2646,13 @@ is declined. Ordinary emission is unchanged.
 Affected library159, codegen121, query8, decision7, invocation7, disclosure19,
 actual native4 and new source-skew1 pass, total326; strict all-target Clippy and
 format0 pass. Finite source review finds no source-lineage/order defect; runtime
-unbound behavior is a Dev prerequisite. The new actual installed consumer is
-**1 failed**: State accepts the emitted DTO but its query inventory rejects the
-correct canonical nominal `Task.priority` field before the owning enum-schema
-join. Capability/State owns the exact repair; preserve the named enum and the
-positive assertion. It also owns lazy false-candidate/path capture: original
+unbound behavior is a Dev prerequisite. The initial installed consumer failure at canonical nominal `Task.priority`
+is resolved by released State **b1a65359**, consumed from reviewed LOCAL
+**9e71bea7** with both compiler and owner histories preserved. Actual owning
+build **6/6** succeeds; only that previously failing emitted-query consumer
+reruns once and passes **1/1** (0.70s), retaining its original named enum, real
+owning schema and eight corruption refusals. Current affected total is **327**;
+unchanged checks are reused. Capability/State still owns lazy false-candidate/path capture: original
 `task in targets and task.location==location` must not fabricate a skipped read.
 Dev owns genuine verified module/frame/slot/result binding and generic behavior.
 The existing pure-membership/clean original-cohort contract remains; the actual
