@@ -90,6 +90,8 @@ async function verifyConsumer(checkout) {
   assert.ok(plain.modules && !Object.keys(plain.modules).some(key => key.endsWith('values_semantics.js')), 'values backend remains opt-in');
   for (const marker of api.MCP_BUNDLE_MARKERS) assert.ok(first.modules[api.MCP_HANDLER_MODULE].includes(marker));
   for (const marker of api.HTTP_BUNDLE_MARKERS) assert.ok(first.modules[api.HTTP_OPERATIONS_MODULE].includes(marker));
+  assert.match(first.modules[api.HTTP_OPERATIONS_MODULE], /\bexport\s*\{[^}]*\breceiverFromIdentity\b[^}]*\}/s, 'the genuine HTTP bundle must expose the receiving principal named export');
+  assert.match(first.modules['runtime/invoke.js'], /^\s*import\s*\{\s*receiverFromIdentity\s*\}\s*from\s*['"]\.\.\/worker\/http-operations\.js['"]/m, 'the current owning runtime must consume the genuine HTTP principal export');
   for (const [key, source] of Object.entries(first.modules)) {
     assert.ok(!source.includes(checkout), `runtime module contains checkout path: ${key}`);
     assert.ok(!source.includes('/packages/'), `runtime module contains sibling package path: ${key}`);
