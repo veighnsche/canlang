@@ -374,10 +374,31 @@ export interface OutboxIntent {
   readonly handlerContract?: string;
 }
 
+/**
+ * Original publication facts for an outbox intent in its owning State store.
+ * Both values must be persisted with that intent in its original fenced commit:
+ * revision is that winning commit's revision; createdAt is the original stored
+ * outbox creation time (epoch milliseconds), not the time of a later read,
+ * claim, acknowledgement or retry. The revision is scoped to that same owner
+ * store; it is not a global epoch or provider-payload assertion.
+ */
+export interface OriginalOutboxCommit {
+  readonly revision: Revision;
+  readonly createdAt: number;
+}
+
 /** Retained original carrier and storage status; dispatch acknowledgement is not delivery evidence. */
 export interface RetainedOutboxIntent {
   readonly intent: OutboxIntent;
   readonly status: 'pending' | 'dispatched' | 'skipped';
+  /**
+   * Complete original provenance, retained unchanged through dispatch/skip and
+   * reopen. Omitted means missing provenance (including legacy rows with only
+   * created_at); neither field may be reconstructed from the current revision,
+   * clock, stage or supplied payload. Consumers requiring this correspondence
+   * must refuse/withhold when it is absent. No partial stamp is represented.
+   */
+  readonly originalCommit?: OriginalOutboxCommit;
 }
 
 /**
