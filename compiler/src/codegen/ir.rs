@@ -10131,6 +10131,12 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
+        let destination = ui_attributes(self.db, node)
+            .iter()
+            .any(|(name, _)| name == "target");
+        if destination {
+            self.check_ui_attributes(node, "button destination", &["target", "caption"]);
+        }
         let mut props = Vec::new();
         if kids(node).iter().any(|n| is_expression(n.kind)) {
             self.diags.push(Diagnostic::error(
@@ -10170,6 +10176,13 @@ impl<'a> Cx<'a> {
                 };
                 props.push((name.clone(), decoded));
             }
+        }
+        if destination && bindings != 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button destination: exactly one binding is required".to_string(),
+                node.span,
+            ));
         }
         if bindings == 0 {
             self.diags.push(Diagnostic::error(

@@ -6359,6 +6359,16 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::CatalogItem => {
+                // Destination controls carry real expressions, not catalog words.
+                if kids(node).iter().find_map(|n| name_text(n, text)) == Some("button")
+                    && attribute_value(node, "target", text).is_some()
+                {
+                    for name in ["target", "caption"] {
+                        if let Some(value) = attribute_value(node, name, text) {
+                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                        }
+                    }
+                }
                 // The stat description is a caption expression, not catalog vocabulary.
                 if kids(node).iter().find_map(|n| name_text(n, text)) == Some("stat")
                     && let Some(value) = attribute_value(node, "description", text)
