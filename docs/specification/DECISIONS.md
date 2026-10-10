@@ -5649,3 +5649,10 @@ Use released Values normalization with actual same-load model names. Actual CLI/
 installed consumer4/4 and independent finite review pass; nullable/ordered arrays
 and wire/native version behavior remain owning codec semantics. Same-load loader
 and original native query/result provenance qualification remain separate.
+
+
+### 2026-10-10 — observe membership in its active owner execution (unfinished source join)
+
+Bind Compiler v1 occurrence metadata through the existing checked callable/source loader, then require Dev's freshly consumed native arguments and Invoke's private current Identity reader at each actual active_member expression. A source occurrence is reusable; each runtime evaluation captures a new exact Values user and verified Team pair. Actual leading/body REQUIRE and active query candidate lifetimes share the enclosing owner/checkpoint. Positive and negative membership Bool comparisons enter the private outer guard ledger independently of executor effects and trusted admission. Unknown provenance/status, stale or concurrent execution and caught misuse poison the owner; later SEND cannot reuse this API.
+
+State clean emission and35 defining membership plus22 call/24 query Node tests pass81/81; the query suite still covers29 controls through its multi-mode Fact case. Reuse unchanged legacy46. This accepts no Compiler/Dev/native source behavior, saved-result membership closure or StateRead gate expansion. Separate dispatch qualification uses its own live Work execution/current service-owner Team.

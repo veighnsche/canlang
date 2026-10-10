@@ -9,7 +9,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
+import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import type { PolicyTable } from '../policy/grants.js';
@@ -28,6 +28,8 @@ import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../receipt/tables.js';
 import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
 import { isGeneratedOperationDef } from './registry.js';
 import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory, queryProjectionWire, checkSavedQueries, savedQueriesReadable } from './scenario-query-plan.js';
+import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
+export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -222,6 +224,136 @@ interface BoundCalls {
 const callProducers = new WeakMap<GeneratedOperationDef, BoundCalls>();
 const activeCalls = new WeakMap<AdmittedCall, { readonly owner: ReceiptOwnerSession }>();
 const retainedCallGuards = new WeakMap<AdmittedCall, readonly NonNullable<ExecutionEffects['guards']>[number][]>();
+
+/** Definition-bound identities, never request frames or execution authority. */
+export type ScenarioReceiptMembershipHandle = Readonly<object>;
+export interface ScenarioReceiptMembershipProducer {
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly app: string;
+  readonly sites: readonly ScenarioReceiptMembershipSite[];
+  /** Dev's literal installed adapter consumes the actual privately staged
+   * evaluated native argument pair once. It maps the actual native Team to
+   * this call's exact verified Team pointer; a public id claim cannot do so. */
+  readonly capture: (call: AdmittedCall, site: ScenarioReceiptMembershipSite, callIndex: number) => {
+    readonly person: UserRef; readonly team: NonNullable<AdmittedCall['context']['team']>;
+  };
+}
+interface BoundMemberships {
+  readonly source: ScenarioResultDisclosurePlan['source']; readonly app: string;
+  readonly capture: ScenarioReceiptMembershipProducer['capture'];
+  readonly sites: readonly ScenarioReceiptMembershipSite[];
+}
+const membershipProducers = new WeakMap<GeneratedOperationDef, BoundMemberships>();
+const membershipHandles = new WeakMap<ScenarioReceiptMembershipHandle, {
+  readonly def: GeneratedOperationDef; readonly bound: BoundMemberships;
+  readonly site: ScenarioReceiptMembershipSite; readonly callIndex: number;
+}>();
+
+/** Internal sibling-component loader join; intentionally absent from barrels.
+ * It cannot register a definition or grant an active execution. */
+export function assertScenarioReceiptMembershipSource(def: GeneratedOperationDef,
+  source: ScenarioResultDisclosurePlan['source']): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined || invokedPlans.has(def)) return invalid('membership source requires its actual checked definition before execution.');
+  const actual = dataCopy(source); origin(actual);
+  if (stableStringify(actual) !== stableStringify(bound.plan.source)) return invalid('membership source differs from its owning checked callable.');
+}
+/** Bind once before execution at the existing verified source/callable loader
+ * boundary. Transport validation is not JavaScript attestation. Handles are
+ * returned in recipe/call order for exact active_member occurrences only. */
+export function bindScenarioReceiptMembershipProducer(def: GeneratedOperationDef,
+  producer: ScenarioReceiptMembershipProducer): readonly ScenarioReceiptMembershipHandle[] {
+  if (membershipProducers.has(def)) return invalid('membership producer requires one checked source binding before execution.');
+  object(producer, ['source', 'app', 'sites', 'capture']);
+  if (typeof producer.capture !== 'function') return invalid('literal loader membership capture required.');
+  const source = dataCopy(producer.source); origin(source); text(producer.app);
+  assertScenarioReceiptMembershipSource(def, source);
+  const sites = checkScenarioReceiptMembershipSites(producer.sites);
+  if (sites.some(site => site.owner !== def.name || stableStringify(site.source) !== stableStringify(source))) return invalid('membership recipe differs from its canonical owning source/callable.');
+  const bound: BoundMemberships = Object.freeze({ source: deepFreeze(source), app: producer.app, sites, capture: producer.capture });
+  const handles: ScenarioReceiptMembershipHandle[] = [];
+  for (const site of sites) site.calls.forEach((call, callIndex) => {
+    if (call.target.kind !== 'builtin' || call.target.id !== 'active_member') return;
+    const handle = Object.freeze({}); membershipHandles.set(handle, { def, bound, site, callIndex }); handles.push(handle);
+  });
+  if (handles.length === 0) return invalid('membership producer requires its exact checked active_member occurrence.');
+  membershipProducers.set(def, bound);
+  return Object.freeze(handles);
+}
+
+function membershipOwner(call: AdmittedCall): ReceiptOwnerSession | undefined {
+  const context = typeof call === 'object' && call !== null ? Object.getOwnPropertyDescriptor(call, 'context') : undefined;
+  return ownerSessions.get(call) ?? (context !== undefined && 'value' in context && typeof context.value === 'object' &&
+    context.value !== null ? ownerContexts.get(context.value) : undefined);
+}
+/** Internal observer join shared with the separate genuine dispatch lifetime.
+ * Intentionally absent from public barrels; this grants no execution frame. */
+export async function readScenarioCurrentMembership(reader: MembershipReader, team: string, person: string): Promise<boolean> {
+  const found = await reader.findMembership(team, person);
+  if (found === null) return false;
+  const row = object(dataCopy(found), ['membership_id', 'team_id', 'user_id', 'is_owner', 'roles', 'status', 'created_at', 'updated_at']);
+  text(row['membership_id']); text(row['created_at']); text(row['updated_at']);
+  if (row['team_id'] !== team || row['user_id'] !== person || typeof row['is_owner'] !== 'boolean' ||
+      !['active', 'removed'].includes(String(row['status']))) return invalid('Identity reader returned a foreign pair or unknown membership state.');
+  for (const value of list(row['roles'])) {
+    const role = object(value, ['role', 'granted_at', 'granted_by']);
+    text(role['role']); text(role['granted_at']); text(role['granted_by']);
+  }
+  return row['status'] === 'active';
+}
+
+/** Evaluate at the authored expression point, using only Dev's actual capture
+ * and Invoke's private Identity reader. Positive and negative decisions join
+ * the mandatory outer guard ledger; source callbacks never run at commit.
+ * This component does not supply saved return/query membership closure. */
+export async function evaluateScenarioReceiptMembership(call: AdmittedCall, store: StoragePort,
+  input: { readonly site: ScenarioReceiptMembershipHandle }): Promise<boolean> {
+  let owner = membershipOwner(call), state: Capture | undefined; let acquired = false;
+  try {
+    state = capture(call, store); owner = ownerSessions.get(call);
+    object(input, ['site']);
+    const issued = membershipHandles.get(input.site);
+    if (owner === undefined || owner.session === null || issued === undefined || issued.def !== call.def ||
+        membershipProducers.get(issued.def) !== issued.bound || issued.bound.app !== call.context.app ||
+        stableStringify(issued.bound.source) !== stableStringify(state.bound.plan.source) ||
+        issued.site.stage === 'send-dispatch') return invalid('membership requires its actual bound active owner call/source/app, never a dispatch lifetime.');
+    ownerHealthy(owner);
+    if (owner.executingCall !== call || state.returnId !== null || state.pending !== 0 || owner.capture.pending !== 0 ||
+        issued.site.stage === 'leading-require' && owner.stage !== 0 || owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
+    const query = state.queries.find(value => value.call === call && value.owner === owner && value.stage === owner!.stage && value.activeSlot !== null) ?? null;
+    if (owner.busy && query === null || !owner.busy && query !== null) return invalid('membership query capture requires its actual active candidate slot.');
+    const stage = owner.stage, slot = query?.activeSlot ?? null;
+    state.pending += 1; acquired = true;
+    // Synchronous literal capture consumes the native evaluated arguments once,
+    // before any read can yield. Freeze only the validated scalar identity.
+    const values = issued.bound.capture(call, issued.site, issued.callIndex);
+    object(values, ['person', 'team']);
+    const person = object(values.person, ['kind', 'id']);
+    if (!isUserRef(values.person) || person['kind'] !== 'user' || !Object.isFrozen(values.person) ||
+        values.team !== call.context.team || values.team === null ||
+        values.team !== owner.call.context.team && (values.team.teamId !== owner.call.context.team?.teamId ||
+          stableStringify(dataCopy(values.team)) !== stableStringify(dataCopy(owner.call.context.team)))) return invalid('membership capture requires its owning Values user and exact verified current Team pointer.');
+    const teamId = text(values.team.teamId), userId = text(values.person.id), reader = scenarioReceiptMemberships(owner.call, store);
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner!);
+      if (owner!.executingCall !== call || owner!.stage !== stage || query !== null &&
+          (query.activeSlot !== slot || query.complete) || state!.pending !== 1) return invalid('membership read crossed its exact active call/query stage.');
+    };
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership observation moved beyond its admitted revision.');
+    healthy();
+    const observed = await readScenarioCurrentMembership(reader, teamId, userId); healthy();
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership read moved beyond its admitted revision.');
+    healthy();
+    owner.callGuards.push(Object.freeze({ name: `membership:${call.def.name}:${stage}:${owner.callGuards.length}`, evaluate: async () => {
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership checkpoint moved before outer commit.');
+      const live = await readScenarioCurrentMembership(reader, teamId, userId);
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership recheck moved beyond the outer checkpoint.');
+      return live === observed;
+    } }));
+    return observed;
+  } catch (error) { if (state !== undefined) state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) state!.pending -= 1; }
+}
 /** Invoke consumes this private ledger independently of the root's trusted
  * admission bypass. Neither executor effects nor request data can omit it. */
 export async function revalidateScenarioReceiptCalls(call: AdmittedCall): Promise<void> {
@@ -310,7 +442,7 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
     capture(call, store); owner = ownerSessions.get(call);
     if (owner === undefined || owner.session === null) return invalid('call requires the actual existing owner transaction.');
     ownerHealthy(owner);
-    if (owner.busy || owner.executingCall !== call || owner.capture.pending !== 0 || ++owner.callCount > MAX_ITEMS || owner.callDepth >= 16) return invalid('concurrent or unbounded child calls are forbidden.');
+    if (owner.busy || owner.executingCall !== call || owner.capture.pending !== 0 || captures.get(call)?.pending !== 0 || ++owner.callCount > MAX_ITEMS || owner.callDepth >= 16) return invalid('concurrent or unbounded child calls are forbidden.');
     const bound = callProducers.get(call.def as GeneratedOperationDef);
     if (bound === undefined || bound.producer.app !== call.context.app) return invalid('no loader-verified call producer for this source/app.');
     const report = object(input, ['site', 'target', 'inputs']);
@@ -964,7 +1096,7 @@ async function ownerOperation<T>(owner: ReceiptOwnerSession, execute: () => Prom
   let acquired = false;
   try {
     ownerHealthy(owner);
-    if (owner.busy || owner.capture.pending !== 0 || owner.executingCall !== caller) return invalid('concurrent owner session operations are forbidden.');
+    if (owner.busy || owner.capture.pending !== 0 || (captures.get(caller)?.pending ?? 0) !== 0 || owner.executingCall !== caller) return invalid('concurrent owner session operations are forbidden.');
     owner.busy = true; acquired = true;
     const result = await execute();
     ownerHealthy(owner);
@@ -1200,7 +1332,7 @@ export function observeScenarioReceiptQueryDependency(call: AdmittedCall, store:
     object(input, ['slot', 'dependencyId']);
     const issued = querySlots.get(input.slot), query = issued?.execution;
     if (query === undefined || query.call !== call || query.owner !== owner || query.stage !== owner?.stage ||
-        query.activeSlot !== input.slot || !owner.busy || state.returnId !== null) return invalid('query field observation requires its actual active candidate slot.');
+        query.activeSlot !== input.slot || !owner.busy || state.pending !== 0 || state.returnId !== null) return invalid('query field observation requires its actual active candidate slot.');
     const dependency = query.plan.dependencies.find(dep => dep.id === input.dependencyId), candidate = query.candidates[issued!.index]!;
     if (dependency === undefined || !Object.hasOwn(candidate.record.data, dependency.field)) return invalid('query dependency is outside its checked projected field.');
     candidate.dependencies.add(dependency.id);
