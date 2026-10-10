@@ -11,6 +11,7 @@ fn ir() -> IrProgram {
         catalog_version: String::new(),
         value_constraints: Default::default(),
         scenario_disclosures: Default::default(),
+        committed_sources: Default::default(),
         referenced_builtins: vec![],
         read_rules: vec![],
         invariants: vec![],

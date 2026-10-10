@@ -18,6 +18,7 @@ fn empty() -> CompileArtifact {
         models: vec![],
         value_types: None,
         model_policies: None,
+        committed_changes: None,
         pages: vec![],
         migrations: vec![],
         requires: vec![],

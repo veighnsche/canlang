@@ -6709,3 +6709,22 @@ State/Work final-net component d7 has finite coordinator source review CLEAR. Ex
 ### 2026-10-10 — manual local integration of final-net model sources
 
 Manual finite State, Work and final test-delta reviews CLEAR for d7ec5f26/f89d12fa. Final business changes, including same-value versioned updates, enroll source rows, all installed ordinary/cohort routes, complete bounded frozen memberships/first cuts and retained receipts with original root attribution under the original business fence. Preserve ordered authored history and every explicit effect; transient create-remove emits none. The private business subset retains existing receipt disclosure and CRUD association. Misuse, rollback, conflict and replay remain closed; unrelated owners are not globally poisoned. Reuse State71 plus Work13 distinct84, clean owning emits and strict boundary0, including real nested Scenario-Scenario-generatedCRUD/hook in one original fence with no replay callbacks. Shared Contracts source matches released af731606. This qualifies runtime handling of the installed selector inventory; Compiler complete checked metadata and Dev genuine native/current owner/invoke-local opaque ID memo/full original SEQ048 remain required. Retain reviewed current Compiler44abe source, receiver/UI/native File prerequisites and the corrected completed-upload retry wording. Continue ready stored-ref source-field authority work. Preserve precise holds, existing allocations and the unadvanced complete checkpoint; no publication.
+
+
+### 2026-10-10 — retain complete checked committed-model declarations (unfinished native join)
+
+Derive agreed optional committedChanges metadata from immutable clean checked
+source declarations, independently of editable analysis tables and lowered IR.
+Retain canonical imported model/source identity, complete declaration-order
+ordinary/cohort handlers and actual cohort correspondence; emit the same census
+in artifact and appDefinition. Reuse existing callables/private invocation and
+source maps. Private id is required text, version is int; deletion grants no row
+reference or snapshot. Refuse missing/skewed/raw/stale source rather than claim a
+partial inventory. Affected148, strict release checks and finite corrected review
+qualify the compiler component. State/Work final-net source is separately
+released; Dev actual native activation/original Volunteer remains unfinished.
+No new shared DTO, origin issuer, event wrapper, wider acceptance or hold change.
+
+### 2026-10-10 — manual local integration of cc6aa31d
+
+Manually reviewed the finite Compiler committed-model declaration and private payload unit in two independent slices: checked immutable source census and canonical imported identities, complete ordinary/cohort declaration inventory, identical optional artifact/appDefinition metadata, and existing text id/int version private admission all clear. Reuse the reported 148 distinct affected checks plus strict Clippy/format results; no unchanged checks rerun. Source matches the reviewed local commit. Reviewed State/Work final-net source and common DTO remain preserved. Dev owns actual same-fence runtime enrollment, current authority and original CanVolunteer qualification. Compiler 58/67 and precise BDD3/Task22 holds remain unchanged; this unfinished join is not whole-plan acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

@@ -583,6 +583,8 @@ pub struct IrProgram {
     /// requires actual evaluated-read and return capture at every selected site.
     pub scenario_disclosures:
         HashMap<SymbolId, crate::analysis::scenario_disclosure::ScenarioDisclosure>,
+    /// Declaration census retained by the checked builder, never a wire claim.
+    pub committed_sources: CheckedCommittedSources,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
     /// Builtin references observed while decoding checked call positions
@@ -656,6 +658,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         items: Vec::new(),
         value_constraints: HashMap::new(),
         scenario_disclosures: HashMap::new(),
+        committed_sources: CheckedCommittedSources::default(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
@@ -1300,10 +1303,71 @@ impl IrDeleteMode {
 }
 
 /// Checked trusted handler identity and finite payload authority.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrEventSource {
     Declared(String),
     DeliveryProgressed(String),
+    Committed {
+        model: SymbolId,
+        change: IrCommittedChange,
+    },
+}
+
+/// Final stored-change vocabulary shared with the defining artifact contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IrCommittedChange {
+    Create,
+    Update,
+    Delete,
+}
+
+impl IrCommittedChange {
+    pub fn suffix(self) -> &'static str {
+        match self {
+            Self::Create => "created",
+            Self::Update => "updated",
+            Self::Delete => "deleted",
+        }
+    }
+}
+
+/// Immutable source census prevents a partial or edited IR from claiming a
+/// complete trigger inventory. Raw IR fixtures can only construct the empty
+/// default. No runtime authority or extra public artifact DTO is introduced.
+#[derive(Debug, Clone, Default)]
+pub struct CheckedCommittedSources {
+    pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
+    pub(crate) handlers: Vec<CheckedCommittedHandler>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedCommittedHandler {
+    pub id: SymbolId,
+    pub module: ModuleId,
+    pub canonical: String,
+    pub source: IrEventSource,
+    pub model: String,
+    pub cohort: Option<IrCohort>,
+    pub cohort_model: Option<String>,
+    pub span: Span,
+}
+
+impl From<&crate::analysis::effects::CohortData> for IrCohort {
+    fn from(cohort: &crate::analysis::effects::CohortData) -> Self {
+        Self {
+            kind: match cohort.kind {
+                crate::analysis::effects::CohortKind::Model => IrCohortKind::Model,
+                crate::analysis::effects::CohortKind::AnchoredCollection => {
+                    IrCohortKind::AnchoredCollection
+                }
+            },
+            model: cohort.model,
+            bind: cohort.bind.clone(),
+            parent: (!cohort.parent_path.is_empty()).then(|| cohort.parent_path.join(".")),
+            span: Span::new(cohort.node.file, cohort.node.start, cohort.node.end),
+        }
+    }
 }
 
 /// Pre-commit hook trigger (T31 Rule A): the hooked model plus the
@@ -1879,11 +1943,50 @@ impl<'a> Cx<'a> {
         let migrations = self.build_migrations();
         let suites = self.build_suites(&items);
         let referenced_builtins = self.build_referenced_builtins();
+        let committed_sources = CheckedCommittedSources {
+            sources: self
+                .program
+                .checked_files()
+                .iter()
+                .filter_map(|id| {
+                    self.db
+                        .get(*id)
+                        .map(|source| (*id, source.path.clone(), source.sha256.clone()))
+                })
+                .collect(),
+            handlers: self
+                .program
+                .committed_handlers
+                .iter()
+                .map(|fact| {
+                    let change = match fact.event.as_str() {
+                        "created" => IrCommittedChange::Create,
+                        "updated" => IrCommittedChange::Update,
+                        "deleted" => IrCommittedChange::Delete,
+                        _ => unreachable!("checked committed source"),
+                    };
+                    CheckedCommittedHandler {
+                        id: fact.id,
+                        module: fact.module,
+                        canonical: fact.canonical.clone(),
+                        source: IrEventSource::Committed {
+                            model: fact.model,
+                            change,
+                        },
+                        model: fact.model_canonical.clone(),
+                        cohort: fact.cohort.as_ref().map(IrCohort::from),
+                        cohort_model: fact.cohort_model.clone(),
+                        span: fact.span,
+                    }
+                })
+                .collect(),
+        };
         let program = IrProgram {
             modules,
             items,
             value_constraints: self.program.types.value_constraints.clone(),
             scenario_disclosures: self.program.scenario_disclosures().clone(),
+            committed_sources,
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,
@@ -6472,6 +6575,18 @@ impl<'a> Cx<'a> {
             {
                 Some(IrEventSource::DeliveryProgressed(source.clone()))
             }
+            Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
+                let change = match event.as_str() {
+                    "created" => Some(IrCommittedChange::Create),
+                    "updated" => Some(IrCommittedChange::Update),
+                    "deleted" => Some(IrCommittedChange::Delete),
+                    _ => None,
+                };
+                change.map(|change| IrEventSource::Committed {
+                    model: *model,
+                    change,
+                })
+            }
             _ => None,
         };
         let hook = match &data.on {
@@ -6522,22 +6637,7 @@ impl<'a> Cx<'a> {
             .collect();
         // T34-F6: the checked `each=` cohort decodes verbatim (analysis
         // owns the contract; the IR never re-derives it).
-        let cohort = data.cohort.as_ref().map(|cohort| IrCohort {
-            kind: match cohort.kind {
-                crate::analysis::effects::CohortKind::Model => IrCohortKind::Model,
-                crate::analysis::effects::CohortKind::AnchoredCollection => {
-                    IrCohortKind::AnchoredCollection
-                }
-            },
-            model: cohort.model,
-            bind: cohort.bind.clone(),
-            parent: if cohort.parent_path.is_empty() {
-                None
-            } else {
-                Some(cohort.parent_path.join("."))
-            },
-            span: Span::new(cohort.node.file, cohort.node.start, cohort.node.end),
-        });
+        let cohort = data.cohort.as_ref().map(IrCohort::from);
         (
             data.read,
             by,
