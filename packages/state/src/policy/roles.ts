@@ -8,7 +8,7 @@
  * never coerced to false.
  */
 
-import type { Membership } from '@canlang/contracts';
+import type { Membership, MembershipSnapshot } from '@canlang/contracts';
 
 /**
  * Structural subset of the L6 IdentityStore consumed by admission. The L6
@@ -17,6 +17,8 @@ import type { Membership } from '@canlang/contracts';
  */
 export interface MembershipReader {
   findMembership(teamId: string, userId: string): Promise<Membership | null>;
+  /** Positive coherent producer; legacy readers remain singular-only. */
+  findMembershipsSnapshot?(teamId: string, userIds: readonly string[]): Promise<MembershipSnapshot>;
 }
 
 /** Actor predicate AST: built-ins, declared roles, subject form, combinators. */
