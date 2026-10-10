@@ -579,13 +579,14 @@
       "reviewed_main": "4923733f714d7c3d1321d8a13fdc1575f33d2c44"
     },
     "activation_route": {
-      "state": "reviewed_corrected_binder_ready_for_exact_intake",
+      "state": "reviewed_binder_consumed_finite_activation_ready",
       "owner": "Dev binder implementation; coordinator exact reviewed release; compiler finite activation/CLI artifact checks; Dev actual native workflow",
       "existing_route": "packages/cloudflare/src/dev/compiler-check.ts runStagedCompiler already invokes canonical compile --native-scenario-receipts. Source-aware emitter uses the existing complete static_preparation profile/body/carrier.",
       "next": "After exact binder release, retain E6008 only for unmatched call profiles, qualify real native CLI output and execute through actual Dev binding. Preserve every nonnative/read/dynamic/as/CRUD/default/composite refusal; no private artifact bypass or direct-handler surrogate.",
       "binder_review": "Coordinator manually released corrected genuine binder: memoized remaining depth accepts16/refuses17 including shared tails. Grouped genuine loader/State/Identity1/1 five modes204.40ms; prior2/25 and finite whole41 reused. Source/authority and transaction/result/lifetime reviews clear. Compiler collector exclusion is committed before intake/activation; no native CALL acceptance yet.",
       "released_main": "eb586551e72be288a00aeb03ddc78c27fe6cdbcf",
-      "released_component": "31159eb96b29225341d95b3f97e9058df1661056"
+      "released_component": "31159eb96b29225341d95b3f97e9058df1661056",
+      "intake": "Exact reviewed31159eb9/LOCALeb586551 invoke.ts and defining scenario-receipt-canonical.test.ts only; foreign records/session changes excluded, compiler edits preserved. Fresh actual dependency graph26/26 with zero cached tasks passes on Node24. Released component1/1 five modes and prior2/25 reused; no native CALL execution."
     }
   }
 }
