@@ -145,8 +145,10 @@ async function verifyConsumer(checkout) {
   const invokeEntry = ownerModule('@canlang/cloudflare/runtime/invoke');
   const servingControl = join(dirname(fileURLToPath(invokeEntry)), 'd3b-observer-seam.test.js');
   installedFile(pathToFileURL(servingControl));
+  // Execute the exact control directly: node:test honors the pattern without
+  // CLI file discovery or test-runner child isolation outside this permission.
   execFileSync(process.execPath, ['--permission', `--allow-fs-read=${process.env.TMPDIR}`, `--allow-fs-write=${process.env.TMPDIR}`,
-    '--test', '--test-name-pattern=serves deep-equal output', servingControl],
+    '--test-name-pattern=serves deep-equal output', servingControl],
   { cwd: consumer, env: process.env, stdio: 'inherit' });
 
   // Stale direct-emission residue in isolated installed copies must not enter
@@ -181,7 +183,10 @@ async function verifyConsumer(checkout) {
     try {
       rmSync(file);
       assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }),
-        error => error.message.includes(file) && /not built|ENOENT/.test(error.message), `missing real ${specifier}`);
+        error => {
+          const absent = error.code === 'ENOENT' ? error : error.cause;
+          return absent?.code === 'ENOENT' && absent.path === file && /not built|ENOENT/.test(error.message);
+        }, `missing real ${specifier}`);
     } finally { writeFileSync(file, saved); }
   }
 
