@@ -6,10 +6,10 @@
   "checkpoint_advanced": false,
   "coverage": {
     "commit_count_since_checkpoint": 1604,
-    "net_path_deltas": 10803,
+    "net_path_deltas": 10804,
     "history_touched_paths": 11347,
     "history_only_paths": 513,
-    "released_feature_paths": 78,
+    "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9301,
     "scope": "Worker integration of coordinator-released local main source e3ea2b70042441b29388b3735e1d560a060d27e6 onto a189733d2499601842326f56022ad613f93b00c5; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
@@ -64884,6 +64884,12 @@
       "turbo.json",
       "build",
       "inherited-unallocated"
+    ],
+    [
+      "A",
+      "tests/integration/can-dev-server/NativeStaticCalls.can",
+      "packages/cloudflare",
+      "feature"
     ]
   ],
   "history_only": [
