@@ -1352,6 +1352,24 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
 }
 
 pub fn emit_program_with_native_receipts(ir: &IrProgram, native_receipts: bool) -> JsOutput {
+    emit_program_with_receipt_sources(ir, native_receipts, None)
+}
+
+/// Native call-site preparation needs the same verified source cohort as IR.
+/// Hosts without those bytes keep call effects outside the receipt profile.
+pub fn emit_program_with_native_source_receipts(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: &crate::source::SourceDb,
+) -> JsOutput {
+    emit_program_with_receipt_sources(ir, native_receipts, Some(db))
+}
+
+fn emit_program_with_receipt_sources(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: Option<&crate::source::SourceDb>,
+) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.validate_model_field_bounds();
     let entry_id = pick_entrypoint(ir);
@@ -1380,7 +1398,27 @@ pub fn emit_program_with_native_receipts(ir: &IrProgram, native_receipts: bool) 
     let mut body = JsWriter::new();
     // Operation descriptors derive once, up front: the `canApp()`
     // registry and the artifact envelope share them verbatim.
-    let operations = emitter.collect_operations();
+    let mut operations = emitter.collect_operations();
+    let invalid_call_parents: Vec<_> = ir.items.iter().filter(|item| {
+        emitter.native_receipts.contains_key(&item.id)
+            && ir.scenario_disclosures.get(&item.id).is_some_and(|plan| {
+                matches!(plan, crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)
+                    if checked.effects.iter().any(|effect| matches!(effect.kind,
+                        crate::analysis::scenario_disclosure::DisclosureEffectKind::Call { .. })))
+            })
+            && db.and_then(|db| super::scenario_calls::collect_static_scenario_calls(
+                ir, item, &operations, db, &module_path(&entry_name),
+            )).is_none()
+    }).map(|item| (item.id, item.canonical.as_str())).collect();
+    for (id, name) in invalid_call_parents {
+        emitter.native_receipts.remove(&id);
+        if let Some(operation) = operations
+            .iter_mut()
+            .find(|operation| operation.name == name)
+        {
+            operation.disclosure = None;
+        }
+    }
     emitter.emit_identity_consts(&mut body, entry_id);
     for module in &ir.modules {
         for page in &module.pages {
