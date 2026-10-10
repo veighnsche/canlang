@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. Ready compiler call producers are locally integrated; the final child-framework exclusion passes focused qualification. Activation awaits Dev's corrected genuine verified binder release and actual native execution. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Finite native static CALL source now publishes through the real CLI; owning6/6 and strict all-target lint/format pass. Actual Dev native execution and final changed-source whole qualification remain required. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2157,3 +2157,19 @@ Coordinator releases corrected genuine Dev31159eb9 binder at LOCALeb586551.
 The16/17/shared-tail component is tested and manually reviewed. Consume that
 exact release after this coherent collector correction, then activate the finite
 static profile and qualify actual CLI/native execution. No wider hold is released.
+
+Exact reviewed binder source/tests are consumed alone; actual dependency graph
+**26/26**, zero cached, builds on Node24. Component1/1/five modes and unchanged
+prior2/25 reuse their released scopes; finite activation is now ready.
+
+
+**Finite native static CALL activation (unfinished), 2026-10-10.** After exact
+reviewed binder intake, the unique checked active-parent static/no-as/discarded
+scalar-or-void site emits its real awaited facade without E6008. Actual CLI and
+imported-module target passes **6/6**: carrier/two call sites, depth16 and
+aggregate200 publish; generic/read/dynamic/as/CRUD/default/array/childSend and
+overbound profiles refuse with no artifact. Source-less/skewed/duplicate proof
+controls remain. Strict all-target Clippy/format and independent review pass.
+No handler executes; Dev genuine native consumer and final changed-source whole
+qualification are due. Original Workbench/protected profiles, nine refs and exact
+human holds remain. Prior1356 is historical at saved6e51.
