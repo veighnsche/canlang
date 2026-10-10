@@ -21,6 +21,8 @@ export {
 } from './admission.js';
 export { stableStringify, hashInputs } from './replay.js';
 export {
+  bindScenarioReceiptFileProducer, observeScenarioReceiptFileAssignment,
+  type ScenarioReceiptFileProducer, type ScenarioReceiptFileAssignmentLocator, type ScenarioReceiptFileAssignmentInput,
   observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
