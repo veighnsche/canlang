@@ -5348,3 +5348,8 @@ Add only a private returned-frame preparation hook, preserving the owner token a
 
 
 The native compile route already uses the canonical --native-scenario-receipts flag in compiler-check.ts. Distinguish prerequisites: Dev binder component and coordinator release precede finite compiler activation; actual native execution follows activation and must pass before feature acceptance. Keep wider call refusals and avoid a private artifact bypass. Reviewed LOCAL4002d808 private reference preparation is consumed by clean fast-forward, with fresh graph26/26 zero cached; compiler source/tests remain unchanged and full1356 retains its exact saved6e51 scope.
+
+
+## 2026-10-10 — preserve the defining sixteen-child-edge boundary
+
+The existing actual checked source/emitter/module case qualifies16 child edges and refuses17 at the root disclosure, carrier and facade body; owning1/1, focused strict Clippy and formatting pass without handler execution. Keep Compiler/State limits unchanged. Dev pendinga2cf89f4 depth>=16 check excludes the supported final edge, while globally visited subtrees do not represent caller-relative depth. Coordinator routed the exact correction to Dev; transaction/result/lifetime and source/authority reviews are otherwise clear. Await the corrected genuine binder component release before finite native activation; reuse unchanged whole1356 and aggregate200 scopes.
