@@ -200,7 +200,10 @@ export async function projectGeneratedCrudReceipt(
   if (model !== association.model) return invalid('Saved CRUD association disagrees with the checked operation model.');
   const saved = receipt.outcome.result;
   if (association.record === null) {
-    if (kind !== 'delete' || saved !== null || receipt.outcome.recordVersions.length !== 0) {
+    // Removal has no surviving target. Other genuine writes, including Work
+    // source/handler receipts, still retain their versions in the same fence.
+    // They do not enter this target-only disclosure projection.
+    if (kind !== 'delete' || saved !== null) {
       return invalid('Saved CRUD removal disagrees with its committed outcome.');
     }
   } else if (!savedCrudRow(saved) || saved.id !== association.record.id ||
