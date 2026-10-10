@@ -557,10 +557,18 @@ it("owns pending qualification outside requests, dedupes it and reuses only its 
   const started=new Promise<void>(resolve=>{entered=resolve;});
   const fixture=await rankingFixture({allowExternal:()=>true,qualify:async request=>{
     qualifications++;entered();await gate;
-    return Object.freeze({...syntheticQualification(request),messageKinds:Object.freeze([])});
+    const bundle=syntheticQualification(request);
+    return Object.freeze({...bundle,messageKinds:Object.freeze([]),proofs:Object.freeze([...bundle.proofs,
+      Object.freeze({...bundle.proofs[0]!,id:"can.v1.app.composed"})])});
   },transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}}});
   const payload={revision:fixture.checked.revision,index:0};
   try {
+    await expect(fixture.client.request({command:"construct.help",payload:{revision:payload.revision,id:"can.v1.unknown"}}))
+      .rejects.toMatchObject({code:"CONSTRUCT_UNKNOWN"});
+    expect(qualifications).toBe(0);
+    const help=async(id=rankIds[0]!,revision=payload.revision)=>controlResult<{current:boolean;candidate_coverage:string;card:{id:string;status:string}}>(
+      await fixture.control(["construct.help","--revision",revision,"--id",id]));
+    expect(await help()).toMatchObject({current:true,candidate_coverage:"unknown",card:{id:rankIds[0],status:"unavailable"}});
     const first=await fixture.client.request({command:"diagnostic.detail",payload});
     expect(first).toMatchObject({current:true,construct_help:{candidateCoverage:"unknown"}});
     await started;
@@ -570,6 +578,10 @@ it("owns pending qualification outside requests, dedupes it and reuses only its 
     await vi.waitFor(async()=>expect(await fixture.client.request({command:"diagnostic.detail",payload}))
       .toMatchObject({current:true,construct_help:{candidateCoverage:"complete",
         classification:rankIds.map(id=>({id,profile:"included",working:"qualified"}))}}));
+    expect(await help()).toMatchObject({current:true,candidate_coverage:"unknown",card:{id:rankIds[0],status:"working"}});
+    expect(await help()).toMatchObject({card:{status:"working"}});
+    expect((await help("can.v1.app.composed")).card.status).not.toBe("working");
+    expect(await help(rankIds[0]!,fixture.original.revision)).toMatchObject({current:false,card:{status:"unavailable"}});
     expect(await fixture.rankPending()).toMatchObject({state:"candidate_coverage_unknown"});
     expect(qualifications).toBe(1);expect(calls).toBe(0);
   } finally {release();await fixture.owner.stop();}
@@ -588,11 +600,15 @@ it("refreshes diagnostic detail after pending qualification when source changes 
   try {
     const payload={revision:fixture.checked.revision,index:0};
     expect(await fixture.client.request({command:"diagnostic.detail",payload})).toMatchObject({current:true,construct_help:{candidateCoverage:"unknown"}});
+    expect(await fixture.client.request({command:"construct.help",payload:{revision:payload.revision,id:rankIds[0]}}))
+      .toMatchObject({current:true,candidate_coverage:"unknown",card:{status:"unavailable"}});
     await started;
     const delayedWatcher=vi.spyOn(DevSessionCore.prototype,"markDirty").mockImplementation(()=>undefined);
     restoreWatcher=()=>delayedWatcher.mockRestore();
     writeFileSync(fixture.app,`${rankSource}## Edited while diagnostic qualification was pending.\n`);
     expect(await fixture.client.request({command:"status"})).toMatchObject({revision:fixture.checked.revision,dirty:false});
+    expect(await fixture.client.request({command:"construct.help",payload:{revision:payload.revision,id:rankIds[0]}}))
+      .toMatchObject({current:false,candidate_coverage:"unknown",card:{status:"unavailable"}});
     const detail=await fixture.client.request({command:"diagnostic.detail",payload}) as {
       construct_help:{cards:{status:string}[];classification:{working:string}[]}};
     await cancelled;release();
@@ -675,6 +691,9 @@ it("withholds completed malformed qualification and aborts changed captured prod
       release();await new Promise(resolve=>setTimeout(resolve,30));
       for(let i=0;i<2;i++)expect(await fixture.client.request({command:"diagnostic.detail",payload}))
         .toMatchObject({current:mode!=="producer-change",construct_help:{candidateCoverage:mode==="inherited-example-check"?"complete":"unknown"}});
+      expect(await fixture.client.request({command:"construct.help",payload:{revision:payload.revision,id:rankIds[0]}}))
+        .toMatchObject({current:mode!=="producer-change",candidate_coverage:"unknown",card:{
+          status:mode==="inherited-example-check"?"working":"unavailable"}});
       expect(qualifications).toBe(1);expect(getters).toBe(0);
     } finally {
       if(inheritedKey!==undefined) {

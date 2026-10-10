@@ -1,26 +1,27 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "2430c9f1e2b832975b715991c8e1cbfe70e2b9af",
-  "base": "451102c1ed6a1d9a1c0c2de946de26cac6ae56df",
+  "integrated_source_pin": "d8d3cf87119384eaf8fb5ac1695a48ef828e143f",
+  "base": "33264a65b6119f5f494845c3bca0fb29a9263522",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1665,
-    "net_path_deltas": 10824,
-    "history_touched_paths": 11368,
+    "commit_count_since_checkpoint": 1680,
+    "net_path_deltas": 10825,
+    "history_touched_paths": 11369,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9321,
-    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL 2430c9f1e2b832975b715991c8e1cbfe70e2b9af onto committed original-query and active-membership source 451102c1ed6a1d9a1c0c2de946de26cac6ae56df; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Newly registered State membership plan/producer/tests and Work dispatch guard test remain inherited-unallocated pending exact duty/target review. Existing Contracts and State/Work source paths retain their prior allocation and review scope; narrow recorded source/consumer results do not establish complete original workflows. Compiler checked decisions/bounded-input releases and Dev query/receipt consumer changes retain their recorded finite scope. Source-current conditional rule/grant authority, exact original-query facts, Dev owner-stage/viewer/result binding, native replay/privacy/rollback and full product/target acceptance remain open. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
+    "inherited_paths_without_prior_target_allocation": 9322,
+    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL d8d3cf87119384eaf8fb5ac1695a48ef828e143f onto committed State reference-array and membership source 33264a65b6119f5f494845c3bca0fb29a9263522; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Incoming packages/state and packages/work labels normalize to canonical state/work owners without an ownership transfer. The new State reference-array consumer test remains inherited-unallocated pending exact duty/target review. Reuse Compiler840ba9c7729fd727c0d66c08c886868483647381 original29-file closure check (complete=true, omitted0,149 diagnostics, zero Workbench/CanDo), nominal model-reference producer/installed4/4, async guard refusal CLI/binding3/3 and unchanged codegen121, and owning decision serialization6/6 at their finite source/transport scopes. State/Work reference-array and membership component outcomes remain finite; Dev private element/frame and real lazy stage/dispatch captures are unfinished. No native StateRead, source when/default/pure activation or original workflow acceptance follows. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z 8249342707d3280e88e39e8c911b7e457828f31f (actual final staged merge tree before bookkeeping self-update)",
-    "git log --full-history -m --format= --name-only --no-renames -z 8249342707d3280e88e39e8c911b7e457828f31f..451102c1ed6a1d9a1c0c2de946de26cac6ae56df and 8249342707d3280e88e39e8c911b7e457828f31f..2430c9f1e2b832975b715991c8e1cbfe70e2b9af; union both parent history path sets",
-    "git rev-list --count 451102c1ed6a1d9a1c0c2de946de26cac6ae56df 2430c9f1e2b832975b715991c8e1cbfe70e2b9af ^8249342707d3280e88e39e8c911b7e457828f31f (reachable union, no duplicate commits)",
-    "Both rename endpoints excluded from history-only. Highest existing per-path review scope and defining owner/allocations retained from both exact parent registries. Similarity renames confer no semantic successor authority. Existing target allocations, feature paths, retirement authority and complete checkpoint are retained. Bookkeeping resolution does not recursively register a new review.",
+    "git log --full-history -m --format= --name-only --no-renames -z 8249342707d3280e88e39e8c911b7e457828f31f..33264a65b6119f5f494845c3bca0fb29a9263522 and 8249342707d3280e88e39e8c911b7e457828f31f..d8d3cf87119384eaf8fb5ac1695a48ef828e143f; union both parent history path sets",
+    "git rev-list --count 33264a65b6119f5f494845c3bca0fb29a9263522 d8d3cf87119384eaf8fb5ac1695a48ef828e143f ^8249342707d3280e88e39e8c911b7e457828f31f (reachable union, no duplicate commits)",
+    "Both rename endpoints excluded from history-only. Highest existing per-path review scope and defining owner/allocations retained from both exact parent registries; incoming packages/state and packages/work labels are canonical owner aliases. Similarity renames confer no semantic successor authority. Existing target allocations, feature paths, retirement authority and complete checkpoint are retained. Bookkeeping resolution does not recursively register a new review.",
     "Original-query source checkpoint roles: packages/contracts/src/state.ts owns additive query/result ports with its prior allocation retained; packages/state/src/invocation/scenario-query-plan.ts owns checked plan resolution against owning declarations; packages/state/test/invocation/scenario-owner-query.test.ts owns same-owner query/result behavior cases; packages/state/test/query/observed.test.ts owns observed query authority/fence cases. New paths retain inherited-unallocated scope, with current authority/source/native acceptance unproved.",
-    "Active-membership source roles: packages/state/src/invocation/scenario-membership-plan.ts owns declaration-owned membership plan resolution; packages/state/src/invocation/dispatch-membership.ts owns State active-membership dispatch admission; packages/state/test/invocation/scenario-owner-membership.test.ts and packages/work/src/dispatch/membership-guard.test.ts own their finite membership behavior checks. These four new paths remain inherited-unallocated; their recorded finite results do not establish full workflow or exact target acceptance."
+    "Active-membership source roles: packages/state/src/invocation/scenario-membership-plan.ts owns declaration-owned membership plan resolution; packages/state/src/invocation/dispatch-membership.ts owns State active-membership dispatch admission; packages/state/test/invocation/scenario-owner-membership.test.ts and packages/work/src/dispatch/membership-guard.test.ts own their finite membership behavior checks. These four new paths remain inherited-unallocated; their recorded finite results do not establish full workflow or exact target acceptance.",
+    "State reference-array consumer source/test remains finite owner scope: elementwise current-row/version admission, ordered repeated PendingRefs and InvocationRef encoding reuse owning generic descriptors. Newly added consumer test remains inherited-unallocated; actual native private element/frame/source workflow qualification stays open."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
   "review_scopes": {
@@ -58824,3025 +58825,3025 @@
     [
       "M",
       "packages/cloudflare/README.md",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/conformance/preparation/cases.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/conformance/preparation/differential.mjs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/conformance/preparation/workloads.mjs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/package.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/Cargo.lock",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/Cargo.toml",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/rust-toolchain.toml",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/artifact.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/compatibility.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/failures.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/input.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/job.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/lib.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/main.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/modules.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/plan.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/protocol.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/release.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/render.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/src/review.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/artifact.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/compatibility.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/modules.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/outputs.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/plan.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/protocol.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/release.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/preparation/tests/vectors.rs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/scripts/build-preparation.mjs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/scripts/package-preparation.mjs",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/cli/docs.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/src/cli/platform.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/activate.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/bundle.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/src/deploy/compat.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/installed.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/module-imports.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/module-maps.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/package-assets.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/src/deploy/plan.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/producer-files.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/render.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/deploy/review.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/compiler-check.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/construct-help.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/control-cli.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/control-client.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/example-rerun.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/example-runner.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/example-runner.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/failure-occurrence.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/first-profile-browser.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/first-profile-qualification.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/identity-team-discovery.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/jev-ranker.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/jev-transport.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/local-persistence.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/src/dev/local-run.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/preview-bridge.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/preview-builder.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/preview-builder.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/preview-host.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/preview-inputs.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/row-scope.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-core.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-daemon-entry.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-daemon.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-daemon.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-service.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-service.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-socket.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/session-socket.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/source-capture.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/dev/zero-config.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/build-adapter.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/executable-manifest.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/executable.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/host.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/inputs.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/protocol.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/preparation/publication.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/release/manifest.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/release/stamp.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/src/runtime/artifact.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/assembly-verification.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/auth-join.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/auth-rate-limiter.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/auth-rate-limiter.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-dispatch.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-files.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-images-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-images.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-judgment-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-judgment.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-mail-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-mail.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/bound-text-generation.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/cohort-tick.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/src/runtime/context.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/env-assembly.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/executors.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/file-staging.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/generated-machines.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/grant-route.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/handler-formatting.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/input-choices.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/input-choices.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/src/runtime/invoke.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/mcp-permissions.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/mcp-registry.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/model-rule-activation.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/src/runtime/modules.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/native-local-rules.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/native-records.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/native-scenario-receipts-d1.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/page-cursor.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/page-cursor.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/page-preferences.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/receipt-progress.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/receipt-staging.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/reviewed-csv.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/scenario-framework-effects.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/scenario-receipt-canonical.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/scenario-receipt-frame.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/scenario-receipt-frame.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/sourcemap.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/src/runtime/stdlib.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t17b-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/text-generation-progress.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-authorized-reads.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-calendar-durations.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-cohort-journey.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-context-scopes.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-context-serving.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-delivery-observer.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-durable-admission.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-exact-numbers.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-file-journey.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-generation-progress.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-private-cohort.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-scenario-values.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-temporal-arrays.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-text-booleans.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/typed-user-references.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/runtime/verified-context.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/src/upgrade/apply.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/src/worker/assembly.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/src/worker/main.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/activate-cli.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/activate.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/activation-refusal.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/app-locale-serving.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/app-owned-preview.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/artifact-field-descriptions.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/artifact-operations.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/cloudflare/test/assembly.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/browser-assets-bundle.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/browser-assets-serving.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/bundle-entry-cleanup.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/canonical-read-selectors.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/test/cli.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/compiler-check.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/construct-help.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/construct-ranking.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/control-cli.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/control-client.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/deploy-apply.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/deploy-bundle.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/deploy-cli.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/deploy-package-assets.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/deploy-plan.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/dev-session-core.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/test/dev-smoke.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/example-rerun.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/example-runner.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/failure-occurrence.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fanout-fresh-facts.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/first-profile-browser.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/generated-machines.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/generated-machines.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/import-policy-contract.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/input-choices.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/map-composition-contract.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/model-rule-activation.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/model-rule-activation.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.artifact.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.descriptor.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.local.environment.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.target.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.descriptor.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.local.environment.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.store.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.target.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-authorized-reads.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-authorized-reads.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-calendar-durations.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-calendar-durations.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-cohort-journey.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-cohort-journey.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-context-scopes.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-context-scopes.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-delivery-observer.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-delivery-observer.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-durable-admission.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-durable-admission.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-durable-send.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-durable-send.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-exact-numbers.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-exact-numbers.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-file-journey.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-file-journey.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-generation-progress.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-generation-progress.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-images-progress.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-images-progress.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-keyed-schedule.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-keyed-schedule.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-operation-forms.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-operation-forms.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-private-cohort.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-private-cohort.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-scenario-values.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-scenario-values.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-state-page.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-state-page.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-temporal-arrays.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-temporal-arrays.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-text-booleans.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-text-booleans.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-user-references.can",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/fixtures/typed-user-references.json",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/http-operations-route.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/installed.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/jev-ranker.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/jev-transport.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/loadability-line-terminators.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/map-composition-contract.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/mcp-derived.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/mcp-grant-route.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/mcp-permissions.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/mcp-route.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/mcpd-env-assembly.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/mixed-output-containment.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/mixed-output-controls.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/mixed-output-rejection.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/model-free-preview.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/module-imports-contract.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/test/modules.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/multi-owner-env.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/owner-page-routing.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/package-assets.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/page-query-serving.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/planned-output-collision.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/preparation-protocol.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/preparation-publication.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/preparation-shared-phases.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/preview-bridge.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/preview-builder.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/preview-inputs.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/raw-source-map-contract.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/release.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/review.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/row-scope.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/runtime-executors.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/runtime-stdlib-pure.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/test/runtime-stdlib.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
       "A",
       "packages/cloudflare/test/session-example-control.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/session-service.private.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/source-capture.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/cloudflare/test/sourcemap.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/text-output-containment.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/cloudflare/test/worker-boundary.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/worker-main.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "A",
       "packages/cloudflare/test/zero-config.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/README.md",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/package.json",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/artifact.ts",
-      "packages/contracts",
+      "contracts",
       "feature"
     ],
     [
       "A",
       "packages/contracts/src/browser/chromium.ts",
-      "packages/contracts",
+      "contracts",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/contracts/src/deployment-assets.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/deployment.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/contracts/src/distribution.ts",
-      "packages/contracts",
+      "contracts",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/contracts/src/files.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/identity.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/index.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/presentation.ts",
-      "packages/contracts",
+      "contracts",
       "feature"
     ],
     [
       "A",
       "packages/contracts/src/reference.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/services.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/state.ts",
-      "packages/contracts",
+      "contracts",
       "feature"
     ],
     [
       "M",
       "packages/contracts/src/values.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/wire.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/src/work.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "M",
       "packages/contracts/test/assembly.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/contracts/test/fanout-records.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/contracts/test/provider-ratification.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/contracts/test/t19a-derived-inputs.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/contracts/test/t19b-depth.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/contracts/test/t20a-presentation.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited"
     ],
     [
       "A",
       "packages/files/README.md",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/package.json",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/bridge.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/catalog.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "A",
       "packages/files/src/distribution.ts",
-      "packages/files",
+      "files",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/files/src/finalize/index.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "A",
       "packages/files/src/host/sqlite.ts",
-      "packages/files",
+      "files",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/files/src/index.ts",
-      "packages/files",
+      "files",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/files/src/ports.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/provenance/index.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/retention/index.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/scenarios.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/upload/fs-blob-store.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/src/upload/index.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/bridge.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "A",
       "packages/files/test/completion-byte-count.test.ts",
-      "packages/files",
+      "files",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/files/test/contract-shapes.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "A",
       "packages/files/test/default-policy-contract.test.ts",
-      "packages/files",
+      "files",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/files/test/finalize-byte-count.test.ts",
-      "packages/files",
+      "files",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/files/test/finalize.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/foreign.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/helpers.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "A",
       "packages/files/test/provider-output.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/retention.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/scenarios.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/upload-journey.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/test/validation.test.ts",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "M",
       "packages/files/tsconfig.json",
-      "packages/files",
+      "files",
       "inherited"
     ],
     [
       "A",
       "packages/identity/README.md",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/package.json",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/src/accounts/passwords.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/src/authentication/oauth.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/identity/src/authentication/revocation.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/src/authentication/t16b-context.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/src/authentication/t32b-revocation.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/src/distribution.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/identity/src/index.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/src/ports.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/src/sessions/comparison-node.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/identity/src/sessions/comparison-worker.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/identity/src/sessions/comparison.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/identity/src/sessions/cookies.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/src/sessions/presession.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/src/sessions/tokens.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/src/storage/d1.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/src/testing.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/test/accounts.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/test/b4-credential-liveness.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/test/comparison.test.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/identity/test/contracts.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/identity/test/d1.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/test/oauth.test.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/identity/test/pkce-s256-profile.test.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/identity/test/presession.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/test/sessions.test.ts",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "M",
       "packages/identity/test/teams.test.ts",
-      "packages/identity",
+      "identity",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/identity/tsconfig.json",
-      "packages/identity",
+      "identity",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/README.md",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/package.json",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/distribution.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/src/docs/reference.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/envelope/prepared.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/envelope/validate.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/interfaces/src/errors/envelope.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/assets.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/http/auth.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/canonical-json.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/interfaces/src/http/context.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/csv.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/export.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/form-binding.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/src/http/formErrors.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/forms.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/src/http/input-choices.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/interfaces/src/http/limits.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/http/operations.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/http/pages.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/http/presentation.ts",
-      "packages/interfaces",
+      "interfaces",
       "feature"
     ],
     [
       "A",
       "packages/interfaces/src/http/print.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/http/routes.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/index.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/instrumentation/intake.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/internal/input-admission.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/src/internal/prepared-binding.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/src/mcp/prepared.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/mcp/schemas.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/mcp/server.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/mcp/tools.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/ports.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/src/uploads/kernel.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/src/uploads/routes.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/asset-byte-ownership.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/b4-spend-race.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/browser-assets.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/canonical-json-leaf.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/csv-grammar-join.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/csv-join.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/csv-own-data.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/csv-review.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/csv-route.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/csv-selected-order.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/d3b-receipt-read.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/docs-reference.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/e1-bound-dispatch.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/e2-dispatch-agreement.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/e2b-transport-seams.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/export-join.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/export-print.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/export-route.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/test/http-auth.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/test/http-operations.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/test/http-pages.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/http-presentation.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "feature"
     ],
     [
       "A",
       "packages/interfaces/test/input-admission-leaf.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/intake.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/mcp-field-descriptions.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/test/mcp-tools.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/interfaces/test/oauth.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/own-form-keys.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/owned-http.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/owned-mcp.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/prepared-binding-leaf.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/source-form-binding.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/interfaces/test/t19a-derivation.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/t19b-depth.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/t20a-presentation.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/interfaces/test/uploads-kernel.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/test/wire.test.ts",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "M",
       "packages/interfaces/tsconfig.json",
-      "packages/interfaces",
+      "interfaces",
       "inherited"
     ],
     [
       "A",
       "packages/services/README.md",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/package.json",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "A",
       "packages/services/src/distribution.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/services/src/http/client.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/http/pagination.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "A",
       "packages/services/src/index.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/services/src/internal/controlled-http.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/services/src/internal/scenario-admission.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/services/src/judgments/harness.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "A",
       "packages/services/src/judgments/specification.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/services/src/judgments/systemone.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/mail/adapter.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/mail/redact.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/media/comfyui.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/media/harness.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/media/mapping.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/models/harness.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/models/ollama.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/ports.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/src/scenarios.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/contract-shapes.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/http-client.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "A",
       "packages/services/test/http-lifecycle.test.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/services/test/judgments-systemone.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/mail-adapter.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/mail-redaction.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/media-comfyui.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/models-ollama.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/services/test/pagination.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "A",
       "packages/services/test/private-harness-leaves.test.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/services/test/scenarios.test.ts",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "A",
       "packages/services/test/selected-provider-limits.test.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/services/test/static-judgment.test.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/services/test/stream-cleanup-deadline.test.ts",
-      "packages/services",
+      "services",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/services/tsconfig.json",
-      "packages/services",
+      "services",
       "inherited"
     ],
     [
       "M",
       "packages/state/package.json",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "M",
       "packages/state/src/catalog.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/distribution.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/effects/delivery.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/effects/guards.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/src/effects/staging.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/effects/transition.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "M",
       "packages/state/src/errors.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/cohort.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/lifecycle.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/membership.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/navigation.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/fanout/outcome.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/progress.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/t34-f5-admission.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/fanout/tables.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/index.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/internal/machine.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/internal/own-data.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/src/invocation/admission.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/b2-conflict-currents.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/b2-read-proofs.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/b2-reads-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/b4-by-aware-fence.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/invocation/context.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/descriptor-join.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
@@ -61854,43 +61855,43 @@
     [
       "M",
       "packages/state/src/invocation/index.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/invoke-read.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/invocation/invoke.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/prepared-inputs.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/invocation/registry.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "M",
       "packages/state/src/invocation/replay.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/scenario-input-default.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
@@ -61902,439 +61903,439 @@
     [
       "A",
       "packages/state/src/invocation/scenario-owner-receipt.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/invocation/scenario-query-plan.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/invocation/scenario-receipt.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/invocation/scenario-receipt.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/invocation/t32b-fence.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/invocation/t32b-wire.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/migration/activate.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/migration/index.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/migration/mapper.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/migration/recover.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/migration/retain.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/migration/stage.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/migration/transition.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/migration/validate.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/mutation/b1-generated-parity-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/b1-generated-parity.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/b1-scenario-parity.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/b5-contained-parity-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/b5-contained-parity.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/mutation/crud.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/generated-crud.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/mutation/index.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/model-policies.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/mutation/model-policies.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/src/mutation/models.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/mutation/nullable-ref.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/mutation/owner-mutation-session.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/src/mutation/pipeline.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/src/mutation/t18-defaults-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/t18-defaults.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/t18-shop.artifact.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/t18-shop.can",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/t32b-wire-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/mutation/t32b-wire-transitive.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/policy/grants.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/policy/roles.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/ports/data-plane.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/ports/read.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/ports/system.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/ports/t32b-read.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/ports/transact.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/query/engine.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/query/index.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/query/t32b-fence.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/receipt/authored-delivery.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/receipt/b3-delivery-schema.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/receipt/grants.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/receipt/index.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/receipt/join.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/receipt/observer-loader.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/receipt/tables.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/storage/d1.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/storage/data-plane-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/storage/durable-object.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/storage/index.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/src/storage/memory.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/storage/owner-router.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/src/storage/port.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/src/storage/schema.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/src/storage/sqlite-codecs.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/effects/guards.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/fanout/checkpoint-converse.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/fanout/navigation.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/fanout/test-driver.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/fixtures/numeric-control/artifact.json",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/fixtures/numeric-control/source.can",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/invocation/admission.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/invocation/fixtures.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/invocation/invoke.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/invocation/owned-admission.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/invocation/read-selection.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/invocation/roles.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/invocation/scenario-owner-call.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
@@ -62346,1957 +62347,1963 @@
     [
       "A",
       "packages/state/test/invocation/scenario-owner-query.test.ts",
-      "packages/state",
+      "state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/state/test/invocation/scenario-owner-ref-array.test.ts",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/invocation/scenario-receipt-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/invocation/secret-metadata.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/migration/activate.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/migration/adapters.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/migration/fixtures.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/migration/invalidate.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/migration/recover.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/migration/resume.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/migration/retain.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/migration/stage.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/migration/transition.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/mutation/create.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/mutation/fixtures.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/mutation/machines.test.ts",
-      "packages/state",
+      "state",
       "feature"
     ],
     [
       "A",
       "packages/state/test/mutation/staged-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/mutation/staged.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/mutation/typed-staging.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/ports/fixtures.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/ports/staging.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/ports/system.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/ports/t24a-dispatch-join-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/ports/t24a-dispatch-join.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/private-leaves.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/query/aggregates.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/query/fixtures.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/query/observed.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/query/projection.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/query/scope.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/scaffold.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/storage/conformance.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/storage/d1.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/test/storage/do-test-worker.js",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "M",
       "packages/state/test/storage/do.test.ts",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/state/test/storage/metadata-keys.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/test/typed-artifact-metadata.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/state/tsconfig.json",
-      "packages/state",
+      "state",
       "inherited"
     ],
     [
       "A",
       "packages/stdlib/README.md",
-      "packages/stdlib",
+      "stdlib",
       "inherited"
     ],
     [
       "M",
       "packages/stdlib/package.json",
-      "packages/stdlib",
+      "stdlib",
       "feature"
     ],
     [
       "A",
       "packages/stdlib/src/distribution.ts",
-      "packages/stdlib",
+      "stdlib",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/stdlib/src/index.ts",
-      "packages/stdlib",
+      "stdlib",
       "feature"
     ],
     [
       "M",
       "packages/stdlib/test/assembly.test.ts",
-      "packages/stdlib",
+      "stdlib",
       "feature"
     ],
     [
       "M",
       "packages/stdlib/tsconfig.json",
-      "packages/stdlib",
+      "stdlib",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/README.md",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/loader-smoke/Cargo.lock",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/loader-smoke/host.mjs",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/observations.mjs",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/conformance/ports/transport-vectors.mjs",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/package.json",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/src/assertions/equal.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/testkit/src/browser/chromium.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/testkit/src/fixtures/b2-delivery.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/src/fixtures/b2-revocation.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/src/fixtures/b2-storage.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/src/fixtures/playback.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/testkit/src/fixtures/recipes.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/src/index.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/src/reporting/report.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/src/runner/dispatch.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/src/runner/loader.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/src/runner/steps.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/src/runner/table.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/testkit/src/scopes/local.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/test/browser-chromium.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/testkit/test/dispatch.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/test/emitted-scope.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/test/equal.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/testkit/test/fixtures.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "M",
       "packages/testkit/test/playback.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited"
     ],
     [
       "A",
       "packages/testkit/test/table-disposal.test.ts",
-      "packages/testkit",
+      "testkit",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/ui/README.md",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/package.json",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/scripts/build-browser.mjs",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/appearance.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/browser/bootstrap.ts",
-      "packages/ui",
+      "ui",
       "feature"
     ],
     [
       "A",
       "packages/ui/src/browser/export.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/browser/instrumentation.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/browser/polling.ts",
-      "packages/ui",
+      "ui",
       "feature"
     ],
     [
       "A",
       "packages/ui/src/browser/print.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/browser/style.css",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/catalog.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/client.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/collections.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/components.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/controls.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/csv/confirm.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/csv/grammar.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/ui/src/csv/parse.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/csv/preview.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/distribution.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/ui/src/forms.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/groups.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/htmx.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/index.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/internal/appearance-props.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/ui/src/internal/business-errors.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/ui/src/internal/draft-values.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/ui/src/leaves.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/media.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/messages.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/navigation.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/overlays.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/panels.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/src/policyPage.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/review.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/settings.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/src/shell.ts",
-      "packages/ui",
+      "ui",
       "feature"
     ],
     [
       "M",
       "packages/ui/test/appearance.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/browser-export.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/browser-instrumentation.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/browser-lifecycle-cleanup.test.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/ui/test/browser-polling-join.test.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/ui/test/browser-print.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/catalog.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/collections.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/components.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/controls.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/csv-grammar.test.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/ui/test/csv.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/fixtures/descriptors.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/forms.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/groups.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/htmx.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/journeys.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/leaves.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/media.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/messages.test.ts",
-      "packages/ui",
+      "ui",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/ui/test/navigation.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/overlays.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/page-polling.test.ts",
-      "packages/ui",
+      "ui",
       "feature"
     ],
     [
       "M",
       "packages/ui/test/panels.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/policyPage.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/review.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/settings.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/shell.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/t20a-generated-forms.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/t20b-client.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/ui/test/t20b-generated-depth.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/test/themes.test.ts",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "M",
       "packages/ui/tsconfig.json",
-      "packages/ui",
+      "ui",
       "inherited"
     ],
     [
       "A",
       "packages/values/Cargo.lock",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/Cargo.toml",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/README.md",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/Cargo.toml",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/backend.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/bootstrap.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/carriers.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/generated/BUILD.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/generated/values_semantics.d.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/generated/values_semantics.js",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/generated/values_semantics_bg.wasm",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/owned-input.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/plans.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/src/exact.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/src/lib.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/src/validation.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/bindings/validation.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/numeric-text.json",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/conformance/numeric-text.oracle.mjs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/conformance/owned-input/v1/README.md",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/owned-input/v1/cases.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/owned-input/v2/README.md",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/owned-input/v2/cases.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/ports/exact/cases.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/ports/exact/differential.mjs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/conformance/string-escape.json",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/conformance/string-escape.oracle.mjs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/values/package.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/scripts/build-semantics.mjs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/scripts/emit-catalog.mjs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/scripts/emit-semantics-inputs.mjs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/scripts/stage-semantics.mjs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/Cargo.toml",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/currency-facts.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/examples/conformance.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/aggregates/decimal.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/aggregates/integer.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/aggregates/mod.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/aggregates/money.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/aggregates/numeric.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/codecs/mod.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/codecs/numeric.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/currency_facts.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/failures.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/input.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/lib.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/numeric/decimal.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/numeric/integer.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/numeric/mod.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/numeric/money.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/numeric/rounding.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/plans.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/profiles.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/representations/mod.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/representations/numeric.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/temporal/civil.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/temporal/duration.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/temporal/instant.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/temporal/mod.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/transport/exact.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/src/transport/mod.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/aggregate_vectors.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/decimal_vectors.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/input_validation.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/input_validation/conformance_v1.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/input_validation/input.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/input_validation/validation.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/integer_vectors.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/money_vectors.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/numeric_text_contract.rs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/semantics/tests/rounding_vectors.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/string_escape_contract.rs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/semantics/tests/temporal_vectors.rs",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/semantics/tests/transport_number_roundtrip.rs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/semantics/tests/transport_record_hygiene.rs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/values/src/array.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/catalog.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/decimal.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/src/distribution.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/values/src/equality.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/errors.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/icu.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/index.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/src/internal/gregorian.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/src/internal/schema-core.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/src/internal/violations.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/src/internal/wire-core.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/values/src/kinds.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/locale.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/money.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/src/prepared/codec.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/src/prepared/plan.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/src/prepared/validation.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/schema.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/stdlib-pure.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/temporal.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/text.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/timezone.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/src/wire.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/array.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/catalog.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/conformance.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/decimal-oracle.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/equality.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/exact-bootstrap.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/exact-bootstrap.workerd.mjs",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/values/test/exports-conformance.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/legacy-validation-traces.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/locale.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/numeric-text.contract.test.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/test/owned-input.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/prepared-hook.test.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/test/prepared-registration-atomic.test.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/values/test/prepared-validation.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/schema.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/string-escape.contract.test.ts",
-      "packages/values",
+      "values",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/values/test/temporal.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/timezone.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/values/test/validation-binding.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/test/wire.test.ts",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "M",
       "packages/values/tsconfig.json",
-      "packages/values",
+      "values",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/Cargo.lock",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/Cargo.toml",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/bindings/host-values.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/every.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/numeric-text.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/policy/every.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/policy/lifecycle.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/policy/retry.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/receipts/linkage.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/receipts/receipt.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/receipts/recovery.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/dispatch.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/every_slot.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/fanout_checkpoint.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/fanout_child.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/fanout_intent.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/occurrence.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/schedule.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/rows/supersession.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/fixtures/traces/refs.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/host-values.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/lifecycle.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/linkage.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/native-numeric-text.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/numeric-text.contract.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/numeric-text.oracle.d.mts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/numeric-text.oracle.mjs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/receipt.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/recovery.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/registered-differential.mjs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/registered-native.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/conformance/retry.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/conformance/rows.test.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/every.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/lib.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/decisions/lifecycle.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/linkage.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/numeric_text.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/decisions/receipt.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/recovery.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/retry.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/rows.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/decisions/uri_component.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/decisions/utf16_json.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/package.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/rust/lib.rs",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/distribution.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work-kernel/src/every.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/facts.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/index.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/lifecycle.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/linkage.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/receipt.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/recovery.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/retry.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/src/rows.ts",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work-kernel/tsconfig.json",
-      "packages/work-kernel",
+      "work-kernel",
       "inherited"
     ],
     [
       "A",
       "packages/work/README.md",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/package.json",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/dispatch/async-guard.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/work/src/dispatch/index.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
@@ -64308,379 +64315,379 @@
     [
       "A",
       "packages/work/src/dispatch/t32b-fence.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/dispatch/t34-f3-claim.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/dispatch/t34-f3-progress.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/dispatch/t34-f3-record.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/distribution.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/work/src/event/index.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/index.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/work/src/intent/index.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/intent/staging.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/src/kernel/arguments.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/work/src/kernel/commands.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/kernel/dispatch-staging.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/src/kernel/handler-occurrence.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/src/kernel/occurrence-staging.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/src/kernel/schedule-staging.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/src/kernel/staging-support.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/src/kernel/t34-f2-durable.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/kernel/t34-f2-tables.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/kernel/tables.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/observation/association.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/observation/observation.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/observation/ports.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/observation/t25a-progress.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/observation/t25a-selected.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/observation/t26-progress.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/ports.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/receipt/index.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/receipt/t25a-consistency.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/recovery/index.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/recovery/t26-durable.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/recovery/t26-resume.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/recovery/t34-f4-durable.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/src/recovery/t34-f4-scan.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/schedule/every.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/src/schedule/index.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/test/b3-mirror-conformance.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/contract-shapes.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/test/dispatch-unavailable.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/dispatch.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/event.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/every.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/test/handler-occurrence.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/work/test/intent.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/kernel-commands.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/kernel-tables.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/test/live-serve-addressing.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/observation-association.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/observation.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/receipt.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/recovery.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "M",
       "packages/work/test/schedule.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/test/state-fanout/t34-f5-child-join.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-fanout/t34-f5-durable.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-fanout/t34-f5-lifecycle.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-fanout/t34-f5-membership.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-fanout/t34-f5-progress.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-fanout/work-loader.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-receipt/t25-receipt-durable.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-receipt/t25-receipt-join.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/state-receipt/work-loader.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/work/test/t24a-staging-join.test.ts",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
       "A",
       "packages/work/test/t26-progress-relations.test.ts",
-      "packages/work",
+      "work",
       "inherited-unallocated"
     ],
     [
       "M",
       "packages/work/tsconfig.json",
-      "packages/work",
+      "work",
       "inherited"
     ],
     [
@@ -64975,7 +64982,7 @@
     [
       "A",
       "tests/integration/can-dev-server/NativeStaticCalls.can",
-      "packages/cloudflare",
+      "cloudflare",
       "feature"
     ],
     [
@@ -67518,72 +67525,72 @@
     ],
     [
       "packages/cloudflare/src/worker/owner-page-routing.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "packages/cloudflare/test/native-local-rules.integration.test.ts",
-      "packages/cloudflare",
+      "cloudflare",
       "inherited-unallocated"
     ],
     [
       "packages/contracts/test/t26-progress-relations.test.ts",
-      "packages/contracts",
+      "contracts",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/t34-f5-child-join.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/t34-f5-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/t34-f5-lifecycle.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/t34-f5-membership.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/t34-f5-progress.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/test-driver.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/fanout/work-loader.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/receipt/t25-receipt-durable.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/receipt/t25-receipt-join.test.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ],
     [
       "packages/state/src/receipt/work-loader.ts",
-      "packages/state",
+      "state",
       "inherited-unallocated"
     ]
   ],
   "pending_target_allocation": {
-    "count": 9321,
+    "count": 9322,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67597,5 +67604,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL 2430c9f1e2b832975b715991c8e1cbfe70e2b9af onto committed original-query and active-membership source 451102c1ed6a1d9a1c0c2de946de26cac6ae56df; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Newly registered State membership plan/producer/tests and Work dispatch guard test remain inherited-unallocated pending exact duty/target review. Existing Contracts and State/Work source paths retain their prior allocation and review scope; narrow recorded source/consumer results do not establish complete original workflows. Compiler checked decisions/bounded-input releases and Dev query/receipt consumer changes retain their recorded finite scope. Source-current conditional rule/grant authority, exact original-query facts, Dev owner-stage/viewer/result binding, native replay/privacy/rollback and full product/target acceptance remain open. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
+  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL d8d3cf87119384eaf8fb5ac1695a48ef828e143f onto committed State reference-array and membership source 33264a65b6119f5f494845c3bca0fb29a9263522; actual staged final merge tree and both parent full histories since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Both parent defining owners, highest per-path review scopes, allocations, retirement authority, all 79 feature paths and 30 target leaves are retained. Incoming packages/state and packages/work labels normalize to canonical state/work owners without an ownership transfer. The new State reference-array consumer test remains inherited-unallocated pending exact duty/target review. Reuse Compiler840ba9c7729fd727c0d66c08c886868483647381 original29-file closure check (complete=true, omitted0,149 diagnostics, zero Workbench/CanDo), nominal model-reference producer/installed4/4, async guard refusal CLI/binding3/3 and unchanged codegen121, and owning decision serialization6/6 at their finite source/transport scopes. State/Work reference-array and membership component outcomes remain finite; Dev private element/frame and real lazy stage/dispatch captures are unfinished. No native StateRead, source when/default/pure activation or original workflow acceptance follows. Complete checkpoint remains unadvanced; LOCAL-only holds retained."
 }
