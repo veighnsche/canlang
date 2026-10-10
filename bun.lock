@@ -67,6 +67,12 @@
         "@types/node": "24.19.1",
         "vitest": "^3.2.4",
       },
+      "peerDependencies": {
+        "@playwright/test": "1.63.0",
+      },
+      "optionalPeers": [
+        "@playwright/test",
+      ],
     },
     "packages/files": {
       "name": "@canlang/files",

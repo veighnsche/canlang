@@ -21,6 +21,10 @@
     "./values": {
       "types": "./dist/values.d.ts",
       "default": "./dist/values.js"
+    },
+    "./browser/chromium": {
+      "types": "./dist/browser/chromium.d.ts",
+      "node": "./dist/browser/chromium.js"
     }
   },
   "scripts": {
@@ -29,6 +33,14 @@
     "build:emit": "tsc -p tsconfig.json",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+  },
+  "peerDependencies": {
+    "@playwright/test": "1.63.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "24.19.1",

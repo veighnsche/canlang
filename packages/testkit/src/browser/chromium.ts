@@ -2,23 +2,12 @@
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
-import type { Browser, BrowserType } from "@playwright/test";
+import type { BrowserType } from "@playwright/test";
+import type { AcquireChromiumOptions, ChromiumAvailability, ChromiumProducerIdentity, OwnedChromium } from "@canlang/contracts/browser/chromium";
+export type { AcquireChromiumOptions, ChromiumAvailability, ChromiumProducerIdentity, ChromiumProducer, OwnedChromium } from "@canlang/contracts/browser/chromium";
 
 const require = createRequire(import.meta.url);
 const DRIVER = "@playwright/test";
-
-export interface ChromiumProducerIdentity {
-  /** Actual declared driver entry; the consumer captures its installed closure. */
-  readonly driverEntryPath: string;
-  /** Exact locked driver's executable, never a system-browser fallback. */
-  readonly executablePath: string;
-}
-
-export type ChromiumAvailability =
-  | { readonly available: true; readonly identity: ChromiumProducerIdentity }
-  | { readonly available: false; readonly reason: "driver-not-installed" }
-  | { readonly available: false; readonly reason: "executable-not-installed";
-      readonly identity: ChromiumProducerIdentity };
 
 export class MissingChromiumProducerError extends Error {
   constructor(readonly availability: Exclude<ChromiumAvailability, { available: true }>) {
@@ -77,19 +66,6 @@ async function availabilityOf(installed: InstalledChromium | null): Promise<Chro
 /** No launch, download, application lookup or successful UI qualification. */
 export async function chromiumAvailability(): Promise<ChromiumAvailability> {
   return availabilityOf(await installedChromium());
-}
-
-export interface AcquireChromiumOptions {
-  readonly signal?: AbortSignal;
-  /** Positive finite launch bound; defaults to thirty seconds. */
-  readonly timeoutMs?: number;
-}
-
-export interface OwnedChromium {
-  readonly browser: Browser;
-  readonly identity: ChromiumProducerIdentity;
-  /** Idempotent, awaited release. Call in finally even after signal cancellation. */
-  close(): Promise<void>;
 }
 
 /**
