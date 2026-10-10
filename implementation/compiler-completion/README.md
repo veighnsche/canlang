@@ -3345,3 +3345,24 @@ Source-only original25 drops56→46 by10 Leave/Purchase E5002, then assigned Inv
 46→35; no artifact. Observed corpus Leave79→74/Purchase143→138, retaining all52
 full assertions; joined full-table and changed whole/lint remain pending.
 Original58/67/nine references and precise BDD3/S9-Q07/Task22 holds remain.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.

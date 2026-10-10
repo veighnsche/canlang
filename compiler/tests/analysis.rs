@@ -1080,7 +1080,7 @@ fn draft_outcome_table() {
         ("draft/CanLeave.can", 74),
         ("draft/CanLoyalty.can", 68),
         ("draft/CanMail.can", 133),
-        ("draft/CanMaintain.can", 112),
+        ("draft/CanMaintain.can", 110),
         ("draft/CanMember.can", 319),
         ("draft/CanOnboard.can", 54),
         // The nonexported hold_result no longer captures nine held cases;
