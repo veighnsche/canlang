@@ -111,7 +111,8 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
       logger: { log: () => {} },
     });
     const handlerFor = () => createBoundFileHandler({ artifact, asm, store: state,
-      memberships: identities, identityStore: identities, clock, upload: uploadDeps() });
+      memberships: identities, identityStore: identities, clock, upload: uploadDeps(),
+      physicalFiles: fileStore!.files, retention: retentionPolicy });
     let handler = handlerFor();
     const invokerFor = () => buildInvoker(artifact, asm, state, { memberships: identities,
       now: () => now, files: canonicalFiles });
@@ -451,9 +452,9 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.equal((await handler(authRequest(downloadPath, 'GET'))).status, 401);
     const nativeKernel = kernel;
     let removedDuringRead = false;
-    kernel = { ...nativeKernel, async readBytes(fileRef, caller) {
+    kernel = { ...nativeKernel, async readCurrentBytes(fileRef, receiver, retention) {
       assert.equal(fileRef, browserRef);
-      const bytes = await nativeKernel.readBytes(fileRef, caller);
+      const bytes = await nativeKernel.readCurrentBytes(fileRef, receiver, retention);
       assert.ok(bytes);
       assert.deepEqual(bytes, BYTES);
       await identities.removeMembership(ownerMembership.membership_id);
