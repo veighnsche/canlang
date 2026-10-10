@@ -3032,8 +3032,22 @@ retain source evidence. Copies, helpers, nullable/general dereference/returns
 and source/IR owner/type/constraint skew remain refused. New source/full native
 emission/count-only refusal target passes3/3. Finite review's root-owner omission
 is corrected with exact ModelOwner snapshot and a permanent Run Team/App control.
-Required broader changed-source validation and strict checks are running; prior
-1415 source results do not qualify this new producer. Dev still owns genuine
+Required current whole validation passes1418 over139 targets with zero failed,
+ignored, filtered or skipped bodies, actual Node24/real engines/native/permission
+execution. Final strict all-target Clippy passes37.11s after correcting one mechanical
+let-and-return issue; format/diff0. Whole behavior results are unchanged by that
+lint cleanup and reused. Unchanged editor results are
+reused. Prior1415 source results are historical for this producer. Dev still owns genuine
 same-load hydration/private binder/current target admission; no executable
 runtime consumer or original149-diagnostic Workbench acceptance is claimed.
 Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.
+
+**Original Volunteer qualification prerequisite.** Existing SEQ-048's actual
+unchanged composition fails analysis with138 findings and emits no artifact.
+Read-only representative classification confirms existing owning-enum,
+lexical-first, required-array and server-field rules; no Compiler defect is
+established. Source/application owners must release exact Affiliate enum reuse
+or subset comparisons, CRM genuine Term.hours and owner-reassignment declaration,
+and Desk/Event operation-shadow corrections before Dev reruns. Proposed exact
+corrections are attached to the existing committed source record in status.json;
+no blanket source rewrite, weakening or repeated unchanged compile is performed.
