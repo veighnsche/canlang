@@ -6744,3 +6744,16 @@ Reuse unchanged canonical43/43 with its optional-port Proxy assertions. At the c
 ### 2026-10-10 — manual local File port correction integration
 
 Manual runtime pin and genuine consumer correspondence reviews CLEAR for the combined Dev3faa4b20/39f061bb correction. Pin the original genuine host File revalidator before awaited nonempty assignment observation; reject replacement/removal without selecting a substitute. Preserve source/app/definition binding, actual staged-only attachments, ordinary saved repair and full State reprojection, with zero optional File property reads for scalar/null/empty/rename paths. Reuse owner affected original File plus seven component groups8/8 and both unchanged required native cases1/1 each, clean Contracts/Cloudflare emissions, root types and boundary0. Unchanged canonical43 and recorded G1 are reused at their qualified tuples; no whole composite suite or plan acceptance is claimed. Related rejected stored-reference prototype stays inert in the explicitly unfinished archive; State and Compiler own its genuine authority/source prerequisites. Preserve current integrated compiler inventory, atomic State/Work source and all other owners. Existing tree/coverage/decisions are reconciled without advancing the incomplete checkpoint. Office/G2–G3, original application and precise human holds remain open. Local integration only.
+
+
+### 2026-10-10 — qualify committed-source diagnostics and exact File replay repair
+
+Retain unknown committed snapshot refusal as E2013 for closed id/version payload,
+and preserve whole-payload write refusal E3009. Typed event.id removes exactly
+nine Customer corpus findings; re-pin only that row (58→49). Reuse unchanged
+required-engine whole results, qualify only these two changed assertions and
+the two released Dev39f061bb native replay cases with unchanged tripwires.
+Combined1415 distinct tests, strict lint/format and actual editor pass at this
+component scope. Reviewed source/runtime/Contracts carriers are intaken locally;
+native committed activation, original protected Member producer and precise
+holds remain unfinished. No workflow repair, publication or full-plan closure.
