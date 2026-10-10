@@ -55,6 +55,7 @@ import { checkBoundArguments, isMutationKind } from './schemas.js';
  */
 export interface PreparedMcpRefRule {
   readonly name: string;
+  readonly array?: true;
   readonly versioned: boolean;
   readonly idMaxUtf16: number;
   readonly versionRule: 'arbitrary-digits';
@@ -90,6 +91,7 @@ function toRefRule(field: McpNamedField): PreparedMcpRefRule {
   const versioned = field.field.kind === 'ref' && field.field.requireVersion === true;
   return Object.freeze({
     name: field.name,
+    ...(field.array === undefined ? {} : { array: true as const }),
     versioned,
     idMaxUtf16: MAX_ID_LENGTH,
     versionRule: 'arbitrary-digits',
@@ -169,15 +171,32 @@ export function runPreparedMcpPlan(
     if (!Object.prototype.hasOwnProperty.call(businessInputs, rule.name)) continue;
     const value: unknown = businessInputs[rule.name];
     if (value === null && derivedNames.has(rule.name)) continue;
-    if (rule.versioned) {
-      const parsed = parseMutationRef(value, `/${rule.name}`);
-      if ('error' in parsed) return { ok: false, error: parsed.error };
-    } else {
-      const parsed = parseReadRef(value);
-      if ('error' in parsed) return { ok: false, error: parsed.error };
-    }
+    const error = checkMcpRefShape(value, rule.name, rule.versioned, rule.array === true);
+    if (error !== null) return { ok: false, error };
   }
   const boundError = checkBoundArguments(plan.derived, businessInputs);
   if (boundError !== null) return { ok: false, error: boundError };
   return { ok: true, operation_id: operationId, inputs: businessInputs };
+}
+
+/** Shared real/prepared MCP framing; bindings and row authority follow later. */
+export function checkMcpRefShape(value: unknown, name: string, versioned: boolean, array: boolean): BusinessError | null {
+  if (array && !Array.isArray(value)) {
+    const message = `Input ${JSON.stringify(name)} must be an array.`;
+    return buildBusinessError('validation', message, { fields: [{ path: `/${name}`, code: 'invalid_array', message }] });
+  }
+  const values = array ? value as unknown[] : [value];
+  for (let index = 0; index < values.length; index += 1) {
+    const path = `/${name}${array ? `/${index}` : ''}`;
+    const parsed = versioned ? parseMutationRef(values[index], path) : parseReadRef(values[index]);
+    if (!('error' in parsed)) continue;
+    if (!array) return parsed.error;
+    const message = `Input ${JSON.stringify(path)}: ${parsed.error.message}`;
+    return buildBusinessError('validation', message, {
+      fields: (parsed.error.fields ?? [{ path: '', code: 'invalid', message: parsed.error.message }]).map(field => ({
+        ...field, path: versioned && field.path !== '' ? field.path : `${path}${field.path}`,
+      })),
+    });
+  }
+  return null;
 }

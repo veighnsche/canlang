@@ -39,6 +39,7 @@ import { isSecretValue } from '../policy/grants.js';
 import { assertOperationIdAge } from './context.js';
 import { hashInputs } from './replay.js';
 import { StateError } from '../errors.js';
+import { appendInputArrayLengthErrors } from './prepared-inputs.js';
 import type { OwnerMutationReadView } from '../mutation/pipeline.js';
 import { decodeValue, encodeValue, isRecordRef, validateValue, type NormalizedSchema } from '@canlang/values';
 
@@ -293,74 +294,78 @@ function validateGeneratedInputs(
       } else {
         const marker = def.inputArrays[param];
         if (marker !== undefined && !marker.required && def.descriptor.kind !== 'update' &&
-            paramDef.default === undefined &&
+            paramDef.default === undefined && !(paramDef.kind === 'ref' && paramDef.nullable === true) &&
             !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
               Object.hasOwn(paramDef, 'computedDefault') && paramDef.computedDefault === true) &&
             !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
               Object.hasOwn(paramDef, 'valueType') && paramDef.valueType?.endsWith('?'))) {
           normalized[param] = [];
+          appendInputArrayLengthErrors(fields, param, 0, paramDef.min, paramDef.max);
         }
       }
       continue;
     }
-    if (paramDef.kind !== 'ref') {
-      const marker = def.inputArrays[param];
-      const value = inputs[param];
-      if (marker !== undefined && value !== null && !Array.isArray(value)) {
-        fields.push({
-          path: `/${param}`,
-          code: 'invalid_array',
-          message: `Input "${param}" must be an array.`,
-        });
+    const outer = inputs[param];
+    if (Object.hasOwn(def.inputArrays, param) && outer !== null) {
+      if (!Array.isArray(outer)) {
+        fields.push({ path: `/${param}`, code: 'invalid_array', message: `Input "${param}" must be an array.` });
+        continue;
       }
+      if (appendInputArrayLengthErrors(fields, param, outer.length, paramDef.min, paramDef.max)) continue;
+      // Empty arrays need no element wire parsing.
+      if (outer.length === 0) continue;
+    }
+    if (paramDef.kind !== 'ref') continue;
+    const supplied = inputs[param];
+    if (supplied === null && (paramDef.nullable === true || def.inputNullableRefs !== undefined &&
+      Object.hasOwn(def.inputNullableRefs, param) && def.inputNullableRefs[param] === true)) {
       continue;
     }
-    const value = inputs[param] as Record<string, unknown> | null;
-    if (value === null && def.inputNullableRefs !== undefined &&
-      Object.hasOwn(def.inputNullableRefs, param) && def.inputNullableRefs[param] === true &&
-      !Object.hasOwn(def.inputArrays, param)) {
-      continue;
-    }
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      fields.push({
-        path: `/${param}`,
-        code: 'invalid_ref',
-        message: `Input "${param}" must be a record reference with an id.`,
-      });
-      continue;
-    }
-    const id = value['id'];
-    if (typeof id !== 'string' || id === '') {
-      fields.push({
-        path: `/${param}`,
-        code: 'invalid_ref',
-        message: `Input "${param}" must be a record reference with an id.`,
-      });
-      continue;
-    }
-    const hasVersion = Object.hasOwn(value, 'version');
-    if (paramDef.versioned && !hasVersion) {
-      fields.push({
-        path: `/${param}`,
-        code: 'version_required',
-        message: `Input "${param}" requires an expected version.`,
-      });
-      continue;
-    }
-    let expectedVersion: RecordVersion | null = null;
-    if (hasVersion) {
-      const version = value['version'];
-      if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
+    const array = Object.hasOwn(def.inputArrays, param) && Array.isArray(supplied) ? supplied : undefined;
+    for (let index = 0; index < (array === undefined ? 1 : array.length); index += 1) {
+      const slot = array === undefined ? param : `${param}/${index}`;
+      const value = (array === undefined ? supplied : array[index]) as Record<string, unknown> | null;
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
         fields.push({
-          path: `/${param}`,
-          code: 'invalid_version',
-          message: `Input "${param}" carries a malformed record version.`,
+          path: `/${slot}`,
+          code: 'invalid_ref',
+          message: `Input "${slot}" must be a record reference with an id.`,
         });
         continue;
       }
-      expectedVersion = Number(version) as RecordVersion;
+      const id = value['id'];
+      if (typeof id !== 'string' || id === '') {
+        fields.push({
+          path: `/${slot}`,
+          code: 'invalid_ref',
+          message: `Input "${slot}" must be a record reference with an id.`,
+        });
+        continue;
+      }
+      const hasVersion = Object.hasOwn(value, 'version');
+      if (paramDef.versioned && !hasVersion) {
+        fields.push({
+          path: `/${slot}`,
+          code: 'version_required',
+          message: `Input "${slot}" requires an expected version.`,
+        });
+        continue;
+      }
+      let expectedVersion: RecordVersion | null = null;
+      if (hasVersion) {
+        const version = value['version'];
+        if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
+          fields.push({
+            path: `/${slot}`,
+            code: 'invalid_version',
+            message: `Input "${slot}" carries a malformed record version.`,
+          });
+          continue;
+        }
+        expectedVersion = Number(version) as RecordVersion;
+      }
+      refs.push({ param: slot, model: paramDef.model, id: id as RecordId, expectedVersion });
     }
-    refs.push({ param, model: paramDef.model, id: id as RecordId, expectedVersion });
   }
   if (fields.length > 0) {
     throw new StateError('validation', 'Invalid operation inputs.', null, { fields });

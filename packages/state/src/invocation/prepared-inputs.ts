@@ -6,7 +6,7 @@
  * the exact closed-shape evaluation `admit`/`invokeRead` perform at the
  * post-replay/age/auth validation point (`validateCallInputs`,
  * `admission.ts`): unknown members, missing required inputs, array
- * shape, malformed record refs, and non-canonical versions aggregate
+ * shape/length, malformed singular or array-element refs, and non-canonical versions aggregate
  * into one `validation` rejection with field-level paths and the same
  * codes — and the runner below reorders nothing, re-derives nothing,
  * and invents no parallel rule. The current-TS validator is the oracle:
@@ -71,6 +71,21 @@ export interface PreparedInputRule {
   readonly arrayFill: boolean;
   /** Present non-null values must be arrays (any marker). */
   readonly arrayCheck: boolean;
+  readonly min?: number;
+  readonly max?: number;
+}
+
+/** Shared outer-length errors, appended in descriptor order by both validators. */
+export function appendInputArrayLengthErrors(fields: FieldError[], param: string, length: number, min?: number, max?: number): boolean {
+  if (min !== undefined && length < min) {
+    fields.push({ path: `/${param}`, code: 'min_length', message: `Input "${param}" must contain at least ${min} items.` });
+    return true;
+  }
+  if (max !== undefined && length > max) {
+    fields.push({ path: `/${param}`, code: 'max_length', message: `Input "${param}" must contain at most ${max} items.` });
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -106,17 +121,18 @@ export function prepareDescriptorInputs(
       ref:
         input.kind === 'ref'
           ? { model: input.model, versioned: input.versioned,
-              ...(Object.hasOwn(inputNullableRefs, input.name) && inputNullableRefs[input.name] === true &&
-                !Object.hasOwn(inputArrays, input.name) ? { nullable: true as const } : {}) }
+              ...((input.nullable === true || Object.hasOwn(inputNullableRefs, input.name) && inputNullableRefs[input.name] === true) ? { nullable: true as const } : {}) }
           : null,
       required: input.required,
       arrayFill: marker !== undefined && !marker.required && descriptor.kind !== 'update' &&
-        input.default === undefined &&
+        input.default === undefined && !(input.kind === 'ref' && input.nullable === true) &&
         !(input.kind !== 'ref' && input.kind !== 'delivery' &&
           Object.hasOwn(input, 'computedDefault') && input.computedDefault === true) &&
         !(input.kind !== 'ref' && input.kind !== 'delivery' &&
           Object.hasOwn(input, 'valueType') && input.valueType?.endsWith('?')),
       arrayCheck: marker !== undefined,
+      ...(input.min !== undefined ? { min: input.min } : {}),
+      ...(input.max !== undefined ? { max: input.max } : {}),
     };
   });
   return {
@@ -182,64 +198,70 @@ export function validatePreparedInputs(
         });
       } else if (rule.arrayFill) {
         normalized[param] = [];
+        appendInputArrayLengthErrors(fields, param, 0, rule.min, rule.max);
       }
       continue;
     }
-    if (rule.ref === null) {
-      const value = inputs[param];
-      if (rule.arrayCheck && value !== null && !Array.isArray(value)) {
-        fields.push({
-          path: `/${param}`,
-          code: 'invalid_array',
-          message: `Input "${param}" must be an array.`,
-        });
+    const outer = inputs[param];
+    if (rule.arrayCheck && outer !== null) {
+      if (!Array.isArray(outer)) {
+        fields.push({ path: `/${param}`, code: 'invalid_array', message: `Input "${param}" must be an array.` });
+        continue;
       }
+      if (appendInputArrayLengthErrors(fields, param, outer.length, rule.min, rule.max)) continue;
+      // Empty arrays need no element wire parsing.
+      if (outer.length === 0) continue;
+    }
+    if (rule.ref === null) continue;
+    const supplied = inputs[param];
+    if (supplied === null && Object.hasOwn(rule.ref, 'nullable') && rule.ref.nullable === true) {
       continue;
     }
-    const value = inputs[param] as Record<string, unknown> | null;
-    if (value === null && Object.hasOwn(rule.ref, 'nullable') && rule.ref.nullable === true) {
-      continue;
-    }
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      fields.push({
-        path: `/${param}`,
-        code: 'invalid_ref',
-        message: `Input "${param}" must be a record reference with an id.`,
-      });
-      continue;
-    }
-    const id = value['id'];
-    if (typeof id !== 'string' || id === '') {
-      fields.push({
-        path: `/${param}`,
-        code: 'invalid_ref',
-        message: `Input "${param}" must be a record reference with an id.`,
-      });
-      continue;
-    }
-    const hasVersion = Object.hasOwn(value, 'version');
-    if (rule.ref.versioned && !hasVersion) {
-      fields.push({
-        path: `/${param}`,
-        code: 'version_required',
-        message: `Input "${param}" requires an expected version.`,
-      });
-      continue;
-    }
-    let expectedVersion: RecordVersion | null = null;
-    if (hasVersion) {
-      const version = value['version'];
-      if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
+    const array = rule.arrayCheck && Array.isArray(supplied) ? supplied : undefined;
+    for (let index = 0; index < (array === undefined ? 1 : array.length); index += 1) {
+      const slot = array === undefined ? param : `${param}/${index}`;
+      const value = (array === undefined ? supplied : array[index]) as Record<string, unknown> | null;
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
         fields.push({
-          path: `/${param}`,
-          code: 'invalid_version',
-          message: `Input "${param}" carries a malformed record version.`,
+          path: `/${slot}`,
+          code: 'invalid_ref',
+          message: `Input "${slot}" must be a record reference with an id.`,
         });
         continue;
       }
-      expectedVersion = Number(version) as RecordVersion;
+      const id = value['id'];
+      if (typeof id !== 'string' || id === '') {
+        fields.push({
+          path: `/${slot}`,
+          code: 'invalid_ref',
+          message: `Input "${slot}" must be a record reference with an id.`,
+        });
+        continue;
+      }
+      const hasVersion = Object.hasOwn(value, 'version');
+      if (rule.ref.versioned && !hasVersion) {
+        fields.push({
+          path: `/${slot}`,
+          code: 'version_required',
+          message: `Input "${slot}" requires an expected version.`,
+        });
+        continue;
+      }
+      let expectedVersion: RecordVersion | null = null;
+      if (hasVersion) {
+        const version = value['version'];
+        if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
+          fields.push({
+            path: `/${slot}`,
+            code: 'invalid_version',
+            message: `Input "${slot}" carries a malformed record version.`,
+          });
+          continue;
+        }
+        expectedVersion = Number(version) as RecordVersion;
+      }
+      refs.push({ param: slot, model: rule.ref.model, id: id as RecordId, expectedVersion });
     }
-    refs.push({ param, model: rule.ref.model, id: id as RecordId, expectedVersion });
   }
   if (fields.length > 0) {
     throw new StateError('validation', 'Invalid operation inputs.', null, { fields });
