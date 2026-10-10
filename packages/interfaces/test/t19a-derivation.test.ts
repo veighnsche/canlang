@@ -39,6 +39,10 @@
  *   real emission — never hand-authored operations. Negative controls
  *   are verbatim-plus-tamper edits, which must reject (proving the
  *   tamper, not a new operation).
+ * - The same-load nominal-reference controls below are explicitly
+ *   component metadata over Shop.review and the existing Shop.Gadget
+ *   identity. They exercise Interfaces derivation, not emitted native
+ *   model-reference publication or an original application workflow.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,6 +67,11 @@ import {
 import {
   IncompatibleDescriptorError,
   checkArtifactOperation,
+  checkArtifactOperations,
+  checkBoundArgument,
+  checkBoundArguments,
+  checkedToMcpInputSchema,
+  toJsonSchema,
   toMcpInputSchema,
   toToolInputSchemaFromArtifact,
 } from '../src/mcp/schemas.js';
@@ -72,6 +81,7 @@ import type {
 } from '../src/mcp/schemas.js';
 import {
   registryFromArtifactOperations,
+  toMcpTool,
   toMcpToolFromArtifact,
   toOperationDescriptor,
   toolsFromArtifactOperations,
@@ -262,6 +272,199 @@ function propertiesOf(schema: unknown): Record<string, unknown> {
   assert.ok(typeof properties === 'object' && properties !== null && !Array.isArray(properties));
   return properties as Record<string, unknown>;
 }
+
+/* Declaration-labelled component metadata, not a compiler-emitted artifact.
+ * Model identities stay separate from contract fields and grant no authority. */
+const NOMINAL_SNAPSHOT = {
+  record: { id: 'gadget', version: '2' }, related: null,
+  version: '2', title: 'abc', state: 'draft',
+};
+
+function nominalReferenceSlice() {
+  return {
+    artifact_version: ARTIFACT_VERSION,
+    models: [{ name: 'Shop.Gadget' }],
+    valueTypes: {
+      contracts: [{ name: 'Snapshot', fields: [
+        { name: 'record', type: 'Shop.Gadget' },
+        { name: 'related', type: 'Shop.Gadget[]?' },
+        { name: 'version', type: 'int', min: '1' },
+        { name: 'title', type: 'Title', trim: true },
+        { name: 'state', type: 'GadgetState' },
+      ] }],
+      enums: [{ name: 'GadgetState', cases: ['draft', 'submitted'] }],
+      aliases: [{ name: 'Title', type: 'text', format: 'name', min: 1, max: 3 }],
+    },
+    operations: [{ ...REVIEW, inputs: { fields: [
+      { name: 'snapshots', field: { kind: 'nominal', name: 'Snapshot' },
+        required: true, valueType: 'Snapshot[]', array: { required: false } },
+      { name: 'fallback', field: { kind: 'nominal', name: 'Snapshot' },
+        required: false, default: { kind: 'literal', value: NOMINAL_SNAPSHOT } },
+    ] } }],
+  };
+}
+
+test('same-load nominal refs render closed wire shapes through checked MCP and HTTP derivation', () => {
+  const slice = nominalReferenceSlice();
+  const checked = checkArtifactOperations(slice)[0]!;
+  const nominal = checked.fields[0]!;
+  assert.ok('field' in nominal && nominal.field.kind === 'nominal');
+  assert.notEqual(nominal.field.valueTypes, slice.valueTypes);
+  assert.ok(Object.isFrozen(nominal.field.valueTypes));
+  const mcp = checkedToMcpInputSchema(checked);
+  assert.equal(mcp.fields[0]!.field, nominal.field);
+  const framing = toJsonSchema(mcp);
+  const tool = toolsFromArtifactOperations(slice)[0]!;
+  const descriptor = registryFromArtifactOperations(slice).list(createTestApp())[0]!;
+  const registrySchema = toMcpTool(descriptor).inputSchema;
+  assert.deepEqual(tool.inputSchema['$defs'], framing.$defs);
+  assert.deepEqual(registrySchema['$defs'], framing.$defs);
+  const definitions = framing.$defs!;
+  assert.deepEqual(Object.keys(definitions).sort(), ['GadgetState', 'Snapshot', 'Title']);
+  assert.equal(definitions['Shop.Gadget'], undefined, 'model rows never become structural definitions');
+  const ref = { type: 'object', properties: {
+    id: { type: 'string', minLength: 1 }, version: { type: 'string' },
+  }, required: ['id'], additionalProperties: false };
+  const fields = propertiesOf(definitions['Snapshot']);
+  assert.deepEqual(fields['record'], ref);
+  assert.deepEqual(fields['related'], { anyOf: [{ type: 'array', items: ref }, { type: 'null' }] });
+  assert.deepEqual(definitions['GadgetState'], { type: 'string', enum: ['draft', 'submitted'] });
+  assert.deepEqual(definitions['Title'], { type: 'string', minLength: 1, maxLength: 3, pattern: '^[A-Za-z_][A-Za-z0-9_]*$' });
+  assert.deepEqual(propertiesOf(anyOfBranch(tool.inputSchema, 0))['snapshots'], {
+    type: 'array', items: { $ref: '#/$defs/Snapshot' },
+  });
+  assert.deepEqual(propertiesOf(anyOfBranch(tool.inputSchema, 1))['snapshots'], {
+    type: 'array', items: { $ref: '#/$defs/Snapshot' },
+  });
+  for (const schema of [framing, tool.inputSchema, registrySchema]) assertClosedEverywhere(schema);
+  const catalog = catalogFromArtifactOperations(slice);
+  const derived = catalog.derivedFor(REVIEW.name)!;
+  assert.deepEqual(catalog.shapeFor(REVIEW.name), { allowed: ['snapshots', 'fallback'], required: ['snapshots'] });
+  assert.equal(derived.inputs[0]!.valueTypes, derived.inputs[1]!.valueTypes, 'HTTP retains exact checked inventory identity');
+  assert.deepEqual(derived.inputs[1]!.default, { kind: 'literal', value: NOMINAL_SNAPSHOT });
+  assert.equal(checkBoundArguments(derived, { snapshots: [NOMINAL_SNAPSHOT] }), null);
+});
+
+test('nominal HTTP admission preserves exact versions, ordered and empty arrays, and nullable refs', () => {
+  const derived = catalogFromArtifactOperations(nominalReferenceSlice()).derivedFor(REVIEW.name)!;
+  const ordered = [
+    { ...NOMINAL_SNAPSHOT, record: { id: 'second', version: '9007199254740993' },
+      version: '9007199254740993', related: [{ id: 'related' }, { id: 'signed', version: '-2' }] },
+    { ...NOMINAL_SNAPSHOT, record: { id: 'first' }, related: [] },
+  ];
+  const before = structuredClone(ordered);
+  assert.equal(checkBoundArguments(derived, { snapshots: ordered }), null);
+  assert.deepEqual(ordered, before, 'admission does not rewrite the submitted ordering or wire values');
+  assert.equal(checkBoundArguments(derived, { snapshots: [] }), null);
+  // Sibling-version equality and row existence belong to the State consumer.
+  assert.equal(checkBoundArguments(derived, { snapshots: [{ ...NOMINAL_SNAPSHOT, version: '3' }] }), null);
+  for (const changed of [
+    { ...NOMINAL_SNAPSHOT, extra: 'row data' },
+    { ...NOMINAL_SNAPSHOT, record: { id: '' } },
+    { ...NOMINAL_SNAPSHOT, record: { version: '2' } },
+    { ...NOMINAL_SNAPSHOT, record: { id: 'gadget', model: 'Shop.Gadget' } },
+    { ...NOMINAL_SNAPSHOT, record: { id: 'gadget', title: 'embedded row' } },
+    { ...NOMINAL_SNAPSHOT, record: { id: 'gadget', version: 2 } },
+    { ...NOMINAL_SNAPSHOT, record: { id: 'gadget', version: '2.0' } },
+    { ...NOMINAL_SNAPSHOT, record: { id: 'gadget', version: '9223372036854775808' } },
+    { ...NOMINAL_SNAPSHOT, related: [{ id: 'gadget', version: null }] },
+    { ...NOMINAL_SNAPSHOT, version: '0' },
+    { ...NOMINAL_SNAPSHOT, version: 2 },
+    { ...NOMINAL_SNAPSHOT, title: '   ' },
+    { ...NOMINAL_SNAPSHOT, title: 'long' },
+    { ...NOMINAL_SNAPSHOT, state: 'other' },
+  ]) assert.notEqual(checkBoundArguments(derived, { snapshots: [changed] }), null, JSON.stringify(changed));
+  assert.notEqual(checkBoundArguments(derived, { snapshots: null }), null);
+});
+
+test('nominal literal defaults use same-load model context and retain codec refusals', () => {
+  const slice = nominalReferenceSlice();
+  assert.doesNotThrow(() => checkArtifactOperations(slice));
+  const fields = slice.operations[0]!.inputs.fields;
+  const changed = { ...slice, operations: [{ ...slice.operations[0], inputs: { fields: [fields[0],
+    { ...fields[1], default: { kind: 'literal', value: { ...NOMINAL_SNAPSHOT, record: { id: 'gadget', version: 2 } } } },
+  ] } }] };
+  assert.equal(rejectionReason(() => checkArtifactOperations(changed)), 'malformed_descriptor');
+});
+
+test('same-load context refuses dangling, noncanonical, duplicate and colliding model identities', () => {
+  const slice = nominalReferenceSlice();
+  for (const models of [undefined, [], [{ name: 'Other' }], [{ name: 'Shop.Gadget[]' }],
+    [{ name: 'int' }], [{ name: 'Shop.Gadget' }, { name: 'Shop.Gadget' }],
+    [{ name: 'Shop.Gadget' }, { name: 'Snapshot' }],
+    [{ name: 'Shop.Gadget' }, { name: 'GadgetState' }],
+    [{ name: 'Shop.Gadget' }, { name: 'Title' }], [{ name: 42 }], [{}], 'Shop.Gadget']) {
+    assert.equal(rejectionReason(() => checkArtifactOperations({ ...slice, models })), 'malformed_descriptor');
+  }
+  assert.equal(rejectionReason(() => checkArtifactOperation(slice.operations[0])), 'malformed_descriptor');
+  const derived = catalogFromArtifactOperations(slice).derivedFor(REVIEW.name)!;
+  const input = derived.inputs[0]!;
+  assert.ok(input.valueTypes !== undefined);
+  assert.notEqual(checkBoundArgument({ ...input, valueTypes: structuredClone(input.valueTypes) }, [NOMINAL_SNAPSHOT]), null);
+  const checked = checkArtifactOperations(slice)[0]!;
+  const framing = checkedToMcpInputSchema(checked);
+  const field = framing.fields[0]!.field;
+  assert.ok(field.kind === 'nominal');
+  assert.throws(() => toJsonSchema({ fields: [{ ...framing.fields[0]!, field: {
+    ...field, valueTypes: structuredClone(field.valueTypes),
+  } }] }), /Undeclared valueTypes nominal/);
+  slice.models[0]!.name = 'Other';
+  assert.equal(checkBoundArguments(derived, { snapshots: [NOMINAL_SNAPSHOT] }), null, 'old derivation retains frozen names');
+  assert.doesNotThrow(() => toJsonSchema(framing));
+  assert.equal(rejectionReason(() => catalogFromArtifactOperations(slice)), 'malformed_descriptor');
+});
+
+test('nominal model context requires own data without evaluating model getters', () => {
+  const slice = nominalReferenceSlice();
+  let reads = 0;
+  const getter = () => { reads += 1; return slice.models; };
+  const accessorSlice = { ...slice };
+  Object.defineProperty(accessorSlice, 'models', { get: getter });
+  const { models: _models, ...withoutModels } = slice;
+  const inheritedSlice = Object.assign(Object.create({ models: slice.models }), withoutModels);
+  const accessorName = Object.defineProperty({}, 'name', { get: getter });
+  const inheritedName = Object.create({ name: 'Shop.Gadget' });
+  const accessorArray = Object.defineProperty([slice.models[0]], '0', { get: getter });
+  for (const malformed of [accessorSlice, inheritedSlice, { ...slice, models: [accessorName] },
+    { ...slice, models: [inheritedName] }, { ...slice, models: accessorArray },
+    { ...slice, models: new Array(1) }]) {
+    assert.equal(rejectionReason(() => checkArtifactOperations(malformed)), 'malformed_descriptor');
+  }
+  for (const prototype of [
+    Object.assign(Object.create(Array.prototype), { map: () => { reads += 1; return ['Shop.Gadget']; } }),
+    Object.defineProperty(Object.create(Array.prototype), 'map', { get: getter }),
+    Object.assign(Object.create(Array.prototype), { [Symbol.iterator]: () => { reads += 1; return slice.models[Symbol.iterator](); } }),
+  ]) {
+    const models = Object.setPrototypeOf([{ name: 'Other' }], prototype);
+    assert.equal(rejectionReason(() => checkArtifactOperations({ ...slice, models })), 'malformed_descriptor');
+  }
+  assert.equal(reads, 0);
+});
+
+test('nominal model identities do not replace full choices field and read-result validation', () => {
+  const slice = nominalReferenceSlice();
+  const choices = { version: 1, readOperation: GADGET_READ.name, arguments: {}, value: { kind: 'record' }, labels: ['title'] };
+  const operation = { ...GADGET_CREATE, inputs: { fields: GADGET_CREATE.inputs.fields.map(field =>
+    field.name === 'owner' ? { ...field, choices } : field) } };
+  const read = { ...GADGET_READ, result: { type: 'Shop.Gadget[]' } };
+  const withChoices = { ...slice, operations: [...slice.operations, operation, read],
+    models: [{ name: 'Shop.Gadget', fields: GADGET_CREATE.inputs.fields }] };
+  const checked = checkArtifactOperations(withChoices);
+  const owner = checked[1]!.fields.find(field => field.name === 'owner');
+  assert.ok(owner !== undefined && 'field' in owner);
+  const admitted = owner.choices;
+  assert.equal(admitted?.readOperation, choices.readOperation);
+  assert.deepEqual(admitted?.value, choices.value);
+  assert.deepEqual(admitted?.labels, choices.labels);
+  assert.deepEqual(Object.keys(admitted!.arguments), []);
+  assert.equal(rejectionReason(() => checkArtifactOperations({ ...withChoices, models: slice.models })), 'malformed_descriptor');
+  assert.equal(rejectionReason(() => checkArtifactOperations({ ...withChoices,
+    models: [{ name: 'Shop.Gadget', fields: [] }] })), 'undeclared_leaf');
+  assert.equal(rejectionReason(() => checkArtifactOperations({ ...withChoices,
+    models: [{ name: 'Shop.Gadget', fields: [GADGET_CREATE.inputs.fields[0], GADGET_CREATE.inputs.fields[0]] }] })), 'duplicate_name');
+  assert.equal(rejectionReason(() => checkArtifactOperations({ ...withChoices,
+    operations: [...slice.operations, operation, GADGET_READ] })), 'malformed_descriptor');
+});
 
 test('derivation pins the artifact contract version', () => {
   assert.equal(ARTIFACT_VERSION, 1);
