@@ -3000,3 +3000,32 @@ reviewed LOCAL7a3b7df6 runtime/DTO carrier awaits ancestry-safe intake at the
 coherent boundary. Final strict all-target Clippy passes25.02s; format/diff0.
 The earlier whole1408+2runtime failures remains historical for this source unit.
 Original58/67 and precise BDD3/Task22 holds remain unchanged.
+
+
+**Committed-source validation and owner repair intake, 2026-10-10.**
+Coherent cc6 is reviewed/integrated. Exact ancestry-safe LOCAL5b38/c4c30e29
+carriers add the defining Contracts/State/Work source components and Dev39f061bb
+File-port repair while preserving local source/tests. Current required broad
+run has1411passes, two expected-diagnostic/corpus pin failures, and only the two
+known Dev cases excluded pending repair; zero ignored or skipped bodies. Typed
+committed event.id removes nine genuine Customer findings (58→49); unknown
+snapshot now refuses E2013 and the whole payload still refuses writes E3009.
+Update those two expectations, qualify each once, and reuse all other passes.
+After current graph26/26 uncached30.648s and changed CF clean emission, both
+unchanged failing native assertions pass1/1 (scalar replay2.06s, lifecycle1.04s).
+Combined distinct changed-source qualification is1415passing tests. Final
+test-only strict all-target Clippy28.68s, format/diff0 and actual current real
+LSP capability roundtrip pass; unchanged editor TypeScript result is reused.
+No native committed activation/original Volunteer/full-plan claim follows.
+
+**Next stored-Member original producer.** State94822fbb supplies a candidate
+private `bindScenarioReceiptReferenceProducer(def,{source,app,policy})` on
+existing checked dependencies, genuine source-field/current whole grant and
+Identity/final row guards/recovery/implicit parent metadata; its loader correction
+for canonical model ref valueType remains owner-pending. Compiler's finite next
+unit retains genuine Step→Run parent, Run.location and bounded ordered
+Run.targets operands with real dependency IDs/field/source/IR correspondence.
+The three original gates are query_child_call, expr_member/field_type_id and
+protected_query_input/native recipe validation. Target-ID admission alone cannot
+supply originating field authority. No new common DTO or arbitrary read ABI.
+Original58/67, BDD3/Task22 and pure/dynamic authorization remain unchanged.

@@ -1025,7 +1025,9 @@ fn draft_outcome_table() {
         ("draft/CanCheck.can", 38),
         ("draft/CanContract.can", 22),
         ("draft/CanCreative.can", 24),
-        ("draft/CanCustomer.can", 58),
+        // Nine committed create/update/delete handlers now receive typed
+        // event.id text; the unchanged source still has 49 other findings.
+        ("draft/CanCustomer.can", 49),
         ("draft/CanDecide.can", 4),
         ("draft/CanDesk.can", 78),
         ("draft/CanDiscover.can", 60),
