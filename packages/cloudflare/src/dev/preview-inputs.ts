@@ -4,7 +4,7 @@ import { constants } from "node:fs";
 import { createRequire } from "node:module";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { NamedInputPath, SingleFileCaptureRequest } from "./source-capture.js";
+import { captureInputs, type CapturedFileIdentity, type NamedInputPath, type SingleFileCaptureRequest } from "./source-capture.js";
 
 const require = createRequire(import.meta.url);
 const OWNED_EXPORTS = [
@@ -186,47 +186,18 @@ export function installedOwnedSourceInputs(applicationRoot = process.cwd()): rea
   return [...paths].sort(([a], [b]) => a.localeCompare(b)).map(([name, path]) => ({ name, path }));
 }
 
-/** Optional qualification-only producer; never linked into the portable Worker. */
-export async function loadInstalledChromium(applicationRoot: string): Promise<{
-  entryPath: string;
-  producer: typeof import("@canlang/testkit/browser/chromium");
-} | null> {
-  const rootEntry = resolveOwned("@canlang/testkit", applicationRoot);
-  if (rootEntry === null) return null;
-  const kit = packageRoot(rootEntry);
-  const entryPath = realpathSync(createRequire(resolve(applicationRoot, "package.json"))
-    .resolve("@canlang/testkit/browser/chromium"));
-  if (packageRoot(entryPath).root !== kit.root) throw new Error("preview inputs: foreign browser producer");
-  const producer = await import(pathToFileURL(entryPath).href) as typeof import("@canlang/testkit/browser/chromium");
-  for (const name of ["chromiumAvailability", "acquireChromium"] as const) {
-    const property = Object.getOwnPropertyDescriptor(producer, name);
-    if (typeof property?.value !== "function") throw new Error("preview inputs: broken installed browser producer");
-  }
-  return { entryPath, producer };
-}
+const browserCodePins = new Map<string, readonly CapturedFileIdentity[]>();
 
-/** All shipped driver/browser files, including native resources and internal aliases.
- * Absence withholds UI evidence; newly installed files change full capture membership. */
-export async function installedBrowserQualificationInputs(applicationRoot: string): Promise<readonly NamedInputPath[]> {
-  const loaded = await loadInstalledChromium(applicationRoot);
-  if (loaded === null) return [];
-  const availability = await loaded.producer.chromiumAvailability();
+function browserInventory() {
   const selected = new Map<string, string>();
+  let visited = 0;
   const add = (name: string, path: string): void => {
     if (selected.has(name)) throw new Error("preview inputs: duplicate browser input");
     selected.set(name, path);
     if (selected.size > MAX_FILES) throw new Error("preview inputs: browser inventory exceeds the finite limit");
   };
-  add("browser:producer", loaded.entryPath);
-  if (!availability.available && availability.reason === "driver-not-installed") return [...selected].map(([name, path]) => ({ name, path }));
-  const kit = packageRoot(loaded.entryPath);
-  const driverEntry = createRequire(join(kit.root, "package.json")).resolve("@playwright/test");
-  if (realpathSync(driverEntry) !== realpathSync(availability.identity.driverEntryPath)) {
-    throw new Error("preview inputs: browser driver identity mismatch");
-  }
-  const pending = [driverEntry], seen = new Set<string>();
-  let core: ReturnType<typeof packageRoot> | undefined;
-  const walk = (base: string, current: string, prefix: string, ancestors = new Set<string>()): void => {
+  const walk = (base: string, current: string, prefix: string, ancestors = new Set<string>(), depth = 0): void => {
+    if (++visited > 16_000 || depth > 64) throw new Error("preview inputs: browser traversal exceeds the finite limit");
     const actual = realpathSync(current), rel = relative(base, actual);
     if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error("preview inputs: browser file escapes its installation");
     const kind = statSync(actual);
@@ -235,10 +206,26 @@ export async function installedBrowserQualificationInputs(applicationRoot: strin
     if (ancestors.has(actual)) throw new Error("preview inputs: browser directory cycle");
     ancestors.add(actual);
     for (const entry of readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (entry.name !== "node_modules" && entry.name !== ".git") walk(base, join(current, entry.name), prefix, ancestors);
+      if (entry.name !== "node_modules" && entry.name !== ".git") walk(base, join(current, entry.name), prefix, ancestors, depth + 1);
     }
     ancestors.delete(actual);
   };
+  return { add, walk, inputs: (): readonly NamedInputPath[] => [...selected].sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, path]) => ({ name, path })) };
+}
+
+function browserDriverInputs(kitRoot: string): {
+  entryPath: string; coreRoot: string; inputs: readonly NamedInputPath[];
+} | null {
+  let entryPath: string;
+  try { entryPath = realpathSync(createRequire(join(kitRoot, "package.json")).resolve("@playwright/test")); }
+  catch (error) {
+    if (error instanceof Error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
+      error.message.split("\n", 1)[0] === "Cannot find module '@playwright/test'") return null;
+    throw error;
+  }
+  const inventory = browserInventory(), pending = [entryPath], seen = new Set<string>();
+  let coreRoot: string | undefined;
   while (pending.length > 0) {
     const pkg = packageRoot(pending.shift()!);
     if (seen.has(pkg.root)) continue;
@@ -246,15 +233,79 @@ export async function installedBrowserQualificationInputs(applicationRoot: strin
     if (!["@playwright/test", "playwright", "playwright-core"].includes(pkg.name) || pkg.version !== BROWSER_DRIVER_VERSION) {
       throw new Error("preview inputs: browser driver does not match the locked producer");
     }
-    walk(pkg.root, pkg.root, `browser:driver:${pkg.name}@${pkg.version}`);
-    if (pkg.name === "playwright-core") core = pkg;
+    inventory.walk(pkg.root, pkg.root, `browser:driver:${pkg.name}@${pkg.version}`);
+    if (pkg.name === "playwright-core") coreRoot = pkg.root;
     const dependencies = pkg.manifest.dependencies;
     if (dependencies !== undefined) {
       if (dependencies === null || typeof dependencies !== "object" || Array.isArray(dependencies)) throw new Error("preview inputs: malformed browser dependencies");
       for (const name of Object.keys(dependencies).sort()) pending.push(createRequire(join(pkg.root, "package.json")).resolve(name));
     }
   }
-  if (!core || seen.size !== 3) throw new Error("preview inputs: incomplete browser driver closure");
+  if (!coreRoot || seen.size !== 3) throw new Error("preview inputs: incomplete browser driver closure");
+  return { entryPath, coreRoot, inputs: inventory.inputs() };
+}
+
+/** Pin executed Node module closures for this lifetime; changed bytes require restart. */
+async function pinBrowserCode(key: string, root: string, paths: readonly NamedInputPath[]): Promise<void> {
+  const current = await captureInputs(root, paths), prior = browserCodePins.get(key);
+  if (prior !== undefined && JSON.stringify(prior) !== JSON.stringify(current)) {
+    throw new Error("preview inputs: loaded browser code changed; restart the local session");
+  }
+  if (prior === undefined) {
+    if (key.startsWith("driver:") && paths.some(input => require.cache?.[realpathSync(input.path)] !== undefined)) {
+      throw new Error("preview inputs: browser driver was loaded outside its captured lifetime; restart the local session");
+    }
+    browserCodePins.set(key, current);
+  }
+}
+
+/** Optional qualification-only producer; never linked into the portable Worker. */
+export async function loadInstalledChromium(applicationRoot: string): Promise<{
+  entryPath: string;
+  producer: typeof import("@canlang/testkit/browser/chromium");
+  driver: ReturnType<typeof browserDriverInputs>;
+} | null> {
+  const rootEntry = resolveOwned("@canlang/testkit", applicationRoot);
+  if (rootEntry === null) return null;
+  const kit = packageRoot(rootEntry);
+  const entryPath = realpathSync(createRequire(resolve(applicationRoot, "package.json"))
+    .resolve("@canlang/testkit/browser/chromium"));
+  if (packageRoot(entryPath).root !== kit.root) throw new Error("preview inputs: foreign browser producer");
+  const producerPaths = [{ name: "browser:producer", path: entryPath },
+    { name: "browser:producer-manifest", path: join(kit.root, "package.json") }];
+  await pinBrowserCode(`producer:${entryPath}`, applicationRoot, producerPaths);
+  const driver = browserDriverInputs(kit.root);
+  if (driver !== null) await pinBrowserCode(`driver:${driver.entryPath}`, applicationRoot, driver.inputs);
+  // A content-qualified URL prevents unrelated earlier imports from supplying this leaf.
+  const leaf = browserCodePins.get(`producer:${entryPath}`)!.find(input => input.name === "browser:producer")!;
+  const producer = await import(`${pathToFileURL(entryPath).href}?can_browser=${leaf.sha256}`) as typeof import("@canlang/testkit/browser/chromium");
+  for (const name of ["chromiumAvailability", "acquireChromium"] as const) {
+    const property = Object.getOwnPropertyDescriptor(producer, name);
+    if (typeof property?.value !== "function") throw new Error("preview inputs: broken installed browser producer");
+  }
+  await pinBrowserCode(`producer:${entryPath}`, applicationRoot, producerPaths);
+  if (driver !== null) await pinBrowserCode(`driver:${driver.entryPath}`, applicationRoot, driver.inputs);
+  return { entryPath, producer, driver };
+}
+
+/** All shipped driver/browser files, including native resources and internal aliases.
+ * Absence withholds UI evidence; newly installed files change full capture membership. */
+export async function installedBrowserQualificationInputs(applicationRoot: string): Promise<readonly NamedInputPath[]> {
+  const loaded = await loadInstalledChromium(applicationRoot);
+  if (loaded === null) return [];
+  const availability = await loaded.producer.chromiumAvailability();
+  const inventory = browserInventory();
+  inventory.add("browser:producer", loaded.entryPath);
+  if (!availability.available && availability.reason === "driver-not-installed") {
+    if (loaded.driver !== null) throw new Error("preview inputs: installed browser driver was incorrectly withheld");
+    return inventory.inputs();
+  }
+  const driver = loaded.driver;
+  if (driver === null || driver.entryPath !== realpathSync(availability.identity.driverEntryPath)) {
+    throw new Error("preview inputs: browser driver identity mismatch");
+  }
+  await pinBrowserCode(`driver:${driver.entryPath}`, applicationRoot, driver.inputs);
+  for (const input of driver.inputs) inventory.add(input.name, input.path);
   if (availability.available) {
     const executable = realpathSync(availability.identity.executablePath);
     let installation = dirname(executable);
@@ -263,17 +314,17 @@ export async function installedBrowserQualificationInputs(applicationRoot: strin
       if (parent === installation) throw new Error("preview inputs: browser executable has no installed Chromium owner");
       installation = parent;
     }
-    const browsers = JSON.parse(readFileSync(join(core.root, "browsers.json"), "utf8")) as { browsers?: Array<{ name?: string; revision?: string }> };
+    const browsers = JSON.parse(readFileSync(join(driver.coreRoot, "browsers.json"), "utf8")) as { browsers?: Array<{ name?: string; revision?: string }> };
     const folder = installation.split(sep).at(-1)!;
     const name = folder.startsWith("chromium_headless_shell-") ? "chromium-headless-shell" : "chromium";
     const browser = browsers.browsers?.find(value => value.name === name);
     if (!browser || folder.slice(folder.lastIndexOf("-") + 1) !== browser.revision || !statSync(join(installation, "INSTALLATION_COMPLETE")).isFile()) {
       throw new Error("preview inputs: browser installation does not match the locked driver");
     }
-    add("browser:executable", availability.identity.executablePath);
-    walk(installation, installation, `browser:installation:${folder}`);
+    inventory.add("browser:executable", availability.identity.executablePath);
+    inventory.walk(installation, installation, `browser:installation:${folder}`);
   }
-  return [...selected].sort(([a], [b]) => a.localeCompare(b)).map(([name, path]) => ({ name, path }));
+  return inventory.inputs();
 }
 
 export function bunExecutable(): string {

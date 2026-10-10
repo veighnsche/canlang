@@ -60,7 +60,11 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
       assert.ok(input.preview.issueOpenUrl, 'browser preview must issue genuine bootstrap URLs');
       const opened = input.preview.issueOpenUrl();
       const bootstrap = await page.goto(opened, { waitUntil: 'domcontentloaded' }); check();
-      assert.ok(bootstrap && bootstrap.status() === 200, 'browser bootstrap must reach its protected page');
+      // HelpOffice's source preference schema requires an active member before page rendering.
+      assert.ok(bootstrap && bootstrap.status() === 403, 'anonymous HelpOffice bootstrap must reach the owning page refusal');
+      const bootstrapRefusal: unknown = await bootstrap.json();
+      assert.ok(bootstrapRefusal && typeof bootstrapRefusal === 'object' && 'code' in bootstrapRefusal &&
+        bootstrapRefusal.code === 'forbidden', 'anonymous HelpOffice bootstrap must preserve the owning forbidden refusal');
       const origin = new URL(opened).origin;
       const seed = seeds.find(actor => actor.label === label); assert.ok(seed, 'browser actor seed is required');
       const descriptor = await context.request.get(`${origin}/auth/login`, { timeout: 10_000 });
@@ -157,6 +161,34 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
         await submit(ava, form, 'delete');
       }); check();
     };
+    const noAvaNames = async (page: Page) => {
+      const text = await page.locator('body').innerText();
+      assert.ok(input.initialVisible.every(item => !text.includes(item.name)), 'unrelated browser page must not disclose initial Ava supplies');
+    };
+    const refusedPage = async (page: Page, url: string) => {
+      check(); const response = await page.goto(url, { waitUntil: 'domcontentloaded' }); check();
+      assert.ok(response && response.status() === 403, 'HelpOffice page without active membership must refuse');
+      const body: unknown = await response.json();
+      assert.ok(body && typeof body === 'object' && 'code' in body && body.code === 'forbidden',
+        'HelpOffice page must expose only the owning forbidden envelope');
+      assert.ok(await page.locator('form[action*="Supply.create"], form[action*="Supply.update"], form[action*="Supply.delete"]').count() === 0,
+        'refused browser page must not disclose supply mutation forms');
+      assert.ok(await rows(page).count() === 0 && await page.locator('table.table').count() === 0,
+        'refused browser page must not disclose supply read projections');
+      await noAvaNames(page);
+    };
+    await readonly('browser page authority matrix', async () => {
+      const cal = sessions.get('Cal')!, dee = sessions.get('Dee')!;
+      await reload(cal); await overview(cal, [], []); await noAvaNames(cal.page);
+      await refusedPage(dee.page, dee.origin);
+      check(); const anonymous = await input.browser.newContext(); contexts.add(anonymous);
+      anonymous.setDefaultTimeout(10_000); anonymous.setDefaultNavigationTimeout(15_000); check();
+      const page = await anonymous.newPage(); check();
+      assert.ok(input.preview.issueOpenUrl, 'anonymous browser requires its own fresh protected bootstrap');
+      await refusedPage(page, input.preview.issueOpenUrl());
+      assert.ok(!(await anonymous.cookies()).some(cookie => cookie.name === SESSION_COOKIE_NAME),
+        'anonymous page refusal must not synthesize an Identity session');
+    });
     await readonly('browser initial member read', async () => { await reload(ava); await reload(ben); await overview(ava, input.initialVisible, input.initialVisible); });
     for (const initial of input.initialVisible) await remove(initial);
     await readonly('browser initial archive absence', async () => { await reload(ben); await overview(ava, [], []); await overview(ben, [], []); });
@@ -215,7 +247,7 @@ export async function qualifyFirstProfileBrowser(input: FirstProfileBrowserInput
     await readonly('browser final shared archive absence', async () => { await reload(ben); await overview(ava, [], []); await overview(ben, [], []); });
     check();
     const descriptions: readonly [readonly string[], string][] = [
-      [['can.v1.section.then', 'can.v1.then.page'], 'HelpOffice Chromium: protected authored page title and two member contexts consume the unchanged Then page'],
+      [['can.v1.section.then', 'can.v1.then.page'], 'HelpOffice Chromium: protected authored page serves members; foreign-owner page is empty and nonmember/anonymous pages refuse without supply projections or resource writes'],
       [['can.v1.ui.card', 'can.v1.derive.function'], 'HelpOffice Chromium: actual Add a supply and derived Team supplies card headings render'],
       [['can.v1.then.form', 'can.v1.ui.input'], 'HelpOffice Chromium: generated inline create form submits text and nullable integer inputs; actual shared rows persist'],
       [['can.v1.then.edit', 'can.v1.then.text', 'can.v1.ui.list'], 'HelpOffice Chromium: Ben edits Ava supply name, quantity and availability through generated row drawer; both members read actual values'],

@@ -4,14 +4,15 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { D1Database } from '@cloudflare/workers-types';
-import { deriveCsrfToken } from '@canlang/identity';
+import { createD1IdentityStore, deriveCsrfToken, resolveIdentity } from '@canlang/identity';
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { compileCapturedSingleFile } from './compiler-check.js';
 import { loadInstalledExampleTestkit, runCompiledExamples } from './example-runner.js';
 import { createLocalPreviewBuilder, type LocalPreviewWithActors } from './preview-builder.js';
 import { localPreviewActivationVerdict, preflightLocalPreviewActivation, produceInstalledPortableBundle,
   seedLocalPreviewActors } from './preview-host.js';
-import { prepareLocalPreviewCapture } from './preview-inputs.js';
+import { loadInstalledChromium, prepareLocalPreviewCapture } from './preview-inputs.js';
+import { qualifyFirstProfileBrowser, type FirstProfileBrowserInput } from './first-profile-browser.js';
 import { FIRST_PROFILE } from './construct-help.js';
 import type { SessionConstructQualification, SessionConstructQualificationRequest } from './session-service.js';
 import { captureIsCurrent, capturedProducerInputsAreCurrent, captureSingleFileSource, verifyCompilerSources, type SingleFileCapture } from './source-capture.js';
@@ -373,10 +374,123 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
       assert.equal(scenarioRow.report.summary.failed,0); assert.equal(scenarioRow.report.summary.setupFailed,0); assert.equal(scenarioRow.report.summary.unsupported,0);
       pass(['can.v1.examples.table.scenario'],'HelpOffice: actual compiled rename row uses other member and editable model fixture, observes New paper after checked Set in isolated D1/Identity',`${renameOperation}#0: passed`);
     }
+    // The optional Node producer never supplies an outcome by availability alone.
+    const chromium = await loadInstalledChromium(capture.root); check();
+    if (chromium !== null) {
+      const availability = await chromium.producer.chromiumAvailability(); check();
+      const producerInput = fixture.inputs.find(item=>item.name==='extra:browser:producer');
+      assert.equal(producerInput?.canonicalPath,chromium.entryPath);
+      for (const browserInput of fixture.inputs.filter(item=>item.name.startsWith('extra:browser:'))) {
+        assert.deepEqual(capture.inputs.find(item=>item.name===browserInput.name),browserInput,
+          'browser producer belongs to the original full capture');
+      }
+      if (availability.available) {
+        const driver = fixture.inputs.find(item=>item.canonicalPath===availability.identity.driverEntryPath);
+        const executable = fixture.inputs.find(item=>item.name==='extra:browser:executable');
+        assert.ok(driver?.state==='present');
+        assert.equal(executable?.requestedPath,availability.identity.executablePath);
+        assert.equal(await captureIsCurrent(fixture),true); check();
+        const lease = await chromium.producer.acquireChromium(signal===undefined ? {} : {signal});
+        try {
+          check(); assert.deepEqual(lease.identity,availability.identity);
+          const browserActors = new Map<string,Actor>();
+          const expectedActors = {Ava:ava,Ben:ben,Cal:cal,Dee:dee};
+          const browserInput: FirstProfileBrowserInput = {
+            browser:lease.browser,preview,...(signal===undefined?{}:{signal}),expectedActors,snapshot,
+            initialVisible:(await db.prepare('SELECT data FROM records WHERE model=? AND archived_at IS NULL').bind(model)
+              .all<{data:string}>()).results.map(row=>{
+                const data=object(JSON.parse(row.data)); return {name:string(data.name),
+                  quantity:data.quantity===null ? null : string(data.quantity),available:data.available===true};
+              }),
+            onAuthenticated:async(label,facts)=>{
+              check(); const token=decodeURIComponent(facts.cookie.slice('can_session='.length));
+              const identity=await resolveIdentity(createD1IdentityStore(identities!),{session_token:token});
+              const expected=expectedActors[label];
+              assert.equal(identity.actor?.user_id,expected.principal);
+              assert.equal(identity.team?.team_id ?? null,expected.owner);
+              assert.equal(identity.membership?.status ?? null,expected.owner===null ? null : 'active');
+              assert.equal(facts.csrf,await deriveCsrfToken(token));
+              const actor={...expected,cookie:facts.cookie,csrf:facts.csrf}; browserActors.set(label,actor);
+              if(label==='Cal') await refusal(actor,'update',{record:{id:renameEntry.id,version:'2'},name:'Foreign browser'},'not_found',false);
+              if(label==='Dee') await refusal(actor,'create',{name:'Forbidden browser'},'forbidden',false);
+              check();
+            },
+            preference:async(label,value,action)=>{
+              const before=await snapshot(); await action(); check(); const after=await snapshot();
+              const old=before.Identity!.page_preferences!, current=after.Identity!.page_preferences!;
+              const actor=browserActors.get(label)!;
+              const matches=(entry:string)=>{const row=object(JSON.parse(entry)); return row.app_id===app &&
+                row.actor_user_id===actor.principal && row.team_id===actor.owner && row.owner===actor.owner && row.field==='view';};
+              const previous=old.filter(matches), selected=current.filter(matches); assert.equal(selected.length,1);
+              assert.deepEqual(object(JSON.parse(selected[0]!)),{app_id:app,actor_user_id:actor.principal,
+                team_id:actor.owner,owner:actor.owner,field:'view',value,version:previous.length ? Number(object(JSON.parse(previous[0]!)).version)+1 : 1});
+              assert.deepEqual(current.filter(entry=>!matches(entry)),old.filter(entry=>!matches(entry)));
+              for(const [owner,tables] of Object.entries(before)) for(const [name,rows] of Object.entries(tables))
+                if(owner!=='Identity' || name!=='page_preferences') assert.deepEqual(after[owner]?.[name],rows);
+            },
+            mutation:async(label,kind,expected,action)=>{
+              const before=await snapshot(); await action(); check(); const after=await snapshot();
+              const actor=browserActors.get(label)!; assert.equal(actor.owner,ava.owner);
+              const ownBefore=before[actor.owner!]!, ownAfter=after[actor.owner!]!;
+              const added=ownAfter.receipts!.filter(entry=>!ownBefore.receipts!.includes(entry)); assert.equal(added.length,1);
+              const receipt=object(JSON.parse(added[0]!)), outcome=object(JSON.parse(string(receipt.outcome)));
+              assert.equal(receipt.operation,`${model}.${kind}`); assert.equal(receipt.principal,actor.principal);
+              assert.equal(receipt.app,app); assert.equal(receipt.owner,actor.owner); assert.equal(outcome.status,'committed');
+              assert.equal(ownAfter.receipts!.length,ownBefore.receipts!.length+1);
+              assert.deepEqual(ownAfter.receipts!.filter(entry=>!added.includes(entry)),ownBefore.receipts);
+              const changed=ownAfter.records!.filter(entry=>!ownBefore.records!.includes(entry)); assert.equal(changed.length,1);
+              const current=object(JSON.parse(changed[0]!)); assert.equal(current.model,model);
+              const original=ownBefore.records!.map(entry=>object(JSON.parse(entry))).find(entry=>entry.id===current.id);
+              const data={name:expected.name,quantity:expected.quantity,available:expected.available,stock:'0',locked:false};
+              const reference=original ? {id:string(original.id),version:String(original.version)} : undefined;
+              const submitted=kind==='create' ? {name:expected.name,quantity:expected.quantity}
+                : kind==='delete' ? {record:reference}
+                : {record:reference,name:expected.name,quantity:expected.quantity,available:expected.available};
+              assert.equal(receipt.input_hash,await hashInputs(submitted),'generated form preserves exact source inputs');
+              assert.deepEqual(JSON.parse(string(current.data)),data);
+              assert.equal(current.version,kind==='create' ? 1 : Number(original!.version)+1);
+              assert.equal(current.updated_by,actor.principal); assert.equal(current.updated,receipt.created_at);
+              if(kind==='delete') assert.equal(current.archived_at,receipt.created_at); else assert.equal(current.archived_at,null);
+              if(kind==='create') {assert.equal(original,undefined);assert.equal(ownAfter.records!.length,ownBefore.records!.length+1);}
+              else {assert.ok(original);assert.equal(original.archived_at,null);assert.equal(ownAfter.records!.length,ownBefore.records!.length);
+                const expectedStored:Record<string,unknown>={...original,data:JSON.stringify(data),version:Number(original.version)+1,
+                  updated:receipt.created_at,updated_by:actor.principal,...(kind==='delete'?{archived_at:receipt.created_at}:{})};
+                assert.deepEqual(current,expectedStored);}
+              assert.deepEqual(ownAfter.records!.filter(entry=>object(JSON.parse(entry)).id!==current.id),
+                ownBefore.records!.filter(entry=>object(JSON.parse(entry)).id!==current.id));
+              const history=ownAfter.history!.map(entry=>object(JSON.parse(entry))).filter(entry=>entry.operation_id===receipt.operation_id);
+              assert.equal(history.length,1); assert.equal(history[0]!.model,model); assert.equal(history[0]!.record_id,current.id);
+              assert.equal(history[0]!.operation,receipt.operation);assert.equal(history[0]!.version,current.version);assert.equal(history[0]!.actor,actor.principal);
+              assert.deepEqual(history[0]!.before===null ? null : JSON.parse(string(history[0]!.before)),original ? JSON.parse(string(original.data)) : null);
+              assert.deepEqual(JSON.parse(string(history[0]!.after)),data);
+              assert.equal(ownAfter.history!.length,ownBefore.history!.length+1);
+              assert.deepEqual(ownAfter.history!.filter(entry=>object(JSON.parse(entry)).operation_id!==receipt.operation_id),ownBefore.history);
+              const fence=object(JSON.parse(ownBefore.fence![0]!)), next=object(JSON.parse(ownAfter.fence![0]!));
+              assert.deepEqual(next,{...fence,revision:Number(fence.revision)+1});assert.equal(receipt.committed_revision,next.revision);
+              assert.equal(ownAfter.fence_log!.length,ownBefore.fence_log!.length+1);
+              assert.deepEqual(ownAfter.fence_log!.filter(entry=>object(JSON.parse(entry)).revision!==next.revision),ownBefore.fence_log);
+              assert.deepEqual(ownAfter.fence_log!.map(entry=>object(JSON.parse(entry))).find(entry=>entry.revision===next.revision),
+                {revision:next.revision,operation:receipt.operation,at:receipt.created_at});
+              assert.deepEqual(outcome.recordVersions,[{model,id:current.id,version:current.version}]);
+              const writes=new Set(['records','receipts','history','fence','fence_log']);
+              for(const [owner,tables] of Object.entries(before)) for(const [name,rows] of Object.entries(tables))
+                if(owner!==actor.owner || !writes.has(name)) assert.deepEqual(after[owner]?.[name],rows);
+              const replay=await invoke(actor,`${model}.${kind}`,submitted,string(receipt.operation_id));
+              assert.equal(replay.status,200);assert.equal(replay.body.status,'replayed');
+              assert.deepEqual(await snapshot(),after,'the actual browser operation envelope replays without resource writes');
+            },
+          };
+          const browserChecks=await qualifyFirstProfileBrowser(browserInput); check();
+          for(const result of browserChecks) pass([result.id],result.runtimeCheck);
+        } finally {await lease.close();}
+        assert.equal(lease.browser.isConnected(),false,'qualification owns browser cleanup');
+      }
+    }
     check(); assert.equal(await captureIsCurrent(fixture),true); assert.equal(await captureIsCurrent(capture),true);
     return Object.freeze([...qualified.values()]);
   } finally {
     await preview?.dispose();
+    check();
     assert.equal(await captureIsCurrent(fixture),true,'qualification fixture remained current through cleanup');
     assert.equal(await captureIsCurrent(capture),true,'caller capture remained current through cleanup');
     check();
@@ -430,7 +544,7 @@ export function createInstalledFirstProfileQualification() {
       producerInputsDigest:request.producerInputsDigest,messageKinds:Object.freeze([]),
       proofs:Object.freeze(actual.map(record=>Object.freeze({ ...record,indexRevision:request.indexRevision,
         profile:FIRST_PROFILE,compilerSha256:request.compilerSha256,
-        compilerCheck:`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[${record.id}]; executed captured native compile ${fixturePath} sha256:${fixtureIdentity.sha256}; complete source identity verified; ${record.exampleCheck ? 'emitted compiled example suite consumed by owning Testkit' : record.id==='can.v1.when.scenario.read' || record.id==='can.v1.builtin.count' ? 'emitted HelpOffice.total read descriptor consumed by public MCP' : record.id==='can.v1.when.scenario.user' ? 'emitted HelpOffice.rename checked Set/disclosure and parameter callable consumed by public runtime' : 'emitted Supply CRUD/model descriptors consumed by public runtime'}` }))) });
+        compilerCheck:`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[${record.id}]; executed captured native compile ${fixturePath} sha256:${fixtureIdentity.sha256}; complete source identity verified; ${record.exampleCheck ? 'emitted compiled example suite consumed by owning Testkit' : record.runtimeCheck.startsWith('HelpOffice Chromium:') ? 'emitted HelpOffice page/preferences/derive declarations consumed by protected Chromium' : record.id==='can.v1.when.scenario.read' || record.id==='can.v1.builtin.count' ? 'emitted HelpOffice.total read descriptor consumed by public MCP' : record.id==='can.v1.when.scenario.user' ? 'emitted HelpOffice.rename checked Set/disclosure and parameter callable consumed by public runtime' : 'emitted Supply CRUD/model descriptors consumed by public runtime'}` }))) });
     signal?.throwIfAborted(); completed.set(key,result);
     while(completed.size>4) completed.delete(completed.keys().next().value!);
     return result;
