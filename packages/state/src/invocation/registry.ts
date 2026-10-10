@@ -423,8 +423,8 @@ function checkValueType(field: Record<string, unknown>, what: string, valueSchem
     catch { fail('malformed_descriptor', `Invalid ${what}: valueType must declare a canonical inline enum profile.`); }
     return checkEnumValueType(field, parsed.base.kind === 'enum' ? parsed.base.cases : undefined, what, valueSchema);
   }
-  if (typeof type !== 'string' || type !== 'file[]!' && !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type)) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile.`);
+  if (typeof type !== 'string' || type !== 'file[]!' && !/^(int|datetime|text|bool|decimal|money|date|duration|email|timezone|user|file)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/email/timezone/user/file profile.`);
   }
   if (Object.hasOwn(field, 'nullable') &&
       (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
@@ -595,9 +595,9 @@ function artifactValueType(field: Record<string, unknown>, what: string, operati
   if (Object.hasOwn(field, 'nullable') && typeof field['nullable'] !== 'boolean') {
     fail('malformed_descriptor', `Invalid ${what}: nullable must be a boolean.`);
   }
-  const base = operationInput && tag['kind'] === 'string' &&
-    typeof field['valueType'] === 'string' && field['valueType'].replace(/\[\]|\?/g, '') === 'date'
-    ? 'date' : scalarTypeForKind(tag['kind']);
+  const claimedBase = typeof field['valueType'] === 'string' ? field['valueType'].replace(/\[\]|\?/g, '') : undefined;
+  const base = tag['kind'] === 'string' && (claimedBase === 'email' || claimedBase === 'timezone' ||
+    operationInput && claimedBase === 'date') ? claimedBase : scalarTypeForKind(tag['kind']);
   const marker = field['array'];
   const type = `${base}${marker !== undefined ? base === 'file' && isRecord(marker) && marker['required'] === true ? '[]!' : '[]' : ''}${Object.hasOwn(field, 'nullable') && field['nullable'] === true ? '?' : ''}`;
   if (Object.hasOwn(field, 'valueType') && field['valueType'] !== type) {
@@ -848,7 +848,7 @@ function checkCanonicalInput(
       kind === 'nominal' ? checkNominalValueType(value, what, valueSchema) : checkValueType(value, what);
   const inputBase = valueType === 'file[]!' ? 'file' : valueType?.replace(/\[\]|\?/g, '');
   if (kind !== 'enum' && kind !== 'nominal' && valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
-      !(kind === 'string' && inputBase === 'date')) {
+      !(kind === 'string' && (inputBase === 'date' || inputBase === 'email' || inputBase === 'timezone'))) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
   }
   if (kind === 'nominal') {

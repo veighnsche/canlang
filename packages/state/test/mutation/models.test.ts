@@ -61,3 +61,26 @@ describe('mutation model table', () => {
     }
   });
 });
+
+
+describe('checked email/timezone model metadata', () => {
+  it('preserves canonical ordinary arrays/nullability and rejects marker disagreement', () => {
+    for (const base of ['email', 'timezone']) {
+      for (const array of [false, true]) for (const nullable of [false, true]) {
+        const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+        const metadata = { required: true, serverOnly: false, valueType, nullable,
+          ...(array ? { array: { required: false }, min: 1, max: 2 } : { trim: true, min: 1, max: 100 }) };
+        const table = buildModelTable([modelDef('Acme.Profile', { fields: { contact: metadata } })]);
+        assert.equal([...table.values()][0]!.fields.contact!.valueType, valueType);
+        assert.throws(() => buildModelTable([modelDef('Acme.Profile', { fields: {
+          contact: { ...metadata, nullable: !nullable },
+        } })]), /Invalid valueType/);
+      }
+      for (const valueType of [`${base}[]!`, `${base}[][]`, `${base}?[]`]) {
+        assert.throws(() => buildModelTable([modelDef('Acme.Profile', { fields: {
+          contact: { required: true, serverOnly: false, valueType, array: { required: true } },
+        } })]), /Invalid valueType/);
+      }
+    }
+  });
+});

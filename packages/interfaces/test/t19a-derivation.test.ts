@@ -1048,3 +1048,44 @@ test('equal authority: an interface submission matches the direct call', async (
   assert.equal(malloryDirect.error.code, malloryPayload.code);
   assert.equal(malloryDirect.error.message, malloryPayload.message);
 });
+
+
+test('checked email/timezone inputs preserve owning scalar codec profiles', () => {
+  // Component metadata over the existing review operation; native context
+  // emission is qualified by the owning Compiler consumer separately.
+  for (const [base, valid, invalid] of [['email', 'a@example.test', 'not-email'],
+    ['timezone', 'Europe/Brussels', 'Not/A_Zone']] as const) {
+    for (const array of [false, true]) for (const nullable of [false, true]) {
+      const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+      const field = { name: 'contact', field: { kind: 'string' as const }, valueType, required: true,
+        nullable, ...(array ? { array: { required: false } } : {}) };
+      const op = { ...REVIEW, inputs: { fields: [field] } };
+      const input = deriveOperationInputs(op).inputs[0]!;
+      assert.equal(input.valueType, valueType);
+      assert.equal(input.kind, 'string');
+      assert.equal(checkBoundArgument(input, array ? [valid] : valid), null);
+      assert.notEqual(checkBoundArgument(input, array ? [invalid] : invalid), null);
+      assert.equal(checkBoundArgument(input, null) === null, nullable);
+      assert.throws(() => checkArtifactOperation({ ...op, inputs: { fields: [{ ...field, nullable: !nullable }] } }));
+      assert.throws(() => checkArtifactOperation({ ...op, inputs: { fields: [{ ...field, valueType: `${base}[]!`, array: { required: true } }] } }));
+    }
+  }
+});
+
+
+test('checked email/timezone choice labels validate full owning model fields', () => {
+  const slice = nominalReferenceSlice();
+  const choices = { version: 1, readOperation: GADGET_READ.name, arguments: {}, value: { kind: 'record' }, labels: ['title'] };
+  const operation = { ...GADGET_CREATE, inputs: { fields: GADGET_CREATE.inputs.fields.map(field =>
+    field.name === 'owner' ? { ...field, choices } : field) } };
+  const read = { ...GADGET_READ, result: { type: 'Shop.Gadget[]' } };
+  for (const valueType of ['email', 'timezone']) {
+    const fields = GADGET_CREATE.inputs.fields.map(field => field.name === 'title' ? { ...field, valueType } : field);
+    const withChoices = { ...slice, operations: [...slice.operations, operation, read],
+      models: [{ name: 'Shop.Gadget', fields }] };
+    assert.equal(checkArtifactOperations(withChoices).length, 3);
+    assert.throws(() => checkArtifactOperations({ ...withChoices, models: [{ name: 'Shop.Gadget', fields:
+      fields.map(field => field.name === 'title' ? { ...field, valueType: `${valueType}?`, nullable: false } : field),
+    }] }));
+  }
+});

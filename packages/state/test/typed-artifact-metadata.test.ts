@@ -12,6 +12,7 @@ import {
   type ArtifactDescriptorSlice,
 } from '../src/invocation/registry.js';
 import { validateCallInputs } from '../src/invocation/admission.js';
+import { decodeValue } from '@canlang/values';
 import { prepareOperationInputs, validatePreparedInputs } from '../src/invocation/prepared-inputs.js';
 import { buildModelTable, buildModelTableFromCanonical } from '../src/mutation/models.js';
 import { runMutationWrites } from '../src/mutation/pipeline.js';
@@ -1067,4 +1068,61 @@ test('policy claim, module and nested metadata accessors refuse without executio
     incompatible(() => loadArtifactDescriptors(raw, opts));
   }
   assert.equal(reads, 0);
+});
+
+
+test('checked email/timezone metadata retains owning codecs in artifact and canonical admission', async () => {
+  for (const [base, valid, invalid] of [['email', 'a@example.test', 'not-email'],
+    ['timezone', 'Europe/Brussels', 'Not/A_Zone']] as const) {
+    for (const array of [false, true]) for (const nullable of [false, true]) {
+      const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+      const markers = { nullable, ...(array ? { array: { required: false } } : {}) };
+      const raw: ArtifactDescriptorSlice = { ...artifact(), models: [{ name: model, deleteMode: 'archive', fields: [
+        { name: 'contact', field: { kind: 'string' }, valueType, required: true, serverOnly: false, ...markers,
+          ...(array ? { min: 1, max: 2 } : { trim: true, min: 1, max: 100 }) },
+      ] }], operations: [{ name: operation, kind: 'scenario', description: '', inputs: { fields: [
+        { name: 'contact', field: { kind: 'string' }, valueType, required: true, ...markers },
+      ] } }] };
+      const loaded = loadArtifactDescriptors(raw, opts);
+      const converted = artifactToDescriptorSet(raw);
+      const canonical = loadExecutionDescriptorSet(converted.set, { ...opts, inputArrays: converted.inputArrays });
+      for (const candidate of [loaded, canonical]) {
+        assert.equal(candidate.models[0]!.fields.contact!.valueType, valueType);
+        const def = candidate.registry.get(operation)!;
+        const wire = array ? [valid] : valid;
+        assert.deepEqual(validateCallInputs(def, { contact: wire }).normalized, { contact: wire });
+        assert.ok(isGeneratedOperationDef(def));
+        const loadedInput = def.descriptor.inputs[0]!;
+        assert.ok(loadedInput.kind === 'string');
+        const owningType = loadedInput.valueType!;
+        assert.equal(owningType, valueType);
+        // Generic framing leaves typed scalar decoding to its existing later
+        // checkpoint; retained metadata must select the actual owning codec.
+        assert.deepEqual(decodeValue(owningType, wire), wire);
+        assert.throws(() => decodeValue(owningType, array ? [invalid] : invalid));
+        if (nullable) assert.equal(decodeValue(owningType, null), null);
+        else assert.throws(() => decodeValue(owningType, null));
+        const table = buildModelTableFromCanonical(candidate.models);
+        const { store } = createTestMemoryStorage();
+        await assert.rejects(runMutationWrites({ table, store, context: pipelineContext({ operation: 'Example.Job.create' }), writes: [
+          { op: 'create', model, id: asId('bad-contact'), data: { contact: array ? [invalid] : invalid } },
+        ] }));
+        assert.deepEqual(await store.query({ model, authority: 'owner', archived: 'include' }), []);
+        const accepted = await runMutationWrites({ table, store, context: pipelineContext({ operation: 'Example.Job.create' }), writes: [
+          { op: 'create', model, id: asId('valid-contact'), data: { contact: wire } },
+        ] });
+        assert.ok(accepted.writes[0]?.kind === 'insert');
+        assert.deepEqual(accepted.writes[0].row.data, { contact: wire });
+        assert.equal(await store.load(model, asId('valid-contact')), null);
+        assert.equal(await store.readRevision(), 0);
+        if (array) await assert.rejects(runMutationWrites({ table, store,
+          context: pipelineContext({ operation: 'Example.Job.create' }), writes: [
+            { op: 'create', model, id: asId('too-many'), data: { contact: [valid, valid, valid] } },
+          ] }));
+      }
+      incompatible(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [
+        { ...raw.operations![0]!.inputs.fields[0]!, nullable: !nullable },
+      ] } }] }, opts));
+    }
+  }
 });
