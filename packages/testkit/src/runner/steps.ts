@@ -69,6 +69,9 @@ export interface StashedRow {
   readonly expectedValues: readonly unknown[] | null;
 }
 
+/** Checked table routing from the defining Compiler, aligned with selectors. */
+export type SelectorChannel = "input" | "request" | "caller";
+
 export interface ExampleHooks {
   readonly invokeCall?: InvokeCall;
   /** Persist and replace fixture values before input/expectation closures run. */
@@ -85,6 +88,8 @@ export interface ExampleHooks {
     readonly inputs: unknown;
     readonly selectors: readonly string[];
     readonly cells: readonly unknown[];
+    /** Absent only for legacy producers; request channels are wire overrides. */
+    readonly selectorChannels?: readonly SelectorChannel[];
   }) => Promise<{ readonly fixtures: ReadonlyMap<string, unknown>; readonly inputs: unknown }>;
   /**
    * Supplies the `s` argument observation callbacks read. Defaults to
