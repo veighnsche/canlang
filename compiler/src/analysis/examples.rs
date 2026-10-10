@@ -40,7 +40,7 @@ use super::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind,
     has_error, is_expression,
 };
-use super::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable};
+use super::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable, completion_envelope};
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, kids, name_text, path_segments,
 };
@@ -2580,6 +2580,9 @@ fn scenario_event_envelope(
             }
         }
         3 if segments[2] == "completed" => {
+            if let Some(completion) = types.std_delivery_completion_handlers.get(&NodeKey::of(on)) {
+                return Some(completion.payload.clone());
+            }
             let head = prod_symbol(tables, module, segments[0])?;
             let SymbolKind::Capability { ops, .. } = &tables.symbols[head.0 as usize].kind else {
                 return None;
@@ -2588,22 +2591,9 @@ fn scenario_event_envelope(
                 .iter()
                 .copied()
                 .find(|o| tables.symbols[o.0 as usize].name == segments[1])?;
-            let result = match types.symbol_results.get(&op).cloned() {
-                Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
-                Some(None) | None => ResolvedType::Null,
-            };
-            Some(ResolvedType::Object(vec![
-                (
-                    "delivery_id".to_string(),
-                    ResolvedType::Scalar(Scalar::Text),
-                ),
-                (
-                    "status".to_string(),
-                    ResolvedType::Opaque("delivery status"),
-                ),
-                ("result".to_string(), result),
-                ("error".to_string(), ResolvedType::Opaque("delivery error")),
-            ]))
+            Some(completion_envelope(
+                types.symbol_results.get(&op).cloned().flatten(),
+            ))
         }
         _ => None,
     }
