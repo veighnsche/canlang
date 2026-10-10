@@ -1621,6 +1621,219 @@
           "validation": "Actual State owning emit refresh0 and corrected Work owning emit0. Initial two fixture type errors corrected without assertion changes; first run hit D1 reserved _cf_METADATA SQLITE_AUTH before retirement assertions, so discovery excludes only public-API-unreadable _cf_* provider tables. Final two genuine cases2/2 pass5443.37ms (5755.42ms total),0fail/cancel/skip; complete journal tombstone equals actual persisted terminal row. Earlier corrected two cases2/2 pass5070.17ms; final repetition only follows the added complete-tombstone assertion. Frozen offline install0; boundaries13packages/946JS-TS/1403runtime-context/0violations. Finite independent fixes review CLEAR. Existing State032 backend/framework/error and Files08fc mechanics outcomes reused; no old Work/DO/native rerun.",
           "limits": "Finite real D1 -> separate Files SQLite qualifier only; coordinator acceptance pending. No generated/original native workflow, deployment all-writer routing, authenticated provider ingress or parent acceptance. Actual backend/default, native preparation, security/payload/timezone and publication holds remain."
         }
+      },
+      "opaque_payload_contract_consultation": {
+        "status": "Finite shared opaque File ABI manually reviewed and locally integrated from ffe78812; actual owning State/Work persistence/census and Dev original receiving capture remain unfinished. Consultation is advice, and current runtime opaque refusal and precise holds remain unchanged.",
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "source_base": "e3c2ee7d5e1cfb9ad547d329c3748e7c256d950c",
+        "authorization": "Human AGENTS.md difficult-design calls preauthorized; coordinator finite Contracts/state.ts ABI assignment. Abstract verified contract/persistence semantics only: no source code, application/provider/user data, identifiers, deployment locations or credentials in payload.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "problem": "Choose the next minimal shared contract for classifying File references in persisted framework retained-result and deferred-input payloads. Decide an implementation direction, not runtime acceptance.",
+              "verified_facts": [
+                "The current trusted host binds actual same-load framework producer exports; their full closed model/field inventory is compared to persisted declarations. Each producer validates only owning row shape and returns no resolved opaque schema.",
+                "Storage has complete checked canonical/artifact domain models and structural value types plus installed snapshot identity. Framework payload fields are explicit opaque retained-result/deferred-input roles; census deliberately refuses those rows, even null payloads.",
+                "Existing shared APIs include named canonical/artifact input definitions, typed results, nominal value-type closure, compiled source hashes and callable module/export/member correspondence. Receipt result context exists only as a transient external argument; schedule and occurrence rows do not persist original declaration correspondence.",
+                "Original payload declarations must remain available after reopen and schema migration. Choosing a new declaration with the same event/result spelling cannot reinterpret an old payload. Owning producers must persist actual original delivery/occurrence/source/scope correspondence atomically with each payload.",
+                "Storage already fences permanent retirement against the complete typed reference census and every writer/migration. File facts and schema declarations are data, never current receiving/disclosure/reuse authority. Current genuine File observations and host owner binding are separate existing seams."
+              ],
+              "required_outcomes": [
+                "Use complete genuine owning input/result/source/valueTypes evidence; no namespace tag, callback shape, successful codec, null/no-File guess, fabricated domain model or caller reference list bypass.",
+                "Count every archived/nested/collection typed File occurrence at its exact row lifetime and field/path. Missing, duplicate, mismatched, stale or incomplete evidence must refuse. Preserve reference conservation and permanent retired-reference admission.",
+                "Keep actual source/row selectors and provider envelope rules with owning producers, and storage census with storage. Preserve original correspondence after reopen and across migration; all relevant writes publish payload and binding together.",
+                "Reuse existing declaration APIs and add only necessary shared interfaces. Legacy omission keeps opaque refusal. Runtime producers, persistence and native/current-authority bindings stay with their existing owners."
+              ]
+            },
+            "questions": {
+              "opaque_payload_contract": {
+                "type": "choice",
+                "instructions": "Which contract direction best satisfies every required outcome with the least necessary cross-owner change? Evaluate both implementation approaches fairly, including their validation and migration obligations; choose deferral if evidence is insufficient. Do not treat a declared interface as implemented authority.",
+                "criteria": {
+                  "owning_typed_resolution": "Persist complete original declaration sets and per-row/field bindings. Add an optional inventory-aware method on the actual bound owning producer that validates each opaque field and resolves its full typed profile/binding against that original evidence. Storage independently traverses the exact stored field using the resolved checked profile/value-type closure; no precomputed ref list or permission verdict is returned. This handles owning provider/envelope selectors centrally but adds a typed-resolution API and requires strict comparison of returned correspondence.",
+                  "generic_bound_profile": "Persist the same complete original declaration sets and per-row/field bindings. Extend owning validation with that exact context; storage selects/traverses a fixed typed profile directly from persisted row bindings. This avoids a separate projection API and keeps generic traversal simple, but storage must explicitly handle profile/phase selection and ensure legacy validators cannot silently ignore opaque evidence. Both directions require real producer/persistence/reopen/migration/current-use implementation before acceptance.",
+                  "defer_until_owning_evidence": "Keep all opaque-bearing rows unsupported and release no shared contract yet; ask the existing owners to publish complete original declaration and row-binding producers first. This preserves refusal and avoids premature ABI assumptions, but those owners currently request the shared interface prerequisite. Prefer this only if the verified existing APIs cannot support either bounded contract without further clarification."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "problem": "Choose the next minimal shared contract for classifying File references in persisted framework retained-result and deferred-input payloads. Decide an implementation direction, not runtime acceptance.",
+              "verified_facts": [
+                "The current trusted host binds actual same-load framework producer exports; their full closed model/field inventory is compared to persisted declarations. Each producer validates only owning row shape and returns no resolved opaque schema.",
+                "Storage has complete checked canonical/artifact domain models and structural value types plus installed snapshot identity. Framework payload fields are explicit opaque retained-result/deferred-input roles; census deliberately refuses those rows, even null payloads.",
+                "Existing shared APIs include named canonical/artifact input definitions, typed results, nominal value-type closure, compiled source hashes and callable module/export/member correspondence. Receipt result context exists only as a transient external argument; schedule and occurrence rows do not persist original declaration correspondence.",
+                "Original payload declarations must remain available after reopen and schema migration. Choosing a new declaration with the same event/result spelling cannot reinterpret an old payload. Owning producers must persist actual original delivery/occurrence/source/scope correspondence atomically with each payload.",
+                "Storage already fences permanent retirement against the complete typed reference census and every writer/migration. File facts and schema declarations are data, never current receiving/disclosure/reuse authority. Current genuine File observations and host owner binding are separate existing seams."
+              ],
+              "required_outcomes": [
+                "Use complete genuine owning input/result/source/valueTypes evidence; no namespace tag, callback shape, successful codec, null/no-File guess, fabricated domain model or caller reference list bypass.",
+                "Count every archived/nested/collection typed File occurrence at its exact row lifetime and field/path. Missing, duplicate, mismatched, stale or incomplete evidence must refuse. Preserve reference conservation and permanent retired-reference admission.",
+                "Keep actual source/row selectors and provider envelope rules with owning producers, and storage census with storage. Preserve original correspondence after reopen and across migration; all relevant writes publish payload and binding together.",
+                "Reuse existing declaration APIs and add only necessary shared interfaces. Legacy omission keeps opaque refusal. Runtime producers, persistence and native/current-authority bindings stay with their existing owners."
+              ]
+            },
+            "questions": {
+              "opaque_payload_contract": {
+                "type": "choice",
+                "instructions": "Given these verified producer/storage seams, select the most suitable next shared ABI for the complete durable opaque-payload join. Compare owning typed resolution and generic bound profiles against the same safety, completeness and reopen requirements; choose deferral only when neither can be grounded yet.",
+                "criteria": {
+                  "owning_typed_resolution": "Persist complete original declaration sets and per-row/field bindings. Add an optional inventory-aware method on the actual bound owning producer that validates each opaque field and resolves its full typed profile/binding against that original evidence. Storage independently traverses the exact stored field using the resolved checked profile/value-type closure; no precomputed ref list or permission verdict is returned. This handles owning provider/envelope selectors centrally but adds a typed-resolution API and requires strict comparison of returned correspondence.",
+                  "generic_bound_profile": "Persist the same complete original declaration sets and per-row/field bindings. Extend owning validation with that exact context; storage selects/traverses a fixed typed profile directly from persisted row bindings. This avoids a separate projection API and keeps generic traversal simple, but storage must explicitly handle profile/phase selection and ensure legacy validators cannot silently ignore opaque evidence. Both directions require real producer/persistence/reopen/migration/current-use implementation before acceptance.",
+                  "defer_until_owning_evidence": "Keep all opaque-bearing rows unsupported and release no shared contract yet; ask the existing owners to publish complete original declaration and row-binding producers first. This preserves refusal and avoids premature ABI assumptions, but those owners currently request the shared interface prerequisite. Prefer this only if the verified existing APIs cannot support either bounded contract without further clarification."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "problem": "Choose the next minimal shared contract for classifying File references in persisted framework retained-result and deferred-input payloads. Decide an implementation direction, not runtime acceptance.",
+              "verified_facts": [
+                "The current trusted host binds actual same-load framework producer exports; their full closed model/field inventory is compared to persisted declarations. Each producer validates only owning row shape and returns no resolved opaque schema.",
+                "Storage has complete checked canonical/artifact domain models and structural value types plus installed snapshot identity. Framework payload fields are explicit opaque retained-result/deferred-input roles; census deliberately refuses those rows, even null payloads.",
+                "Existing shared APIs include named canonical/artifact input definitions, typed results, nominal value-type closure, compiled source hashes and callable module/export/member correspondence. Receipt result context exists only as a transient external argument; schedule and occurrence rows do not persist original declaration correspondence.",
+                "Original payload declarations must remain available after reopen and schema migration. Choosing a new declaration with the same event/result spelling cannot reinterpret an old payload. Owning producers must persist actual original delivery/occurrence/source/scope correspondence atomically with each payload.",
+                "Storage already fences permanent retirement against the complete typed reference census and every writer/migration. File facts and schema declarations are data, never current receiving/disclosure/reuse authority. Current genuine File observations and host owner binding are separate existing seams."
+              ],
+              "required_outcomes": [
+                "Use complete genuine owning input/result/source/valueTypes evidence; no namespace tag, callback shape, successful codec, null/no-File guess, fabricated domain model or caller reference list bypass.",
+                "Count every archived/nested/collection typed File occurrence at its exact row lifetime and field/path. Missing, duplicate, mismatched, stale or incomplete evidence must refuse. Preserve reference conservation and permanent retired-reference admission.",
+                "Keep actual source/row selectors and provider envelope rules with owning producers, and storage census with storage. Preserve original correspondence after reopen and across migration; all relevant writes publish payload and binding together.",
+                "Reuse existing declaration APIs and add only necessary shared interfaces. Legacy omission keeps opaque refusal. Runtime producers, persistence and native/current-authority bindings stay with their existing owners."
+              ]
+            },
+            "questions": {
+              "opaque_payload_contract": {
+                "type": "choice",
+                "instructions": "What should the owners implement next to unblock this exact durable framework File correspondence gap while keeping census and authority honest? Weigh the two viable data-plus-validation designs equally and retain the defer option for unresolved facts. The selection is advice, not workflow acceptance.",
+                "criteria": {
+                  "owning_typed_resolution": "Persist complete original declaration sets and per-row/field bindings. Add an optional inventory-aware method on the actual bound owning producer that validates each opaque field and resolves its full typed profile/binding against that original evidence. Storage independently traverses the exact stored field using the resolved checked profile/value-type closure; no precomputed ref list or permission verdict is returned. This handles owning provider/envelope selectors centrally but adds a typed-resolution API and requires strict comparison of returned correspondence.",
+                  "generic_bound_profile": "Persist the same complete original declaration sets and per-row/field bindings. Extend owning validation with that exact context; storage selects/traverses a fixed typed profile directly from persisted row bindings. This avoids a separate projection API and keeps generic traversal simple, but storage must explicitly handle profile/phase selection and ensure legacy validators cannot silently ignore opaque evidence. Both directions require real producer/persistence/reopen/migration/current-use implementation before acceptance.",
+                  "defer_until_owning_evidence": "Keep all opaque-bearing rows unsupported and release no shared contract yet; ask the existing owners to publish complete original declaration and row-binding producers first. This preserves refusal and avoids premature ABI assumptions, but those owners currently request the shared interface prerequisite. Prefer this only if the verified existing APIs cannot support either bounded contract without further clarification."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "request_index": 1,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "opaque_payload_contract": {
+                  "type": "choice",
+                  "choice": "owning_typed_resolution",
+                  "confidence": 0.41,
+                  "probabilities": {
+                    "owning_typed_resolution": 0.61,
+                    "generic_bound_profile": 0.29,
+                    "defer_until_owning_evidence": 0.1
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1092,
+                "output_tokens": 58
+              }
+            }
+          },
+          {
+            "request_index": 2,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "opaque_payload_contract": {
+                  "type": "choice",
+                  "choice": "owning_typed_resolution",
+                  "confidence": 0.62,
+                  "probabilities": {
+                    "owning_typed_resolution": 0.75,
+                    "generic_bound_profile": 0.23,
+                    "defer_until_owning_evidence": 0.02
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1099,
+                "output_tokens": 58
+              }
+            }
+          },
+          {
+            "request_index": 3,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "opaque_payload_contract": {
+                  "type": "choice",
+                  "choice": "owning_typed_resolution",
+                  "confidence": 0.48,
+                  "probabilities": {
+                    "owning_typed_resolution": 0.65,
+                    "generic_bound_profile": 0.3,
+                    "defer_until_owning_evidence": 0.05
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1095,
+                "output_tokens": 58
+              }
+            }
+          }
+        ],
+        "live_docs": [
+          "https://docs.typesafe.ai/llms.txt",
+          "https://docs.typesafe.ai/api",
+          "https://docs.typesafe.ai/primitives/choice",
+          "https://docs.typesafe.ai/introduction/coding-agents"
+        ],
+        "limits": "Advice only; preserve actual owning runtime/Compiler/Dev dependencies, opaque refusal and all precise holds. Proposed exact ABI is pending Capability/Dev correspondence through coordinator before source implementation.",
+        "automatic_review": {
+          "state": "rejected-before-execution",
+          "reason": "Internal contract/storage semantics to TypeSafe with configured key require specific human authorization for this new opaque-payload payload/destination pair. Do not bypass through another mechanism.",
+          "action": "Three exact requests in this record to https://api.typesafe.ai/v1/systemone",
+          "human_question": "Human approved these exact three requests on 2026-10-11 after the rejected-before-execution attempt."
+        },
+        "human_approval": {
+          "state": "approved",
+          "date": "2026-10-11",
+          "exact_reply": "Approve these three requests",
+          "scope": "The exact three opaque File correspondence Choice requests stored here to https://api.typesafe.ai/v1/systemone; no request edits."
+        },
+        "adjudication": {
+          "direction": "owning_typed_resolution",
+          "evidence": "All three independently worded equivalent requests choose owning_typed_resolution; probabilities0.61/0.75/0.65, confidence0.41/0.62/0.48. Generic bound profile retains0.29/0.23/0.30 probability; no claim of certainty.",
+          "uncertainty": "Exact original owning payload origin variants and synchronous resolver correspondence still require Capability/Dev shaping through coordinator. Interfaces/JSON facts cannot establish runtime authority. No disagreement in winning choice; alternatives remain plausible.",
+          "next": "Freeze only the finite Contracts/state.ts additive ABI after actual receipt/schedule/handler/source/completion origin contract. Omission keeps opaque refusal; runtime persistence/census/current authority remain respective owners."
+        },
+        "owner_correspondence": {
+          "state": "Concrete source-derived closed origin union and row placement received from Capability; shared ABI type unit implemented. Actual source/payload/File capture and bound census persistence/reopen consumers remain unfinished.",
+          "capability": "Define original State receipt and Work schedule/handler/occurrence source variants plus same-fence payload/binding persistence. Synchronous data-only owning resolution required inside existing census/commit/publication/activation guard fences; actual bound producer validates complete envelope, State independently traverses every exact typed position.",
+          "dev": "Confirmed same-load source/callable/private handler invocation/event input/canonical model/valueType evidence; direct genuine File capture exists. Nested authored SEND/receipt/schedule/source observations and trusted actor-null receiving join are unavailable; no facts fabricated from wire refs, late recensus or current schema lookup.",
+          "typed_positions": "Actual scheduled cohort and mixed routing results differ from handler returns; committed-model raw CommittedChangeEvent differs from derived handler inputs. Standard completion retains original origin.intent.arguments.arguments, terminal.result and duplicate event payload result plus typed defaults within its original retained schema. Each requires owning typed correspondence; no blanket control/null/File-free exemption.",
+          "source_lease": "Packages only Contracts/state.ts additive ABI plus directly related existing checks/records after exact Capability/Dev shape through coordinator. State/Work runtime producer/census/persistence belong to Capability; original/current authority host to Dev; checked declarations to Compiler. No competing feature edits.",
+          "unblocking_contract": "Shared source now defines historical declaration sets, original filePayloadOrigin slot/lifetime/scope/closed origins/files and optional sync resolveOpaqueField(model,row,field,{installed,binding}). Owner payload-origin evidence is separately validated and linked to payloadField, never recursively resolved. Complete actual capture, projection coverage and original/current authority remain owning runtime requirements; missing/legacy/null guesses refuse."
+        },
+        "implementation": {
+          "scope": "Only Contracts/state.ts + existing assembly type checks and direct README/DEC/TECH-F02 records. No State/Work backend, row, generic StoredRow, payload wrapper, new table or private registry implementation.",
+          "declarations": "Optional opaqueDeclarationSets contains complete original inventory identity/InstalledSnapshot/source/canonical+artifact models/valueTypes/profile closure; actual callable/private invocation, event and versioned provider declaration evidence stay distinct. Inputs/results/explicit void reuse owning types. Historical declaration names alone cannot reinterpret old values.",
+          "origin": "FrameworkFilePayloadOrigin header version1 retains model/id/created/createdBy/field/role, original scope and closed delivery-result/event-input/handler-result/source-routing/standard-completion recipes plus full RetainedFinalizedFile at typed paths. Original lifetime excludes mutable current row.version/revision. Actual provider physical provenance resultPath is distinct from typed row path and original receiver principal from current reader.",
+          "resolution": "Optional synchronous resolver receives actual installed assignment/inventory and original persisted binding, returns full typed input/result/default projections with exact binding. State independently validates/traverses complete actual values and matches original facts; no ref list, thenable, provider observation or permission verdict. Explicit no-result requires actual phase/null plus declared or void evidence.",
+          "evidence_role": "FrameworkFileReferenceField kind opaque/role payload-origin/payloadField/optionaltrue preserves existing control narrowing and current refusal. Header is validated separately and linked to actual retained-result/deferred-input field; no recursive resolver or arbitrary metadata exemption. Optional only for legacy protocol typing, never bound census permission.",
+          "necessary_refinements": "Raw committed event projectionInputsDeclarationId differs from raw schema. Standard completion covers original provider input, both result positions and all physically retained typed defaults under original schema; terminal uses existing3terminal statuses. Judgment specification persists owning canonical int64 wire version with mandatory original interleaved order rather than decoded bigint.",
+          "validation": "Final Contracts emission0. Strict repository NodeNext noEmit for existing assembly test0; affected public identity case1/1 pass2ms, prior1/1 reused except relevant wire/order/projection/terminal controls. Eleven public identity pins, full positive and16negative static controls include async/partial/ref-only/generic/null/implicit result/void/missing scope/lifetime/order/bigint/unsupported terminal refusals. Actual unchanged State and Work owning noEmit each0 against additive kind/role extension; no runtime/native/full-suite tests repeated.",
+          "review": "Coordinator finite ABI and independent public-surface reviews CLEAR: exact original declaration/lifetime/scope/receiving facts, closed origins, full typed projections, wire Judgment order/version, nonrecursive evidence header and synchronous resolver. Types establish neither issuer authority nor runtime workflow acceptance.",
+          "remaining": "Capability actual State/Work codecs, original same-fence origin/File capture, complete source/route/default projection validation, commit/publication/activation census and durable reopen/migration. Dev source-bound SEND installation, nested Images/receipt/schedule/source observations and trusted actor-null receiver/current authority; Compiler actual source/input/result/void declaration producers. Existing generic put-receipt unknown values remain unsupported; all precise holds unchanged."
+        }
       }
     },
     "TECH-SV01": {
