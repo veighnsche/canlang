@@ -1,5 +1,5 @@
 /** A File census follows owning value declarations, never reference authority. */
-import type { ArtifactModel, CanonicalModelDescriptor, CanonicalValueTypes, CanTypeId, ModelName } from '@canlang/contracts';
+import type { ArtifactModel, CanonicalFieldDef, CanonicalModelDescriptor, CanonicalValueTypes, CanTypeId, ModelName } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
 import { encodeValue, normalizeValueTypes, parseTypeId, printTypeBase, printTypeId, validateValue,
   type NormalizedSchema, type NormalizedType } from '@canlang/values';
@@ -84,21 +84,95 @@ const scalarTags: Readonly<Record<string, string>> = Object.freeze({
   date: 'date', duration: 'duration', file: 'file', user: 'user', member: 'member', json: 'json', secret: 'secret',
 });
 
+/** Shared same-load inventories; schema data does not establish source authority. */
+function boundValueSchema(bound: FileReferenceProfileBound): {
+  readonly canonicalModels: readonly CanonicalModelDescriptor[];
+  readonly names: ReadonlySet<string>;
+  readonly schema: NormalizedSchema;
+} {
+  const canonicalModels = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
+  const names = new Set<string>();
+  for (const declaration of canonicalModels) {
+    const type = parsed(declaration.name);
+    if (type.base.kind !== 'nominal' || type.array || type.nullable || names.has(declaration.name) ||
+        bound.artifactModels.get(declaration.name)?.name !== declaration.name) return invalid('exact same-load model inventory required.');
+    names.add(declaration.name);
+  }
+  if (names.size !== bound.artifactModels.size) return invalid('complete same-load model inventory required.');
+  const normalized = bound.valueTypes === undefined ? undefined : normalizeValueTypes(copyScenarioFileData(bound.valueTypes), [...names]).valueSchema;
+  const schema = bound.valueSchema ?? normalized ?? normalizeValueTypes({ contracts: [] }, [...names]).valueSchema;
+  const fingerprint = schemaFingerprint(schema);
+  if (normalized !== undefined && schemaFingerprint(normalized) !== fingerprint) return invalid('loaded Values inventories disagree.');
+  for (const name of names) {
+    if (Object.hasOwn(schema.contracts, name) || Object.hasOwn(schema.enums, name) ||
+        schema.aliases !== undefined && Object.hasOwn(schema.aliases, name)) return invalid('model and value namespaces overlap.');
+  }
+  return { canonicalModels, names, schema };
+}
+
+/** Constraint ownership is checked by the calling declaration consumer. */
+type DeclaredConstraint = Pick<CanonicalFieldDef, 'valueType' | 'trim' | 'min' | 'max'>;
+function declaredProfile(schema: NormalizedSchema, names: ReadonlySet<string>, type: CanTypeId,
+  constraint?: DeclaredConstraint): FileReferenceProfile {
+  const root = parsed(type);
+  let nodes = 0;
+  const active = new Set<string>();
+  const inspect = (ast: NormalizedType, depth: number): boolean => {
+    if (++nodes > MAX_NODES || depth > MAX_DEPTH) return invalid('type closure exceeds its finite budget.');
+    const base = ast.base;
+    if (base.kind === 'file') return true;
+    if (base.kind === 'union') {
+      let bearing = false;
+      for (const arm of base.arms) bearing = inspect(parsed(arm), depth + 1) || bearing;
+      return bearing;
+    }
+    if (base.kind !== 'nominal') return false;
+    const name = base.path, contract = Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
+    const enumeration = Object.hasOwn(schema.enums, name);
+    const alias = schema.aliases !== undefined && Object.hasOwn(schema.aliases, name) ? schema.aliases[name] : undefined;
+    if (Number(contract !== undefined) + Number(enumeration) + Number(alias !== undefined) + Number(names.has(name)) !== 1) return invalid('nominal requires one actual owning declaration.');
+    if (names.has(name) || enumeration) return false;
+    // Values permits recursive declarations. Every reachable field is still
+    // inspected on its first active path; finite stored data is checked below.
+    if (active.has(name)) return false;
+    active.add(name);
+    let bearing = false;
+    if (alias !== undefined) bearing = inspect(parsed(alias.typeId), depth + 1);
+    else if (contract !== undefined) for (const nested of Object.values(contract.fields)) bearing = inspect(parsed(nested.typeId), depth + 1) || bearing;
+    active.delete(name);
+    return bearing;
+  };
+  const fileBearing = inspect(root, 0);
+  const savedConstraint = constraint === undefined ? undefined : object(copyScenarioFileData(constraint)) as DeclaredConstraint;
+  if (savedConstraint !== undefined && Object.hasOwn(savedConstraint, 'valueType') &&
+      savedConstraint.valueType !== type) return invalid('receiving constraint type disagrees with its declaration.');
+  const receiving = savedConstraint === undefined ? undefined : modelFieldConstraintSchema({
+    ...savedConstraint, valueType: type,
+  }, schema);
+  const profile = Object.freeze({ type, fileBearing, array: root.array, nullable: root.nullable });
+  profiles.set(profile, { schema, constraint: receiving });
+  return profile;
+}
+
+/** Bind an original declaration type whose source/canonical/artifact ownership
+ * the caller already checked. This internal helper grants only finite typed
+ * traversal, never origin, admission or reference authority. No model field is
+ * invented to represent a scenario input, result or default. */
+export function bindDeclaredFileReferenceProfile(bound: FileReferenceProfileBound, type: CanTypeId,
+  constraint?: DeclaredConstraint): FileReferenceProfile {
+  try {
+    const { names, schema } = boundValueSchema(bound);
+    return declaredProfile(schema, names, type, constraint);
+  } catch (error) { if (error instanceof StateError) throw error; return invalid('invalid owning File census metadata or constraints.'); }
+}
+
 /** Bind one actual owning stored declaration. Unknown nominal fallback cannot
  * establish a complete census, even when Values would decode it as a model ref. */
 export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model: ModelName, field: string): FileReferenceProfile {
   try {
     if (typeof field !== 'string' || field === '' || field.includes('.') ||
         ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(field)) return invalid('top-level stored field required.');
-    const canonicalModels = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
-    const names = new Set<string>();
-    for (const declaration of canonicalModels) {
-      const type = parsed(declaration.name);
-      if (type.base.kind !== 'nominal' || type.array || type.nullable || names.has(declaration.name) ||
-          bound.artifactModels.get(declaration.name)?.name !== declaration.name) return invalid('exact same-load model inventory required.');
-      names.add(declaration.name);
-    }
-    if (names.size !== bound.artifactModels.size) return invalid('complete same-load model inventory required.');
+    const { canonicalModels, names, schema } = boundValueSchema(bound);
     const owners = canonicalModels.filter(candidate => candidate.name === model);
     const artifact = copyScenarioFileData(bound.artifactModels.get(model)) as ArtifactModel;
     const authored = artifact?.fields.filter(candidate => candidate.name === field) ?? [];
@@ -115,7 +189,30 @@ export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model
     // Legacy uncollapsed scalar tags and actual model-ref tags already define
     // their element type. Collapsed strings/unknown tags still need a claim.
     const inferred = typeof tag['kind'] === 'string' ? scalarTags[tag['kind']] : undefined;
-    const legacyBase = inferred ?? (tag['kind'] === 'string' ? 'text' :
+    let deliveryBase: string | undefined;
+    if (tag['kind'] === 'delivery') {
+      const expected = ['kind', 'capability', 'operation', 'version', 'result', ...(Object.hasOwn(tag, 'judgment') ? ['judgment'] : [])];
+      if (Object.keys(tag).length !== expected.length || expected.some(key => !Object.hasOwn(tag, key)) ||
+          typeof tag['capability'] !== 'string' || tag['capability'] === '' ||
+          typeof tag['operation'] !== 'string' || tag['operation'] === '' || canonical.array !== undefined ||
+          canonical.delivery === undefined || stableStringify(canonical.delivery) !== stableStringify(tag)) return invalid('exact owning delivery identity declaration required.');
+      if (Object.hasOwn(tag, 'judgment')) {
+        if (tag['judgment'] !== true || tag['operation'] !== 'evaluate' || typeof tag['version'] !== 'string' ||
+            stableStringify(encodeValue('int', validateValue(schema, 'int', tag['version'], 'create'))) !== stableStringify(tag['version'])) return invalid('exact original Judgment delivery version required.');
+      } else if (!Number.isSafeInteger(tag['version']) || (tag['version'] as number) < 1) return invalid('exact original delivery version required.');
+      const nominal = object(tag['result']);
+      if (Object.keys(nominal).length !== 2 || typeof nominal['name'] !== 'string' || nominal['name'] === '' ||
+          !Array.isArray(nominal['fields'])) return invalid('complete delivery result descriptor required.');
+      const resultNames = new Set<string>();
+      for (const raw of nominal['fields']) {
+        const leaf = object(raw);
+        if (typeof leaf['name'] !== 'string' || leaf['name'] === '' || resultNames.has(leaf['name']) ||
+            typeof leaf['type'] !== 'string') return invalid('complete unique delivery result fields required.');
+        resultNames.add(leaf['name']); parsed(leaf['type']);
+      }
+      deliveryBase = `delivery(${tag['capability']}.${tag['operation']})`;
+    }
+    const legacyBase = deliveryBase ?? inferred ?? (tag['kind'] === 'string' ? 'text' :
       tag['kind'] === 'enum' && Array.isArray(tag['values']) && tag['values'].length > 0 &&
         tag['values'].every(value => typeof value === 'string' && value !== '') ? `enum(${tag['values'].join(',')})` : undefined);
     if (type === undefined && source.valueType === undefined && legacyBase !== undefined) {
@@ -127,6 +224,9 @@ export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model
     if (root.array !== Object.hasOwn(canonical, 'array') || root.requiredArray !== (canonical.array?.required === true) ||
         root.nullable !== (canonical.nullable === true)) return invalid('owning type and container markers disagree.');
     switch (tag['kind']) {
+      case 'delivery':
+        if (root.base.kind !== 'delivery' || base !== deliveryBase || root.array) return invalid('exact declared delivery reference required.');
+        break;
       case 'nominal':
         if (Object.keys(tag).length !== 2 || root.base.kind !== 'nominal' || tag['name'] !== root.base.path || names.has(root.base.path)) return invalid('exact nominal source tag required.');
         break;
@@ -146,55 +246,16 @@ export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model
       default:
         if (Object.keys(tag).length !== 1 || inferred === undefined || inferred !== base) return invalid('known exact source type required.');
     }
-    const normalized = bound.valueTypes === undefined ? undefined : normalizeValueTypes(copyScenarioFileData(bound.valueTypes), [...names]).valueSchema;
-    const schema = bound.valueSchema ?? normalized ?? normalizeValueTypes({ contracts: [] }, [...names]).valueSchema;
-    const fingerprint = schemaFingerprint(schema);
-    if (normalized !== undefined && schemaFingerprint(normalized) !== fingerprint) return invalid('loaded Values inventories disagree.');
     if (tag['kind'] === 'enum' && root.base.kind === 'nominal' &&
         (!Object.hasOwn(schema.enums, root.base.path) || stableStringify(schema.enums[root.base.path]!.cases) !== stableStringify(tag['values']))) {
       return invalid('ordered named enum cases disagree with their owning declaration.');
     }
-    for (const name of names) {
-      if (Object.hasOwn(schema.contracts, name) || Object.hasOwn(schema.enums, name) ||
-          schema.aliases !== undefined && Object.hasOwn(schema.aliases, name)) return invalid('model and value namespaces overlap.');
-    }
-    let nodes = 0;
-    const active = new Set<string>();
-    const inspect = (ast: NormalizedType, depth: number): boolean => {
-      if (++nodes > MAX_NODES || depth > MAX_DEPTH) return invalid('type closure exceeds its finite budget.');
-      const base = ast.base;
-      if (base.kind === 'file') return true;
-      if (base.kind === 'union') {
-        let bearing = false;
-        for (const arm of base.arms) bearing = inspect(parsed(arm), depth + 1) || bearing;
-        return bearing;
-      }
-      if (base.kind !== 'nominal') return false;
-      const name = base.path, contract = Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
-      const enumeration = Object.hasOwn(schema.enums, name);
-      const alias = schema.aliases !== undefined && Object.hasOwn(schema.aliases, name) ? schema.aliases[name] : undefined;
-      if (Number(contract !== undefined) + Number(enumeration) + Number(alias !== undefined) + Number(names.has(name)) !== 1) return invalid('nominal requires one actual owning declaration.');
-      if (names.has(name) || enumeration) return false;
-      // Values permits recursive declarations. Every reachable field is still
-      // inspected on its first active path; finite stored data is checked below.
-      if (active.has(name)) return false;
-      active.add(name);
-      let bearing = false;
-      if (alias !== undefined) bearing = inspect(parsed(alias.typeId), depth + 1);
-      else if (contract !== undefined) for (const nested of Object.values(contract.fields)) bearing = inspect(parsed(nested.typeId), depth + 1) || bearing;
-      active.delete(name);
-      return bearing;
-    };
-    const fileBearing = inspect(root, 0);
-    const constraint = modelFieldConstraintSchema({ ...canonical, valueType: type as CanTypeId }, schema);
     // Reuse the existing exact direct File intake where its finite profile
     // applies; required arrays use the same checked markers and Values below.
     if (root.base.kind === 'file' && !root.requiredArray && source.default?.kind !== 'derived' && source.valueType !== undefined) {
       scenarioFileField(bound, model, field);
     }
-    const profile = Object.freeze({ type: type as CanTypeId, fileBearing, array: root.array, nullable: root.nullable });
-    profiles.set(profile, { schema, constraint });
-    return profile;
+    return declaredProfile(schema, names, type as CanTypeId, canonical);
   } catch (error) { if (error instanceof StateError) throw error; return invalid('invalid owning File census metadata or constraints.'); }
 }
 
