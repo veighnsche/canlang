@@ -1,6 +1,6 @@
 import { encode } from "@jridgewell/sourcemap-codec";
 import { lookup } from "../src/runtime/sourcemap.js";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -94,31 +94,6 @@ function fakeWorkerDist(): string {
     ].join("\n"),
   );
   writeFileSync(join(dir, "helper.js"), `export function helper() { return "from-helper"; }\n`);
-  return dir;
-}
-
-/**
- * Fake runtime dist for the D3b Q3 seam: the REAL pinned files (their
- * exact closure is what the proof must cover) plus a staged `invoke.js`
- * overlay carrying the Q2 observer const spelling from the frozen
- * contract — C's seam is committed but B's observer module is still
- * unlanded, so the suite keeps staging the const spelling instead of
- * depending on the sibling packet. Prune the overlay once B's module
- * lands.
- */
-function fakeRuntimeDistWithObserverSeam(): string {
-  const real = resolve(repoRoot, "packages", "cloudflare", "dist", "runtime");
-  const dir = mkdtempSync(join(tmpdir(), "can-deploy-runtime-"));
-  for (const entry of readdirSync(real).sort()) {
-    if (!entry.endsWith(".js")) continue;
-    const full = join(real, entry);
-    if (!statSync(full).isFile()) continue;
-    let text = readFileSync(full, "utf8");
-    if (entry === "invoke.js") {
-      text += `const STATE_RECEIPT_OBSERVER_SPECIFIER_STAGED = "@canlang/state/receipt";\n`;
-    }
-    writeFileSync(join(dir, entry), text);
-  }
   return dir;
 }
 
@@ -841,50 +816,59 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     expect(bundle.modules["runtime/invoke.js"]).not.toContain("@canlang/contracts");
   });
 
-  it("rewrites the D3b receipt join + observer producers to vendor entries (D3b Q3)", () => {
-    // Join const is real (pinned invoke.js); observer const is the staged
-    // Q2 spelling (C committed, B unlanded — see the helper). Both must
-    // stage as module-relative vendor keys, never checkout paths.
-    const bundle = buildDeployBundle(testArtifact(), {
-      repoRoot,
-      workerDistDir: fakeWorkerDist(),
-      runtimeDistDir: fakeRuntimeDistWithObserverSeam(),
-      verdict: ACTIVE_VERDICT,
-    });
+  it("stages the genuine public Work receipt and relative observation closure", async () => {
+    const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
     const invoke = bundle.modules["runtime/invoke.js"] ?? "";
     expect(invoke).toContain("../vendor/state/receipt/join.js");
     expect(invoke).toContain("../vendor/state/receipt/index.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/join.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/observer.js");
-    // The owning Work receipt producer is portable; Node-only test
-    // work-loader bridges remain excluded below.
     expect(invoke).toContain("../vendor/work/receipt/index.js");
     expect(invoke).not.toContain("@canlang/work/receipt");
-    expect(bundle.modules["vendor/work/receipt/index.js"]).toBeDefined();
-    // Vendor map: join vendored IN (real, from state dist); both
-    // work-loader bridges pinned OUT. The observer vendor key lands with
-    // B's module — its rewrite-target spelling is proved resolvable below.
+    const owners = [
+      ["@canlang/work/receipt", "vendor/work/receipt/index.js"],
+      ["@canlang/work/observation/observation", "vendor/work/observation/observation.js"],
+      ["@canlang/work/observation/association", "vendor/work/observation/association.js"],
+    ] as const;
+    const producers = [];
+    for (const [specifier, key] of owners) {
+      const file = resolveProducerFile(specifier, "bun run --filter @canlang/work build");
+      const staged = bundle.modules[key];
+      expect(staged).toBeDefined();
+      // Restore only relocated package edges; compare the complete emitted
+      // producer body, including the genuine relative observation cycle.
+      const restored = rewriteModuleImports(staged!, key, imported =>
+        imported === "../../state/receipt/tables.js" ? "@canlang/state/receipt/tables"
+          : imported === "../../values/index.js" ? "@canlang/values" : imported,
+      { profile: "trusted-producer" }).js;
+      expect(restored).toBe(readFileSync(file, "utf8"));
+      producers.push(await import(pathToFileURL(file).href));
+    }
+    const receipt = producers[0]!;
+    const functions = await receipt.loadWorkReceiptFns();
+    expect(functions.observeSelectedReceipt).toBe(producers[1]!.observeSelectedReceipt);
+    expect(functions.applyReceiptProgress).toBe(producers[2]!.applyReceiptProgress);
+    expect(functions.isConsistentCompletion).toBe(receipt.isConsistentCompletion);
+    expect(scanModuleImports(bundle.modules[owners[0][1]]!, owners[0][1]).map(record => record.specifier))
+      .toEqual(["../observation/observation.js", "../observation/association.js"]);
     expect(bundle.modules["vendor/state/receipt/join.js"]).toBeDefined();
+    expect(bundle.modules["vendor/state/receipt/observer.js"]).toBeUndefined();
     expect(bundle.modules["vendor/state/receipt/work-loader.js"]).toBeUndefined();
     expect(bundle.modules["vendor/state/fanout/work-loader.js"]).toBeUndefined();
+    expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
   });
 
-  it("proves the rewritten receipt specifiers resolve from the vendor map (D3b Q3 link check)", () => {
-    // The real link checker over staged-shaped maps: the rewritten
-    // relative specifier resolves against the vendor key; the checkout
-    // source it replaces has no staged module. Covers join (vendored
-    // today) and observer (B-half target spelling) identically.
-    for (const name of ["join.js", "observer.js"]) {
-      const ok = {
-        "runtime/invoke.js": `const m = await import("../vendor/state/receipt/${name}");\n`,
-        [`vendor/state/receipt/${name}`]: `export const producer = 1;\n`,
-      };
-      expect(() => assertLinksResolve(ok)).not.toThrow();
-      const dangling = {
-        "runtime/invoke.js": `const m = await import("../../../state/dist/state/src/receipt/${name}");\n`,
-        [`vendor/state/receipt/${name}`]: `export const producer = 1;\n`,
-      };
-      expect(() => assertLinksResolve(dangling)).toThrow(/no such staged module/);
+  it("refuses each missing genuine Work receipt closure entry", () => {
+    const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
+    for (const key of [
+      "vendor/work/receipt/index.js",
+      "vendor/work/observation/observation.js",
+      "vendor/work/observation/association.js",
+    ]) {
+      const missing = { ...bundle.modules };
+      delete missing[key];
+      expect(() => assertLinksResolve(missing)).toThrow(/no such staged module/);
     }
   });
 });
