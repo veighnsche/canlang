@@ -18,3 +18,4 @@ export {
 } from './schema.js';
 export { createD1OwnerRouter } from './owner-router.js';
 export type { D1OwnerScope, TrustedD1OwnerBinding } from './owner-router.js';
+export { STATE_FILE_REFERENCE_PRODUCER } from './file-reference-inventory.js';

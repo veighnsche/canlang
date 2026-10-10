@@ -75,9 +75,9 @@ import type {
 } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
-import { FILE_GUARD_MAX_ROWS, checkedFileAuthority, checkFileBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
-import type { FileGuardState, FileGuardRow } from './file-retirement.js';
-import type { FileRetirementAuthority, FileReferenceStoragePort, FileReferencePublishMigrationChunk, FileReferenceFlipInstalledSnapshot, InstallFileReferenceInventory, InstalledFileReferenceInventory, RetireFinalizedFile, FinalizedFileRetirement, FinalizedFileRef } from '@canlang/contracts';
+import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
+import type { FileGuardState, FileGuardRow, FileFrameworkBinding } from './file-retirement.js';
+import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileReferenceStoragePort, FileReferencePublishMigrationChunk, FileReferenceFlipInstalledSnapshot, InstallFileReferenceInventory, InstalledFileReferenceInventory, RetireFinalizedFile, FinalizedFileRetirement, FinalizedFileRef } from '@canlang/contracts';
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
@@ -200,7 +200,8 @@ async function toCommitError(
 }
 
 /** One read-only D1 batch obtains a coherent revision and complete durable guard. */
-async function readFileGuard(db: D1Database, binding?: FileRetirementAuthority, maxRows = FILE_GUARD_MAX_ROWS) {
+async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | undefined,
+  framework: FileFrameworkBinding, maxRows = FILE_GUARD_MAX_ROWS) {
   const results = await db.batch([
     db.prepare('SELECT revision FROM fence WHERE id = 1'),
     db.prepare('SELECT authority FROM file_reference_authority WHERE id = 1'),
@@ -222,14 +223,11 @@ async function readFileGuard(db: D1Database, binding?: FileRetirementAuthority, 
     retirements: results[5]!.results.map(raw => fileGuardCopy(JSON.parse((raw as { retirement: string }).retirement) as FinalizedFileRetirement)),
   };
   checkFileBinding(state, binding);
+  checkFileFrameworkBinding(state, framework);
   const rows: FileGuardRow[] = (state.authority === null && binding === undefined ? [] : results[6]!.results).map(raw => { const row = raw as RecordRow; return { model: row.model, row: toStoredRow(row) }; });
   const snapshots = results[7]!.results.map(raw => toInstalledSnapshot(raw as SnapshotRow));
   checkFileGuardSnapshots(state, snapshots);
   return { revision: revisionRow.revision as Revision, state, rows, snapshots };
-}
-async function readFileBinding(db: D1Database, binding: FileRetirementAuthority): Promise<void> {
-  const row = await db.prepare('SELECT authority FROM file_reference_authority WHERE id = 1').first<{ authority: string }>();
-  if (row !== null) checkFileBinding({ authority: checkedFileAuthority(JSON.parse(row.authority)), inventories: [], migrations: [], publications: [], retirements: [] }, binding);
 }
 function requireFileRevision(expected: Revision, actual: Revision): void {
   if (!Number.isSafeInteger(expected) || expected < 0) throw new Error(`Invalid expectedRevision: ${JSON.stringify(expected)}`);
@@ -271,9 +269,11 @@ function commitFileRows(before: readonly FileGuardRow[], batch: CommitBatch): Fi
 }
 
 /** D1-backed `StoragePort`. Call `ensureSchema(db)` once before first use. */
-export function createD1Storage(db: D1Database, authority: FileRetirementAuthority): FileReferenceStoragePort;
-export function createD1Storage(db: D1Database): StoragePort;
-export function createD1Storage(db: D1Database, authority?: FileRetirementAuthority): StoragePort | FileReferenceStoragePort {
+export function createD1Storage(db: D1Database, authority: FileRetirementAuthority, producers?: readonly FrameworkFileReferenceProducer[]): FileReferenceStoragePort;
+export function createD1Storage(db: D1Database, authority?: undefined, producers?: readonly FrameworkFileReferenceProducer[]): StoragePort;
+export function createD1Storage(db: D1Database, authority?: FileRetirementAuthority,
+  producers: readonly FrameworkFileReferenceProducer[] = []): StoragePort | FileReferenceStoragePort {
+  const framework = bindFileFrameworkProducers(producers);
   const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
   const storage: StoragePort = {
     async readRevision(): Promise<Revision> {
@@ -316,11 +316,11 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
       const captured = captureFileInput(batch);
-      const guard = await readFileGuard(db, binding);
+      const guard = await readFileGuard(db, binding, framework);
       batch = guardedFileInput(batch, captured, guard.state.authority !== null || binding !== undefined);
       if (guard.state.authority !== null) {
         requireFileRevision(batch.expectedRevision, guard.revision);
-        guardFileCommit(guard.state, binding, guard.rows, commitFileRows(guard.rows, batch));
+        guardFileCommit(guard.state, binding, guard.rows, commitFileRows(guard.rows, batch), framework);
       }
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
@@ -709,7 +709,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
 
     async publishMigrationChunk(input: PublishMigrationChunk): Promise<CommitResult> {
       const captured = captureFileInput(input);
-      const guard = await readFileGuard(db, binding);
+      const guard = await readFileGuard(db, binding, framework);
       input = guardedFileInput(input, captured, guard.state.authority !== null || binding !== undefined);
       // S7: ONE fenced batch: upsert live records from staged rows at their
       // target versions, insert history, dispose drops (remove + drop
@@ -738,7 +738,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       const guardedState = guardFilePublish(guard.state, binding, input.migrationId,
         (input as FileReferencePublishMigrationChunk).fileReferenceInventory, guard.rows, [...after.values()],
         mergedRows.map(entry => ({ model: entry.model, id: entry.row.id as string })),
-        input.drops.map(drop => ({ model: drop.model as string, id: drop.recordId as string })));
+        input.drops.map(drop => ({ model: drop.model as string, id: drop.recordId as string })), framework);
       const statements = [
         db
           .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
@@ -875,7 +875,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
 
     async flipInstalledSnapshot(input: FlipInstalledSnapshot): Promise<FlipResult> {
       const captured = captureFileInput(input);
-      const guard = await readFileGuard(db, binding);
+      const guard = await readFileGuard(db, binding, framework);
       input = guardedFileInput(input, captured, guard.state.authority !== null || binding !== undefined);
       // S7: idempotent activation. A null snapshot is an owner REMOVAL flip
       // (dropOwner): the pointer is deleted instead of installed; a removal
@@ -895,7 +895,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
         .first<SnapshotRow>();
       const guardedState = guardFileFlip(guard.state, binding, input as FileReferenceFlipInstalledSnapshot,
         guard.rows, ((input.expectedRevision as number) + 1) as Revision,
-        installed === null ? null : toInstalledSnapshot(installed));
+        installed === null ? null : toInstalledSnapshot(installed), framework);
       if (input.snapshot === null) {
         if (installed === null) {
           const revision = await readRevisionInner(db);
@@ -1095,11 +1095,11 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     },
   };
   if (binding === undefined) return storage;
-  // Reads and bookkeeping on a bound port recheck the permanent assignment.
+  // Reads and bookkeeping recheck the assignment and complete persisted framework inventory.
   const checkedStorage = Object.fromEntries(Object.entries(storage).map(([name, method]) => [name,
     async (...args: unknown[]) => {
       const captured = fileGuardCopy(args);
-      await readFileBinding(db, binding);
+      await readFileGuard(db, binding, framework);
       return (method as (...values: unknown[]) => Promise<unknown>)(...captured);
     },
   ])) as unknown as StoragePort;
@@ -1108,10 +1108,10 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     fileRetirementAuthority: binding,
     async installFileReferenceInventory(request: InstallFileReferenceInventory): Promise<CommitResult> {
       const input = fileGuardCopy(request);
-      const guard = await readFileGuard(db, binding);
+      const guard = await readFileGuard(db, binding, framework);
       requireFileRevision(input.expectedRevision, guard.revision);
       const next = ((input.expectedRevision as number) + 1) as Revision;
-      const plan = planFileInstall(guard.state, binding, input, guard.snapshots, guard.rows, next);
+      const plan = planFileInstall(guard.state, binding, input, guard.snapshots, guard.rows, next, framework);
       if (!plan.changed) {
         requireFileRevision(guard.revision, await readRevisionInner(db));
         return { revision: guard.revision };
@@ -1129,16 +1129,16 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     },
     async readFileReferenceInventory(owner: string): Promise<InstalledFileReferenceInventory | null> {
       const checkedOwner = fileGuardCopy(owner);
-      const guard = await readFileGuard(db, binding);
+      const guard = await readFileGuard(db, binding, framework);
       return fileGuardCopy(guard.state.inventories.find(item => item.inventory.owner === checkedOwner) ?? null);
     },
     async retireFinalizedFile(request: RetireFinalizedFile): Promise<FinalizedFileRetirement> {
       const input = fileGuardCopy(request);
       if (!Number.isSafeInteger(input.maxRows) || input.maxRows < 1) throw new StorageConstraintError('reference', 'File retirement: positive complete census bound required');
-      const guard = await readFileGuard(db, binding, input.maxRows);
+      const guard = await readFileGuard(db, binding, framework, input.maxRows);
       if (!guard.state.retirements.some(fact => fact.file.ref === input.file.ref)) requireFileRevision(input.expectedRevision, guard.revision);
       const next = ((guard.revision as number) + 1) as Revision;
-      const plan = planFileRetirement(guard.state, binding, input, guard.rows, next);
+      const plan = planFileRetirement(guard.state, binding, input, guard.rows, next, framework);
       if (!plan.fresh) {
         requireFileRevision(guard.revision, await readRevisionInner(db));
         return fileGuardCopy(plan.fact);
@@ -1155,7 +1155,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     },
     async readFinalizedFileRetirement(ref: FinalizedFileRef): Promise<FinalizedFileRetirement | null> {
       const checkedRef = fileGuardCopy(ref);
-      const guard = await readFileGuard(db, binding);
+      const guard = await readFileGuard(db, binding, framework);
       return fileGuardCopy(guard.state.retirements.find(fact => fact.file.ref === checkedRef) ?? null);
     },
     publishMigrationChunk: checkedStorage.publishMigrationChunk,

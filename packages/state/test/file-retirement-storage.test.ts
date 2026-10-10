@@ -56,7 +56,7 @@ function inventory(json = false, target = false): FileReferenceInventory {
   ] };
   const loaded = loadArtifactDescriptors({ artifact_version: 1, models, operations: [], valueTypes }, { by: 'members' });
   return { owner: snapshot.owner, snapshotId: target ? 'snapshot-2' : snapshot.snapshotId,
-    digest: target ? 'digest-2' : snapshot.digest, canonicalModels: loaded.models, artifactModels: models, valueTypes };
+    digest: target ? 'digest-2' : snapshot.digest, canonicalModels: loaded.models, artifactModels: models, valueTypes, frameworkModels: [] };
 }
 const identity = (declarations: FileReferenceInventory) => ({ owner: declarations.owner,
   snapshotId: declarations.snapshotId, digest: declarations.digest });
