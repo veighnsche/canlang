@@ -593,3 +593,140 @@ test('a child cannot contribute a computed default belonging to an eligible omit
   } }), stateError);
   assert.equal(refused, true); assert.deepEqual(await domain(w), before);
 });
+
+/** A finite rendezvous keeps overlap intentional without a hanging test. */
+function boundedPairBarrier() {
+  let arrived = 0, release!: () => void;
+  const ready = new Promise<void>(resolve => { release = resolve; });
+  return async () => {
+    if (++arrived === 2) release();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try { await Promise.race([ready, new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Two independent native executions did not overlap.')), 5000);
+    })]); } finally { if (timer !== undefined) clearTimeout(timer); }
+  };
+}
+
+test('overlapping roots sharing one binder resolve private native references through exact parent pointers', async () => {
+  const first = await world(), independent = await world();
+  // Equal public context and operation identity in independent physical stores
+  // make a context-keyed or global-current-execution adapter insufficient.
+  const second = { ...independent, parent: first.parent, update: first.update, complete: first.complete,
+    registry: first.registry, envelope: { ...first.envelope, inputs: {} } };
+  const roots = new WeakMap<AdmittedCall, { world: World; issued: object; label: string }>();
+  const gate = boundedPairBarrier(); let nativeExecutions = 0, rootExecutions = 0;
+  let foreign: object | undefined;
+  const resolve = (parent: AdmittedCall, value: unknown) => {
+    const state = roots.get(parent);
+    if (state === undefined || value !== state.issued) throw new StateError('forbidden', 'Foreign native protected reference.');
+    return state;
+  };
+  bindScenarioReceiptCallProducer(first.parent, { source: source(), app: APP, registry: first.registry,
+    sites: [{ id: 'complete-site', source: source(), kind: 'operation', targets: [
+      { operation: COMPLETE, interface: first.complete.descriptor },
+    ], resultType: 'void' as CanTypeId }],
+    prepare: (_def, inputs, parent) => {
+      const state = resolve(parent, inputs['task']);
+      assert.throws(() => resolve({ ...parent }, inputs['task']), stateError);
+      return { task: { id: state.world.row.id, version: String(state.world.row.version) } };
+    },
+    execute: async frame => {
+      const state = roots.get(frame.parent);
+      if (state === undefined) throw new StateError('forbidden', 'Native caller lifetime is unavailable.');
+      nativeExecutions++; await gate();
+      await frame.session.stage({ op: 'update', model: MODEL, id: state.world.row.id,
+        data: { key: state.label, done: true } }, cause);
+      selectScenarioReceiptReturn(frame.call, state.world.store, 'complete-return'); return null;
+    },
+  });
+  const input = (w: World, label: string, supplied?: object) => ({ ...w, execute: async (call: AdmittedCall) => {
+    rootExecutions++;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    const row = await session.read(MODEL, w.row.id); assert.ok(row);
+    const issued = Object.freeze({ nativeReference: row });
+    roots.set(call, { world: w, issued, label }); if (label === 'second') foreign = issued;
+    await invokeScenarioReceiptCall(call, w.store, { site: 'complete-site', target: COMPLETE,
+      inputs: { task: supplied ?? issued } });
+    return finish(call, w, session);
+  } });
+  const a = input(first, 'first'), b = input(second, 'second');
+  const outcomes = await Promise.all([invoke(a), invoke(b)]);
+  assert.deepEqual(outcomes.map(value => value.status), ['committed', 'committed']);
+  assert.equal((await first.store.load(MODEL, first.row.id))!.data['key'], 'first');
+  assert.equal((await second.store.load(MODEL, second.row.id))!.data['key'], 'second');
+  assert.equal(rootExecutions, 2); assert.equal(nativeExecutions, 2);
+  assert.deepEqual((await Promise.all([invoke(a), invoke(b)])).map(value => value.status), ['replayed', 'replayed']);
+  assert.equal(rootExecutions, 2); assert.equal(nativeExecutions, 2);
+  assert.ok(foreign); const before = await domain(first);
+  await assert.rejects(invoke({ ...input(first, 'third', foreign),
+    envelope: makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), {}) }), stateError);
+  assert.equal(nativeExecutions, 2); assert.deepEqual(await domain(first), before);
+});
+
+test('a nested genuine call resolves its immediate child parent pointer and preserves the one owner rollback boundary', async () => {
+  for (const rollback of [false, true]) {
+    const w = await world(), before = await domain(w);
+    const lifetimes = new WeakMap<AdmittedCall, { world: World; issued: object; root: AdmittedCall }>();
+    let nestedParent: AdmittedCall | undefined, nativeExecutions = 0;
+    bindScenarioReceiptCallProducer(w.complete, { source: source(), app: APP, registry: w.registry,
+      sites: [{ id: 'nested-update', source: source(), kind: 'operation', targets: [
+        { operation: UPDATE, interface: w.update.descriptor },
+      ], resultType: null }],
+      prepare: (_def, inputs, parent) => {
+        const state = lifetimes.get(parent);
+        if (state === undefined || parent === state.root || inputs['record'] !== state.issued) {
+          throw new StateError('forbidden', 'Immediate native child lifetime required.');
+        }
+        nestedParent = parent;
+        return { record: { id: state.world.row.id, version: String(state.world.row.version) }, key: 'nested' };
+      }, execute: async () => { throw new Error('CRUD must use the genuine State stage.'); },
+    });
+    bindScenarioReceiptCallProducer(w.parent, { source: source(), app: APP, registry: w.registry,
+      sites: [{ id: 'complete-site', source: source(), kind: 'operation', targets: [
+        { operation: COMPLETE, interface: w.complete.descriptor },
+      ], resultType: 'void' as CanTypeId }],
+      prepare: (_def, inputs, parent) => {
+        const state = lifetimes.get(parent);
+        if (state === undefined || state.root !== parent || inputs['task'] !== state.issued) {
+          throw new StateError('forbidden', 'Exact native root lifetime required.');
+        }
+        return { task: { id: state.world.row.id, version: String(state.world.row.version) } };
+      },
+      execute: async frame => {
+        const root = lifetimes.get(frame.parent);
+        if (root === undefined || root.root !== frame.parent) throw new StateError('forbidden', 'Root lifetime unavailable.');
+        nativeExecutions++;
+        const row = await frame.session.read(MODEL, root.world.row.id); assert.ok(row);
+        const issued = Object.freeze({ nativeChildReference: row });
+        lifetimes.set(frame.call, { world: root.world, issued, root: root.root });
+        const updated = await invokeScenarioReceiptCall(frame.call, root.world.store, {
+          site: 'nested-update', target: UPDATE, inputs: { record: issued },
+        }) as StoredRow;
+        assert.equal(nestedParent, frame.call); assert.notEqual(nestedParent, frame.parent);
+        assert.equal(updated.data['key'], 'nested');
+        selectScenarioReceiptReturn(frame.call, root.world.store, 'complete-return'); return null;
+      },
+    });
+    let roots = 0;
+    const input = { ...w, execute: async (call: AdmittedCall) => {
+      roots++;
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      const row = await session.read(MODEL, w.row.id); assert.ok(row);
+      const issued = Object.freeze({ nativeRootReference: row });
+      lifetimes.set(call, { world: w, issued, root: call });
+      await invokeScenarioReceiptCall(call, w.store, { site: 'complete-site', target: COMPLETE, inputs: { task: issued } });
+      await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: true } }, cause);
+      if (rollback) throw new StateError('rule_failed', 'Post-nested workflow requirement failed.');
+      const output = await finish(call, w, session);
+      assert.equal(output.writes.length, 1); assert.equal(output.history.length, 1); return output;
+    } };
+    if (rollback) {
+      await assert.rejects(invoke(input), stateError); assert.deepEqual(await domain(w), before);
+    } else {
+      assert.equal((await invoke(input)).status, 'committed');
+      assert.deepEqual((await w.store.load(MODEL, w.row.id))!.data, { key: 'nested', done: false, approved: true });
+      assert.equal((await invoke(input)).status, 'replayed');
+    }
+    assert.equal(roots, 1); assert.equal(nativeExecutions, 1);
+  }
+});
