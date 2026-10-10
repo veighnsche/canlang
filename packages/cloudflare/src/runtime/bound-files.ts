@@ -1,4 +1,4 @@
-import type { CompileArtifact, FileRetentionPolicy, FinalizedFile, ModelName, RecordId, ResolvedIdentity, StoragePort } from '@canlang/contracts';
+import type { CompileArtifact, FileRetentionPolicy, RetainedFinalizedFile, ModelName, RecordId, ResolvedIdentity, StoragePort } from '@canlang/contracts';
 import type { FinalizedStorePort, StoredFileRecord } from '@canlang/files/ports';
 import { createFileReferenceConsumer, StateError } from '@canlang/state';
 import type { IdentityStore } from '@canlang/identity';
@@ -15,6 +15,7 @@ import { invokeReadCanonical, loadCanonicalDescriptors } from './invoke.js';
 import type { CanonicalMembershipReader } from './invoke.js';
 import type { CanonicalFileBinding } from './file-staging.js';
 import type { TeamOwnerStorageBoundary } from '../worker/assembly.js';
+import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, verifyAssemblerModuleCapability } from './assembly-verification.js';
 export type { CanonicalFileBinding } from './file-staging.js';
 
 export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?: FileRetentionPolicy): CanonicalFileBinding {
@@ -83,6 +84,9 @@ function physicalCheckpoint(record: StoredFileRecord): string {
 
 /** Native host join; upload routing/authentication remains owned by Interfaces. */
 export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Request) => Promise<Response> {
+  if (!hasAssemblerModuleCapability(opts.asm)) {
+    throw new AssemblyCorrespondenceError('File downloads require the original issued assembly.');
+  }
   if (opts.upload.identity.store !== opts.identityStore || opts.upload.clock !== opts.clock) {
     throw new Error('File upload and download must share the identity store and clock.');
   }
@@ -119,12 +123,14 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       return resolved.identity;
     };
     const authorized = async (identity: ResolvedIdentity) => {
+      await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
       const store = opts.ownerStorage === undefined ? opts.store : await opts.ownerStorage.forIdentity(identity);
       const result = await invokeReadCanonical({
         artifact: opts.artifact, asm: opts.asm, store, memberships: opts.memberships,
         identity, operation: `${model}.read`, inputs: {},
         selection: { where: { op: 'eq', field: 'id', value: id }, limit: 1 },
       });
+      await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
       if (!('records' in result)) throw new Error('File model read returned no records.');
       const row = result.records.find(candidate => candidate.id === id);
       if (row === undefined || !Object.hasOwn(row.data, field) || row.data[field] === null) return null;
@@ -146,7 +152,7 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
         canonicalModels: loaded.models, artifactModels: opts.artifact.models!,
         ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }), ...bounds,
       });
-      const physical: { metadata: FinalizedFile | null; checkpoint: string | null } = { metadata: null, checkpoint: null };
+      const physical: { facts: RetainedFinalizedFile | null; checkpoint: string | null } = { facts: null, checkpoint: null };
       const bytes = await consumer.read({ model: model as ModelName, recordId: id as RecordId, field, ref: first.id }, caller,
         async slot => {
           const stored = opts.physicalFiles.get(slot.ref);
@@ -156,19 +162,18 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
           // The actual original receiver selects physical bytes. State grants
           // the current reader independently, including another current member.
           const receiver = Object.freeze({ ...stored.owner });
-          const metadata = await opts.upload.kernel.readProvenance(slot.ref, receiver);
-          if (metadata?.id !== slot.ref || physicalCheckpoint({ ...stored, file: metadata }) !== checkpoint) return null;
-          const current = await opts.upload.kernel.readCurrentBytes(slot.ref, receiver, retention);
-          if (current === null || current.byteLength !== metadata.sizeBytes) return null;
+          const snapshot = await opts.upload.kernel.readCurrentSnapshot(slot.ref, receiver, retention);
+          if (snapshot === null || snapshot.facts.ref !== slot.ref || snapshot.bytes.byteLength !== snapshot.facts.sizeBytes ||
+              (['app', 'team', 'owner', 'principal'] as const).some(key => snapshot.facts.receiver[key] !== receiver[key])) return null;
           // Refuse physical metadata drift across the asynchronous host seam.
           // This checkpoint is neither a cross-store lock nor a deletion fence.
           const latestPhysical = opts.physicalFiles.get(slot.ref);
           if (latestPhysical === null || physicalCheckpoint(latestPhysical) !== checkpoint) return null;
-          physical.metadata = metadata;
+          physical.facts = snapshot.facts;
           physical.checkpoint = checkpoint;
-          return current;
+          return snapshot.bytes;
         });
-      const metadata = physical.metadata;
+      const metadata = physical.facts;
       if (metadata === null || bytes === null) return notFound();
       // Bytes cross the response boundary only after current credentials and grants
       // are checked again; a changed model revision cannot authorize the old file.
