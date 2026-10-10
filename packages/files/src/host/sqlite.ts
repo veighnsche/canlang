@@ -9,7 +9,7 @@ import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
 import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContentAtOffset, completeUploadContent } from '../upload/index.js';
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
-import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
+import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, readCurrentFinalizedBytes, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
 import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
 import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt } from '../retention/index.js';
 import type { RetentionConfig, RetentionBatchOptions } from '../retention/index.js';
@@ -214,6 +214,9 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     recordAttachment: (ref: string, recordRef: string, caller: ReceivingContext) =>
       store.transaction(() => recordAttachment(finalize, ref, recordRef, caller)),
     readBytes: (ref: string, caller: ReceivingContext) => readFinalizedBytes(finalize, ref, caller),
+    /** Same physical byte snapshot checked under the current File policy/lifetime. */
+    readCurrentBytes: (ref: string, caller: ReceivingContext, retention: FileRetentionPolicy) =>
+      store.transaction(() => readCurrentFinalizedBytes(finalize, ref, caller, { policy, retention })),
     /** Consistent real byte/metadata observation; facts alone grant no row or read access. */
     observeFile: (ref: string, caller: ReceivingContext, retention: FileRetentionPolicy) =>
       store.transaction(() => observeFinalizedFile(finalize, ref, caller, { policy, retention })),
