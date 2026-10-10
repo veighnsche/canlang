@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T15:51:33Z",
+  "updated_utc": "2026-10-10T16:08:14Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -100,10 +100,10 @@
     "reused_results": "Unchanged strict all-target Clippy/format and editor/client/LSP qualification; current whole includes actual compiler corpus/LSP/completion/native tests."
   },
   "latest_component": {
-    "base_commit": "667aa0af428e72766e60f76806e52e8bb455986f",
-    "state": "finite_bound_query_any_all_native_qualified_original_approve_unfinished",
-    "record": "task39_checked_calls.source_query_producer.receipt_carrier.bound_result_collections",
-    "outcome": "Exact complete child any/all projection predicates, genuine native lazy/ref/version/rollback/replay/revocation and fresh source/IR tamper refusals qualified; original stored/contained inputs and two-domain old/fresh workflow remain open."
+    "base_commit": "bd757ca56fd39b785a69e4b81b02bc8419b14e8d",
+    "state": "assignment_only_file_source_native_publication_qualified_dev_host_unfinished",
+    "record": "typed_file_association_prerequisite",
+    "outcome": "Unchanged original File Set-then-guard source has Complete/native void publication; exact owning field/input/source and paired-proof corruption refusals qualified. Affected316 pass and strict lint/format0; Dev actual native File staging/replay remains."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -158,7 +158,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Bound Complete child count and finite synchronous any/all over owning returned projection are implemented and affected-tested. Original approve stored Step.input canonical Input observation, protected contained-field reference/array inputs, nested old/fresh aliases, pure/dynamic authorization remain. State File lifetime is released at LOCALa8de5109; Compiler assignment-only File source/Set and Dev actual staging/replay are next. Native row policy, committed event source and precise BDD3/Task22 holds remain;58/67 unchanged.",
+  "current_source_work": "Bound Complete child count and finite synchronous any/all over owning returned projection plus assignment-only original File Set/source are implemented and affected-tested. Dev actual File staging/replay remains. Original approve stored Step.input canonical Input observation, protected contained-field reference/array inputs, nested old/fresh aliases, pure/dynamic authorization remain. State nominal Input checkpoint3ea3b6b9+f13c9a69 is implemented/tested and awaits exact reviewed carrier. Native row policy, committed event source and precise BDD3/Task22 holds remain;58/67 unchanged.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -771,8 +771,8 @@
     "evidence": "Original CanVolunteer.can46-51 retained. Effects HandlerSource::Committed preserves model/action; IR6065-6108 has no Committed event source variant. Declared event private input derivation cannot supply committed model event fields. Actual CommittedChangeEvent recordId/owner/version/occurrenceId requires explicit event.id mapping; State model change facts and existing schedule occurrence routes do not define native payload authority. No guessed fields, DeclaredEvent fabrication, schedule wrapper or source rewrite."
   },
   "typed_file_association_prerequisite": {
-    "state": "defining_state_released_compiler_and_dev_consumers_unfinished",
+    "state": "compiler_source_qualified_dev_actual_native_consumer_unfinished",
     "owner": "Compiler assignment-only File input/Set/source correspondence; Dev actual native finalized observation binding/staging/replay; State/Files defining lifetime released",
-    "evidence": "Reviewed LOCALa8de5109 releases State4b15ce79+d21cd1 active-root genuine Files observation/final canonical owning write+postversion/optional retained association/current row+File disclosure, after Filesa5c4be7d/Packages806/Interfacesbf58. Original TypedFileJourney remains required; no fabricated void plan, structural File grant or empty assignment. Exact intake follows coherent any/all commit."
+    "evidence": "Reviewed LOCALa8de5109 and integratedbd757ca5 release State4b15ce79+d21cd1 active-root genuine Files observation/final canonical owning write+postversion/optional retained association/current row+File disclosure, after Filesa5c4be7d/Packages806/Interfacesbf58. Compiler now qualifies unchanged original TypedFileJourney Complete/native void emission with awaited Set then actual guard, dedicated required File input/source proof, verified owning schema and paired carrier corruption refusal. Affected316 pass; strict lint/format0 and finite review CLEAR. No scalar File/read/result/child grant. Dev owns actual native binding/staging/current-authority retained replay and unchanged D1 journey; broader original workflow remains unfinished."
   }
 }
