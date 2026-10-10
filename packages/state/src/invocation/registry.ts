@@ -93,10 +93,9 @@ export interface InterimOperationDef {
  * T16a generated operation: a validated canonical descriptor plus its
  * engine-local authorization (`by`) and optional CRUD candidate
  * precondition (`when`). `inputArrays` carries the T15a operation-input
- * array markers (`ArtifactOperationInput.array`) the frozen T04a intake
- * cannot hold; admission fills omitted ordinary arrays from it (T16 honors
- * the marker; T04b formalizes array admission). Empty for intake-direct
- * loads, which carry no input array info.
+ * array markers from the artifact or checked canonical ref carriers;
+ * intake-direct scalar/nominal markers may also arrive through loader hints.
+ * Admission fills eligible ordinary-array omissions from this joined channel.
  */
 export interface GeneratedOperationDef {
   readonly generated: true;
@@ -663,6 +662,69 @@ function checkComputedDefault(
   return true;
 }
 
+/** Outer length metadata is exact own data; element admission remains separate. */
+function checkInputArrayBounds(value: Record<string, unknown>, what: string, array?: boolean): { min?: number; max?: number } {
+  const bounds: { min?: number; max?: number } = {};
+  for (const key of ['min', 'max'] as const) {
+    const member = Object.getOwnPropertyDescriptor(value, key);
+    if (member === undefined) {
+      if (key in value) fail('malformed_descriptor', `Invalid ${what}: ${key} must be own data.`);
+      continue;
+    }
+    if (!Object.hasOwn(member, 'value') || typeof member.value !== 'number' ||
+        !Number.isSafeInteger(member.value) || member.value < 0) {
+      fail('malformed_descriptor', `Invalid ${what}: ${key} must be a nonnegative safe integer.`);
+    }
+    bounds[key] = member.value as number;
+  }
+  if (bounds.min !== undefined && bounds.max !== undefined && bounds.min > bounds.max) {
+    fail('malformed_descriptor', `Invalid ${what}: min exceeds max.`);
+  }
+  if (array === false && (bounds.min !== undefined || bounds.max !== undefined)) {
+    fail('malformed_descriptor', `Invalid ${what}: length bounds require an array.`);
+  }
+  return bounds;
+}
+
+function checkInputArrayMarker(value: unknown, what: string): { readonly required: boolean } {
+  if (!isRecord(value) || Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) fail('malformed_descriptor', `Invalid ${what}: array marker must be plain own data.`);
+  const member = Object.getOwnPropertyDescriptor(value, 'required');
+  if (Reflect.ownKeys(value).length !== 1 || member === undefined || !Object.hasOwn(member, 'value') || typeof member.value !== 'boolean') {
+    fail('malformed_descriptor', `Invalid ${what}: array marker requires an own boolean required.`);
+  }
+  return { required: member.value as boolean };
+}
+
+/** Snapshot engine hints without evaluating caller channels, entries or markers. */
+function checkedInputArrayHints(opts: LoadDescriptorSetOptions): Record<string, Record<string, { readonly required: boolean }>> | undefined {
+  const channel = Object.getOwnPropertyDescriptor(opts, 'inputArrays');
+  if (channel === undefined) {
+    if ('inputArrays' in opts) fail('malformed_descriptor', 'inputArrays must be own data.');
+    return undefined;
+  }
+  if (!Object.hasOwn(channel, 'value')) fail('malformed_descriptor', 'inputArrays must be own data.');
+  if (channel.value === undefined) return undefined;
+  const copy: Record<string, Record<string, { readonly required: boolean }>> = Object.create(null) as Record<string, Record<string, { readonly required: boolean }>>;
+  const recordEntries = (value: unknown, what: string): PropertyDescriptorMap => {
+    if (!isRecord(value) || Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+      fail('malformed_descriptor', `Invalid ${what}: expected an own-data metadata object.`);
+    }
+    const entries = Object.getOwnPropertyDescriptors(value);
+    for (const key of Reflect.ownKeys(entries)) {
+      if (typeof key !== 'string' || !Object.hasOwn(entries[key]!, 'value')) fail('malformed_descriptor', `Invalid ${what}: entries must be own data.`);
+    }
+    return entries;
+  };
+  const operations = recordEntries(channel.value, 'inputArrays');
+  for (const opName of Object.keys(operations)) {
+    const entries = recordEntries(operations[opName]!.value, `input array markers for ${JSON.stringify(opName)}`);
+    const markers: Record<string, { readonly required: boolean }> = Object.create(null) as Record<string, { readonly required: boolean }>;
+    for (const name of Object.keys(entries)) markers[name] = checkInputArrayMarker(entries[name]!.value, `input array marker ${JSON.stringify(name)}`);
+    copy[opName] = markers;
+  }
+  return copy;
+}
+
 /** Validate one canonical operation input; `modelNames` resolves ref targets. */
 function checkCanonicalInput(
   value: unknown,
@@ -691,6 +753,22 @@ function checkCanonicalInput(
     fail('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
   }
   const required = value['required'] as boolean;
+  const bounds = checkInputArrayBounds(value, what);
+  let refArray: { readonly required: boolean } | undefined;
+  let refNullable: boolean | undefined;
+  if (kind === 'ref') {
+    const arrayMember = Object.getOwnPropertyDescriptor(value, 'array');
+    if (arrayMember === undefined && 'array' in value || arrayMember !== undefined && !Object.hasOwn(arrayMember, 'value')) {
+      fail('malformed_descriptor', `Invalid ${what}: array must be own data.`);
+    }
+    refArray = arrayMember === undefined ? undefined : checkInputArrayMarker(arrayMember.value, what);
+    const nullableMember = Object.getOwnPropertyDescriptor(value, 'nullable');
+    if (nullableMember === undefined && 'nullable' in value || nullableMember !== undefined &&
+        (!Object.hasOwn(nullableMember, 'value') || typeof nullableMember.value !== 'boolean')) {
+      fail('malformed_descriptor', `Invalid ${what}: nullable must be an own boolean.`);
+    }
+    refNullable = nullableMember === undefined ? undefined : nullableMember.value as boolean;
+  }
   const fallback = checkDefault(value['default'], what);
   const valueType = kind === 'enum'
     ? checkEnumValueType(value, value['enumValues'], what, valueSchema) :
@@ -703,7 +781,7 @@ function checkCanonicalInput(
   if (kind === 'nominal') {
     if (Object.hasOwn(value, 'enumValues')) fail('malformed_descriptor', `Invalid ${what}: enumValues is present exactly for enum.`);
     const computedDefault = checkComputedDefault(value, operationKind, kind, valueType, required, what);
-    return { name, kind: 'nominal', valueType: valueType!, required,
+    return { ...bounds, name, kind: 'nominal', valueType: valueType!, required,
       ...(computedDefault !== undefined ? { computedDefault } : {}),
       ...(fallback !== undefined ? { default: fallback } : {}),
       ...(Object.hasOwn(value, 'nullable') ? { nullable: value['nullable'] } : {}) };
@@ -724,8 +802,11 @@ function checkCanonicalInput(
       );
     }
     return {
+      ...bounds,
       name,
       kind: 'ref',
+      ...(refArray !== undefined ? { array: refArray } : {}),
+      ...(refNullable !== undefined ? { nullable: refNullable } : {}),
       model: model as ModelName,
       versioned: value['versioned'] as boolean,
       required,
@@ -745,6 +826,7 @@ function checkCanonicalInput(
       );
     }
     return {
+      ...bounds,
       name,
       kind: 'enum',
       required,
@@ -758,6 +840,7 @@ function checkCanonicalInput(
     fail('malformed_descriptor', `Invalid ${what}: enumValues is present exactly for enum.`);
   }
   return {
+    ...bounds,
     name,
     kind: kind as CanonicalScalarKind,
     ...(computedDefault !== undefined ? { computedDefault } : {}),
@@ -978,6 +1061,7 @@ function loadCheckedDescriptorSet(
   if (!Array.isArray(set['operations']) || !Array.isArray(set['models'])) {
     fail('malformed_descriptor', 'Invalid descriptor set: operations and models must be arrays.');
   }
+  const inputArrayHints = checkedInputArrayHints(opts);
   const { valueSchema, valueTypes } = checked === undefined ? checkValueTypes(set) :
     { valueSchema: checked.valueSchema, valueTypes: checked.set.valueTypes };
   const models: CanonicalModelDescriptor[] = [];
@@ -1079,7 +1163,10 @@ function loadCheckedDescriptorSet(
     // T04b-preview input array markers (engine-local channel): entries must
     // name loaded operations/inputs with boolean markers, else fail loud.
     const arrayMarkers: Record<string, { readonly required: boolean }> = Object.create(null) as Record<string, { readonly required: boolean }>;
-    const opArrays = opts.inputArrays?.[opName];
+    for (const input of inputs) {
+      if (input.kind === 'ref' && input.array !== undefined) arrayMarkers[input.name] = { required: input.array.required };
+    }
+    const opArrays = inputArrayHints?.[opName];
     if (opArrays !== undefined) {
       if (!isRecord(opArrays)) {
         fail(
@@ -1095,17 +1182,15 @@ function loadCheckedDescriptorSet(
               `${JSON.stringify(opName)}: no such input.`,
           );
         }
-        if (!isRecord(marker) || typeof marker['required'] !== 'boolean') {
-          fail(
-            'malformed_descriptor',
-            `Invalid input array marker ${JSON.stringify(inputName)} on operation ` +
-              `${JSON.stringify(opName)}: markers carry a boolean required.`,
-          );
+        const checkedMarker = checkInputArrayMarker(marker, `input ${JSON.stringify(inputName)}`);
+        if (Object.hasOwn(arrayMarkers, inputName) && arrayMarkers[inputName]!.required !== checkedMarker.required) {
+          fail('malformed_descriptor', `Contradictory input array marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}.`);
         }
-        arrayMarkers[inputName] = { required: marker['required'] as boolean };
+        arrayMarkers[inputName] = checkedMarker;
       }
     }
     for (const input of inputs) {
+      checkInputArrayBounds(input as unknown as Record<string, unknown>, `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`, Object.hasOwn(arrayMarkers, input.name));
       if (input.kind === 'ref' && input.computedDefault === true && Object.hasOwn(arrayMarkers, input.name)) {
         fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault ref requires a singular input.`);
       }
@@ -1122,6 +1207,9 @@ function loadCheckedDescriptorSet(
     // Null proof belongs to this exact checked singular-ref input. Use own
     // keys throughout: prototype slots are neither array markers nor proof.
     const nullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
+    for (const input of inputs) {
+      if (input.kind === 'ref' && input.nullable === true && !Object.hasOwn(arrayMarkers, input.name)) nullableRefs[input.name] = true;
+    }
     const hasNullableRefs = opts.inputNullableRefs !== undefined && Object.hasOwn(opts.inputNullableRefs, opName);
     const opNullableRefs = hasNullableRefs ? opts.inputNullableRefs![opName] : undefined;
     if (hasNullableRefs) {
@@ -1133,7 +1221,7 @@ function loadCheckedDescriptorSet(
         if (input === undefined) {
           fail('dangling_reference', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: no such input.`);
         }
-        if (marker !== true || input.kind !== 'ref' || input.computedDefault === true || Object.hasOwn(arrayMarkers, inputName)) {
+        if (marker !== true || input.kind !== 'ref' || input.nullable === false || input.computedDefault === true || Object.hasOwn(arrayMarkers, inputName)) {
           fail('malformed_descriptor', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: only true singular-ref markers are supported.`);
         }
         nullableRefs[inputName] = true;
@@ -1156,8 +1244,8 @@ function loadCheckedDescriptorSet(
     };
     registry.set(opName, Object.freeze(def));
   }
-  if (opts.inputArrays !== undefined) {
-    for (const opKey of Object.keys(opts.inputArrays)) {
+  if (inputArrayHints !== undefined) {
+    for (const opKey of Object.keys(inputArrayHints)) {
       if (!seenOps.has(opKey)) {
         fail(
           'dangling_reference',
@@ -1489,7 +1577,7 @@ export function artifactToDescriptorSet(
     }
     const inputs: CanonicalInputDef[] = [];
     const seenInputs = new Set<string>();
-    const opArrays: Record<string, { readonly required: boolean }> = {};
+    const opArrays: Record<string, { readonly required: boolean }> = Object.create(null) as Record<string, { readonly required: boolean }>;
     const opNullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
     for (const input of rawInputs['fields'] as ArtifactOperation['inputs']['fields']) {
       if (typeof input.name !== 'string' || input.name === '') {
@@ -1523,11 +1611,20 @@ export function artifactToDescriptorSet(
       if (typeof input.required !== 'boolean') {
         fail('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
       }
+      const arrayMember = Object.getOwnPropertyDescriptor(input, 'array');
+      if (arrayMember === undefined && 'array' in input || arrayMember !== undefined && !Object.hasOwn(arrayMember, 'value')) fail('malformed_descriptor', `Invalid ${what}: array must be own data.`);
+      const checkedArray = arrayMember === undefined ? undefined : checkInputArrayMarker(arrayMember.value, what);
+      const nullableMember = inputKind === 'ref' ? Object.getOwnPropertyDescriptor(input, 'nullable') : undefined;
+      if (inputKind === 'ref') {
+        if (nullableMember === undefined && 'nullable' in input || nullableMember !== undefined && (!Object.hasOwn(nullableMember, 'value') || typeof nullableMember.value !== 'boolean')) fail('malformed_descriptor', `Invalid ${what}: nullable must be an own boolean.`);
+      }
+      const refNullable = nullableMember === undefined ? undefined : nullableMember.value as boolean;
+      const bounds = checkInputArrayBounds(input as unknown as Record<string, unknown>, what, checkedArray !== undefined);
       const fallback = checkDefault(input.default, what);
       const valueType = artifactValueType(input as unknown as Record<string, unknown>, what, true, valueSchema);
       const computedDefault = checkComputedDefault(input as unknown as Record<string, unknown>,
         operation.kind, inputKind, valueType, input.required, what);
-      if (computedDefault === true && input.array?.required === true) {
+      if (computedDefault === true && checkedArray?.required === true) {
         fail('malformed_descriptor', `Invalid ${what}: computedDefault requires an ordinary array marker.`);
       }
       if (inputKind === 'ref') {
@@ -1546,8 +1643,11 @@ export function artifactToDescriptorSet(
           );
         }
         inputs.push({
+          ...bounds,
           name: input.name,
           kind: 'ref',
+          ...(checkedArray !== undefined ? { array: checkedArray } : {}),
+          ...(refNullable !== undefined ? { nullable: refNullable } : {}),
           model: target as ModelName,
           versioned: refTag['requireVersion'] as boolean,
           required: input.required,
@@ -1555,7 +1655,7 @@ export function artifactToDescriptorSet(
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
       } else if (inputKind === 'nominal') {
-        inputs.push({ name: input.name, kind: 'nominal', valueType: valueType!, required: input.required,
+        inputs.push({ ...bounds, name: input.name, kind: 'nominal', valueType: valueType!, required: input.required,
           ...(computedDefault !== undefined ? { computedDefault } : {}),
           ...(fallback !== undefined ? { default: fallback } : {}) });
       } else if (inputKind === 'enum') {
@@ -1572,6 +1672,7 @@ export function artifactToDescriptorSet(
           );
         }
         inputs.push({
+          ...bounds,
           name: input.name,
           kind: 'enum',
           required: input.required,
@@ -1582,6 +1683,7 @@ export function artifactToDescriptorSet(
         });
       } else {
         inputs.push({
+          ...bounds,
           name: input.name,
           kind: inputKind as CanonicalScalarKind,
           ...(computedDefault !== undefined ? { computedDefault } : {}),
@@ -1590,16 +1692,13 @@ export function artifactToDescriptorSet(
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
       }
-      if (inputKind === 'ref' && Object.hasOwn(input, 'nullable') && input.nullable === true && input.array === undefined) {
+      if (inputKind === 'ref' && refNullable === true && checkedArray === undefined) {
         opNullableRefs[input.name] = true;
       }
-      // T15a input array markers ride the engine-local channel (the frozen
-      // intake has no slot); T16 honors them, T04b formalizes them.
-      if (input.array !== undefined) {
-        if (!isRecord(input.array) || typeof input.array.required !== 'boolean') {
-          fail('malformed_descriptor', `Invalid ${what}: array markers carry a boolean required.`);
-        }
-        opArrays[input.name] = { required: input.array.required };
+      // Keep the joined engine channel for every array kind; ref inputs also
+      // retain their checked source carrier on the canonical descriptor.
+      if (checkedArray !== undefined) {
+        opArrays[input.name] = { required: checkedArray.required };
       }
     }
     const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`, operation.kind, modelNames, valueSchema);

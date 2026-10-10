@@ -204,6 +204,9 @@ export interface ArtifactOperationInput {
    * formalizes array admission.
    */
   array?: { required: boolean };
+  /** Authored array-length bounds; absent bounds impose no inferred limit. */
+  min?: number;
+  max?: number;
   /**
    * Source-declared default, when representable as `literal`/`parent`
    * (T15a additive, mirrors L3 `CanonicalInputDef.default`). Absent

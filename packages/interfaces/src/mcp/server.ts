@@ -55,7 +55,7 @@ import type {
 import { buildBusinessError, toMcpError } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
-import { parseMutationRef, parseReadRef } from '../envelope/refs.js';
+import { checkMcpRefShape } from './prepared.js';
 import { listToolsFor } from './discovery.js';
 import { checkBoundArguments, handleModeAllowed } from './schemas.js';
 import { wwwAuthenticateChallenge } from '../oauth/metadata.js';
@@ -354,17 +354,8 @@ async function invokeOrdinaryMode(
     // Keyed on the descriptor's requireVersion (matching the generated
     // schema), not the tool kind: a mutation input modeled without a
     // version accepts ReadRef shape, exactly as its schema advertises.
-    if (named.field.requireVersion) {
-      const parsed = parseMutationRef(value, `/${named.name}`);
-      if ('error' in parsed) {
-        throw new McpError(ErrorCode.InvalidParams, parsed.error.message);
-      }
-    } else {
-      const parsed = parseReadRef(value);
-      if ('error' in parsed) {
-        throw new McpError(ErrorCode.InvalidParams, parsed.error.message);
-      }
-    }
+    const error = checkMcpRefShape(value, named.name, named.field.requireVersion, named.array !== undefined);
+    if (error !== null) throw new McpError(ErrorCode.InvalidParams, error.message);
   }
   // E1 bound-input wiring: framing first (above), then each present value
   // binds to its derived declaration. Catalogs without the derived
