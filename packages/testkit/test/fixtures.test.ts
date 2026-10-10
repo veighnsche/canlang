@@ -573,6 +573,53 @@ describe("table row expansion", () => {
     );
     await expect(loadExampleSuite(foreignCaller, ids())).rejects.toThrow(/as-cell names no caller/);
   });
+
+  it("refuses malformed selector channels before evaluating row closures", async () => {
+    const cases = [
+      ['selectorChannels:undefined'],
+      ['selectorChannels:null'],
+      ['selectorChannels:"input"'],
+      ['selectorChannels:[]'],
+      ['selectorChannels:["input","input"]'],
+      ['selectorChannels:[,]'],
+      ['selectorChannels:Object.assign(Object.create(["input"]),{length:1})'],
+      ['selectorChannels:["unknown"]'],
+      ['selectorChannels:["caller"]'],
+      ['selectorChannels:["request"]'],
+      ['selectorChannels:["input"]', '["as"]'],
+      ['selectorChannels:["input","request"]', '["request.status","request.record.version"]'],
+      ['selectorChannels:Object.defineProperty(["input"],0,{get(){throw Error("metadata getter ran")}})'],
+      ['get selectorChannels(){throw Error("metadata getter ran")}'],
+    ] as const;
+    for (const [index, [metadata, selectors = '["task.done"]']] of cases.entries()) {
+      const url = await writeModule(`bad-selector-channels-${index}.mjs`, `
+export function exampleFixtures() {
+  const unexpected=()=>{throw Error("row closure ran")};
+  return {fixtures:{},examples:[{
+    operation:"op",dependencies:[],inputs:unexpected,
+    selectors:${selectors},${metadata},observations:[],
+    rows:[{dependencies:[],values:unexpected,expected:unexpected}]
+  }]};
+}`);
+      await expect(loadExampleSuite(url, ids(), {
+        invokeCall: async () => { throw Error("invoker ran"); },
+        prepareRowCells: async () => { throw Error("materializer ran"); },
+      })).rejects.toThrow(/selectorChannels/);
+    }
+  });
+
+  it("refuses inherited selector channels instead of falling back to legacy routing", async () => {
+    const url = await writeModule("inherited-selector-channels.mjs", `
+export function exampleFixtures() {
+  const unexpected=()=>{throw Error("row closure ran")};
+  const table=Object.assign(Object.create({selectorChannels:["input"]}),{
+    operation:"op",dependencies:[],inputs:unexpected,selectors:["request.status"],
+    observations:[],rows:[{dependencies:[],values:unexpected,expected:unexpected}]
+  });
+  return {fixtures:{},examples:[table]};
+}`);
+    await expect(loadExampleSuite(url, ids())).rejects.toThrow(/selectorChannels must be an own array/);
+  });
 });
 
 const SEQUENCE_MODULE = `const doc = { dependencies: [], value: async (c, s) => ({ title: "d" }) };
