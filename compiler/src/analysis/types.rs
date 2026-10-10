@@ -5053,9 +5053,7 @@ impl<'a> Typer<'a> {
                     .filter(move |member| member.alias == segments[0])
                     .map(move |member| (import, member))
             });
-            let Some((import, member)) = imports.next() else {
-                return None;
-            };
+            let (import, member) = imports.next()?;
             // Resolver rejects duplicate aliases. Do not attach an arbitrary route
             // to their otherwise recoverable external binding in an invalid program.
             if imports.next().is_some() || import.provider != "std" || member.name != *name {

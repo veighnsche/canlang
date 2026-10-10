@@ -111,6 +111,7 @@ pub struct CheckedProgram {
     scenario_disclosures:
         std::collections::HashMap<SymbolId, scenario_disclosure::ScenarioDisclosure>,
     pub(crate) committed_handlers: Vec<CheckedCommittedHandler>,
+    pub(crate) standard_completion_handlers: Vec<CheckedStandardCompletionHandler>,
     cohort: cohort::CheckedCohort,
 }
 
@@ -124,6 +125,19 @@ pub(crate) struct CheckedCommittedHandler {
     pub model: SymbolId,
     pub model_canonical: String,
     pub event: String,
+    pub cohort: Option<effects::CohortData>,
+    pub cohort_model: Option<String>,
+    pub span: crate::source::Span,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedStandardCompletionHandler {
+    pub id: SymbolId,
+    pub module: resolve::ModuleId,
+    pub canonical: String,
+    pub node: NodeKey,
+    pub on: NodeKey,
+    pub completion: types::CheckedStdDeliveryCompletion,
     pub cohort: Option<effects::CohortData>,
     pub cohort_model: Option<String>,
     pub span: crate::source::Span,
@@ -189,6 +203,7 @@ pub fn check_program(
                     catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
                     scenario_disclosures: std::collections::HashMap::new(),
                     committed_handlers: Vec::new(),
+                    standard_completion_handlers: Vec::new(),
                     cohort: cohort::CheckedCohort::new(db, files, catalog),
                 },
                 diagnostics,
@@ -261,6 +276,44 @@ pub fn check_program(
             })
             .collect()
     };
+    let standard_completion_handlers = if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        Vec::new()
+    } else {
+        resolve_tables
+            .symbols
+            .iter()
+            .filter_map(|symbol| {
+                let data = effects.scenarios.get(&symbol.id)?;
+                let Some(effects::HandlerSource::StdDeliveryCompleted { source, .. }) = &data.on
+                else {
+                    return None;
+                };
+                let on = data.on_node.as_ref()?;
+                let completion = types.std_delivery_completion_handlers.get(on)?;
+                if completion.module != symbol.module || completion.source != *source {
+                    return None;
+                }
+                Some(CheckedStandardCompletionHandler {
+                    id: symbol.id,
+                    module: symbol.module,
+                    canonical: symbol.canonical.clone(),
+                    node: data.node,
+                    on: *on,
+                    completion: completion.clone(),
+                    cohort: data.cohort.clone(),
+                    cohort_model: data.cohort.as_ref().map(|cohort| {
+                        resolve_tables.symbols[cohort.model.0 as usize]
+                            .canonical
+                            .clone()
+                    }),
+                    span: symbol.span,
+                })
+            })
+            .collect()
+    };
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),
@@ -270,6 +323,7 @@ pub fn check_program(
         catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
         scenario_disclosures,
         committed_handlers,
+        standard_completion_handlers,
         cohort: cohort::CheckedCohort::new(db, files, catalog),
     };
     (program, diagnostics)
