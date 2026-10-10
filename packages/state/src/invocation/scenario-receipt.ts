@@ -4,8 +4,9 @@
  * This version supports scalar Values profiles, declared scalar fields and
  * explicitly checked admitted intrinsics (operation id/primitive input/original ref version).
  * Changed File fields require genuine live capture and current physical checks.
- * Nominal/model/container/File results/Delivery, query influence and absent-reference
- * claims require their defining joins. Empty field observations prove none of
+ * Owning stored contracts support whole-field dependencies. Nominal/model/
+ * container/File results, Delivery, query influence and absent-reference claims
+ * require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
@@ -33,6 +34,7 @@ import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, scenarioFileWireRefs } from './scenario-file-assignment.js';
+import { storedNominalType, storedNominalField, storedNominalWire, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -102,6 +104,17 @@ function scalarType(type: unknown): CanTypeId {
   }
   return type as CanTypeId;
 }
+/** Only dependency sites may name an owning stored contract. Results,
+ * intrinsics, query influence and changed-record inventories stay scalar. */
+function dependencyType(type: unknown): CanTypeId {
+  try { return scalarType(type); }
+  catch { return storedNominalType(type); }
+}
+function savedDependencyWire(type: CanTypeId, wire: unknown): void {
+  try { scalarType(type); }
+  catch { savedNominalWire(type, wire); return; }
+  scalarWire(type, wire);
+}
 function scalarWire(type: CanTypeId, value: unknown): void {
   if (type === 'void') { if (value !== null) invalid('void receipt result must be null.'); return; }
   try { decodeValue(type, value); } catch { invalid(`invalid saved ${type} wire value.`); }
@@ -141,8 +154,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
       origin(dependency['source']);
       const depId = text(dependency['id']); text(dependency['model']);
       if (dependency['role'] !== 'data' && dependency['role'] !== 'control') return invalid('unknown dependency role.');
-      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['field']))) return invalid('only declared direct scalar fields are supported.');
-      scalarType(dependency['type']);
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['field']))) return invalid('only declared direct stored fields are supported.');
+      dependencyType(dependency['type']);
       const encoded = stableStringify(dependency);
       if (local.has(depId) || (dependencies.has(depId) && dependencies.get(depId) !== encoded)) return invalid('dependency identity drifts.');
       local.add(depId); dependencies.set(depId, encoded);
@@ -186,6 +199,8 @@ interface BoundPlan {
   readonly valueSchema: NormalizedSchema | undefined; readonly parameterStyle: boolean;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>; readonly valueTypes: CanonicalValueTypes | undefined;
   readonly canonicalModels: readonly CanonicalModelDescriptor[];
+  readonly nominalDependencies: ReadonlyMap<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+    readonly profile: StoredNominalFieldProfile }>;
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
@@ -670,8 +685,19 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     }
     inventory.set(model.name as ModelName, { fields, secrets: Object.freeze(secrets), withheld: Object.freeze(withheld) });
   }
+  const artifactModels = new Map(models.map(model => [model.name as ModelName, deepFreeze(dataCopy(model))]));
+  const canonicalModels = Object.freeze(defaults.canonicalModels.map(model => deepFreeze(dataCopy(model))));
+  const nominalDependencies = new Map<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+    readonly profile: StoredNominalFieldProfile }>();
   for (const returned of plan.returns) for (const dep of returned.dependencies) {
-    if (inventory.get(dep.model)?.fields.get(dep.field) !== dep.type) return invalid('dependency disagrees with declared model field/type inventory.');
+    let scalar = true;
+    try { scalarType(dep.type); } catch { scalar = false; }
+    if (scalar) {
+      if (inventory.get(dep.model)?.fields.get(dep.field) !== dep.type) return invalid('dependency disagrees with declared model field/type inventory.');
+    } else if (!nominalDependencies.has(dep.id)) {
+      const profile = storedNominalField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type);
+      nominalDependencies.set(dep.id, Object.freeze({ dependency: dep, profile }));
+    }
   }
   for (const returned of plan.returns) for (const dep of returned.intrinsics ?? []) {
     if (dep.kind === 'admitted-reference-version' && (!inventory.has(dep.model) || !versionedReferenceInput(def, dep))) {
@@ -683,8 +709,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   boundPlans.set(def, { plan, type, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
-    artifactModels: new Map(models.map(model => [model.name as ModelName, deepFreeze(dataCopy(model))])),
-    canonicalModels: Object.freeze(defaults.canonicalModels.map(model => deepFreeze(dataCopy(model)))),
+    artifactModels, canonicalModels, nominalDependencies,
     valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
 }
 
@@ -1589,7 +1614,10 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
     const dependency = state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
     if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
-    const row = checkedRow(observed.row); scalarWire(dependency.type, getDataPath(row.data, dependency.field));
+    const row = checkedRow(observed.row);
+    const nominal = state.bound.nominalDependencies.get(dependency.id);
+    if (nominal === undefined) scalarWire(dependency.type, getDataPath(row.data, dependency.field));
+    else storedNominalWire(nominal.profile, getDataPath(row.data, dependency.field));
     if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
     if (owner !== undefined) {
       ownerHealthy(owner);
@@ -1837,7 +1865,7 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
     const observation = object(entry, ['dependencyId', 'model', 'row', 'secretFields']);
     const dependency = returned.dependencies.find(dep => dep.id === observation['dependencyId']);
     if (dependency === undefined || dependency.model !== observation['model']) return invalid('foreign saved dependency.');
-    const row = checkedRow(observation['row']); scalarWire(dependency.type, getDataPath(row.data, dependency.field)); paths(observation['secretFields']);
+    const row = checkedRow(observation['row']); savedDependencyWire(dependency.type, getDataPath(row.data, dependency.field)); paths(observation['secretFields']);
   }
   if (returned.dependencies.some(dep => !observations.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) return invalid('missing saved dependency.');
   const intrinsics = list(Object.hasOwn(value, 'intrinsics') ? value['intrinsics'] : []);
@@ -2054,11 +2082,35 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           (current.parent?.id ?? null) !== (saved.parent?.id ?? null)) return null;
       return current;
     };
-    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = [], fileFields: readonly string[] = []) => {
+    const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = [], fileFields: readonly string[] = [],
+      nominal?: { readonly field: string; readonly profile: StoredNominalFieldProfile }) => {
       const current = await currentSavedRow(model, saved); const inventory = currentBound.models.get(model);
       if (current === null || inventory === undefined) return null;
+      if (nominal !== undefined) {
+        const field = Object.getOwnPropertyDescriptor(current.data, nominal.field);
+        if (field === undefined || !('value' in field) || !field.enumerable) return null;
+        try {
+          storedNominalWire(nominal.profile, getDataPath(saved.data, nominal.field));
+          storedNominalWire(nominal.profile, field.value);
+        } catch { return null; }
+      }
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
-        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field) && !fileFields.includes(field))] });
+        originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field => !queryFields.includes(field) && !fileFields.includes(field) && field !== nominal?.field)] });
+    };
+    const dependencyProjection = async (bound: BoundPlan,
+      dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number],
+      observation: ScenarioReceiptAssociation['observations'][number]) => {
+      const nominal = bound.nominalDependencies.get(dependency.id);
+      if (nominal === undefined) {
+        const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
+        return bound.models.get(observation.model)?.fields.get(dependency.field) === dependency.type ? projection : null;
+      }
+      if (stableStringify(nominal.dependency) !== stableStringify(dependency)) return null;
+      // This exact dependency field alone may pass the internal authority
+      // projection. Changed records and embedded reference identities gain no
+      // disclosure or dereference grant from an owning stored contract.
+      return savedProjection(observation.model, observation.row, observation.secretFields, [], [], [],
+        { field: dependency.field, profile: nominal.profile });
     };
     const queryAuthority = async (bound: BoundPlan, saved: { readonly plan: ScenarioResultDisclosurePlan;
       readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] }) => {
@@ -2104,8 +2156,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         savedProjection(model, row, secrets, blocked, current.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
       for (const observed of child.observations) {
         const dependency = returned.dependencies.find(dep => dep.id === observed.dependencyId)!;
-        const projection = await savedProjection(observed.model, observed.row, observed.secretFields, []);
-        if (current.models.get(observed.model)?.fields.get(dependency.field) !== dependency.type || projection === null ||
+        const projection = await dependencyProjection(current, dependency, observed);
+        if (projection === null ||
             !Object.hasOwn(projection.data, dependency.field) ||
             stableStringify(projection.data[dependency.field]) !== stableStringify(observed.row.data[dependency.field])) dependenciesReadable = false;
       }
@@ -2123,8 +2175,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           savedProjection(model, row, secrets, blocked, currentBound.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
     for (const observation of association.observations) {
       const dependency = returned.dependencies.find(dep => dep.id === observation.dependencyId)!;
-      const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
-      if (currentBound.models.get(observation.model)?.fields.get(dependency.field) !== dependency.type || projection === null ||
+      const projection = await dependencyProjection(currentBound, dependency, observation);
+      if (projection === null ||
           !Object.hasOwn(projection.data, dependency.field) ||
           stableStringify(projection.data[dependency.field]) !== stableStringify(observation.row.data[dependency.field])) dependenciesReadable = false;
     }
