@@ -12,19 +12,23 @@
  */
 
 import { deepFreeze } from '../internal/own-data.js';
+import { observeRowGrantAuthority } from './membership-facts.js';
 import type {
   ModelName,
+  CanonicalModelDescriptor,
   QueryPredicate,
   StoredRow,
 } from '@canlang/contracts';
 import type { Membership } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import {
+  byDependsOnRow,
   evaluateBy,
   validateByPredicate,
   type ByPredicate,
   type MembershipReader,
 } from './roles.js';
+import { bindPolicyRowContext, registerPolicyRowFields } from './row-subject.js';
 
 /**
  * One interim visibility grant: rows are visible to callers satisfying `by`
@@ -96,9 +100,13 @@ function checkDotPath(path: string, what: string): void {
  * malformed `when` shapes, any grant field equal to or under a secret path
  * (fail fast; a grant above a secret is allowed and the secret subtree is
  * carved out of every projection instead), or any `when` row-match touching
- * a secret path (a viewer-observable visibility oracle bit).
+ * a secret path (a viewer-observable visibility oracle bit). Row role subjects
+ * require a matching canonical owning singular user/user? field declaration.
  */
-export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): PolicyTable {
+export function buildPolicyTable(
+  models: ReadonlyArray<InterimModelPolicy>,
+  declarations: readonly CanonicalModelDescriptor[] = [],
+): PolicyTable {
   const table = new Map<ModelName, InterimModelPolicy>();
   for (const policy of models) {
     const model = policy.model as string;
@@ -111,8 +119,10 @@ export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): Pol
     for (const secret of policy.secretFields) {
       checkDotPath(secret, 'secretFields');
     }
+    const rowFields = new Map<string, 'user' | 'user?'>();
     const grants = policy.grants.map((grant) => {
       validateByPredicate(grant.by, `grant by on model ${JSON.stringify(model)}`);
+      validateRowSubjects(grant.by, policy, declarations, rowFields);
       for (const field of grant.fields) {
         checkDotPath(field, 'grant fields');
         for (const secret of policy.secretFields) {
@@ -162,16 +172,64 @@ export function buildPolicyTable(models: ReadonlyArray<InterimModelPolicy>): Pol
         ...(when !== undefined ? { when: deepFreeze(when) } : {}),
       }) as InterimGrant;
     });
-    table.set(
-      policy.model,
-      Object.freeze({
-        model: policy.model,
-        secretFields: Object.freeze([...policy.secretFields]),
-        grants: Object.freeze(grants),
-      }) as InterimModelPolicy,
-    );
+    const frozen = Object.freeze({
+      model: policy.model,
+      secretFields: Object.freeze([...policy.secretFields]),
+      grants: Object.freeze(grants),
+    }) as InterimModelPolicy;
+    registerPolicyRowFields(frozen, rowFields);
+    table.set(policy.model, frozen);
   }
   return table;
+}
+
+/** Own data descriptors prevent declaration or subject accessors from becoming authority. */
+function ownDeclarationData(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  if (descriptor === undefined) return undefined;
+  if (!('value' in descriptor)) throw new Error('Invalid row role subject: canonical declarations must be own data.');
+  return descriptor.value;
+}
+
+function validateRowSubjects(
+  by: ByPredicate,
+  policy: InterimModelPolicy,
+  declarations: readonly CanonicalModelDescriptor[],
+  fields: Map<string, 'user' | 'user?'>,
+): void {
+  if (typeof by === 'string' || 'role' in by) return;
+  if ('and' in by || 'or' in by) {
+    for (const term of 'and' in by ? by.and : by.or) validateRowSubjects(term, policy, declarations, fields);
+    return;
+  }
+  if ('not' in by) return validateRowSubjects(by.not, policy, declarations, fields);
+  const person = by.roleSubject.person;
+  if (typeof person === 'string') return;
+  if (person.model !== policy.model || isMetadataPath(person.field) || person.field === 'parent') {
+    throw new Error('Invalid row role subject: field must belong to the owning model data.');
+  }
+  for (const secret of policy.secretFields) {
+    if (isEqualOrUnder(person.field, secret) || isEqualOrUnder(secret, person.field)) {
+      throw new Error('Invalid row role subject: secret fields cannot determine viewer grants.');
+    }
+  }
+  const owners = declarations.filter((declaration) => ownDeclarationData(declaration, 'name') === policy.model);
+  const field = owners.length === 1 ? ownDeclarationData(ownDeclarationData(owners[0], 'fields'), person.field) : undefined;
+  const type = ownDeclarationData(field, 'valueType');
+  const nullable = ownDeclarationData(field, 'nullable');
+  if ((type !== 'user' && type !== 'user?') || ownDeclarationData(field, 'array') !== undefined ||
+    (nullable !== undefined && nullable !== (type === 'user?')) ||
+    typeof ownDeclarationData(field, 'required') !== 'boolean' ||
+    typeof ownDeclarationData(field, 'serverOnly') !== 'boolean') {
+    throw new Error('Invalid row role subject: matching canonical singular user/user? declaration required.');
+  }
+  fields.set(person.field, type);
+}
+
+/** Attach a row using only the field inventory retained by its validated owning policy. */
+export function withPolicyRow(policy: InterimModelPolicy, byCtx: ByContext, row: StoredRow): ByContext {
+  return bindPolicyRowContext(policy, byCtx, row);
 }
 
 /**
@@ -477,23 +535,36 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
 /**
  * Return the grants matching one row: each grant's `by` must hold for the
  * caller and its optional `when` must match the stored row. `by` predicates
- * are row-independent, so engines may cache the `by` outcomes per query and
- * evaluate only `when` per row; this helper evaluates both for direct use.
+ * may depend on an owning user field; engines may cache only row-independent
+ * outcomes per query. This helper evaluates both for direct use.
  */
 export async function matchGrants(
   policy: InterimModelPolicy,
   byCtx: ByContext,
   row: StoredRow,
 ): Promise<InterimGrant[]> {
-  const matched: InterimGrant[] = [];
-  for (const grant of policy.grants) {
-    if (!(await evaluateBy(grant.by, byCtx))) {
-      continue;
+  const authority = await observeMatchingGrants(policy, byCtx, row);
+  await authority.revalidate?.();
+  return authority.grants;
+}
+
+/** Internal disclosure join: retain the original full facts through async reads. */
+export async function observeMatchingGrants(
+  policy: InterimModelPolicy,
+  byCtx: ByContext,
+  row: StoredRow,
+): Promise<{ readonly grants: InterimGrant[]; readonly revalidate?: () => Promise<void> }> {
+  const evaluate = async (current: ByContext) => {
+    const matched: InterimGrant[] = [];
+    const rowCtx = withPolicyRow(policy, current, row);
+    for (const grant of policy.grants) {
+      if (!(await evaluateBy(grant.by, rowCtx))) continue;
+      if (grant.when !== undefined && !evalPredicateForRow(grant.when, row)) continue;
+      matched.push(grant);
     }
-    if (grant.when !== undefined && !evalPredicateForRow(grant.when, row)) {
-      continue;
-    }
-    matched.push(grant);
-  }
-  return matched;
+    return matched;
+  };
+  if (!policy.grants.some(grant => byDependsOnRow(grant.by))) return { grants: await evaluate(byCtx) };
+  const authority = await observeRowGrantAuthority(byCtx, evaluate);
+  return { grants: authority.value, revalidate: authority.revalidate };
 }

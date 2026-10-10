@@ -42,10 +42,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
   AssociatedReceipt,
+  CanonicalModelDescriptor,
   ReceiptAssociation,
   ReceiptProperty,
   ReceiptStatus,
 } from '@canlang/contracts';
+import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import type {
   CommitBatch,
   DomainWrite,
@@ -756,6 +758,90 @@ describe('d3a join differential (B3 read path vs work mechanism)', () => {
         },
       ]),
     );
+  }
+
+  async function rowSubjectReceipt() {
+    const store = await setupStore();
+    const identity = createMemoryIdentityStore({ clock: createFrozenClock(NOW) });
+    const team = 'receipt-review-team';
+    const reviewerId = 'receipt-reviewer';
+    const at = new Date(NOW).toISOString();
+    await identity.createMembership({ team_id: team, user_id: ACTOR, is_owner: false,
+      roles: [{ role: 'Acme.reader', granted_at: at, granted_by: ACTOR }] });
+    const reviewer = await identity.createMembership({ team_id: team, user_id: reviewerId, is_owner: false,
+      roles: [{ role: 'Acme.reviewer', granted_at: at, granted_by: ACTOR }] });
+    const owner = await store.load(ITEM_MODEL, 'item-1' as RecordId);
+    assert.ok(owner !== null);
+    await commitWrites(store, [{ kind: 'update', model: ITEM_MODEL, id: owner.id,
+      expectedVersion: owner.version, row: { ...owner, version: (owner.version + 1) as RecordVersion,
+        data: { ...owner.data, reviewer: { id: reviewerId } } } }]);
+    const result = { detail: 'original retained content' };
+    await seedPair(store, 'del-review', 3, 'succeeded', result, 'retained-review-content', NOW + 1000);
+    const declaration: CanonicalModelDescriptor = { name: ITEM_MODEL, deleteMode: 'remove', fields: {
+      reviewer: { valueType: 'user', required: true, serverOnly: false },
+    } };
+    const policy = buildPolicyTable([{ model: ITEM_MODEL, secretFields: [], grants: [{
+      by: { and: [{ role: 'Acme.reader' }, { roleSubject: { role: 'Acme.reviewer',
+        person: { model: ITEM_MODEL, field: 'reviewer' } } }] }, fields: ['notification.result'],
+    }] }], [declaration]);
+    const input = { locator: { record: { id: 'item-1' }, field: FIELD }, selected: ['result'] as const,
+      model: ITEM_MODEL, schema: createDeliverySchema([[ITEM, [FIELD]]]), declaredSource: SOURCE,
+      policy, caller: { actorUserId: ACTOR, teamId: team }, memberships: identity, store,
+      nowMs: NOW, observeSelected: observeSelectedReceipt };
+    const state = async () => ({
+      revision: await store.readRevision(),
+      owner: await store.load(ITEM_MODEL, 'item-1' as RecordId),
+      association: await store.load(RECEIPT_ASSOCIATION_MODEL as ModelName,
+        associationRowId(ITEM, 'item-1', FIELD) as RecordId),
+      receipt: await store.load(RECEIPT_MODEL as ModelName, 'del-review' as RecordId),
+      ownerHistory: await store.historyFor(ITEM_MODEL, 'item-1' as RecordId),
+      receiptHistory: await store.historyFor(RECEIPT_MODEL as ModelName, 'del-review' as RecordId),
+      associationHistory: await store.historyFor(RECEIPT_ASSOCIATION_MODEL as ModelName,
+        associationRowId(ITEM, 'item-1', FIELD) as RecordId),
+    });
+    return { store, identity, reviewer, input, result, state };
+  }
+
+  it('returns actual retained content through Work with coherent caller and owning row reviewer authority', async () => {
+    const s = await rowSubjectReceipt();
+    const before = await s.state();
+    const outcome = await observeSelectedReceiptJoin(s.input);
+    assert.deepEqual(outcome, { outcome: 'observed', projection: { result: s.result },
+      fenceRevision: 3, readRevision: before.revision });
+    assert.deepEqual(await s.state(), before);
+  });
+
+  for (const during of ['association', 'receipt'] as const) {
+    for (const change of ['revocation', 'role metadata'] as const) {
+      it(`withholds Work receipt content when reviewer ${change} changes during the actual ${during} load`, async () => {
+        const s = await rowSubjectReceipt();
+        const before = await s.state();
+        let changed = false;
+        const target = during === 'association' ? RECEIPT_ASSOCIATION_MODEL : RECEIPT_MODEL;
+        const reading: StoragePort = { ...s.store, load: async (model, id) => {
+          const row = await s.store.load(model, id);
+          if (!changed && model === target) {
+            changed = true;
+            if (change === 'revocation') await s.identity.removeMembership(s.reviewer.membership_id);
+            else await s.identity.setMembershipRoles(s.reviewer.membership_id,
+              s.reviewer.roles.map(grant => ({ ...grant, granted_by: 'replacement-grant-author' })));
+          }
+          return row;
+        } };
+        let returned: unknown;
+        await assert.rejects(async () => {
+          returned = await observeSelectedReceiptJoin({ ...s.input, store: reading });
+        }, (error: unknown) => error instanceof StateError && error.code === 'forbidden');
+        assert.equal(changed, true, 'the actual association/receipt read must trigger the authority change');
+        assert.equal(returned, undefined, 'no partial selected content may return');
+        if (change === 'role metadata') {
+          const current = await s.identity.findMembership(s.input.caller.teamId, s.reviewer.user_id);
+          assert.ok(current?.status === 'active' && current.roles.some(grant => grant.role === 'Acme.reviewer'),
+            'the role boolean remains true while the original complete grant metadata changes');
+        }
+        assert.deepEqual(await s.state(), before, 'reading cannot change State revision, receipt, owner or history');
+      });
+    }
   }
 
   async function workSide(
