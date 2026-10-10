@@ -1,22 +1,22 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "523663c5f5bde1db8182ae69d3999fd5c4c94ec4",
+  "integrated_source_pin": "f87c7f6595843cbcc3cc0ab137bfde346c0be7e6",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1945,
-    "net_path_deltas": 10873,
-    "history_touched_paths": 11415,
+    "commit_count_since_checkpoint": 1946,
+    "net_path_deltas": 10875,
+    "history_touched_paths": 11417,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9370,
-    "scope": "Local main intake of exact selected coherent commit 523663c5f5bde1db8182ae69d3999fd5c4c94ec4 onto c80d46f9276cd2bfe49fad5ea3cc1b8b6221252b; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
+    "inherited_paths_without_prior_target_allocation": 9372,
+    "scope": "Capability worker safe fast-forward intake of exact coordinator source f87c7f6595843cbcc3cc0ab137bfde346c0be7e6 from committed worker c4a96e7284decef55374f0d6dae89956bf193875; actual staged File-slot implementation tree and full histories from both sources since complete 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Retain strongest existing physical owners, target allocations, accepted feature scopes, retirements, tasks and precise holds. New State current File reference source/test paths are registered under State with exact target allocation pending. Complete source/target review and full File workflows remain open; checkpoint unadvanced."
   },
   "methods": [
-    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
-    "git log --full-history -m --format= --name-only --no-renames current-main-parent ^checkpoint (selected source unit only; unmerged source branch history excluded)",
+    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged Capability worker tree after exact coordinator fast-forward intake)",
+    "git log --full-history -m --format= --name-only --no-renames prior-worker exact-coordinator-intake ^checkpoint (both full ancestry histories)",
     "Prior input/target/retirement/task ledgers retained; new feature ownership and target leaves joined without accepting inherited incomplete source review. Similarity rename detection is bookkeeping evidence, not semantic successor authority."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
@@ -62365,6 +62365,18 @@
       "inherited"
     ],
     [
+      "A",
+      "packages/state/src/ports/file-references.test.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/state/src/ports/file-references.ts",
+      "packages/state",
+      "inherited-unallocated"
+    ],
+    [
       "M",
       "packages/state/src/ports/index.ts",
       "packages/state",
@@ -67874,7 +67886,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9370,
+    "count": 9372,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67885,8 +67897,8 @@
     "SM.QUALIFY open; FP.FULL dependency",
     "FP.SOURCE-CLOSURE open; accumulated review and target allocation pending"
   ],
-  "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
+  "lanes": "Existing four LOCAL worker plans and recipient-specific holds retained; Capability owns this finite State File-slot prerequisite. Packages owns Files/Interfaces/common gates, Dev native host/provider/serialization, Compiler genuine source. Coordinator alone integrates local main and manually releases components; no PR/remote publication.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main intake of exact selected coherent commit 523663c5f5bde1db8182ae69d3999fd5c4c94ec4 onto c80d46f9276cd2bfe49fad5ea3cc1b8b6221252b; actual staged tree and existing main history since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Unmerged source-branch checkpoints are not integrated or treated as reviewed ancestry. Existing per-path allocations and scopes remain; complete checkpoint is unadvanced. Finite source review and recorded checks do not establish full workflow acceptance."
+  "current_maintenance_summary": "Capability worker safe fast-forward intake of exact coordinator source f87c7f6595843cbcc3cc0ab137bfde346c0be7e6 from committed worker c4a96e7284decef55374f0d6dae89956bf193875; actual staged File-slot implementation tree and full histories from both sources since complete 8249342707d3280e88e39e8c911b7e457828f31f are reconciled. Retain strongest existing physical owners, target allocations, accepted feature scopes, retirements, tasks and precise holds. New State current File reference source/test paths are registered under State with exact target allocation pending. Complete source/target review and full File workflows remain open; checkpoint unadvanced."
 }
