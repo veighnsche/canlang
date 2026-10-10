@@ -20,6 +20,8 @@ import type {
   ArtifactOperation,
   ArtifactOperationInput,
 } from '@canlang/contracts';
+import { createFrozenClock, createMemoryIdentityStore as createIdentityMemoryStore } from '@canlang/identity/testing';
+import type { MembershipReader } from '../policy/roles.js';
 import type { ReadEnvelope } from '@canlang/contracts';
 import type { Receipt, StoragePort, StoredRow } from '@canlang/contracts';
 import {
@@ -43,6 +45,7 @@ import {
   makeEnvelope,
   makeIdentity,
   seedMember,
+  seedRow,
   uuidv7,
   updateRow,
   type SeededMember,
@@ -703,18 +706,120 @@ describe('T17a invokeRead: identity, trust, and purity', () => {
 
 
 describe('ordinary source read scenarios', () => {
-  async function scenarioSetup() {
+  async function scenarioSetup(rowSubjects = false) {
     const setup = await setupReads();
     const slice = readSlice();
+    if (rowSubjects) slice.models![0]!.fields.push({ name: 'reviewer', field: { kind: 'user' },
+      valueType: 'user', required: true, serverOnly: false });
     const loaded = loadArtifactDescriptors({ ...slice, operations: [...slice.operations!, {
       name: 'Shop.inspect', kind: 'read', description: 'Return visible gadget details.',
       inputs: { fields: [refInput('gadget', GADGET, true),
+        ...(rowSubjects ? [refInput('secondGadget', GADGET, true)] : []),
         { name: 'labels', field: { kind: 'string' }, required: false, array: { required: false } },
         { name: 'counts', field: { kind: 'integer' }, required: false,
           array: { required: false }, default: { kind: 'literal', value: ['2'] } }] },
-    }] }, { by: 'members' });
-    return { ...setup, registry: loaded.registry };
+    }] }, { by: rowSubjects ? { role: 'Shop.reader' } : 'members' });
+    return { ...setup, models: loaded.models, registry: loaded.registry };
   }
+
+  async function rowSubjectScenarioSetup() {
+    const setup = await scenarioSetup(true);
+    const identities = createIdentityMemoryStore({ clock: createFrozenClock(FIXED_NOW) });
+    const role = (name: string) => ({ role: name, granted_at: new Date(FIXED_NOW).toISOString(),
+      granted_by: setup.alice.user.user_id });
+    const caller = await identities.createMembership({ team_id: setup.alice.team.team_id,
+      user_id: setup.alice.user.user_id, is_owner: false, roles: [role('Shop.reader')] });
+    const firstSubject = await identities.createMembership({ team_id: caller.team_id,
+      user_id: 'first-reviewer', is_owner: false, roles: [role('Shop.reviewer')] });
+    const secondSubject = await identities.createMembership({ team_id: caller.team_id,
+      user_id: 'second-reviewer', is_owner: false, roles: [role('Shop.reviewer')] });
+    const rows = [await seedRow(setup.store, asModel(GADGET), { id: 'first-selected', data: {
+      title: 'first', code: 'first-code', stock: '3', reviewer: { id: firstSubject.user_id },
+    } })];
+    rows.push(await seedRow(setup.store, asModel(GADGET), { id: 'second-selected', data: {
+      title: 'second', code: 'second-code', stock: '4', reviewer: { id: secondSubject.user_id },
+    } }));
+    const policy = buildPolicyTable([{ model: asModel(GADGET), secretFields: [], grants: [{
+      by: { roleSubject: { role: 'Shop.reviewer', person: { model: asModel(GADGET), field: 'reviewer' } } },
+      fields: ['title', 'code'],
+    }] }], setup.models);
+    const envelope = readEnvelope('Shop.inspect', {
+      gadget: { id: rows[0]!.id, version: String(rows[0]!.version) },
+      secondGadget: { id: rows[1]!.id, version: String(rows[1]!.version) },
+    });
+    const identity = makeIdentity({ userId: caller.user_id, team: setup.alice.team, membership: caller });
+    return { ...setup, policy, identities, caller, firstSubject, secondSubject, rows, envelope, identity };
+  }
+
+  it('observes caller and both actual ref subjects coherently before one source callback with one load per ref', async () => {
+    const w = await rowSubjectScenarioSetup(); const requests: string[][] = [];
+    const loads = new Map<string, number>(); let callbacks = 0;
+    const store: StoragePort = { ...w.store,
+      load: async (model, id) => { loads.set(id, (loads.get(id) ?? 0) + 1); return w.store.load(model, id); },
+      query: async () => assert.fail('ref read scanned a model'),
+    };
+    const memberships: MembershipReader = { ...w.identities,
+      findMembershipsSnapshot: async (team, users) => {
+        assert.equal(team, w.caller.team_id); requests.push([...users]);
+        assert.deepEqual(new Set(users), new Set([w.caller.user_id, w.firstSubject.user_id, w.secondSubject.user_id]));
+        return w.identities.findMembershipsSnapshot(team, users);
+      },
+    };
+    const revision = await w.store.readRevision();
+    const served = await invokeReadScenario({ ...w, store, memberships, execute: async call => {
+      callbacks++;
+      assert.ok(requests.length >= 1, 'one complete ref-group snapshot precedes source execution');
+      assert.deepEqual(call.recordRefs.map(ref => ref.row.data), [
+        { title: 'first', code: 'first-code' }, { title: 'second', code: 'second-code' },
+      ]);
+      assert.deepEqual([...loads], [['first-selected', 1], ['second-selected', 1]]);
+      return call.recordRefs.map(ref => ref.row.data['title']);
+    } });
+    assert.deepEqual(served, { result: ['first', 'second'], revision });
+    assert.equal(callbacks, 1);
+    assert.ok(requests.length >= 2, 'full ref-group facts are rechecked after source execution');
+    assert.deepEqual([...loads], [['first-selected', 1], ['second-selected', 1]]);
+    assert.equal(await w.store.readRevision(), revision);
+  });
+
+  it('refuses equal-clock subject grant metadata drift after one source callback despite identical role and projection', async () => {
+    const w = await rowSubjectScenarioSetup(); let callbacks = 0;
+    const revision = await w.store.readRevision();
+    const before = await Promise.all(w.rows.map(row => w.store.load(asModel(GADGET), row.id)));
+    const error = await captureStateError(() => invokeReadScenario({ ...w, memberships: w.identities,
+      execute: async call => {
+        callbacks++;
+        assert.deepEqual(call.recordRefs[0]!.row.data, { title: 'first', code: 'first-code' });
+        await w.identities.setMembershipRoles(w.firstSubject.membership_id,
+          [{ ...w.firstSubject.roles[0]!, granted_by: 'another-grantor' }]);
+        return 'same-projection';
+      },
+    }));
+    assert.equal(error.code, 'forbidden'); assert.equal(callbacks, 1);
+    const live = await w.identities.findMembership(w.caller.team_id, w.firstSubject.user_id);
+    assert.equal(live!.updated_at, w.firstSubject.updated_at);
+    assert.equal(live!.roles[0]!.role, w.firstSubject.roles[0]!.role);
+    assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await Promise.all(w.rows.map(row => w.store.load(asModel(GADGET), row.id))), before);
+  });
+
+  it('refuses an incomplete genuine ref-group snapshot before source execution', async () => {
+    const w = await rowSubjectScenarioSetup(); let callbacks = 0, snapshots = 0;
+    const memberships: MembershipReader = { ...w.identities,
+      findMembershipsSnapshot: async (team, users) => {
+        snapshots++;
+        const actual = await w.identities.findMembershipsSnapshot(team, users);
+        assert.equal(actual.entries.length, 3);
+        return { ...actual, entries: actual.entries.slice(0, 2) };
+      },
+    };
+    const revision = await w.store.readRevision();
+    const error = await captureStateError(() => invokeReadScenario({ ...w, memberships,
+      execute: async () => { callbacks++; return 'must refuse'; },
+    }));
+    assert.equal(error.code, 'validation'); assert.equal(snapshots, 1); assert.equal(callbacks, 0);
+    assert.equal(await w.store.readRevision(), revision);
+  });
 
   it('executes the source callback with projected refs/normalized omissions and no mutation surfaces', async () => {
     const setup = await scenarioSetup();
