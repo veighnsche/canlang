@@ -114,6 +114,9 @@ async function loadDispatchRow(
 /** Deployment-static, exact-intent availability; never transport or authority. */
 export type DispatchClaimAvailability = (intentId: OutboxId, target: string) => boolean;
 
+/** Installed synchronous allocator; called only when an eligible stage claims. */
+export type DispatchClaimIdAllocator = () => ClaimId;
+
 /** Installed source adapter only. Work supplies the actual eligible row and
  * original State stage; Dev owns source/lexical/owner correspondence. */
 export interface DispatchClaimGuardInput {
@@ -134,17 +137,24 @@ function guardFalseDispatchData(data: DispatchRowData): DispatchRowData & Record
 }
 
 /**
- * Build the existing claim stage with an optional installed-target gate.
+ * Build the existing claim stage with optional installed target, guard and ID hooks.
  * Existing lifecycle refusals precede availability. The callback sees the
  * authoritative row identity/target exactly once before any claim writes;
- * a missing target refuses without consuming a provider attempt.
+ * a missing target refuses without consuming a provider attempt. An installed
+ * allocator requires omitted claimId arguments and runs only after eligibility
+ * and a successful true guard phase, before staging the claim write. Its ID
+ * may be consumed even when the subsequent fenced commit fails.
  */
 export function createWorkDispatchClaimCommand(
   availability?: DispatchClaimAvailability,
   guard?: DispatchClaimGuard,
+  claimIdAllocator?: DispatchClaimIdAllocator,
 ): SystemCommandDef {
   if (guard !== undefined && typeof guard !== 'function') {
     throw new TypeError('dispatch claim guard must be an installed function');
+  }
+  if (claimIdAllocator !== undefined && typeof claimIdAllocator !== 'function') {
+    throw new TypeError('dispatch claim ID allocator must be an installed function');
   }
   return {
     name: 'work.dispatch.claim',
@@ -152,7 +162,11 @@ export function createWorkDispatchClaimCommand(
       const what = 'work.dispatch.claim';
       checkArgs(args, what);
       const intentId = argString(args, 'intentId', what);
-      const claimId = argString(args, 'claimId', what) as ClaimId;
+      if (claimIdAllocator !== undefined && Object.hasOwn(args, 'claimId')) {
+        throw new KernelTableError(`${what}: claimId must be omitted with an installed allocator.`);
+      }
+      const suppliedClaimId = claimIdAllocator === undefined
+        ? argString(args, 'claimId', what) as ClaimId : undefined;
       const claimedAtMs = argInstant(args, 'claimedAtMs', what);
       const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
       const { row, data } = await loadDispatchRow(ctx, intentId, what);
@@ -222,6 +236,8 @@ export function createWorkDispatchClaimCommand(
             outboxAck: [intentId], result: { claimed: false, reason: 'guard-false', intentId } };
         }
       }
+      const claimId = claimIdAllocator === undefined ? suppliedClaimId as ClaimId
+        : argString({ claimId: claimIdAllocator() }, 'claimId', what) as ClaimId;
       const writes = [updateWrite(
         row,
         { ...data, state: 'claimed', claimId, claimedAtMs },
