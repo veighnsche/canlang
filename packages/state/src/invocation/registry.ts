@@ -1816,7 +1816,7 @@ export function loadArtifactDescriptors(
           (style !== undefined && (!('value' in style) || !style.enumerable || style.value !== 'parameters'))) {
         fail('malformed_descriptor', 'Scenario default callable input style requires own parameter-style data.');
       }
-      bindScenarioReceiptPlan(def, artifact.models ?? [], { parameterStyle: style?.value === 'parameters',
+      bindScenarioReceiptPlan(def, artifact.models ?? [], { parameterStyle: style?.value === 'parameters', canonicalModels: loaded.models,
         ...(converted.valueSchema !== undefined ? { valueSchema: converted.valueSchema } : {}),
         ...(loaded.valueTypes !== undefined ? { valueTypes: loaded.valueTypes } : {}) });
     }

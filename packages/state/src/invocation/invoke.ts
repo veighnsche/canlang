@@ -46,7 +46,8 @@ import type { ClosedInputs } from '@canlang/contracts';
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { ByPredicate, MembershipReader } from '../policy/roles.js';
-import { evaluateBy } from '../policy/roles.js';
+import { byDependsOnRow, evaluateBy } from '../policy/roles.js';
+import { observeRowGrantAuthority } from '../policy/membership-facts.js';
 import type { PolicyTable } from '../policy/grants.js';
 import {
   admit,
@@ -63,10 +64,10 @@ import {
 } from './admission.js';
 import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
 import {
-  projectSavedRecordForViewer, projectCurrentRecordForViewer, queryRecordsPage,
+  projectSavedRecordForViewer, projectCurrentRecordForViewerPolicy, queryRecordsPageWithParentPolicies,
   viewerPageOrder, viewerPagePredicateTuple, viewerPageSearchTuple,
   VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
-  type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple,
+  type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple, type ViewerPageParentPolicy,
 } from '../query/engine.js';
 import type { InterimContainment } from '../mutation/models.js';
 import { buildContext, type ClockPort } from './context.js';
@@ -888,9 +889,9 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
   const fence = openFenceScope(revision, teamId ?? 'app');
   const readMembership = () => actorUserId !== null && teamId !== null
     ? input.memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
-  const authorize = async (membership: Membership | null): Promise<void> => {
+  const authorize = async (membership: Membership | null, memberships = input.memberships): Promise<void> => {
     if (kind !== 'trusted' && !(await evaluateBy(def.by, {
-      actorUserId, teamId, membership, memberships: input.memberships,
+      actorUserId, teamId, membership, memberships,
     }))) {
       throw new StateError('forbidden', 'This operation is not permitted for the caller.');
     }
@@ -913,7 +914,37 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     return { ...row, data: record.data };
   };
   // Visibility precedes stale/archive facts; visible refs keep canonical order.
-  const loadedRefs = await loadCallRecordRefs({
+  let loadedRefs: AdmittedCall['recordRefs'];
+  let revalidateRefAuthority: (() => Promise<void>) | undefined;
+  const rowSubjects = validated.refs.some(ref => input.policy.get(ref.model)?.grants.some(grant => byDependsOnRow(grant.by)));
+  if (rowSubjects) {
+    let discoveredRefs: AdmittedCall['recordRefs'] | undefined;
+    const originals = new Map<string, StoredRow>();
+    const refKey = (ref: { model: ModelName; id: RecordId }) => JSON.stringify([ref.model, ref.id]);
+    const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships: input.memberships }, async current => {
+      await authorize(current.membership, current.memberships);
+      const project = async (ref: Pick<AdmittedCall['recordRefs'][number], 'model' | 'id'>, row: StoredRow): Promise<StoredRow> => {
+        const visible = await projectCurrentRecordForViewerPolicy({ policy: input.policy.get(ref.model), context: current, row });
+        if (visible.record === null) throw new StateError('not_found', 'Record not found.');
+        return { ...row, data: visible.record.data };
+      };
+      if (discoveredRefs === undefined) {
+        discoveredRefs = await loadCallRecordRefs({
+          pending: validated.refs, inputs: validated.normalized, store: input.store, scope: fence,
+          projectRow: async (ref, row) => { originals.set(refKey(ref), row); return project(ref, row); },
+        });
+        return discoveredRefs;
+      }
+      // Snapshot confirmation reevaluates only policy over the original owning
+      // rows. The source callback and storage producer are never replayed.
+      const confirmed: Array<AdmittedCall['recordRefs'][number]> = [];
+      for (const ref of discoveredRefs) confirmed.push({ ...ref, row: await project(ref, originals.get(refKey(ref))!) });
+      return confirmed;
+    });
+    loadedRefs = authority.value;
+    revalidateRefAuthority = authority.revalidate;
+    if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'State changed during read authority discovery.');
+  } else loadedRefs = await loadCallRecordRefs({
     pending: validated.refs, inputs: validated.normalized, store: input.store,
     scope: fence, projectRow: projectRef,
   });
@@ -936,10 +967,13 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
   if (JSON.stringify(live) !== membershipSnapshot) {
     throw new StateError('forbidden', 'Caller authority changed during the read scenario.');
   }
-  for (const [index, ref] of loadedRefs.entries()) {
-    const current = await projectRef(ref, ref.row);
-    if (JSON.stringify(current.data) !== projections[index]) {
-      throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+  if (revalidateRefAuthority !== undefined) await revalidateRefAuthority();
+  else {
+    for (const [index, ref] of loadedRefs.entries()) {
+      const current = await projectRef(ref, ref.row);
+      if (JSON.stringify(current.data) !== projections[index]) {
+        throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+      }
     }
   }
   await assertRevision();
@@ -983,7 +1017,11 @@ export type ViewerPageTransform<Result> = (page: Readonly<ViewerPageResult>) => 
 function pageByTuple(by: ByPredicate): ViewerPageTuple {
   if (typeof by === 'string') return [by];
   if ('role' in by) return ['role', by.role];
-  if ('roleSubject' in by) return ['roleSubject', by.roleSubject.role, by.roleSubject.person];
+  if ('roleSubject' in by) {
+    const person = by.roleSubject.person;
+    return ['roleSubject', by.roleSubject.role, typeof person === 'string'
+      ? person : ['row-field', person.model, person.field]];
+  }
   if ('not' in by) return ['not', pageByTuple(by.not)];
   if ('and' in by) return ['and', by.and.map(pageByTuple)];
   return ['or', by.or.map(pageByTuple)];
@@ -1000,6 +1038,7 @@ export function invokeReadPage<Result>(input: InvokeReadPageInput, transform: Vi
 export async function invokeReadPage(input: InvokeReadPageInput,
   transform?: ViewerPageTransform<unknown>): Promise<unknown> {
   // Do not spread the per-call selection before admission/closed input checks.
+  let finalizePage: (() => Promise<void>) | undefined;
   const admitted = await invokeReadScenario({
     registry: input.registry, policy: input.policy, store: input.store,
     memberships: input.memberships, envelope: input.envelope, identity: input.identity,
@@ -1030,7 +1069,6 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       const search = viewerPageSearchTuple(selection.search, descriptor);
       const where: ViewerPageTuple | null = search === null ? whereBase : ['and-search', whereBase, search];
       const context = { actorUserId: call.actorUserId, teamId: call.teamId };
-      const byContext = { ...context, membership: call.membership, memberships: input.memberships };
       const readDef = (name: ModelName): GeneratedOperationDef => {
         const def = input.registry.get(`${name}.read`);
         if (def === undefined || !isGeneratedOperationDef(def) || def.descriptor.kind !== 'read' ||
@@ -1039,8 +1077,7 @@ export async function invokeReadPage(input: InvokeReadPageInput,
         }
         return def;
       };
-      const parents: Array<{ model: ModelName; row: StoredRow; def: GeneratedOperationDef;
-        projection: string; allowed: ReadonlyArray<boolean> }> = [];
+      const parentPolicies = new Map<ModelName, ViewerPageParentPolicy>();
       const parent = selection.parent;
       if (parent !== undefined) {
         if (typeof parent !== 'object' || parent === null || Array.isArray(parent) ||
@@ -1049,28 +1086,16 @@ export async function invokeReadPage(input: InvokeReadPageInput,
             input.containment.get(model)?.parent !== parent.model) {
           throw new StateError('validation', 'Page parent must match the checked containing model.');
         }
-        let selected: RecordParent | null = parent;
-        const visited = new Set<ModelName>();
-        while (selected !== null) {
-          if (visited.has(selected.model)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
-          visited.add(selected.model);
-          const def = readDef(selected.model);
-          if (!(await evaluateBy(def.by, byContext))) throw new StateError('not_found', 'Parent record not found.');
-          const row = await input.store.load(selected.model, selected.id);
-          if (row === null) throw new StateError('not_found', 'Parent record not found.');
-          const visible = await projectCurrentRecordForViewer({ policy: input.policy.get(selected.model), context: byContext, row });
-          if (visible.record === null || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
-          const expected = input.containment.get(selected.model)?.parent;
-          const ancestor = row.parent ?? null;
-          if ((expected === undefined && ancestor !== null) ||
-              (expected !== undefined && (ancestor === null || ancestor.model !== expected))) {
-            throw new StateError('not_found', 'Parent record not found.');
-          }
-          parents.push({ model: selected.model, row, def, projection: JSON.stringify(visible.record), allowed: visible.allowed });
+        let selected: ModelName | undefined = parent.model;
+        while (selected !== undefined) {
+          if (parentPolicies.has(selected)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
+          const def = readDef(selected);
+          const ancestor: ModelName | undefined = input.containment.get(selected)?.parent;
+          parentPolicies.set(selected, { by: def.by, ...(ancestor === undefined ? {} : { parent: ancestor }) });
           selected = ancestor;
         }
       }
-      const scopes: CheckedViewerPageDefinition[8] = [model, ...parents.map(item => item.model)].map(name => {
+      const scopes: CheckedViewerPageDefinition[8] = [model, ...parentPolicies.keys()].map(name => {
         const containment = input.containment.get(name);
         const relation: ViewerPageTuple | null = containment?.parent !== undefined ? ['parent', containment.parent] :
           containment?.scope !== undefined ? ['scope', containment.scope] : null;
@@ -1079,7 +1104,7 @@ export async function invokeReadPage(input: InvokeReadPageInput,
           [...policy.secretFields], policy.grants.map(grant => [pageByTuple(grant.by), [...grant.fields],
             grant.when === undefined ? null : viewerPagePredicateTuple(grant.when)]),
         ];
-        return [name, relation, pageByTuple(name === model ? call.def.by : readDef(name).by), policyTuple];
+        return [name, relation, pageByTuple(name === model ? call.def.by : parentPolicies.get(name)!.by), policyTuple];
       });
       const definitionPrefix: CheckedViewerPageDefinitionPrefix = [
         'viewer-page/v1', [model, call.def.descriptor.name, pageByTuple(call.def.by)],
@@ -1091,36 +1116,20 @@ export async function invokeReadPage(input: InvokeReadPageInput,
           return [term.field, field?.valueType ?? null, field?.array?.required ?? null];
         }), scopes,
       ];
-      return queryRecordsPage({
+      return queryRecordsPageWithParentPolicies({
         policy: input.policy, model, modelDescriptor: descriptor, authority: 'viewer', context,
         memberships: input.memberships, store: input.store, fence: openFenceScope(call.revision, call.teamId ?? 'app'), selection,
         ...(input.generatedPredicate === undefined ? {} : { generatedPredicate: input.generatedPredicate }),
-      }, async (page, childGrants) => {
+      }, parentPolicies, call.def.by, async (page, childGrants, parents) => {
         const queryDefinition: CheckedViewerPageDefinition = [
           ...definitionPrefix, [true, [...childGrants], parents.map(item => [item.model, true, [...item.allowed]] as const)],
         ];
         const result: ViewerPageResult = { ...page, queryDefinition: structuredClone(queryDefinition) };
-        const transformed = transform === undefined ? result : await transform(result);
-        // Parent checks also follow host async signing; no authority lease escapes.
-        const membership = call.actorUserId !== null && call.teamId !== null
-          ? await input.memberships.findMembership(call.teamId, call.actorUserId) : null;
-        const liveContext = { ...byContext, membership };
-        for (const admittedParent of parents) {
-          if (!(await evaluateBy(admittedParent.def.by, liveContext))) {
-            throw new StateError('forbidden', 'Parent read authority changed during the page read.');
-          }
-          const visible = await projectCurrentRecordForViewer({
-            policy: input.policy.get(admittedParent.model), context: liveContext, row: admittedParent.row,
-          });
-          if (JSON.stringify(visible.allowed) !== JSON.stringify(admittedParent.allowed) ||
-              JSON.stringify(visible.record) !== admittedParent.projection) {
-            throw new StateError('forbidden', 'Parent read authority changed during the page read.');
-          }
-        }
-        return transformed;
-      });
+        return transform === undefined ? result : await transform(result);
+      }, revalidate => { finalizePage = revalidate; });
     },
   });
+  await finalizePage!();
   return admitted.result;
 }
 
