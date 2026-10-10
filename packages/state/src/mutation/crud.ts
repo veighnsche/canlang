@@ -530,87 +530,113 @@ function buildGeneratedCrudExecutor(
       resolvedDefaults: effects.resolvedDefaults, result: row,
       generatedCrud: generatedCrudAssociation(write.model, row, secretFields) };
   };
-  return async (call: AdmittedCall): Promise<ExecutionEffects> => {
-    const def = call.def;
-    if (!isGeneratedOperationDef(def)) {
-      throw new Error('generatedCrudExecute handles generated operation defs only.');
-    }
-    const kind = def.descriptor.kind;
-    if (def.name !== def.descriptor.name || def.kind !== kind || call.context.operation !== def.name) {
-      throw new Error('Generated CRUD call and descriptor operation identities disagree.');
-    }
-    const when = def.when;
+  return async (call: AdmittedCall): Promise<ExecutionEffects> =>
+    executeWrite(call, prepareGeneratedCrudWrite(table, call));
+}
 
-    if (kind === 'create') {
-      const model = generatedCreateModel(def, table);
-      // T18: the synthesized `parent` ref input (child-model creates
-      // only) becomes record linkage. The target model comes from the
-      // descriptor (no name parsing); the id comes from the
-      // admission-loaded ref (admission proved existence, unarchived,
-      // and fence enrollment). A declared-but-unloaded parent is a
-      // wiring bug (admission loads every declared ref).
-      const parentInput = def.descriptor.inputs.find(
-        (input): input is Extract<CanonicalInputDef, { kind: 'ref' }> =>
-          input.kind === 'ref' && input.name === 'parent',
-      );
-      let parent: { readonly model: ModelName; readonly id: RecordId } | undefined;
-      const data: Record<string, unknown> = { ...call.inputs };
-      if (parentInput !== undefined) {
-        const parentRef = call.recordRefs.find((entry) => entry.param === parentInput.name);
-        if (parentRef === undefined) {
-          throw new Error(
-            `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
-              'got an admitted call with no loaded parent ref.',
-          );
-        }
-        if (parentRef.model !== parentInput.model || parentRef.row.id !== parentRef.id) {
-          throw new Error('Generated CRUD parent does not match its admitted binding.');
-        }
-        parent = { model: parentInput.model, id: parentRef.id };
-        delete data[parentInput.name];
-      }
-      return executeWrite(call, {
-        op: 'create',
-        model,
-        id: call.context.operationId as unknown as RecordId,
-        data,
-        ...(parent !== undefined ? { parent } : {}),
-      });
-    }
+/** The same admitted target/ref selection serves root and enclosing-owner CRUD. */
+function prepareGeneratedCrudWrite(table: ModelTable, call: AdmittedCall, createdId?: RecordId): MutationWrite & { readonly id: RecordId } {
+  const def = call.def;
+  if (!isGeneratedOperationDef(def)) {
+    throw new Error('generatedCrudExecute handles generated operation defs only.');
+  }
+  const kind = def.descriptor.kind;
+  if (def.name !== def.descriptor.name || def.kind !== kind || call.context.operation !== def.name) {
+    throw new Error('Generated CRUD call and descriptor operation identities disagree.');
+  }
+  const when = def.when;
 
-    if (kind === 'update' || kind === 'delete') {
-      const recordInput = generatedRecordInput(def);
-      // Admission-loaded refs are looked up by param (a flat ref FIELD
-      // input may add further refs after the record one).
-      const ref = call.recordRefs.find((entry) => entry.param === recordInput.name);
-      if (ref === undefined) {
-        throw new Error(
-          `generatedCrudExecute ${kind} got an admitted call with no loaded record ref.`,
-        );
-      }
-      if (ref.model !== recordInput.model || ref.row.id !== ref.id ||
-          def.name !== `${recordInput.model}.${kind}`) {
-        throw new Error('Generated CRUD target and operation do not match their admitted binding.');
-      }
-      if (!table.has(recordInput.model)) {
+  if (kind === 'create') {
+    const model = generatedCreateModel(def, table);
+    // T18: the synthesized `parent` ref input (child-model creates
+    // only) becomes record linkage. The target model comes from the
+    // descriptor (no name parsing); the id comes from the
+    // admission-loaded ref (admission proved existence, unarchived,
+    // and fence enrollment). A declared-but-unloaded parent is a
+    // wiring bug (admission loads every declared ref).
+    const parentInput = def.descriptor.inputs.find(
+      (input): input is Extract<CanonicalInputDef, { kind: 'ref' }> =>
+        input.kind === 'ref' && input.name === 'parent',
+    );
+    let parent: { readonly model: ModelName; readonly id: RecordId } | undefined;
+    const data: Record<string, unknown> = { ...call.inputs };
+    if (parentInput !== undefined) {
+      const parentRef = call.recordRefs.find((entry) => entry.param === parentInput.name);
+      if (parentRef === undefined) {
         throw new Error(
           `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
-            `got a table without model ${JSON.stringify(recordInput.model as string)}.`,
+            'got an admitted call with no loaded parent ref.',
         );
       }
-      const patch: Record<string, unknown> = { ...call.inputs };
-      delete patch[recordInput.name];
-      return executeWrite(call,
-        kind === 'update'
-          ? { op: 'update', model: recordInput.model, id: ref.id, data: patch,
-              ...(when !== undefined ? { when } : {}) }
-          : { op: 'remove', model: recordInput.model, id: ref.id,
-              ...(when !== undefined ? { when } : {}) },
+      if (parentRef.model !== parentInput.model || parentRef.row.id !== parentRef.id) {
+        throw new Error('Generated CRUD parent does not match its admitted binding.');
+      }
+      parent = { model: parentInput.model, id: parentRef.id };
+      delete data[parentInput.name];
+    }
+    return {
+      op: 'create',
+      model,
+      id: createdId ?? call.context.operationId as unknown as RecordId,
+      data,
+      ...(parent !== undefined ? { parent } : {}),
+    };
+  }
+
+  if (kind === 'update' || kind === 'delete') {
+    const recordInput = generatedRecordInput(def);
+    // Admission-loaded refs are looked up by param (a flat ref FIELD
+    // input may add further refs after the record one).
+    const ref = call.recordRefs.find((entry) => entry.param === recordInput.name);
+    if (ref === undefined) {
+      throw new Error(
+        `generatedCrudExecute ${kind} got an admitted call with no loaded record ref.`,
       );
     }
+    if (ref.model !== recordInput.model || ref.row.id !== ref.id ||
+        def.name !== `${recordInput.model}.${kind}`) {
+      throw new Error('Generated CRUD target and operation do not match their admitted binding.');
+    }
+    if (!table.has(recordInput.model)) {
+      throw new Error(
+        `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
+          `got a table without model ${JSON.stringify(recordInput.model as string)}.`,
+      );
+    }
+    const patch: Record<string, unknown> = { ...call.inputs };
+    delete patch[recordInput.name];
+    return kind === 'update'
+        ? { op: 'update', model: recordInput.model, id: ref.id, data: patch,
+            ...(when !== undefined ? { when } : {}) }
+        : { op: 'remove', model: recordInput.model, id: ref.id,
+            ...(when !== undefined ? { when } : {}) };
+  }
 
-    throw new Error(
-      `generatedCrudExecute handles CRUD defs only, got kind ${JSON.stringify(kind)}.`,
-    );
-  };
+  throw new Error(
+    `generatedCrudExecute handles CRUD defs only, got kind ${JSON.stringify(kind)}.`,
+  );
+}
+
+/**
+ * Stage an already admitted generated CRUD child into its genuine enclosing
+ * owner session. The root State facade owns child admission, session identity,
+ * caller correspondence and execution lifetime; this helper supplies no proof.
+ * It opens no frame/session, finalizes nothing and produces no separate receipt.
+ * The result is the ordinary stored-row wire after defaults/hooks, or null for
+ * a hard removal. The outer owner's final effects establish saved associations.
+ *
+ * The enclosing facade supplies its scoped session, which derives child
+ * operation attribution from the same frozen caller/clock/owner identity.
+ * This helper never substitutes a context or establishes admission proof.
+ */
+export async function stageGeneratedCrudOwnerCall(
+  input: GeneratedCrudExecuteInput,
+  session: OwnerMutationSession,
+  call: AdmittedCall,
+  /** Private root occurrence-derived identity for a nested create. */
+  createdId?: RecordId,
+): Promise<unknown> {
+  const write = prepareGeneratedCrudWrite(input.table, call, createdId);
+  await session.stage(write, { cause: 'crud', input: call.inputs });
+  return session.read(write.model, write.id);
 }
