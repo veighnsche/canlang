@@ -653,11 +653,6 @@
             "release": "Dev763330ec releases finite complete private query-read contract[]/protected-input target through existing State parent lifetime; original source producer/admission still unfinished"
           },
           {
-            "prerequisite": "Same compiled read helper public/private dispatch and current owning read lifetime",
-            "owner": "Dev native helper/read producer; Capability exact bound query projection/Values result validation; Compiler publication after released contracts",
-            "evidence": "Current private frame checked(c) rejects public runReadScenarioSeam context. Do not infer carrier flags or borrow ReceiptOwnerSession. Exact boundPlans/GeneratedOperationDef owning projection must preserve nominal current authority."
-          },
-          {
             "prerequisite": "Row-selected subject-policy descriptor/evaluator",
             "owner": "Capability State producer, Dev native transcription, Compiler checked owning source transport after exact shape",
             "evidence": "Supported policy read=auditor(row.person) cannot fit fixed ByPredicate.roleSubject.person:string or row-independent by caches. Preserve genuine owning StoredRow user/model/team/source/current role and coherent snapshot; no subject-to-actor replacement or guessed metadata."
@@ -699,6 +694,13 @@
             "evidence": "Compiler array metadata intentionally required=false/array.required=false with owning min1/max10; private caller supplies every checked authored input. Existing assertNativeScenarioTarget requires required=true. Preserve actual descriptor and bounds; no field-only ! borrowing.",
             "state": "resolved_exact_reviewed_owner_intake",
             "release": "Dev9884e876 reviewed in LOCALbf812057, intaken with exact LOCAL08ceabac; owning2/2 and clean emission reused. Protected read arrays retain genuine required:false metadata; every authored child input still mandatory."
+          },
+          {
+            "prerequisite": "Same compiled read helper public/private dispatch and current owning read lifetime",
+            "owner": "Dev native helper/read producer; Capability exact bound query projection/Values result validation; Compiler publication after released contracts",
+            "evidence": "Current private frame checked(c) rejects public runReadScenarioSeam context. Do not infer carrier flags or borrow ReceiptOwnerSession. Exact boundPlans/GeneratedOperationDef owning projection must preserve nominal current authority.",
+            "state": "resolved_exact_reviewed_owner_intake",
+            "release": "Dev38cfc597 +1af76e32 manually reviewed in LOCAL6c3d350c; real public viewer lifetime and private State frame, original native/lazy references/current grants and strict once return selection. Owning private48, legacypublic1, correctedpublic1 with13 negatives/final-await regression, emits/root/boundary0 reused. Compiler actual immutable publication/CLI native parent qualification still required."
           }
         ],
         "nongrant_correction": "Affected140/140 and strict Clippy/format0/source review CLEAR. Dev763 nominal codec now qualifies unchanged actual generated public query1/1 and canonical/frame48; prior213 validation22 failure is historical. No duplicate consumer run. Historical whole1390 belongs to72f51295.",

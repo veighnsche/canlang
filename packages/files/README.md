@@ -45,7 +45,7 @@ Key exports by module:
 - `src/provenance/index.ts`: `bindRequestProvenance`,
   `validateEventProvenance`, `freezeFinalized`, `isSameReceiver`,
   `requestProvenanceMatches`
-- `src/retention/index.ts`: `runRetention`, `describeForReceipt`
+- `src/retention/index.ts`: `runRetention`, `runRetentionBatch`, `describeForReceipt`
 - `src/bridge.ts`: `createBridgeOrigin`, `intentsUrlFor`,
   `advertiseFileTransfer`, `routeHost`, `handleCreateIntent`,
   `handleAppend`, `handleAppendAtOffset`, `handleComplete`, `handleFinalize`,
@@ -80,6 +80,26 @@ interrupted serial publication; their ports require host serialization for
 concurrent writers and do not imply multi-store or power-loss guarantees.
 Retention cleans unpublished terminal bytes while published files keep
 their own policy and immutable tombstones.
+
+The SQLite binding exposes `runRetentionBatch(config, {limit, cursor})`.
+The explicit limit is an integer from 1 through 1000 shared by intent and
+file traversal. `processed` counts every visited row, including ineligible
+and terminal records. Storage uses ordered keysets and SQL limits; it never
+loads a full collection or an extra lookahead row. Pending-intent cleanup
+may need one file lookup to protect published bytes. `metadataReads` counts
+traversed rows plus these point lookups, including absent results, and is
+bounded by twice the limit. Byte-size checks and idempotent deletion
+operations are separately bounded per visited row.
+
+Save `next` only after a successful call. The SQLite binding commits
+metadata and bytes together; retry an interrupted call with its prior
+cursor. A full page can require a final empty probe. When `next` is null,
+that sweep is complete; start a later sweep with a null/omitted cursor to
+revisit newly due rows and insertions before the previous cursor. The clock
+is fresh per batch. This is a traversal position rather than a frozen
+snapshot, authority or disposal deadline. `runRetention` retains its
+legacy unbounded full-list behavior. Shared attachment lifetime, download
+authority and provider/native qualification remain separate.
 
 ## Scripts
 
