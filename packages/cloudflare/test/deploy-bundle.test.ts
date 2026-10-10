@@ -150,6 +150,7 @@ describe("deploy bundle (P-B)", () => {
       "vendor/work/kernel/occurrence-staging.js",
       "vendor/work/kernel/schedule-staging.js",
       "vendor/work/kernel/staging-support.js",
+      "vendor/work/kernel/standard-completion-source.js",
       "vendor/work/kernel/tables.js",
       "vendor/work/observation/association.js",
       "vendor/work/observation/observation.js",
@@ -840,7 +841,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     expect(originalFactoryImports).toHaveLength(1);
     expect(originalFactoryImports[0]!.kind).toBe("evaluation-static");
     expect(runtimeSource.slice(originalFactoryImports[0]!.statement.start, originalFactoryImports[0]!.statement.end))
-      .toMatch(/^import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*["']@canlang\/work["']/);
+      .toMatch(/^import\s*\{\s*createCommittedModelSourceStager,\s*createStandardCompletionSourceCommand\s*\}\s*from\s*["']@canlang\/work["']/);
     const originalSourceStage = runtimeSource.match(/^async function canonicalCommittedSourceStage\b[\s\S]*?^}/m)?.[0] ?? "";
     expect(originalSourceStage).toMatch(/loadProducerModule\(["']@canlang\/state\/mutation["'],\s*["']committed model source lifetime["']\)/);
     expect(originalSourceStage).toMatch(/requireProducerFn\(state,\s*["']readOwnerMutationSourceStage["'],\s*["']committed model source lifetime["']\)/);
@@ -852,6 +853,18 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     expect(stagedFactoryImports[0]!.kind).toBe("evaluation-static");
     expect(invoke.slice(stagedFactoryImports[0]!.statement.start, stagedFactoryImports[0]!.statement.end))
       .toMatch(/^import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*["']\.\.\/vendor\/work\/kernel\/committed-model-source\.js["']/);
+    const completionImports = scanModuleImports(invoke, 'runtime/invoke.js')
+      .filter(record => record.specifier === '../vendor/work/kernel/standard-completion-source.js');
+    expect(completionImports).toHaveLength(1);
+    expect(completionImports[0]!.kind).toBe('evaluation-static');
+    expect(invoke.slice(completionImports[0]!.statement.start, completionImports[0]!.statement.end))
+      .toMatch(/^import\s*\{\s*createStandardCompletionSourceCommand\s*\}\s*from/);
+    const completionFile = new URL('kernel/standard-completion-source.js', (await import('@canlang/work/distribution')).distribution.modules);
+    expect(bundle.modules['vendor/work/kernel/standard-completion-source.js'])
+      .toBe(rewriteModuleImports(readFileSync(completionFile, 'utf8'), 'vendor/work/kernel/standard-completion-source.js',
+        spec => spec === '@canlang/state' ? '../../state/index.js' : spec.startsWith('@canlang/state/')
+          ? `../../state/${spec.slice('@canlang/state/'.length)}.js` : spec === '@canlang/values' ? '../../values/index.js' : spec,
+        { profile: 'trusted-producer' }).js);
     const stagedSourceStage = invoke.match(/^async function canonicalCommittedSourceStage\b[\s\S]*?^}/m)?.[0] ?? "";
     expect(stagedSourceStage).toMatch(/loadProducerModule\(["']\.\.\/vendor\/state\/mutation\/index\.js["'],\s*["']committed model source lifetime["']\)/);
     expect(stagedSourceStage).toMatch(/requireProducerFn\(state,\s*["']readOwnerMutationSourceStage["'],\s*["']committed model source lifetime["']\)/);
@@ -960,11 +973,17 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       for (const source of [
         `import { ${selected} as selectedWorkStager } from "@canlang/work";`,
         `import { ${selected} as selectedWorkStager } from "@canlang/\\u0077ork";`,
+        'import { createStandardCompletionSourceCommand as selectedWorkStager } from "@canlang/work";',
+        `import { ${selected} as selectedWorkStager, createStandardCompletionSourceCommand as selectedCompletion } from "@canlang/work";`,
       ]) {
         writeFileSync(target, `${original.toString("utf8")}\n${source}\nexport const importFormControl = selectedWorkStager;\n`);
         const bundle = buildDeployBundle(testArtifact(), options);
         const specifiers = scanModuleImports(bundle.modules[key]!, key).map(record => record.specifier);
-        expect(specifiers).toContain(kind === "runtime" ? "../vendor/work/kernel/committed-model-source.js" : "./committed-model-source.js");
+        expect(specifiers).toContain(source.includes('createCommittedModelSourceStager')
+          ? kind === 'runtime' ? '../vendor/work/kernel/committed-model-source.js' : './committed-model-source.js'
+          : kind === 'runtime' ? '../vendor/work/kernel/standard-completion-source.js' : './standard-completion-source.js');
+        if (source.includes('selectedCompletion')) expect(specifiers).toContain(kind === 'runtime'
+          ? '../vendor/work/kernel/standard-completion-source.js' : './standard-completion-source.js');
         expect(specifiers).not.toContain("@canlang/work");
       }
       for (const source of [
