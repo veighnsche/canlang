@@ -2,7 +2,7 @@
 
 Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
-Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. Ready compiler call producers are locally integrated and source-qualified; activation awaits Dev's genuine verified binder and actual native execution. Original Workbench read/query and protected call profiles require State/Dev joins; the remaining references overlap owner contracts/application validation and precise human holds, rather than nine independently ready compiler defects. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
 continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
@@ -2105,5 +2105,12 @@ missing/skewed/duplicate joins; no handler executes. All canonical calls still
 report E6008 before publication. Dev's genuine verified-operation binding and
 actual native child qualification remain prerequisites, with original Workbench
 read/query Fact[], dynamic/as/CRUD/default/composite and broader references open.
-Strict all-target Clippy and formatting pass. The final changed-source whole
-qualification follows this coherent local unit.
+Strict all-target Clippy and formatting pass. The exact saved **6e51abc5**
+source/core runtime tuple completes **129 targets:1,356 passed,0 failed,0
+ignored,0 filtered**, with required real completion engines, actual native/
+permission bodies and zero body skips. The coordinator manually reviewed and
+integrated the unit into LOCAL **4923733f**. A clean fast-forward preserves
+compiler source/tests and receipt runtime core; fresh graph **26/26**, zero
+cached, and affected actual carrier/body **1/1** qualify the new outputs.
+Reuse unchanged whole results; Dev preview/browser/application acceptance is
+separate. No native child call or wider reference closes.
