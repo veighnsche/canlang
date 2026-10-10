@@ -328,7 +328,7 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
   if (typeof field.valueType === 'string') {
     try {
       const parsed = parseTypeId(field.valueType);
-      const scalar = /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType);
+      const scalar = field.valueType === 'file[]!' || /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType);
       const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
         (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
           schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));
@@ -337,7 +337,7 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
       const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
       valid = (scalar || nominal || reference || enumeration) && printTypeId(parsed) === field.valueType &&
         parsed.array === (field.array !== undefined) &&
-        (!(nominal || reference) || parsed.requiredArray === (field.array?.required === true)) &&
+        (!(nominal || reference || parsed.base.kind === 'file') || parsed.requiredArray === (field.array?.required === true)) &&
         (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
     } catch { /* The single descriptive error below owns malformed claims. */ }
   }

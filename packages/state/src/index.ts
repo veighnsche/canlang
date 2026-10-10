@@ -127,6 +127,9 @@ export {
 export {
   createInvoker,
   createReadPort,
+  createFileReferenceConsumer,
+  type CommittedFileReference, type CurrentFileSlot, type FileSlotLocator,
+  type CommittedFileReferences, type FileReferenceConsumer, type FileReferenceConsumerInput,
   createSystemRegistry,
   systemCommandStageRevision,
   enrollSystemCommandCommitCheck,

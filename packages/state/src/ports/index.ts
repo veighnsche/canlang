@@ -11,6 +11,11 @@ export {
   type ReadViewerRecordsArgs,
 } from './read.js';
 export {
+  createFileReferenceConsumer,
+  type CommittedFileReference, type CurrentFileSlot, type FileSlotLocator,
+  type CommittedFileReferences, type FileReferenceConsumer, type FileReferenceConsumerInput,
+} from './file-references.js';
+export {
   createInvoker,
   createTransactionPort,
   type BoundInvoker,
