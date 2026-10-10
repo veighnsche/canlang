@@ -62,3 +62,7 @@ export {
   type OwnerModelPolicyBinding,
   type OwnerRuleContext,
 } from './model-policies.js';
+
+export { readOwnerMutationSourceStage, ownerMutationBusinessWrites,
+  type OwnerMutationSourceStage, type OwnerMutationSourceStageView, type OwnerMutationSourceStager,
+  type OwnerMutationFinalChange } from './source-finalization.js';
