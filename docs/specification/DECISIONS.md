@@ -6366,3 +6366,19 @@ State clean emission, corrected saved receipt/query74 and role/loader/default53 
 Manual producer/consumer source reviews CLEAR for Capability9458e68e finite State row-selected subject authority. Exact owning canonical singular user/user? declarations bind private policy/row context; canonical stored identities resolve lazily with no actor substitution or copied-policy authority. Cache only row-independent predicates. Genuine complete same-Team1–99 caller/subject membership observations include relevant original read refs and page parent/child/operation gates before callbacks, then retain identical full facts through transforms, receipt loads and final State revision fences without source replay or sequential multi-subject fallback. Saved disclosure authorizes current row subjects while returning original captured values/versions. Reuse clean owning State emission, corrected74 plus126 unchanged expanded results and53 role/loader/default checks; no reruns. Five newly authored genuine Work selected-receipt cases remain unrun at this checkpoint, pending owning safe intake of the already reviewed Work Identity dependency in local0f8965dc; Capability continues that affected validation and corrections. Exact descriptor/API is now available for Compiler checked source/role/callable transport and Dev genuine native/current Identity adoption. Typed File retained association awaits its separate Packages defining release; proposed cardinality consultation and all recipient-specific holds remain unchanged. Full canonical/native workflows and all four plans remain unfinished. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
 
 Compiler intake of reviewed LOCALbf8dd7f8, 2026-10-10 (unfinished row-policy native join): preserve committedd74 native query unit and all source histories while consuming exact State9458e68e row-subject evaluator/descriptor and released Work Identity test dependency. Reuse State253 and recorded owning build/results; no shared source fix or broad rerun. Canonical roleSubject person model/field must derive from owning singular stored user/user? declaration; Compiler source transport and Dev actual native current-reader remain required. Reconcile actual accumulated staged tree/history with prior allocations and complete checkpoint unadvanced; local-only, precise holds retained.
+
+
+Compiler row-subject source/State join, 2026-10-10 (unfinished native workflow):
+Choose exact released State945 row-subject descriptors only for a whole checked
+role predicate over the owning model's direct singular stored user/user? field.
+Require canonical model/module/field/type and unique rule correspondence; keep
+filtered, compound, member and nested predicates registry-only. Nullable user
+calls evaluate once and absence is false, preventing the omitted-subject actor
+overload. Redundant explicit actor calls retain E4020; other nullable/array
+subjects retain E3001. Genuine emitted metadata/State canonical declarations,
+Identity snapshots and Memory consumption qualify grants, title projection,
+null/revocation/refusal/no-effect behavior; affected409 and strict lint/format
+pass, finite source review CLEAR. Dev's string-only native parser and actual
+State hasRole-subject refusal still require genuine current coherent Identity
+execution binding. This finite source consumer does not accept native subject
+execution, original58/67 closure, held consultation, File or committed events.
