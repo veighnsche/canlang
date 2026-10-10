@@ -101,6 +101,38 @@ snapshot, authority or disposal deadline. `runRetention` retains its
 legacy unbounded full-list behavior. Shared attachment lifetime, download
 authority and provider/native qualification remain separate.
 
+## Retained finalized-file observations
+
+`observeFinalizedFile` reads actual metadata and bytes under an explicit
+receiving File policy and retention policy. It verifies the current receiver,
+live lifecycle, native finalization time, full provenance, detected type,
+size and digest. `readFinalizedFileObservation` authenticates only its original
+opaque handle through private object identity. Copies, serialized data and
+matching shapes supply no live observation. The extracted facts are detached,
+frozen and JSON-safe.
+
+`revalidateRetainedFinalizedFile` compares saved facts with the current physical
+file and current policy. Both captured and current retention horizons apply,
+anchored to the original finalization time; a longer current policy cannot
+renew the captured lifetime. These are captured observation policy facts,
+not evidence of a policy persisted at finalization. Logical expiry applies
+before a sweep, missing or changed bytes refuse, and terminal files stay closed.
+
+An attached marker alone cannot bypass the unattached deadline. The owning
+clock records the first `attachedAtMs` through `recordAttachment`; the observer
+requires it to precede each applicable unattached deadline. Late or unproven
+legacy marks cannot revive expired availability, and retries preserve that
+first time. Clockless legacy marker calls retain their existing behavior.
+
+The SQLite binding consumes these producers as `observeFile(ref, caller,
+retention)` and `revalidateFile(saved, caller, retention)` in its shared
+metadata/byte transaction. Other hosts must supply consistent serialized
+reads. Neither a handle nor saved facts grant row, attachment or disclosure
+authority. State must bind a genuine live observation to its actual checked
+final field/write and receipt; recovery must recheck current row authority.
+Dev and Compiler own the actual typed-file source/replay consumers. Shared
+reference lifetime and authenticated provider ingress remain separate.
+
 ## Scripts
 
 From the repository root, after `bun install --frozen-lockfile`:
