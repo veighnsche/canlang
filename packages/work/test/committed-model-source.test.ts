@@ -467,11 +467,10 @@ test('genuine generated CRUD removal projects and replays a null target with ret
   };
   assert.deepEqual(source.change, { model: ITEM, recordId: 'a', version: 5, kind: 'deleted' });
   const before = await snapshot(w.store), counts = { ...wiring.counts };
-  let deletedTargetLoads = 0, membershipReads = 0;
-  const actualLoad = w.store.load;
-  w.store.load = async (model, id) => {
-    if (model === ITEM) { deletedTargetLoads++; throw Error('Removal recovery must not load or disclose the deleted target'); }
-    return actualLoad(model, id);
+  let storedRowLoads = 0, membershipReads = 0;
+  w.store.load = async () => {
+    storedRowLoads++;
+    throw Error('Removal recovery must not load or disclose any target or framework row');
   };
   const memberships = { ...w.memberships, findMembership: async (teamId: string, userId: string) => {
     membershipReads++; return w.memberships.findMembership(teamId, userId);
@@ -480,10 +479,15 @@ test('genuine generated CRUD removal projects and replays a null target with ret
     policy: buildPolicyTable([{ model: ITEM, secretFields: [], grants: [{ by: 'members', fields: ['value'] }] }]) };
   assert.deepEqual(await projectGeneratedCrudReceipt(projection), { result: null, records: [] });
   assert.ok(membershipReads > 0);
-  assert.equal((await invoke(args)).status, 'replayed');
+  const recovered = await invoke({ ...args, admissionMode: 'retained-receipt-only',
+    clock: { nowMs: () => FIXED_NOW + 16 * 60 * 1000 } });
+  assert.equal(recovered.status, 'replayed'); assert.equal(recovered.result, null);
+  assert.deepEqual(receipt, retained);
+  assert.deepEqual(await projectGeneratedCrudReceipt({ ...projection, receipt: receipt! }),
+    { result: null, records: [] });
   assert.deepEqual(await snapshot(w.store), before); assert.deepEqual(wiring.counts, counts);
   assert.equal(frames, 1); assert.equal(closes, 1); assert.equal(bodies, 1); assert.equal(commits, 1);
-  assert.equal(deletedTargetLoads, 0);
+  assert.equal(storedRowLoads, 0);
   const validation = (error: unknown) => error instanceof StateError && error.code === 'validation';
   await assert.rejects(projectGeneratedCrudReceipt({ ...projection, registry: new Map() }), validation);
   await assert.rejects(projectGeneratedCrudReceipt({ ...projection, receipt: {
@@ -499,7 +503,7 @@ test('genuine generated CRUD removal projects and replays a null target with ret
   const revokedBefore = membershipReads;
   assert.deepEqual(await projectGeneratedCrudReceipt({ ...projection,
     policy: buildPolicyTable([{ model: ITEM, secretFields: [], grants: [] }]) }), { result: null, records: [] });
-  assert.ok(membershipReads > revokedBefore); assert.equal(deletedTargetLoads, 0);
+  assert.ok(membershipReads > revokedBefore); assert.equal(storedRowLoads, 0);
   assert.equal(bodies, 1); assert.equal(commits, 1); assert.deepEqual(wiring.counts, counts);
 });
 
