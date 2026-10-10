@@ -389,7 +389,7 @@ async function putBytes(
   try {
     response = await fetchImpl(url, {
       method: "PUT",
-      headers: { "content-type": "application/octet-stream", [CSRF_HEADER]: csrf },
+      headers: { "content-type": "application/octet-stream", "upload-offset": "0", [CSRF_HEADER]: csrf },
       body: bytes,
     });
   } catch (error) {

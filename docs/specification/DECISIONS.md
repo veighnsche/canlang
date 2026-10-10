@@ -6627,3 +6627,10 @@ Manual review CLEAR for aaa9ec83 common assertions: require actual emitted stati
 The current Dev0bdf runtime statically consumes Interfaces receiverFromIdentity through the existing HTTP bundle mapping. Reexport its genuine defining uploads/principals.js function using the existing Interfaces distribution and require its marker and named export. Preserve private File identity, existing IdentityError closure, deterministic pure reexports and all security refusals; no root-barrel tree or substitute consumer.
 
 At reviewed e7b95 carrier scope, changed Cloudflare emission passes, the affected real HTTP case passes1/1 and HTTP cleanup passes12/12. Current isolated installed226-module graph requires the actual rewritten runtime import and named export, then real workerd production initialize returns401 without assembly failure. Existing actual Acorn/State Files, physical producer/refusal/finally, Work Node, WASM and browser/integrity controls pass; independent finite source review CLEAR. This qualifies common current linking and the auth seam only. Dev owns current G1 and original native File/current-authority/replay workflows; precise holds and complete checkpoint remain unchanged. Local coordinator integration only.
+
+
+### 2026-10-10 — supply the initial upload offset from generated forms
+
+The generated form client sends each file as one complete-byte PUT. Supply canonical upload-offset0 to the released Interfaces range protocol while preserving content type, CSRF, exact bytes and every finalize/form/error assertion. There is no need for a new header API or retry algorithm for this existing initial range.
+
+Owning UI/browser emission passes; all six existing S7 upload-flow checks pass without skips, and independent finite source review CLEAR. This qualifies the owning scripted request protocol only. Dev owns the unchanged real native File/SQLite/D1/browser/replay/current-authority consumer, and concurrent/provider/power-loss parent requirements and precise holds remain open. Local coordinator integration only.

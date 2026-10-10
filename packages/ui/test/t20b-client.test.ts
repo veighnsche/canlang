@@ -623,6 +623,7 @@ describe("T20b S7 upload flow", () => {
     assert.equal(intent.init.headers["x-csrf-token"], "csrf-123");
     const put = pickCall(calls, "PUT", INTENT.content);
     assert.equal(put.init.headers["content-type"], "application/octet-stream");
+    assert.equal(put.init.headers["upload-offset"], "0");
     assert.equal(put.init.headers["x-csrf-token"], "csrf-123");
     assert.deepEqual(put.init.body, new Uint8Array([1, 2, 3]));
     const finalize = pickCall(calls, "POST", INTENT.finalize);
