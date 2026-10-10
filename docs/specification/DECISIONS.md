@@ -6772,3 +6772,43 @@ Implicit containment parent remains existing metadata on a visible row; require 
 ### 2026-10-10 — manual local integration of 1983baf9
 
 Finite private authority, canonical schema/model-loader and genuine source/test reviews CLEAR for State94822fbb plus final1983baf9. Root directly verifies the new nested-child-only reference case at final source: genuine Step.parent/Run.location/Run.targets observations, no outer reference dependency, one original owner fence, saved recovery without recomputation, current partial grant/revoked subject withholding, unchanged body/commit/finalization counters and zero target loads. Current-stage genuine source rows, exact same-load declarations/constrained wires, whole origin-field grants and full Identity facts are required before promotion and rechecked with final source lifetime at the original fence. Saved closure preserves original values; implicit parent metadata does not grant authored fields or target records. Reuse178 distinct affected owner outcomes, clean State emission and boundary0; preserve older scalar missing-snapshot refusal. Compiler original checked containment/Member recipe IDs and Dev verified native source binding/separate target admission remain required; no original application/native/full-roadmap acceptance, new DTO/table or hold change. Current reviewed Compiler, File, common DTO and source runtime carriers remain preserved; synchronize local branches only, with obsolete PR gates ignored. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — original stored reference call operands (unfinished native join)
+
+Retain the original required scenario input → one implicit containment parent
+→ direct required Model reference or genuinely reused bounded ordered Model
+reference array. Publish each real source read through existing dependency IDs;
+retain whole source-field evidence through child/count/guard consumption.
+Pin full checked storage ownership, actual one-parent metadata and exact reused
+Scope constraints in the existing private source snapshot. Canonical Model and
+Model[] valueType comes from owning stored declarations; the field-only ! stays
+separate and does not become a child required-input claim. Preserve original
+Step input version admission without inventing an authored version read.
+General dereference, copied/helper/nullable origins and ordinary reference
+returns remain unsupported. No common DTO or public runtime ABI is added.
+
+Direct source/full native-emission/refusal3/3 passes after correcting lost inner
+parent IR type and full root owner correspondence. State's reviewed exact
+private source-authority binder is consumed; Dev must supply genuine same-load
+native hydration/lifetime and separate current target admission. Required current8aa compiler whole1418/139 targets, zero failed/ignored/filtered
+or skipped bodies, passes with actual real engines/native/permission execution.
+Final strict all-target Clippy37.11s/fmt/diff0 follows a nonbehavioral lint cleanup;
+whole behavior results and unchanged editor qualification are reused. This local
+unit and58/67 record remain unfinished for original application acceptance.
+
+
+### 2026-10-10 — original Volunteer source prerequisites preserve accepted semantics
+
+Read-only classification of six representative SEQ-048 analysis failures finds
+owning enum identity/subset mismatch, lexical operation shadowing, a missing
+required Term.hours fixture and authored server-owned CRUD input. Preserve the
+existing accepted rules. Proposed source corrections belong to the existing
+original-composition task and application/source owner; Dev reruns only after
+an exact source release. No Compiler bug, new semantic choice, blanket source
+rewrite or fabricated executable output follows from these examples. Existing
+status records name the concrete corrections and remaining ownership.
+
+### 2026-10-10 — manual local integration of 815a3b97
+
+Finite independent analyzer, IR, emission and source-control review is clear for the stored Step parent and Run location/targets operands. The final mechanical let-and-return cleanup preserves the reviewed behavior. Owner qualification records current compiler whole 1418 passing over 139 targets with zero failed, ignored, filtered or skipped bodies, actual required engines and native/permission execution; final strict Clippy and formatting pass. These results are reused without repeating unchanged checks. Actual Dev hydration, private same-load State binding and separate current target admission remain required; original Volunteer and Workbench source analysis and the precise BDD3/Task22 holds remain open. This coherent source is integrated locally, not accepted as a complete original workflow or plan. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

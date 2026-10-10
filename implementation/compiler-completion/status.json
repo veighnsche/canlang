@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-10T16:08:14Z",
+  "updated_utc": "2026-10-10T17:44:03Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -100,10 +100,10 @@
     "reused_results": "Unchanged strict all-target Clippy/format and editor/client/LSP qualification; current whole includes actual compiler corpus/LSP/completion/native tests."
   },
   "latest_component": {
-    "base_commit": "bd757ca56fd39b785a69e4b81b02bc8419b14e8d",
-    "state": "assignment_only_file_source_native_publication_qualified_dev_host_unfinished",
-    "record": "typed_file_association_prerequisite",
-    "outcome": "Unchanged original File Set-then-guard source has Complete/native void publication; exact owning field/input/source and paired-proof corruption refusals qualified. Affected316 pass and strict lint/format0; Dev actual native File staging/replay remains."
+    "base_commit": "3add4d856f325f309bc55087f8cf8fdc7e5b0f4e",
+    "state": "stored_reference_source_emission_and_compiler_whole_qualified_native_owner_unfinished",
+    "record": "task39_checked_calls.stored_reference_operands",
+    "outcome": "Original Step\u2192Run location/targets Member operands preserve canonical source/field/ref-array evidence through child/count/guard. New source/emission/refusal3 pass and real current compiler whole1418/139 zero skips; final strict all-target Clippy37.11s/fmt/diff0 after nonbehavioral let-and-return cleanup; whole behavior results reused. Dev genuine source/target native join and original applications remain."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -158,7 +158,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Stored Input whole observation/count/nested old-fresh comparison, assignment-only File source and complete committed-model inventory/private id-version producer are implemented and qualified at their finite scopes. Compiler source units44abe/cc6 reviewed and integrated. Dev39f061bb File-port replay repair now passes both unchanged affected compiler native cases. Combined changed-source compiler qualification1415 distinct passes with real engines, no ignored/body skips; strict lint/format and actual editor pass. Next original Workbench protected step.parent location/targets requires checked implicit containment/field/ref-array recipes against State source-field current-authority/recovery binder, with runtime loader release still pending. Pure/dynamic original authorization, actual committed source activation and precise BDD3/Task22 holds remain;58/67 unchanged.",
+  "current_source_work": "All ready compiler units through the finite original Step\u2192Run parent/location/targets operands are implemented and committed locally at8aa0e6fb. Required current compiler/corpus/real completion/native/permission whole1418 passes over139 targets with zero failed/ignored/filtered/body skips. Exact reviewed State94822fbb+1983baf9 intaken at3add4d85, clean changed-State emit0. Final strict all-target Clippy passes37.11s after a mechanical let-and-return correction; formatting/diff0. Reuse whole behavior results unchanged by this lint correction. Prior1415 is historical. Dev genuine stored-reference hydration/private binding/separate target admission and committed source activation remain. Original Volunteer138 analysis failures were classified against accepted semantics and routed to existing SEQ-048 source prerequisites without rewriting source or weakening checks. Original Workbench/pure/dynamic authorization and precise BDD3/Task22 holds remain;58/67 unchanged.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
@@ -435,12 +435,12 @@
     "completion_header": "types.rs reuses the exact checked handler completion envelope for example event literals; enum claim machinery accepts succeeded with declared Outcome.state=unavailable. Nullable generic Object field expectation reuses imported std OperationOutcome schema. b4_check::completion_example_headers_claim_status_and_declared_result_enum_cases final1/1(0.06s), with actual installed schema and CLI positive local/std fixtures, anchored foreign HEADER status/state E2001, null/omission and equal/ancestor input replacement preserving Error/unclaimed. General foreign ROW remains diagnostic-free/unclaimed; no refusal claim. t10_examples_event_claims_nested_cases1/1(0.00s) reused. Earlier0/1(0.42s) was false row-diagnostic expectation; same case passed after correction. Later0/1(0.01s) added inadmissible trusted-handler sequence E1210; removed to restore original DoBlock scope/no sequence policy change. Final focused build0(7.04s); focused lib/bin Clippy0(3.33s) preceded temporary control; scoped formatting passes. Coordinator's single Roadmap CanBook check reports complete=true, omitted0, exit10 overall: CanBook0 diagnostics, 437 transitive files present, no E2005. No BDD3 carrier/runtime/disclosure, guard/send invalidation/full-task credit; count58/67 unchanged."
   },
   "current_whole_qualification": {
-    "source_commit": "14b07710e1bde23336142b8b9e6a1b65ec9da652",
-    "passed": 1386,
+    "source_commit": "8aa0e6fb",
+    "passed": 1418,
     "failed": 0,
     "ignored": 0,
     "filtered": 0,
-    "targets": 133,
+    "targets": 139,
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
@@ -448,10 +448,10 @@
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Current whole includes original machine4/4 with stored-read/grouped defaults, overrides/default carriers, ordered transitions, private/write/no-write withholding, original snapshots after later writes/archive and no-effect ordinary/aged recovery.",
-    "reused_results": "Unchanged editor/client/LSP protocol and exact prior owner portable results; current whole includes corpus, compiler/LSP, real completion and all current native targets.",
-    "remaining_dependencies": "Dev actual existing D1 replay/history consumer after reviewed State72 ordered-stage producer release; original Workbench/current-membership/read-query Fact[], protected dynamic/as/CRUD/default/framework/composite, T11/application/browser and precise BDD3/Task22 holds remain. State history producer prerequisite is resolved; actual D1 acceptance remains separate.",
+    "reused_results": "Unchanged actual editor/client/LSP qualification from25fb. Current whole includes actual corpus, compiler/LSP, all required real completion engines, native runtime and special permission bodies. Only a subsequent nonbehavioral let-and-return strict lint correction remains; reuse whole behavior results by unchanged scope.",
+    "remaining_dependencies": "Dev genuine original stored reference hydration/private source binder/current target admission; actual committed source enrollment and original Volunteer SEQ-048 source corrections. Original Workbench pure/dynamic authorization/proposal/postassertion and precise human BDD3/Task22 holds remain. No new application acceptance or broader reference closure.",
     "subsequent_focused_qualification": "Clean fast-forward to reviewed LOCAL2ee246ab adds owner Dev qualification sources but leaves compiler/tests/receipt runtime core unchanged. Fresh actual graph26/26 zero cached builds on Node24; owning actual CLI/emitter/imported-module1/1 passes with current outputs. Unchanged whole1356 and other five cases reused.",
-    "scope": "Exact14b compiler whole1386/133/zero failed/ignored/filtered/SKIP belongs to original installed5fa tuple. Compiler source/fixture unchanged at reviewed LOCAL61240891; changed State72 history dependency is qualified by actual graph22/22 uncached and only affected native_scenario_receipts4/4 once. Unchanged focused301/lint/fmt/full results reused by scope; no new full run or D1/application/general-loop acceptance.",
+    "scope": "Exact8aa whole139 targets1418 passing, zero failed/ignored/filtered/body skips with Node24.19/CAN_COMPLETION_REQUIRE_ENGINES=1, outside sandbox for genuine native/permission execution. Exact reviewed State3add release and changed State clean emission consumed. New stored Member consumer native hydration is explicitly owner-dependent; full application58/67 remains unchanged.",
     "changed_source_failure": "Historical07996dbf whole:133targets1377passed/3failed, zero ignored/filtered/SKIP. Actual emitter clone stack overflow and masked unsupported query refusal are repaired; stale schedule negative retains unsupported email control. All three owning targets and the complete96fa run now pass."
   },
   "construct_help_first_profile": {
@@ -768,6 +768,14 @@
       "remaining": "Exact Dev eb8aad653cae5f0362dfeae9a03b943fb5db3c7a records actual preserved D1 consumer1/1 with original three stages/history, one commit/receipt and populated/empty/omitted no-effect replay; earlier history blocker resolved. General loop/query/conditional/nested profiles and original Workbench remain separate. New query source current native target4/4 preserves the unchanged loop behavior.",
       "reviewed_main": "64e64099a4a2e2261ed4ce9bae45e598b3624979",
       "history_intake": "61240891583ddf7e1cdd612b54aaa693dae6d940 / State72a4ce23"
+    },
+    "stored_reference_operands": {
+      "state": "finite_checked_source_and_emission_tested_native_owner_unfinished",
+      "owner": "Compiler checked source/IR/receipts/call operands; State source-field authority; Dev genuine native hydration/binding and separate target admission",
+      "prerequisite": "Reviewed State94822fbb+1983baf9 at3add4d85 intaken exactly; Dev must join the genuine same-load private bindScenarioReceiptReferenceProducer(def,{source,app,policy}) during the original parent lifetime.",
+      "behavior": "Original call context {location=step.parent.location,targets=step.parent.targets} as fresh retains both real containment and owning Run field dependencies with canonical Model/Model[] type IDs, original order, duplicates and exact inherited Scope bounds1..10. Preserve field-only ! separately; Model stored artifact fields now carry canonical reference valueType. Private immutable source snapshots pin full storage owner, one actual parent and genuine reused Scope identity/constraints. Original caller Step input remains required/versioned; do not invent an authored version read. Bound-child count/guard retains source evidence. No general reference dereference/return/copied/helper/nullable admission or new common DTO/runtime ABI.",
+      "validation": "New actual checked source/full native emission and count-only publication/refusal target3/3. Controls cover source bytes, Step containment, root Run Team/App ownership, stored and reused field type/required marker/trim/bounds and exact expression origin. Source copies, arbitrary target dereference and unbounded/skewed Scope refuse. Finite source review found root-owner snapshot omission; full owner snapshot and permanent mutation control correct it. Subsequent required broader validation/strict results follow; no native runtime consumer or original whole-application qualification claimed. Exact8aa current whole1418/139 targets passes with zero failed/ignored/filtered/body skips, actual required engines/native/permission bodies. Initial strict lint only reports let-and-return; mechanical correction made, final strict all-target Clippy37.11s/fmt/diff0. Whole1418 behavior is unchanged by this lint-only cleanup and reused. Unchanged editor results reused.",
+      "remaining": "Dev genuine hydration/private source binder/current target joins and unchanged original Workbench149 analysis diagnostics/pure authorization/dynamic proposal call/postassertion. No broad original closure; preserve58/67 and precise holds."
     }
   },
   "committed_model_event_source": {
@@ -776,7 +784,9 @@
     "owner": "Compiler checked source/IR/emission; Packages shared Contracts DTO; State/Work original mutation source; Dev native consumption",
     "evidence": "Agreed Packagesaf731606 descriptor is mirrored once by the Rust producer into artifact/appDefinition committedChanges. Immutable clean checked declarations retain every ordinary/cohort matching handler in declaration order, canonical imported model/source identities and exact cohort correspondence. Closed contextual event payload and existing flat private invocation expose required text id and int version; no deleted row reference, public user operation, fabricated origin or DeclaredEvent/schedule wrapper. Actual existing callables/cohorts/maps supply linkage. Edited public analysis tables, missing/duplicate/skewed IR, invalid model id, raw/no-source and stale source refuse E6008 rather than publishing a partial inventory or panicking.",
     "validation": "Final affected checked_cohort12/codegen121/declared cohort native1/new committed declaration native1 pass135. Reuse unchanged initial migration9/typed artifact2/typed BDD2:148 distinct affected tests. Actual CLI/Node24 emitted complete metadata/private id-version/cohort bindings, imported ownership, deletion without row lookup, declared-event isolation, legacy omission and invalid source/private-name collisions pass. Independent finite review identified source-census and malformed-model defects; both corrected, permanent controls pass and followup CLEAR. Final strict all-target Clippy passes25.02s; fmt and diff checks exit0. No broader current-source whole suite or native owner activation claim. Coherent cc6 source reviewed/integrated; ancestry-safe reviewed5b38/c4c30e29 carriers consumed without overlap. Current required whole1411passes/2old expectation failures/2known Dev cases filtered, 0ignored/bodySKIP. Correct only changed-event diagnostic/corpus expectations, stronger whole-event readonly control, each formerly failing case1/1; released Dev repair reruns both unchanged native cases1/1, yielding1415 distinct passing tests. Reuse all unaffected results. Current owner graph26/26 uncached30.648s, changed CF clean emit0; final affected test-only strict Clippy28.68s/fmt/diff0 and actual current real LSP all capabilities pass; unchanged editor TS result reused.",
-    "remaining": "Contractsaf731606 and State/Workd7ec5f26+f89d12fa source component84 intaken exactly through reviewed local carriers. No actual State/Dev native committed source enrollment, frozen cut/current authority or original CanVolunteer acceptance claimed. Original58/67 and precise BDD3/Task22 holds unchanged."
+    "remaining": "Contractsaf731606 and State/Workd7ec5f26+f89d12fa source component84 intaken exactly through reviewed local carriers. No actual State/Dev native committed source enrollment, frozen cut/current authority or original CanVolunteer acceptance claimed. Original58/67 and precise BDD3/Task22 holds unchanged.",
+    "original_source_blocker": "Existing SEQ-048, owner: application/source owner releases exact corrections; Dev consumes and reruns after release. Actual unchanged Volunteer25 composition/imports/catalog Node24 check exits10 complete=true with138 analysis errors and no artifact/modules/committedChanges; Volunteer SHA f9d6ba874fcbe5c60e064cb17628308be6f523d4dee31b53d95cda2ad0cdcff0. Six representatives obey accepted owning enum/lexical/required-array/server-field rules; none demonstrates a Compiler bug. No repeated unchanged compile or fabricated artifact.",
+    "source_prerequisites": "Affiliate103 four-case SaleMilestone versus three-case Partner milestone: source must preserve subset via explicit paired cases or approved type reuse/no-reversed constraint. Affiliate193/195 Settlement29 should reuse CommissionResult bank/allocation rather than distinct inline owners. CRM37 must supply genuine required Term.hours (Member126); CRM45 must reconcile server-owned Deal.owner17 with required reassignment examples using an ordinary defaulted field plus existing creation exclusion/eligibility, or an explicit workflow decision. Desk scenario note112/form251 and Event scenario change114/form594 shadow stored enum cases: source-owned operation rename preserves the cases. These are proposed owning source corrections, not a new accepted semantic decision or assigned blanket rewrite."
   },
   "typed_file_association_prerequisite": {
     "state": "compiler_source_qualified_dev_actual_native_consumer_unfinished",
