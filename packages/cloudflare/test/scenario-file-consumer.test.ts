@@ -45,6 +45,9 @@ function artifact(): CompileArtifact {
     ] }, result: { type: 'text' as CanTypeId, disclosure: { version: 1 as const, source: origin,
       returns: [{ id: 'selected', source: origin, dependencies: [], influences: [] }] } },
   }));
+  operations.push({ name: `${app}.rename`, kind: 'scenario', description: '', inputs: { fields: [
+    { name: 'record', field: { kind: 'ref', model, requireVersion: true }, required: true },
+  ] }, result: operations[0]!.result });
   const policy = { operations: Object.fromEntries(operations.map(op => [op.name, { by: ['members'] }])),
     models: { [model]: { read: ['Record.read.1'] } } };
   const js = `import {set,selectScenarioReceiptReturn} from '@canlang/stdlib';
@@ -56,7 +59,9 @@ export const appDefinition=${JSON.stringify({ id: app, policy, models: { [model]
 export function canApp(){return {policy:appDefinition.policy,read:{'Record.read.1':()=>true},ScenarioFiles:{
 ${(Object.keys(shapes) as Field[]).map(field => `${field}:async(c,input)=>{
  executions++; await set(c,input.record,{${field}:input.value,visible:'assigned visible'});
- selectScenarioReceiptReturn(c,'selected'); return 'updated';}`).join(',\n')}
+ selectScenarioReceiptReturn(c,'selected'); return 'updated';}`).join(',\n')},
+rename:async(c,input)=>{executions++;await set(c,input.record,{visible:'renamed visible'});
+ selectScenarioReceiptReturn(c,'selected');return 'updated';}
 }};}`;
   return { artifact_version: 1, language_version: 'declaration-labelled component', tool_version: 'consumer fixture',
     sources: [{ path: source, sha256 }], modules: [{ path: modulePath, js,
@@ -75,7 +80,7 @@ function records(result: { readonly records?: readonly unknown[] }): readonly Pr
   assert.ok(Array.isArray(result.records));
   return result.records as readonly ProjectedRecord[];
 }
-async function world(copiedObservation = false, interruptRetention = false) {
+async function world(copiedObservation = false, interruptRetention = false, swapRevalidator = false) {
   const dir = await mkdtemp(join(tmpdir(), 'can-scenario-files-'));
   const physical = createSqliteFileStore(join(dir, 'files.sqlite'));
   try {
@@ -107,10 +112,12 @@ async function world(copiedObservation = false, interruptRetention = false) {
       clock: fileClock, intentTtlMs: 60000, urlBase: 'https://scenario-files.invalid',
     }));
     const genuineObserve = kernel.observeFile;
+    let substituteRevalidations = 0;
     const observedKernel = { ...kernel, observeFile: async (...args: Parameters<typeof genuineObserve>) => {
       observations++;
       const observation = await genuineObserve(...args);
       assert.ok(observation); assert.ok(readFinalizedFileObservation(observation));
+      if (swapRevalidator) files.revalidate = async () => { substituteRevalidations++; return true; };
       if (!copiedObservation) return observation;
       const copied = { ...observation };
       assert.equal(readFinalizedFileObservation(copied), null);
@@ -133,9 +140,9 @@ async function world(copiedObservation = false, interruptRetention = false) {
       { appId: app, memberships: identities, now: () => FIXED_NOW + (aged ? 16 * 60000 : 0), files });
     const envelope = (field: Field, value: unknown, current = row) => ({ operation: `${app}.${field}`,
       operation_id: uuidv7(FIXED_NOW, ++sequence), inputs: { record: { id: current.id, version: String(current.version) }, value } });
-    const receiptIdentity = (env: ReturnType<typeof envelope>): Receipt['identity'] => ({ app, owner: team.team_id,
+    const receiptIdentity = (env: Pick<ReturnType<typeof envelope>, 'operation' | 'operation_id'>): Receipt['identity'] => ({ app, owner: team.team_id,
       principal: user.user_id, operation: env.operation as Receipt['identity']['operation'], operationId: env.operation_id as OperationId });
-    const snapshot = async (env: ReturnType<typeof envelope>) => ({ revision: await store.readRevision(),
+    const snapshot = async (env: Pick<ReturnType<typeof envelope>, 'operation' | 'operation_id'>) => ({ revision: await store.readRevision(),
       rows: await store.query({ model, authority: 'owner', archived: 'include' }), history: probe.historyFor(model, row.id),
       outbox: probe.outboxAll(), schedules: await store.schedulesDue(Number.MAX_SAFE_INTEGER, 100),
       receipt: await store.readReceipt(receiptIdentity(env)), files: physical.files.listAll(), intents: physical.intents.listAll(),
@@ -145,6 +152,7 @@ async function world(copiedObservation = false, interruptRetention = false) {
     return { compiled, asm, physical, refs, receiver, files, store, row, identities, identity, membership, envelope,
       invoker, receiptIdentity, snapshot, counters: () => ({ executions: executionCount(), attemptedCommits, observations }),
       retentions: () => retentions,
+      substituteRevalidations: () => substituteRevalidations,
       setNow: (value: number) => { now = value; },
       close: async () => { physical.close(); await rm(dir, { recursive: true, force: true }); } };
   } catch (error) { physical.close(); await rm(dir, { recursive: true, force: true }); throw error; }
@@ -210,6 +218,22 @@ test('a copied genuine opaque File observation refuses and poisons the canonical
     assert.deepEqual(after.files, before.files); assert.deepEqual(after.bytes, before.bytes);
     assert.equal(w.counters().observations, 1); assert.equal(w.counters().executions, 1);
     if (after.receipt !== null) assert.equal(after.receipt.outcome.status, 'rejected');
+  } finally { await w.close(); }
+});
+
+test('an awaited genuine observation cannot replace the originally pinned host File revalidator', async () => {
+  const w = await world(false, false, true);
+  try {
+    const env = w.envelope('file', { id: w.refs[0] }), before = await w.snapshot(env);
+    let commits = 0;
+    const store: StoragePort = { ...w.store, commit: async batch => { commits++; return w.store.commit(batch); } };
+    const invoker = buildInvoker(w.compiled, w.asm, store, { appId: app, memberships: w.identities,
+      now: () => FIXED_NOW, files: w.files });
+    const denied = await invoker.invokeMutation(env, w.identity);
+    assert.ok('error' in denied, JSON.stringify(denied));
+    assert.equal(w.substituteRevalidations(), 0, 'an accepting replacement is never selected after observation awaits');
+    assert.equal(commits, 0); assert.deepEqual(await w.snapshot(env), before);
+    assert.equal(w.retentions(), 0); assert.equal(w.counters().observations, 1); assert.equal(w.counters().executions, 1);
   } finally { await w.close(); }
 });
 
@@ -290,5 +314,59 @@ test('a changed genuine host File binding cannot replace the receiving port of a
     assert.match(outcome.error.message, /original installed receiving port/);
     assert.deepEqual(await w.snapshot(envelope), before); assert.deepEqual(w.counters(), counters);
     assert.equal(w.retentions(), retentions);
+  } finally { await w.close(); }
+});
+
+test('rename-only checked scenarios never inspect optional File ports for fresh or saved execution on a row containing a genuine File', async () => {
+  const w = await world();
+  try {
+    const baseline = await fresh(w, 'file', { id: w.refs[0] });
+    assert.equal(w.physical.files.get(w.refs[0]!)?.attachedRecord, `${model}/${w.row.id}/file`);
+    const envelope = { operation: `${app}.rename`, operation_id: uuidv7(FIXED_NOW, ++sequence),
+      inputs: { record: { id: baseline.current.id, version: String(baseline.current.version) } } };
+    let filePropertyReads = 0;
+    const fileTripwire = new Proxy({}, { get() { filePropertyReads++; throw new Error('rename optional File property tripwire'); } }) as
+      NonNullable<NonNullable<Parameters<typeof buildInvoker>[3]>['files']>;
+    const batches: Parameters<StoragePort['commit']>[0][] = [];
+    const store: StoragePort = { ...w.store, commit: async batch => { batches.push(batch); return w.store.commit(batch); } };
+    const invoker = (selected: StoragePort, aged = false) => buildInvoker(w.compiled, w.asm, selected,
+      { appId: app, memberships: w.identities, now: () => FIXED_NOW + (aged ? 16 * 60000 : 0), files: fileTripwire });
+    const before = await w.snapshot(envelope), counters = w.counters(), retentions = w.retentions();
+    const freshRename = await invoker(store).invokeMutation(envelope, w.identity);
+    assert.ok('result' in freshRename, JSON.stringify(freshRename));
+    assert.equal(freshRename.result.status, 'committed'); assert.equal(freshRename.result.result, 'updated');
+    assert.equal(filePropertyReads, 0); assert.equal(batches.length, 1);
+    const current = await w.store.load(model, w.row.id); assert.ok(current);
+    assert.equal(current.version, baseline.current.version + 1);
+    assert.deepEqual(current.data, { ...baseline.current.data, visible: 'renamed visible' });
+    assert.equal(batches[0]!.writes.length, 1); assert.equal(batches[0]!.history.length, 1);
+    assert.deepEqual(batches[0]!.history[0], { model, recordId: current.id, version: current.version,
+      operation: envelope.operation, operationId: envelope.operation_id, actor: w.identity.actor!.user_id, at: FIXED_NOW,
+      change: 'update', before: baseline.current.data, after: current.data });
+    for (const effects of [batches[0]!.outbox, batches[0]!.schedules, batches[0]!.uniqueClaims, batches[0]!.uniqueReleases]) {
+      assert.deepEqual(effects, []);
+    }
+    const receipt = await w.store.readReceipt(w.receiptIdentity(envelope)); assert.ok(receipt);
+    assert.equal(receipt.outcome.status, 'committed'); assert.deepEqual(batches[0]!.receipt, receipt);
+    const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+    assert.deepEqual(association.fileAssignments ?? [], []); assert.deepEqual(association.changed.map(change => change.row), [current]);
+    const after = await w.snapshot(envelope);
+    assert.equal(after.revision, before.revision + 1); assert.deepEqual(after.rows, [current]);
+    assert.deepEqual(after.history, [...before.history, ...batches[0]!.history]);
+    for (const key of ['files', 'intents', 'bytes', 'outbox', 'schedules', 'membership'] as const) assert.deepEqual(after[key], before[key]);
+    assert.deepEqual(await w.store.readReceipt(w.receiptIdentity(baseline.envelope)), baseline.receipt);
+    assert.deepEqual(w.counters(), { ...counters, executions: counters.executions + 1 }); assert.equal(w.retentions(), retentions);
+    let replayCommits = 0;
+    const readonlyStore: StoragePort = { ...w.store, commit: async () => { replayCommits++; throw new Error('rename replay commit tripwire'); } };
+    const afterCounters = w.counters();
+    for (const dedicated of [false, true]) {
+      const selected = invoker(readonlyStore, dedicated);
+      const saved = dedicated ? await selected.invokeRetainedMutation(envelope, w.identity) : await selected.invokeMutation(envelope, w.identity);
+      assert.ok('result' in saved, JSON.stringify(saved)); assert.equal(saved.result.status, 'replayed'); assert.equal(saved.result.result, 'updated');
+      assert.equal(filePropertyReads, 0); assert.equal(replayCommits, 0); assert.equal(batches.length, 1);
+      assert.deepEqual(await w.snapshot(envelope), after); assert.deepEqual(w.counters(), afterCounters);
+      assert.equal(w.retentions(), retentions);
+      assert.deepEqual(await w.store.readReceipt(w.receiptIdentity(baseline.envelope)), baseline.receipt);
+    }
   } finally { await w.close(); }
 });

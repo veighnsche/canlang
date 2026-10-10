@@ -5605,23 +5605,29 @@ const nativeScenarioFiles = new WeakMap<GeneratedOperationDef, {
   readonly files: CanonicalFileBinding;
   readonly app: string;
   readonly revalidate: NonNullable<CanonicalFileBinding['revalidate']>;
+  readonly prepareObservation: () => void;
 }>();
 
-/** Install the genuine receiving-file port before the checked root executes.
+/** Install the genuine receiving-file callback before the checked root executes.
  * Its source/app come from the verified owning module, never a File value. */
 async function bindNativeScenarioFiles(loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts, def: GeneratedOperationDef | undefined): Promise<void> {
   const plan = def?.descriptor.result?.disclosure;
   if (def === undefined || plan === undefined) return;
-  const files = opts.files, revalidate = files?.revalidate;
+  // The checked assignment profile consumes an owning File input. Scalar
+  // receipts can already have executed through State without a File binding;
+  // neither those definitions nor their optional host ports need inspection.
+  if (!def.descriptor.inputs.some(field => 'valueType' in field && field.valueType !== undefined &&
+      /^file(?:\[\])?\??$/.test(field.valueType))) return;
+  const files = opts.files;
   const existing = nativeScenarioFiles.get(def);
   if (existing !== undefined) {
-    if (existing.files !== files || existing.app !== opts.app || existing.revalidate !== revalidate) {
+    if (existing.files !== files || existing.app !== opts.app) {
       throw new loaded.producers.errors('validation', 'Saved File execution requires its original installed receiving port.');
     }
     return;
   }
-  if (files?.observe === undefined || revalidate === undefined) return;
+  if (files === undefined) return;
   const bind = loaded.producers.invoke.bindScenarioReceiptFileProducer;
   if (bind === undefined) throw new loaded.producers.errors('validation', 'Installed State producer lacks genuine File binding.');
   const module = await importVerifiedAssemblyModule(opts.asm, plan.source.module, opts.artifact);
@@ -5634,14 +5640,32 @@ async function bindNativeScenarioFiles(loaded: LoadedCanonicalDescriptors,
   // Concurrent first invocations may have awaited the same verified import.
   const installed = nativeScenarioFiles.get(def);
   if (installed !== undefined) {
-    if (installed.files !== files || installed.app !== app || installed.revalidate !== revalidate) {
+    if (installed.files !== files || installed.app !== app) {
       throw new loaded.producers.errors('validation', 'Scenario File producer changed during its original binding.');
     }
     return;
   }
-  const currentFile: Parameters<typeof bind>[1]['revalidate'] = (saved, receiver) => revalidate.call(files, saved, receiver);
+  // Binding a checked scenario does not inspect optional File ports. State
+  // calls this only for an actual captured/saved assignment. Fresh capture
+  // pins before its observer awaits; saved-only recovery pins at first use.
+  let originalRevalidate: CanonicalFileBinding['revalidate'];
+  const prepareObservation = (): void => {
+    const revalidate = files.revalidate;
+    if (typeof revalidate !== 'function') {
+      throw new loaded.producers.errors('validation', 'Saved File execution requires its installed receiving revalidator.');
+    }
+    if (originalRevalidate !== undefined && originalRevalidate !== revalidate) {
+      throw new loaded.producers.errors('validation', 'Saved File execution requires its original installed receiving port.');
+    }
+    originalRevalidate ??= revalidate;
+  };
+  const currentFile: NonNullable<CanonicalFileBinding['revalidate']> = async (saved, receiver) => {
+    if (originalRevalidate === undefined && files.revalidate === undefined) return false;
+    prepareObservation();
+    return originalRevalidate!.call(files, saved, receiver);
+  };
   bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, revalidate: currentFile }));
-  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate }));
+  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate: currentFile, prepareObservation }));
 }
 
 async function invokeCanonicalMutation(
@@ -5774,6 +5798,13 @@ async function invokeCanonicalMutation(
         artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
         ...(opts.files === undefined ? {} : { files: opts.files }),
         ...(kind !== 'scenario' || checkedScenario?.descriptor.result?.disclosure === undefined ? {} : {
+          prepareObservation: () => {
+            const bound = nativeScenarioFiles.get(checkedScenario);
+            if (bound === undefined || bound.files !== opts.files || bound.app !== opts.app) {
+              throw new StateError('validation', 'Saved File execution requires its original installed receiving port.');
+            }
+            bound.prepareObservation();
+          },
           observeAssignment: assignment => {
             const observe = loaded.producers.invoke.observeScenarioReceiptFileAssignment;
             if (observe === undefined) throw new StateError('validation', 'Installed State producer lacks genuine File capture.');
@@ -5807,7 +5838,8 @@ async function invokeCanonicalMutation(
       policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
       app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
     });
-    if (!receiptOnly && result.status === 'replayed' && checkedScenario !== undefined && opts.files?.revalidate !== undefined) {
+    if (!receiptOnly && result.status === 'replayed' && checkedScenario !== undefined &&
+        (association.fileAssignments?.length ?? 0) !== 0) {
       let checkedAttachment = false;
       for (const assignment of association.fileAssignments ?? []) {
         // A projected record has no model discriminator. Ambiguous identities
@@ -5845,6 +5877,8 @@ async function invokeCanonicalMutation(
       artifact: opts.artifact, operation: opts.operation, inputs: opts.inputs,
       result: result.result, attachments, store: opts.store, files: opts.files,
       identity: opts.identity, app: opts.app,
+      ...(kind === 'scenario' && checkedScenario?.descriptor.result?.disclosure !== undefined
+        ? { stagedOnly: true } : {}),
     });
   }
   if (scenarioProjection !== undefined) return { ...result, ...scenarioProjection };
