@@ -5761,3 +5761,17 @@ choices/query/helper/version/nested/computed profiles, and retain prior controls
 No public array/index authority carrier is needed for this finite source. Owning
 301 checks and actual native Memory pass; current-source whole and Dev owning D1
 qualification remain before final acceptance. Broader loop workflows stay open.
+
+
+### 2026-10-10 — release rejected Jev response streams (unfinished live qualification)
+
+Cancel the actual rejected HTTP response body without acquiring a reader, parsing
+provider text or forwarding it. Preserve the existing safe 4xx provider-rejection
+and 5xx transport-error classifications. Own cancellation rejection locally and
+do not wait for an uncooperative cancellation promise to settle before reporting
+the original HTTP failure. This fixes local transport cleanup only; live branch
+qualification and the exact external disclosure holds remain unchanged.
+Actual injected429/503 streams cover successful, rejected and pending cleanup
+without reads or reader acquisition, plus absent bodies. Transport/ranker12/12,
+clean CF emission, root noEmit and package boundaries pass; unchanged runtime
+results are reused at their recorded scopes.
