@@ -1,9 +1,9 @@
 /** Explicit Node host storage. Metadata and bytes share one SQLite transaction. */
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import type { DatetimeValue, FilePolicy, FileRetentionPolicy } from '@canlang/contracts';
+import type { DatetimeValue, FilePolicy, FileRetentionPolicy, FileReferenceStoragePort, FileRetirementAuthority } from '@canlang/contracts';
 import { decodeValue, encodeValue } from '@canlang/values';
-import type { BlobStorePort, ClockPort, PagedFinalizedStorePort, PagedIntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
+import type { BlobStorePort, ClockPort, FinalizedFileDeletionRecord, PagedFinalizedStorePort, PagedIntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
 import { assertSafeBlobKey } from '../ports.js';
 import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
@@ -11,15 +11,24 @@ import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContentAtOffset, c
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
 import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, readCurrentFinalizedBytes, readCurrentFinalizedSnapshot, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
 import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
-import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt } from '../retention/index.js';
+import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt, checkedFileCleanupAuthority, checkedFileCleanupRecord, createFinalizedFileCleanup } from '../retention/index.js';
 import type { RetentionConfig, RetentionBatchOptions } from '../retention/index.js';
 
 export interface SqliteFileStore {
+  /** Stable persisted physical identity; it grants no State issuance. */
+  readonly fileStoreId: string;
   readonly intents: PagedIntentStorePort;
   readonly files: PagedFinalizedStorePort;
   readonly blobs: BlobStorePort;
   /** Wrap the existing synchronous kernel call; a thrown error rolls back every port. */
   transaction<T>(body: () => T): T;
+  hasFileRetirementAuthority(): boolean;
+  /** Trusted deployment composition only, never request-supplied storage/DTOs.
+   * Permanently pins the first authority; captures the actual original lookup.
+   * Genuine State guard/profile qualification remains a host prerequisite. */
+  bindFileRetirement(storage: FileReferenceStoragePort, options: {
+    readonly clock: ClockPort; readonly policy: FilePolicy; readonly retention: FileRetentionPolicy;
+  }): (ref: string) => Promise<'deleted' | 'already-deleted'>;
   close(): void;
 }
 
@@ -67,12 +76,63 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
       CREATE TABLE IF NOT EXISTS files_blobs (
         key TEXT PRIMARY KEY, bytes BLOB NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS files_store_identity (
+        singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+        file_store_id TEXT NOT NULL, authority_json TEXT
+      );
+      CREATE TABLE IF NOT EXISTS files_retirement_journal (
+        id TEXT PRIMARY KEY, json TEXT NOT NULL
+      );
     `);
+    db.prepare('INSERT OR IGNORE INTO files_store_identity (singleton, file_store_id) VALUES (1, ?)').run(randomUUID());
   } catch (error) {
     db.close();
     throw error;
   }
+  const identity = db.prepare('SELECT file_store_id FROM files_store_identity WHERE singleton = 1').get();
+  if (typeof identity?.file_store_id !== 'string' || identity.file_store_id.length === 0) {
+    db.close(); throw new Error('Invalid persisted physical Files identity.');
+  }
+  const fileStoreId = identity.file_store_id;
+  function readAuthority(): FileRetirementAuthority | null {
+    const row = db.prepare('SELECT file_store_id, authority_json FROM files_store_identity WHERE singleton = 1').get();
+    if (row?.file_store_id !== fileStoreId) throw new Error('Persisted physical Files identity changed.');
+    if (row.authority_json === null) {
+      if (db.prepare('SELECT id FROM files_retirement_journal LIMIT 1').get() !== undefined) {
+        throw new Error('Permanent Files journal has no authority assignment.');
+      }
+      return null;
+    }
+    if (typeof row.authority_json !== 'string') throw new Error('Invalid persisted Files authority.');
+    const authority = checkedFileCleanupAuthority(JSON.parse(row.authority_json));
+    if (authority.fileStoreId !== fileStoreId) throw new Error('Persisted Files authority has a foreign physical identity.');
+    return authority;
+  }
+  function journalJson(ref: string): string | null {
+    return text(db.prepare('SELECT json FROM files_retirement_journal WHERE id = ?').get(ref));
+  }
+  function putFile(record: StoredFileRecord): void {
+    db.prepare(`INSERT INTO files_finalized (id, json) VALUES (?, ?)
+      ON CONFLICT(id) DO UPDATE SET json = excluded.json`).run(record.file.id, encodeFile(record));
+  }
+  function assertReceiver(record: StoredFileRecord, authority: FileRetirementAuthority): void {
+    if (record.owner.app !== authority.receiver.app || record.owner.team !== authority.receiver.team ||
+        record.owner.owner !== authority.receiver.owner) throw new Error('Foreign physical Files receiver.');
+  }
+  function immutableKey(record: StoredFileRecord): string {
+    return encodeFile({ file: record.file, owner: record.owner, finalizedAtMs: record.finalizedAtMs,
+      state: 'finalized', attachedRecord: null });
+  }
+  function protectFinalKey(key: string): void {
+    const authority = readAuthority();
+    if (authority === null || !key.startsWith('f_') || !key.endsWith('.bin')) return;
+    const ref = key.slice(2, -4);
+    if (journalJson(ref) !== null || db.prepare('SELECT id FROM files_finalized WHERE id = ?').get(ref) !== undefined) {
+      throw new Error('Published Files bytes require the original State retirement cleanup.');
+    }
+  }
   let inTransaction = false;
+  const mutate = <T>(body: () => T): T => inTransaction ? body() : transaction(body);
   const intents: PagedIntentStorePort = {
     get(id) {
       const json = text(db.prepare('SELECT json FROM files_upload_intents WHERE id = ?').get(id));
@@ -105,8 +165,27 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
       return json === null ? null : decodeFile(json);
     },
     put(record) {
-      db.prepare(`INSERT INTO files_finalized (id, json) VALUES (?, ?)
-        ON CONFLICT(id) DO UPDATE SET json = excluded.json`).run(record.file.id, encodeFile(record));
+      mutate(() => {
+        const authority = readAuthority();
+        if (authority !== null) {
+          record = checkedFileCleanupRecord(record);
+          assertReceiver(record, authority);
+          if (record.state === 'orphaned' || record.state === 'expired' || journalJson(record.file.id) !== null) {
+            throw new Error('Files terminal state requires the original State retirement cleanup.');
+          }
+          const old = files.get(record.file.id);
+          if (old !== null && (old.state === 'orphaned' || old.state === 'expired' ||
+              immutableKey(checkedFileCleanupRecord(old)) !== immutableKey(record))) {
+            throw new Error('Pinned finalized Files identity cannot change or revive.');
+          }
+          if (old !== null && (old.state === 'attached' && record.state !== 'attached' ||
+              old.attachedRecord !== null && record.attachedRecord === null ||
+              old.attachedAtMs !== undefined && old.attachedAtMs !== record.attachedAtMs)) {
+            throw new Error('Pinned Files attachment and original time cannot regress.');
+          }
+        }
+        putFile(record);
+      });
     },
     listAfter(after, limit) {
       checkRetentionPage(after, limit);
@@ -122,13 +201,19 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
   const blobs: BlobStorePort = {
     write(key, bytes) {
       assertSafeBlobKey(key);
-      db.prepare(`INSERT INTO files_blobs (key, bytes) VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET bytes = excluded.bytes`).run(key, bytes);
+      mutate(() => {
+        protectFinalKey(key);
+        db.prepare(`INSERT INTO files_blobs (key, bytes) VALUES (?, ?)
+          ON CONFLICT(key) DO UPDATE SET bytes = excluded.bytes`).run(key, bytes);
+      });
     },
     append(key, chunk) {
       assertSafeBlobKey(key);
-      db.prepare(`INSERT INTO files_blobs (key, bytes) VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET bytes = CAST(files_blobs.bytes || excluded.bytes AS BLOB)`).run(key, chunk);
+      mutate(() => {
+        protectFinalKey(key);
+        db.prepare(`INSERT INTO files_blobs (key, bytes) VALUES (?, ?)
+          ON CONFLICT(key) DO UPDATE SET bytes = CAST(files_blobs.bytes || excluded.bytes AS BLOB)`).run(key, chunk);
+      });
     },
     read(key) {
       assertSafeBlobKey(key);
@@ -139,7 +224,10 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
     },
     remove(key) {
       assertSafeBlobKey(key);
-      db.prepare('DELETE FROM files_blobs WHERE key = ?').run(key);
+      mutate(() => {
+        protectFinalKey(key);
+        db.prepare('DELETE FROM files_blobs WHERE key = ?').run(key);
+      });
     },
     sizeOf(key) {
       assertSafeBlobKey(key);
@@ -149,29 +237,67 @@ export function createSqliteFileStore(path: string): SqliteFileStore {
       return row.size;
     },
   };
-  return {
-    intents, files, blobs,
-    transaction<T>(body: () => T): T {
-      if (inTransaction) throw new Error('Nested file transactions are not supported.');
-      if (Object.prototype.toString.call(body) === '[object AsyncFunction]') {
+  function transaction<T>(body: () => T): T {
+    if (inTransaction) throw new Error('Nested file transactions are not supported.');
+    if (Object.prototype.toString.call(body) === '[object AsyncFunction]') {
+      throw new TypeError('File transactions require a synchronous callback.');
+    }
+    db.exec('BEGIN IMMEDIATE');
+    inTransaction = true;
+    try {
+      const result = body();
+      if (result !== null && (typeof result === 'object' || typeof result === 'function') &&
+          typeof (result as { then?: unknown }).then === 'function') {
         throw new TypeError('File transactions require a synchronous callback.');
       }
-      db.exec('BEGIN IMMEDIATE');
-      inTransaction = true;
-      try {
-        const result = body();
-        if (result !== null && (typeof result === 'object' || typeof result === 'function') &&
-            typeof (result as { then?: unknown }).then === 'function') {
-          throw new TypeError('File transactions require a synchronous callback.');
+      db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    } finally {
+      inTransaction = false;
+    }
+  }
+  return {
+    fileStoreId, intents, files, blobs, transaction,
+    hasFileRetirementAuthority: () => readAuthority() !== null,
+    bindFileRetirement(storage, options) {
+      const authority = checkedFileCleanupAuthority(storage.fileRetirementAuthority);
+      if (authority.fileStoreId !== fileStoreId) throw new Error('State binding names a foreign physical Files store.');
+      transaction(() => {
+        const current = readAuthority();
+        if (current !== null && JSON.stringify(current) !== JSON.stringify(authority)) {
+          throw new Error('Permanent Files authority cannot be repinned.');
         }
-        db.exec('COMMIT');
-        return result;
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      } finally {
-        inTransaction = false;
-      }
+        // First assignment rejects pre-existing foreign receiver metadata.
+        // This is physical profile installation, not a State reference census.
+        if (current === null) {
+          for (const record of files.listAll()) assertReceiver(checkedFileCleanupRecord(record), authority);
+          db.prepare('UPDATE files_store_identity SET authority_json = ? WHERE singleton = 1').run(JSON.stringify(authority));
+        }
+      });
+      return createFinalizedFileCleanup({
+        clock: options.clock, readAuthority, transaction,
+        files: { ...files, put: putFile },
+        blobs: { ...blobs, remove(key) {
+          assertSafeBlobKey(key);
+          db.prepare('DELETE FROM files_blobs WHERE key = ?').run(key);
+        } },
+        readDeletion(ref) {
+          const json = journalJson(ref);
+          if (json === null) return null;
+          const value = JSON.parse(json) as { retirement: FinalizedFileDeletionRecord['retirement']; tombstone: string };
+          if (Object.keys(value).sort().join(',') !== 'retirement,tombstone' || typeof value.tombstone !== 'string') {
+            throw new Error('Invalid permanent Files cleanup journal.');
+          }
+          return { retirement: value.retirement, tombstone: decodeFile(value.tombstone) };
+        },
+        saveDeletion(record) {
+          db.prepare('INSERT INTO files_retirement_journal (id, json) VALUES (?, ?)')
+            .run(record.retirement.file.ref, JSON.stringify({ retirement: record.retirement, tombstone: encodeFile(record.tombstone) }));
+        },
+      }, storage, options);
     },
     close() {
       if (inTransaction) throw new Error('Cannot close an active file transaction.');
@@ -185,6 +311,8 @@ export interface SqliteFileBindingOptions {
   readonly intentTtlMs: number;
   readonly urlBase: string;
   readonly policy?: FilePolicy;
+  /** Actual trusted deployment State instance, never wire data or a copied DTO. */
+  readonly fileRetirement?: { readonly storage: FileReferenceStoragePort; readonly retention: FileRetentionPolicy };
 }
 
 /** Existing file journey methods, with each synchronous mutation committed atomically. */
@@ -199,8 +327,17 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
     fileIds: { nextFileId: () => randomUUID() },
   };
+  const cleanup = options.fileRetirement === undefined ? null : store.bindFileRetirement(options.fileRetirement.storage,
+    { clock: options.clock, policy, retention: options.fileRetirement.retention });
+  const legacyRetention = () => {
+    if (store.hasFileRetirementAuthority()) throw new Error('Pinned Files require original State retirement cleanup.');
+  };
   return {
     maxBytes: policy.maxBytes,
+    deleteRetiredFile(ref: string): Promise<'deleted' | 'already-deleted'> {
+      if (cleanup === null) return Promise.reject(new Error('Original State retirement binding is required.'));
+      return cleanup(ref);
+    },
     createIntent: (input: CreateIntentInput) => store.transaction(() => createUploadIntent(upload, input)),
     append: (intentId: string, caller: ReceivingContext, chunk: Uint8Array, expectedOffset: number) =>
       store.transaction(() => appendUploadContentAtOffset(upload, intentId, caller, chunk, expectedOffset)),
@@ -226,13 +363,13 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     revalidateFile: (saved: unknown, caller: ReceivingContext, retention: FileRetentionPolicy) =>
       store.transaction(() => revalidateRetainedFinalizedFile(finalize, saved, caller, { policy, retention })),
     /** Explicit receiving policy; the full sweep rolls back on interrupted cleanup. */
-    runRetention: (config: RetentionConfig) => store.transaction(() => runRetention({
+    runRetention: (config: RetentionConfig) => store.transaction(() => { legacyRetention(); return runRetention({
       clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
-    }, config)),
+    }, config); }),
     /** Bounded retention shares the same metadata and byte transaction. */
-    runRetentionBatch: (config: RetentionConfig, batch: RetentionBatchOptions) => store.transaction(() => runRetentionBatch({
+    runRetentionBatch: (config: RetentionConfig, batch: RetentionBatchOptions) => store.transaction(() => { legacyRetention(); return runRetentionBatch({
       clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
-    }, config, batch)),
+    }, config, batch); }),
     describeForReceipt: (ref: string) => describeForReceipt({ files: store.files, blobs: store.blobs }, ref),
   };
 }
