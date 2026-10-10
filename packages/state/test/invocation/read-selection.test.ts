@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ModelName, QuerySpec, StoragePort } from '@canlang/contracts';
+import { createFrozenClock, createMemoryIdentityStore as createSnapshotIdentityStore } from '@canlang/identity/testing';
+import { buildPolicyTable } from '../../src/policy/grants.js';
+import type { ByPredicate, MembershipReader } from '../../src/policy/roles.js';
 import { invokeRead, invokeReadPage, type ReadSelection } from '../../src/invocation/invoke.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { createReadInvoker, createReadPageInvoker } from '../../src/ports/transact.js';
 import { queryRecords } from '../../src/query/engine.js';
 import { createTestMemoryStorage } from '../../src/storage/memory.js';
 import { grant, modelPolicy, policyTable, seedRows } from '../query/fixtures.js';
-import { captureStateError, createMemoryIdentityStore, fieldPaths, makeIdentity, makeBatch, makeRow, seedMember } from './fixtures.js';
+import { captureStateError, createMemoryIdentityStore, fieldPaths, FIXED_NOW, makeIdentity, makeBatch, makeRow, seedMember } from './fixtures.js';
 
 const model = 'Example.Doc' as ModelName;
 const operation = `${model}.read`;
@@ -201,6 +204,151 @@ test('nested pages admit exact live parents and ancestors before applying storag
   const beforeArchived = world.scans.length;
   assert.equal((await captureStateError(reader({ ...world.args, selection }))).code, 'not_found');
   assert.equal(world.scans.length, beforeArchived);
+});
+
+async function setupRowSubjectPage(readBy: ByPredicate = 'members') {
+  const { store } = createTestMemoryStorage();
+  const identity = createSnapshotIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
+  const at = new Date(FIXED_NOW).toISOString();
+  const role = { role: 'Example.reviewer', granted_at: at, granted_by: 'caller' };
+  const caller = await identity.createMembership({ team_id: 'team', user_id: 'caller', is_owner: false, roles: [] });
+  const parentReviewer = await identity.createMembership({ team_id: 'team', user_id: 'parent-reviewer',
+    is_owner: false, roles: [role] });
+  await identity.createMembership({ team_id: 'team', user_id: 'child-reviewer', is_owner: false, roles: [role] });
+  const gateReviewer = await identity.createMembership({ team_id: 'team', user_id: 'gate-reviewer',
+    is_owner: false, roles: [role] });
+  const parentModel = 'Example.Folder' as ModelName;
+  const raw = slice();
+  const fields = [
+    { name: 'reviewer', field: { kind: 'user' as const }, required: true, serverOnly: false },
+    { name: 'title', field: { kind: 'string' as const }, required: true, serverOnly: false },
+  ];
+  raw.models![0]!.parent = parentModel;
+  raw.models![0]!.fields = fields;
+  raw.models!.push({ name: parentModel, fields, deleteMode: 'archive' });
+  raw.operations!.push({ name: `${parentModel}.read`, kind: 'read', description: '', inputs: { fields: [] } });
+  const loaded = loadArtifactDescriptors(raw, { by: readBy });
+  const subject = (owner: ModelName) => ({ roleSubject: {
+    role: role.role, person: { model: owner, field: 'reviewer' },
+  } });
+  const policy = buildPolicyTable([
+    modelPolicy(parentModel, { grants: [grant(subject(parentModel), ['title'])] }),
+    modelPolicy(model, { grants: [grant(subject(model), ['title'])] }),
+  ], loaded.models);
+  const parent = makeRow({ id: 'parent', data: { reviewer: { id: 'parent-reviewer' }, title: 'Folder' } });
+  const child = { ...makeRow({ id: 'child', data: { reviewer: { id: 'child-reviewer' }, title: 'Document' } }),
+    parent: { model: parentModel, id: parent.id } };
+  await store.commit(makeBatch(await store.readRevision(), { writes: [
+    { kind: 'insert', model: parentModel, row: parent }, { kind: 'insert', model, row: child },
+  ] }));
+  return { identity, parentReviewer, gateReviewer, role, parentModel, parent, child, policy, loaded, store,
+    args: { envelope: { operation, inputs: {} }, identity: makeIdentity({ membership: caller }),
+      selection: { parent: { model: parentModel, id: parent.id } } } };
+}
+
+test('parent and child row subjects share one complete Identity group before page source runs once', async () => {
+  const world = await setupRowSubjectPage();
+  const requests: string[][] = [];
+  const memberships: MembershipReader = { ...world.identity,
+    findMembershipsSnapshot: async (team, users) => {
+      requests.push([...users]);
+      return world.identity.findMembershipsSnapshot(team, users);
+    },
+  };
+  let parentLoads = 0, scans = 0, predicates = 0, transforms = 0;
+  const store: StoragePort = { ...world.store,
+    load: async (owner, id) => {
+      if (owner === world.parentModel) parentLoads++;
+      return world.store.load(owner, id);
+    },
+    query: async spec => { scans++; return world.store.query(spec); },
+  };
+  const reader = createReadPageInvoker({ ...world.loaded, store, memberships, policy: world.policy });
+  const page = await reader({ ...world.args, generatedPredicate: record => {
+    predicates++;
+    assert.deepEqual(requests[0], ['caller', 'parent-reviewer', 'child-reviewer']);
+    assert.deepEqual(record.data, { title: 'Document' });
+    return true;
+  } }, page => {
+    transforms++;
+    assert.deepEqual(page.queryDefinition[9][2], [[world.parentModel, true, [true]]]);
+    return page;
+  });
+  assert.deepEqual(page.records.map(record => record.id), ['child']);
+  assert.equal(parentLoads, 1, 'coherent policy reevaluation reuses the original parent');
+  assert.equal(scans, 1);
+  assert.equal(predicates, 1);
+  assert.equal(transforms, 1);
+  assert(requests.length >= 2, 'the original complete group is revalidated after the transform');
+  for (const request of requests) assert.deepEqual(request, requests[0]);
+});
+
+test('changed parent grant metadata refuses after page transform despite identical grant and projection', async () => {
+  const world = await setupRowSubjectPage();
+  const reader = createReadPageInvoker({ ...world.loaded, store: world.store,
+    memberships: world.identity, policy: world.policy });
+  let transforms = 0;
+  const error = await captureStateError(reader(world.args, async page => {
+    transforms++;
+    assert.deepEqual(page.records[0]!.data, { title: 'Document' });
+    assert.deepEqual(page.queryDefinition[9][2], [[world.parentModel, true, [true]]]);
+    await world.identity.setMembershipRoles(world.parentReviewer.membership_id,
+      [{ ...world.role, granted_by: 'another-grantor' }]);
+    return 'signed';
+  }));
+  assert.equal(transforms, 1);
+  assert.equal(error.code, 'forbidden');
+  assert.match(error.message, /authority changed/i);
+  assert.equal((await world.identity.findMembership('team', 'parent-reviewer'))!.roles[0]!.role, world.role.role);
+});
+
+test('page operation and parent read gates join the original complete row-subject observation', async () => {
+  const world = await setupRowSubjectPage({ roleSubject: { role: 'Example.reviewer', person: 'gate-reviewer' } });
+  const requests: string[][] = [];
+  const memberships: MembershipReader = { ...world.identity,
+    findMembershipsSnapshot: async (team, users) => {
+      requests.push([...users]);
+      return world.identity.findMembershipsSnapshot(team, users);
+    },
+  };
+  const reader = createReadPageInvoker({ ...world.loaded, store: world.store, memberships, policy: world.policy });
+  let predicates = 0, transforms = 0;
+  const error = await captureStateError(reader({ ...world.args, generatedPredicate: () => {
+    predicates++;
+    assert.deepEqual(requests[0], ['caller', 'gate-reviewer', 'parent-reviewer', 'child-reviewer']);
+    return true;
+  } }, async () => {
+    transforms++;
+    await world.identity.setMembershipRoles(world.gateReviewer.membership_id,
+      [{ ...world.role, granted_by: 'another-grantor' }]);
+    return 'signed';
+  }));
+  assert.equal(predicates, 1);
+  assert.equal(transforms, 1);
+  assert.equal(error.code, 'forbidden');
+  assert.match(error.message, /authority changed/i);
+  for (const request of requests) assert.deepEqual(request, requests[0]);
+});
+
+test('incomplete joint parent and child Identity snapshot refuses before predicate or transform', async () => {
+  const world = await setupRowSubjectPage();
+  const requests: string[][] = [];
+  const memberships: MembershipReader = { ...world.identity,
+    findMembershipsSnapshot: async (team, users) => {
+      requests.push([...users]);
+      const actual = await world.identity.findMembershipsSnapshot(team, users);
+      return { ...actual, entries: actual.entries.slice(0, -1) };
+    },
+  };
+  const reader = createReadPageInvoker({ ...world.loaded, store: world.store, memberships, policy: world.policy });
+  let predicates = 0, transforms = 0;
+  const error = await captureStateError(reader({ ...world.args, generatedPredicate: () => {
+    predicates++; return true;
+  } }, () => { transforms++; return 'signed'; }));
+  assert.equal(error.code, 'validation');
+  assert.deepEqual(requests, [['caller', 'parent-reviewer', 'child-reviewer']]);
+  assert.equal(predicates, 0);
+  assert.equal(transforms, 0);
 });
 
 test('bound read selection filters projected records in one scan and preserves the fence revision', async () => {
