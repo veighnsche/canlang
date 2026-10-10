@@ -1,0 +1,8 @@
+app FileCollectionDownload
+Given
+ Entry { label:text="Uploaded", attachments:file[]! }
+ policy Entry read=owner fields=label,attachments
+ policy Entry read=members fields=label
+When
+ crud Entry by=owner fields=label,attachments
+Then

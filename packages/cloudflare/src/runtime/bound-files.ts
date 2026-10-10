@@ -103,13 +103,14 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
     if (!pathname.startsWith('/files/read/')) return handleUploadRequest(opts.upload, request);
     if (request.method !== 'GET' || !opts.upload.files.usesFiles(opts.upload.app)) return notFound();
     const parts = pathname.slice('/files/read/'.length).split('/');
-    if (parts.length !== 3 || parts.some(part => part === '')) return notFound();
-    let model: string, id: string, field: string;
-    try { [model, id, field] = parts.map(decodeURIComponent) as [string, string, string]; }
+    if ((parts.length !== 3 && parts.length !== 4) || parts.some(part => part === '')) return notFound();
+    let model: string, id: string, field: string, requestedRef: string | undefined;
+    try { [model, id, field, requestedRef] = parts.map(decodeURIComponent) as [string, string, string, string?]; }
     catch { return notFound(); }
     const declaration = opts.artifact.models?.find(candidate => candidate.name === model);
     const selected = declaration?.fields.find(candidate => candidate.name === field);
-    if (selected?.field.kind !== 'file' || selected.array !== undefined) return notFound();
+    if (selected === undefined || requestedRef === undefined &&
+        (selected.field.kind !== 'file' || selected.array !== undefined)) return notFound();
     const resolveCaller = async (): Promise<ResolvedIdentity> => {
       const bearer = /^Bearer\s+([^\s]+)$/i.exec(request.headers.get('authorization') ?? '');
       if (bearer !== null) {
@@ -134,8 +135,10 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       if (!('records' in result)) throw new Error('File model read returned no records.');
       const row = result.records.find(candidate => candidate.id === id);
       if (row === undefined || !Object.hasOwn(row.data, field) || row.data[field] === null) return null;
-      const value = decodeValue('file', row.data[field]) as { id: string };
-      return { id: value.id, revision: result.revision, version: row.version, store };
+      // An explicit reference selects within the complete current field. State's
+      // owning profile proves File membership, including nested/array positions.
+      const ref = requestedRef ?? (decodeValue('file', row.data[field]) as { id: string }).id;
+      return { id: ref, revision: result.revision, version: row.version, store };
     };
     try {
       const identity = await resolveCaller();
