@@ -97,6 +97,18 @@ function fakeWorkerDist(): string {
   return dir;
 }
 
+/** Runtime mapper fixture only; every staged Files producer remains genuine. */
+function filesFinalizerRuntimeFixture(): string {
+  const runtime = dirname(resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build"));
+  const fixture = mkdtempSync(join(tmpdir(), "can-files-runtime-map-"));
+  for (const entry of readdirSync(runtime).filter(name => name.endsWith(".js"))) {
+    let js = readFileSync(join(runtime, entry), "utf8");
+    if (entry === "invoke.js") js += '\nimport { readFinalizedFileObservation as filesClosureReader } from "@canlang/files/finalize";\nexport { filesClosureReader };\nconst FILES_FINALIZER_MAP_FIXTURE = "@canlang/files/finalize";\n';
+    writeFileSync(join(fixture, entry), js);
+  }
+  return fixture;
+}
+
 describe("deploy bundle (P-B)", () => {
   it("ships the runtime mapper's ESM codec without host import tooling", () => {
     const bundle = buildDeployBundle(testArtifact(), {
@@ -870,6 +882,69 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       delete missing[key];
       expect(() => assertLinksResolve(missing)).toThrow(/no such staged module/);
     }
+  });
+
+  it("stages the genuine public Files finalizer closure with shared noble dependencies", () => {
+    // This overlay exercises runtime import/constant rewriting only. The Files
+    // bodies remain genuine public emissions; it is not a State consumer fixture.
+    const fixture = filesFinalizerRuntimeFixture();
+    try {
+      const bundle = buildDeployBundle(testArtifact(), { repoRoot, runtimeDistDir: fixture, verdict: ACTIVE_VERDICT });
+      const owners = [
+        ["@canlang/files/finalize", "vendor/files/finalize/index.js"],
+        ["@canlang/files/ports", "vendor/files/ports.js"],
+        ["@canlang/files/provenance", "vendor/files/provenance/index.js"],
+        ["@canlang/files/upload", "vendor/files/upload/index.js"],
+      ] as const;
+      expect(Object.keys(bundle.modules).filter(key => key.startsWith("vendor/files/"))).toEqual(owners.map(([, key]) => key));
+      for (const [specifier, key] of owners) {
+        const file = resolveProducerFile(specifier, "bun run --filter @canlang/files build");
+        const restored = rewriteModuleImports(bundle.modules[key]!, key, imported =>
+          imported === "../../noble-hashes/sha2.js" ? "@noble/hashes/sha2.js"
+            : imported === "../../noble-hashes/utils.js" ? "@noble/hashes/utils.js" : imported,
+        { profile: "trusted-producer" }).js;
+        expect(restored).toBe(readFileSync(file, "utf8"));
+      }
+      const invoke = bundle.modules["runtime/invoke.js"]!;
+      expect(invoke).toContain('from "../vendor/files/finalize/index.js"');
+      expect(invoke).toContain('const FILES_FINALIZER_MAP_FIXTURE = "../vendor/files/finalize/index.js"');
+      expect(invoke).not.toContain("@canlang/files/finalize");
+      expect(bundle.modules[owners[0][1]]).toContain("export function readFinalizedFileObservation(");
+      expect(scanModuleImports(bundle.modules[owners[0][1]]!, owners[0][1]).map(record => record.specifier))
+        .toEqual(["../ports.js", "../provenance/index.js", "../upload/index.js"]);
+      expect(Object.keys(bundle.modules).filter(key => key.startsWith("vendor/noble-hashes/"))).toEqual([
+        "vendor/noble-hashes/_md.js", "vendor/noble-hashes/_u64.js",
+        "vendor/noble-hashes/sha2.js", "vendor/noble-hashes/utils.js",
+      ]);
+      expect(scanModuleImports(bundle.modules["vendor/files/upload/index.js"]!, "vendor/files/upload/index.js").map(record => record.specifier))
+        .toContain("../../noble-hashes/sha2.js");
+      // Assert the genuine State edge when its released consumer is emitted;
+      // never insert a substitute State import to manufacture that join.
+      const stateBase = dirname(dirname(resolveProducerFile("@canlang/state/mutation", "bun run --filter @canlang/state build")));
+      const stateSource = readFileSync(join(stateBase, "invocation/scenario-receipt.js"), "utf8");
+      if (stateSource.includes("@canlang/files/finalize")) {
+        expect(bundle.modules["vendor/state/invocation/scenario-receipt.js"]).toContain("../../files/finalize/index.js");
+        expect(bundle.modules["vendor/state/invocation/scenario-receipt.js"]).not.toContain("@canlang/files/finalize");
+      }
+      expect(Object.keys(bundle.modules).some(key => /^vendor\/files\/.*(?:host\/|fs-blob-store|\.test\.js$)/.test(key))).toBe(false);
+      expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+      expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
+    } finally { rmSync(fixture, { recursive: true, force: true }); }
+  });
+
+  it("refuses each missing genuine Files finalizer closure entry", () => {
+    const fixture = filesFinalizerRuntimeFixture();
+    try {
+      const bundle = buildDeployBundle(testArtifact(), { repoRoot, runtimeDistDir: fixture, verdict: ACTIVE_VERDICT });
+      for (const key of [
+        "vendor/files/finalize/index.js", "vendor/files/upload/index.js",
+        "vendor/files/provenance/index.js", "vendor/files/ports.js",
+      ]) {
+        const missing = { ...bundle.modules };
+        delete missing[key];
+        expect(() => assertLinksResolve(missing)).toThrow(/no such staged module/);
+      }
+    } finally { rmSync(fixture, { recursive: true, force: true }); }
   });
 });
 

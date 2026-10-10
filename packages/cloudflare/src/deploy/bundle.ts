@@ -227,7 +227,7 @@ const BROWSER_DEPENDENCIES = [
   { owner: identityDistribution.modules, specifier: "cookie", name: "cookie", version: "2.0.1", entry: "dist/index.js", key: "vendor/cookie/index.js" },
   { owner: identityDistribution.modules, specifier: "@scure/base", name: "@scure/base", version: "2.4.0", entry: "index.js", key: "vendor/scure-base/index.js" },
   { owner: uiDistribution.modules, specifier: "csv-parse/browser/esm/sync", name: "csv-parse", version: "7.0.3", entry: "dist/esm/sync.js", key: "vendor/csv-parse/sync.js" },
-  // Exact synchronous judgment digest closure; never stage the provider tree.
+  // Shared portable judgment/File digest closure; never stage a provider tree.
   { owner: servicesDistribution.modules, specifier: "@noble/hashes/sha2.js", name: "@noble/hashes", version: "2.4.0",
     entry: "sha2.js", key: "vendor/noble-hashes/sha2.js", siblings: ["_md.js", "_u64.js", "utils.js"] },
 ] as const;
@@ -275,6 +275,9 @@ const WORK_RECEIPT_SOURCE_SPECIFIER = "@canlang/work/receipt";
 const WORK_RECEIPT_VENDOR_ENTRY = "vendor/work/receipt/index.js";
 const WORK_ASSOCIATION_SOURCE_SPECIFIER = "@canlang/work/observation/association";
 const WORK_ASSOCIATION_VENDOR_ENTRY = "vendor/work/observation/association.js";
+/** One defining module preserves Files' private observation identity. */
+const FILES_FINALIZE_SOURCE_SPECIFIER = "@canlang/files/finalize";
+const FILES_FINALIZE_VENDOR_ENTRY = "vendor/files/finalize/index.js";
 /** The runtime mapper's only external dependency; host import tooling stays out. */
 const SOURCEMAP_CODEC_SPECIFIER = "@jridgewell/sourcemap-codec";
 const SOURCEMAP_CODEC_VENDOR_ENTRY = "vendor/sourcemap-codec/sourcemap-codec.js";
@@ -565,6 +568,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
+    if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
     if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
       return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
     }
@@ -589,6 +593,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_OCCURRENCE_SOURCE_SPECIFIER, WORK_OCCURRENCE_VENDOR_ENTRY],
     [WORK_RECEIPT_SOURCE_SPECIFIER, WORK_RECEIPT_VENDOR_ENTRY],
     [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
+    [FILES_FINALIZE_SOURCE_SPECIFIER, FILES_FINALIZE_VENDOR_ENTRY],
     ["@canlang/ui", UI_VENDOR_ENTRY],
   ] as const) {
     // Match a complete literal: mutation/crud and other exported subpaths
@@ -626,6 +631,28 @@ function stageWorkStagingProducers(): Record<string, string> {
   return modules;
 }
 
+/** Stage the public Files finalizer's real relative closure, excluding host trees. */
+function stageFilesFinalizeProducer(): Record<string, string> {
+  const entry = resolveProducerFile(FILES_FINALIZE_SOURCE_SPECIFIER, "bun run --filter @canlang/files build");
+  const base = dirname(dirname(entry));
+  const modules: Record<string, string> = {};
+  const visit = (file: string): void => {
+    const path = relative(base, file).split(sep).join("/");
+    assertSafeRelativePath(path, "Files finalizer dependency");
+    const key = `vendor/files/${path}`;
+    if (Object.hasOwn(modules, key)) return;
+    const js = readFileSync(file, "utf8");
+    modules[key] = rewriteVendorImports(js, key);
+    for (const imported of scanModuleImports(js, key)) {
+      if (imported.specifier !== undefined && isRelativeSpecifier(imported.specifier)) {
+        visit(resolve(dirname(file), imported.specifier));
+      }
+    }
+  };
+  visit(entry);
+  return modules;
+}
+
 /**
  * Rewrite producer imports inside staged vendor trees. Vendor dists are
  * verbatim builds: today only `vendor/stdlib` carries a bare producer
@@ -654,6 +681,7 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+    if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
     if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
       return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
     }
@@ -1045,6 +1073,7 @@ export function buildDeployBundle(
     Object.assign(modules, readVendorTree(tree));
   }
   Object.assign(modules, stageWorkStagingProducers());
+  Object.assign(modules, stageFilesFinalizeProducer());
   Object.assign(modules, stageSourceMapCodec());
   Object.assign(modules, stageBrowserDependencies());
   modules[JUDGMENT_SPECIFICATION_VENDOR_ENTRY] = rewriteVendorImports(readFileSync(
