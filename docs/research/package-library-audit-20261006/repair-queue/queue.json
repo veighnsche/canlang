@@ -2322,7 +2322,7 @@
           "files",
           "interfaces"
         ],
-        "release": "Existing retention component plus Contracts files.ts/state.ts, Files finalize/index.ts,ports.ts,provenance/index.ts,host/sqlite.ts and existing finalize/contract-shapes tests with directly related docs/records. State/Dev/Compiler defining consumers and other shared lifetime/provider/source files remain owning prerequisites. Exact later portable upload/index.ts+validation.test.ts, Files manifest/lock, common deploy/bundle.ts+existing deploy-bundle.test.ts+installed Worker verifier released and tested; full State/Dev/Compiler consumers remain separate. Interfaces observeFile/revalidateFile forwarding awaits coordinator exact kernel/test lease."
+        "release": "Existing retention component plus Contracts files.ts/state.ts, Files finalize/index.ts,ports.ts,provenance/index.ts,host/sqlite.ts and existing finalize/contract-shapes tests with directly related docs/records. State/Dev/Compiler defining consumers and other shared lifetime/provider/source files remain owning prerequisites. Exact later portable upload/index.ts+validation.test.ts, Files manifest/lock, common deploy/bundle.ts+existing deploy-bundle.test.ts+installed Worker verifier released and tested; full State/Dev/Compiler consumers remain separate. Coordinator subsequently released only Interfaces uploads/kernel.ts+uploads-kernel.test.ts with no competing writer; genuine observeFile/revalidateFile forwarding implemented/tested. Dev actual consumer and State association remain separate prerequisites."
       },
       "acceptance_limits": [
         "No runtime acceptance from this planning packet. Source helper, registered Rust and historical fixtures do not certify actual installed/durable/browser consumers.",
