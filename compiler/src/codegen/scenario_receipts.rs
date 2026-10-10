@@ -1712,6 +1712,12 @@ impl<'a> Sites<'a> {
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        // A checked bound-child predicate reads only the
+                        // retained projection. Its element-local decisions
+                        // belong to Values, not once-per-parent observations.
+                        if retained_contract_predicate(expression, target, args).is_some() {
+                            continue;
+                        }
                         extend!(args.iter().map(Visit::Expression));
                         if let IrCallTarget::DeriveFn(canonical) = target {
                             if context.owners.contains(canonical) || context.calls.len() >= 64 {
@@ -1802,6 +1808,93 @@ impl<'a> Sites<'a> {
         }
         Some(out)
     }
+}
+
+fn retained_contract_predicate(
+    expression: &TypedExpr,
+    target: &IrCallTarget,
+    args: &[TypedExpr],
+) -> Option<()> {
+    let IrCallTarget::Builtin { id, awaited: false } = target else {
+        return None;
+    };
+    if !matches!(id.as_str(), "any" | "all") || args.len() != 2 {
+        return None;
+    }
+    let mut candidates = args.iter().filter_map(|argument| match &argument.expr {
+        IrExpr::Query(query) => query
+            .contract_collection_call
+            .as_deref()
+            .map(|fact| (query, fact)),
+        _ => None,
+    });
+    let (query, fact) = candidates.next()?;
+    if candidates.next().is_some()
+        || fact.builtin != *id
+        || node_span(fact.node) != expression.span
+        || expression.ty != ResolvedType::Scalar(Scalar::Bool)
+        || fact.arguments.len() != 2
+        || fact.slots[0] == fact.slots[1]
+    {
+        return None;
+    }
+    let source = query.source.as_deref()?;
+    let [alias] = source.clauses.as_slice() else {
+        return None;
+    };
+    let crate::analysis::types::CheckedQueryClauseKind::As { name } = &alias.kind else {
+        return None;
+    };
+    let super::ir::IrQueryDomain::Value {
+        base,
+        alias: actual_alias,
+    } = &query.domain
+    else {
+        return None;
+    };
+    let IrExpr::Lambda { param, body } = &args.get(fact.slots[1])?.expr else {
+        return None;
+    };
+    let domain = args.get(fact.slots[0])?;
+    if !matches!(&domain.expr, IrExpr::Query(actual) if std::ptr::eq(actual,query))
+        || source.node != fact.query
+        || source.domain != fact.domain
+        || alias.node != fact.alias
+        || name != actual_alias
+        || name != param
+        || query.collection_call.is_some()
+        || source.projection.is_some()
+        || !alias.expressions.is_empty()
+        || source.domain_type != source.result
+        || domain.ty != source.result
+        || base.ty != source.domain_type
+        || base.span.file != fact.domain.file
+        || base.span.start < fact.domain.start
+        || base.span.end > fact.domain.end
+        || !matches!(base.expr, IrExpr::Name(_))
+        || query.parent.is_some()
+        || query.where_pred.is_some()
+        || query.where_async
+        || !query.order.is_empty()
+        || query.limit.is_some()
+        || query.archived.is_some()
+        || query.select.is_some()
+        || query.select_param.is_some()
+        || body.ty != fact.predicate.ty
+        || args.get(fact.slots[1])?.ty != fact.predicate.ty
+        || fact.predicate.ty != expression.ty
+        || fact.arguments.get(fact.slots[1]) != Some(&fact.predicate.node)
+        || args.iter().zip(&fact.arguments).any(|(arg, node)| {
+            arg.span.file != node.file || arg.span.start < node.start || arg.span.end > node.end
+        })
+    {
+        return None;
+    }
+    let slots = match &expression.expr {
+        IrExpr::BoundCall { slots, .. } => slots.clone(),
+        _ => (0..args.len()).map(Some).collect(),
+    };
+    (slots.as_slice() == [Some(fact.slots[0]), Some(fact.slots[1])]).then_some(())
 }
 
 #[derive(Clone, Default)]

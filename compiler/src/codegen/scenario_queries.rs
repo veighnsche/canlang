@@ -176,8 +176,8 @@ fn checked_query_plan(
         return None;
     };
     let q = &queries[0];
-    let scan_fact = scan.source.as_ref()?;
-    let select_fact = select.source.as_ref()?;
+    let scan_fact = scan.source.as_deref()?;
+    let select_fact = select.source.as_deref()?;
     if q.id.is_empty()
         || q.source != source.source
         || q.projection.source != source.source
@@ -199,6 +199,7 @@ fn checked_query_plan(
         || scan.select.is_some()
         || scan.where_async
         || scan.collection_call.is_some()
+        || scan.contract_collection_call.is_some()
         || select.parent.is_some()
         || select.where_pred.is_some()
         || select.where_async
@@ -206,6 +207,7 @@ fn checked_query_plan(
         || select.limit.is_some()
         || select.archived.is_some()
         || select.collection_call.is_some()
+        || select.contract_collection_call.is_some()
     {
         return None;
     }

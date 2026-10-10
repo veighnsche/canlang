@@ -37,6 +37,11 @@ package workbench
    do
     call context {targets,location} as facts
     require count(facts)==2
+    require any(facts as fact,fact.done and fact.task==fact.task and fact.title=="second")
+    require not all(facts as fact,fact.done)
+    require all(facts as fact,fact.version>0 and fact.task==fact.task)
+    require not any(facts as fact,fact.version<1)
+    require all(facts as fact,fact.title!="blocked")
     require accept
     return count(facts)
  Then
@@ -135,9 +140,21 @@ const seamUrl=pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib'
 const shim=resolve(base,'observed-stdlib.mjs');
 writeFileSync(shim,`
 export * from ${JSON.stringify(seamUrl)};
-import {executeScenarioReceiptQuery as query,invokeScenarioReceiptCall as call} from ${JSON.stringify(seamUrl)};
+import {executeScenarioReceiptQuery as query,invokeScenarioReceiptCall as call,any as nativeAny,all as nativeAll,same as nativeSame} from ${JSON.stringify(seamUrl)};
 export async function executeScenarioReceiptQuery(...args){globalThis.nativeQueryTrace.push({kind:'query',queryId:args[1]});return await query(...args);}
 export async function invokeScenarioReceiptCall(...args){globalThis.nativeQueryTrace.push({kind:'call',site:args[1],target:args[2],keys:Object.keys(args[3])});const result=await call(...args);globalThis.nativeChildCounts.push(result.length);return result;}
+let activePredicate;
+function observePredicate(kind,native,domain,predicate){
+ const run={kind,visits:[],references:[],result:null};globalThis.nativePredicateRuns.push(run);
+ run.result=native(domain,value=>{
+  const previous=activePredicate,index=domain.indexOf(value);activePredicate={run,index};
+  try{const verdict=predicate(value);run.visits.push({index,verdict});return verdict;}
+  finally{activePredicate=previous;}
+ });return run.result;
+}
+export function any(domain,predicate){return observePredicate('any',nativeAny,domain,predicate);}
+export function all(domain,predicate){return observePredicate('all',nativeAll,domain,predicate);}
+export function same(...args){const result=nativeSame(...args);if(activePredicate)activePredicate.run.references.push({index:activePredicate.index,result});return result;}
 `);
 const asm=await assembleModules({artifact,sourcePath:resolve(base,'query-native.can')},{
  workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(shim).href,
@@ -176,7 +193,7 @@ const durable=async()=>({revision:await store.readRevision(),commits:batches.len
  receipts:await Promise.all(requests.map(req=>receiptFor(req))),outbox:probe.outboxAll(),
  schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
 const domain=async()=>{const {rows,history,outbox,schedules}=await durable();return {rows,history,outbox,schedules};};
-globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
+globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
 async function read(inputs,who=identity){
  const before=await durable();globalThis.nativeQueryTrace=[];
  const outcome=await invoker.invokeRead({operation:'workbench.context',inputs},who);
@@ -187,12 +204,22 @@ const publicRead=await read(readInputs);
 assert.ok('result'in publicRead,JSON.stringify(publicRead));
 assert.deepEqual(publicRead.result,{result:facts,revision:await store.readRevision()},'full Fact[] follows query order rather than reversed supplied targets');
 assert.deepEqual(globalThis.nativeQueryTrace,[{kind:'query',queryId:plan.queries[0].id}]);
-const parentInputs={location:ref(location),targets:[...selected].reverse().map(ref),accept:true};
+let parentInputs={location:ref(location),targets:[...selected].reverse().map(ref),accept:true};
 const success=request('workbench.parent',parentInputs),beforeParent=await durable();
-globalThis.nativeQueryTrace=[];
+globalThis.nativeQueryTrace=[];globalThis.nativePredicateRuns=[];
 const result=await committed(success);
 assert.equal(result.result,'2');assert.deepEqual(result.records,[]);
 assert.deepEqual(globalThis.nativeChildCounts,[2],'actual child facade completes with the array consumed by the parent');
+const secondIndex=facts.findIndex(fact=>fact.done&&fact.title==='second');
+const falseDoneIndex=facts.findIndex(fact=>!fact.done);
+assert.ok(secondIndex>=0&&falseDoneIndex>=0,'actual fixture carries both boolean verdicts');
+assert.deepEqual(globalThis.nativePredicateRuns,[
+ {kind:'any',visits:facts.slice(0,secondIndex+1).map((fact,index)=>({index,verdict:fact.done&&fact.title==='second'})),references:[{index:secondIndex,result:true}],result:true},
+ {kind:'all',visits:facts.slice(0,falseDoneIndex+1).map((fact,index)=>({index,verdict:fact.done})),references:[],result:false},
+ {kind:'all',visits:facts.map((_,index)=>({index,verdict:true})),references:facts.map((_,index)=>({index,result:true})),result:true},
+ {kind:'any',visits:facts.map((_,index)=>({index,verdict:false})),references:[],result:false},
+ {kind:'all',visits:facts.map((_,index)=>({index,verdict:true})),references:[],result:true},
+],'installed any/all run generated predicates in actual query order, short-circuit at first verdict, and skip reference RHS for false done');
 assert.equal(await store.readRevision(),beforeParent.revision+1);assert.equal(batches.length,beforeParent.commits+1);
 const receipt=await receiptFor(success);assert.equal(receipt.outcome.result,'2');
 const association=readScenarioReceiptAssociation(receipt);assert.ok(association,'State-owned parent capture');
@@ -223,15 +250,16 @@ assert.deepEqual(globalThis.nativeQueryTrace,[{kind:'call',site:child.site,targe
 assert.equal(JSON.stringify(result).includes('scenario-result/v1'),false,'private receipt stays off public response');
 assert.deepEqual(await domain(),{rows:beforeParent.rows,history:beforeParent.history,outbox:beforeParent.outbox,schedules:beforeParent.schedules});
 assert.equal(batches.at(-1).receipt.identity.operation,'workbench.parent','child shares the one parent commit');
-const stable=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
+const stable=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
 const replay=await invoker.invokeMutation(success,identity);
 assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
 assert.equal(replay.result.result,'2');assert.deepEqual(replay.result.records,[]);
 assert.deepEqual(await durable(),stable);assert.deepEqual(globalThis.nativeQueryTrace,[],'replay executes neither parent call nor child query');
 assert.deepEqual(globalThis.nativeChildCounts,[],'retained parent count needs no new child result');
+assert.deepEqual(globalThis.nativePredicateRuns,[],'saved replay reruns no any/all predicate');
 assert.deepEqual(await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:'2',records:[]});
-async function rejectedParent(inputs,code,executed,who=identity,completedCount){
- const req=request('workbench.parent',inputs),before=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
+async function rejectedParent(inputs,code,executed,who=identity,completedCount,predicateResults){
+ const req=request('workbench.parent',inputs),before=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
  const outcome=await invoker.invokeMutation(req,who);assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,code);
  assert.deepEqual(await domain(),{rows:before.rows,history:before.history,outbox:before.outbox,schedules:before.schedules},'refusal rolls back every domain effect');
  const rejected=await receiptFor(req,who);
@@ -240,13 +268,16 @@ async function rejectedParent(inputs,code,executed,who=identity,completedCount){
   assert.equal(globalThis.nativeQueryTrace.filter(event=>event.kind==='query').length,1);
  }else{assert.equal(rejected,null);assert.equal(await store.readRevision(),before.revision);assert.equal(batches.length,before.commits);assert.deepEqual(globalThis.nativeQueryTrace,[]);}
  if(completedCount!==undefined)assert.deepEqual(globalThis.nativeChildCounts,[completedCount],'parent refuses after the genuine child completes');
+ if(predicateResults!==undefined)assert.deepEqual(globalThis.nativePredicateRuns.map(run=>run.result),predicateResults,
+  'actual alias-leaf predicates complete in authored order before the parent refusal');
  assert.deepEqual(await Promise.all(requests.slice(0,-1).map(req=>receiptFor(req))),before.receipts.slice(0,-1),'other receipts remain unchanged');
- const saved=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];
+ const saved=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
  const repeated=await invoker.invokeMutation(req,who);assert.ok('error'in repeated);assert.equal(repeated.error.code,code);
  assert.deepEqual(await durable(),saved);assert.deepEqual(globalThis.nativeQueryTrace,[],'failed replay has no effects or child execution');
  assert.deepEqual(globalThis.nativeChildCounts,[]);
+ assert.deepEqual(globalThis.nativePredicateRuns,[],'failed replay reruns no child-result predicate');
 }
-await rejectedParent({...parentInputs,accept:false},'rule_failed',true,identity,2);
+await rejectedParent({...parentInputs,accept:false},'rule_failed',true,identity,2,[true,false,true,false,true]);
 // One target is valid for the original child (1 == 1), but its actual bound
 // result fails the parent's authored two-fact guard after child execution.
 await rejectedParent({...parentInputs,targets:[ref(one)]},'rule_failed',true,identity,1);
@@ -262,6 +293,46 @@ for(const [inputs,code] of [
  [{...readInputs,targets:[]},'validation'],
  [{...readInputs,targets:Array.from({length:11},()=>({id:one.id}))},'validation'],
 ]){const refusal=await read(inputs);assert.ok('error'in refusal);assert.equal(refusal.error.code,code);}
+// A real update makes only the final projected-title predicate false. Refreshed
+// references come from actual committed storage; the original query body stays
+// unchanged and still completes with two matching rows.
+async function refreshTargets(){parentInputs={...parentInputs,targets:await Promise.all(parentInputs.targets.map(async reference=>ref(await store.load('todo.Task',reference.id))))};}
+await committed(request('todo.Task.update',{record:ref(await store.load('todo.Task',one.id)),title:'blocked'}));
+await refreshTargets();
+await rejectedParent(parentInputs,'rule_failed',true,identity,2,[true,false,true,false,false]);
+await committed(request('todo.Task.update',{record:ref(await store.load('todo.Task',one.id)),title:one.data.title}));
+await refreshTargets();
+assert.deepEqual(await receiptFor(success),receipt,'genuine updates and failed predicates preserve the original saved receipt');
+assert.ok((await store.load('todo.Task',one.id)).version>one.version,
+ 'restoring a field does not restore the old committed row version');
+const oldReplayBefore=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
+const oldReplay=await invoker.invokeMutation(success,identity);
+assert.ok('result'in oldReplay,JSON.stringify(oldReplay));assert.equal(oldReplay.result.status,'replayed');
+assert.equal(oldReplay.result.result,'2');assert.deepEqual(oldReplay.result.records,[],
+ 'current authority permits the saved count without rerunning predicates against newer row versions');
+assert.deepEqual(await durable(),oldReplayBefore);assert.deepEqual(globalThis.nativeQueryTrace,[]);
+assert.deepEqual(globalThis.nativeChildCounts,[]);assert.deepEqual(globalThis.nativePredicateRuns,[]);
+assert.deepEqual(await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:'2',records:[]});
+// A fresh success after restoration supplies current child references for a
+// separate role-revocation check, without rewriting the original saved result.
+const restoredRequest=request('workbench.parent',parentInputs);
+globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
+const restoredResult=await committed(restoredRequest);
+assert.equal(restoredResult.result,'2');assert.deepEqual(restoredResult.records,[]);
+assert.deepEqual(globalThis.nativeChildCounts,[2]);
+assert.deepEqual(globalThis.nativePredicateRuns.map(run=>run.result),[true,false,true,false,true]);
+const restoredReceipt=await receiptFor(restoredRequest),restoredAssociation=readScenarioReceiptAssociation(restoredReceipt);
+assert.ok(restoredAssociation);assert.deepEqual(restoredAssociation.plan,parent.result.disclosure);
+const currentSelected=await Promise.all(selected.map(row=>store.load('todo.Task',row.id)));
+assert.deepEqual(restoredAssociation.calls[0].result,currentSelected.map(row=>({task:ref(row),version:String(row.version),title:row.data.title,
+ description:row.data.description,due:row.data.due,priority:row.data.priority,done:row.data.done})),
+ 'fresh predicate success consumes the full original projection at actual current versions');
+assert.deepEqual(await projectScenarioReceipt({receipt:restoredReceipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:'2',records:[]});
+const restoredStable=await durable();globalThis.nativeQueryTrace=[];globalThis.nativeChildCounts=[];globalThis.nativePredicateRuns=[];
+const restoredReplay=await invoker.invokeMutation(restoredRequest,identity);
+assert.ok('result'in restoredReplay);assert.equal(restoredReplay.result.status,'replayed');assert.equal(restoredReplay.result.result,'2');assert.deepEqual(restoredReplay.result.records,[]);
+assert.deepEqual(await durable(),restoredStable);assert.deepEqual(globalThis.nativeQueryTrace,[]);
+assert.deepEqual(globalThis.nativeChildCounts,[]);assert.deepEqual(globalThis.nativePredicateRuns,[]);
 const outsider=makeIdentity({userId:'nonmember',team:member.team,membership:null});
 const forbidden=await read(readInputs,outsider);assert.ok('error'in forbidden);assert.equal(forbidden.error.code,'forbidden');assert.deepEqual(globalThis.nativeQueryTrace,[]);
 await rejectedParent(parentInputs,'forbidden',false,outsider);
@@ -273,9 +344,17 @@ const revokedReplay=await invoker.invokeMutation(success,identity);assert.ok('re
 assert.equal(revokedReplay.result.status,'replayed');assert.equal(revokedReplay.result.result,null);assert.deepEqual(revokedReplay.result.records,[],
  'saved identity remains replayable while current membership withholds disclosure');
 const retainedReplay=await invoker.invokeRetainedMutation(success,identity);assert.ok('error'in retainedReplay,JSON.stringify(retainedReplay));assert.equal(retainedReplay.error.code,'forbidden');
+const revokedRestoredReplay=await invoker.invokeMutation(restoredRequest,identity);
+assert.ok('result'in revokedRestoredReplay);assert.equal(revokedRestoredReplay.result.status,'replayed');
+assert.equal(revokedRestoredReplay.result.result,null);assert.deepEqual(revokedRestoredReplay.result.records,[],
+ 'role revocation withholds the fresh current-version predicate receipt');
+const retainedRestoredReplay=await invoker.invokeRetainedMutation(restoredRequest,identity);
+assert.ok('error'in retainedRestoredReplay);assert.equal(retainedRestoredReplay.error.code,'forbidden');
 assert.deepEqual(await durable(),beforeRevokedReplay);assert.deepEqual(globalThis.nativeQueryTrace,[]);
+assert.deepEqual(globalThis.nativeChildCounts,[]);assert.deepEqual(globalThis.nativePredicateRuns,[]);
 assert.deepEqual(await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:null,records:[]});
-console.log('native original query: public ordered read, private child count guard/return, real receipt replay, rollback, bounds, references and live authority passed');
+assert.deepEqual(await projectScenarioReceipt({receipt:restoredReceipt,registry:loaded.registry,policy:loaded.policy,app:'QueryNative',identity,store,memberships}),{result:null,records:[]});
+console.log('native original query: public ordered read, private child count/any/all, actual lazy predicate order, genuine CRUD predicate failure, saved replay, rollback, versions and live authority passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(
