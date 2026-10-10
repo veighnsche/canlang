@@ -5695,3 +5695,12 @@ State clean emission and final new29/29 pass107.15ms; reuse unchanged existing22
 Consume existing Compiler canonical `Team` in the active_member slot, refusing lowercase `team` without adding a Values primitive or schema. Retain exact owner/source/guard-node identity across all predicate bindings before issuing opaque occurrence handles. Predicate aliases or altered authored position cannot duplicate a physical SEND guard. Failed overlap leaves a legitimate distinct site bindable. Correct current producer comments to require membership observation before claim. State/Work clean emissions and affected35/35 plus27/27 pass; Compiler owns the sole actual DTO→installed checker check. Other unchanged outcomes are reused.
 
 Proposed durable membership disclosure must use existing scenario outcomes/child associations with Compiler-owned return/query/control/lazy closure and a defining membership dependency/observation family. Commit-only callGuards disappear durably and cannot certify saved dependencies. Original multi-subject privacy needs a coherent Identity fence: existing projection deliberately withholds authorityFacts.size>1. This remains a prerequisite, not acceptance through a single-subject fixture or repeated non-atomic reads. State's retention/reader/projection extension is blocked on those exact producer facts.
+
+
+## 2026-10-10 — keep bounded disclosure traversal within the normal stack
+
+Split heavy expression arms from the recursive dispatch frame so the existing
+depth64 guard returns its normal refusal before stack exhaustion. Preserve
+source admission, counters and evaluation/path order; retain the original flat
+80-term regression. Existing library154 and decision6 pass on the default stack.
+Do not lower the supported bound, enlarge the stack or skip the crashing case.

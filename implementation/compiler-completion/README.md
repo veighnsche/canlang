@@ -2480,3 +2480,13 @@ intake requires lowercase team. Coordinator assigned the exact correction to
 State. SKIP membership transport activation pending that release and Dev private
 source/frame/stage facade; Compiler will consume exact owning repair. No duplicate
 State patch, purity change, replay or hoist. Precise BDD3/Task22 holds remain.
+
+
+**Owning disclosure depth correction, 2026-10-10.**
+The first changed-source full run exposes a real SIGABRT in the existing flat
+80-term depth test. The debug expression match retained about32KB per recursion,
+overflowing before its depth64 guard. Extract Member/Array/Binary bodies into
+smaller helpers; preserve the guard, counters, source admission, left-to-right
+path traversal and exact expression closure depth bound refusal. All existing
+library154 and decision6 cases pass with the default test stack. No stack-size
+bypass or skipped body. Strict all-target Clippy/format0; full checks follow coherent save.
