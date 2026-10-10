@@ -1243,6 +1243,7 @@ interface StateInvokeProducer {
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
   readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
+  readonly bindScenarioReceiptQueryProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer;
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
@@ -1569,6 +1570,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['stageScenarioReceiptSend'] !== 'function' ? {} : {
         stageScenarioReceiptSend: scenarioMod['stageScenarioReceiptSend'] as NonNullable<StateInvokeProducer['stageScenarioReceiptSend']>,
+      }),
+      ...(typeof scenarioMod['bindScenarioReceiptQueryProducer'] !== 'function' ? {} : {
+        bindScenarioReceiptQueryProducer: scenarioMod['bindScenarioReceiptQueryProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptQueryProducer']>,
       }),
       ...(typeof scenarioMod['bindScenarioReceiptCallProducer'] !== 'function' ? {} : {
         bindScenarioReceiptCallProducer: scenarioMod['bindScenarioReceiptCallProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptCallProducer']>,
@@ -2838,6 +2842,29 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
   }
 }
 
+/** Query authority comes from the checked source module and actual same-load
+ * viewer policy. A claimed descriptor cannot opt into a provisional host read. */
+async function bindNativeScenarioQueries(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  for (const value of loaded.registry.values()) {
+    const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
+    if (def === undefined || !plan?.queries?.length) continue;
+    const bind = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
+    if (bind === undefined || loaded.valueSchema === undefined) {
+      throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer and owning Values schema.');
+    }
+    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
+      entry.module === plan.source.module);
+    if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario query lacks its exact owning callable.');
+    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const where = `Scenario query ${JSON.stringify(def.name)}`;
+    const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
+    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
+    if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
+    bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'] });
+  }
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -2991,6 +3018,7 @@ export async function loadCanonicalDescriptors(
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
   await bindNativeScenarioCalls(asm, artifact, canonical);
+  await bindNativeScenarioQueries(asm, artifact, canonical);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }) });
   return canonical;
@@ -3883,6 +3911,20 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
   }
   bindNativeRecord(record, modelName, row.id, row.version);
   return freezeScenarioSnapshot(record) as Record<string, unknown>;
+}
+
+/** Native query fields read the literal State candidate carrier only when
+ * authored source evaluates them. Enumeration never hydrates protected data. */
+function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row: ProjectedRecord,
+  read: (field: string) => void, current: () => ProjectedRecord): Readonly<Record<string, unknown>> {
+  const view: Record<string, unknown> = Object.create(null);
+  for (const field of Object.keys(row.data)) Object.defineProperty(view, field, { enumerable: true, get: () => {
+    read(field);
+    return nativeRecordField(loaded, model, field, current().data[field]);
+  } });
+  Object.assign(view, nativeRecordMetadata(row));
+  bindNativeRecord(view, model, row.id, row.version);
+  return Object.freeze(view);
 }
 
 /** This private control is not an executor option or a public context factory. */
@@ -5085,6 +5127,11 @@ async function runScenarioExecution(
         if (type === 'void') { if (wire !== null) return refuseRecordBinding('Void child returned nonvoid wire.'); return undefined; }
         if (type === undefined) return refuseRecordBinding('Child result lacks its owning scalar type.');
         return decodeCanonicalValue(loaded.valueSchema, type, wire);
+      }, {
+        // Query candidates stay separate from admitted/current owner rows. Never
+        // register a viewer projection as a raw StoredRow or reconstruct one.
+        record: (model, row, read, current) => nativeScenarioQueryRecord(loaded, model, row, read, current),
+        encode: value => scenarioResult(call, loaded, value),
       });
   }
   for (const ref of call.recordRefs ?? []) {
@@ -5193,7 +5240,7 @@ async function runScenarioExecution(
   }
   scenarioReceiptFrame?.assertCompleted();
   if (ownerSession !== undefined) {
-    const result = scenarioResult(call, loaded, outcome.value);
+    const result = scenarioReceiptFrame?.queryResult(outcome.value)?.wire ?? scenarioResult(call, loaded, outcome.value);
     if (child !== undefined) {
       if (fileAssignments.size !== 0 || deferredEffects.length !== 0 || servedReadings.length !== 0) {
         return refuseRecordBinding('Child scenario effect profile requires an unreleased join.');
