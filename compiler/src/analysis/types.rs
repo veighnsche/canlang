@@ -458,7 +458,7 @@ pub enum CheckedChoiceValue {
 
 /// Authored query positions retained by the actual type checker. These facts
 /// describe checked source; they do not attest native query execution.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckedQuery {
     pub node: NodeKey,
     pub domain: NodeKey,
@@ -469,7 +469,7 @@ pub struct CheckedQuery {
     pub projection: Option<Box<CheckedQueryProjection>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckedQueryProjection {
     pub node: NodeKey,
     pub contract: SymbolId,
@@ -479,7 +479,7 @@ pub struct CheckedQueryProjection {
     pub fields: Vec<CheckedQueryProjectionField>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckedQueryProjectionField {
     pub field: SymbolId,
     /// Authored value expression or the shorthand key token.
@@ -495,7 +495,7 @@ pub enum CheckedQueryProjectionMapping {
     DirectField { field: SymbolId },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckedQueryClause {
     /// The actual clause node is also the declaration identity of an `as` alias.
     pub node: NodeKey,
@@ -515,7 +515,7 @@ pub enum CheckedQueryClauseKind {
 
 /// Actual selected collection builtin and its checked external predicate.
 /// This retains authored source positions; it grants no native query execution.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckedCollectionCall {
     pub node: NodeKey,
     pub builtin: String,
@@ -526,7 +526,7 @@ pub struct CheckedCollectionCall {
     pub predicate: Option<CheckedCollectionPredicate>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckedCollectionPredicate {
     pub node: NodeKey,
     pub ty: ResolvedType,
