@@ -129,7 +129,7 @@ export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
 /** L3 canonical invocation callable (admission + commit + projection). */
 export interface OperationInvoker {
   invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
-  /** Current-authority saved CRUD outcome only; never executes an unseen identity. */
+  /** Current-authority saved checked CRUD/scenario outcome only; never executes an unseen identity. */
   invokeRetainedMutation?(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
 }

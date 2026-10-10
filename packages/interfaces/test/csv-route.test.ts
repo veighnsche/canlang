@@ -23,7 +23,7 @@ import {
   verifyEmail,
 } from '@canlang/identity';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
-import type { ArtifactOperation } from '@canlang/contracts';
+import type { ArtifactOperation, MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
 import { catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
 import { handleAuthRequest } from '../src/http/auth.js';
 import { mintOperationId } from '../src/http/context.js';
@@ -50,10 +50,10 @@ const CSV_ISSUE: ArtifactOperation = {
 const SLICE = { artifact_version: ARTIFACT_VERSION, operations: [CSV_ISSUE] };
 const OPERATION = 'Billing.Invoice.issue';
 
-async function csvRouteDeps(overrides: Parameters<typeof createTestDeps>[0] = {}) {
+async function csvRouteDeps(overrides: Parameters<typeof createTestDeps>[0] = {}, slice = SLICE) {
   const t = await createTestDeps(overrides);
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(SLICE) };
+  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(slice) };
   const sub: HttpSubHandlers = {
     operations: (req, op) => handleOperationRequest(deps, req, op),
     auth: (req) => handleAuthRequest(deps, req),
@@ -296,6 +296,64 @@ test('FP.CSV-DISPATCH: repeat commits replay-safe; duplicate batch ids reject be
   assert.equal(dup.status, 400);
   assert.match(((await dup.json()) as { message: string }).message, /Duplicate operation_id/);
   assert.equal(t.invoker.mutations.length, before);
+});
+
+test('FP.CSV-DISPATCH: expired scenarios use dedicated recovery in original row order', async () => {
+  // Mounted transport component; canonical saved-receipt authority and
+  // effect refusal remain with the existing owning producer checks.
+  const operation: ArtifactOperation = { ...CSV_ISSUE, kind: 'scenario' };
+  const t = await csvRouteDeps({ mutations: { [OPERATION]: envelope => ({
+    result: { status: 'committed', operation_id: envelope.operation_id, result: null },
+  }) } }, { ...SLICE, operations: [operation] });
+  const retained: Array<{ envelope: MutationEnvelope; identity: ResolvedIdentity }> = [];
+  const recover = async (envelope: MutationEnvelope, identity: ResolvedIdentity) => {
+    retained.push({ envelope, identity });
+    const customer = envelope.inputs['customer'];
+    if (customer === 'changed' || customer === 'unseen') return { error: {
+      code: customer === 'changed' ? 'conflict' as const : 'not_found' as const,
+      message: 'Saved outcome unavailable.', retryable: false,
+    } };
+    return { result: { status: 'replayed' as const, operation_id: envelope.operation_id, result: null } };
+  };
+  t.deps.invoker.invokeRetainedMutation = recover;
+  const csv = 'customer,count\nold-match,1\nchanged,1\nunseen,1\nfresh,1\nfuture,1\ninvalid,bogus\nold-match,1\nmalformed,1';
+  const review = await reviewOk(t, csv);
+  assert.equal(retained.length, 0);
+  assert.equal(t.invoker.mutations.length, 0);
+  const selections = review.rows.map(row => ({ index: row.index,
+    operation_id: row.index === 7 ? 'not-a-uuid' : mintOperationId(Date.now() +
+      (row.index === 3 ? 0 : row.index === 4 ? 10 * 60 * 1000 : -25 * 60 * 60 * 1000)),
+  }));
+  const response = await t.http(postJson('/api/csv/commit', t.identity.cookie, t.csrf, {
+    operation: OPERATION, csv, consent: review.consent, rows: [...selections].reverse(),
+  }));
+  assert.equal(response.status, 200);
+  const outcome = await response.json() as CsvCommitOutcome;
+  assert.deepEqual(outcome.rows.map(row => row.index), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(outcome.rows.map(row => row.status), ['committed', 'failed', 'failed', 'committed', 'failed', 'invalid', 'duplicate', 'failed']);
+  assert.equal(outcome.rows[1]!.error!.code, 'conflict');
+  assert.equal(outcome.rows[2]!.error!.code, 'not_found');
+  assert.equal(outcome.rows[4]!.error!.message, 'operation_id is from the future.');
+  assert.equal(outcome.rows[6]!.duplicate_of, 0);
+  assert.equal(outcome.rows[7]!.error!.message, 'Invalid operation_id.');
+  assert.deepEqual(retained.map(call => call.envelope), [0, 1, 2].map(index => ({
+    operation: OPERATION, operation_id: selections[index]!.operation_id, inputs: review.rows[index]!.inputs,
+  })));
+  assert.ok(retained.every(call => call.identity.actor?.user_id === t.identity.userId));
+  assert.equal(t.invoker.mutations.length, 1);
+  assert.deepEqual(t.invoker.mutations[0]!.envelope.inputs, { customer: 'fresh', count: '1' });
+  for (const unavailable of [undefined, null, false, 'not-callable', {}]) {
+    Object.defineProperty(t.deps.invoker, 'invokeRetainedMutation', { value: unavailable, configurable: true, writable: true });
+    const refused = await t.http(postJson('/api/csv/commit', t.identity.cookie, t.csrf, {
+      operation: OPERATION, csv, consent: review.consent, rows: [selections[0]],
+    }));
+    assert.equal(refused.status, 200);
+    const result = await refused.json() as CsvCommitOutcome;
+    assert.equal(result.rows[0]!.status, 'failed');
+    assert.equal(result.rows[0]!.error!.message, 'Expired operation_id.');
+  }
+  assert.equal(retained.length, 3);
+  assert.equal(t.invoker.mutations.length, 1);
 });
 
 test('FP.CSV-DISPATCH: unknown CSV subpaths are not_found; unmounted CSV stays not_found', async () => {

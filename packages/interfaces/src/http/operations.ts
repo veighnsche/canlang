@@ -378,14 +378,19 @@ export async function handleOperationRequest(
 
     const idError = validateOperationId(operationId, deps.clock);
     let derived: DerivedOperationInputs | null | undefined;
+    let retainedScenario = false;
     if (idError !== null) {
-      // Only checked CRUD has the current-authority saved-outcome join.
+      // Checked scenarios use the dedicated current-authority saved-outcome
+      // join for expired identities only; fresh and future routing stay intact.
       // Preserve ordinary fresh and malformed-ID demand order; consult the
       // catalog here only when the original age gate would refuse.
       if (validateOperationIdShape(operationId) === null) {
         derived = deps.catalog.derivedFor?.(operation) ?? null;
       }
-      if (derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
+      retainedScenario = derived?.kind === 'scenario' && idError.message === 'Expired operation_id.' &&
+        !Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) &&
+        typeof deps.invoker.invokeRetainedMutation === 'function';
+      if (!retainedScenario && derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
         return denyOrRerender(deps, request, operation, idError, seen, authed);
       }
     }
@@ -457,7 +462,7 @@ export async function handleOperationRequest(
       now: new Date(deps.clock.nowMs()).toISOString(),
     });
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
-    const outcome = retainedBinding
+    const outcome = retainedBinding || retainedScenario
       ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
       : await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {
