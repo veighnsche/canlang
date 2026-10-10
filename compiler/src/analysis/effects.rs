@@ -254,6 +254,12 @@ pub enum HandlerSource {
     ScenarioCompleted { scenario: SymbolId },
     /// Delivery completion: `on=Cap.op.completed`.
     DeliveryCompleted { capability: SymbolId, op: SymbolId },
+    /// Checked standard terminal source; source checking does not enroll a handler.
+    StdDeliveryCompleted {
+        capability: String,
+        op: String,
+        source: String,
+    },
     /// Checked original-operation progress: `on=Cap.op.progressed`.
     DeliveryProgressed { source: String },
     /// Unresolved or invalid source (`source` is the trimmed source slice;
@@ -2872,6 +2878,17 @@ impl<'a> Cx<'a> {
         if let Some(source) = self.types.delivery_progress_handlers.get(&NodeKey::of(on)) {
             return HandlerSource::DeliveryProgressed {
                 source: source.clone(),
+            };
+        }
+        if let Some(completion) = self
+            .types
+            .std_delivery_completion_handlers
+            .get(&NodeKey::of(on))
+        {
+            return HandlerSource::StdDeliveryCompleted {
+                capability: completion.capability.clone(),
+                op: completion.op.clone(),
+                source: completion.source.clone(),
             };
         }
         let segments = path_segments(on, text);
