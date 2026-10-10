@@ -27,10 +27,10 @@ use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard,
-    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrOwner,
-    IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
-    TypedExpr, expr_uses_async, is_structural, scalar_family,
+    IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEffectCallTarget, IrEventSource, IrExpr,
+    IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated,
+    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
+    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
 use crate::diagnostic::Diagnostic;
@@ -1878,6 +1878,7 @@ pub struct Emitter<'a> {
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
     native_call_sites: HashMap<SymbolId, Vec<super::scenario_calls::StaticScenarioCall>>,
+    receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
     receipt_calls: Vec<Span>,
 }
@@ -1928,6 +1929,7 @@ impl<'a> Emitter<'a> {
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
             native_call_sites: HashMap::new(),
+            receipt_call_sites: Vec::new(),
             receipt_capture: None,
             receipt_calls: Vec::new(),
         };
@@ -4662,9 +4664,9 @@ impl<'a> Emitter<'a> {
             }
             IrStmt::Call {
                 target,
-                inputs: _,
-                binding: _,
-                result: _,
+                inputs,
+                binding,
+                result,
                 span,
             } => {
                 let operation = target
@@ -4680,6 +4682,42 @@ impl<'a> Emitter<'a> {
                     ),
                     *span,
                 );
+                // Prepare only the exact active parent's checked static
+                // occurrence. Publication remains refused until the genuine
+                // verified owner-transaction producer is released.
+                if self.receipt_capture.is_some()
+                    && self.hook.is_none()
+                    && binding.is_none()
+                    && let IrEffectCallTarget::Operation { operation, .. } = target
+                {
+                    let mut matches = self.receipt_call_sites.iter().filter(|site| {
+                        site.span == *span
+                            && site.operation == *operation
+                            && match (&site.result, result) {
+                                (super::scenario_calls::CallResultFact::Void, None) => true,
+                                (
+                                    super::scenario_calls::CallResultFact::Scalar(expected),
+                                    Some(actual),
+                                ) => expected == actual,
+                                _ => false,
+                            }
+                    });
+                    let site = matches.next().cloned();
+                    if matches.next().is_none()
+                        && let Some(site) = site
+                    {
+                        self.stdlib.insert("invokeScenarioReceiptCall".to_string());
+                        let inputs = self.lower_expr(inputs);
+                        return vec![(
+                            format!(
+                                "{pad}await invokeScenarioReceiptCall(c,{},{},{inputs});",
+                                js_string(&site.id),
+                                js_string(&site.target)
+                            ),
+                            *span,
+                        )];
+                    }
+                }
                 vec![(
                     format!(
                         "{pad}throw new Error({});",
@@ -9490,6 +9528,11 @@ impl<'a> Emitter<'a> {
                     }
                     self.receipt_calls.clear();
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
+                    self.receipt_call_sites = self
+                        .native_call_sites
+                        .get(&item.id)
+                        .cloned()
+                        .unwrap_or_default();
                     out.push(
                         item.span,
                         Some(item.canonical.clone()),
@@ -9572,6 +9615,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.receipt_capture = None;
+                    self.receipt_call_sites.clear();
                     self.receipt_calls.clear();
                     out.push(item.span, Some(item.canonical.clone()), "},");
                     self.exit_scope();
