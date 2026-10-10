@@ -156,7 +156,8 @@ function artifactType(field: ArtifactModelField, models: readonly ArtifactModel[
   const tag = field.field;
   const primitive = ({ string: 'text', integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
     boolean: 'bool', date: 'date', duration: 'duration', user: 'user' } as Record<string, string>)[tag.kind];
-  const base = primitive ?? (tag.kind === 'ref' ? tag.model : tag.kind === 'enum' ? `enum(${tag.values.join(',')})` : undefined);
+  const base = primitive ?? (tag.kind === 'ref' ? tag.model : tag.kind === 'enum' ? `enum(${tag.values.join(',')})`
+    : tag.kind === 'nominal' ? tag.name : undefined);
   if (base === undefined) return fail('unsupported owning query field.');
   const type = checkedType(field.valueType ?? `${base}${field.array === undefined ? '' : '[]'}${field.nullable === true ? '?' : ''}`, true);
   const parsed = parseTypeId(type);
@@ -165,6 +166,10 @@ function artifactType(field: ArtifactModelField, models: readonly ArtifactModel[
   if (tag.kind === 'ref') {
     if (leaf !== tag.model || !models.some(model => model.name === tag.model) ||
         schema && (Object.hasOwn(schema.contracts, leaf) || Object.hasOwn(schema.enums, leaf) || Object.hasOwn(schema.aliases ?? {}, leaf))) fail('actual native model reference required.');
+  } else if (tag.kind === 'nominal') {
+    if (parsed.base.kind !== 'nominal' || leaf !== tag.name || schema === undefined ||
+        !Object.hasOwn(schema.enums, leaf) || Object.hasOwn(schema.contracts, leaf) ||
+        Object.hasOwn(schema.aliases ?? {}, leaf) || models.some(model => model.name === leaf)) fail('exact owning nominal enum required.');
   } else if (tag.kind === 'enum') {
     if (parsed.base.kind === 'enum') { if (!same(parsed.base.cases, tag.values)) fail('enum cases disagree.'); }
     else if (parsed.base.kind !== 'nominal' || schema === undefined || !Object.hasOwn(schema.enums, leaf) || !same(schema.enums[leaf]!.cases, tag.values)) fail('exact owning nominal enum required.');

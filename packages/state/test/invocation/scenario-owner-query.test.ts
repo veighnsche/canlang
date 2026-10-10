@@ -2,7 +2,9 @@
  * invoke's existing owner frame. These do not qualify generated Compiler code. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CanTypeId, ClosedInputs, Receipt, StoredRow } from '@canlang/contracts';
+import type { ArtifactModel, CanTypeId, ClosedInputs, Receipt, StoredRow } from '@canlang/contracts';
+import { normalizeValueTypes } from '@canlang/values';
+import { checkQueryInventory } from '../../src/invocation/scenario-query-plan.js';
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTable } from '../../src/mutation/models.js';
@@ -359,7 +361,7 @@ test('original seven-field Fact profile binds genuine child query slots, bounds 
         { name: 'title', field: { kind: 'string' }, valueType: 'text', required: true, serverOnly: false, trim: true, min: 1, max: 2000 },
         { name: 'description', field: { kind: 'string' }, valueType: 'text?', required: false, serverOnly: false, nullable: true, max: 8000 },
         { name: 'due', field: { kind: 'datetime' }, valueType: 'datetime?', required: false, serverOnly: false, nullable: true },
-        { name: 'priority', field: { kind: 'enum', values: ['low', 'normal', 'high'] }, valueType: priorityType, required: true, serverOnly: false },
+        { name: 'priority', field: { kind: 'nominal', name: priorityType }, valueType: priorityType, required: true, serverOnly: false },
         { name: 'done', field: { kind: 'boolean' }, required: true, serverOnly: false },
         { name: 'location', field: { kind: 'ref', model: locationModel }, required: true, serverOnly: false },
       ] },
@@ -478,6 +480,38 @@ test('original seven-field Fact profile binds genuine child query slots, bounds 
     }
     assert.equal(predicates, 3);
   }
+});
+
+test('query inventory admits exact compiler nominal enums and refuses absent, foreign or skewed owners', () => {
+  const priority = 'todo.Task.priority' as CanTypeId, foreign = 'other.Task.priority' as CanTypeId;
+  const plan = { version: 1 as const, source: source(), returns: [], queries: [{
+    id: 'priorities', source: source(), model: asModel('todo.Task'), order: [], limit: null, archived: 'exclude' as const,
+    dependencies: [{ id: 'priority', source: source(), role: 'data' as const, field: 'priority', type: priority }],
+  }] };
+  const models: ArtifactModel[] = [{ name: 'todo.Task', deleteMode: 'archive', fields: [{
+    name: 'priority', field: { kind: 'nominal', name: priority }, valueType: priority, required: true, serverOnly: false,
+  }] }];
+  const schema = normalizeValueTypes({ contracts: [], enums: [
+    { name: priority, cases: ['low', 'normal', 'high'] },
+    { name: foreign, cases: ['low', 'normal', 'high'] },
+  ] }, ['todo.Task']).valueSchema;
+  assert.doesNotThrow(() => checkQueryInventory(plan, 'void' as CanTypeId, models, schema));
+  assert.throws(() => checkQueryInventory(plan, 'void' as CanTypeId, models), /exact owning nominal enum/);
+  for (const missing of [
+    { contracts: [], enums: [{ name: foreign, cases: ['low', 'normal', 'high'] }] },
+    { contracts: [{ name: priority, fields: [] }] },
+    { contracts: [], aliases: [{ name: priority, type: 'text', min: 1, max: 64, format: 'name' }] },
+  ]) assert.throws(() => checkQueryInventory(plan, 'void' as CanTypeId, models,
+    normalizeValueTypes(missing, ['todo.Task']).valueSchema), /exact owning nominal enum/);
+  const field = models[0]!.fields[0]!;
+  field.field = { kind: 'nominal', name: foreign };
+  assert.throws(() => checkQueryInventory(plan, 'void' as CanTypeId, models, schema), /exact owning nominal enum/);
+  field.field = { kind: 'nominal', name: priority }; field.valueType = foreign;
+  assert.throws(() => checkQueryInventory(plan, 'void' as CanTypeId, models, schema), /exact owning nominal enum/);
+  field.valueType = priority; field.nullable = true;
+  assert.throws(() => checkQueryInventory(plan, 'void' as CanTypeId, models, schema), /markers disagree/);
+  delete field.nullable; field.field = { kind: 'enum', values: ['normal', 'low', 'high'] };
+  assert.throws(() => checkQueryInventory(plan, 'void' as CanTypeId, models, schema), /exact owning nominal enum/);
 });
 
 test('owning loader refuses a metadata-named direct query dependency before empty-domain authority can be claimed', () => {
