@@ -157,6 +157,21 @@ locator and current caller/physical receiver correspondence. Shared reference
 retention additionally needs complete committed slots and a host fence through
 byte deletion; the single attachment marker cannot establish that contract.
 
+The current D1 State plus separate `files.sqlite` profile does not support
+shared-reference physical deletion. The selected implementation direction is
+permanent durable retirement in the authoritative State owner: the complete
+census, its original revision and installed declaration correspondence must
+admit retirement under one State fence. Every subsequent live-reference writer,
+migration publication and schema activation must honor that admission barrier.
+Packages consumes the exact persisted issuer and immutable physical File
+identity before terminal metadata and byte deletion in the Files transaction;
+Dev supplies complete owner/store routing and interruption/reopen recovery.
+Those State, Files and host primitives remain absent. An awaited census,
+revision revalidation, ordinary decision DTO or process-local mutex cannot
+substitute for them. Existing low-level sweeps retain their Files-local scope;
+the decision does not activate a cross-store cleanup path or change retention
+policy, engines, native preparation or publication holds.
+
 ## Scripts
 
 From the repository root, after `bun install --frozen-lockfile`:

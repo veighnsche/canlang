@@ -7272,3 +7272,55 @@ Expose readSystemCommandRetainedOutbox through the existing State root/ports sur
 ### 2026-10-10 — manual local integration of 3000bc8c
 
 Finite independent and manual review CLEAR for original retained outbox access through the private actual stage ledger and existing tracked owner-store outboxGet. Reuse owning State clean emission and25 affected checks106.78ms, zero failures/skips. Five-key context/canonical-send shape, copied/foreign/closed/pending reader refusal, original revision commit fence and retained publication facts remain. This releases a State source prerequisite only; Work issuer, checked Compiler executable projection, Dev native intake and real provider authentication/correlation remain unfinished. Included physical deletion prerequisite is an observed absent cross-store authority, not a wrapper or runtime acceptance. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+### 2026-10-10 — select durable retirement for cross-store File deletion (unfinished)
+
+Select permanent retirement admission in the authoritative State owner while
+preserving the actual D1 State plus separate `files.sqlite` topology. A common
+transaction would require an unreleased backend/topology change; a revision
+observation, single attachment marker or process-local mutex cannot protect
+physical deletion. The current profile remains unsupported for shared-reference
+physical deletion until the named primitives below are implemented and qualified.
+
+Capability State owns publication of genuine persistent retirement identity at
+the same atomic fence as the complete canonical reference census's original
+revision and installed declaration correspondence. Every reference-changing
+`StoragePort.commit` and `publishMigrationChunk` must honor the barrier at its
+actual storage commit; previously staged migration rows must recheck it when
+published. `flipInstalledSnapshot` must establish that activation cannot
+reinterpret existing values into retired File references, or refuse. The census
+includes nested, collection, optional/nullable and archived occurrences. Legacy
+writers lacking the checked profile cannot bypass the guard. A racing writer
+either wins first and invalidates the original census, or loses to retirement
+without partial effects. Retry preserves the original durable decision; retirement
+does not expire or reopen. Existing retention policy still determines eligibility.
+
+Packages owns the shared/Files consumer after State's exact producer release:
+authenticate the persisted issuer after reopen, bind app/team/State owner to the
+trusted physical Files receiver/store and immutable original File identity,
+then persist terminal metadata plus delete bytes in the existing Files
+transaction. Copied DTOs and process-local observation handles prove no durable
+issuance. Wrong-store, altered or stale physical correspondence refuses before
+effects. A crash after State retirement resumes idempotent cleanup with the
+admission barrier closed. Dev owns complete writer/deleter participation, exact
+physical owner routing and genuine D1/SQLite contention/interruption/reopen
+qualification. All reference writers for a physical File must resolve to the
+same authoritative State store; another owner pin or copied database cannot
+substitute for its durable issuer. A profile spanning additional State stores
+remains unsupported without admission atomic with every affected commit. No
+unnamed deployment worker supplies the primitive. This does not promise revocation of detached bytes or atomic return-time disclosure.
+
+The human approved three exact topology/deletion Choice payloads to TypeSafe;
+each completed once with JEV1.13.0. All selected durable retirement with probability
+0.99/0.88/1.0 and confidence0.98/0.82/1.0, without rationale. Advice supports the
+direction, not implementation acceptance. Two finite independent source reviews
+identified required migration, activation, legacy, scope and reopened-issuer
+coverage; these remain named prerequisites in existing TECH-F02 records. No
+runtime API or producer is fabricated and unchanged checks are reused. The
+authenticated provider namespace/key/age and durable occurrence/original
+delivery/digest/operation/receiving-effect contract remains separately unreleased.
+All parent statuses and precise holds remain unchanged; manual integration pending.
+
+### 2026-10-10 — manual local integration of b5ca7781
+
+Finite independent and manual review CLEAR for the necessary TECH-F02 durable retirement direction. Preserve D1 plus separate files.sqlite and explicitly unsupported current shared-reference deletion. Capability State must release persisted retirement at the same atomic census/original revision/installed declaration fence and guard every writer, pre-staged migration publication and schema activation. Packages consumes authentic reopened issuer and immutable physical identity in terminal Files metadata/bytes transaction; Dev owns same-authoritative-store routing and genuine contention/interruption/reopen checks. Three preauthorized Jev calls are completed advice, not runtime acceptance. No runtime checks repeated, new API fabricated, provider activation or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
