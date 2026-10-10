@@ -55,7 +55,7 @@ interface Ledger {
   teamSnapshot: string | null;
   readonly observations: Observation[];
 }
-const boundDefinitions = new WeakSet<GeneratedOperationDef>();
+const boundDefinitions = new WeakMap<GeneratedOperationDef, Set<string>>();
 const executions = new WeakMap<object, Ledger>();
 const fail = (message: string): never => { throw new StateError('validation', `Dispatch membership: ${message}`); };
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -73,16 +73,17 @@ function teamSnapshot(team: Team): string {
   return stableStringify({ team_id: text(value.team_id), timezone: text(value.timezone), created_at: text(value.created_at) });
 }
 
-/** Bind once before owning execution through the existing source/callable
+/** Bind each predicate once before owning execution through the existing source/callable
  * loader. The frozen Compiler v1 transport cannot activate source gates. */
 export function bindScenarioDispatchMembershipProducer<E extends object>(def: GeneratedOperationDef,
   ports: ScenarioDispatchMembershipPorts<E>): ScenarioDispatchMembershipProducer<E> {
   object(ports, ['source', 'app', 'predicate', 'sites', 'store', 'memberships', 'readExecution', 'registerRevalidation', 'admit', 'capture']);
-  if (boundDefinitions.has(def)) return fail('one owning loader binding required.');
   const source = object(ports.source, ['path', 'sha256', 'module']);
   const ownedSource = Object.freeze({ path: text(source.path), sha256: text(source.sha256), module: text(source.module) });
   assertScenarioReceiptMembershipSource(def, ownedSource);
   text(ports.app); const predicate = text(ports.predicate);
+  const predicates = boundDefinitions.get(def) ?? new Set<string>();
+  if (predicates.has(predicate) || predicates.size >= 200) return fail('one bounded owning binding per dispatch predicate required.');
   if ([ports.readExecution, ports.registerRevalidation, ports.admit, ports.capture, ports.store?.readRevision,
     ports.memberships?.findMembership].some(value => typeof value !== 'function')) return fail('literal execution/admission/reader ports required.');
   const plans = checkScenarioReceiptMembershipSites(ports.sites);
@@ -98,7 +99,7 @@ export function bindScenarioDispatchMembershipProducer<E extends object>(def: Ge
   // Retain literal ports; mutating the caller's binding object cannot replace them.
   const { store, memberships, readExecution, registerRevalidation, admit, capture } = ports;
   const owner = Object.freeze({});
-  boundDefinitions.add(def);
+  predicates.add(predicate); boundDefinitions.set(def, predicates);
   return Object.freeze({ sites: Object.freeze(sites), open(execution: E): ScenarioDispatchMembershipExecution {
     // Work authenticates this handle. A copy cannot identify any live execution.
     const context = readExecution(execution);
