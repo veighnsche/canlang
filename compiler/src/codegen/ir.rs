@@ -3489,6 +3489,7 @@ impl<'a> Cx<'a> {
         // Returns the typed expression: the checked type wins, table
         // inference fills gaps the types pass never sees.
         let mut fields = Vec::new();
+        let mut field_spans = Vec::new();
         let mut current = node;
         loop {
             let parts = kids(current);
@@ -3498,6 +3499,7 @@ impl<'a> Cx<'a> {
                 .find_map(|n| name_text(self.db, n))
                 .unwrap_or_default();
             fields.push(field);
+            field_spans.push(current.span);
             let Some(base) = parts.iter().find(|n| is_expression(n.kind)) else {
                 break;
             };
@@ -3534,7 +3536,7 @@ impl<'a> Cx<'a> {
                 {
                     expr.expr = member_of("c", "actorFacts", &ResolvedType::Unknown, base.span);
                 }
-                for field in fields.iter().rev() {
+                for (field, field_span) in fields.iter().rev().zip(field_spans.iter().rev()) {
                     let inferred = self.member_ty(&expr.ty, field);
                     let field_ty = if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
                         ty.clone()
@@ -3551,7 +3553,7 @@ impl<'a> Cx<'a> {
                             field: field.clone(),
                         },
                         field_ty,
-                        node.span,
+                        *field_span,
                     );
                 }
                 return expr;
@@ -3830,9 +3832,67 @@ impl<'a> Cx<'a> {
         let domain_name = kids(domain_node)
             .into_iter()
             .find_map(|child| name_text(self.db, child));
+        let domain_matches = match fact.call {
+            Some(call) => {
+                domain_node.kind == SyntaxKind::NameRef
+                    && matches!(&base.expr, IrExpr::Name(actual) if Some(actual) == domain_name.as_ref())
+                    && self
+                        .program
+                        .types
+                        .effect_call_results
+                        .get(&call)
+                        .and_then(Option::as_ref)
+                        == Some(&source.domain_type)
+            }
+            None => {
+                let parts = kids(domain_node);
+                if domain_node.kind != SyntaxKind::Member || parts.len() != 3 {
+                    return false;
+                }
+                let Some(text) = self
+                    .db
+                    .get(domain_node.span.file)
+                    .map(|source| source.text.as_str())
+                else {
+                    return false;
+                };
+                if text.get(parts[1].span.start as usize..parts[1].span.end as usize) != Some(".") {
+                    return false;
+                }
+                let Some(ResolvedType::Record { symbol: owner, .. }) =
+                    self.program.types.node_types.get(&NodeKey::of(parts[0]))
+                else {
+                    return false;
+                };
+                let Some(SymbolKind::Contract { fields }) = self
+                    .program
+                    .symbols
+                    .get(owner.0 as usize)
+                    .map(|symbol| &symbol.kind)
+                else {
+                    return false;
+                };
+                let Some(name) = name_text(self.db, parts[2]) else {
+                    return false;
+                };
+                let Some(field) = fields.iter().find(|field| {
+                    self.program
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_some_and(|symbol| symbol.name == name)
+                }) else {
+                    return false;
+                };
+                matches!(self.program.symbols.get(field.0 as usize).map(|symbol| &symbol.kind),
+                    Some(SymbolKind::Field {owner: field_owner, ..}) if field_owner == owner)
+                    && self.program.types.symbol_types.get(field) == Some(&source.domain_type)
+                    && self.contract_collection_member_matches(domain_node, base)
+            }
+        };
         if source.node != fact.query
             || source.domain != fact.domain
             || alias.node != fact.alias
+            || !alias.expressions.is_empty()
             || source.domain_type != source.result
             || *ty != source.result
             || base.ty != source.domain_type
@@ -3847,16 +3907,9 @@ impl<'a> Cx<'a> {
             || query.archived.is_some()
             || query.select.is_some()
             || query.select_param.is_some()
-            || domain_node.kind != SyntaxKind::NameRef
             || base.span != domain_node.span
-            || !matches!(&base.expr, IrExpr::Name(actual) if Some(actual) == domain_name.as_ref())
-            || self
-                .program
-                .types
-                .effect_call_results
-                .get(&fact.call)
-                .and_then(Option::as_ref)
-                != Some(&source.domain_type)
+            || !domain_matches
+            || self.program.types.node_types.get(&fact.domain) != Some(&source.domain_type)
             || !matches!(query_element_ty(&source.result), ResolvedType::Record {symbol,..} if symbol == fact.contract)
             || self.program.types.checked_queries.get(&fact.query) != Some(source)
         {
@@ -3883,6 +3936,7 @@ impl<'a> Cx<'a> {
             || body.span != predicate_node.span
             || param != name
             || expr_uses_async(body)
+            || !self.contract_collection_predicate_is_finite(body)
             || self.program.types.node_types.get(&fact.predicate.node) != Some(&boolean)
         {
             return false;
@@ -3891,6 +3945,182 @@ impl<'a> Cx<'a> {
             return false;
         };
         query.contract_collection_call = Some(Box::new(fact.clone()));
+        true
+    }
+
+    /// Match the actual member value against its checked source chain. Nested
+    /// member spans may cover the whole chain, so use node types and structure.
+    fn contract_collection_member_matches(&self, node: &SyntaxNode, value: &TypedExpr) -> bool {
+        let mut pending = vec![(node, value)];
+        let mut visits = 0;
+        while let Some((node, value)) = pending.pop() {
+            visits += 1;
+            if visits > 4096
+                || self.program.types.node_types.get(&NodeKey::of(node)) != Some(&value.ty)
+            {
+                return false;
+            }
+            match node.kind {
+                SyntaxKind::Group => {
+                    let children: Vec<_> = kids(node)
+                        .into_iter()
+                        .filter(|child| is_expression(child.kind))
+                        .collect();
+                    let [inner] = children.as_slice() else {
+                        return false;
+                    };
+                    pending.push((*inner, value));
+                }
+                SyntaxKind::NameRef => {
+                    let name = kids(node)
+                        .into_iter()
+                        .find_map(|child| name_text(self.db, child));
+                    if !matches!(&value.expr, IrExpr::Name(actual) if Some(actual) == name.as_ref())
+                    {
+                        return false;
+                    }
+                }
+                SyntaxKind::Member => {
+                    let parts = kids(node);
+                    let IrExpr::Member { base, field } = &value.expr else {
+                        return false;
+                    };
+                    let Some(text) = self
+                        .db
+                        .get(node.span.file)
+                        .map(|source| source.text.as_str())
+                    else {
+                        return false;
+                    };
+                    if parts.len() != 3
+                        || text.get(parts[1].span.start as usize..parts[1].span.end as usize)
+                            != Some(".")
+                        || name_text(self.db, parts[2]).as_ref() != Some(field)
+                    {
+                        return false;
+                    }
+                    pending.push((parts[0], base));
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
+    /// Only genuine checked nested any/all calls extend the finite synchronous
+    /// predicate profile. Their query and lambda retain their own source joins.
+    fn contract_collection_predicate_is_finite(&self, body: &TypedExpr) -> bool {
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let mut pending = vec![body];
+        let mut visits = 0;
+        while let Some(value) = pending.pop() {
+            visits += 1;
+            if visits > 4096 {
+                return false;
+            }
+            match &value.expr {
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                    let IrCallTarget::Builtin { id, awaited: false } = target else {
+                        return false;
+                    };
+                    if !matches!(id.as_str(), "any" | "all")
+                        || value.ty != boolean
+                        || args.len() != 2
+                    {
+                        return false;
+                    }
+                    let Some(query) = args.iter().find_map(|arg| match &arg.expr {
+                        IrExpr::Query(query) => Some(query),
+                        _ => None,
+                    }) else {
+                        return false;
+                    };
+                    let Some(fact) = query.contract_collection_call.as_deref() else {
+                        return false;
+                    };
+                    let Some(selected) = self.program.types.selected_calls.get(&fact.node) else {
+                        return false;
+                    };
+                    let slots_match = match &value.expr {
+                        IrExpr::BoundCall { slots, .. } => {
+                            slots.as_slice() == [Some(fact.slots[0]), Some(fact.slots[1])]
+                        }
+                        IrExpr::Call { .. } => fact.slots == [0, 1],
+                        _ => false,
+                    };
+                    let Some(domain) = args.get(fact.slots[0]) else {
+                        return false;
+                    };
+                    let Some(predicate) = args.get(fact.slots[1]) else {
+                        return false;
+                    };
+                    let IrExpr::Query(actual_query) = &domain.expr else {
+                        return false;
+                    };
+                    let IrExpr::Lambda { param, body } = &predicate.expr else {
+                        return false;
+                    };
+                    let Some(source) = actual_query.source.as_deref() else {
+                        return false;
+                    };
+                    let [alias] = source.clauses.as_slice() else {
+                        return false;
+                    };
+                    if !slots_match
+                        || fact.builtin != *id
+                        || fact.slots[0] == fact.slots[1]
+                        || fact.arguments != selected.arguments
+                        || selected.slots.as_slice() != [Some(fact.slots[0]), Some(fact.slots[1])]
+                        || !matches!(&selected.target, SelectedCallTarget::Builtin { id: actual, overload }
+                            if actual == id && *overload == fact.overload)
+                        || self
+                            .program
+                            .types
+                            .checked_contract_collection_calls
+                            .get(&fact.node)
+                            != Some(fact)
+                        || self.program.types.node_types.get(&fact.node) != Some(&boolean)
+                        || self
+                            .node(&fact.node)
+                            .is_none_or(|node| node.span != value.span)
+                        || actual_query.contract_collection_call.as_deref() != Some(fact)
+                        || self.program.types.checked_queries.get(&fact.query) != Some(source)
+                        || source.node != fact.query
+                        || source.domain != fact.domain
+                        || alias.node != fact.alias
+                        || !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if name == param)
+                        || predicate.ty != boolean
+                        || body.ty != boolean
+                        || fact.predicate.ty != boolean
+                        || self.program.types.node_types.get(&fact.predicate.node) != Some(&boolean)
+                    {
+                        return false;
+                    }
+                    let IrQueryDomain::Value { base, .. } = &actual_query.domain else {
+                        return false;
+                    };
+                    pending.push(base);
+                    pending.push(body);
+                }
+                IrExpr::Member { base, .. } => pending.push(base),
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(left);
+                    pending.push(right);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                IrExpr::Name(_)
+                | IrExpr::Int(_)
+                | IrExpr::Decimal(_)
+                | IrExpr::Text(_)
+                | IrExpr::Bool(_)
+                | IrExpr::Null
+                | IrExpr::Money { .. }
+                | IrExpr::DurationMs(_)
+                | IrExpr::Date(_)
+                | IrExpr::Datetime(_) => {}
+                _ => return false,
+            }
+        }
         true
     }
 

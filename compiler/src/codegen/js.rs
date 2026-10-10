@@ -1465,6 +1465,7 @@ fn emit_program_with_sources(
                 &models,
                 &module_path(&entry_name),
                 db,
+                emitter.value_types.as_ref(),
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
             }
@@ -2145,7 +2146,8 @@ impl<'a> Emitter<'a> {
                     | Scalar::Money
                     | Scalar::Date
                     | Scalar::Datetime
-                    | Scalar::Duration,
+                    | Scalar::Duration
+                    | Scalar::User,
                 ) => checked_value_profile(ty).is_some(),
                 // Declaration identity distinguishes a contract from a model;
                 // reused named-contract field types also carry `stored:true`.

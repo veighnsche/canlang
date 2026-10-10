@@ -6610,3 +6610,20 @@ Ordinary saved replay may retry the original attachment locator/ref only when it
 ### 2026-10-10 — manual local integration of Dev File component
 
 Manual capture/binding and saved-replay review CLEAR for Dev0bdf8287. Bind verified owning app/source and original host File port once; genuine opaque active-root observations follow final owner writes with locator-only effects and no duplicated authority. Ordinary replay repairs only an unambiguous original assignment authorized by full State projection, exact saved/current version and complete wire, after genuine physical revalidation; full State reprojection follows awaited repair. Dedicated retained-only writes no attachment metadata and non-File recovery gains no File access. Reuse five genuine SQLite/MemoryState/Identity groups, owning emissions and boundary0; common fixture774 is fixed by reviewed1d0/694. This is declaration-labelled component scope. Compiler279 original File source is integrated; Dev actual original native/D1/reopen/replay/current-authority journey and current G1 remain required. Preserve newer current State stored Input, Compiler any/all/File proof, portable Acorn/Files, common fixtures and accepted final-net decision; all precise holds and full plans remain unfinished. Reconcile coverage and decisions without advancing the complete checkpoint or publication.
+
+### 2026-10-10 — retain whole stored Input provenance through local comparison (unfinished original approve)
+
+Observe owning whole Step.input under the released canonical Contract codec;
+count and nested old/fresh predicates consume its local values without creating
+Fact row grants. Preserve exact inner member source spans, checked aliases/slots
+and genuine Complete child projection. A private bounded declaration/schema
+snapshot joins actual IR, constraints and source before native publication.
+Canonical Contract guards retain owning control dependencies; ordinary scalar
+guard pruning is unchanged. Original Input worker:user joins the actual emitted
+schema. Genuine generated CRUD/native comparison, rollback, stale versions,
+saved replay and revoked authority pass. Broad qualification currently has1408
+passes and two unchanged Dev non-File replay tripwire failures at invoke.ts5810;
+preserve both assertions and consume the exact owner repair. Coordinator
+acceptance and original member/pure/dynamic workflow remain unfinished. Continue
+the agreed committed-model source producer after this coherent local unit;
+BDD3/Task22 holds and58/67 remain unchanged.
