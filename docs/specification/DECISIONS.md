@@ -5886,3 +5886,7 @@ Intake reviewed LOCAL044b961a preserving all source and human holds; reconcile a
 ### 2026-10-10 — consume canonical named query enums (unfinished workflow)
 
 State query inventory now accepts Compiler nominal enum fields only with exact tag/valueType identity and an actual owning normalized enum, refusing absent/foreign/schema collisions and skewed markers. Preserve nominal producer output and normalized ordered cases; no blanket nominal support or inline rewrite. State clean emission passes3.23s; affected seven-field owner receipt and named-enum inventory checks2/2 pass125ms. Generated source query, lazy observation correspondence/native adapter and original workflow acceptance remain open.
+
+### 2026-10-10 — qualify installed cohort member-read failure (parent unfinished)
+
+Use the existing genuine compiled cohort and installed bound tick over native D1, with a finite selected-store member-load failure. Preserve visible failed/infra-read-failure with zero attempts/body/receipt/domain/history/outbox/schedule effects, independent healthy sibling completion, durable attention and exact no-effect replay after native reopen. CF clean emission passes3.56s; the changed exact case passes1/1 (4.45s total) after initial sandbox loopback EPERM and unchanged authorized local-listener rerun. Reuse existing boundary/routing/two-live results. This qualifies the faulty selected-store port, not a real D1 outage/provider profile or complete original roadmap.
