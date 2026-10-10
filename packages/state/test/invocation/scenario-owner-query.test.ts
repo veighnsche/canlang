@@ -5,6 +5,8 @@ import { test } from 'node:test';
 import type { ArtifactModel, CanTypeId, ClosedInputs, Receipt, StoredRow } from '@canlang/contracts';
 import { normalizeValueTypes } from '@canlang/values';
 import { checkQueryInventory } from '../../src/invocation/scenario-query-plan.js';
+import { projectReadScenarioQueryResult } from '../../src/invocation/index.js';
+import { queryRecords } from '../../src/query/engine.js';
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTable } from '../../src/mutation/models.js';
@@ -602,4 +604,41 @@ test('owning loader refuses a metadata-named direct query dependency before empt
       field: 'version', type: 'int' as CanTypeId }],
   }] } };
   assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), /metadata-named/);
+});
+
+
+test('fresh viewer projection preserves selected versions and fields without a receipt frame', async () => {
+  const w = await world();
+  const { records } = await queryRecords({ store: w.store, memberships: w.memberships, policy: w.policy,
+    model: MODEL, authority: 'viewer', context: { actorUserId: w.member.user.user_id, teamId: w.member.team.team_id },
+    order: [{ field: 'key', direction: 'asc' }], limit: 10 });
+  const plan = disclosure(), query = plan.queries[0]!, projection = plan.returns[0]!.projection;
+  const before = await domain(w);
+  const selected = records.filter(record => record.data['done'] === true);
+  const projected = projectReadScenarioQueryResult(projection, query, selected);
+  assert.deepEqual(projected, selected.map(record => ({ task: { id: record.id, version: String(record.version) },
+    version: String(record.version), key: record.data['key'] })));
+  assert.deepEqual(projectReadScenarioQueryResult(projection, query, []), []);
+  assert.deepEqual(await domain(w), before);
+  assert.throws(() => projectReadScenarioQueryResult({ ...projection, queryId: 'foreign' }, query, selected), stateError);
+  assert.throws(() => projectReadScenarioQueryResult({ ...projection, fields: [...projection.fields,
+    { name: 'missing', kind: 'field', field: 'missing' }] }, query, selected), stateError);
+  assert.throws(() => projectReadScenarioQueryResult(projection, { ...query, limit: 1 }, selected), stateError);
+  assert.throws(() => projectReadScenarioQueryResult(projection, { ...query, limit: 201 }, []), stateError);
+  assert.throws(() => projectReadScenarioQueryResult(projection, query, [selected[0]!, selected[0]!]), stateError);
+  for (const version of [0, -1, 1.5, '1']) {
+    assert.throws(() => projectReadScenarioQueryResult(projection, query,
+      [{ ...selected[0]!, version } as unknown as typeof selected[number]]), stateError);
+  }
+  for (const data of [{ done: true }, { key: 7 }]) {
+    assert.throws(() => projectReadScenarioQueryResult(projection, query, [{ ...selected[0]!, data }]), stateError);
+  }
+  let reads = 0;
+  const data = Object.defineProperty({}, 'key', { enumerable: true, get() { reads++; return 'a'; } });
+  assert.throws(() => projectReadScenarioQueryResult(projection, query, [{ ...selected[0]!, data }]), stateError);
+  assert.equal(reads, 0);
+  const output = projected as Array<{ key: string }>;
+  output[0]!.key = 'changed output';
+  assert.equal(selected[0]!.data['key'], 'a');
+  assert.deepEqual(await domain(w), before);
 });

@@ -205,3 +205,5 @@ export {
 } from './migration/index.js';
 
 export { transition, type TransitionContext } from './effects/transition.js';
+
+export { projectReadScenarioQueryResult } from './invocation/scenario-query-plan.js';
