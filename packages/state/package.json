@@ -7,15 +7,14 @@
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "files": [
-    "dist/",
-    "test/storage/do-test-worker.js"
+    "dist/"
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/state",
     "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/state",
     "clean": "rm -rf dist/",
-    "build:emit": "tsc -p tsconfig.json",
+    "build:emit": "tsc -p tsconfig.json && node scripts/build-do-test-worker.mjs",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
     "test:unit": "node --test \"dist/test/**/*.test.js\" \"dist/src/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
@@ -24,6 +23,7 @@
     "@canlang/identity": "workspace:*",
     "@cloudflare/workers-types": "5.20261004.1",
     "@types/node": "26.6.4",
+    "esbuild": "0.28.2",
     "miniflare": "4.20260730.0",
     "typescript": "5.9.3"
   },
@@ -268,7 +268,7 @@
       "types": "./dist/test/mutation/fixtures.d.ts",
       "default": "./dist/test/mutation/fixtures.js"
     },
-    "./testing/storage/do-test-worker": "./test/storage/do-test-worker.js",
+    "./testing/storage/do-test-worker": "./dist/test/storage/do-test-worker.js",
     "./effects/guards": {
       "types": "./dist/src/effects/guards.d.ts",
       "default": "./dist/src/effects/guards.js"

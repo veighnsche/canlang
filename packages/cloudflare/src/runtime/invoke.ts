@@ -120,7 +120,8 @@ import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioRece
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
-import { createCommittedModelSourceStager } from '@canlang/work';
+import { createCommittedModelSourceStager, createStandardCompletionSourceCommand, isConsistentCompletion } from '@canlang/work';
+import { enrollSystemCommandCommitCheck } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
@@ -2133,6 +2134,7 @@ async function assertReadScenarioPair(
 export interface LoadedCanonicalDescriptors {
   readonly registry: ReadonlyMap<string, unknown>;
   readonly committedChanges: ReadonlyMap<string, CheckedCommittedChange>;
+  readonly standardCompletions?: ReadonlyMap<string, CheckedStandardCompletion>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   /** Defining State attachments retain reference/containment identity without field tags. */
   readonly refs: ReadonlyMap<string, readonly { readonly field: string; readonly model: string }[]>;
@@ -2168,6 +2170,7 @@ const canonicalCache = new WeakMap<CompileArtifact, {
   scenarioAssembly?: AssembledModules;
   rowPolicyAssembly?: AssembledModules;
   committedAssembly?: AssembledModules;
+  completionAssembly?: AssembledModules;
 }>();
 
 const emittedSourceClaims = new WeakMap<object, Map<string, { readonly source: string; readonly claimed: boolean }>>();
@@ -3126,6 +3129,8 @@ export async function loadCanonicalDescriptors(
   const claimedScenario = claimsScenarioDisclosure(artifact);
   const claimedRowSource = requiresRowReadCorrespondence(artifact);
   const claimedCommitted = requiresCommittedSourceCorrespondence(artifact);
+  const claimedCompletion = claimsEmittedSourceProperty(artifact, 'standardCompletions') ||
+    canonicalCache.get(artifact)?.completionAssembly !== undefined;
   // An issued assembly must still match its captured artifact and complete
   // closure when a caller strips the visible policy/source claim.
   if (hasAssemblerModuleCapability(asm)) await verifyCheckedAssembly(asm, artifact);
@@ -3134,8 +3139,12 @@ export async function loadCanonicalDescriptors(
     rowPolicyAssemblies.set(artifact, asm);
   }
   if (claimedCommitted) await verifyCheckedAssembly(asm, artifact);
+  if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
+    if (claimedCompletion && cached.completionAssembly !== asm) {
+      throw new AssemblyCorrespondenceError('Standard completion requires its original checked assembly.');
+    }
     if (claimedCommitted && cached.committedAssembly !== asm) {
       throw new AssemblyCorrespondenceError('Committed model sources require their original checked assembly.');
     }
@@ -3291,16 +3300,23 @@ export async function loadCanonicalDescriptors(
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
     ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
+  if (claimedCompletion) {
+    Object.defineProperty(canonical, 'standardCompletions', {
+      value: await loadCheckedStandardCompletions(asm, artifact, canonical), enumerable: true,
+    });
+  }
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioQueries(asm, artifact, canonical);
   await bindNativeScenarioReferences(asm, artifact, canonical);
+  if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
     ...(rowPolicyAssembly === undefined ? {} : { rowPolicyAssembly }),
-    ...(claimedCommitted ? { committedAssembly: asm } : {}) });
+    ...(claimedCommitted ? { committedAssembly: asm } : {}),
+    ...(claimedCompletion ? { completionAssembly: asm } : {}) });
   return canonical;
 }
 
@@ -6305,6 +6321,306 @@ interface CheckedCommittedChange {
   readonly ownerPackage: string;
 }
 
+interface CheckedStandardCompletion {
+  readonly source: string;
+  readonly event: string;
+  readonly binding: string;
+  readonly from: string;
+  readonly resultType: string | null;
+  readonly ownerPackage: string;
+  readonly app: string;
+  readonly schema: SchemaDescriptor;
+  readonly normalized: NormalizedSchema;
+  readonly routes: CheckedCommittedChange['routes'];
+}
+
+/** Transport envelopes must already be closed wire data before Values fills
+ * nullable/default fields. Metadata or getter evaluation cannot supply facts. */
+function completionWireData(value: unknown): unknown {
+  let nodes = 0;
+  const active = new Set<object>();
+  const copy = (part: unknown, depth: number): unknown => {
+    if (++nodes > 20_000 || depth > 32) throw new Error('Completion exceeds its finite wire bound.');
+    if (part === null || typeof part === 'string' || typeof part === 'boolean' ||
+        typeof part === 'number' && Number.isFinite(part)) return part;
+    if (typeof part !== 'object' || active.has(part)) throw new Error('Completion requires own JSON wire data.');
+    active.add(part);
+    let result: unknown;
+    if (Array.isArray(part)) {
+      if (Object.getPrototypeOf(part) !== Array.prototype) throw new Error('Completion requires a plain dense array.');
+      result = nativeCallArray(part, 20_000).map((member, index) => {
+        if (Object.getOwnPropertyDescriptor(part, String(index))?.enumerable !== true) throw new Error('Completion requires enumerable own array members.');
+        return copy(member, depth + 1);
+      });
+    } else {
+      const own = localPolicyObject(part);
+      const fields: Record<string, unknown> = Object.create(null);
+      for (const key of Reflect.ownKeys(own)) {
+        const descriptor = Object.getOwnPropertyDescriptor(own, key)!;
+        if (typeof key !== 'string' || !descriptor.enumerable) throw new Error('Completion requires enumerable own wire fields.');
+        fields[key] = copy(descriptor.value, depth + 1);
+      }
+      result = fields;
+    }
+    active.delete(part);
+    return Object.freeze(result);
+  };
+  return copy(value, 0);
+}
+
+function checkedCompletionPayload(checked: CheckedStandardCompletion, payload: unknown) {
+  const own = localPolicyObject(completionWireData(payload), ['delivery_id', 'status', 'result', 'error']);
+  if (Reflect.ownKeys(own).length !== 4 || ['delivery_id', 'status', 'result', 'error'].some(key => !Object.hasOwn(own, key)) ||
+      typeof own.delivery_id !== 'string' || own.delivery_id === '' ||
+      !isConsistentCompletion(own.status, own.result, own.error)) throw new Error('Completion lost its exact terminal envelope.');
+  // Check original R before the event's added nullability can admit a null.
+  if (own.status === 'succeeded') {
+    if (checked.resultType === null) {
+      if (own.result !== null) throw new Error('Void completion carries a result.');
+    } else {
+      const result = validateValue(checked.normalized, checked.resultType, own.result, 'create');
+      if (stableStringify(encodeValue(checked.resultType, result)) !== stableStringify(own.result)) {
+        throw new Error('Completion result differs from its original canonical declaration.');
+      }
+    }
+  }
+  const captured = validateOperationInput(checked.normalized, checked.event, own);
+  const inputs = checked.schema.operations![checked.event]!.inputs;
+  const wire = Object.fromEntries(Object.entries(captured).map(([name, value]) => [name, encodeValue(inputs[name]!.type, value)]));
+  if (stableStringify(wire) !== stableStringify(own)) throw new Error('Completion wire fields differ from their full declared shape.');
+  return { inputs, captured };
+}
+
+/** Consume the single PRIVATE generated census, paired to actual callable
+ * bytes and the same installed model/value inventory. It grants no ingress. */
+async function loadCheckedStandardCompletions(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<ReadonlyMap<string, CheckedStandardCompletion>> {
+  await verifyCheckedAssembly(asm, artifact);
+  if (loaded.valueSchema === undefined || loaded.valueTypes === undefined) {
+    throw new AssemblyCorrespondenceError('Completion requires its same-load value inventory.');
+  }
+  const definitions = new Map<string, { definition: Record<string, unknown>; registry: Record<string, unknown> }>();
+  let census: unknown[] | undefined;
+  for (const module of artifact.modules) {
+    const imported = await importVerifiedAssemblyModule(asm, module.path, artifact);
+    const raw = privateSourceMember(imported, 'appDefinition');
+    if (raw === undefined) continue;
+    const definition = localPolicyObject(raw);
+    const carrier = localPolicyMember(definition, 'standardCompletions');
+    const registry = localPolicyObject(await importPolicyRegistry(asm, module.path, 'standard completion', artifact));
+    if (carrier !== localPolicyMember(registry, 'standardCompletions')) {
+      throw new AssemblyCorrespondenceError('Completion registry differs from its original private census.');
+    }
+    const published = carrier === undefined ? [] : nativeCallArray(completionWireData(carrier), 200);
+    if (census !== undefined && stableStringify(census) !== stableStringify(published)) {
+      throw new AssemblyCorrespondenceError('Completion modules disagree on their complete source census.');
+    }
+    census = published;
+    definitions.set(module.path, { definition, registry });
+  }
+  if (census === undefined || census.length === 0) throw new AssemblyCorrespondenceError('Completion source census is absent or empty.');
+  const result = new Map<string, CheckedStandardCompletion>();
+  const listed = new Set<string>();
+  for (const candidate of census) {
+    const declaration = localPolicyObject(candidate, ['source', 'event', 'binding', 'from', 'resultType', 'handlers']);
+    if (Object.keys(declaration).length !== 6) throw new AssemblyCorrespondenceError('Completion source declaration is incomplete.');
+    const { source, event, binding, from, resultType } = declaration;
+    if (typeof source !== 'string' || !/^std\.[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(source) ||
+        typeof event !== 'string' || typeof binding !== 'string' || typeof from !== 'string' || from === '' ||
+        resultType !== null && (typeof resultType !== 'string' || printTypeId(parseTypeId(resultType)) !== resultType) || result.has(event)) {
+      throw new AssemblyCorrespondenceError('Completion lacks its exact source/binding/result identity.');
+    }
+    const method = source.slice(source.lastIndexOf('.') + 1), capability = source.slice(0, source.lastIndexOf('.'));
+    const ownerPackage = binding.slice(0, binding.lastIndexOf('.'));
+    if (ownerPackage === '' || event !== `${binding}.${method}.completed`) throw new AssemblyCorrespondenceError('Completion has a different bound event identity.');
+    const handlers = nativeCallArray(declaration.handlers, 200);
+    if (handlers.length === 0) throw new AssemblyCorrespondenceError('Completion has no complete handler inventory.');
+    const routes: CheckedCommittedChange['routes'][number][] = [];
+    let schema: SchemaDescriptor | undefined, normalized: NormalizedSchema | undefined, app: string | undefined;
+    for (const handler of handlers) {
+      if (typeof handler !== 'string' || listed.has(handler)) throw new AssemblyCorrespondenceError('Completion repeats or lacks a handler identity.');
+      const matches = artifact.callables.filter(value => value.kind === 'handler' && value.id === handler);
+      const callable = matches[0], pair = callable === undefined ? undefined : definitions.get(callable.module);
+      if (matches.length !== 1 || callable === undefined || callable.member.length !== 1 || callable.member[0] !== handler || pair === undefined) {
+        throw new AssemblyCorrespondenceError('Completion lacks its exact assembled handler/module.');
+      }
+      const definition = pair.definition;
+      const packages = localPolicyObject(localPolicyMember(definition, 'packages'));
+      const bound = localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(definition, 'bindings')), binding));
+      const owning = localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(definition, 'capabilities')), capability));
+      const operation = localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(owning, 'operations')), method));
+      const originalReturn = localPolicyObject(localPolicyMember(operation, 'result'));
+      if (!Object.hasOwn(packages, ownerPackage) || bound.capability !== capability || bound.from !== from ||
+          originalReturn.type !== (resultType ?? 'void')) throw new AssemblyCorrespondenceError('Completion differs from its original owning operation and binding.');
+      const actualApp = localPolicyMember(definition, 'id');
+      if (typeof actualApp !== 'string' || actualApp === '' || app !== undefined && app !== actualApp) throw new AssemblyCorrespondenceError('Completion lacks its same-load app.');
+      app = actualApp;
+      const inputs = localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(definition, 'events')), event)), 'inputs'),
+        ['delivery_id', 'status', 'result', 'error']);
+      if (Object.keys(inputs).length !== 4) throw new AssemblyCorrespondenceError('Completion has an incomplete four-field declaration.');
+      const contracts = localPolicyObject(localPolicyMember(definition, 'contracts'));
+      const enums = localPolicyObject(localPolicyMember(definition, 'enums'));
+      const valueDeclarations = {
+        contracts: Object.fromEntries(Object.keys(contracts).map(name => [name, {
+          fields: localPolicyMember(localPolicyObject(localPolicyMember(contracts, name)), 'fields'),
+        }])),
+        enums: Object.fromEntries(Object.keys(enums).map(name => [name, {
+          cases: localPolicyMember(localPolicyObject(localPolicyMember(enums, name)), 'cases'),
+        }])),
+        ...(localPolicyMember(definition, 'aliases') === undefined ? {} : { aliases: localPolicyMember(definition, 'aliases') }),
+      };
+      const values = normalizeSchema(committedSourceData(valueDeclarations) as SchemaDescriptor);
+      if (stableStringify({ ...values, operations: {} }) !== stableStringify({ ...loaded.valueSchema, operations: {} })) {
+        throw new AssemblyCorrespondenceError('Completion declaration differs from the same installed Values schema.');
+      }
+      const actualSchema = committedSourceData({ ...valueDeclarations, operations: {
+        [source]: { inputs: localPolicyMember(operation, 'inputs') }, [event]: { inputs },
+      } }) as SchemaDescriptor;
+      const actualNormalized = normalizeSchema(actualSchema);
+      const fields = actualNormalized.operations[event]!.inputs;
+      const status = fields['status']!.type;
+      const cases = status.base.kind === 'enum' ? status.base.cases : status.base.kind === 'nominal' ? actualNormalized.enums[status.base.path]?.cases : undefined;
+      const completionResult = resultType === null ? 'json?' : resultType.endsWith('?') ? resultType : `${resultType}?`;
+      if (fields['delivery_id']!.typeId !== 'text' || fields['result']!.typeId !== completionResult ||
+          fields['error']!.typeId !== 'DeliveryError?' || status.array || status.nullable || cases === undefined ||
+          stableStringify(cases) !== stableStringify(['succeeded', 'failed', 'unknown', 'skipped'])) {
+        throw new AssemblyCorrespondenceError('Completion differs from its exact owning envelope types.');
+      }
+      if (schema !== undefined && stableStringify(schema) !== stableStringify(actualSchema)) throw new AssemblyCorrespondenceError('Completion handlers disagree on their owning schema.');
+      schema = actualSchema; normalized = actualNormalized;
+      const metadata = localPolicyObject(localPolicyMember(localPolicyObject(localPolicyMember(definition, 'operations')), handler));
+      const invocation = localPolicyObject(committedSourceData(localPolicyMember(metadata, 'invocation')));
+      if (metadata.event !== event || invocation.name !== handler || invocation.kind !== 'scenario' || typeof localPolicyMember(pair.registry, handler) !== 'function') {
+        throw new AssemblyCorrespondenceError('Completion lacks its exact private invocation/callable.');
+      }
+      const descriptors = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [invocation] }, { by: () => 'owner' });
+      const def = generatedScenarioDef({ def: descriptors.registry.get(handler) });
+      const cohorts = localPolicyMember(definition, 'cohorts');
+      const cohort = isUnknownRecord(cohorts) && Object.hasOwn(cohorts, handler);
+      if (def === undefined || def.descriptor.inputs.length !== (cohort ? 5 : 4) || Object.keys(inputs).some(name => {
+        const field = def.descriptor.inputs.find(field => field.name === name);
+        return field === undefined || field.kind === 'ref' || field.required !== true ||
+          !('valueType' in field) || field.valueType !== fields[name]!.typeId;
+      })) throw new AssemblyCorrespondenceError('Completion private admission differs from its four owning input types.');
+      if (cohort) {
+        assertDeclaredCohortVersion(artifact);
+        const descriptor = localPolicyObject(localPolicyMember(localPolicyObject(cohorts), handler), ['kind', 'model', 'bind', 'parent']);
+        const reference = def.descriptor.inputs.find(field => field.name === (descriptor.bind ?? '$cohort'));
+        if (!['model', 'anchored-collection'].includes(String(descriptor.kind)) ||
+            !loaded.models.some(model => model.name === descriptor.model) ||
+            descriptor.bind !== null && (typeof descriptor.bind !== 'string' || descriptor.bind === '') ||
+            reference?.kind !== 'ref' || reference.model !== descriptor.model || !reference.required || reference.versioned ||
+            Object.hasOwn(def.inputArrays, reference.name)) throw new AssemblyCorrespondenceError('Completion cohort differs from its private member declaration.');
+      }
+      // Retain checked data, so a later exported-object mutation cannot change
+      // both sides of the next correspondence comparison.
+      const snapshot = committedSourceData({ ...committedSourceDefinition(definition),
+        standardCompletions: census, events: { [event]: { inputs } },
+      });
+      routes.push(Object.freeze({ handler, definition: snapshot, invocation, cohort })); listed.add(handler);
+    }
+    result.set(event, Object.freeze({ source, event, binding, from, resultType: resultType as string | null,
+      ownerPackage, app: app!, schema: schema!, normalized: normalized!, routes: Object.freeze(routes) }));
+  }
+  for (const { definition } of definitions.values()) {
+    const operations = localPolicyObject(localPolicyMember(definition, 'operations'));
+    const bindings = localPolicyObject(localPolicyMember(definition, 'bindings'));
+    for (const handler of Object.keys(operations)) {
+      const event = localPolicyMember(localPolicyObject(localPolicyMember(operations, handler)), 'event');
+      const boundCompletion = typeof event === 'string' && event.endsWith('.completed') && Object.keys(bindings).some(binding => {
+        const capability = localPolicyMember(localPolicyObject(localPolicyMember(bindings, binding)), 'capability');
+        return typeof capability === 'string' && /^std\.[A-Za-z_][A-Za-z0-9_]*$/.test(capability) &&
+          event.startsWith(`${binding}.`) && /^[A-Za-z_][A-Za-z0-9_]*\.completed$/.test(event.slice(binding.length + 1));
+      });
+      if (boundCompletion || typeof event === 'string' && result.has(event)) {
+        if (!listed.has(handler)) throw new AssemblyCorrespondenceError('Completion census omitted a matching private handler.');
+      }
+    }
+  }
+  await verifyCheckedAssembly(asm, artifact);
+  return result;
+}
+
+/** Private host enrollment only. The command accepts one retained delivery ID,
+ * and Work reads/stages it through State's actual issued context and fence. */
+export async function createNativeStandardCompletionSourceCommand(input: {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly scope: import('@canlang/contracts').WorkScope;
+  readonly identities: IdentityStore;
+  readonly bounds: import('@canlang/work').StandardCompletionSourceBounds;
+}): Promise<import('@canlang/state').SystemCommandDef> {
+  const { asm, artifact, identities } = input;
+  const ownScope = localPolicyObject(completionWireData(input.scope), ['app', 'owner', 'ownerPackage']);
+  if (Object.keys(ownScope).length !== 3 || ['app', 'owner', 'ownerPackage'].some(key => typeof ownScope[key] !== 'string' || ownScope[key] === '')) {
+    throw new AssemblyCorrespondenceError('Completion requires its exact owning scope.');
+  }
+  const scope: import('@canlang/contracts').WorkScope = Object.freeze({
+    app: ownScope.app as string, owner: ownScope.owner as string, ownerPackage: ownScope.ownerPackage as string,
+  });
+  const bounds = completionWireData(input.bounds) as import('@canlang/work').StandardCompletionSourceBounds;
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const installed = [...loaded.standardCompletions?.values() ?? []]
+    .filter(source => source.ownerPackage === scope.ownerPackage);
+  if (installed.length === 0 || installed.some(source => source.app !== scope.app)) {
+    throw new AssemblyCorrespondenceError('Completion has no exact installed app/package source census.');
+  }
+  const operations: NonNullable<SchemaDescriptor['operations']> = {};
+  for (const source of installed) {
+    for (const [name, operation] of Object.entries(source.schema.operations!)) {
+      if (Object.hasOwn(operations, name) && stableStringify(operations[name]) !== stableStringify(operation)) {
+        throw new AssemblyCorrespondenceError('Completion sources disagree on the same owning operation schema.');
+      }
+      operations[name] = operation;
+    }
+  }
+  const schema: SchemaDescriptor = { ...installed[0]!.schema, operations };
+  const declarations = installed.map(source => ({ source: source.source, event: source.event,
+    binding: source.binding, from: source.from, resultType: source.resultType,
+    handlers: source.routes.map(route => {
+      if (!route.cohort) return { handler: route.handler };
+      const raw = privateSourceMember(privateSourceMember(route.definition, 'cohorts'), route.handler);
+      if (privateSourceMember(raw, 'kind') !== 'model') {
+        throw new AssemblyCorrespondenceError('Anchored completion needs its owning authenticated Work projection.');
+      }
+      return { handler: route.handler, cohort: resolveEmittedFanoutCohort({
+        cohorts: privateSourceMember(route.definition, 'cohorts'), handler: route.handler, owner: scope.owner,
+        event: null, models: privateSourceMember(route.definition, 'models'),
+      }) };
+    }),
+  }));
+  const command = createStandardCompletionSourceCommand({ scope, schema,
+    modelNames: loaded.models.map(model => model.name), declarations, bounds });
+  const verify = async (now: number): Promise<void> => {
+    await verifyCheckedAssembly(asm, artifact);
+    await resolvePrivateSourceOwner(identities, scope, now);
+    const current = await loadCheckedStandardCompletions(asm, artifact, loaded);
+    const census = [...current.values()].filter(source => source.ownerPackage === scope.ownerPackage);
+    const facts = (sources: readonly CheckedStandardCompletion[]) => sources.map(source => ({
+      source: source.source, event: source.event, binding: source.binding, from: source.from,
+      resultType: source.resultType, app: source.app, schema: source.schema,
+      handlers: source.routes.map(route => ({ handler: route.handler, invocation: route.invocation,
+        cohort: route.cohort ? committedSourceData(privateSourceMember(privateSourceMember(route.definition, 'cohorts'), route.handler)) : null })),
+    }));
+    if (stableStringify(facts(census)) !== stableStringify(facts(installed))) {
+      throw new AssemblyCorrespondenceError('Completion lost its original native source/schema/handler correspondence.');
+    }
+  };
+  return Object.freeze({ name: command.name, async stage(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
+    // Enrolling first rejects copied/closed contexts before any source reads.
+    enrollSystemCommandCommitCheck(ctx, async () => { await verify(ctx.now); return true; });
+    await verify(ctx.now);
+    const staged = await command.stage(args, ctx);
+    const outcome = localPolicyObject(staged.result);
+    if (outcome.status === 'staged' || outcome.status === 'replayed') {
+      const source = installed.find(source => source.event === outcome.event);
+      if (source === undefined) throw new AssemblyCorrespondenceError('Completion issuer returned an uninstalled event.');
+      checkedCompletionPayload(source, outcome.payload);
+    }
+    return staged;
+  } });
+}
+
 function committedSourceData(value: unknown): unknown {
   let nodes = 0;
   const active = new Set<object>();
@@ -6569,6 +6885,11 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
 async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app'>,
   loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope) {
   if (scope.app !== opts.app) throw new Error('Private source scope disagrees with its deployment.');
+  if (loaded.standardCompletions?.has(event)) {
+    // Issuance is available independently. Consumption needs the owning Work
+    // replay reader, rather than trusting an injected occurrence envelope.
+    throw new Error('Standard completion consumption needs its original owning Work source replay reader.');
+  }
   const committed = loaded.committedChanges.get(event);
   if (committed !== undefined) {
     if (committed.ownerPackage !== scope.ownerPackage) throw new Error('Committed source differs from its checked declaring package.');
