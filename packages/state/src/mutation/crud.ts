@@ -497,6 +497,7 @@ function buildGeneratedCrudExecutor(
   }
   const executeWrite = async (call: AdmittedCall, write: MutationWrite): Promise<ExecutionEffects> => {
     const common = { table, context: call.context, store,
+      ...(secretFields !== undefined ? { secretFields } : {}),
       ...(encodeField !== undefined ? { encodeField } : {}) };
     const effects = await (async () => {
       if (!ownerExecution) return runMutationWrites({ ...common, writes: [write] });

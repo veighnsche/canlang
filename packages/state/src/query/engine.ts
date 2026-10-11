@@ -35,6 +35,7 @@ import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';
 import { byDependsOnRow, evaluateBy, type ByPredicate, type MembershipReader } from '../policy/roles.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
+import { deepFreeze } from '../internal/own-data.js';
 import {
   collectPredicateFields,
   evalPredicateForRow,
@@ -530,6 +531,39 @@ export async function projectSavedRecordForViewer(input: {
     [...input.originalSecretFields, ...input.policy.secretFields]);
   await authority.revalidate?.();
   return projected;
+}
+
+/** One current authority observation for all data images in an owning audit read. */
+export async function prepareViewerHistoryProjection(input: {
+  readonly policy: InterimModelPolicy | undefined;
+  readonly context: ByContext;
+  readonly current: StoredRow;
+  /** The owning reader observes caller, row and parent facts together. */
+  readonly coherentContext?: true;
+}): Promise<{
+  readonly allowed: readonly boolean[];
+  project(data: Readonly<Record<string, unknown>> | null,
+    originalSecretFields: readonly string[]): Readonly<Record<string, unknown>> | null;
+  revalidate(): Promise<void>;
+} | null> {
+  const { policy, context, current } = input;
+  if (policy === undefined) return null;
+  const authority = input.coherentContext === true
+    ? { value: await viewerRowAuthority(policy, context, await viewerGrantAuthority(policy, context), current), revalidate: undefined }
+    : await currentViewerAuthority(policy, context, current);
+  if (authority.value.grants.length === 0) return null;
+  return Object.freeze({
+    allowed: Object.freeze([...authority.value.allowed]),
+    project(data: Readonly<Record<string, unknown>> | null,
+      originalSecretFields: readonly string[]): Readonly<Record<string, unknown>> | null {
+      if (data === null) return null;
+      // The current envelope is only a path-resolution root. Metadata grants
+      // remain excluded by projectRow; no invented historical metadata escapes.
+      return deepFreeze(projectRow({ ...current, data }, authority.value.grants,
+        [...originalSecretFields, ...policy.secretFields]).data);
+    },
+    async revalidate(): Promise<void> { await authority.revalidate?.(); },
+  });
 }
 
 type NumericOrderType = 'int' | 'decimal' | 'money';

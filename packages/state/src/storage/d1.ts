@@ -37,6 +37,10 @@ import {
   toRetainedOutboxIntent,
   toScheduleEntry,
   toHistoryEntry,
+  captureHistoryRequest,
+  compileBoundedHistory,
+  toBoundedHistory,
+  type BoundedHistoryRow,
   toInstalledSnapshot,
   toStagedRow,
   toMigrationProgress,
@@ -93,6 +97,7 @@ import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileRefer
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
+  ALTER_HISTORY_AUDIT_PROJECTION,
   ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES,
   FENCE_ROW_ID,
   SCHEMA_STATEMENTS,
@@ -106,7 +111,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   }
   // Add missing columns without reconstructing legacy publication facts.
   // A legacy original revision remains NULL; only new fenced inserts fill it.
-  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION, ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES]) {
+  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION, ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES, ALTER_HISTORY_AUDIT_PROJECTION]) {
     try {
       await db.exec(alteration);
     } catch (error) {
@@ -516,7 +521,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
           db
             .prepare(
               'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-                'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             )
             .bind(
               entry.model as string,
@@ -529,6 +534,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
               entry.change,
               entry.before === null ? null : JSON.stringify(entry.before),
               entry.after === null ? null : JSON.stringify(entry.after),
+              entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
             ),
         );
       }
@@ -670,12 +676,23 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       return result.results.map(toScheduleEntry);
     },
 
+    async historyReadBounded(request): Promise<ReadonlyArray<HistoryEntry>> {
+      const input = captureHistoryRequest(request);
+      const before = await readRevisionInner(db);
+      if (before !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, before);
+      const { sql, bindings } = compileBoundedHistory(input);
+      const rows = await db.prepare(sql).bind(...bindings).all<BoundedHistoryRow>();
+      const after = await readRevisionInner(db);
+      if (after !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, after);
+      return toBoundedHistory(rows.results, input.limit);
+    },
+
     async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
       const result = await db
         .prepare(
           `SELECT ${HISTORY_COLUMNS} FROM history WHERE model = ? AND record_id = ? ` +
-            // S6 review: `seq` tiebreaks duplicate versions (reachable only via
-            // direct unstaged commits); fenced writes carry unique versions.
+            // Actual owner-session stages share a reserved version; seq
+            // preserves their original insertion/source order.
             'ORDER BY version, seq',
         )
         .bind(model as string, recordId as string)
@@ -851,7 +868,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
           db
             .prepare(
               'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-                'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             )
             .bind(
               entry.model as string,
@@ -864,6 +881,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
               entry.change,
               entry.before === null ? null : JSON.stringify(entry.before),
               entry.after === null ? null : JSON.stringify(entry.after),
+              entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
             ),
         );
       }
@@ -877,7 +895,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
           db
             .prepare(
               'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-                'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             )
             .bind(
               drop.history.model as string,
@@ -890,6 +908,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
               drop.history.change,
               drop.history.before === null ? null : JSON.stringify(drop.history.before),
               drop.history.after === null ? null : JSON.stringify(drop.history.after),
+              drop.history.auditProjection === undefined ? null : JSON.stringify(drop.history.auditProjection),
             ),
         );
       }

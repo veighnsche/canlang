@@ -20,6 +20,7 @@ export {
   type ViewerPageQueryInput,
   type ViewerPageRecordsResult,
 } from './engine.js';
+export { queryRecordHistoryForViewer, type ViewerHistoryInput, type ViewerHistoryResult } from './history.js';
 export type {
   ByContext,
   InterimGrant,

@@ -40,7 +40,7 @@ export const SCHEMA_STATEMENTS: ReadonlyArray<string> = [
   'CREATE TABLE IF NOT EXISTS fence_log(revision INTEGER PRIMARY KEY, at INTEGER NOT NULL, operation TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS records(model TEXT NOT NULL, id TEXT NOT NULL, version INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, created_by TEXT NOT NULL, updated_by TEXT NOT NULL, archived_at INTEGER NULL, owner TEXT NOT NULL DEFAULT \'\', parent_model TEXT NULL, parent_id TEXT NULL, data TEXT NOT NULL, PRIMARY KEY(model, id))',
   'CREATE TABLE IF NOT EXISTS receipts(app TEXT NOT NULL, owner TEXT NOT NULL, principal TEXT NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, input_hash TEXT NOT NULL, resolved_defaults TEXT NOT NULL, outcome TEXT NOT NULL, committed_revision INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(app, owner, principal, operation, operation_id))',
-  'CREATE TABLE IF NOT EXISTS history(seq INTEGER PRIMARY KEY AUTOINCREMENT, model TEXT NOT NULL, record_id TEXT NOT NULL, version INTEGER NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, actor TEXT NOT NULL, at INTEGER NOT NULL, change TEXT NOT NULL, "before" TEXT NULL, "after" TEXT NULL)',
+  'CREATE TABLE IF NOT EXISTS history(seq INTEGER PRIMARY KEY AUTOINCREMENT, model TEXT NOT NULL, record_id TEXT NOT NULL, version INTEGER NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, actor TEXT NOT NULL, at INTEGER NOT NULL, change TEXT NOT NULL, "before" TEXT NULL, "after" TEXT NULL, audit_projection TEXT NULL)',
   'CREATE TABLE IF NOT EXISTS outbox(intent_id TEXT PRIMARY KEY, operation TEXT NOT NULL, operation_id TEXT NOT NULL, target TEXT NOT NULL, arguments TEXT NOT NULL, occurrence_index INTEGER NOT NULL, dispatch_guard TEXT NULL, handler_contract TEXT NULL, status TEXT NOT NULL DEFAULT \'pending\', created_at INTEGER NOT NULL, committed_revision INTEGER NULL)',
   'CREATE TABLE IF NOT EXISTS schedules("key" TEXT PRIMARY KEY, at INTEGER NOT NULL, event TEXT NOT NULL, payload TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS unique_claims(model TEXT NOT NULL, key_name TEXT NOT NULL, key_value TEXT NOT NULL, record_id TEXT NOT NULL, PRIMARY KEY(model, key_name, key_value))',
@@ -57,6 +57,7 @@ export const SCHEMA_STATEMENTS: ReadonlyArray<string> = [
   'CREATE INDEX IF NOT EXISTS idx_migration_outcomes_migration ON migration_outcomes(migration_id)',
   'CREATE INDEX IF NOT EXISTS idx_records_owner_model ON records(owner, model)',
   'CREATE INDEX IF NOT EXISTS idx_history_model_record ON history(model, record_id)',
+  'CREATE INDEX IF NOT EXISTS idx_history_model_record_order ON history(model, record_id, version, seq)',
   'CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status)',
 ];
 
@@ -79,6 +80,10 @@ export const ALTER_OUTBOX_HANDLER_CONTRACT: string =
 /** Original fenced publication revision; legacy rows deliberately remain NULL. */
 export const ALTER_OUTBOX_COMMITTED_REVISION: string =
   'ALTER TABLE outbox ADD COLUMN committed_revision INTEGER NULL';
+
+/** Legacy history has no genuine projection capture; never backfill it. */
+export const ALTER_HISTORY_AUDIT_PROJECTION: string =
+  'ALTER TABLE history ADD COLUMN audit_projection TEXT NULL';
 
 /** Legacy stores have no captured opaque lifetime facts; never backfill them. */
 export const ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES: string =

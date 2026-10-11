@@ -35,6 +35,10 @@ import {
   toRetainedOutboxIntent,
   toScheduleEntry,
   toHistoryEntry,
+  captureHistoryRequest,
+  compileBoundedHistory,
+  toBoundedHistory,
+  type BoundedHistoryRow,
   toInstalledSnapshot,
   toStagedRow,
   toMigrationProgress,
@@ -103,6 +107,7 @@ import {
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
+  ALTER_HISTORY_AUDIT_PROJECTION,
   ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES,
   FENCE_ROW_ID,
   SCHEMA_STATEMENTS,
@@ -116,7 +121,7 @@ export async function ensureSchema(storage: DurableObjectStorage): Promise<void>
   }
   // Add missing columns without reconstructing legacy publication facts.
   // A legacy original revision remains NULL; only new fenced inserts fill it.
-  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION, ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES]) {
+  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION, ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES, ALTER_HISTORY_AUDIT_PROJECTION]) {
     try {
       storage.sql.exec(alteration);
     } catch (error) {
@@ -402,7 +407,7 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
     statements.push({
       sql:
         'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-        'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       bindings: [
         entry.model as string,
         entry.recordId as string,
@@ -414,6 +419,7 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
         entry.change,
         entry.before === null ? null : JSON.stringify(entry.before),
         entry.after === null ? null : JSON.stringify(entry.after),
+        entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
       ],
     });
   }
@@ -588,7 +594,7 @@ function planPublish(
     statements.push({
       sql:
         'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-        'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       bindings: [
         entry.model as string,
         entry.recordId as string,
@@ -600,6 +606,7 @@ function planPublish(
         entry.change,
         entry.before === null ? null : JSON.stringify(entry.before),
         entry.after === null ? null : JSON.stringify(entry.after),
+        entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
       ],
     });
   }
@@ -611,7 +618,7 @@ function planPublish(
     statements.push({
       sql:
         'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-        'actor, at, change, "before", "after") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       bindings: [
         drop.history.model as string,
         drop.history.recordId as string,
@@ -623,6 +630,7 @@ function planPublish(
         drop.history.change,
         drop.history.before === null ? null : JSON.stringify(drop.history.before),
         drop.history.after === null ? null : JSON.stringify(drop.history.after),
+        drop.history.auditProjection === undefined ? null : JSON.stringify(drop.history.auditProjection),
       ],
     });
   }
@@ -1038,13 +1046,25 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       return rows.map(toScheduleEntry);
     },
 
+    async historyReadBounded(request): Promise<ReadonlyArray<HistoryEntry>> {
+      assertBinding();
+      const input = captureHistoryRequest(request);
+      const before = readRevisionInner(storage);
+      if (before !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, before);
+      const { sql, bindings } = compileBoundedHistory(input);
+      const rows = storage.sql.exec<BoundedHistoryRow>(sql, ...bindings).toArray();
+      const after = readRevisionInner(storage);
+      if (after !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, after);
+      return toBoundedHistory(rows, input.limit);
+    },
+
     async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
       assertBinding();
       const rows = storage.sql
         .exec<HistoryRow>(
           `SELECT ${HISTORY_COLUMNS} FROM history WHERE model = ? AND record_id = ? ` +
-            // S6 review: `seq` tiebreaks duplicate versions (reachable only via
-            // direct unstaged commits); fenced writes carry unique versions.
+            // Actual owner-session stages share a reserved version; seq
+            // preserves their original insertion/source order.
             'ORDER BY version, seq',
           model as string,
           recordId as string,
