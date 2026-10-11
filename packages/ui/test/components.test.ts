@@ -4,6 +4,9 @@ import type {
   MessageValue,
   PresentationContext,
   RowView,
+  FileValue,
+  FileLinkView,
+  TextProps,
 } from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import {
@@ -198,6 +201,73 @@ describe("renderTextValue", () => {
 });
 
 describe("text", () => {
+  it("presents original File identities in snapshotted source order with duplicates", async () => {
+    const first: FileValue = Object.freeze({ kind: "file", id: "private-first" });
+    const second: FileValue = Object.freeze({ kind: "file", id: "private-second" });
+    const denied: FileValue = Object.freeze({ kind: "file", id: "private-denied" });
+    const admitted = new Map<FileValue, FileLinkView>([
+      [first, { href: "/files/first?x=1&y=2", name: "<first>", status: "succeeded" }],
+      [second, { href: "/files/second", caption: message("Second", { nl: "Tweede" }) }],
+    ]);
+    const files = [first, second, first, denied];
+    const values: Array<TextProps['values'][number]> = ["Before", files, "After"];
+    const seen: FileValue[] = [];
+    const html = await text({ values, context: makeContext({ presentFile: async file => {
+      seen.push(file);
+      if (seen.length === 1) {
+        await Promise.resolve();
+        files.splice(0, files.length, second);
+        values.splice(0, values.length, "Changed");
+      }
+      return admitted.get(file) ?? null;
+    } }) });
+    assert.deepEqual(seen, [first, second, first, denied]);
+    assert.equal(seen[0], first); assert.equal(seen[2], first);
+    assert.equal(html.split('href="/files/first?x=1&amp;y=2"').length - 1, 2);
+    assert.ok(html.indexOf("Before") < html.indexOf("&lt;first&gt;"));
+    assert.ok(html.indexOf("Second") > html.indexOf("&lt;first&gt;"));
+    assert.ok(html.indexOf("After") > html.indexOf("File unavailable"));
+    assert.ok(!html.includes("private-"));
+    assert.ok(!html.includes("Changed"));
+    const copy = { ...first };
+    assert.match(await text({ context: makeContext({ presentFile: async file => admitted.get(file) ?? null }),
+      values: [copy] }), /File unavailable/);
+  });
+
+  it("localizes empty and unavailable Files and uses an escaped generic link label", async () => {
+    const file: FileValue = Object.freeze({ kind: "file", id: "hidden-id" });
+    assert.equal(await text({ context: makeContext(), values: [null, undefined] }), "<p> </p>");
+    assert.match(await text({ context: makeContext(), values: [[]] }), /No files/);
+    const dutch = makeContext({ preferredLocales: ["nl"], presentFile: async () => null });
+    assert.match(await text({ context: dutch, values: [[], file] }), /Geen bestanden.*Bestand niet beschikbaar/);
+    assert.match(await text({ context: makeContext({ presentFile: async () => ({ href: "/authorized" }) }),
+      values: [file] }), /Open file/);
+    const hostile = await text({ context: makeContext({ presentFile: async () => ({ href: "/authorized", name: XSS }) }),
+      values: [file] });
+    assert.ok(!hostile.includes("<script>"));
+    assert.ok(!hostile.includes(file.id));
+  });
+
+  it("refuses unsupported File inputs before presentation and unsafe authorized links", async () => {
+    const file: FileValue = Object.freeze({ kind: "file", id: "hidden-id" });
+    let calls = 0;
+    const context = makeContext({ presentFile: async () => { calls++; return { href: "/authorized" }; } });
+    for (const malformed of [[null], ["not a File"], [{ kind: "file", id: "" }], new Array(1), [[file]]]) {
+      await assert.rejects(text({ context, values: [file, malformed] as unknown as TextProps['values'] }), TypeError);
+      assert.equal(calls, 0);
+    }
+    await assert.rejects(text({ context: makeContext(), values: [file] }), /source-bound presenter/);
+    for (const href of ["", "javascript:alert(1)", "data:text/html,secret"]) {
+      await assert.rejects(text({ context: makeContext({ presentFile: async () => ({ href }) }), values: [file] }),
+        /invalid authorized link/);
+    }
+    let hrefReads = 0;
+    await assert.rejects(text({ context: makeContext({ presentFile: async () => ({
+      get href() { hrefReads++; return hrefReads === 1 ? "/authorized" : "javascript:alert(1)"; },
+    }) }), values: [file] }), /invalid authorized link/);
+    assert.equal(hrefReads, 0);
+  });
+
   it("space-joins every TextValue kind in one paragraph", async () => {
     const html = await text({
       context: makeContext(),

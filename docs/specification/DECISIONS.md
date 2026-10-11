@@ -10412,3 +10412,33 @@ Working list/table cards retain their genuine HelpOffice host/browser qualificat
 2026-10-11 — originating Office evidence and original valid-reply reuse (implemented/tested/reviewed finite scope).
 
 Independent review exposed blank and comment-only ## lines concealing an omitted collection child. Correct both at the owning capture scanner in7d3138f9/471fb85a: skip only those layout-ignored lines, preserve real declarations and inline/string ##, mark omitted children incomplete without disclosing them, and withhold ranking/provider invocation. Reuse corrected owning1/1+1/1 and18 existing controls. The actual41-card/native/Chromium current-cache-stale/cleanup consumer passed1/1 in174685.48ms under unchanged180s using its one retained genuine provider reply; compare the complete current request except session occurrence/revision, never construct the live provider in retained mode, and do not relabel replay as a new latency observation. Original provider267.78ms and933/62 tokens happened once. Current CF emission/root noEmit0 qualify this source intake. Original joined OfficeG2 currently fails readiness HTTP500 IDENTITY_UNAVAILABLE before browser; G3 has not started. These finite outcomes do not accept the original supported profile/full plan or release any precise hold; complete filetree checkpoint unchanged.
+
+## 2026-10-11 — Original File occurrences in text (implemented; native consumer unfinished)
+
+Expose only presentFile from the admitted page scope to presentation. The Files
+host bridge privately associates original File objects with detached frozen
+model/record/checked-field/ref/path facts; path is relative to that field value.
+Copied IDs and foreign page objects withhold without a resolver lookup. Conflicting
+bindings refuse. Closing the association is terminal and withholds pending results.
+The host owns binding at genuine native decode, selected physical owner and current
+identity/source/checkpoint, scope closure, whole-field/attachment authorization
+and open URLs that reauthorize each access. Association itself grants no access.
+
+UI text now accepts File and ordered File[] occurrences, preserving duplicates and
+original objects across awaits. It validates and snapshots inputs before effects,
+localizes empty/unavailable states, escapes supplied authorized metadata and refuses
+missing presenters or unsafe links. Own link descriptors prevent a changing getter
+from replacing the checked URL. Existing scalar formatting stays unchanged.
+Interfaces full/partial rendering forwards only the original scope hook and receiver;
+source extras cannot install it. Contracts/Files/UI/Interfaces emissions and the UI
+browser build pass; owning Files/UI47 and Interfaces28 cases pass. Actual public
+Files-to-UI correspondence/copy/closure control passes1/1; finite source review is
+CLEAR. Unchanged checks are reused.
+
+Dev owns the genuine native occurrence binder/current resolver/lifetime consumer;
+Compiler owns original source lowering and copied TextMessage[] structural domain.
+This source unit does not certify native authority, gallery image metadata or the
+unfinished mounted browser parent. Provider-void stays skipped, V05 release-host
+stays Dev/L7, and all precise holds including publication remain.
+
+Coordinator defining library review CLEAR and integration after deadline. Reuse47 Files/UI,28 Interfaces and actual public Files→UI1; changed normal dependency emissions/UI browser/root0. Private original-object occurrence binding and terminal closure issue no authority themselves; trusted native resolver/current grant/per-open URL enforcement remain Dev-owned and unaccepted. Original TextMessage/File lowering stays Compiler-owned. Complete filetree checkpoint and all exact holds remain unchanged.

@@ -25,6 +25,7 @@ import type {
   PageGenerationCallbackDiagnosticsObserver,
   PageRecordsReader,
   PageHistoryReader,
+  PageFilePresenter,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -125,6 +126,7 @@ export interface BuildPresentationContextInput {
   /** Native source-expression reader from the same admitted request scope. */
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
+  readonly presentFile?: PageFilePresenter;
   readonly observeDelivery?: PageDeliveryObserver;
   readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
@@ -174,9 +176,9 @@ export function buildPresentationContext(
   // Source extras cannot override host configuration, native readers or the
   // trusted identity admission instant shared with page guards and discovery.
   const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory,
-    breadcrumbs: _sourceBreadcrumbs, now: _sourceNow, ...source } =
+    breadcrumbs: _sourceBreadcrumbs, presentFile: _sourcePresentFile, now: _sourceNow, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
-      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs'>;
+      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs' | 'presentFile'>;
   const { observeGenerationCallbackDiagnostics: _sourceCallbackDiagnostics, ...canonical } = source.canonical;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
@@ -223,6 +225,7 @@ export function buildPresentationContext(
     invocation: input.principal,
     query: input.query,
     ...(input.readHistory === undefined ? {} : { readHistory: input.readHistory }),
+    ...(input.presentFile === undefined ? {} : { presentFile: input.presentFile }),
     prepareCollectionFilters: collectionFilterPreparer(url.searchParams),
   };
   return input.catalog === undefined ? context : {

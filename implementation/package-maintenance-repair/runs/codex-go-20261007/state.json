@@ -4969,6 +4969,33 @@
         ],
         "acceptance_limit": "No complete source/application/native or parent acceptance, provider-void support, schema/layout authority change, release-host qualification or hold lift.",
         "coordinator_review": "Independent defining source review CLEAR and integrated LOCAL main after deadline. Reuse scoped owning emits/HTTP69 or UI144/Interfaces23 as recorded, saved JEV3 and unchanged results. Compiler lowering and Dev original native/application acceptance remain unfinished; no exact hold is released."
+      },
+      "file_text_occurrence_bridge": {
+        "status": "implemented_tested_reviewed_defining_library_component_in_LOCAL_main; original_native_consumers_unfinished",
+        "contract": "PageReadScope/PresentationContext.presentFile resolves the exact original File object. Files createPageFilePresentation binds only host-captured {model,recordId,field,ref,path}, where path is relative to the checked field value, in a private page-local WeakMap. Locator/path snapshots are frozen; conflicting rebinds and malformed/accessor bindings refuse. Copied/changed/foreign-page objects withhold without host lookup; close is terminal and withholds pending results.",
+        "behavior": "UI text accepts scalar File and ordered File[] including duplicates, snapshots/validates the whole sequence before awaiting presenters, preserves original identities, localizes empty/unavailable/generic labels and escapes actual authorized names/captions/status. Missing presenter and unsafe/accessor links refuse; the emitted URL is the exact captured checked value. Existing scalar text stays unchanged. Full/partial Interfaces forward only the original admitted scope hook with its receiver; source extras cannot install it.",
+        "verified": {
+          "contracts_emit": "pass0",
+          "files_emit": "pass0 after correcting TypeScript array-length descriptor access; source semantics unchanged",
+          "ui_emit_browser": "pass0",
+          "interfaces_emit": "pass0",
+          "files_ui_owning_files": "bridge/components47/47 pass85.035875ms",
+          "interfaces_owning_file": "http-presentation28/28 pass1503.041042ms",
+          "public_consumer": "Actual public @canlang/files/bridge -> @canlang/ui exports1/1 pass: ordered original occurrences, copied identity withholding and terminal scope close. No native authority claim.",
+          "finite_source_review": "CLEAR original identity/capture/lifetime/URL/refusals and actual full/partial source forwarding; unchanged checks reused."
+        },
+        "remaining_dependencies": [
+          {
+            "owner": "Dev",
+            "prerequisite": "Create one host binder per actual admitted page scope; bind nativeProjectedRecord/nativeRecordField original File decodes, including nested/array paths, to actual authorized model/record/checked field/ref and selected owner/source/identity/checkpoint. Keep bind/close private, expose only presentFile, and close at scope end. Resolver rechecks current whole-field/parent/attachment/physical correspondence and issues existing explicit-ref open URLs that reauthorize every open. No global ref lookup/DTO/decodeFile default binding."
+          },
+          {
+            "owner": "Compiler",
+            "prerequisite": "Original CanChat text row.attachments source lowering and copied std.TextMessage[] structural domain must preserve original native File object correspondence; renderer/source metadata does not create the binding."
+          }
+        ],
+        "acceptance_limit": "Defining producer only; no original installed/native mounted File journey, automatic host lifetime integration, gallery image policy, parent acceptance or precise hold release. No pushes; provider-void remains skipped and V05 release-host remains Dev/L7.",
+        "coordinator_review": "Independent defining source review CLEAR: private original-object occurrence/capture/lifetime binding, closed pending result withholding, exact receiver forwarding and all spoof/copy/accessor/mutation refusals. Owning47+28/public1 reused, normal changed dependency closure emits/browser/root0. Actual native binding/current authorization/per-open reauthorization remains Dev-owned and unaccepted. No precise hold or full-plan acceptance."
       }
     },
     "DEL-D03": {

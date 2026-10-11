@@ -9,6 +9,9 @@ import { DEFAULT_THEME, collectionCursorName, collectionFilterName } from '@canl
 import type {
   AdmittedBindings,
   PageDescriptor,
+  PageReadScope,
+  PageFilePresenter,
+  FileValue,
   PageDeliveryObserver,
   PageGenerationCallbackDiagnosticsObserver,
   PageGenerationCallbackDiagnosticResult,
@@ -21,12 +24,12 @@ import type {
   PageSourceContext,
 } from '@canlang/contracts';
 import { deriveCsrfToken } from '@canlang/identity';
-import { decodeValue, encodeValue } from '@canlang/values';
+import { decodeValue, encodeValue, makeFileValue } from '@canlang/values';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
 import { resolveRequestIdentity } from '../src/http/context.js';
-import { calendar, table } from '@canlang/ui';
+import { calendar, table, text } from '@canlang/ui';
 
 function fakeIdentity(): ResolvedIdentity {
   return {
@@ -819,5 +822,97 @@ test('collection locator extraction bounds the raw query while preserving comple
     assert.deepEqual([...context.collectionSelections!], expected);
     assert.equal(context.pollUrl, pageUrl);
     assert.equal(JSON.parse(context.pollContext!)[1], pageUrl);
+  }
+});
+
+
+test('full and partial File text presentation uses the original admitted scope and ordered native File objects', async () => {
+  for (const partial of [false, true]) {
+    const first = makeFileValue('private-first-file'), denied = makeFileValue('private-denied-file');
+    const last = makeFileValue('private-last-file');
+    const seen: FileValue[] = [];
+    let source: PageSourceContext | undefined, current: ResolvedIdentity | undefined, bound: RowQueryRunner | undefined;
+    let scopes = 0, reads = 0, hookFinished = false;
+    const scope: PageReadScope = {
+      query: async function (this: unknown, invocation, model, args) {
+        assert.equal(this, scope); assert.equal(invocation, current); assert.equal(model, 'TestApp.Documents');
+        assert.deepEqual(args, { limit: 25 }); reads++; return { rows: [], columns: [] };
+      },
+      onQueryBound: async function (this: unknown, query) {
+        assert.equal(this, scope); bound = query; await Promise.resolve(); hookFinished = true;
+      },
+      presentFile: async function (this: unknown, file) {
+        assert.equal(this, scope); assert.equal(hookFinished, true);
+        seen.push(file);
+        if (file === denied) return null;
+        assert.ok(file === first || file === last);
+        return file === first ? { href: '/files/open-first', name: 'First document' } :
+          { href: '/files/open-last', name: 'Last document' };
+      },
+    };
+    const page: PageDescriptor = { owner: 'TestApp', path: '/file-text', title: 'Files',
+      admit: async original => { source = original as PageSourceContext; return {}; },
+      render: async context => {
+        assert.equal(context.principal, current); assert.equal(context.invocation, current);
+        assert.equal(context.actor, source!.actor); assert.equal(context.team, source!.team);
+        assert.equal(context.query, bound);
+        await context.query('forged renderer identity', 'TestApp.Documents', {});
+        const html = await text({ context, values: [[first, denied, first, last]] });
+        assert.equal((html.match(/href="\/files\/open-first"/g) ?? []).length, 2);
+        assert.equal((html.match(/href="\/files\/open-last"/g) ?? []).length, 1);
+        assert.ok(html.includes('File unavailable'));
+        assert.ok(html.indexOf('First document') < html.indexOf('File unavailable'));
+        assert.ok(html.indexOf('File unavailable') < html.lastIndexOf('First document'));
+        assert.ok(html.lastIndexOf('First document') < html.indexOf('Last document'));
+        for (const file of [first, denied, last]) assert.ok(!html.includes(file.id));
+        return html;
+      },
+    };
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest({ ...deps,
+      createReadScope: (principal: ResolvedIdentity, admitted: PageSourceContext) => {
+        scopes++; current = principal; assert.equal(admitted, source);
+        assert.equal(principal.actor?.user_id, identity.userId); assert.equal(principal.team?.team_id, identity.teamId);
+        return scope;
+      },
+    }, testRequest(`/file-text?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(response.status, 200); assert.ok((await response.text()).includes('File unavailable'));
+    assert.equal(scopes, 1); assert.equal(reads, 1);
+    assert.equal(seen.length, 4);
+    for (const [index, expected] of [first, denied, first, last].entries()) assert.equal(seen[index], expected);
+  }
+});
+
+test('File presenter context comes only from explicit trusted input and never source extras', async () => {
+  const principal = fakeIdentity(), file = makeFileValue('private-source-file');
+  let forgedCalls = 0, trustedCalls = 0;
+  const forged: PageFilePresenter = async () => { forgedCalls++; return { href: 'https://forged.example/file' }; };
+  const trusted: PageFilePresenter = async actual => { assert.equal(actual, file); trustedCalls++; return null; };
+  const input = { request: testRequest('/files'), pathname: '/files', isPartial: true,
+    appDefaultLocale: 'en', csrfToken: '', principal, query: fakeQuery(),
+    source: { ...buildPageSourceContext(principal), presentFile: forged } };
+  const absent = buildPresentationContext(input);
+  assert.equal(Object.hasOwn(absent, 'presentFile'), false);
+  await assert.rejects(text({ context: absent, values: [[file]] }), /source-bound presenter/);
+  assert.equal(forgedCalls, 0);
+  const explicit = buildPresentationContext({ ...input, presentFile: trusted });
+  assert.equal(explicit.presentFile, trusted);
+  const html = await text({ context: explicit, values: [[file]] });
+  assert.ok(html.includes('File unavailable')); assert.ok(!html.includes(file.id)); assert.ok(!html.includes('href='));
+  assert.equal(trustedCalls, 1); assert.equal(forgedCalls, 0);
+});
+
+test('full and partial File text without an installed presenter refuse rather than invent a link', async () => {
+  for (const partial of [false, true]) {
+    const file = makeFileValue('never-disclose-file-id');
+    const page: PageDescriptor = { owner: 'TestApp', path: '/missing-file-presenter', title: 'Files',
+      admit: async () => ({}), render: context => text({ context, values: [[file]] }) };
+    const { deps } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest(deps, testRequest('/missing-file-presenter',
+      partial ? { headers: { 'HX-Request': 'true' } } : {}));
+    assert.equal(response.status, 422);
+    const body = await response.text();
+    assert.ok(!body.includes(file.id)); assert.ok(!body.includes('href=')); assert.ok(!body.includes('source-bound presenter'));
   }
 });
