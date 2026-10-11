@@ -142,11 +142,36 @@ export function checkQueryProjection(returned: Record<string, unknown>, queries:
   unique(ids);
   if (projection !== undefined && !influenceKinds.has(projection.queryId) ||
       [...influenceKinds.values()].some(kinds => kinds.size !== 4)) fail('complete query influence closure required.');
+  const dependencies = list(returned.dependencies);
+  for (const value of dependencies) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) fail('ordinary dependency requires an own object.');
+    const dependency = value as ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+    if (!Object.hasOwn(dependency, 'queryId')) continue;
+    const query = queries.find(query => query.id === text(dependency.queryId));
+    if (query === undefined || !influenceKinds.has(query.id) || !same(dependency.source, query.source)) {
+      fail('ordinary dependency requires its exact consumed query and source.');
+    }
+    if (queries.some(query => query.dependencies.some(observed => observed.id === dependency.id))) {
+      fail('ordinary query-linked dependency identity conflicts with a query field dependency.');
+    }
+  }
 }
 
 /** The existing return influence closure names exactly the retained queries. */
 export function returnQueryIds(returned: ScenarioResultDisclosurePlan['returns'][number]): readonly string[] {
   return [...new Set(returned.influences.map(influence => influence.queryId!))];
+}
+
+/** Actual candidate IDs may include these ordinary reads, without requiring
+ * every candidate to take a lazy branch. Their rows remain ordinary observations. */
+export function queryLinkedReturnDependencies(returned: ScenarioResultDisclosurePlan['returns'][number],
+  query: ScenarioReceiptQueryPlan): ScenarioResultDisclosurePlan['returns'][number]['dependencies'] {
+  const dependencies = returned.dependencies.filter(dependency => dependency.queryId === query.id);
+  if (dependencies.length > 0 && (!returnQueryIds(returned).includes(query.id) ||
+      dependencies.some(dependency => !same(dependency.source, query.source)))) {
+    fail('ordinary dependency requires its exact consumed query and source.');
+  }
+  return dependencies;
 }
 
 function checkProjection(value: unknown, queries: readonly ScenarioReceiptQueryPlan[]): ScenarioReceiptQueryProjection {
@@ -208,6 +233,18 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   unique(models.map(model => text(model.name)));
   for (const model of models) unique(model.fields.map(field => fieldName(field.name)));
   const queries = checkQueries(plan.queries ?? []);
+  const linkedIdentities = new Map<string, { encoded: string; linked: boolean }>();
+  for (const returned of plan.returns) {
+    checkQueryProjection(returned as unknown as Record<string, unknown>, queries);
+    for (const dependency of returned.dependencies) {
+      const encoded = stableStringify(dependency);
+      const previous = linkedIdentities.get(dependency.id), linked = dependency.queryId !== undefined;
+      if (previous !== undefined && previous.encoded !== encoded && (previous.linked || linked)) {
+        fail('ordinary query-linked dependency drifts across returns.');
+      }
+      linkedIdentities.set(dependency.id, { encoded, linked });
+    }
+  }
   for (const query of queries) {
     const model = models.find(model => model.name === query.model) ?? fail('query requires its owning model inventory.');
     if (query.parent !== undefined) {
@@ -223,6 +260,7 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
         if (consumers.length === 0 || dependencies.some(dependency => dependency === undefined)) fail('scoped stored parent requires its ordinary return dependency.');
         for (const dependency of dependencies) {
           if (dependency === undefined) return fail('scoped stored parent dependency is missing.');
+          if (dependency.queryId !== undefined) fail('scoped stored parent must be observed before its query.');
           source(dependency.source);
           const owner = models.find(model => model.name === dependency.model) ?? fail('stored parent requires its owning model inventory.');
           const field = owner?.fields.find(field => field.name === dependency.field);
@@ -395,6 +433,7 @@ function compare(left: Candidate, right: Candidate, query: ScenarioReceiptQueryP
 
 export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
   returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema): void {
+  checkQueryProjection(returned as unknown as Record<string, unknown>, checkQueries(plan.queries ?? []));
   const required = returnQueryIds(returned);
   if (required.length === 0) { if (value !== undefined && list(copy(value)).length !== 0) fail('return has foreign query observations.'); return; }
   const queries = list(copy(value));
@@ -415,6 +454,7 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
       unique(list(parent.secretFields).map(text));
     } else if (Object.hasOwn(observed, 'parent')) fail('unscoped query has a foreign parent witness.');
     const candidates = list(observed.candidates); const identities: string[] = [];
+    const linkedDependencies = queryLinkedReturnDependencies(returned, query);
     for (const value of candidates) {
       const candidate = object(value, ['row', 'record', 'secretFields', 'matched', 'dependencies']);
       const original = row(candidate.row), projected = row(candidate.record, true);
@@ -426,7 +466,8 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
       const metadata = (value: StoredRow) => ({ ...value, parent: value.parent ?? null, data: null });
       if (!same(metadata(original), metadata(projected)) || !subset(projected.data, original.data)) fail('saved projection differs from original scan row.');
       const ids = list(candidate.dependencies).map(text); unique(ids);
-      if (ids.some(id => !query.dependencies.some(dep => dep.id === id))) fail('foreign observed query dependency.');
+      if (ids.some(id => !query.dependencies.some(dep => dep.id === id) &&
+          !linkedDependencies.some(dep => dep.id === id))) fail('foreign observed query dependency.');
       for (const dependency of query.dependencies) {
         // State closes actual predicate read/marker correspondence before
         // producing these IDs. Skipped branches have no executed observation;
