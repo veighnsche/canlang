@@ -3158,17 +3158,59 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
   }
 }
 
+/** Only checked model consumers select an invocation-local registry. */
+function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): readonly string[] {
+  const models = new Set<string>();
+  const add = (type: string | undefined, singular = false) => {
+    if (type === undefined) return;
+    const parsed = parseTypeId(type);
+    const name = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
+    if (name !== undefined && (!singular || !parsed.array && !parsed.nullable) &&
+        loaded.models.some(model => model.name === name)) models.add(name);
+  };
+  add(def.descriptor.result?.type, true);
+  for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
+    for (const dependency of returned.dependencies) add(dependency.type);
+  }
+  return [...models];
+}
+function needsInvocationSourceReads(loaded: LoadedCanonicalDescriptors, operation: string): boolean {
+  const visited = new Set<string>();
+  const visit = (name: string): boolean => {
+    if (visited.has(name)) return false;
+    visited.add(name);
+    const def = generatedScenarioDef({ def: loaded.registry.get(name) });
+    if (def === undefined) return false;
+    if (nativeScenarioModelConsumers(loaded, def).length !== 0) return true;
+    for (const target of nativeScenarioCalls.get(loaded)?.get(name)?.values() ?? []) {
+      if (visit(target.name)) return true;
+    }
+    return false;
+  };
+  return visit(operation);
+}
+interface InvocationSourceReadContext {
+  readonly opts: Pick<CanonicalMutationOpts, 'asm' | 'artifact' | 'identity' | 'source' | 'store'>;
+  readonly now: () => number;
+  readonly preferences?: HandlerContext['preferences'];
+}
+
 /** Stored reference influence uses State's actual current viewer policy. The
  * checked type selects its owning producer; a Values reference grants nothing. */
 async function bindNativeScenarioReferences(asm: AssembledModules, artifact: CompileArtifact,
-  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  loaded: LoadedCanonicalDescriptors, context?: InvocationSourceReadContext): Promise<void> {
+  const sourceReads = context === undefined ? undefined : createSourceReadPolicyAdapter({ loaded,
+    opts: context.opts, now: context.now,
+    ...(context.preferences === undefined ? {} : { preferences: context.preferences }) });
   for (const value of loaded.registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
-    if (def === undefined || plan === undefined || !plan.returns.some(entry => entry.dependencies.some(dependency => {
+    if (def === undefined || plan === undefined) continue;
+    const models = nativeScenarioModelConsumers(loaded, def);
+    if (context === undefined ? !plan.returns.some(entry => entry.dependencies.some(dependency => {
       const parsed = parseTypeId(dependency.type);
       const modelName = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
       return modelName !== undefined && loaded.models.some(model => model.name === modelName);
-    }))) continue;
+    })) : models.length === 0) continue;
     const bind = loaded.producers.invoke.bindScenarioReceiptReferenceProducer;
     if (bind === undefined) {
       throw new AssemblyCorrespondenceError('Scenario stored references require their installed State producer.');
@@ -3181,7 +3223,12 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
     const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
     if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario stored references lack their owning app identity.');
-    bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'] });
+    const readPolicies = sourceReads === undefined ? undefined : new Map<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>();
+    if (readPolicies !== undefined) for (const model of models) {
+      for (const [name, policy] of sourceReads!.policies(model)) if (!readPolicies.has(name)) readPolicies.set(name, policy);
+    }
+    bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
+      ...(readPolicies === undefined ? {} : { readPolicies }) });
   }
 }
 
@@ -3404,6 +3451,7 @@ async function loadCanonicalDescriptorsInternal(
   asm: AssembledModules,
   artifact: CompileArtifact,
   freshStoreRegistry = false,
+  invocationSourceReads?: InvocationSourceReadContext,
 ): Promise<LoadedCanonicalDescriptors> {
   const claimedScenario = claimsScenarioDisclosure(artifact);
   const claimedRowSource = requiresRowReadCorrespondence(artifact);
@@ -3606,7 +3654,7 @@ async function loadCanonicalDescriptorsInternal(
   await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioQueries(asm, artifact, canonical);
-  await bindNativeScenarioReferences(asm, artifact, canonical);
+  await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   for (const [owner, sites] of canonical.membershipSources) {
     if (sites.every(site => site.stage === 'read-policy' || site.stage === 'read-predicate' || site.stage === 'send-dispatch')) continue;
     if (sites.some(site => site.stage === 'read-policy' || site.stage === 'read-predicate' || site.stage === 'send-dispatch')) {
@@ -3708,6 +3756,8 @@ export interface CanonicalMutationOpts {
   readonly app: string;
   /** Checked selected-app facts supplied by the host assembly, never the envelope. */
   readonly formatting?: HandlerFormattingScope;
+  /** Actual host-supplied scenario preferences, shared with its source read predicates. */
+  readonly preferences?: HandlerContext['preferences'];
   /** Serving-source label (MCP path passes `mcp`, standalone `worker`). */
   readonly source: string;
   readonly store: StoragePort;
@@ -4371,10 +4421,12 @@ function freezeScenarioSnapshot(value: unknown): unknown {
 function createSourceReadPolicyAdapter(input: {
   readonly loaded: LoadedCanonicalDescriptors;
   readonly opts: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'store' | 'source'>;
-  readonly revision: Revision;
+  /** Omitted only for a fresh invocation registry: State supplies each admitted/replay observation R. */
+  readonly revision?: Revision;
   readonly now: () => number;
   readonly app?: string;
   readonly owner?: string;
+  readonly preferences?: HandlerContext['preferences'];
 }) {
   const { loaded } = input, StateError = loaded.producers.errors;
   const evaluate = async (sourceModel: string,
@@ -4385,7 +4437,7 @@ function createSourceReadPolicyAdapter(input: {
     await verifyCheckedAssembly(input.opts.asm, input.opts.artifact);
     const actor = input.opts.identity.actor, team = input.opts.identity.team;
     if (context.actorUserId !== (actor?.user_id ?? null) || context.teamId !== (team?.team_id ?? null) ||
-        (input.owner !== undefined && context.teamId !== input.owner) || currentRevision !== input.revision ||
+        (input.owner !== undefined && context.teamId !== input.owner) || input.revision !== undefined && currentRevision !== input.revision ||
         !loaded.models.some(model => model.name === sourceModel)) {
       throw new StateError('validation', 'Source read predicate context differs from its coherent admitted identity/model.');
     }
@@ -4405,6 +4457,7 @@ function createSourceReadPolicyAdapter(input: {
       revision: currentRevision, actorUserId: context.actorUserId, teamId: context.teamId,
       memberships: context.memberships, coherentContext: context, authority: 'viewer',
       sourceReadOpts: input.opts, sourceObservation: observation,
+      ...(input.preferences === undefined ? {} : { sourcePreferences: input.preferences }),
       ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
     const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
       nativeProjectedRecord(loaded, name, source, navigation, recordView);
@@ -4415,6 +4468,7 @@ function createSourceReadPolicyAdapter(input: {
     for (const { predicate, owner } of predicates) {
       const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
       memberships: roles, store: readonlyStore, clock: input.now,
+      ...(input.preferences === undefined ? {} : { preferences: input.preferences }),
       canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
         stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
         readModel: refuse, readRecords: refuse, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
@@ -4486,6 +4540,7 @@ async function createContainmentNavigation(input: {
   readonly coherentContext?: import('@canlang/state/policy/grants').ByContext;
   /** The original live State source lifetime; parent reads borrow this observation. */
   readonly sourceObservation?: Readonly<ViewerGenerationCallbackReadObservation>;
+  readonly sourcePreferences?: HandlerContext['preferences'];
   readonly fence?: import('@canlang/state/invocation/admission').FenceScope;
   readonly failure?: (error: unknown) => void;
 }) {
@@ -4496,6 +4551,7 @@ async function createContainmentNavigation(input: {
   const prepared = new WeakMap<object, Entry>();
   const references = new WeakMap<object, Entry>();
   const projectionSources = new WeakMap<object, StoredRow>();
+  const sourcePresence = new WeakMap<object, ReadonlySet<string>>();
   const used = new Set<Entry>();
   let reads = 0;
   const sourceReads = input.sourceReadOpts === undefined ||
@@ -4503,6 +4559,7 @@ async function createContainmentNavigation(input: {
       loaded.sourceReadPolicies.size === 0
     ? undefined : createSourceReadPolicyAdapter({ loaded,
       opts: { ...input.sourceReadOpts, store }, revision: input.revision,
+      ...(input.sourcePreferences === undefined ? {} : { preferences: input.sourcePreferences }),
       now: (() => { const now = (input.sourceReadOpts.now ?? Date.now)(); return () => now; })() });
   const sourcePolicies = new Map<string, ReturnType<NonNullable<typeof sourceReads>['policies']>>();
   let viewerProducers: Promise<{
@@ -4543,21 +4600,15 @@ async function createContainmentNavigation(input: {
         context: { actorUserId: input.actorUserId, teamId: input.teamId }, memberships: input.memberships, store,
         ...(input.sourceObservation === undefined ? {} : { observation: input.sourceObservation }),
         ...(input.fence === undefined ? {} : { fence: input.fence }),
-      }, async result => {
+      }, async (result, _allowed, presence) => {
         if (result.revision !== input.revision) throw new StateError('conflict', 'State changed during parent navigation.');
         if (result.record === null) throw new StateError('not_found', 'Parent record not found.');
-        // Retain the genuine private source only to distinguish a denied field
-        // from an absent optional value. This row supplies no authorization.
-        const original = await store.cohortLoad({ model: model as ModelName, id: id as RecordId,
-          expectedRevision: result.revision });
-        if (original === null || original.id !== id || original.version !== result.record.version) {
-          throw new StateError('conflict', 'State changed during parent navigation.');
-        }
+        if (presence === null) throw new StateError('validation', 'Authorized source projection lacks its same-load field presence.');
         await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
-        return { record: result.record, source: original };
+        return { record: result.record, presence };
       });
       const projected = freezeScenarioSnapshot(structuredClone(visible.record)) as ProjectedRecord;
-      projectionSources.set(projected, freezeScenarioSnapshot(structuredClone(visible.source)) as StoredRow);
+      sourcePresence.set(projected, new Set(visible.presence.fields));
       return projected;
     }
     const row = basis ?? (input.coherentContext === undefined ? await store.load(model as ModelName, id as RecordId) :
@@ -4699,6 +4750,8 @@ async function createContainmentNavigation(input: {
   };
   const reject = (error: unknown): never => { input.failure?.(error); throw error; };
   const isWithheld = (row: StoredRow | ProjectedRecord, field: string): boolean => {
+    const present = sourcePresence.get(row);
+    if (present !== undefined) return present.has(field) && !Object.hasOwn(row.data, field);
     const basis = projectionSources.get(row);
     return basis !== undefined && Object.hasOwn(basis.data, field) && !Object.hasOwn(row.data, field);
   };
@@ -6002,6 +6055,7 @@ async function runScenarioExecution(
   };
   const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
+    ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
     ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
     caller:
       actorUserId === null
@@ -6289,8 +6343,27 @@ async function runScenarioExecution(
         const type = selected.descriptor.result?.type;
         if (type === 'void') { if (wire !== null) return refuseRecordBinding('Void child returned nonvoid wire.'); return undefined; }
         if (type === undefined) return refuseRecordBinding('Child result lacks its owning checked type.');
-        // Nominal query references remain Values carriers. They cannot issue
-        // raw owner views or replace the parent's protected reference frame.
+        const returnedType = parseTypeId(type);
+        const returnedName = returnedType.base.kind === 'nominal' ? returnedType.base.path : undefined;
+        const returnedModel = returnedName !== undefined && !returnedType.array && !returnedType.nullable &&
+          loaded.models.some(model => model.name === returnedName) ? returnedName : undefined;
+        if (returnedModel !== undefined) {
+          // State has completed the child binding in this exact owner session.
+          // Its id selects a genuine current parent-stage read, never a copied row.
+          if (typeof wire !== 'object' || wire === null || Object.keys(wire).length !== 1 ||
+              !Object.hasOwn(wire, 'id') || typeof (wire as { id?: unknown }).id !== 'string') {
+            return refuseRecordBinding('Model child requires its original State result wire.');
+          }
+          const row = await readOwnerRow(returnedModel as ModelName, (wire as { id: RecordId }).id);
+          assertCall(actualCall, receiptStore);
+          if (nativeScenarioExecutions.get(actualCall) !== active || row === null || row.archivedAt !== null) {
+            return refuseRecordBinding('Model child result is unavailable in its current parent stage.');
+          }
+          await ownerNavigation.prepare(returnedModel, row);
+          assertCall(actualCall, receiptStore);
+          return recordView(returnedModel, row);
+        }
+        // Other nominal query references remain Values carriers.
         return decodeCanonicalValue(loaded.valueSchema, type, wire);
       }, {
         // Query candidates stay separate from admitted/current owner rows. Never
@@ -6616,7 +6689,23 @@ async function invokeCanonicalMutation(
 ): Promise<MutationResult> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  const cached = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  // This literal port is shared by producer observations, State admission,
+  // nested owner calls and current receipt disclosure.
+  const receiptStore = withDispatchJoinPort(opts.store, { commitJoin: batch => {
+    assertReceiptJoin(batch);
+    return opts.store.commit(batch);
+  } });
+  const invocationLocal = needsInvocationSourceReads(cached, opts.operation);
+  if (invocationLocal) {
+    const now = opts.now();
+    opts = Object.freeze({ ...opts, now: () => now,
+      ...(opts.preferences === undefined ? {} : { preferences: captureDispatchPreclaimData(opts.preferences) }) });
+  }
+  const loaded = invocationLocal ? await loadCanonicalDescriptorsInternal(opts.asm, opts.artifact, true, {
+    opts: Object.freeze({ asm: opts.asm, artifact: opts.artifact, identity: opts.identity, source: opts.source, store: receiptStore }),
+    now: opts.now, ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
+  }) : cached;
   const StateError = loaded.producers.errors;
   const invoke = receiptOnly ? loaded.producers.invoke.invokeRetainedReceiptOnly : loaded.producers.invoke.invoke;
   if (invoke === undefined) {
@@ -6650,11 +6739,7 @@ async function invokeCanonicalMutation(
   }
   // Validate protected association/receipt pairs on the original final
   // canonical commit, after scenario writes have been coalesced.
-  const receiptStore = withDispatchJoinPort(opts.store, { commitJoin: batch => {
-    assertReceiptJoin(batch);
-    // State invoke owns fence retries; retain the native storage exception.
-    return opts.store.commit(batch);
-  } });
+
   const committedSource: Awaited<ReturnType<typeof canonicalCommittedSourceStage>> = receiptOnly ? {} : await canonicalCommittedSourceStage(loaded);
   let crudExecute: ((call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>) | undefined;
   if (!receiptOnly) {
@@ -6784,7 +6869,7 @@ async function invokeCanonicalMutation(
     scenarioProjection = await producer.projectScenarioReceipt({ receipt: committedReceipt,
       registry: loaded.registry as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['registry'],
       policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
-      app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+      app: opts.app, identity: opts.identity, store: invocationLocal ? receiptStore : opts.store, memberships: opts.memberships,
     });
     if (!receiptOnly && result.status === 'replayed' && checkedScenario !== undefined &&
         (association.fileAssignments?.length ?? 0) !== 0) {
@@ -6812,7 +6897,7 @@ async function invokeCanonicalMutation(
         scenarioProjection = await producer.projectScenarioReceipt({ receipt: committedReceipt,
           registry: loaded.registry as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['registry'],
           policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
-          app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+          app: opts.app, identity: opts.identity, store: invocationLocal ? receiptStore : opts.store, memberships: opts.memberships,
         });
       }
     }
@@ -6838,7 +6923,7 @@ async function invokeCanonicalMutation(
     }
     const projected = await loaded.producers.invoke.projectGeneratedCrudReceipt({
       receipt: committedReceipt, registry: loaded.registry, policy: loaded.policy,
-      app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+      app: opts.app, identity: opts.identity, store: invocationLocal ? receiptStore : opts.store, memberships: opts.memberships,
     });
     return { ...result, ...projected };
   }

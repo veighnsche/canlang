@@ -4458,3 +4458,20 @@ are reused. This corrects f213 supplier order; native/application authority and
 all remaining owner joins/holds are unchanged.
 
 Coordinator defining corrected gallery and sealed nominal source reviews CLEAR, integrated LOCAL main after deadline. Preserve descriptor getters and authored first-failure order; sealed owning TextRequest/TextMessage identity and schema remain required across four source consumers. Reuse corrected gallery3/3 and nominal1/nativefailed-only1/nominal3 plus retained142/strict0/fmt0; exact compiler source preimages match. Copied already-accepted Packages/State prerequisites are not imported or counted again. Original9 diagnostics/no modules and genuine nullable supplier/native/model/application/external/held criteria remain unfinished. Complete checkpoint unchanged.
+
+**Local continuation — emit existing model-result binder, 2026-10-11
+(unfinished installed/native qualification).** Exact admitted singular created
+Model return evaluates its original view once, awaits the defining native-frame
+bindScenarioReceiptModelResult(c,returnId,value), selects the same original return
+and returns that same canonical wire. Both direct Create and complete-child CALL
+use this sequence; ordinary/scalar/implicit returns do not import the binder.
+Owning source/IR/descriptor/refusal5/5 .03s pass, including exact root/child once
+and bind-before-select source. Changed strictalltargets0 8.69s, fmt/diff0.
+Dev confirmed the facade ABI; actual CLI/verified
+installed consumer is pending its exact released frame/stdlib/invoke closure,
+which is absent locally. Preserve genuine row/frame/authority checks; no raw view
+or reconstructed id is passed to State. This connects the finite1646 consumer
+leaf; populated/contained original creates and richer input/query/SEND joins remain
+required. No complete C04/native/application acceptance or hold release.
+
+Coordinator independent defining model binder emitter and corrected native source frame/factory reviews CLEAR; integrate468 with exact focused Dev3cd/5829 producer closure. Once Model value, awaited authentic owning current-stage StoredRow before return selection, SAME canonicalwire; scalar/implicit emission unchanged. Reuse owning6 actual source/CLI/installed/refusal controls and strict0/fmt0; exact source preimages match. Changed Cloudflare/root0. Original native root-child/current-authority/replay is Dev-owned unrun acceptance, not inferred from installed helper/source; no fullplan or hold/checkpoint completion.
