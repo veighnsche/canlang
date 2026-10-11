@@ -1,0 +1,17 @@
+app TableTime
+Given
+ Calendar {title:text}
+ Window in Calendar {from:datetime,until:datetime,state:enum(open,closed),available:bool,rank:int}
+ policy Calendar read=members
+ policy Window read=members
+When
+ crud Calendar by=members fields=title
+ crud Window by=members fields=available,rank
+ scenario seed(calendar:Calendar,from:datetime,state:Window.state) by=members
+  do create Window {parent=calendar,from,until=from,state,available=true,rank=1} as window
+ ## Supplementary case: the parent update precedes contained creation.
+ scenario update_parent_then_seed(calendar:Calendar,from:datetime,state:Window.state) by=members
+  do
+   set calendar {title="Supplementary staged parent"}
+   create Window {parent=calendar,from,until=from,state,available=false,rank=2} as window
+Then
