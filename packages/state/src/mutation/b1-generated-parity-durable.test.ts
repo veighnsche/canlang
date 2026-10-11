@@ -126,6 +126,11 @@ async function doCall<T>(method: string, ...args: ReadonlyArray<unknown>): Promi
 
 function doProxy(): StoragePort {
   return {
+    cohortIdOrder: 'utf8-binary',
+    cohortIdentityPage: (input) => doCall('cohortIdentityPage', input),
+    cohortLoad: (input) => doCall('cohortLoad', input),
+    cohortRowPage: (input) => doCall('cohortRowPage', input),
+    cohortAnchorFact: (input) => doCall('cohortAnchorFact', input),
     readRevision: () => doCall('readRevision'),
     load: (model: ModelName, id: RecordId) => doCall('load', model, id),
     query: (spec) => doCall('query', spec),

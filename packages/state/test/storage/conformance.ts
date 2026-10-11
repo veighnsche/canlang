@@ -43,6 +43,7 @@ import type {
 } from '@canlang/contracts';
 // Single adjustment point for worker A's actual error/class locations.
 import { FenceConflictError, StorageConstraintError } from '../../src/storage/port.js';
+import { StateError } from '../../src/errors.js';
 
 export { FenceConflictError, StorageConstraintError };
 
@@ -359,6 +360,176 @@ export function storageConformance(
   setup: () => Promise<ConformanceSetup>,
 ): void {
   describe(`storage conformance (${name})`, () => {
+    it('cohort Unicode identity pages preserve backend cursor order and complete JS-sorted membership', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const model = asModel('t.UnicodeCohort');
+      const sourceIds = ['\u{10000}', 'z', '\uE000', 'a'];
+      await store.commit(makeBatch(0, { writes: sourceIds.map(id => ({ kind: 'insert', model,
+        row: makeRow({ id, archivedAt: id === '\u{10000}' ? 2 : null }) })) }));
+      assert.ok(store.cohortIdOrder === 'utf16' || store.cohortIdOrder === 'utf8-binary');
+      const expected = store.cohortIdOrder === 'utf16'
+        ? ['a', 'z', '\u{10000}', '\uE000']
+        : ['a', 'z', '\uE000', '\u{10000}'];
+      const observed: string[] = [];
+      let after: RecordId | null = null;
+      for (const id of expected) {
+        const page = await store.cohortIdentityPage({ model, after, limit: 1, expectedRevision: asRevision(1) });
+        assert.deepEqual(page, [asId(id)]);
+        observed.push(page[0]!);
+        after = page[0]!;
+      }
+      assert.deepEqual(await store.cohortIdentityPage({ model, after, limit: 1, expectedRevision: asRevision(1) }), []);
+      assert.equal(new Set(observed).size, sourceIds.length);
+      assert.deepEqual([...observed].sort(), [...sourceIds].sort());
+      assert.equal(await store.readRevision(), 1);
+    });
+
+    it('cohort requests refuse accessors and inherited fields without executing getters', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const model = asModel('t.CohortRequest');
+      const common = { model, expectedRevision: asRevision(0) };
+      const cases = [
+        { input: { ...common, after: null, limit: 1 },
+          invoke: (input: unknown) => store.cohortIdentityPage(input as Parameters<StoragePort['cohortIdentityPage']>[0]) },
+        { input: { ...common, id: asId('missing') },
+          invoke: (input: unknown) => store.cohortLoad(input as Parameters<StoragePort['cohortLoad']>[0]) },
+        { input: { ...common, fanoutId: 'fanout', after: null, limit: 1 },
+          invoke: (input: unknown) => store.cohortRowPage(input as Parameters<StoragePort['cohortRowPage']>[0]) },
+        { input: { ...common, id: asId('missing') },
+          invoke: (input: unknown) => store.cohortAnchorFact(input as Parameters<StoragePort['cohortAnchorFact']>[0]) },
+      ];
+      let getterCalls = 0;
+      const refuses = async (invoke: (input: unknown) => Promise<unknown>, input: unknown) => {
+        await assert.rejects(invoke(input), (error: unknown) =>
+          error instanceof StateError && error.code === 'validation');
+        assert.equal(getterCalls, 0);
+        assert.equal(await store.readRevision(), 0);
+      };
+      for (const { input, invoke } of cases) {
+        const original = { ...input };
+        for (const key of Object.keys(input)) {
+          const value = (input as Record<string, unknown>)[key];
+          const accessor = { ...input };
+          Object.defineProperty(accessor, key, { enumerable: true, get() {
+            getterCalls++;
+            return getterCalls === 1 ? value : (key === 'limit' ? 101 : 'x'.repeat(6001));
+          } });
+          await refuses(invoke, accessor);
+          const inherited = Object.assign(Object.create({ [key]: value }) as Record<string, unknown>, input);
+          delete inherited[key];
+          await refuses(invoke, inherited);
+        }
+        assert.deepEqual(input, original);
+        assert.deepEqual(await invoke(Object.assign(Object.create(null) as Record<string, unknown>, input)),
+          await invoke(input));
+      }
+      const parent = { model: asModel('t.Parent'), id: asId('parent') };
+      const accessorParent = { ...parent };
+      Object.defineProperty(accessorParent, 'model', { enumerable: true, get() {
+        getterCalls++;
+        return parent.model;
+      } });
+      await refuses(cases[0]!.invoke, { ...cases[0]!.input, parent: accessorParent });
+      assert.deepEqual(await store.query(query(model)), []);
+      assert.equal(await store.readRevision(), 0);
+    });
+
+    it('cohort identities page archived and parented rows without copying business payloads', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const model = asModel('t.Cohort');
+      const parent = { model: asModel('t.Parent'), id: asId('parent') };
+      const rows = Array.from({ length: 101 }, (_, i) => ({
+        ...makeRow({ id: `id-${String(100 - i).padStart(3, '0')}`,
+          archivedAt: i === 50 ? 2 : null,
+          data: i === 50 ? { oversized: 'x'.repeat(2_000_001) } : {} }), parent,
+      }));
+      await store.commit(makeBatch(0, { writes: rows.map(row => ({ kind: 'insert', model, row })) }));
+      const input = { model, parent, after: null, limit: 100, expectedRevision: asRevision(1) };
+      assert.deepEqual(await store.cohortIdentityPage(input),
+        Array.from({ length: 100 }, (_, i) => asId(`id-${String(i).padStart(3, '0')}`)));
+      assert.deepEqual(await store.cohortIdentityPage({ ...input, after: asId('id-099'), limit: 1 }), [asId('id-100')]);
+      assert.deepEqual(await store.cohortIdentityPage({ ...input, parent: { ...parent, id: asId('other') } }), []);
+      assert.equal((await store.cohortIdentityPage({ ...input, limit: 1 }))[0], 'id-000');
+      for (const limit of [0, 101]) await assert.rejects(store.cohortIdentityPage({ ...input, limit }), StateError);
+      await assert.rejects(store.cohortLoad({ model, id: asId('id-050'), expectedRevision: asRevision(1) }), StateError);
+      await assert.rejects(store.cohortIdentityPage({ ...input, expectedRevision: asRevision(0) }), FenceConflictError);
+      assert.equal(await store.readRevision(), 1);
+    });
+
+    it('cohort component and retained compound identities enforce their separate bounds', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const model = asModel('t.CohortIds');
+      const ids = ['a'.repeat(200), 'b'.repeat(201), 'c'.repeat(6000), 'd'.repeat(6001)];
+      await store.commit(makeBatch(0, { writes: ids.map(id => ({ kind: 'insert', model, row: makeRow({ id }) })) }));
+      const input = { model, after: null, limit: 1, expectedRevision: asRevision(1) };
+      assert.deepEqual(await store.cohortIdentityPage(input), [asId(ids[0]!)]);
+      await assert.rejects(store.cohortIdentityPage({ ...input, after: asId(ids[0]!) }), StateError);
+      const retained = await store.cohortLoad({ model, id: asId(ids[2]!), expectedRevision: asRevision(1) });
+      assert.equal(retained?.id, ids[2]);
+      await assert.rejects(store.cohortLoad({ model, id: asId(ids[3]!), expectedRevision: asRevision(1) }), StateError);
+      assert.equal(await store.readRevision(), 1);
+    });
+
+    it('cohort row pages detach bounded live fanout rows and share representation budgets', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const model = asModel('t.CohortRows');
+      let deep: unknown = null;
+      for (let i = 0; i < 34; i++) deep = { child: deep };
+      const rows = [
+        makeRow({ id: 'a', data: { fanoutId: 'selected', nested: { n: 1 } } }),
+        makeRow({ id: 'b', data: { fanoutId: 'other' } }),
+        makeRow({ id: 'c', archivedAt: 2, data: { fanoutId: 'selected' } }),
+        makeRow({ id: 'deep', data: { fanoutId: 'deep', deep } }),
+        makeRow({ id: 'tree', data: { fanoutId: 'tree', tree: Array.from({ length: 20_001 }, () => null) } }),
+        makeRow({ id: 'text', data: { fanoutId: 'text', text: 'x'.repeat(2_000_001) } }),
+        makeRow({ id: 'wide-a', data: { fanoutId: 'wide', text: 'x'.repeat(1_010_000) } }),
+        makeRow({ id: 'wide-b', data: { fanoutId: 'wide', text: 'x'.repeat(1_010_000) } }),
+      ];
+      await store.commit(makeBatch(0, { writes: rows.map(row => ({ kind: 'insert', model, row })) }));
+      const input = { model, fanoutId: 'selected', after: null, limit: 100, expectedRevision: asRevision(1) };
+      const page = await store.cohortRowPage(input);
+      assert.deepEqual(ids(page), ['a']);
+      (page[0]!.data['nested'] as { n: number }).n = 9;
+      const load = { model, id: asId('a'), expectedRevision: asRevision(1) };
+      const retained = await store.cohortLoad(load);
+      assert.deepEqual(retained?.data['nested'], { n: 1 });
+      (retained!.data['nested'] as { n: number }).n = 8;
+      assert.deepEqual((await store.cohortLoad(load))?.data['nested'], { n: 1 });
+      assert.deepEqual(await store.cohortRowPage({ ...input, after: asId('a'), limit: 1 }), []);
+      for (const id of ['deep', 'tree', 'text']) {
+        await assert.rejects(store.cohortLoad({ ...load, id: asId(id) }), StateError);
+        await assert.rejects(store.cohortRowPage({ ...input, fanoutId: id }), StateError);
+      }
+      assert.equal((await store.cohortRowPage({ ...input, fanoutId: 'wide', limit: 1 })).length, 1);
+      await assert.rejects(store.cohortRowPage({ ...input, fanoutId: 'wide' }), StateError);
+      await assert.rejects(store.cohortRowPage({ ...input, limit: 101 }), StateError);
+      await assert.rejects(store.cohortLoad({ ...load, expectedRevision: asRevision(0) }), FenceConflictError);
+      assert.equal(await store.readRevision(), 1);
+    });
+
+    it('cohort anchor facts distinguish archived presence, disposal and unknown without writes', async () => {
+      const { store, reset } = await setup();
+      await reset();
+      const model = asModel('t.CohortAnchor');
+      await store.commit(makeBatch(0, {
+        writes: [{ kind: 'insert', model, row: makeRow({ id: 'present', archivedAt: 2 }) }],
+        history: [makeHistory({ model, recordId: 'removed', change: 'remove', after: null }),
+          makeHistory({ model, recordId: 'archived', change: 'archive' }),
+          makeHistory({ model, recordId: 'updated', change: 'update' })],
+      }));
+      const input = { model, id: asId('present'), expectedRevision: asRevision(1) };
+      assert.equal(await store.cohortAnchorFact(input), 'present');
+      for (const id of ['removed', 'archived']) assert.equal(await store.cohortAnchorFact({ ...input, id: asId(id) }), 'disposed');
+      for (const id of ['updated', 'never']) assert.equal(await store.cohortAnchorFact({ ...input, id: asId(id) }), 'unknown');
+      await assert.rejects(store.cohortAnchorFact({ ...input, expectedRevision: asRevision(0) }), FenceConflictError);
+      assert.equal(await store.readRevision(), 1);
+    });
+
     it('revision starts at 0 and advances exactly one per commit', async () => {
       const { store, reset } = await setup();
       await reset();

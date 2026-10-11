@@ -550,13 +550,67 @@ export interface FenceConflict {
  * local SQLite implement this same language contract; there is no cross-store
  * transaction. Raw adapter writes around the fence are forbidden.
  */
+/** Selected original private-cohort reads; never authority or a general query quota. */
+export interface CohortIdentityPageRequest {
+  readonly model: ModelName;
+  readonly parent?: RecordParent;
+  readonly after: RecordId | null;
+  /** Integer1..100; callers use1 for the complete-cohort overflow peek. */
+  readonly limit: number;
+  readonly expectedRevision: Revision;
+}
+
+export interface CohortRowLoadRequest {
+  readonly model: ModelName;
+  readonly id: RecordId;
+  readonly expectedRevision: Revision;
+}
+
+export interface CohortRowPageRequest {
+  readonly model: ModelName;
+  readonly fanoutId: string;
+  readonly after: RecordId | null;
+  readonly limit: number;
+  readonly expectedRevision: Revision;
+}
+
+export type CohortAnchorFact = 'present' | 'disposed' | 'unknown';
+
 export interface StoragePort {
+  /** Original backend identity/cursor order; final frozen members retain JS sort. */
+  readonly cohortIdOrder: 'utf16' | 'utf8-binary';
   /** Read the current fence revision before state-dependent reads. */
   readRevision(): Promise<Revision>;
   /** Load one stored row by identity (authority checks happen above). */
   load(model: ModelName, id: RecordId): Promise<StoredRow | null>;
   /** Execute an authorized query at the current checkpoint. */
   query(spec: QuerySpec): Promise<ReadonlyArray<StoredRow>>;
+  /**
+   * Include-archived identities only, in cohortIdOrder, exclusive
+   * after. Components<=200 UTF16 units; limit1..100. No business data decode.
+   * All selected cohort reads assert the supplied revision before and after
+   * their read and throw the existing fence conflict on disagreement.
+   */
+  cohortIdentityPage(input: CohortIdentityPageRequest): Promise<ReadonlyArray<RecordId>>;
+  /**
+   * One complete retained row with compound identity<=6000, bounded before
+   * JSON parsing/copy:20k expanded values, rootdepth32,2m UTF16 own keys/text,
+   * conservative12,640,000 raw UTF8 bytes. Unrelated load keeps its contract.
+   */
+  cohortLoad(input: CohortRowLoadRequest): Promise<StoredRow | null>;
+  /**
+   * Live fanoutId child rows in exclusive id order, limit1..100. The complete
+   * returned page shares the same representation budget as cohortLoad;
+   * SQL guards aggregate raw bytes before returning payloads to the host.
+   * Callers enforce total1000 visits/members and overflow peek themselves.
+   */
+  cohortRowPage(input: CohortRowPageRequest): Promise<ReadonlyArray<StoredRow>>;
+  /**
+   * Present includes archived; a missing row with remove/archive history is
+   * disposed; otherwise unknown. Read only existence/change facts, without
+   * decoding business data or whole history before classification.
+   */
+  cohortAnchorFact(input: CohortRowLoadRequest): Promise<CohortAnchorFact>;
   /** Fenced atomic commit; throws on fence conflict or constraint failure. */
   commit(batch: CommitBatch): Promise<CommitResult>;
   /** Look up a durable receipt by identity. */

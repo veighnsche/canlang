@@ -147,6 +147,57 @@ async function d1Setup(): Promise<ConformanceSetup> {
 storageConformance('d1', d1Setup);
 
 describe('d1 adapter proofs', () => {
+  it('cohort reads refuse a genuine revision race before decoding retained data', async () => {
+    const model = asModel('t.CohortRace');
+    const id = asId('race-row');
+    const request = { model, id, expectedRevision: asRevision(1) };
+    const readers = [
+      (store: ReturnType<typeof createD1Storage>) => store.cohortIdentityPage({
+        model, after: null, limit: 1, expectedRevision: asRevision(1),
+      }),
+      (store: ReturnType<typeof createD1Storage>) => store.cohortLoad(request),
+      (store: ReturnType<typeof createD1Storage>) => store.cohortRowPage({
+        model, fanoutId: 'race', after: null, limit: 100, expectedRevision: asRevision(1),
+      }),
+      (store: ReturnType<typeof createD1Storage>) => store.cohortAnchorFact(request),
+    ];
+    for (const read of readers) {
+      await resetD1();
+      const base = createD1Storage(db);
+      let nested: unknown = null;
+      for (let depth = 0; depth < 34; depth++) nested = { child: nested };
+      const row = makeRow({ id, data: { fanoutId: 'race', nested } });
+      await base.commit(makeBatch(0, { writes: [{ kind: 'insert', model, row }] }));
+      let advanced = false;
+      const wrap = (statement: ReturnType<D1Database['prepare']>, sql: string): ReturnType<D1Database['prepare']> =>
+        new Proxy(statement, { get(target, key) {
+          const value = Reflect.get(target, key);
+          if (key === 'bind') return (...args: unknown[]) => wrap(Reflect.apply(value, target, args), sql);
+          const selected = sql.startsWith('SELECT CASE WHEN length(CAST(id AS BLOB))') ||
+            sql.startsWith('WITH selected AS') || sql.startsWith('SELECT CASE WHEN EXISTS');
+          if (selected && (key === 'all' || key === 'first')) return async (...args: unknown[]) => {
+            const result = await Reflect.apply(value, target, args);
+            if (!advanced) {
+              await base.commit(makeBatch(1));
+              advanced = true;
+            }
+            return result;
+          };
+          return typeof value === 'function' ? value.bind(target) : value;
+        } });
+      const raced = new Proxy(db, { get(target, key) {
+        if (key === 'prepare') return (sql: string) => wrap(target.prepare(sql), sql);
+        const value = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      } });
+      await assert.rejects(read(createD1Storage(raced)), (error: unknown) =>
+        error instanceof FenceConflictError && error.expected === 1 && error.actual === 2);
+      assert.equal(advanced, true);
+      assert.equal(await base.readRevision(), 2);
+      assert.deepEqual(await base.load(model, id), { ...row, parent: null });
+    }
+  });
+
   it('legacy outbox rows remain unstamped through additive schema reopen and ack', async () => {
     await resetD1();
     await db.prepare('ALTER TABLE outbox DROP COLUMN committed_revision').run();

@@ -1,4 +1,7 @@
 import type {
+  CohortIdentityPageRequest,
+  CohortRowLoadRequest,
+  CohortRowPageRequest,
   HistoryEntry,
   InstalledSnapshot,
   MigrationFailure,
@@ -22,6 +25,261 @@ import type {
   StagedRowCursor,
   StoredRow,
 } from '@canlang/contracts';
+import { StateError } from '../errors.js';
+
+// The selected original private-cohort profile; ordinary codecs stay unbounded.
+const COHORT_NODES = 20_000;
+const COHORT_DEPTH = 32;
+const COHORT_TEXT = 2_000_000;
+const COHORT_BYTES = 6 * COHORT_TEXT + 32 * COHORT_NODES;
+function cohortLimit(): never {
+  throw new StateError('limit', 'Cohort representation exceeds its resource limit.', null, { retryable: false });
+}
+function cohortInvalid(): never { throw new StateError('validation', 'Invalid cohort storage input.'); }
+function cohortIdentity(value: unknown, maximum: number): asserts value is string {
+  if (typeof value !== 'string' || value.length === 0 || /[\u0000-\u001f\u007f]/.test(value)) cohortInvalid();
+  if (value.length > maximum) cohortLimit();
+  try { encodeURIComponent(value); } catch { cohortInvalid(); }
+}
+
+/** Capture only the selected own fields; accessors cannot change SQL bounds. */
+export function captureCohortRequest<T extends CohortIdentityPageRequest | CohortRowLoadRequest | CohortRowPageRequest>(
+  input: T, mode: 'identity' | 'load' | 'rows' | 'anchor',
+): T {
+  const record = (value: unknown): object => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+      (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) cohortInvalid();
+    return value;
+  };
+  const own = (value: object, key: string): unknown => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !('value' in descriptor)) cohortInvalid();
+    return descriptor.value;
+  };
+  const original = record(input);
+  const captured: Record<string, unknown> = { model: own(original, 'model'), expectedRevision: own(original, 'expectedRevision') };
+  if (mode === 'load' || mode === 'anchor') captured['id'] = own(original, 'id');
+  else {
+    captured['after'] = own(original, 'after'); captured['limit'] = own(original, 'limit');
+    if (mode === 'rows') captured['fanoutId'] = own(original, 'fanoutId');
+    else {
+      const descriptor = Object.getOwnPropertyDescriptor(original, 'parent');
+      if (descriptor !== undefined) {
+        if (!('value' in descriptor)) cohortInvalid();
+        if (descriptor.value !== undefined) {
+          const parent = record(descriptor.value);
+          captured['parent'] = Object.freeze({ model: own(parent, 'model'), id: own(parent, 'id') });
+        }
+      }
+    }
+  }
+  const result = Object.freeze(captured) as unknown as T;
+  checkCohortRequest(result, mode);
+  return result;
+}
+
+export function checkCohortRequest(
+  input: CohortIdentityPageRequest | CohortRowLoadRequest | CohortRowPageRequest,
+  mode: 'identity' | 'load' | 'rows' | 'anchor',
+): void {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) cohortInvalid();
+  cohortIdentity(input.model, 200);
+  if (!Number.isInteger(input.expectedRevision) || input.expectedRevision < 0) cohortInvalid();
+  if (mode === 'load' || mode === 'anchor') {
+    cohortIdentity((input as CohortRowLoadRequest).id, mode === 'anchor' ? 200 : 6000);
+  } else {
+    const page = input as CohortIdentityPageRequest | CohortRowPageRequest;
+    if (!Number.isInteger(page.limit) || page.limit < 1) cohortInvalid();
+    if (page.limit > 100) cohortLimit();
+    if (page.after !== null) cohortIdentity(page.after, mode === 'identity' ? 200 : 6000);
+    if (mode === 'rows') cohortIdentity((page as CohortRowPageRequest).fanoutId, 6000);
+    else if ('parent' in page && page.parent !== undefined) {
+      if (typeof page.parent !== 'object' || page.parent === null) cohortInvalid();
+      cohortIdentity(page.parent.model, 200); cohortIdentity(page.parent.id, 200);
+    }
+  }
+}
+
+export function compileCohortIdentityPage(input: CohortIdentityPageRequest): { sql: string; bindings: unknown[] } {
+  input = captureCohortRequest(input, 'identity');
+  const bindings: unknown[] = [input.model];
+  let where = 'model = ?';
+  if (input.parent !== undefined) { where += ' AND parent_model = ? AND parent_id = ?'; bindings.push(input.parent.model, input.parent.id); }
+  if (input.after !== null) { where += ' AND id > ?'; bindings.push(input.after); }
+  bindings.push(input.limit);
+  // No data/metadata/history payload is selected. SQL prevents an enormous
+  // stored id from reaching the host; UTF16/domain validation follows below.
+  return { sql: `SELECT CASE WHEN length(CAST(id AS BLOB)) <= 800 THEN id ELSE NULL END AS id FROM records WHERE ${where} ORDER BY records.id ASC LIMIT ?`, bindings };
+}
+
+export function checkCohortIdentityRows(rows: readonly { readonly id: string | null }[], limit: number): readonly RecordId[] {
+  if (rows.length > limit) cohortLimit();
+  return rows.map(row => { if (row.id === null) cohortLimit(); cohortIdentity(row.id, 200); return row.id as RecordId; });
+}
+
+/** Null data is a SQL resource sentinel, never a stored JSON null. */
+export type CohortRecordRow = Omit<RecordRow, 'data'> & { readonly data: string | null };
+function cohortRowSql(where: string, bindings: unknown[], limit: number): { sql: string; bindings: unknown[] } {
+  // SQLite affinity is not a type guarantee: even numeric metadata can hold
+  // large text/blobs. Count and withhold every returned column before the host.
+  const rawColumns = RECORD_COLUMNS.split(', ');
+  const rawSize = rawColumns.map(column => `COALESCE(length(CAST(r.${column} AS BLOB)), 0)`).join(' + ');
+  const gate = `(SELECT COALESCE(SUM(${rawSize}), 0) FROM records r JOIN selected s ON r.model = s.model AND r.id = s.id) <= ${COHORT_BYTES}`;
+  const columns = rawColumns.map(column =>
+    `CASE WHEN ${gate} THEN r.${column} ELSE NULL END AS ${column}`).join(', ');
+  // Select bounded identities first. Gate the complete page's raw payload
+  // before D1 .all()/DO .toArray() materializes any host payload strings.
+  return { sql: `WITH selected AS (SELECT model, id FROM records WHERE ${where} ORDER BY id ASC LIMIT ?) SELECT ${columns} FROM records r JOIN selected s ON r.model = s.model AND r.id = s.id ORDER BY r.id ASC`, bindings: [...bindings, limit] };
+}
+
+export function compileCohortRowLoad(input: CohortRowLoadRequest): { sql: string; bindings: unknown[] } {
+  input = captureCohortRequest(input, 'load');
+  return cohortRowSql('model = ? AND id = ?', [input.model, input.id], 1);
+}
+export function compileCohortRowPage(input: CohortRowPageRequest): { sql: string; bindings: unknown[] } {
+  input = captureCohortRequest(input, 'rows');
+  const bindings: unknown[] = [input.model, input.fanoutId];
+  let where = "model = ? AND archived_at IS NULL AND json_extract(data, '$.fanoutId') = ?";
+  if (input.after !== null) { where += ' AND id > ?'; bindings.push(input.after); }
+  return cohortRowSql(where, bindings, input.limit);
+}
+
+class CohortBudget {
+  nodes = 0;
+  text = 0;
+  visit(depth: number): void { if (depth > COHORT_DEPTH || ++this.nodes > COHORT_NODES) cohortLimit(); }
+  addText(units: number): void { this.text += units; if (this.text > COHORT_TEXT) cohortLimit(); }
+}
+
+/** Count raw bytes without allocating an encoding buffer before its cap. */
+function checkCohortRawBytes(raw: string): void {
+  if (raw.length > COHORT_BYTES) cohortLimit();
+  let bytes = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const code = raw.charCodeAt(i);
+    if (code < 0x80) bytes++;
+    else if (code < 0x800) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff && raw.charCodeAt(i + 1) >= 0xdc00 && raw.charCodeAt(i + 1) <= 0xdfff) { bytes += 4; i++; }
+    else bytes += 3;
+    if (bytes > COHORT_BYTES) cohortLimit();
+  }
+}
+
+/** Validate/count JSON tokens before JSON.parse can grow the retained tree. */
+function checkCohortJson(raw: string, budget: CohortBudget, rootDepth: number): void {
+  checkCohortRawBytes(raw);
+  let at = 0;
+  const invalid = (): never => { throw new SyntaxError('Invalid cohort JSON.'); };
+  const space = (): void => { while (raw[at] === ' ' || raw[at] === '\n' || raw[at] === '\r' || raw[at] === '\t') at++; };
+  const string = (): void => {
+    if (raw[at++] !== '"') invalid();
+    for (;;) {
+      const char = raw[at++];
+      if (char === undefined) throw new SyntaxError('Invalid cohort JSON.');
+      if (char === '"') return;
+      if (char === '\\') {
+        const escaped = raw[at++];
+        if (escaped === 'u') {
+          for (let n = 0; n < 4; n++) if (!/[0-9a-fA-F]/.test(raw[at++] ?? '')) invalid();
+        } else if (escaped === undefined || !'"\\/bfnrt'.includes(escaped)) invalid();
+      } else if (char.charCodeAt(0) < 0x20) invalid();
+      budget.addText(1);
+    }
+  };
+  const value = (depth: number): void => {
+    space(); budget.visit(depth);
+    const char = raw[at];
+    if (char === '"') { string(); return; }
+    if (char === '{' || char === '[') {
+      const array = char === '['; at++; space();
+      const end = array ? ']' : '}';
+      if (raw[at] === end) { at++; return; }
+      let index = 0;
+      for (;;) {
+        if (array) budget.addText(String(index++).length);
+        else { string(); space(); if (raw[at++] !== ':') invalid(); }
+        value(depth + 1); space();
+        if (raw[at] === end) { at++; return; }
+        if (raw[at++] !== ',') invalid(); space();
+      }
+    }
+    for (const literal of ['true', 'false', 'null']) {
+      if (raw.startsWith(literal, at)) { at += literal.length; return; }
+    }
+    const start = at;
+    if (raw[at] === '-') at++;
+    if (raw[at] === '0') at++;
+    else { if (!/[1-9]/.test(raw[at] ?? '')) invalid(); while (/[0-9]/.test(raw[at] ?? '')) at++; }
+    if (raw[at] === '.') { at++; if (!/[0-9]/.test(raw[at] ?? '')) invalid(); while (/[0-9]/.test(raw[at] ?? '')) at++; }
+    if (raw[at] === 'e' || raw[at] === 'E') { at++; if (raw[at] === '+' || raw[at] === '-') at++; if (!/[0-9]/.test(raw[at] ?? '')) invalid(); while (/[0-9]/.test(raw[at] ?? '')) at++; }
+    if (!Number.isFinite(Number(raw.slice(start, at)))) cohortInvalid();
+  };
+  value(rootDepth); space(); if (at !== raw.length) invalid();
+}
+
+function captureCohort(value: unknown, budget: CohortBudget, depth: number, active: Set<object>): unknown {
+  budget.visit(depth);
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'string') { budget.addText(value.length); return value; }
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'object' || value === null || active.has(value)) cohortInvalid();
+  const array = Array.isArray(value);
+  if (array ? Object.getPrototypeOf(value) !== Array.prototype :
+    Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) cohortInvalid();
+  if (array && value.length > COHORT_NODES - budget.nodes) cohortLimit();
+  const keys = Reflect.ownKeys(value);
+  if (keys.length > COHORT_NODES - budget.nodes + (array ? 1 : 0)) cohortLimit();
+  if (array && keys.length !== value.length + 1) cohortInvalid();
+  const result: Record<string, unknown> | unknown[] = array ? [] : {};
+  active.add(value);
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string') cohortInvalid();
+    if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) cohortInvalid();
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) cohortInvalid();
+    budget.addText(key.length);
+    Object.defineProperty(result, key, { value: captureCohort(descriptor.value, budget, depth + 1, active), enumerable: true, writable: true, configurable: true });
+  }
+  active.delete(value);
+  if (array && (result as unknown[]).length !== value.length) cohortInvalid();
+  return result;
+}
+
+export function captureCohortRow(row: StoredRow): StoredRow {
+  cohortIdentity(row.id, 6000);
+  return captureCohort(row, new CohortBudget(), 0, new Set()) as StoredRow;
+}
+export function captureCohortRows(rows: readonly StoredRow[]): readonly StoredRow[] {
+  if (rows.length > 100) cohortLimit();
+  for (const row of rows) cohortIdentity(row.id, 6000);
+  return captureCohort(rows, new CohortBudget(), 0, new Set()) as StoredRow[];
+}
+
+function prepareCohortRow(row: CohortRecordRow, budget: CohortBudget, depth: number): Omit<StoredRow, 'data'> {
+  if (row.data === null) cohortLimit();
+  cohortIdentity(row.id, 6000);
+  // Keep the exact ordinary codec's parent/null and metadata shape. The data
+  // token walk shares this same row/page budget, before any JSON.parse.
+  const parent = row.parent_model === null || row.parent_id === null ? null : { model: row.parent_model as ModelName, id: row.parent_id as RecordId };
+  const metadata = { id: row.id as RecordId, version: row.version as RecordVersion,
+    created: row.created, updated: row.updated, createdBy: row.created_by, updatedBy: row.updated_by,
+    archivedAt: row.archived_at, parent };
+  const copied = captureCohort(metadata, budget, depth, new Set()) as Omit<StoredRow, 'data'>;
+  budget.addText(4); // the owning data key; its value is counted by raw tokens
+  checkCohortJson(row.data, budget, depth + 1);
+  return copied;
+}
+export function toCohortStoredRow(row: CohortRecordRow): StoredRow {
+  const metadata = prepareCohortRow(row, new CohortBudget(), 0);
+  return { ...metadata, data: JSON.parse(row.data!) as Record<string, unknown> };
+}
+export function toCohortStoredRows(rows: readonly CohortRecordRow[]): readonly StoredRow[] {
+  if (rows.length > 100) cohortLimit();
+  const budget = new CohortBudget(); budget.visit(0);
+  const metadata = rows.map((row, index) => { budget.addText(String(index).length); return prepareCohortRow(row, budget, 1); });
+  return rows.map((row, index) => ({ ...metadata[index]!, data: JSON.parse(row.data!) as Record<string, unknown> }));
+}
 
 /** Raw `records` row as D1 returns it (snake_case columns). */
 export type RecordRow = {

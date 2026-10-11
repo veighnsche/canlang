@@ -43,10 +43,22 @@ import {
   toMigrationOutcome,
   toMigrationFailure,
   mergePublishedColumns,
+  compileCohortIdentityPage,
+  compileCohortRowLoad,
+  compileCohortRowPage,
+  captureCohortRequest,
+  checkCohortIdentityRows,
+  toCohortStoredRow,
+  toCohortStoredRows,
 } from './sqlite-codecs.js';
+import type { CohortRecordRow } from './sqlite-codecs.js';
 import type { RecordRow, ReceiptRow, OutboxRow, RetainedOutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
 import type { D1Database } from '@cloudflare/workers-types';
 import type {
+  CohortIdentityPageRequest,
+  CohortRowLoadRequest,
+  CohortRowPageRequest,
+  CohortAnchorFact,
   CommitBatch,
   CommitResult,
   DiscardStagedRows,
@@ -283,8 +295,59 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
   const framework = bindFileFrameworkProducers(producers);
   const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
   const storage: StoragePort = {
+    cohortIdOrder: 'utf8-binary',
     async readRevision(): Promise<Revision> {
       return readRevisionInner(db);
+    },
+
+    async cohortIdentityPage(input: CohortIdentityPageRequest): Promise<ReadonlyArray<RecordId>> {
+      input = captureCohortRequest(input, 'identity');
+      const { sql, bindings } = compileCohortIdentityPage(input);
+      const { expectedRevision, limit } = input;
+      const before = await readRevisionInner(db);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const rows = await db.prepare(sql).bind(...bindings).all<{ id: string | null }>();
+      const after = await readRevisionInner(db);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      return checkCohortIdentityRows(rows.results, limit);
+    },
+
+    async cohortLoad(input: CohortRowLoadRequest): Promise<StoredRow | null> {
+      input = captureCohortRequest(input, 'load');
+      const { sql, bindings } = compileCohortRowLoad(input);
+      const expectedRevision = input.expectedRevision;
+      const before = await readRevisionInner(db);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const row = await db.prepare(sql).bind(...bindings).first<CohortRecordRow>();
+      const after = await readRevisionInner(db);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      return row === null ? null : toCohortStoredRow(row);
+    },
+
+    async cohortRowPage(input: CohortRowPageRequest): Promise<ReadonlyArray<StoredRow>> {
+      input = captureCohortRequest(input, 'rows');
+      const { sql, bindings } = compileCohortRowPage(input);
+      const expectedRevision = input.expectedRevision;
+      const before = await readRevisionInner(db);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const rows = await db.prepare(sql).bind(...bindings).all<CohortRecordRow>();
+      const after = await readRevisionInner(db);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      return toCohortStoredRows(rows.results);
+    },
+
+    async cohortAnchorFact(input: CohortRowLoadRequest): Promise<CohortAnchorFact> {
+      input = captureCohortRequest(input, 'anchor');
+      const { model, id, expectedRevision } = input;
+      const before = await readRevisionInner(db);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const row = await db.prepare("SELECT CASE WHEN EXISTS (SELECT 1 FROM records WHERE model = ? AND id = ?) THEN 'present' " +
+        "WHEN EXISTS (SELECT 1 FROM history WHERE model = ? AND record_id = ? AND change IN ('remove', 'archive')) " +
+        "THEN 'disposed' ELSE 'unknown' END AS fact").bind(model, id, model, id).first<{ fact: string }>();
+      const after = await readRevisionInner(db);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      if (row?.fact !== 'present' && row?.fact !== 'disposed' && row?.fact !== 'unknown') throw new Error('Invalid cohort anchor fact.');
+      return row.fact;
     },
 
     async load(model: ModelName, id: RecordId): Promise<StoredRow | null> {

@@ -47,6 +47,7 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import { INITIAL_REVISION } from './schema.js';
+import { captureCohortRequest, checkCohortIdentityRows, captureCohortRow, captureCohortRows } from './sqlite-codecs.js';
 import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
   guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow } from './file-retirement.js';
@@ -494,8 +495,79 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
   const binding = authority === undefined ? undefined : checkedFileAuthority(authority);
   const live = (records = state.records): readonly FileGuardRow[] => [...records.values()];
   const store: StoragePort = {
+    cohortIdOrder: 'utf16',
     async readRevision(): Promise<Revision> {
       return state.revision as Revision;
+    },
+
+    async cohortIdentityPage(request) {
+      const input = captureCohortRequest(request, 'identity');
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const selected: Array<{ id: RecordId }> = [];
+      for (const record of state.records.values()) {
+        if (record.model !== input.model || (input.after !== null && record.row.id <= input.after)) continue;
+        if (input.parent !== undefined && (record.row.parent?.model !== input.parent.model ||
+          record.row.parent?.id !== input.parent.id)) continue;
+        const index = selected.findIndex(row => row.id > record.row.id);
+        if (index === -1) {
+          if (selected.length < input.limit) selected.push({ id: record.row.id });
+        } else {
+          if (selected.length === input.limit) selected.pop();
+          selected.splice(index, 0, { id: record.row.id });
+        }
+      }
+      checkCohortIdentityRows(selected, input.limit);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      return selected.map(row => row.id);
+    },
+
+    async cohortLoad(request) {
+      const input = captureCohortRequest(request, 'load');
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const found = state.records.get(recordKey(input.model, input.id));
+      const result = found === undefined ? null : captureCohortRow(found.row);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      return result;
+    },
+
+    async cohortRowPage(request) {
+      const input = captureCohortRequest(request, 'rows');
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const selected: StoredRow[] = [];
+      for (const record of state.records.values()) {
+        const row = record.row;
+        if (record.model !== input.model || row.archivedAt !== null || row.data['fanoutId'] !== input.fanoutId ||
+          (input.after !== null && row.id <= input.after)) continue;
+        const index = selected.findIndex(candidate => candidate.id > row.id);
+        if (index === -1) {
+          if (selected.length < input.limit) selected.push(row);
+        } else {
+          if (selected.length === input.limit) selected.pop();
+          selected.splice(index, 0, row);
+        }
+      }
+      const result = captureCohortRows(selected);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      return result;
+    },
+
+    async cohortAnchorFact(request) {
+      const input = captureCohortRequest(request, 'anchor');
+      checkFencedExpected(input.expectedRevision, state.revision);
+      let result: 'present' | 'disposed' | 'unknown' =
+        state.records.has(recordKey(input.model, input.id)) ? 'present' : 'unknown';
+      if (result === 'unknown') {
+        for (const item of state.history) {
+          const entry = item.entry as HistoryEntry;
+          if (entry.model === input.model && entry.recordId === input.id &&
+            (entry.change === 'remove' || entry.change === 'archive')) {
+            result = 'disposed';
+            break;
+          }
+        }
+      }
+      checkFencedExpected(input.expectedRevision, state.revision);
+      return result;
     },
 
     async load(model: ModelName, id: RecordId): Promise<StoredRow | null> {
