@@ -28,7 +28,7 @@ Use the shared finite-execution rules in [AGENTS.md](../../AGENTS.md) and the ex
 | --- | --- | --- | --- |
 | C01 — current changed-source qualification | Current whole qualification is frozen at 1be: 1457 distinct cases (library162/integration1295 across all140 targets), docs and strict Clippy0. Reviewed bb File union adds its original CLI-to-State consumer1/1 and changed strict0. Selected Images producer a4 is now reviewed and locally integrated; its owning original runtime consumer remains separate. | Compiler; exact changed source and installed inputs. Reuse the recorded whole and affected results. | Run only a changed or failed owning target and required changed strict checks; no record-only suite restart. a4 reports six original CLI/native schema cases6/6, affected17 and changed strict0; do not credit original File authority from metadata. |
 | C02 — original compositions | External/decision: current original ordered25 source closure has **23 findings: CRM1, Rent16, Shift4, Employees2**, no artifact. Assigned Stock33→32, Volunteer bound-tab analysis32→30, Shift owning-kind source30→25 and Rent benefit_unit source25→23 criteria are satisfied. Ungated Loyalty bound panels and their compact hero producer qualify at the finite source/IR/UI scope; gated panels and original Workbench/CanApprove/full Volunteer acceptance remain separate. | Application/source owners/coordinator assign exact corrections; Compiler fixes demonstrated producer gaps. Complete imports/app-use closure required. Exported Rent rename excluded; its5 hour/day/visit member-domain errors need an exact business adaptation and11 captured-name errors retain source-owner disposition. CRM C10 destination/null, Shift Teams payload/recipient contact/C03 and pure null-comparison correction retain exact prerequisites. | Preserve guards, permissions, cases, examples and order. Rent changes only its benefit_unit type to Resource.price_unit, retaining =hour/full label/all other bytes. Actual all25 differential removes only2 owner assignments;24other hashes and remaining diagnostics unchanged modulo +5byte offsets. Full52 corpus1/1 passes1.84s,onlyRent538→536 pin changes; prior374/strict/different-owner refusals reused. Volunteer native panels still refuse E6008/no modules; stop each satisfied finite criterion without native credit. After the last correction, run the original composition once before Dev's application journey. No blanket source rewrite. |
-| C03 — membership decision context | Unfinished implementation: exact selected active_member retains StateRead with bounded derived-function/SEND-condition source admission; original Require, body-condition, read-policy and read-predicate source inventories and exact source-only call metadata connect to the agreed Dev ABI. Subject-form role predicates await their actual Boolean. Native query predicates receive explicit fresh sourceC with no captured-root fallback; checked whereSource identifies the exact outer source/owner/node/statement, including repeated helper calls. Original create-before-SEND source correspondence joins target/input/when/binding/order exactly; corrected reviewed State c59a267a query observation release is consumed. | Compiler producer; Capability distinct genuine State body/read observations; Dev private source/frame/stage issuance and coherent subject-role reader; Packages owning active_member catalog availability. | Qualify actual original guards/reads at their true stages, preserving lazy order and genuine user/Team. Arbitrary StateRead, ordinary defaults, derived fields and unsupported pure contexts keep refusals. Async SEND remains E6008 until Dev releases actual fresh dispatch context plus frozen lexical ABI; active_member remains E6007 while the owning catalog is external. Current affected140distinct pass, b4_examples29 retained; actual emitted Node syntax and installed State body-condition source checker pass, strict/fmt/diff0. Original native/dispatch qualification and owning catalog availability remain unfinished. |
+| C03 — membership decision context | Unfinished implementation: exact selected active_member retains StateRead with bounded derived-function/SEND-condition source admission; original Require, body-condition, read-policy and read-predicate source inventories and exact source-only call metadata connect to the agreed Dev ABI. Subject-form role predicates await their actual Boolean. Native query predicates receive explicit fresh sourceC with no captured-root fallback; checked whereSource identifies the exact outer source/owner/node/statement, including repeated helper calls. Original create-before-SEND source correspondence joins target/input/when/binding/order exactly; corrected reviewed State c59a267a query observation release is consumed. | Compiler producer; Capability distinct genuine State body/read observations; Dev private source/frame/stage issuance and coherent subject-role reader; Packages owning active_member catalog availability. | Qualify actual original guards/reads at their true stages, preserving lazy order and genuine user/Team. Arbitrary StateRead, ordinary defaults, derived fields and unsupported pure contexts keep refusals. Private checked native SEND emits source-bound frozen lexical inputs and fresh-context predicates; generic/unprepared async SEND remains E6008 and actual Dev/Work dispatch remains external; active_member remains E6007 while the owning catalog is external. Current affected140distinct pass, b4_examples29 retained; actual emitted Node syntax and installed State body-condition source checker pass, strict/fmt/diff0. Original native/dispatch qualification and owning catalog availability remain unfinished. |
 | C04 — Capability Task39 original protected calls | External/decision: original Workbench/approve pure/dynamic/proposal/postassertion and still-unsupported default/composite/CRUD/as-consumption profiles. Static scalar/void CALL, bounded reference loops, query children/count/any/all and stored Step→Run operands already have scoped consumers. | Compiler checked source/receipt producers; State/Dev actual child/current-authority lifetime; C02–C03 and a named unsupported authored call. | One original generated parent journey proves its required bound result, order, rollback/replay and fresh authority. Existing source-aware depth16/aggregate200 and E6008 controls stay. Do not invent another frame/result-slot API or qualify every optional call shape. |
 | C05 — standard terminal completion | **Satisfied for the selected public Email profile:** original source04dff303 CLI/native schemas and unchanged Dev319 genuine retained receiving1/1 in79.37s are reviewed and locally integrated. Original private317 late rollback/replay8c is accepted and reused. | Compiler producer and Dev Email/Work/State/Identity/two-owner D1 consumer complete at this finite scope. | Stop this bounded join. Original success, early/late rejection, write-before-guard ordinary/frozen-cohort rollback, receipts/history/current authority and no-execution replay remain asserted. Mixed/void/anchored/unknown WorkflowField, authored SEND and verified ingress retain their separate requirements/refusals. |
 | C06 — standard verified events | Compiler IncomingEmail exact identity/equality producer criterion satisfied: current CLI/native pure5/5, existing454 affected reused; original Inbox107 and corpus41→40 retained. DatetimeValue is qualified. Authenticated standard ingress remains external. | Dev/Interfaces own genuine Payments.changed/Mailbox.received issuer and native retained consumer; Compiler supplies only missing sealed producer after exact contract release. | Reuse complete12-field canonical equality, wrappers/choose/copy/omission defaults, exact schema/input correspondence and source refusals. Qualify original event via genuine namespace/team/owner issuer, closed payload, trusted-null actor and commit/replay. Pure File identity comparison supplies no File/ingress authority. |
@@ -4170,3 +4170,48 @@ Office/provider join. Reuse the retained Office A/A/A advice; advice is not
 eligibility or native acceptance.58/67/nine and precise holds remain.
 
 Coordinator independent diagnostic-only review CLEAR and LOCAL main integration after the deadline. Reuse the nine owning outcomes and strict check; original inventory/native Office acceptance remains unfinished. Complete checkpoint unchanged.
+
+**Original SEND guard producer — unfinished native dispatch join, 2026-10-11.**
+
+Private original-source rechecking now joins each guarded SEND to its exact
+owner, complete predicate and statement, target/deployment binding and original
+result binding. Free lexical values are captured once at the authored SEND in
+written order; their declaration types preserve nullable values narrowed by
+earlier requires. Context values and query-local aliases are not frozen inputs.
+Native output carries `when:{rule,inputs}`, exact `operations.sendGuards` and
+`canApp().sendWhen` predicates taking actual fresh dispatch `c` and those inputs.
+Generic asynchronous guards and unprepared/raw native IR retain E6008.
+
+Three owning checks pass, including twelve source/IR/census mutation controls,
+actual emitted Node syntax and installed stdlib predicate-flow controls for
+fresh context, once/order, true/false, missing context and first-failure identity.
+These are compiler producer checks. Dev/Work/State retain genuine post-close
+dispatch, lexical validation and original application acceptance; Packages owns
+active_member catalog availability and the common typedFile transport gate.
+No Task22 lookup hold or whole58/67 checkpoint changes.
+
+**Original WHERE callable identity — unfinished native reader join, 2026-10-11.**
+
+Native source preparation independently rechecks original named-page stored-model
+WHERE source, checked query and complete emitted IR. Pure and role-only WHERE
+predicates need no active_member call inventory. Each original function is
+privately issued at its lexical creation point and retains its bindings. The
+verified module exports `canReadPredicateSource(predicate)` as a read-only getter
+returning fresh source/owner/node/outer-statement data. Copied whereSource,
+substituted, wrapped and bound predicates have no issuance. There is no public
+registration, spelling inspection or function-source inference.
+
+Dev retains this getter from the verified assembly, captures the actual original
+UI predicate before its factory and binds it to the real PageReadScope query.
+The marker selects the explicit fresh sourceC calling convention; it grants no
+read authority. Actual original membership/role/application execution remains
+with Dev/State/Capability and the shared catalog gate with Packages.
+
+
+The isolated WHERE unit passes127 distinct checks: codegen121, preparation2
+and membership emission4. Its actual emitted assembly uses installed stdlib/UI
+with a factory-boundary capture to prove original callable issuance, fresh role
+context, no fallback and forged/wrapped/bound/foreign/generic/raw refusals.
+It supplies no actual query or native read authority.
+
+Coordinator defining source review CLEAR for both finite producers; owning SEND3/3 with12 corruption refusals and WHERE127 plus emitted assembly/installed stdlib/UI controls are reused. Integrated LOCAL main after the deadline. Genuine native source context, dispatch, catalog and application criteria remain unfinished; no parent count or recipient hold changes.

@@ -46,9 +46,11 @@ pub mod js;
 mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
+mod read_predicates;
 pub mod scenario_calls;
 pub mod scenario_queries;
 mod scenario_receipts;
+mod send_guards;
 pub mod sourcemap;
 
 use crate::analysis::CheckedProgram;
@@ -189,13 +191,29 @@ pub fn emit(
         }
     }
     let membership = membership::prepare(program, &ir, sources.db, sources.catalog);
+    let read_predicates = sources
+        .options
+        .native_scenario_receipts
+        .then(|| read_predicates::prepare(program, &ir, sources.db, sources.catalog))
+        .flatten();
+    let send_guards = sources
+        .options
+        .native_scenario_receipts
+        .then(|| send_guards::prepare(program, &ir, sources.db, sources.catalog));
     let js_out = js::emit_program_with_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
         sources.db,
         &query_sources,
         &query_receipts,
-        membership.as_ref(),
+        js::EmitDecisionSources {
+            membership: membership.as_ref(),
+            read_predicates: read_predicates.as_ref(),
+            send_guards: send_guards.as_ref().and_then(|guards| guards.as_ref().ok()),
+            send_guard_gap: send_guards
+                .as_ref()
+                .and_then(|guards| guards.as_ref().err()),
+        },
     );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {

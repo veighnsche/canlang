@@ -1475,6 +1475,14 @@ pub fn emit_program_with_native_source_receipts(
 
 /// Emit nongrant source inventories alongside independently prepared immutable
 /// Complete query receipts. Source inventories alone cannot activate capture.
+#[derive(Default)]
+pub(super) struct EmitDecisionSources<'a> {
+    pub membership: Option<&'a super::membership::MembershipSources>,
+    pub read_predicates: Option<&'a super::read_predicates::PreparedReadPredicates>,
+    pub send_guards: Option<&'a super::send_guards::PreparedSendGuards>,
+    pub send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
+}
+
 pub(super) fn emit_program_with_query_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -1484,7 +1492,7 @@ pub(super) fn emit_program_with_query_sources(
         String,
         super::scenario_receipts::NativeScenarioReceipt,
     >,
-    membership: Option<&super::membership::MembershipSources>,
+    decisions: EmitDecisionSources<'_>,
 ) -> JsOutput {
     emit_program_with_sources(
         ir,
@@ -1492,7 +1500,7 @@ pub(super) fn emit_program_with_query_sources(
         Some(db),
         Some(queries),
         Some(query_receipts),
-        membership,
+        decisions,
     )
 }
 
@@ -1501,7 +1509,14 @@ fn emit_program_with_receipt_sources(
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
 ) -> JsOutput {
-    emit_program_with_sources(ir, native_receipts, db, None, None, None)
+    emit_program_with_sources(
+        ir,
+        native_receipts,
+        db,
+        None,
+        None,
+        EmitDecisionSources::default(),
+    )
 }
 
 fn emit_program_with_sources(
@@ -1512,13 +1527,25 @@ fn emit_program_with_sources(
     query_receipts: Option<
         &std::collections::BTreeMap<String, super::scenario_receipts::NativeScenarioReceipt>,
     >,
-    membership: Option<&super::membership::MembershipSources>,
+    decisions: EmitDecisionSources<'_>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.native_source_predicates = native_receipts;
-    if let Some(membership) = membership {
+    emitter.send_guard_gap = decisions.send_guard_gap;
+    if let Some(membership) = decisions.membership {
         emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
         emitter.membership_predicates = membership.predicates(ir).cloned().unwrap_or_default();
+    }
+    if native_receipts {
+        emitter.membership_predicates = decisions
+            .read_predicates
+            .and_then(|source| source.predicates(ir))
+            .cloned()
+            .unwrap_or_default();
+    }
+    if native_receipts && let Some(guards) = decisions.send_guards {
+        emitter.send_guards = guards.guards(ir);
+        emitter.send_guard_owners = guards.by_owner(ir);
     }
     if let Some(db) = db {
         if ir.committed_sources.has_standard_value_inventory_fact() {
@@ -1627,7 +1654,14 @@ fn emit_program_with_sources(
         }
     }
     let mut body = JsWriter::new();
-    if let Some(membership) = membership.filter(|membership| !membership.sites.is_empty()) {
+    if native_receipts && !emitter.membership_predicates.is_empty() {
+        body.push(entry_span, Some("canReadPredicateSource".into()),
+            "const $can$read$predicates=new WeakMap();function $can$read$issue(source,predicate){$can$read$predicates.set(predicate,source);return predicate;}export function canReadPredicateSource(predicate){const source=$can$read$predicates.get(predicate);return source===undefined?null:JSON.parse(source);}");
+    }
+    if let Some(membership) = decisions
+        .membership
+        .filter(|membership| !membership.sites.is_empty())
+    {
         let payload = descriptor_json(&descriptor_json(&membership.sites));
         body.push(
             entry_span,
@@ -2398,6 +2432,9 @@ pub struct Emitter<'a> {
     membership_calls: HashMap<Span, serde_json::Value>,
     membership_predicates: HashMap<Span, serde_json::Value>,
     native_source_predicates: bool,
+    send_guards: Option<&'a HashMap<Span, super::send_guards::PreparedSendGuard>>,
+    send_guard_owners: Option<&'a BTreeMap<String, serde_json::Value>>,
+    send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
 }
 
 struct OriginalUiRow {
@@ -2471,6 +2508,9 @@ impl<'a> Emitter<'a> {
             membership_calls: HashMap::new(),
             membership_predicates: HashMap::new(),
             native_source_predicates: false,
+            send_guards: None,
+            send_guard_owners: None,
+            send_guard_gap: None,
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -5271,9 +5311,17 @@ impl<'a> Emitter<'a> {
                     self.exit_scope();
                     if self.native_source_predicates {
                         let prefix = if query.where_async { "async" } else { "" };
-                        opts.push(format!("where:{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"));
+                        let predicate = format!(
+                            "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
+                        );
                         if let Some(source) = self.membership_predicates.get(&pred.span) {
+                            opts.push(format!(
+                                "where:$can$read$issue({},{predicate})",
+                                js_string(&descriptor_json(source))
+                            ));
                             opts.push(format!("whereSource:{}", descriptor_json(source)));
+                        } else {
+                            opts.push(format!("where:{predicate}"));
                         }
                     } else if query.where_async {
                         opts.push(format!("where:async({row})=>{body}"));
@@ -5836,13 +5884,18 @@ impl<'a> Emitter<'a> {
                         *span,
                     )];
                 }
-                if let Some(condition) = when
+                let prepared = self
+                    .send_guards
+                    .and_then(|guards| guards.get(span))
+                    .cloned();
+                if prepared.is_none()
+                    && let Some(condition) = when
                     && super::ir::expr_uses_async(condition)
                 {
                     self.unsupported(
                         "send dispatch guard",
-                        "async guard requires the owning live dispatch observer and frozen lexical transport",
-                        condition.span,
+                        self.send_guard_gap.map_or("async guard requires the owning live dispatch observer and frozen lexical transport", |gap|gap.reason),
+                        self.send_guard_gap.and_then(|gap| gap.span).unwrap_or(condition.span),
                     );
                     return vec![(
                         format!(
@@ -5858,7 +5911,28 @@ impl<'a> Emitter<'a> {
                 if let Some(binding) = deployment_binding {
                     options.push(format!("binding:{}", js_string(binding)));
                 }
-                if let Some(cond) = when {
+                if let Some(guard) = prepared {
+                    let inputs = guard
+                        .inputs
+                        .iter()
+                        .map(|input| {
+                            format!(
+                                "{}:{}",
+                                object_key(&input.name),
+                                self.lower_expr(&input.value)
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    options.push(format!(
+                        "when:{{rule:{},inputs:{{{inputs}}}}}",
+                        js_string(
+                            guard.descriptor["rule"]
+                                .as_str()
+                                .expect("checked SEND rule")
+                        )
+                    ));
+                } else if let Some(cond) = when {
                     options.push(format!("when:()=>{}", self.lower_expr(cond)));
                 }
                 let options_text = if options.is_empty() {
@@ -7012,7 +7086,16 @@ impl<'a> Emitter<'a> {
                 } else {
                     ""
                 };
-                format!("{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {text};}}")
+                let predicate =
+                    format!("{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {text};}}");
+                if let Some(source) = self.membership_predicates.get(&body.span) {
+                    format!(
+                        "$can$read$issue({},{predicate})",
+                        js_string(&descriptor_json(source))
+                    )
+                } else {
+                    predicate
+                }
             } else if node.factory == "history" && key == "record" {
                 original_history_row
                     .clone()
@@ -8987,6 +9070,12 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(guards) = self
+                        .send_guard_owners
+                        .and_then(|owners| owners.get(&item.canonical))
+                    {
+                        members.push(format!("sendGuards:{}", descriptor_json(guards)));
+                    }
                     if let Some(sites) = self.native_call_sites.get(&item.id) {
                         // Dev resolves names to its actual loaded canonical
                         // descriptors; this source carrier duplicates no schema.
@@ -11173,6 +11262,37 @@ impl<'a> Emitter<'a> {
             );
         }
         self.emit_rule_map(out, "read", entry_span);
+        if let Some(guards) = self.send_guards {
+            let mut guards = guards.values().cloned().collect::<Vec<_>>();
+            guards.sort_by(|a, b| a.rule.cmp(&b.rule));
+            let mut entries = Vec::new();
+            for guard in guards {
+                self.enter_scope();
+                let bindings = guard
+                    .inputs
+                    .iter()
+                    .map(|input| {
+                        format!(
+                            "const {}=$can$send$inputs[{}];",
+                            self.bind(&input.name),
+                            js_string(&input.name)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+                let predicate = self.lower_expr(&guard.predicate);
+                self.exit_scope();
+                entries.push(format!(
+                    "{}:async(c,$can$send$inputs)=>{{{bindings}return {predicate};}}",
+                    object_key(&guard.rule)
+                ));
+            }
+            out.push(
+                entry_span,
+                Some("canApp".into()),
+                &format!("sendWhen:{{{}}},", entries.join(",")),
+            );
+        }
         self.emit_rule_map(out, "callbackRead", entry_span);
         self.emit_rule_map(out, "invariants", entry_span);
         self.emit_locks_map(out, entry_span);

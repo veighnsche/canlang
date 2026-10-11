@@ -244,3 +244,165 @@ fn raw_ir_keeps_the_missing_checked_membership_source_refusal() {
         raw.diagnostics
     );
 }
+
+#[test]
+fn original_pure_and_role_where_functions_have_private_source_markers() {
+    let source = "app ReadPredicates\nGiven\n role reviewer\n Person {account:user,enabled:bool}\n policy Person read=members\nWhen\nThen\n page /people title=\"People\"\n  list Person as person where person.enabled\n   text row.account\n  list Person as person where reviewer\n   text row.account\n";
+    let (db, catalog, program) = checked_source(source);
+    let mut result = DiagnosticResult::new("membership", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let emitted = &artifact.modules[0].js;
+    assert!(!emitted.contains("active_member"));
+    assert!(!emitted.contains("canMembershipSources"));
+    assert_eq!(
+        emitted.matches("where:$can$read$issue(").count(),
+        2,
+        "{emitted}"
+    );
+    assert_eq!(
+        emitted
+            .matches(",$can$read$c)=>{const c=$can$read$c;return ")
+            .count(),
+        2,
+        "{emitted}"
+    );
+    let (generic, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options: EmitOptions::new(),
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&program, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let raw = js::emit_program_with_native_source_receipts(&lowered, true, &db);
+    for text in [&generic.modules[0].js, &raw.entry.js] {
+        assert!(!text.contains("canReadPredicateSource"), "{text}");
+        assert!(!text.contains("$can$read$issue"), "{text}");
+    }
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    std::fs::write(
+        scratch.path().join("native.json"),
+        canlang_compiler::codegen::artifact::to_json(&artifact),
+    )
+    .unwrap();
+    std::fs::write(
+        scratch.path().join("generic.json"),
+        canlang_compiler::codegen::artifact::to_json(&generic),
+    )
+    .unwrap();
+    std::fs::write(scratch.path().join("raw.js"), &raw.entry.js).unwrap();
+    std::fs::write(scratch.path().join("membership.can"), source).unwrap();
+    let runner = scratch.path().join("predicates.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),root=process.argv[2];
+const require=createRequire(resolve(root,'package.json'));
+const url=specifier=>pathToFileURL(require.resolve(specifier)).href;
+const {assembleModules}=await import(url('@canlang/cloudflare/runtime/modules'));
+const ui=url('@canlang/ui'),stdlib=url('@canlang/stdlib');
+// Capture original factory arguments before any native query or UI authority
+// is consulted. All other UI/stdlib bindings are the installed producers.
+const trap=resolve(base,'captured-ui.mjs');
+writeFileSync(trap,`export * from ${JSON.stringify(ui)};
+export async function list(props){globalThis.originalWhereProps.push(props);return '';}
+`);
+const artifact=JSON.parse(readFileSync(resolve(base,'native.json'),'utf8'));
+const assembly=await assembleModules({artifact,sourcePath:resolve(base,'membership.can')},{
+ workDir:resolve(base,'native'),stdlibUrl:stdlib,uiUrl:pathToFileURL(trap).href,
+});
+const entry=await import(assembly.entryUrl);
+assert.equal(entry.canMembershipSources,undefined);
+assert.equal(entry.$can$read$issue,undefined,'no public issuer');
+assert.equal(typeof entry.canReadPredicateSource,'function');
+globalThis.originalWhereProps=[];
+const rootContext={memberships:[]};
+await entry.appDefinition.pages[0].render(rootContext,{});
+const [pure,role]=globalThis.originalWhereProps;
+assert.equal(globalThis.originalWhereProps.length,2);
+const pureIdentity=entry.canReadPredicateSource(pure.where);
+const roleIdentity=entry.canReadPredicateSource(role.where);
+assert.deepEqual(pureIdentity,pure.whereSource);
+assert.deepEqual(roleIdentity,role.whereSource);
+assert.notDeepEqual(pureIdentity.node,roleIdentity.node);
+assert.notDeepEqual(pureIdentity.statement,roleIdentity.statement);
+for(const [props,text] of [[pure,'person.enabled'],[role,'reviewer']]){
+ const identity=entry.canReadPredicateSource(props.where);
+ const source=readFileSync(resolve(base,'membership.can'),'utf8');
+ assert.equal(source.slice(identity.node.start,identity.node.end).trim(),text);
+ assert.equal(source.slice(identity.statement.start,identity.statement.end).trim(),`Person as person where ${text}`);
+ assert.equal(identity.source.module,'ReadPredicates');
+ assert.ok(identity.owner.startsWith('ReadPredicates.'));
+ assert.notStrictEqual(identity,entry.canReadPredicateSource(props.where));
+ identity.source.module='edited';identity.node.start++;
+ assert.deepEqual(entry.canReadPredicateSource(props.where),props.whereSource);
+}
+assert.equal(await pure.where({enabled:true},{memberships:[]}),true);
+assert.equal(await pure.where({enabled:false},{memberships:['ReadPredicates.reviewer']}),false);
+assert.equal(await role.where({}, {memberships:['ReadPredicates.reviewer']}),true,
+ 'fresh callback context shadows denied rendering context');
+rootContext.memberships=['ReadPredicates.reviewer'];
+assert.equal(await role.where({}, {memberships:[]}),false,
+ 'fresh callback context shadows allowed rendering context');
+await assert.rejects(async()=>role.where({}),TypeError,'missing fresh context is not replaced by root context');
+const foreign=()=>true,wrapped=(...args)=>role.where(...args),bound=role.where.bind(null);
+for(const substitute of [foreign,wrapped,bound]){
+ substitute.whereSource=structuredClone(role.whereSource);
+ assert.equal(entry.canReadPredicateSource(substitute),null);
+}
+role.whereSource.source.module='forged';
+assert.deepEqual(entry.canReadPredicateSource(role.where),roleIdentity,
+ 'mutable factory metadata cannot change the private callable identity');
+const genericArtifact=JSON.parse(readFileSync(resolve(base,'generic.json'),'utf8'));
+const genericAssembly=await assembleModules({artifact:genericArtifact,sourcePath:resolve(base,'membership.can')},{
+ workDir:resolve(base,'generic'),stdlibUrl:stdlib,uiUrl:pathToFileURL(trap).href,
+});
+const generic=await import(genericAssembly.entryUrl);
+assert.equal(generic.canReadPredicateSource,undefined);
+globalThis.originalWhereProps=[];
+await generic.appDefinition.pages[0].render(rootContext,{});
+for(const props of globalThis.originalWhereProps)assert.equal(entry.canReadPredicateSource(props.where),null);
+const rawText=readFileSync(resolve(base,'raw.js'),'utf8')
+ .replaceAll('"@canlang/stdlib"',JSON.stringify(stdlib))
+ .replaceAll('"@canlang/ui"',JSON.stringify(pathToFileURL(trap).href));
+const raw=await import('data:text/javascript;base64,'+Buffer.from(rawText).toString('base64'));
+assert.equal(raw.canReadPredicateSource,undefined);
+globalThis.originalWhereProps=[];
+await raw.appDefinition.pages[0].render(rootContext,{});
+for(const props of globalThis.originalWhereProps)assert.equal(entry.canReadPredicateSource(props.where),null);
+"#).unwrap();
+    let output = Command::new("node")
+        .arg(&runner)
+        .arg(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
