@@ -1,8 +1,11 @@
-// W02.1 minimal neutral entry. Semantic decision modules (rows, retry,
-// every, lifecycle, receipt, recovery, linkage) arrive in W02.2-W02.4;
-// backend selection and ABI facts arrive in W03/W05.
+// Public facts and explicit selected recovery whole-call facade. Other
+// registered decision candidates retain their separate adoption gates.
 
 export const WORK_KERNEL_VERSION = '0.1.0' as const;
+
+export { createRecoveryPlanner } from '../bindings/recovery-planner.js';
+export type { RecoveryPlanner, RecoveryPlannerOptions } from '../bindings/recovery-planner.js';
+export type { RecoverableRow, RecoveryPlan, RecoveryScanInput } from './recovery.js';
 
 export {
   DECISION_PROFILES,

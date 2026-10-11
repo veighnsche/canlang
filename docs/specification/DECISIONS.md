@@ -9667,3 +9667,54 @@ Office A/A/A advice is reused; no repeated consultation or human approval gate.
 Owning9/9 and strict0 qualify this finite source diagnostic, not live ranking.
 
 Coordinator independent originating-diagnostic review CLEAR; integrated into LOCAL main after the deadline. No executable semantics or complete ranking inventory is inferred. Retained checks qualify this diagnostic scope only.
+
+## 2026-10-11 — W03 selected original recovery whole call (design released; implementation unfinished)
+
+Select only `planRecoveryScan` for the first synchronous native Work whole-call
+slice. Its original sweep already has a synchronous planner injection; it returns
+seven sorted action lists while the sweep retains conditional fenced actions and
+retry evidence reattestation. Preserve validation order, original f64 input,
+last-wins duplicate claims, bare UTF16 ID sorting and uncertain-only evidence
+in original row order. Native uses demanded-fact/resume protocol, never eager
+evidence or a callback-driven bridge; host callback exceptions abort exactly.
+Provider payloads remain opaque and native creates no authority or second effects.
+`scanDueBatch` and other registered functions remain outside this finite release.
+
+Three JEV advice choices disagree (recovery .67/confidence .51, receipt predicate
+.51/.27, defer .73/.59). Investigate against actual donor/consumer: the recovery
+hook exercises the recorded callback/owner staging scope; receipt consistency is
+only a smaller predicate, while no concrete missing selection fact requires
+waiting. The defining Packages engineering choice favors recovery without claiming
+consensus or runtime acceptance. Complete TS facade, synchronous native ABI/
+bootstrap/assets and Dev's original installed/durable consumer remain unfinished.
+No backend default/fallback, TS retirement or held native-preparation activation
+is authorized by this decision; no LOC reduction is claimed.
+
+The selected producer is now implemented and owning-tested locally. The public
+`createRecoveryPlanner` requires explicit TS or wasm startup selection and a
+genuine compiled producer module. The wasm32 ABI1 requests reads synchronously,
+retains call-local claim references on the host, owns checked UTF16 buffers and
+uses f64 arithmetic without stamp validation or integer narrowing. It captures
+both stale arguments before validation, retains duplicate last-wins claims and
+original iterator/property/evidence order, rereads IDs after callbacks and frees
+native storage on success or the original throw. Nested calls have distinct
+handles. Native stages no effects or authority.
+
+This finite native scalar profile accepts string IDs, f64 numeric facts and
+original absent/null numeric behavior; object/string/boolean/bigint arithmetic
+coercions and nonstring IDs refuse explicitly. No arbitrary-JavaScript coercion
+profile or native64 pointer integration is claimed. Explicit `build:wasm` stages
+the producer asset for `distribution.recoveryWasm`; ordinary preparation and
+unit-test inventory do not activate it. Explicit `test:recovery-wasm` requires
+the actual asset and fails when it is absent.
+
+Locked offline wasm32 build and owning TS emit pass. Actual native12/12 retained
+original and demand/iterator/f64/UTF16/mutation/throw/reentry cases pass; one new
+ABI handle/refusal case passes separately, reusing the unchanged12. The packed
+installed root/distribution/asset/native-call/startup-refusal consumer and strict
+ES2022-only declaration consumer pass. Finite independent Rust and facade source
+reviews found no concrete issue. Dev still owns genuine installed/durable sweep
+adoption and its single fenced effects/retry evidence qualification; coordinator
+source acceptance and full TECH-W03 remain unfinished. All precise holds remain.
+
+Coordinator finite producer review CLEAR and LOCAL main integration after the deadline. Reuse unchanged native and installed consumer checks. The explicit producer is released to Dev; original durable sweep qualification and exact activation/default/publication/preparation holds remain, with no parent or full-plan completion.

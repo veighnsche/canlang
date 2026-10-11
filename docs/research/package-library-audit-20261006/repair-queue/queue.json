@@ -1857,11 +1857,11 @@
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
       "current_execution": {
-        "disposition": "open-selected-packet",
-        "next_work": "ready-owner-contract",
-        "owner": "Work-kernel synchronous producer and Dev installed/durable integrator",
-        "accepted_scope": "blocked on packet prerequisites",
-        "next_action": "Select one existing native decision family and release its TS facade, demanded-facts protocol, synchronous ABI/bootstrap/assets and actual host consumer. Do not expand to all registered functions or choose a backend default.",
+        "disposition": "partial-selected-producer-reviewed-original-consumer-open",
+        "next_work": "ready-consumer-join",
+        "owner": "Dev original installed/durable recovery integrator",
+        "accepted_scope": "Exact planRecoveryScan synchronous producer implemented, owning-tested and independently reviewed in LOCAL main; explicit TS/wasm startup, demand/resume ABI, manual staged asset and installed packed API/declarations. Original durable sweep remains unfinished.",
+        "next_action": "Dev injects explicit startup-selected producer into existing original runRecoverySweep and qualifies one fenced owner effects pass plus retry evidence reattestation. No native default/fallback/TS retirement or held preparation activation.",
         "done_when": "That one released whole-call family preserves f64/presence/alias/cursor/callback demand behavior and single owner staging/conditional commit; existing refusal/fallback negatives remain.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W03"
       }
@@ -8114,7 +8114,7 @@
     "dispatch": "ready-owner-contract and ready-consumer-join identify bounded next owner work, not evidence of a live lease or blanket Packages ownership. Packages current state demonstrates no additional independent ready source leaf beyond released cross-owner prerequisites. Preserve all human payload/security/native/publication holds.",
     "completion": "A packet finishes only at its existing selected acceptance scope. Wider original task/host/native gates retain their own status; external and held outputs are explicitly reported, never silently waived or repeatedly polled.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
-    "unresolved_decisions": "V03 source-owner/carrier; V04 selected codec/carrier/retirement; V05 held timezone policy; I01 J2 transaction/recovery; I02 browser/effect boundary; SV02 safe evidence/correlation; SV03 graph identity; C01/S04 resource profiles; C02 review integrity; B01 initializer/cancel; B02 URL sinks/lifetime; D03 command/URL lifetime; D04 namespace/maps; W03 selected synchronous family. These are existing owner decisions, not new architecture projects.",
+    "unresolved_decisions": "V03 source-owner/carrier; V04 selected codec/carrier/retirement; V05 held timezone policy; I01 J2 transaction/recovery; I02 browser/effect boundary; SV02 safe evidence/correlation; SV03 graph identity; C01/S04 resource profiles; C02 review integrity; B01 initializer/cancel; B02 URL sinks/lifetime; D03 command/URL lifetime; D04 namespace/maps",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation."
   }

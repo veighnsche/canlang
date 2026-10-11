@@ -865,7 +865,7 @@
     },
     "TECH-W03": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Selected original planRecoveryScan producer implemented, owning-tested, independently reviewed and integrated LOCAL main after deadline; original durable sweep and parent unfinished",
       "files": [
         "packages/work-kernel/src/index.ts",
         "packages/work-kernel/src/facts.ts",
@@ -875,11 +875,225 @@
         "packages/work-kernel/decisions/receipt.rs",
         "packages/work-kernel/decisions/recovery.rs",
         "packages/work-kernel/decisions/linkage.rs",
-        "packages/cloudflare/src/runtime/invoke.ts"
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/work-kernel/README.md",
+        "packages/work-kernel/bindings/recovery-planner.ts",
+        "packages/work-kernel/rust/recovery_scan_abi.rs",
+        "packages/work-kernel/conformance/native-recovery.wasm-test.ts",
+        "packages/work-kernel/scripts/stage-recovery-wasm.mjs",
+        "packages/work-kernel/src/distribution.ts",
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/tsconfig.json"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Released synchronous native decision family/facade/demand protocol, production ABI/assets and actual supported installed/durable whole-call consumer.",
-        "owner": "Work-kernel/Cloudflare producer and delivery integrator"
+        "prerequisite": "Dev adopts explicit createRecoveryPlanner startup backend and genuine producer-owned module via existing runRecoverySweep injection, then qualifies original durable single-owner fenced actions and retry evidence reattestation. Preserve activation/default/publication/preparation holds; no new family or TS retirement.",
+        "owner": "Dev original installed/durable recovery integrator"
+      },
+      "family_selection_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Select one existing Work native whole-call family for the current package repair criterion, not all registered modules and not a backend default. TS donors remain serving until the exact native producer/consumer is qualified. No LOC reduction promised.",
+              "required_outcomes": [
+                "Preserve original synchronous fact and callback demand/order/throws; no eager collection, generic graph clone or callback-driven native bridge.",
+                "One explicit startup-selected synchronous adapter supplies the original owner staging/conditional commit. Registered Rust/source fixtures are not production adoption.",
+                "The selected family needs its exact TS facade, demanded-facts protocol, synchronous ABI/bootstrap/assets and one original installed consumer. Existing holds and no-fallback refusals stay."
+              ],
+              "verified_candidates": {
+                "recovery_scan": [
+                  "Existing TS/Rust planRecoveryScan returns seven action lists sorted by bare string/UTF16 order. It validates sampled now, claim-age and retry policy before planning. Claims use duplicate last-wins lookup.",
+                  "Already demanded dispatch views contain id/state/attempts, guard verdict, first-attempt time and retry class; provider payloads are not inspected. Only uncertain rows demand evidence, in original row order; evidence exceptions must remain exact. Do not precollect evidence or include the separate scanDueBatch family.",
+                  "Actual Cloudflare runRecoverySweep already accepts an injected synchronous planner and retains fenced release/requeue/reconciliation. Uncertain retry reattests evidence during owner actions. Native needs demand/resume rather than calling the host through Rust callbacks. No production ABI currently exported."
+                ],
+                "receipt_consistency": [
+                  "Existing TS/Rust completion predicate consumes status plus opaque result/error; undefined normalizes to null. Success ignores result contents; failed/unknown demand only the closed two-key string error shape; skipped requires nulls. Preserve original property-read short circuit and exceptions; no payload clone or numeric conversion.",
+                  "Actual Work observation and standard completion callers exist, but currently import the donor directly. No synchronous production ABI/startup or selected original caller adoption exists. This is one predicate whole call, not an entire terminal receipt command or recovery sweep."
+                ],
+                "rows": [
+                  "An actual dispatch-staging caller exists, but the extracted row candidate predates the donor Image correlation fields. Reconciling that source/alias/JSON-safety/clone contract is additional work before native selection."
+                ]
+              },
+              "uncertainty": "No production native bootstrap/assets for these families are released. The defining Packages owner must resolve this engineering choice; it is not a human approval gate. Dev retains actual installed/durable consumer ownership. Source runtime assertions and TypeSafe advice do not establish installed acceptance."
+            },
+            "questions": {
+              "first_work_native_slice": {
+                "type": "choice",
+                "instructions": "Which first native whole-call slice best advances the existing bounded Work repair outcome with the verified actual callers and demand behavior? Judge all options at their stated scope; do not credit source fixtures as installed adoption.",
+                "criteria": {
+                  "recovery_scan": "Select only planRecoveryScan as the first complete synchronous native whole-call slice. Preserve already-demanded views, last-wins claims, ordered uncertain-only evidence through a demand/resume protocol, sorted action outputs and the existing sweep owner staging/revalidation. Release producer ABI/assets next; Dev consumes the existing planner hook. No scanDueBatch expansion/default/fallback.",
+                  "receipt_consistency": "Select only the completion-consistency predicate as first native slice, explicitly limiting qualification to that whole predicate call. Build demand-preserving closed error classification and native startup/ABI, then join one actual Work caller. Do not credit it as an entire receipt transition or recovery sweep and leave those criteria open.",
+                  "defer_native": "Retain serving TS while collecting a specific missing selection fact. Do not expose candidate-only exports or build a broad bridge; name the concrete missing fact rather than treating an internally unmade family choice as an external/human blocker."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Select one existing Work native whole-call family for the current package repair criterion, not all registered modules and not a backend default. TS donors remain serving until the exact native producer/consumer is qualified. No LOC reduction promised.",
+              "required_outcomes": [
+                "Preserve original synchronous fact and callback demand/order/throws; no eager collection, generic graph clone or callback-driven native bridge.",
+                "One explicit startup-selected synchronous adapter supplies the original owner staging/conditional commit. Registered Rust/source fixtures are not production adoption.",
+                "The selected family needs its exact TS facade, demanded-facts protocol, synchronous ABI/bootstrap/assets and one original installed consumer. Existing holds and no-fallback refusals stay."
+              ],
+              "verified_candidates": {
+                "recovery_scan": [
+                  "Existing TS/Rust planRecoveryScan returns seven action lists sorted by bare string/UTF16 order. It validates sampled now, claim-age and retry policy before planning. Claims use duplicate last-wins lookup.",
+                  "Already demanded dispatch views contain id/state/attempts, guard verdict, first-attempt time and retry class; provider payloads are not inspected. Only uncertain rows demand evidence, in original row order; evidence exceptions must remain exact. Do not precollect evidence or include the separate scanDueBatch family.",
+                  "Actual Cloudflare runRecoverySweep already accepts an injected synchronous planner and retains fenced release/requeue/reconciliation. Uncertain retry reattests evidence during owner actions. Native needs demand/resume rather than calling the host through Rust callbacks. No production ABI currently exported."
+                ],
+                "receipt_consistency": [
+                  "Existing TS/Rust completion predicate consumes status plus opaque result/error; undefined normalizes to null. Success ignores result contents; failed/unknown demand only the closed two-key string error shape; skipped requires nulls. Preserve original property-read short circuit and exceptions; no payload clone or numeric conversion.",
+                  "Actual Work observation and standard completion callers exist, but currently import the donor directly. No synchronous production ABI/startup or selected original caller adoption exists. This is one predicate whole call, not an entire terminal receipt command or recovery sweep."
+                ],
+                "rows": [
+                  "An actual dispatch-staging caller exists, but the extracted row candidate predates the donor Image correlation fields. Reconciling that source/alias/JSON-safety/clone contract is additional work before native selection."
+                ]
+              },
+              "uncertainty": "No production native bootstrap/assets for these families are released. The defining Packages owner must resolve this engineering choice; it is not a human approval gate. Dev retains actual installed/durable consumer ownership. Source runtime assertions and TypeSafe advice do not establish installed acceptance."
+            },
+            "questions": {
+              "first_work_native_slice": {
+                "type": "choice",
+                "instructions": "Choose the most useful finite native producer contract to implement next. Account for original synchronous demand/throw behavior, existing consumer hooks and single owner effects. Compare recovery planning with the explicitly smaller predicate scope and factual deferral.",
+                "criteria": {
+                  "recovery_scan": "Select only planRecoveryScan as the first complete synchronous native whole-call slice. Preserve already-demanded views, last-wins claims, ordered uncertain-only evidence through a demand/resume protocol, sorted action outputs and the existing sweep owner staging/revalidation. Release producer ABI/assets next; Dev consumes the existing planner hook. No scanDueBatch expansion/default/fallback.",
+                  "receipt_consistency": "Select only the completion-consistency predicate as first native slice, explicitly limiting qualification to that whole predicate call. Build demand-preserving closed error classification and native startup/ABI, then join one actual Work caller. Do not credit it as an entire receipt transition or recovery sweep and leave those criteria open.",
+                  "defer_native": "Retain serving TS while collecting a specific missing selection fact. Do not expose candidate-only exports or build a broad bridge; name the concrete missing fact rather than treating an internally unmade family choice as an external/human blocker."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Select one existing Work native whole-call family for the current package repair criterion, not all registered modules and not a backend default. TS donors remain serving until the exact native producer/consumer is qualified. No LOC reduction promised.",
+              "required_outcomes": [
+                "Preserve original synchronous fact and callback demand/order/throws; no eager collection, generic graph clone or callback-driven native bridge.",
+                "One explicit startup-selected synchronous adapter supplies the original owner staging/conditional commit. Registered Rust/source fixtures are not production adoption.",
+                "The selected family needs its exact TS facade, demanded-facts protocol, synchronous ABI/bootstrap/assets and one original installed consumer. Existing holds and no-fallback refusals stay."
+              ],
+              "verified_candidates": {
+                "recovery_scan": [
+                  "Existing TS/Rust planRecoveryScan returns seven action lists sorted by bare string/UTF16 order. It validates sampled now, claim-age and retry policy before planning. Claims use duplicate last-wins lookup.",
+                  "Already demanded dispatch views contain id/state/attempts, guard verdict, first-attempt time and retry class; provider payloads are not inspected. Only uncertain rows demand evidence, in original row order; evidence exceptions must remain exact. Do not precollect evidence or include the separate scanDueBatch family.",
+                  "Actual Cloudflare runRecoverySweep already accepts an injected synchronous planner and retains fenced release/requeue/reconciliation. Uncertain retry reattests evidence during owner actions. Native needs demand/resume rather than calling the host through Rust callbacks. No production ABI currently exported."
+                ],
+                "receipt_consistency": [
+                  "Existing TS/Rust completion predicate consumes status plus opaque result/error; undefined normalizes to null. Success ignores result contents; failed/unknown demand only the closed two-key string error shape; skipped requires nulls. Preserve original property-read short circuit and exceptions; no payload clone or numeric conversion.",
+                  "Actual Work observation and standard completion callers exist, but currently import the donor directly. No synchronous production ABI/startup or selected original caller adoption exists. This is one predicate whole call, not an entire terminal receipt command or recovery sweep."
+                ],
+                "rows": [
+                  "An actual dispatch-staging caller exists, but the extracted row candidate predates the donor Image correlation fields. Reconciling that source/alias/JSON-safety/clone contract is additional work before native selection."
+                ]
+              },
+              "uncertainty": "No production native bootstrap/assets for these families are released. The defining Packages owner must resolve this engineering choice; it is not a human approval gate. Dev retains actual installed/durable consumer ownership. Source runtime assertions and TypeSafe advice do not establish installed acceptance."
+            },
+            "questions": {
+              "first_work_native_slice": {
+                "type": "choice",
+                "instructions": "Which existing family selection should the defining package owner release now, given these source-current inputs and consumer responsibilities? Preserve the existing acceptance and holds; identify any concrete reason to defer rather than an unnamed internal decision.",
+                "criteria": {
+                  "recovery_scan": "Select only planRecoveryScan as the first complete synchronous native whole-call slice. Preserve already-demanded views, last-wins claims, ordered uncertain-only evidence through a demand/resume protocol, sorted action outputs and the existing sweep owner staging/revalidation. Release producer ABI/assets next; Dev consumes the existing planner hook. No scanDueBatch expansion/default/fallback.",
+                  "receipt_consistency": "Select only the completion-consistency predicate as first native slice, explicitly limiting qualification to that whole predicate call. Build demand-preserving closed error classification and native startup/ABI, then join one actual Work caller. Do not credit it as an entire receipt transition or recovery sweep and leave those criteria open.",
+                  "defer_native": "Retain serving TS while collecting a specific missing selection fact. Do not expose candidate-only exports or build a broad bridge; name the concrete missing fact rather than treating an internally unmade family choice as an external/human blocker."
+                }
+              }
+            }
+          }
+        ],
+        "status": "consulted",
+        "authorization": "Human explicitly authorized Canlang design questions and necessary project design/source-derived context and alternatives to this endpoint; open-source MIT project. No private user/customer data, credentials or unrelated confidential material. All nonconsultation holds preserved.",
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "first_work_native_slice": {
+                "type": "choice",
+                "choice": "recovery_scan",
+                "confidence": 0.51,
+                "probabilities": {
+                  "recovery_scan": 0.67,
+                  "receipt_consistency": 0.22,
+                  "defer_native": 0.11
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1129,
+              "output_tokens": 52
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "first_work_native_slice": {
+                "type": "choice",
+                "choice": "receipt_consistency",
+                "confidence": 0.27,
+                "probabilities": {
+                  "recovery_scan": 0.43,
+                  "receipt_consistency": 0.51,
+                  "defer_native": 0.06
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1133,
+              "output_tokens": 52
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "first_work_native_slice": {
+                "type": "choice",
+                "choice": "defer_native",
+                "confidence": 0.59,
+                "probabilities": {
+                  "recovery_scan": 0.19,
+                  "receipt_consistency": 0.08,
+                  "defer_native": 0.73
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1130,
+              "output_tokens": 51
+            }
+          }
+        ],
+        "adjudication": {
+          "choice": "recovery_scan",
+          "advice": "No consensus: recovery_scan(.67, confidence.51), receipt_consistency(.51, confidence.27), defer_native(.73, confidence.59). No generated rationale. Do not present majority/agreement or advice as validation.",
+          "investigation": "Compared original donor and actual injected sweep caller at recorded scope. Recovery has the existing synchronous planner hook and naturally exercises ordered uncertain-only evidence plus owner fenced actions. Receipt option is only a predicate call and cannot qualify recovery/staging; deferral identifies no concrete selection fact beyond the native ABI still to implement. No further unchanged consultation required.",
+          "decision": "Select only original planRecoveryScan, excluding scanDueBatch and other registered recovery functions. This is a defining engineering contract decision, not implemented native behavior or acceptance.",
+          "uncertainty": "Advice dispersed; recovery requires more protocol work than receipt predicate and no production reduction is claimed. Keep original installed/durable qualifier and no fallback/default requirements."
+        }
+      },
+      "selected_native_family_contract": {
+        "status": "Synchronous facade/native ABI/bootstrap/assets implemented and owning-tested; original durable consumer and full parent unfinished",
+        "family": "planRecoveryScan only",
+        "profile": "Existing transport v0 policy family; no new general carrier or backend default",
+        "input": "Original already-demanded dispatch views/claims/sampled now/claim-age/retry policy. Preserve validation order, f64 values and duplicate last-wins claims. Keep provider payloads opaque.",
+        "demand": "Native demand/resume must request evidence only for uncertain rows in original row order; do not precollect evidence or call host callbacks from Rust. Host evaluates original synchronous evidence at each demand, preserves its exact exception, then resumes. No plan/effects on failure.",
+        "output": "Seven original bare UTF16 sorted action lists. Existing runRecoverySweep owns fenced release/requeue/reconcile and retry evidence reattestation; native planner grants no authority and creates no second effects set.",
+        "actual_inputs": "Work donor recovery/index.ts and extracted recovery.ts/Rust recovery.rs; Cloudflare runRecoverySweep already accepts synchronous planner injection. Original source/current owner qualification remains required.",
+        "next": "Dev consumes exact reviewed34364e1a producer from LOCAL main via original sweep. Ordinary preparation, activation, default and publication remain held."
+      },
+      "selected_native_family_implementation": {
+        "scope": "Only original planRecoveryScan, selected by retained defining decision; no other native family or native64 pointer host",
+        "facade": "Public createRecoveryPlanner({backend:ts}) or {backend:wasm,module:genuine compiled WebAssembly.Module}; explicit startup only, no default/load fallback. No callback imports. Seven original action lists; opaque original refs remain local.",
+        "native": "wasm32 recovery ABI1; non-reused per-call handles, checked owned UTF16 frames/claims/results, demanded f64 facts, explicit errors and cleanup. Last-wins claim refs retained on host; stale args captured before validation and claimedAt + age comparison, with no stamp validation.",
+        "demand": "Original property and iterator demand/short circuits/close behavior retained; synchronous uncertain evidence uses original input receiver and row order, re-reads item.id after callback, propagates original throw. Nested calls use separate handles and fresh memory views.",
+        "scalar_profile": "String IDs including lone surrogates; numeric f64 without fixed-width narrowing. Absent arithmetic ->NaN/null numeric read ->0. String/object/boolean/bigint arithmetic and nonstring IDs refuse explicitly, without fallback; no arbitrary-JavaScript coercion profile claimed.",
+        "assets": "Existing explicit build:wasm stages locked Rust output at dist/native/recovery.wasm; distribution.recoveryWasm exposes producer-owned asset. Ordinary build:emit/build:prepare/test:unit unchanged; new explicit test:recovery-wasm fails missing asset. No held preparation activation.",
+        "validation": "Node24 TS emit0; locked offline wasm32 release build0. Actual compiled module: retained four original cases + eight property/iterator/demand/UTF16/f64/throw/reentry cases12/12 pass,0skip,51.66ms. One subsequently added genuine ABI handle/refusal case1/1 pass,0skip,44.65ms; unchanged12 reused. Actual packed installed root/distribution exports + exact staged asset/native call/startup refusals pass; packed strict ES2022-only declaration consumer passes.",
+        "review": "Finite independent Rust and TypeScript source reviews found no concrete selected-scope issue. No unchanged86function/full host/browser/durable checks rerun.",
+        "acceptance": "Finite producer implemented, owning-tested and independently reviewed in LOCAL main. Dev original installed/durable sweep qualification remains unfinished. No whole TECH-W03/48/333 parent closure, activation/publication/TS retirement or LOC savings.",
+        "coordinator_review": "Independent finite demand/resume ABI and explicit facade review CLEAR; retained actual native12/12 plus added ABI1/1 and installed packed API/declaration outcomes reused. Local intake after deadline; no original durable sweep or full-plan acceptance."
       }
     },
     "TECH-I01": {
