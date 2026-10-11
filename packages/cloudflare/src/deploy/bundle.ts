@@ -311,6 +311,8 @@ const STATE_RECEIPT_JOIN_VENDOR_ENTRY = "vendor/state/receipt/join.js";
 const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/index.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 const WORK_DISPATCH_SOURCE_SPECIFIER = "@canlang/work/kernel/dispatch-staging";
+const WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER = "@canlang/work/dispatch";
+const WORK_DISPATCH_EXECUTION_VENDOR_ENTRY = "vendor/work/dispatch/index.js";
 const WORK_SOURCE_SPECIFIER = "@canlang/work";
 const WORK_INTENT_STAGING_SOURCE_SPECIFIER = "@canlang/work/intent/staging";
 const WORK_INTENT_STAGING_VENDOR_ENTRY = "vendor/work/intent/staging.js";
@@ -332,6 +334,8 @@ const FILES_FINALIZE_SOURCE_SPECIFIER = "@canlang/files/finalize";
 const FILES_FINALIZE_VENDOR_ENTRY = "vendor/files/finalize/index.js";
 const FILES_PORTS_SOURCE_SPECIFIER = "@canlang/files/ports";
 const FILES_PORTS_VENDOR_ENTRY = "vendor/files/ports.js";
+const FILES_BRIDGE_SOURCE_SPECIFIER = "@canlang/files/bridge";
+const FILES_BRIDGE_VENDOR_ENTRY = "vendor/files/bridge.js";
 const ACORN_SOURCE_SPECIFIER = "acorn";
 const ACORN_VENDOR_ENTRY = "vendor/acorn/acorn.js";
 /** The runtime mapper's only external dependency; host import tooling stays out. */
@@ -698,12 +702,14 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
+    if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
     if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
     if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
     if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
+    if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
     if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
     if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
       return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
@@ -727,6 +733,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY],
     [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
     [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_DISPATCH_VENDOR_ENTRY],
+    [WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY],
     [WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_SCHEDULE_VENDOR_ENTRY],
     [WORK_OCCURRENCE_SOURCE_SPECIFIER, WORK_OCCURRENCE_VENDOR_ENTRY],
     [WORK_INTENT_STAGING_SOURCE_SPECIFIER, WORK_INTENT_STAGING_VENDOR_ENTRY],
@@ -734,6 +741,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
     [FILES_FINALIZE_SOURCE_SPECIFIER, FILES_FINALIZE_VENDOR_ENTRY],
     [FILES_PORTS_SOURCE_SPECIFIER, FILES_PORTS_VENDOR_ENTRY],
+    [FILES_BRIDGE_SOURCE_SPECIFIER, FILES_BRIDGE_VENDOR_ENTRY],
     [ACORN_SOURCE_SPECIFIER, ACORN_VENDOR_ENTRY],
     ["@canlang/ui", UI_VENDOR_ENTRY],
   ] as const) {
@@ -750,6 +758,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
 /** Stage the public portable Work producers and deduplicate their relative closures. */
 function stageWorkStagingProducers(): Record<string, string> {
   const entries = [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_OCCURRENCE_SOURCE_SPECIFIER,
+    WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER,
     WORK_INTENT_STAGING_SOURCE_SPECIFIER,
     WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER,
     "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
@@ -776,9 +785,10 @@ function stageWorkStagingProducers(): Record<string, string> {
   return modules;
 }
 
-/** Stage the public Files finalizer's real relative closure, excluding host trees. */
+/** Stage the public Files finalizer and page bridge's shared relative closure. */
 function stageFilesFinalizeProducer(): Record<string, string> {
   const entry = resolveProducerFile(FILES_FINALIZE_SOURCE_SPECIFIER, "bun run --filter @canlang/files build");
+  const bridge = resolveProducerFile(FILES_BRIDGE_SOURCE_SPECIFIER, "bun run --filter @canlang/files build");
   const base = dirname(dirname(entry));
   const modules: Record<string, string> = {};
   const visit = (file: string): void => {
@@ -795,6 +805,7 @@ function stageFilesFinalizeProducer(): Record<string, string> {
     }
   };
   visit(entry);
+  visit(bridge);
   return modules;
 }
 
@@ -829,11 +840,13 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
     if (spec === "@canlang/state/storage/port") return relativeSpecifier(moduleKey, "vendor/state/storage/port.js");
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
+    if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
     if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
     if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
+    if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
     if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
     if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
       return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
