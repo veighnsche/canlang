@@ -237,10 +237,11 @@ function hoistDefinitions(root: Record<string, unknown>): void {
  */
 function propertySchema(named: McpNamedField): Record<string, unknown> {
   const element = fieldSchema(named.field);
-  const shape = named.field.kind === 'ref' && named.array !== undefined
+  const wrapped = named.field.kind === 'ref' || named.field.kind === 'file';
+  const shape = wrapped && named.array !== undefined
     ? { type: 'array', items: element, ...(named.min === undefined ? {} : { minItems: named.min }),
         ...(named.max === undefined ? {} : { maxItems: named.max }) } : element;
-  const schema = named.field.kind === 'ref' && named.nullable === true ? { anyOf: [shape, { type: 'null' }] } : shape;
+  const schema = wrapped && named.nullable === true ? { anyOf: [shape, { type: 'null' }] } : shape;
   return named.description === undefined ? schema : { ...schema, description: named.description };
 }
 
@@ -977,7 +978,7 @@ function checkArtifactInputChannels(
       : type.base.kind === 'scalar' ? type.base.name
       : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name
       : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
-    if (base === undefined || (type.requiredArray && fieldKind !== 'nominal')) {
+    if (base === undefined || (type.requiredArray && fieldKind !== 'nominal' && fieldKind !== 'file')) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
     const expectedKind = base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
@@ -993,7 +994,7 @@ function checkArtifactInputChannels(
     if (type.array !== (array !== undefined)) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
     }
-    if (fieldKind === 'nominal' && type.requiredArray !== (array?.required === true)) {
+    if ((fieldKind === 'nominal' || fieldKind === 'file') && type.requiredArray !== (array?.required === true)) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with required array marker.`);
     }
     if ((Object.hasOwn(value, 'nullable') && typeof value['nullable'] !== 'boolean') ||
@@ -1402,12 +1403,11 @@ export function checkArtifactOperations(slice: ArtifactOperationSlice): CheckedA
 
 /**
  * Convert one checked operation to its framing-level MCP input schema:
- * element vocabulary, required flags, verbatim descriptions. Array
- * markers and defaults have no `McpSchemaField` slot: arrays render
- * element-typed here (framing needs names/required/ref-ness only — the
- * closed-inputs and ref-shape checks), while value-level array shapes
- * render in `toToolInputSchemaFromArtifact` and defaults pin in the
- * wire `DerivedOperationInputs` channel (`http/operations.ts`).
+ * element vocabulary, required flags, verbatim descriptions. Ref/File
+ * wrappers retain their array/nullability markers on the named field;
+ * other arrays remain element-typed in this framing channel. Complete
+ * value-level shapes render in `toToolInputSchemaFromArtifact`, while
+ * defaults pin in the wire `DerivedOperationInputs` channel.
  * Engine-resolved receipt bindings have no slot either and are
  * excluded: framing is exactly the submittable allowlist.
  */
@@ -1419,7 +1419,7 @@ export function checkedToMcpInputSchema(checked: CheckedArtifactOperation): McpI
       name: named.name,
       field: named.field,
       required: named.required,
-      ...(named.field.kind !== 'ref' ? {} : {
+      ...(named.field.kind !== 'ref' && named.field.kind !== 'file' ? {} : {
         ...(named.array === undefined ? {} : { array: named.array }),
         ...(named.nullable === undefined ? {} : { nullable: named.nullable }),
         ...(named.min === undefined ? {} : { min: named.min }),
@@ -1449,7 +1449,7 @@ function checkedPropertySchema(checked: CheckedArtifactField): Record<string, un
     ? element
     : { type: 'array', items: element, ...(checked.min === undefined ? {} : { minItems: checked.min }),
         ...(checked.max === undefined ? {} : { maxItems: checked.max }) };
-  const schema = (checked.field.kind === 'ref' || checked.field.kind === 'user' || checked.field.kind === 'nominal' || checked.field.kind === 'enum') && checked.nullable === true
+  const schema = (checked.field.kind === 'ref' || checked.field.kind === 'user' || checked.field.kind === 'file' || checked.field.kind === 'nominal' || checked.field.kind === 'enum') && checked.nullable === true
     ? { anyOf: [shape, { type: 'null' }] }
     : shape;
   return checked.description === undefined ? schema : { ...schema, description: checked.description };
@@ -1637,8 +1637,9 @@ function checkBoundElement(
 
 /**
  * Bind one submitted value to its declared input: null binds to
- * `nullable` only; arrays bind element-wise (element nulls pass
- * through — element-level null acceptance is L3 admission detail);
+ * `nullable` only. User/File profiles use their complete owning codec;
+ * other arrays bind element-wise (element nulls pass through —
+ * element-level null acceptance is L3 admission detail);
  * singular values bind by kind. Presence and closedness are framing
  * concerns, never checked here.
  */
@@ -1655,9 +1656,10 @@ export function checkBoundArgument(input: DerivedWritableInput, value: unknown):
   const path = `/${input.name}`;
   const stringProfile = input.kind === 'string' && typeof input.valueType === 'string' &&
     /^(email|timezone)(\[\])?\??$/.test(input.valueType) ? input.valueType : undefined;
-  if (input.kind === 'user' || stringProfile !== undefined) {
+  if (input.kind === 'user' || input.kind === 'file' || stringProfile !== undefined) {
     // The owning codec validates the complete profile, including array element nulls.
-    const type = stringProfile ?? `user${input.array === undefined ? '' : '[]'}${input.nullable === true ? '?' : ''}`;
+    const array = input.array === undefined ? '' : input.kind === 'file' && input.array.required ? '[]!' : '[]';
+    const type = stringProfile ?? `${input.kind}${array}${input.nullable === true ? '?' : ''}`;
     try {
       decodeValue(type, value);
     } catch (err) {

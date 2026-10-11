@@ -1263,18 +1263,24 @@ test('File input claims derive through the catalog and reject inconsistent profi
     name: 'Claims.attach', kind: 'read', description: '',
     inputs: { fields: [{ name: 'document', field: { kind: 'file' }, required: false, valueType: 'file', ...patch }] },
   });
-  for (const array of [false, true]) for (const nullable of [false, true]) {
-    const valueType = `file${array ? '[]' : ''}${nullable ? '?' : ''}`;
+  for (const profile of [
+    { valueType: 'file', array: undefined, nullable: false },
+    { valueType: 'file?', array: undefined, nullable: true },
+    { valueType: 'file[]', array: { required: false }, nullable: false },
+    { valueType: 'file[]?', array: { required: false }, nullable: true },
+    { valueType: 'file[]!', array: { required: true }, nullable: false },
+  ]) for (const required of [false, true]) {
+    const { valueType, array, nullable } = profile;
     const markers = {
-      ...(array ? { array: { required: false } } : {}),
+      ...(array === undefined ? {} : { array }),
       ...(nullable ? { nullable: true } : {}),
     };
-    const op = operation({ valueType, ...markers });
+    const op = operation({ valueType, required, ...markers });
     const checked = checkArtifactOperation(op).fields[0]!;
     assert.equal('field' in checked && checked.valueType, valueType);
     const catalog = catalogFromArtifactOperations({ artifact_version: 1, operations: [op] });
     assert.deepEqual(catalog.derivedFor('Claims.attach')?.inputs, [{
-      name: 'document', kind: 'file', required: false, ...markers,
+      name: 'document', kind: 'file', required, ...markers,
       file: { valueShape: 'opaque-file-id', format: 'can-file' },
     }]);
   }
@@ -1283,10 +1289,85 @@ test('File input claims derive through the catalog and reject inconsistent profi
     { valueType: 'text' }, { valueType: 'file[]' }, { valueType: 'file?' },
     { nullable: 'yes' }, { nullable: true }, { array: { required: false } },
     { field: { kind: 'string' } },
+    { valueType: 'file[]!', array: { required: false } },
+    { valueType: 'file[]', array: { required: true } },
+    { valueType: 'file[]?', array: { required: true }, nullable: true },
+    { valueType: 'file[]!', array: { required: true }, nullable: true },
+    { valueType: 'file[]!?', array: { required: true }, nullable: true },
+    { valueType: 'file[]!', array: { required: 'yes' } },
+    { valueType: 'file[]!', array: { required: true, extra: true } },
   ]) {
     assert.equal(rejectionReason(() => catalogFromArtifactOperations({
       artifact_version: 1, operations: [operation(patch)],
     })), 'malformed_descriptor');
+  }
+});
+
+test('required File arrays preserve slot presence and whole owning codecs through catalog and both MCP schemas', () => {
+  // Declaration-labelled component controls correspond to Compiler 73ac1cbf1 CRUD
+  // metadata. They do not execute CRUD or establish File/State authority.
+  const operations: ArtifactOperation[] = (['create', 'update'] as const).map(kind => ({
+    name: `FileCollectionDownload.Asset.${kind}`, kind, description: '',
+    inputs: { fields: [
+      { name: 'documents', field: { kind: 'file' }, valueType: 'file[]!', array: { required: true }, required: kind === 'create' },
+      { name: 'ordinary', field: { kind: 'file' }, valueType: 'file[]', array: { required: false }, required: false },
+      { name: 'nullable', field: { kind: 'file' }, valueType: 'file[]?', array: { required: false }, nullable: true,
+        required: false, default: { kind: 'literal', value: null } },
+      { name: 'single', field: { kind: 'file' }, valueType: 'file?', nullable: true, required: false },
+    ] },
+  }));
+  const slice = { artifact_version: ARTIFACT_VERSION, operations };
+  const catalog = catalogFromArtifactOperations(slice);
+  const registry = registryFromArtifactOperations(slice).list(createTestApp());
+  const full = toolsFromArtifactOperations(slice);
+  const fileSchema = { type: 'object', properties: { id: { type: 'string', minLength: 1 } },
+    required: ['id'], additionalProperties: false };
+  const arraySchema = { type: 'array', items: fileSchema };
+  const nullableArray = { anyOf: [arraySchema, { type: 'null' }] };
+  const values = [{ id: 'first' }, { id: 'second' }, { id: 'first' }];
+  for (const [index, operation] of operations.entries()) {
+    const derived = catalog.derivedFor(operation.name)!;
+    const documents = derivedInput(derived, 'documents');
+    const ordinary = derivedInput(derived, 'ordinary');
+    const nullable = derivedInput(derived, 'nullable');
+    assert.equal(documents.required, operation.kind === 'create');
+    assert.deepEqual(documents.array, { required: true });
+    assert.deepEqual(ordinary.array, { required: false });
+    assert.deepEqual(nullable.default, { kind: 'literal', value: null });
+    assert.deepEqual(catalog.shapeFor(operation.name), {
+      allowed: ['documents', 'ordinary', 'nullable', 'single'], required: operation.kind === 'create' ? ['documents'] : [],
+    });
+    for (const schema of [full[index]!.inputSchema, toMcpTool(registry[index]!).inputSchema]) {
+      const branch = anyOfBranch(schema, 0), properties = propertiesOf(branch);
+      assert.deepEqual(properties.documents, arraySchema);
+      assert.deepEqual(properties.ordinary, arraySchema);
+      assert.deepEqual(properties.nullable, nullableArray);
+      assert.deepEqual(properties.single, { anyOf: [fileSchema, { type: 'null' }] });
+      assert.deepEqual(requiredOf(branch), operation.kind === 'create' ? ['documents', 'operation_id'] : ['operation_id']);
+      assert.equal(JSON.stringify(schema).includes('minItems'), false);
+      assert.equal(JSON.stringify(schema).includes('uniqueItems'), false);
+      assertClosedEverywhere(schema);
+    }
+    for (const input of [documents, ordinary, nullable]) for (const wire of [[], values]) {
+      const before = structuredClone(wire);
+      assert.equal(checkBoundArgument(input, wire), null);
+      assert.equal(checkBoundArguments(derived, { [input.name]: wire }), null);
+      assert.deepEqual(encodeValue('file[]', decodeValue('file[]', wire)), wire);
+      assert.deepEqual(wire, before); // No reordering/deduplication or mutation of submitted rows.
+    }
+    assert.equal(checkBoundArgument(nullable, null), null);
+    assert.equal(checkBoundArgument(derivedInput(derived, 'single'), null), null);
+    assert.ok(checkBoundArgument(documents, null));
+    assert.ok(checkBoundArgument(ordinary, null));
+    assert.equal(checkBoundArguments(derived, {}), null); // Framing alone owns slot presence.
+    const sparse = new Array(2);
+    for (const bad of [null, 'first', { id: 'first' }, [null], [{}], [{ id: '' }], [{ id: 1 }],
+      [{ id: 'first', extra: true }], sparse]) {
+      assert.throws(() => decodeValue('file[]!', bad), SchemaError);
+      assert.ok(checkBoundArgument(documents, bad));
+      assert.ok(checkBoundArguments(derived, { documents: bad }));
+    }
+    assert.ok(checkBoundArgument(nullable, [null]));
   }
 });
 
