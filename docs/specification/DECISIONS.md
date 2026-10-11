@@ -10711,3 +10711,21 @@ reviewed producers and checks combined types; native callback forwarding remains
 Dev-owned. Temporary source copies are removed, with no native rerun or hold lift.
 
 Coordinator defining gallery, credential and exact common caller correction reviews CLEAR; integrated LOCAL main after deadline. Corrected queued close preserves the reopened activation and releases genuinely closed pages. Reuse9 gallery/browser,13 catalog,3 discovery/class,2 HTTP and3 original current-credential controls plus unchanged normal Contracts/UI/Interfaces/browser emissions. Ten owner-page calls, five native wrappers and two direct native calls retain actual original session/store/clock resolution and source/security assertions. Changed combined Cloudflare/root emission0; finite arity criterion closed. Actual source lowering, native protected image routes and native page current-authority observation remain distinct unfinished Compiler/Dev leaves. No unchanged native rerun, full-plan completion or hold release; complete filetree checkpoint unchanged.
+
+## 2026-10-11 — Current source File download and image preview (implemented; page join unfinished)
+
+Share the original authorized physical resolver between downloads and explicit-ref
+PNG/JPEG previews. Require genuine source/ordinary whole-field grants, original
+declared File census, current row/ancestor/Identity observations around the awaited
+physical snapshot, retained byte/MIME/digest/lifetime correspondence and fresh
+originating credentials. Inline responses use private no-store/nosniff; partial
+grants, foreign/copy/ref drift and unsupported media supply no bytes.
+
+Actual captured ordinary/source D1 and SQLite workflows pass2/2, preserving
+CRUD/replay/readback/receipts/history and inflight revocation controls. CF noEmit
+and clean normal emission pass0. Source-only grants' mutation result remains
+label-only; independent source File reads are qualified separately. Native page
+binding/lifetime still awaits the originating credential callback; no full app,
+all-writer retirement, Office or held provider qualification follows.
+
+Coordinator defining source review CLEAR; current File resolver and protected preview producer integrated locally after deadline with surgical invoke insertion, preserving all current query/source/guarded SEND code. Changed normal Cloudflare/root emission0. Retain genuine owning captured D1/SQLite2/2 at its original worker producer closure; that source capture includes sourceReadPolicies invocation admission absent from main, which still explicitly refuses source-ruled ordinary invocation. Main source-native acceptance therefore remains unfinished until Dev releases that concrete invocation prerequisite, without weakening the refusal or waiting for a whole plan. Original page authority/private occurrence/fresh-caller forwarding remains distinct native work. No unchanged native rerun, full-plan completion, generic mutation projection or hold release; complete filetree checkpoint unchanged.

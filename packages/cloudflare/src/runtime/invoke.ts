@@ -9097,6 +9097,134 @@ export interface CanonicalPageReadOpts extends Omit<CanonicalReadOpts, 'operatio
   readonly pageReads?: PageReadsBinding;
 }
 
+/** Trusted host File consumption. Locators restrict a fresh read; they grant no authority. */
+export interface CanonicalFileReadLocator {
+  readonly model: string;
+  readonly recordId: string;
+  readonly field: string;
+  readonly ref: string;
+  readonly rowVersion?: RecordVersion;
+  readonly path?: readonly (string | number)[];
+}
+export async function consumeCanonicalFileReference(
+  opts: CanonicalPageReadOpts & {
+    readonly app: string;
+    readonly locator: CanonicalFileReadLocator;
+    readonly bounds: { readonly maxRows: number; readonly maxReferences: number };
+  },
+  consume: Parameters<import('@canlang/state').FileReferenceConsumer['read']>[2],
+): Promise<Uint8Array | null> {
+  assertCanonicalStore(opts.store, `${opts.locator.model}.read`);
+  assertCanonicalMemberships(opts.memberships, `${opts.locator.model}.read`);
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  const StateError = loaded.producers.errors;
+  const bounds = Object.freeze({ ...opts.bounds });
+  if ([bounds.maxRows, bounds.maxReferences].some(bound => !Number.isSafeInteger(bound) || bound < 1 || bound > 20_000)) {
+    throw new StateError('validation', 'File reads require finite positive census bounds.');
+  }
+  const path = opts.locator.path;
+  if (path !== undefined && (!Array.isArray(path) || path.length > 32 ||
+      path.some(part => typeof part === 'string' ? part === '' : !Number.isSafeInteger(part) || part < 0))) {
+    throw new StateError('validation', 'File reads require a finite canonical occurrence path.');
+  }
+  const locator = Object.freeze({ ...opts.locator,
+    ...(path === undefined ? {} : { path: Object.freeze([...path]) }) });
+  const revision = await opts.store.readRevision(), at = (opts.now ?? Date.now)();
+  const caller = receiverFromIdentity(opts.app, opts.identity);
+  const sourceReads = createSourceReadPolicyAdapter({ loaded, opts, revision, now: () => at, app: opts.app });
+  const readPolicies = sourceReads.policies(locator.model);
+  if (readPolicies.size > bounds.maxRows) throw new StateError('busy', 'File read ancestor census exceeds its bound.');
+  const source = [...readPolicies.values()].some(read => 'grants' in read);
+  const state = await loadProducerModule('@canlang/state', 'current File reference producer');
+  let selected: ((wire: unknown) => boolean) | undefined;
+  if (source || locator.path !== undefined) {
+    const bind = requireProducerFn(state, 'bindFileReferenceProfile', 'owning File census') as
+    typeof import('@canlang/state').bindFileReferenceProfile;
+    const occurrences = requireProducerFn(state, 'fileReferenceOccurrences', 'owning File census') as
+    typeof import('@canlang/state').fileReferenceOccurrences;
+    const profile = bind({ canonicalModels: loaded.models,
+    artifactModels: new Map(opts.artifact.models!.map(model => [model.name as ModelName, model])),
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+  }, locator.model as ModelName, locator.field);
+    if (!profile.fileBearing) return null;
+    selected = (wire: unknown) => {
+      const census = occurrences(profile, wire);
+      if (census.length > bounds.maxReferences) throw new StateError('busy', 'File occurrence census exceeds its bound.');
+      return census.some(occurrence => occurrence.ref === locator.ref && (locator.path === undefined ||
+        stableStringify(occurrence.path) === stableStringify(locator.path)));
+    };
+  }
+  const physical = async (slot: Readonly<import('@canlang/state').CurrentFileSlot>) => {
+    if (locator.rowVersion !== undefined && slot.rowVersion !== locator.rowVersion) return null;
+    await verifyCheckedAssembly(opts.asm, opts.artifact);
+    const bytes = await consume(slot);
+    if (bytes !== null && !(bytes instanceof Uint8Array)) {
+      throw new StateError('validation', 'Physical File reader must return bytes or null.');
+    }
+    await verifyCheckedAssembly(opts.asm, opts.artifact);
+    return bytes === null ? null : new Uint8Array(bytes);
+  };
+  let result: Uint8Array | null;
+  if (!source) {
+    // Preserve the owning ordinary File consumer and its exact row/parent checks.
+    const create = requireProducerFn(state, 'createFileReferenceConsumer', 'current File reference producer') as
+      typeof import('@canlang/state').createFileReferenceConsumer;
+    type Input = Parameters<typeof create>[0];
+    const consumer = create({ scope: { app: caller.app, team: caller.team, owner: caller.owner },
+      store: opts.store, memberships: opts.memberships, policy: loaded.policy as Input['policy'],
+      registry: loaded.registry as Input['registry'], canonicalModels: loaded.models,
+      artifactModels: opts.artifact.models!, ...bounds,
+      ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) });
+    result = await consumer.read({ model: locator.model as ModelName, recordId: locator.recordId as RecordId,
+      field: locator.field, ref: locator.ref }, caller, async slot => {
+      if (locator.path !== undefined) {
+        const original = await opts.store.cohortLoad({ model: slot.model, id: slot.recordId, expectedRevision: revision });
+        if (original === null || original.version !== slot.rowVersion || !selected!(original.data[slot.field])) return null;
+      }
+      return physical(slot);
+    });
+  } else {
+    const query = await loadProducerModule(STATE_QUERY_SPECIFIER, 'current source File projection');
+    const project = requireProducerFn(query, 'projectCurrentRecordForViewerSourcePolicies', 'current source File projection') as
+      typeof import('@canlang/state/query').projectCurrentRecordForViewerSourcePolicies;
+    const grants = await loadProducerModule(STATE_GRANTS_SPECIFIER, 'current whole File field');
+    const under = requireProducerFn(grants, 'isEqualOrUnder', 'current whole File field') as
+      typeof import('@canlang/state/policy/grants').isEqualOrUnder;
+    const matches = requireProducerFn(grants, 'evalPredicateForRow', 'current whole File field') as
+      typeof import('@canlang/state/policy/grants').evalPredicateForRow;
+    const policy = loaded.policy as import('@canlang/state/policy/grants').PolicyTable;
+    const read = readPolicies.get(locator.model as ModelName), ordinary = policy.get(locator.model as ModelName);
+    if (read === undefined || ordinary === undefined) return null;
+    const target = 'grants' in read ? read : ordinary;
+    if (target === undefined || target.secretFields.some(secret =>
+        under(secret, locator.field) || under(locator.field, secret))) return null;
+    result = await project({ model: locator.model as ModelName, id: locator.recordId as RecordId,
+      readPolicies, policy, context: { actorUserId: opts.identity.actor?.user_id ?? null,
+        teamId: opts.identity.team?.team_id ?? null }, memberships: opts.memberships, store: opts.store,
+    }, async (visible, allowed) => {
+      if (visible.revision !== revision) throw new StateError('conflict', 'File read State checkpoint changed.');
+      if (visible.record === null || !Object.hasOwn(visible.record.data, locator.field)) return null;
+      const original = await opts.store.cohortLoad({ model: locator.model as ModelName,
+        id: locator.recordId as RecordId, expectedRevision: visible.revision });
+      if (original === null || original.id !== locator.recordId || original.version !== visible.record.version ||
+          original.archivedAt !== null || !Object.hasOwn(original.data, locator.field) ||
+          locator.rowVersion !== undefined && original.version !== locator.rowVersion) return null;
+      const whole = target.grants.some((grant, index) => allowed[index] === true &&
+        grant.fields.includes(locator.field) && (!('when' in grant) || grant.when === undefined || matches(grant.when, original)));
+      const wire = original.data[locator.field];
+      if (!whole || stableStringify(visible.record.data[locator.field]) !== stableStringify(wire) || !selected!(wire)) return null;
+      // State owns the actual complete ancestor/source/Identity observation and
+      // revalidates it after this awaited physical read, before returning bytes.
+      return physical(Object.freeze({ model: locator.model as ModelName, recordId: original.id,
+        rowVersion: original.version, field: locator.field, ref: locator.ref }));
+    });
+  }
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  return result;
+}
+
 /** Source reads have no direct storage access and cannot stage any effect. */
 async function runReadScenarioSeam(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, call: AdmittedReadScenarioCall,
