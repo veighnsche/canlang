@@ -311,6 +311,8 @@ interface FieldRenderContext {
   readonly errorsByName: ReadonlyMap<string, readonly FieldError[]>;
   /** Raw outcome errors; explicit-control factories and validator() filter these themselves. */
   readonly errors: readonly FieldError[] | undefined;
+  readonly authoredLabels?: ReadonlySet<string>;
+  readonly authoredValidators?: ReadonlySet<string>;
 }
 
 interface WidgetAttrs {
@@ -573,6 +575,8 @@ async function renderExplicitControl(field: FormFieldDef, ctx: FieldRenderContex
     mode: ctx.mode,
     ...(ctx.errors === undefined ? {} : { errors: ctx.errors }),
     timeZone: ctx.timeZone,
+    ...(ctx.authoredLabels?.has(field.path) ? { authoredLabel: true } : {}),
+    ...(ctx.authoredValidators?.has(field.path) ? { authoredValidator: true } : {}),
   };
   switch (field.control) {
     case "input":
@@ -631,7 +635,7 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
   // renders through the controls.ts label() fragment. caption passes through
   // only when set, so its caption ?? labelCaption ?? label resolution stays
   // byte-identical to the inline version it replaces.
-  const labelHtml = await label({
+  const labelHtml = ctx.authoredLabels?.has(field.path) ? "" : await label({
     context: ctx.context,
     field,
     idPrefix: ctx.idPrefix,
@@ -643,7 +647,7 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
   // byte-identical. Filtering the raw errors through the fragment matches
   // the pre-split errorsByName list for this field exactly.
   const errorHtml =
-    fieldErrors.length === 0
+    fieldErrors.length === 0 || ctx.authoredValidators?.has(field.path)
       ? ""
       : await validator({
           context: ctx.context,
@@ -919,6 +923,21 @@ export async function form(props: FormProps): Promise<string> {
     throw new Error("form: update mode requires a bound record");
   }
   assertUniqueFieldPaths(props.fields);
+  const placementPaths = (list: readonly string[] | undefined, kind: string): ReadonlySet<string> => {
+    const paths = new Set<string>();
+    if (list === undefined) return paths;
+    if (!Array.isArray(list)) throw new Error(`authored ${kind} paths must be an array`);
+    const available = new Set(props.fields.map(field => field.path));
+    for (const path of list) {
+      if (typeof path !== 'string' || !available.has(path)) throw new Error(`authored ${kind} path is outside its prepared form`);
+      if (paths.has(path)) throw new Error(`duplicate authored ${kind} path ${JSON.stringify(path)}`);
+      paths.add(path);
+    }
+    if (paths.size > 0 && props.children === undefined) throw new Error(`authored ${kind} placement requires authored children`);
+    return paths;
+  };
+  const authoredLabels = placementPaths(props.authoredLabels, 'label');
+  const authoredValidators = placementPaths(props.authoredValidators, 'validator');
   const authoredPaths = new Set<string>();
   if (props.authoredFields !== undefined) {
     const availablePaths = new Set(props.fields.map(field => field.path));
@@ -944,6 +963,8 @@ export async function form(props: FormProps): Promise<string> {
     idPrefix: props.idPrefix,
     errorsByName: matched,
     errors: props.errors,
+    authoredLabels,
+    authoredValidators,
   };
   const rendered: string[] = [];
   if (props.children === undefined) {
@@ -953,7 +974,7 @@ export async function form(props: FormProps): Promise<string> {
   } else {
     const children = typeof props.children === "function" ? await props.children() : props.children;
     rendered.push(...(await Promise.all(children)));
-    if (props.authoredFields !== undefined) {
+    if (props.authoredFields !== undefined || props.authoredLabels !== undefined || props.authoredValidators !== undefined) {
       for (const field of props.fields) {
         if (!authoredPaths.has(field.path)) rendered.push(await renderField(field, fieldCtx));
       }

@@ -218,8 +218,8 @@ function unit(
   submitValue: string,
 ): string {
   return (
-    `<fieldset>${unitLabel(props, unitCtx)}` +
-    `${widgetHtml}${unitErrors(props, unitCtx)}${unitDuplicate(props, unitCtx, submitValue)}</fieldset>`
+    `<fieldset>${props.authoredLabel === true ? "" : unitLabel(props, unitCtx)}` +
+    `${widgetHtml}${props.authoredValidator === true ? "" : unitErrors(props, unitCtx)}${unitDuplicate(props, unitCtx, submitValue)}</fieldset>`
   );
 }
 

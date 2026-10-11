@@ -82,7 +82,20 @@ export function createOperationFormPreparer(
       ...(recordValues === undefined ? {} : { values }),
     });
     const generated = new Map(fields.map(field => [field.path, field]));
-    const authored = request.authoredFields === undefined ? undefined : [...request.authoredFields];
+    const placements = (paths: readonly string[] | undefined, kind: string): readonly string[] | undefined => {
+      if (paths === undefined) return undefined;
+      if (!Array.isArray(paths) || new Set(paths).size !== paths.length || paths.some(path => !selectedNames.has(path))) {
+        throw new Error(`Authored form ${kind} must be unique selected writable inputs.`);
+      }
+      return Object.freeze([...paths]);
+    };
+    const authoredLabels = placements(request.authoredLabels, 'labels');
+    const authoredValidators = placements(request.authoredValidators, 'validators');
+    const labelNames = new Set(authoredLabels);
+    const validatorNames = new Set(authoredValidators);
+    const authored = request.authoredFields === undefined
+      ? (authoredLabels === undefined && authoredValidators === undefined ? undefined : [])
+      : [...request.authoredFields];
     if (authored !== undefined && (new Set(authored).size !== authored.length || authored.some(name => !selectedNames.has(name)))) {
       throw new Error('Authored form controls must be unique selected writable inputs.');
     }
@@ -113,13 +126,18 @@ export function createOperationFormPreparer(
         operation: derived.operation, operationId: mintOperationId(clock.nowMs()), mode, derived,
         timeZone, fields: renderedFields, submit: request.submit ?? SUBMIT,
         ...(authored === undefined ? {} : { authoredFields: authored }),
+        ...(authoredLabels === undefined ? {} : { authoredLabels }),
+        ...(authoredValidators === undefined ? {} : { authoredValidators }),
         display: request.display ?? 'drawer', idPrefix,
         ...(mode === 'update' ? { record: bound['record'] as MutationRef } : {}),
       },
       field: (path: string) => {
         const field = generated.get(path);
         if (field === undefined || !renderedNames.has(path)) throw new Error('Control is outside its prepared operation form.');
-        return { context, field, mode, idPrefix, timeZone };
+        return { context, field, mode, idPrefix, timeZone,
+          ...(labelNames.has(path) ? { authoredLabel: true } : {}),
+          ...(validatorNames.has(path) ? { authoredValidator: true } : {}),
+        };
       },
     } as const;
     if (!hasBindings || protection === undefined) return prepared;

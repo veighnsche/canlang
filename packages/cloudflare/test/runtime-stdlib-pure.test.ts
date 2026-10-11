@@ -9,6 +9,37 @@ import { createContext } from '../src/runtime/context.js';
 import { app_url, int64, datetime, compareInstant } from '../src/runtime/stdlib.js';
 
 describe('runtime pure producer exports', () => {
+  it('exports ordered frozen concat through the actual installed named import', async () => {
+    const nativeImport = compileFunction('return import(url)', ['url'], {
+      importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+    }) as (url: string) => Promise<typeof import('@canlang/values')>;
+    const require = createRequire(import.meta.url);
+    const facadeUrl = pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href;
+    const source = `import { concat } from ${JSON.stringify(facadeUrl)}; export { concat };`;
+    const facade = await nativeImport(`data:text/javascript,${encodeURIComponent(source)}`);
+    const values = await nativeImport(pathToFileURL(require.resolve('@canlang/values')).href);
+    const stdlib = await nativeImport(pathToFileURL(require.resolve('@canlang/stdlib')).href);
+    expect(facade.concat).toBe(values.concat);
+    expect(facade.concat).toBe(stdlib.concat);
+    const left = [2n, 1n];
+    const right = [2n];
+    const result = facade.concat(left, right);
+    expect(result).toEqual([2n, 1n, 2n]);
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(left).toEqual([2n, 1n]);
+    expect(right).toEqual([2n]);
+    expect(facade.concat([], [])).toEqual([]);
+    for (const run of [
+      () => facade.concat(1n as unknown as readonly bigint[], []),
+      () => facade.concat([], null as unknown as readonly bigint[]),
+    ]) {
+      let thrown: unknown;
+      try { run(); } catch (error) { thrown = error; }
+      expect(thrown).toBeInstanceOf(values.ValueError);
+      expect(thrown).toMatchObject({ kind: 'value', code: 'invalid-construction' });
+    }
+  });
+
   it('exports strict choose through the actual installed named import', async () => {
     const nativeImport = compileFunction('return import(url)', ['url'], {
       importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,

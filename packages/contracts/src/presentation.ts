@@ -219,6 +219,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly theme: ThemeTokens;
   /** Current normalized path, for navigation highlight. */
   readonly path: string;
+  /** Admitted declared static ancestry and current page, supplied only by the dispatcher. */
+  readonly breadcrumbs?: Pick<BreadcrumbsProps, "label" | "ancestry">;
   /** Dispatcher-owned page/principal/team comparison token; grants are never encoded. */
   readonly pollContext?: string;
   /** Current same-app pathname plus query, preserving team selection and filters. */
@@ -833,6 +835,9 @@ export interface FieldControlProps {
   readonly errors?: ReadonlyArray<FieldError>;
   /** IANA zone for temporal display; defaults to UTC when absent. */
   readonly timeZone?: string;
+  /** The owning prepared form places this label/validator separately. */
+  readonly authoredLabel?: boolean;
+  readonly authoredValidator?: boolean;
 }
 
 /** `label path [caption]`: this field's label element only (moves, never duplicates). */
@@ -987,6 +992,9 @@ export interface FormProps {
   readonly fields: ReadonlyArray<FormFieldDef>;
   /** Existing authored placements; other prepared fields render afterward. */
   readonly authoredFields?: readonly string[];
+  /** Separate fragment placements; corresponding default fragments move here. */
+  readonly authoredLabels?: readonly string[];
+  readonly authoredValidators?: readonly string[];
   /** Authored body; fields describe its rendered controls for error matching. */
   readonly children?: PageChildren;
   /** Omitted keeps the low-level inline contract; source forms select explicitly. */
@@ -1013,6 +1021,9 @@ export interface OperationFormRequest {
   readonly display?: "inline" | "drawer";
   /** Actual authored writable controls; absent selects the automatic body. */
   readonly authoredFields?: readonly string[];
+  /** Checked standalone fragment placements, independent of writable controls. */
+  readonly authoredLabels?: readonly string[];
+  readonly authoredValidators?: readonly string[];
 }
 
 export type PreparedOperationForm =

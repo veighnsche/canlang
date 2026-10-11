@@ -436,6 +436,54 @@ describe("fileInput and otp", () => {
 });
 
 describe("label and validator fragments", () => {
+  it("authored label and validator own one linked outlet while the widget keeps required and readonly behavior", async () => {
+    const props = { context: makeContext(), field: field("title", { required: true, readonly: true, value: "kept" }),
+      idPrefix: "placed", mode: "create" as const,
+      errors: [fieldError("/title", "too short"), fieldError("/other", "unrelated")],
+      authoredLabel: true, authoredValidator: true };
+    const widget = await input(props);
+    assert.ok(!widget.includes('<label'));
+    assert.ok(!widget.includes('id="placed-title-error"'));
+    assert.ok(widget.includes('aria-describedby="placed-title-error"'));
+    assert.ok(widget.includes('aria-invalid="true"'));
+    assert.ok(widget.includes('aria-required="true"'));
+    assert.ok(widget.includes(' disabled'));
+    assert.ok(widget.includes('type="hidden" name="inputs[title]" value="kept"'));
+    const html = await label({ ...props, caption: "Authored title" }) + widget + await validator(props);
+    const page = await loadHtml(html);
+    try {
+      assert.equal(page.document.querySelectorAll('label[for="placed-title"]').length, 1);
+      assert.equal(page.document.querySelector('label')?.textContent, 'Authored title *');
+      assert.equal(page.document.querySelectorAll('#placed-title').length, 1);
+      assert.equal(page.document.querySelectorAll('#placed-title-error').length, 1);
+      assert.equal(page.document.querySelector('#placed-title-error')?.textContent, 'too short');
+      assert.ok(!html.includes('unrelated'));
+    } finally { await page.close(); }
+  });
+
+  it("authored fragment suppression is independent and empty external validators stay stable", async () => {
+    const props = { context: makeContext(), field: field("title"), idPrefix: "placed", mode: "create" as const,
+      errors: [fieldError("/title", "invalid")] };
+    const labelOnly = await input({ ...props, authoredLabel: true });
+    assert.ok(!labelOnly.includes('<label'));
+    assert.ok(labelOnly.includes('id="placed-title-error"'));
+    const validatorOnly = await input({ ...props, authoredValidator: true });
+    assert.ok(validatorOnly.includes('<label for="placed-title"'));
+    assert.ok(!validatorOnly.includes('id="placed-title-error"'));
+    assert.ok(validatorOnly.includes('aria-describedby="placed-title-error"'));
+    assertUnitWiring(await input(props), 'placed', 'title', true);
+    assertUnitWiring(await input({ ...props, authoredLabel: false, authoredValidator: false }), 'placed', 'title', true);
+    const emptyProps = { ...props, errors: [], authoredLabel: true, authoredValidator: true };
+    const emptyWidget = await input(emptyProps);
+    assert.ok(!emptyWidget.includes('<label'));
+    assert.ok(!emptyWidget.includes('placed-title-error'));
+    assert.ok(!emptyWidget.includes('aria-invalid'));
+    const empty = await label(emptyProps) + emptyWidget + await validator(emptyProps);
+    assert.equal((empty.match(/id="placed-title-error"/g) ?? []).length, 1);
+    assert.ok(empty.includes('<div id="placed-title-error"></div>'));
+    assert.equal((empty.match(/<label for="placed-title"/g) ?? []).length, 1);
+  });
+
   it("label renders only the label with caption precedence", async () => {
     const f = field("title", { label: "Base", labelCaption: "Override", required: true });
     const html = await label({ context: makeContext(), field: f, idPrefix: "u1" });

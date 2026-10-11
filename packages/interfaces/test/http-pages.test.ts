@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken, IdentityError } from '@canlang/identity';
+import { breadcrumbs } from '@canlang/ui';
 import type {
   AdmittedBindings,
   PageDescriptor,
@@ -983,4 +984,96 @@ test('fallback page query keeps its dependency receiver and request identity und
   } };
   const response = await handlePageRequest(fallback, testRequest('/hello'));
   assert.equal(response.status, 200); assert.equal(calls, 1);
+});
+
+
+test('full and partial breadcrumbs use admitted declared route winners without invented or undisclosed ancestors', async () => {
+  for (const partial of [false, true]) {
+    const calls = new Map<string, number>(), completed: string[] = [];
+    let admittedSource: PageSourceContext | undefined, principal: ResolvedIdentity | undefined;
+    let factories = 0, queries = 0, renders = 0, trailHtml = '';
+    const prefix = '/office/hidden/denied/unavailable/missing/tasks';
+    const currentPattern = `${prefix}/{Project.id}/{Task.id}`;
+    const currentPath = `${prefix}/p-1/task-1`;
+    const declare = (name: string, path: string, outcome: 'admitted' | 'denied' | 'unavailable' = 'admitted',
+      overrides: Partial<PageDescriptor> = {}): PageDescriptor => helloPage({
+      owner: name, path, title: `${name} title`, description: `${name} description`,
+      admit: async (source, bindings) => {
+        calls.set(name, (calls.get(name) ?? 0) + 1);
+        assert.equal(source, admittedSource); assert.deepEqual(bindings, {});
+        await Promise.resolve(); completed.push(name);
+        if (outcome === 'denied') throw buildBusinessError('forbidden', 'Parent denied.');
+        if (outcome === 'unavailable') throw new Error('private parent failure');
+        return {};
+      }, ...overrides,
+    });
+    const current = helloPage({ owner: 'Current', path: currentPattern, title: 'Current protected task',
+      admit: async (source, bindings) => {
+        calls.set('Current', (calls.get('Current') ?? 0) + 1);
+        admittedSource = source as PageSourceContext; assert.equal(Object.isFrozen(source), true);
+        assert.deepEqual(bindings, { 'Project.id': 'p-1', 'Task.id': 'task-1' });
+        return { task: 'task-1' };
+      },
+      render: async (context, bindings) => {
+        renders++; assert.deepEqual(bindings, { task: 'task-1' });
+        assert.equal(context.principal, principal); assert.equal(context.invocation, principal);
+        assert.equal(context.actor, admittedSource!.actor); assert.equal(context.team, admittedSource!.team);
+        assert.ok(context.breadcrumbs);
+        assert.equal(Object.isFrozen(context.breadcrumbs), true);
+        assert.equal(Object.isFrozen(context.breadcrumbs.ancestry), true);
+        assert.equal(context.breadcrumbs.label, 'Breadcrumbs');
+        assert.deepEqual(context.breadcrumbs.ancestry.map(entry => ({ path: entry.path, title: entry.title, active: entry.active })), [
+          { path: '/', title: 'Root title', active: false },
+          { path: '/office', title: 'Office title', active: false },
+          { path: prefix, title: 'Tasks title', active: false },
+          { path: currentPath, title: 'Current protected task', active: true },
+        ]);
+        for (const name of ['Root', 'Office', 'Denied', 'Unavailable', 'Tasks']) {
+          assert.equal(calls.get(name), 1); assert.ok(completed.includes(name));
+        }
+        assert.equal(calls.get('Current'), 1);
+        for (const name of ['Hidden', 'Dynamic']) assert.equal(calls.get(name), undefined);
+        if (partial) {
+          for (const name of ['Unrelated', 'Boundary', 'Shadowed']) assert.equal(calls.get(name), undefined);
+        }
+        trailHtml = await breadcrumbs({ ...context.breadcrumbs, context });
+        assert.match(trailHtml, /<nav aria-label="Breadcrumbs">/);
+        assert.ok(trailHtml.includes('<a href="/">Root title</a>'));
+        assert.ok(trailHtml.includes('<a href="/office">Office title</a>'));
+        assert.ok(trailHtml.includes(`<a href="${prefix}">Tasks title</a>`));
+        assert.ok(trailHtml.includes('<span aria-current="page">Current protected task</span>'));
+        assert.ok(!trailHtml.includes(`href="${currentPath}"`));
+        for (const forbidden of ['Hidden', 'Denied', 'Unavailable', 'Shadowed', 'Dynamic', 'Boundary', 'Unrelated',
+          'private parent failure', '/office/hidden/denied/unavailable/missing"']) assert.ok(!trailHtml.includes(forbidden), forbidden);
+        await context.query('forged renderer invocation', 'TestApp.Todo', {});
+        return trailHtml;
+      },
+    });
+    const descriptors = [
+      declare('Tasks', prefix), current,
+      declare('Hidden', '/office/hidden', 'admitted', { nav: 'none' }),
+      declare('Shadowed', '/office/hidden'),
+      declare('Unavailable', '/office/hidden/denied/unavailable', 'unavailable'),
+      declare('Office', '/office'), declare('Unrelated', '/elsewhere'),
+      declare('Denied', '/office/hidden/denied', 'denied'),
+      declare('Boundary', '/off'), declare('Root', '/'),
+      declare('Dynamic', `${prefix}/{Project.id}`),
+    ];
+    const { deps, identity } = await createTestDeps({ descriptors });
+    const scope: PageReadScope = { query: async function (this: unknown, invocation, model, args) {
+      assert.equal(this, scope); assert.equal(invocation, principal); assert.equal(model, 'TestApp.Todo');
+      assert.deepEqual(args, { limit: 25 }); queries++; return { rows: [], columns: [] };
+    } };
+    const response = await handlePageRequest({ ...deps,
+      createReadScope: (identity: ResolvedIdentity, source: PageSourceContext) => {
+        factories++; principal = identity; assert.equal(source, admittedSource); return scope;
+      },
+    }, testRequest(`${currentPath}?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(response.status, 200); assert.ok((await response.text()).includes(trailHtml));
+    assert.equal(factories, 1); assert.equal(queries, 1); assert.equal(renders, 1);
+    if (!partial) {
+      for (const name of ['Unrelated', 'Boundary', 'Shadowed']) assert.equal(calls.get(name), 1);
+    }
+  }
 });

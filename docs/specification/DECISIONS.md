@@ -10226,3 +10226,75 @@ Coordinator defining protected-sink/page-query reviews CLEAR. Corrected109 admit
 Link child source lifetimes privately to the live navigation lease and active target lineage. Copied, foreign, closed, caught, concurrent, unfinished or recursive work refuses and poisons the owning chain; check health before and after actual revision awaits, including transforms. No public issuer, raw-row API, optimistic cache, effects or new authority carrier. Normal State/DO emit and60 distinct affected component outcomes qualify, with unchanged results reused; see the single existing SEQ025 same_observation_navigation record. Dev owns actual original source/native adoption; Compiler original WHERE/render/pagination and provider/browser/profile gates remain separate. Coordinator CLEAR closes the earlier six same-store SEND component criteria at7e0aba6a/LOCALmain7a1a4125 without reopening them. All genuine holds persist.
 
 Coordinator defining source review CLEAR and local integration after deadline; State60 affected results, normal emission and strict boundary checks reused. Original native/application consumers retain their distinct acceptance; complete filetree checkpoint remains unadvanced.
+
+## 2026-10-11 — Admitted declared breadcrumb ancestry (implemented; original consumer unfinished)
+
+The approved UI design derives bare breadcrumbs from current declared static
+destinations; dynamic destinations require explicit authorized links. Interfaces
+selects actual static discovery route winners that are strict slash-boundary
+ancestors of the matched route declaration, root first. It invents no missing
+segment destination or caption. Denied/unavailable ancestors contribute no path,
+title or description; independently admitted distant links remain. The initially
+admitted current page ends the trail as text at its actual pathname. Hidden,
+dynamic, shadowed and unrelated routes supply no implicit ancestry.
+
+Full pages reuse actual discovery outcomes; partials admit only the selected
+ancestors before rendering against the same frozen source. The optional trusted
+context.breadcrumbs carries the existing UI label/ancestry shape in frozen entries,
+array and slot, with standard accessible label Breadcrumbs. Source extras cannot
+supply it. JEV3 unanimously favors this finite static policy, with no rationale;
+its confidence is advice, not proof. Contracts/Interfaces emissions and69 owning
+HTTP controls pass, including the actual UI full/partial consumer, protected
+parent omissions, declared route identity and unchanged query/source lifetime.
+Finite source review is CLEAR; unchanged UI/browser results are reused.
+
+Compiler owns original bare-breadcrumbs lowering to the existing UI factory and
+genuine dispatcher metadata, refusing missing metadata rather than inventing it.
+Dev owns the original application/native consumer. No new parent relation,
+arbitrary route registry, inferred dynamic binding, parent acceptance or hold
+release follows from this defining output.
+
+## 2026-10-11 — Existing concat runtime facade (implemented; Compiler consumer unfinished)
+
+Cloudflare runtime/stdlib now re-exports genuine Values.concat, matching the
+already released public stdlib producer. No new array implementation or schema
+is needed. Cloudflare emission passes; actual installed native named import
+passes its finite control (1/1), retaining producer identity, ordered duplicates,
+frozen output, unchanged inputs, empty arrays and non-array ValueError refusals.
+Six unchanged pure controls and original producer checks are reused. Compiler
+owns original same-element source lowering/native consumer; all precise holds
+and parent limits remain.
+
+## 2026-10-11 — Checked authored field fragments (implemented; original consumer unfinished)
+
+Use separate authoredLabels/authoredValidators lists beside existing authoredFields
+on the operation-form request and props. Interfaces checks selected writable paths,
+refuses duplicates/foreign/unselected fields, and copies/freezes the lists before
+form identity allocation or protection sealing. Prepared field(path) supplies only
+the matching authoredLabel/authoredValidator flags. Layout placement does not alter
+field schemas, submission shape or authority. JEV3 favors these static lists
+(.95/.97/.93; confidence .93/.96/.91), with small preference for field annotations
+and no rationale; responses and uncertainty remain advisory in DEL-B02.
+
+Explicit control units and generated remainder omit only the matching default
+fragment. Existing standalone label/validator factories retain shared IDs, captions,
+actual error filtering and stable empty validator outlets. Fragment-only authored
+bodies still render every unplaced control; required/readonly behavior, protected
+hiddens and error references remain. The low-level form validates lists before
+children and refuses nonempty placements without an authored body. Labels and
+validators can independently target the same field. Ordinary forms stay unchanged.
+
+Contracts/Interfaces/UI emissions and the UI browser build pass. Of 144 affected
+UI cases, 142 passed initially; two new fixtures used an extra inputs root in their
+error pointers. Correcting those fixtures and repeating only those two passed.
+All 23 owning Interfaces presentation cases pass, including actual prepared
+fragment-only remainder, caller snapshot/identity allocation refusals and retained
+protected HTTP controls. Finite source review is CLEAR; unchanged checks are reused.
+
+Compiler owns original checked source lowering, passing declared fragment lists
+and using prepared.field(path) for the existing authored fragments and controls.
+Dev owns actual application/native qualification after intake. This defining output
+does not accept those consumers or the unfinished parent, add provider-void support,
+reopen V05 release-host qualification, or release any precise hold.
+
+Coordinator finite defining reviews CLEAR and integrated locally after deadline. Reuse recorded owning checks and advisory responses; existing newer native stdlib exports retained. Original source lowerings/native application and all exact holds remain unfinished, complete filetree checkpoint unchanged.
