@@ -6,10 +6,30 @@ import { deepFreeze } from '../internal/own-data.js';
 import { FenceConflictError } from '../storage/port.js';
 import { checkedMembershipFact, observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { evaluateBy } from '../policy/roles.js';
-import { evalPredicateForRow, withPolicyRow, type ByContext, type InterimModelPolicy } from '../policy/grants.js';
+import { evalPredicateForRow, isEqualOrUnder, isMetadataPath, withPolicyRow,
+  type ByContext, type InterimModelPolicy } from '../policy/grants.js';
 import { projectCurrentRecordForViewerPolicy, type BaseQueryInput, type ViewerPageParentPolicy } from '../query/engine.js';
 import { assertDeliveryField, type DeliveryFieldSchema } from './grants.js';
 import { associationRowId, readAssociationRow, RECEIPT_ASSOCIATION_MODEL } from './tables.js';
+
+export interface ViewerGenerationCallbackReadObservation {
+  readonly context: ByContext;
+  readonly row: StoredRow;
+  readonly revision: Revision;
+  readonly fence: BaseQueryInput['fence'];
+}
+/** Reader-local adaptation of verified original ordinary read declarations.
+ * Every callable evaluates its exact source rule, including where, in ordinal order.
+ * Omitted selectors are expanded by the verified loader, never inferred here. */
+export interface ViewerGenerationCallbackSourceReadPolicy {
+  readonly parent?: ModelName;
+  readonly fields: readonly string[];
+  readonly secretFields: readonly string[];
+  readonly grants: readonly {
+    readonly fields: readonly string[];
+    readonly read: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => Promise<boolean>;
+  }[];
+}
 
 export interface ViewerGenerationCallbackDiagnosticInput extends Pick<BaseQueryInput,
   'policy' | 'context' | 'memberships' | 'store' | 'fence'> {
@@ -17,7 +37,7 @@ export interface ViewerGenerationCallbackDiagnosticInput extends Pick<BaseQueryI
   readonly recordId: RecordId;
   readonly field: string;
   readonly schema: DeliveryFieldSchema;
-  readonly readPolicies: ReadonlyMap<ModelName, ViewerPageParentPolicy>;
+  readonly readPolicies: ReadonlyMap<ModelName, ViewerPageParentPolicy | ViewerGenerationCallbackSourceReadPolicy>;
   /** Legacy engine-local origin; installed native consumers resolve after authorization. */
   readonly origin?: GenerationCallbackOrigin;
   /** Installed checked declaration + original dispatch resolver; never request data. */
@@ -29,9 +49,7 @@ export interface ViewerGenerationCallbackDiagnosticInput extends Pick<BaseQueryI
   readonly callbackPolicy?: InterimModelPolicy;
   /** Installed verified source predicate. Use this coherent context for all Identity
    * reads and this checkpoint/fence for relations; no ambient/precomputed grant. */
-  readonly callbackRead?: (observation: Readonly<{
-    context: ByContext; row: StoredRow; revision: Revision; fence: BaseQueryInput['fence'];
-  }>) => Promise<boolean>;
+  readonly callbackRead?: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => Promise<boolean>;
   /** Installed real Work reader, never a request-provided callback. */
   readonly readDiagnostics: (request: GenerationCallbackDiagnosticRequest,
     store: StoragePort) => Promise<GenerationCallbackDiagnosticResult>;
@@ -62,6 +80,31 @@ function array(value: unknown, maximum: number): readonly unknown[] {
   if (typeof length !== 'number' || length > maximum || Reflect.ownKeys(value).length !== length + 1) invalid();
   for (let index = 0; index < length; index++) own(value, String(index));
   return value;
+}
+function captureSourceReadPolicy(value: ViewerGenerationCallbackSourceReadPolicy): ViewerGenerationCallbackSourceReadPolicy {
+  record(value);
+  const names = Object.freeze(array(own(value, 'fields'), 1000).map(name => text(name)));
+  if (new Set(names).size !== names.length || names.some(name => name.includes('.') || /[\[\]]/.test(name))) invalid();
+  const path = (value: unknown) => {
+    const result = text(value), head = result.split('.')[0]!;
+    if (result.split('.').some(part => part === '') || /[\[\]]/.test(result) ||
+        !names.includes(head) && !isMetadataPath(result) && head !== 'parent' ||
+        result.split('.').includes('callback_diagnostics')) invalid();
+    return result;
+  };
+  const secrets = Object.freeze(array(own(value, 'secretFields'), 1000).map(path));
+  const grants = Object.freeze(array(own(value, 'grants'), 1000).map(value => {
+    record(value);
+    if (Reflect.ownKeys(value).length !== 2) invalid();
+    const fields = Object.freeze(array(own(value, 'fields'), 1000).map(path));
+    const read = own(value, 'read');
+    if (fields.length === 0 || new Set(fields).size !== fields.length || typeof read !== 'function' ||
+        fields.some(field => secrets.some(secret => isEqualOrUnder(field, secret)))) invalid();
+    return Object.freeze({ fields, read }) as ViewerGenerationCallbackSourceReadPolicy['grants'][number];
+  }));
+  const parent = Object.hasOwn(value, 'parent') ? text(own(value, 'parent')) as ModelName : undefined;
+  if (Reflect.ownKeys(value).length !== (parent === undefined ? 3 : 4)) invalid();
+  return Object.freeze({ fields: names, secretFields: secrets, grants, ...(parent === undefined ? {} : { parent }) });
 }
 function captureOrigin(value: GenerationCallbackOrigin): GenerationCallbackOrigin {
   record(value); const source = own(value, 'source'), event = text(own(value, 'event'));
@@ -125,7 +168,8 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
   const model = input.model, id = text(input.recordId) as RecordId, field = text(input.field);
   assertDeliveryField(input.schema, model, field);
   const legacyOrigin = input.origin === undefined ? undefined : captureOrigin(input.origin);
-  const policy = new Map(input.policy), reads = new Map(input.readPolicies);
+  const policy = new Map(input.policy), reads = new Map([...input.readPolicies].map(([model, read]) =>
+    [model, 'grants' in read ? captureSourceReadPolicy(read) : read] as const));
   const callbackPolicy = input.callbackPolicy, context = Object.freeze({ ...input.context });
   if (callbackPolicy === undefined ? typeof callbackRead !== 'function' :
       callbackRead !== undefined || callbackPolicy.model !== model ||
@@ -152,24 +196,40 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
     while (true) {
       if (visited.has(rowModel) || visited.size >= 100) invalid();
       visited.add(rowModel); const read = reads.get(rowModel), rowPolicy = policy.get(rowModel);
-      if (read === undefined || rowPolicy === undefined || row.archivedAt !== null) return false;
-      const rowContext = withPolicyRow(rowPolicy, coherent, row);
-      if (!(await evaluateBy(read.by, rowContext))) return false;
-      const granted = await projectCurrentRecordForViewerPolicy({ policy: rowPolicy, context: coherent, row });
-      if (granted.record === null) return false;
-      if (rowModel === model) {
-        let identityGranted = false;
-        for (const grant of rowPolicy.grants) {
-          if (grant.fields.some(path => path === field || path === `${field}.id`) &&
-              await evaluateBy(grant.by, rowContext) &&
-              (grant.when === undefined || evalPredicateForRow(grant.when, row))) identityGranted = true;
+      if (read === undefined || row.archivedAt !== null) return false;
+      if ('grants' in read) {
+        const observation = Object.freeze({ context: Object.freeze({ ...coherent }), row, revision, fence });
+        let readable = false, identityGranted = false;
+        for (const grant of read.grants) {
+          const verdict = await grant.read(observation);
+          if (typeof verdict !== 'boolean') invalid();
+          if (verdict) {
+            readable = true;
+            if (grant.fields.some(path => path === field || path === `${field}.id`)) identityGranted = true;
+          }
         }
-        if (!identityGranted || rowPolicy.secretFields.some(secret => secret === field ||
-            field.startsWith(`${secret}.`) || secret === `${field}.id`)) return false;
-        if (row.data[field] !== null && row.data[field] !== undefined) {
-          const delivery = granted.record.data[field];
-          if (delivery === null || typeof delivery !== 'object' || Array.isArray(delivery) ||
-              typeof (delivery as Record<string, unknown>).id !== 'string') return false;
+        if (!readable || rowModel === model && (!identityGranted ||
+            read.secretFields.some(secret => isEqualOrUnder(`${field}.id`, secret)))) return false;
+      } else {
+        if (rowPolicy === undefined) return false;
+        const rowContext = withPolicyRow(rowPolicy, coherent, row);
+        if (!(await evaluateBy(read.by, rowContext))) return false;
+        const granted = await projectCurrentRecordForViewerPolicy({ policy: rowPolicy, context: coherent, row });
+        if (granted.record === null) return false;
+        if (rowModel === model) {
+          let identityGranted = false;
+          for (const grant of rowPolicy.grants) {
+            if (grant.fields.some(path => path === field || path === `${field}.id`) &&
+                await evaluateBy(grant.by, rowContext) &&
+                (grant.when === undefined || evalPredicateForRow(grant.when, row))) identityGranted = true;
+          }
+          if (!identityGranted || rowPolicy.secretFields.some(secret => secret === field ||
+              field.startsWith(`${secret}.`) || secret === `${field}.id`)) return false;
+          if (row.data[field] !== null && row.data[field] !== undefined) {
+            const delivery = granted.record.data[field];
+            if (delivery === null || typeof delivery !== 'object' || Array.isArray(delivery) ||
+                typeof (delivery as Record<string, unknown>).id !== 'string') return false;
+          }
         }
       }
       fence?.enroll({ kind: 'record', model: rowModel, id: row.id, version: row.version });

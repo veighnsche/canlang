@@ -72,7 +72,15 @@ the genuine original request revision and declaration; it is exclusive with a
 legacy `origin`. Authorized absence needs neither origin nor Work lookup. State
 revalidates Identity and its revision before Work and after evidence awaits.
 These functions come from the verified host, never request data. Native checked
-relational read-policy consumption and original-app rendering need their own join.
+ordinary predicates can also use the reader's existing `readPolicies` map. A source
+entry supplies exact declared `fields`, typed `secretFields`, checked `parent` and
+ordered `grants: [{fields, read(observation)}]`; the loader expands omitted selectors
+before binding each original rule, including its `where` clause. State captures
+these declarations before awaits, calls every predicate in ordinal order under
+tracked Identity, derives visibility and exact delivery-identity authority from
+matching selectors, and refuses secret identity or any unreadable live ancestor.
+This reader-local entry adds no placeholder grants to the global policy table.
+The native decoded row/relation binding and original-app rendering need their own join.
 
 ## Build and test
 
