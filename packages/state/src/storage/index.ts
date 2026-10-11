@@ -21,3 +21,5 @@ export type { D1OwnerScope, TrustedD1OwnerBinding } from './owner-router.js';
 export { STATE_FILE_REFERENCE_PRODUCER } from './file-reference-inventory.js';
 export { prepareFrameworkFilePayloadOrigin } from './file-retirement.js';
 export type { FrameworkFilePayloadOriginInput } from './file-retirement.js';
+export { bindOpaqueFileDeclarations, resolveOpaqueFileProjection } from './opaque-file-declarations.js';
+export type { BoundOpaqueDeclarations } from './opaque-file-declarations.js';
