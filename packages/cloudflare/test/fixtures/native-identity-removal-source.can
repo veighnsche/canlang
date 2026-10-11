@@ -1,0 +1,12 @@
+app NativeIdentityRemoval
+Given
+ Removal {subject:user,team:text,membership:text}
+ policy Removal read=owner
+When
+ crud Removal by=owner fields=subject,team,membership
+ scenario observed on=teams.member_removed
+  do
+   require actor==null
+   require operation.source=="ingress"
+   create Removal {subject=event.user,team=event.team_id,membership=event.membership_id} as removal
+Then

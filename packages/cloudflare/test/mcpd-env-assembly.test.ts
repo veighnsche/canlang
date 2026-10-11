@@ -83,6 +83,20 @@ const _realAcceptsMirror: RealIdentityStore = null as unknown as MirrorIdentityS
 void _mirrorAcceptsReal;
 void _realAcceptsMirror;
 
+/** Whole-store assignment permits omitted optional methods; compare both exact owning signatures. */
+const _mirrorRemovalAcceptsReal: MirrorIdentityStore['removeMemberWithOccurrence'] =
+  null as unknown as RealIdentityStore['removeMemberWithOccurrence'];
+const _realRemovalAcceptsMirror: RealIdentityStore['removeMemberWithOccurrence'] =
+  null as unknown as MirrorIdentityStore['removeMemberWithOccurrence'];
+const _mirrorRemovalReadAcceptsReal: MirrorIdentityStore['readMemberRemovalOccurrence'] =
+  null as unknown as RealIdentityStore['readMemberRemovalOccurrence'];
+const _realRemovalReadAcceptsMirror: RealIdentityStore['readMemberRemovalOccurrence'] =
+  null as unknown as MirrorIdentityStore['readMemberRemovalOccurrence'];
+void _mirrorRemovalAcceptsReal;
+void _realRemovalAcceptsMirror;
+void _mirrorRemovalReadAcceptsReal;
+void _realRemovalReadAcceptsMirror;
+
 /** A genuine D1 binding satisfies the store's minimal D1 surface. */
 function d1SatisfiesStoreSurface(db: D1Database): IdentityD1Database {
   return db;
