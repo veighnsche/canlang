@@ -52,7 +52,7 @@ import {
 const MORE_ROWS = message("More rows available.", {
   nl: "Meer rijen beschikbaar.",
 });
-const EMPTY_COLLECTION = message("No records.", { nl: "Geen gegevens." }, undefined, "en");
+export const EMPTY_COLLECTION = message("No records.", { nl: "Geen gegevens." }, undefined, "en");
 const DETAILS = message("Details", { nl: "Details" }, undefined, "en");
 const OPEN_DETAILS = message("Open details", { nl: "Details openen" }, undefined, "en");
 const CLOSE_DETAILS = message("Close details", { nl: "Details sluiten" }, undefined, "en");

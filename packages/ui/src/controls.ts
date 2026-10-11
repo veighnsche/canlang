@@ -56,6 +56,7 @@ import type { FieldError } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderState } from "./components.js";
+import { EMPTY_COLLECTION } from "./collections.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import {
   assertFieldPath,
@@ -860,7 +861,7 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
   });
   const filterControls = agendaFilterControls(props, conditions, result.columns, result.rows.length === 0);
   if (result.rows.length === 0) {
-    return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty });
+    return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
   }
   const locale = pageLocale(props.context);
   const zone = props.timeZone ?? "UTC";

@@ -878,7 +878,7 @@ export interface CalendarAgendaProps {
   /** Existing finite page read; the query owner binds its cursor to occurrence. */
   readonly page?: true;
   readonly occurrence?: string;
-  readonly empty: MessageValue;
+  readonly empty?: MessageValue;
   /** IANA zone for day grouping/display; defaults to UTC when absent. */
   readonly timeZone?: string;
   /** Receives only the current authorized row and the dispatcher-owned view. */
