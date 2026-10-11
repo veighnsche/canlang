@@ -15,6 +15,7 @@
  */
 
 import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD } from "@canlang/contracts";
+import { operationPostPath } from "./escape.js";
 import type { FormMode } from "@canlang/contracts";
 import type {
   BusinessError,
@@ -118,6 +119,9 @@ export interface SubmitFetchInit {
   readonly headers: Record<string, string>;
   readonly body?: string | Uint8Array;
   readonly signal?: AbortSignal;
+  /** Protected mutation POSTs stay on the current origin and never follow redirects. */
+  readonly mode?: "same-origin";
+  readonly redirect?: "error";
 }
 
 export type SubmitFetch = (
@@ -554,6 +558,12 @@ export async function submitGeneratedForm(
       false,
     );
   }
+  let action: string;
+  try {
+    action = operationPostPath(input.action);
+  } catch (error) {
+    throw new GeneratedSubmitError("usage", error instanceof Error ? error.message : String(error), false);
+  }
   for (const [key, value] of Object.entries(input.flat)) {
     if (typeof value !== "string") {
       throw new GeneratedSubmitError(
@@ -719,8 +729,10 @@ export async function submitGeneratedForm(
     if (input.fragment) {
       headers["HX-Request"] = "true";
     }
-    response = await fetchImpl(input.action, {
+    response = await fetchImpl(action, {
       method: "POST",
+      mode: "same-origin",
+      redirect: "error",
       headers,
       body: JSON.stringify(envelope),
     });

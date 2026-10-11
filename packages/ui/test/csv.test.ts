@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { PresentationContext } from "@canlang/contracts";
 import { CSRF_FIELD } from "@canlang/contracts";
-import type { SubmitFetchResponse } from "../src/client.js";
+import type { SubmitFetchInit, SubmitFetchResponse } from "../src/client.js";
 import { message } from "../src/messages.js";
 import {
   CSV_UI_MAX_ROWS,
@@ -255,6 +255,9 @@ describe("csv review form", () => {
     await assert.rejects(csvReviewForm({ ...base, reviewPath: "" }), /reviewPath/);
     await assert.rejects(csvReviewForm({ ...base, operations: [] }), /at least one operation/);
     await assert.rejects(csvReviewForm({ ...base, regionId: "" }), /region/);
+    for (const reviewPath of ['https://foreign.test/review', '//foreign.test/review', '/\\foreign.test/review']) {
+      await assert.rejects(csvReviewForm({ ...base, reviewPath }), /operation POST action/);
+    }
   });
 });
 
@@ -389,6 +392,9 @@ describe("csv preview section", () => {
     await assert.rejects(csvPreviewSection({ ...base, commitPath: "" }), /commitPath/);
     await assert.rejects(csvPreviewSection({ ...base, csvText: "" }), /echoed CSV/);
     await assert.rejects(csvPreviewSection({ ...base, regionId: "" }), /region/);
+    for (const commitPath of ['https://foreign.test/commit', '//foreign.test/commit', '/\\foreign.test/commit']) {
+      await assert.rejects(csvPreviewSection({ ...base, commitPath }), /operation POST action/);
+    }
   });
 });
 
@@ -398,7 +404,7 @@ describe("csv preview section", () => {
 
 describe("csv review transport", () => {
   it("posts JSON with the CSRF header and guards the review", async () => {
-    const seen: Array<{ url: string; init: { method: string; headers: Record<string, string>; body?: string | Uint8Array } }> = [];
+    const seen: Array<{ url: string; init: SubmitFetchInit }> = [];
     const result = await submitCsvReview({
       fetchImpl: (async (url: string, init) => {
         seen.push({ url, init });
@@ -414,6 +420,8 @@ describe("csv review transport", () => {
     assert.equal(seen[0]?.init.method, "POST");
     assert.equal(seen[0]?.init.headers["content-type"], "application/json");
     assert.equal(seen[0]?.init.headers["x-csrf-token"], "csrf-123");
+    assert.equal(seen[0]?.init.mode, 'same-origin');
+    assert.equal(seen[0]?.init.redirect, 'error');
     assert.deepEqual(JSON.parse(String(seen[0]?.init.body)), { operation: "create-task", csv: "title\nwrite docs\n" });
     assert.equal(result.ok, true);
     if (!result.ok) return;
@@ -633,8 +641,20 @@ describe("csv confirm section", () => {
 // ---------------------------------------------------------------------------
 
 describe("csv commit transport", () => {
+  it("refuses foreign review and commit actions before any protected transport", async () => {
+    let calls = 0;
+    const fetchImpl = async () => { calls += 1; throw new Error('must not fetch'); };
+    const consent = reviewFixture().consent;
+    for (const action of ['https://foreign.test/commit', '//foreign.test/commit', '/\\foreign.test/commit', '/commit#fragment']) {
+      const input = { action, fetchImpl, csrf: 'csrf-123', operation: 'create-task', csv: 'title\nprivate\n' };
+      await assert.rejects(submitCsvReview(input), /operation POST action/);
+      await assert.rejects(submitCsvCommit({ ...input, consent, selections: [{ index: 0, operation_id: 'op-1' }] }), /operation POST action/);
+    }
+    assert.equal(calls, 0);
+  });
+
   it("posts the commit envelope and guards the outcome", async () => {
-    const seen: Array<{ url: string; init: { method: string; headers: Record<string, string>; body?: string | Uint8Array } }> = [];
+    const seen: Array<{ url: string; init: SubmitFetchInit }> = [];
     const consent = parseReviewPayload(JSON.parse(JSON.stringify(reviewFixture()))).consent;
     const result = await submitCsvCommit({
       fetchImpl: (async (url: string, init) => {
@@ -651,6 +671,8 @@ describe("csv commit transport", () => {
     assert.equal(seen.length, 1);
     assert.equal(seen[0]?.init.headers["x-csrf-token"], "csrf-123");
     assert.equal(JSON.parse(String(seen[0]?.init.body)).consent.review_token, REVIEW_TOKEN);
+    assert.equal(seen[0]?.init.mode, 'same-origin');
+    assert.equal(seen[0]?.init.redirect, 'error');
     assert.deepEqual(JSON.parse(String(seen[0]?.init.body)), {
       operation: "create-task",
       csv: "title\nwrite docs\n",

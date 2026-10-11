@@ -289,6 +289,23 @@ describe("T20b envelope submit", () => {
     assert.equal(call.init.headers["x-csrf-token"], "csrf-123");
     assert.equal(call.init.headers["accept"], "text/html");
     assert.equal(call.init.headers["HX-Request"], "true");
+    assert.equal(call.init.mode, 'same-origin');
+    assert.equal(call.init.redirect, 'error');
+  });
+
+  it("refuses foreign operation actions before any upload, key mint or transport effect", async () => {
+    const calls: string[] = [];
+    for (const action of ['https://foreign.test/submit', '//foreign.test/submit', '/\\foreign.test/submit',
+      'mailto:foreign@test', 'submit', '/submit#fragment', '/\t/foreign.test/submit', ' /submit']) {
+      await assert.rejects(submitGeneratedForm({
+        derived: FILE_CREATE, mode: 'create', flat: baseFlat({ 'inputs[title]': 'private' }), action,
+        files: [{ field: 'doc', name: 'a.pdf', type: 'application/pdf', size: 1, bytes: new Uint8Array([1]) }],
+        fragment: false, intentsUrl: '/mounted/uploads/intents',
+        mintUploadId: () => { calls.push('mint'); return 'up-1'; },
+        fetchImpl: async () => { calls.push('fetch'); throw new Error('must not fetch'); },
+      }), (error: unknown) => error instanceof GeneratedSubmitError && error.code === 'usage' && /operation POST action/.test(error.message));
+    }
+    assert.deepEqual(calls, []);
   });
 
   it("omits HX-Request on full-page submits", async () => {

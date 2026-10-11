@@ -8,6 +8,7 @@ import { deriveCsrfToken, IdentityError } from '@canlang/identity';
 import type {
   AdmittedBindings,
   PageDescriptor,
+  PageReadScope,
   PageRecordsQuery,
   PageRecordsReader,
   PageHistoryReader,
@@ -880,4 +881,106 @@ test('in-render queries enforce collection bounds', async () => {
   const res = await handler(testRequest('/overflow', { method: 'GET' }));
   assert.equal(res.status, 400);
   assert.equal((await res.json() as { code: string }).code, 'validation');
+});
+
+
+test('query scope hook associates the exact full and partial renderer query with frozen admitted preferences', async () => {
+  for (const partial of [false, true]) {
+    const admitted: PageSourceContext[] = [];
+    const associations = new WeakMap<RowQueryRunner, PageReadScope>();
+    let current: ResolvedIdentity | undefined, factorySource: PageSourceContext | undefined;
+    let factories = 0, hooks = 0, reads = 0, rendered = 0, hookFinished = false;
+    const scope: PageReadScope = {
+      query: async function (this: unknown, invocation, model, args) {
+        assert.equal(this, scope); assert.equal(invocation, current);
+        assert.equal(model, 'TestApp.Todo'); assert.deepEqual(args, { limit: 25 });
+        reads++; return { rows: [], columns: [] };
+      },
+      onQueryBound: async function (this: unknown, bound) {
+        assert.equal(this, scope); assert.equal(factories, 1);
+        assert.equal(factorySource, admitted[0]); assert.equal(rendered, 0);
+        hooks++; associations.set(bound, scope);
+        await Promise.resolve(); hookFinished = true;
+      },
+    };
+    const page = helloPage({
+      preferenceFields: [{ name: 'view', options: ['all', 'available'], defaultValue: 'all' }],
+      admit: async source => { admitted.push(source as PageSourceContext); return {}; },
+      render: async context => {
+        rendered++; assert.equal(hookFinished, true); assert.equal(hooks, 1);
+        assert.equal(associations.get(context.query), scope);
+        assert.equal(context.principal, current); assert.equal(context.invocation, current);
+        await context.query({ actor: { user_id: 'forged' } }, 'TestApp.Todo', {});
+        await assert.rejects(context.query({ actor: { user_id: 'forged' } }, 'TestApp.Todo', { limit: 101 }),
+          error => { assert.equal((error as { code: string }).code, 'validation'); return true; });
+        assert.equal(reads, 1);
+        return '<p>bound query scope</p>';
+      },
+    });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const preferences: PagePreferenceStore = {
+      read: async key => {
+        assert.deepEqual(key, { appId: deps.app.appId, actorUserId: identity.userId,
+          teamId: identity.teamId, owner: 'TestApp', field: 'view' });
+        return { value: 'available', version: '7' };
+      },
+      save: async () => { assert.fail('GET must not write preferences'); },
+    };
+    const response = await handlePageRequest({ ...deps, preferences,
+      query: async () => { assert.fail('the scoped query must win'); },
+      createReadScope: (principal: ResolvedIdentity, source: PageSourceContext) => {
+        factories++; current = principal; factorySource = source;
+        assert.equal(source, admitted[0]); assert.equal(Object.isFrozen(source), true);
+        assert.deepEqual({ ...source.preferences?.['TestApp'] }, { view: 'available' });
+        assert.deepEqual({ ...source.preferenceVersions?.['TestApp'] }, { view: '7' });
+        assert.equal(Object.isFrozen(source.preferences?.['TestApp']), true);
+        assert.equal(Object.isFrozen(source.preferenceVersions?.['TestApp']), true);
+        return scope;
+      },
+    }, testRequest(`/hello?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(response.status, 200); assert.match(await response.text(), /bound query scope/);
+    assert.equal(factories, 1); assert.equal(hooks, 1); assert.equal(rendered, 1); assert.equal(reads, 1);
+  }
+});
+
+test('denied pages do not create query scopes and safe binding-hook denials precede rendering', async () => {
+  for (const partial of [false, true]) {
+    let admitted = false, factories = 0, hooks = 0, rendered = 0;
+    const page = helloPage({
+      admit: async () => { if (!admitted) throw buildBusinessError('forbidden', 'Page denied.'); return {}; },
+      render: async () => { rendered++; return '<p>must not render</p>'; },
+    });
+    const { deps } = await createTestDeps({ descriptors: [page] });
+    const scoped = { ...deps, createReadScope: () => {
+      factories++;
+      return { query: async () => { assert.fail('denied hook must not query'); },
+        onQueryBound: async () => { hooks++; await Promise.resolve(); throw buildBusinessError('forbidden', 'Query scope denied.'); } };
+    } };
+    const request = () => testRequest('/hello', partial ? { headers: { 'HX-Request': 'true' } } : {});
+    const denied = await handlePageRequest(scoped, request());
+    assert.equal(denied.status, 403); assert.equal(factories, 0); assert.equal(hooks, 0); assert.equal(rendered, 0);
+    admitted = true;
+    const hookDenied = await handlePageRequest(scoped, request());
+    assert.equal(hookDenied.status, 403);
+    assert.deepEqual(await hookDenied.json(), { code: 'forbidden', message: 'Query scope denied.', retryable: false });
+    assert.equal(factories, 1); assert.equal(hooks, 1); assert.equal(rendered, 0);
+  }
+});
+
+test('fallback page query keeps its dependency receiver and request identity under the same collection bounds', async () => {
+  let calls = 0, current: ResolvedIdentity | undefined;
+  const page = helloPage({ render: async context => {
+    current = context.principal as ResolvedIdentity;
+    await context.query('forged invocation', 'TestApp.Todo', {});
+    await assert.rejects(context.query('forged invocation', 'TestApp.Todo', { limit: 101 }));
+    return '<p>fallback query</p>';
+  } });
+  const { deps } = await createTestDeps({ descriptors: [page] });
+  const fallback = { ...deps, query: async function (this: unknown, invocation: unknown, model: string, args: { limit?: number }) {
+    assert.equal(this, fallback); assert.equal(invocation, current); assert.equal(model, 'TestApp.Todo');
+    assert.equal(args.limit, 25); calls++; return { rows: [], columns: [] };
+  } };
+  const response = await handlePageRequest(fallback, testRequest('/hello'));
+  assert.equal(response.status, 200); assert.equal(calls, 1);
 });

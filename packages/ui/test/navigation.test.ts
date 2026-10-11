@@ -518,6 +518,21 @@ describe("button", () => {
     assert.ok(html.includes(`<button type="submit" class="btn">Approve</button>`), html);
   });
 
+  it("requires rooted operation POST actions while preserving mounted queries and ordinary external links", async () => {
+    for (const postTo of ["https://foreign.example/ops", "//foreign.example/ops", "/\\foreign.example/ops",
+      "javascript:alert(1)", "mailto:foreign@example.test", "ops/approve", "/ops#fragment", "/ops\napprove", "/ops approve"]) {
+      await assert.rejects(button({ context: makeContext(), action: { ...actionBinding, postTo } }), /operation POST action/);
+    }
+    const html = await button({ context: makeContext(), action: {
+      ...actionBinding, postTo: "/mounted/app/ops/approve?team=blue&mode=review", inputs: { note: "Check" },
+    } });
+    assert.ok(html.includes(`action="/mounted/app/ops/approve?team=blue&amp;mode=review" method="post"`), html);
+    for (const field of ['name="operation" value="approve"', 'name="operation_id" value="op-1"',
+      'name="_csrf" value="csrf-123"', 'name="inputs[note]" value="Check"', '>Approve</button>']) assert.ok(html.includes(field), html);
+    const link = await button({ context: makeContext(), target: "https://foreign.example/page", caption: "External" });
+    assert.equal(link, '<a class="btn" href="https://foreign.example/page">External</a>');
+  });
+
   it("prefers an explicit caption over the action label", async () => {
     const html = await button({
       context: makeContext(),
@@ -1270,16 +1285,19 @@ describe("themeController", () => {
     assert.ok(html.includes(">Opslaan</button>"), html);
   });
 
-  it("escapes labels and hostile post paths", async () => {
+  it("escapes labels while refusing hostile theme POST paths", async () => {
     const html = await themeController({
       context: makeContext(),
       label: XSS,
-      postTo: `javascript:alert(1)`,
+      postTo: "/mounted/settings/theme?team=blue",
       themes: [{ value: "can-light-blue", label: XSS }],
     });
     assert.ok(!html.includes("<script>"), html);
-    assert.ok(html.includes(`action="#"`), html);
-    assert.ok(!html.includes("javascript:"), html);
+    assert.ok(html.includes(`action="/mounted/settings/theme?team=blue"`), html);
+    assert.ok(html.includes('name="_csrf" value="csrf-123"'), html);
+    for (const postTo of ["https://foreign.example/theme", "//foreign.example/theme", "/\\foreign.example/theme", "javascript:alert(1)", "mailto:foreign@example.test"]) {
+      await assert.rejects(themeController({ context: makeContext(), label: "Appearance", postTo, themes }), /operation POST action/);
+    }
   });
 
   it("throws on unknown, duplicate or unlisted-current themes", async () => {

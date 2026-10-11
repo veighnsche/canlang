@@ -158,6 +158,24 @@ describe("tabs", () => {
     assert.ok(html.includes(`<button type="submit" class="btn btn-primary">Save</button>`), html);
   });
 
+  it("refuses foreign bound-tab POST targets before bodies and preserves mounted protected inputs", async () => {
+    let bodies = 0;
+    const binding = { name: "view", options: [{ value: "a", label: "First" }], postTo: "/mount/prefs/view", version: "7" };
+    for (const postTo of ["//evil.example/save", "/\\evil.example/save", "https://evil.example/save"]) {
+      for (const items of [[], [{ value: "a", caption: "First", children: () => { bodies++; return ["private body"]; } }]]) {
+        await assert.rejects(tabs({ context: makeContext(), binding: { ...binding, postTo }, items }), /operation POST action/);
+      }
+    }
+    assert.equal(bodies, 0);
+    const html = await tabs({ context: makeContext(), binding,
+      items: [{ value: "a", caption: "First", children: ["private body"] }] });
+    assert.ok(html.includes('action="/mount/prefs/view"'));
+    assert.ok(html.includes('name="_csrf" value="csrf-123"'));
+    assert.ok(html.includes('name="_version" value="7"'));
+    assert.ok(html.includes('name="view"'));
+    assert.ok(html.includes('private body'));
+  });
+
   it("renders a selector-only bound tabset without panels", async () => {
     const html = await tabs({
       context: makeContext(),

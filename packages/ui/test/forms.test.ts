@@ -1095,26 +1095,27 @@ describe("forms escaping and prefixes", () => {
     assert.ok(html.includes("&lt;b&gt;unmatched&lt;/b&gt;"));
   });
 
-  it("falls back to # for unsafe action and cancel urls", async () => {
+  it("refuses unsafe POST actions while retaining the navigation fallback", async () => {
+    await assert.rejects(form(makeFormProps({ action: "javascript:alert(1)" })), /operation POST action/);
     const html = await form(
-      makeFormProps({ action: "javascript:alert(1)", cancelHref: "JaVaScRiPt:alert(1)" }),
+      makeFormProps({ action: "/mounted/submit?source=one&mode=two", cancelHref: "JaVaScRiPt:alert(1)" }),
     );
-    assert.ok(html.includes('<form action="#" method="post">'));
+    assert.ok(html.includes('<form action="/mounted/submit?source=one&amp;mode=two" method="post">'));
     assert.ok(html.includes('href="#"'));
     assert.ok(!html.includes("javascript:"));
     assert.ok(!html.includes("JaVaScRiPt:"));
   });
 
-  it("neutralizes unsafe action urls on edit, delete and action too", async () => {
-    const edited = await edit(makeEditProps({ action: "javascript:alert(2)" }));
-    const deleted = await deleteRecord(makeDeleteProps({ action: "JaVaScRiPt:alert(3)" }));
-    const acted = await action(makeActionProps({ action: "vbscript:msgbox(4)" }));
-    for (const html of [edited, deleted, acted]) {
-      assert.ok(html.includes('<form action="#" method="post">'));
-      assert.ok(!html.includes("javascript:"));
-      assert.ok(!html.includes("JaVaScRiPt:"));
-      assert.ok(!html.includes("vbscript:"));
+  it("refuses foreign and ambiguous actions on every protected form before child rendering", async () => {
+    let children = 0;
+    for (const target of ['https://foreign.test/submit', '//foreign.test/submit', '/\\foreign.test/submit',
+      'mailto:foreign@test', 'submit', '/submit#fragment', '/\t/foreign.test/submit', ' /submit']) {
+      await assert.rejects(form(makeFormProps({ action: target, children: () => { children += 1; return ['private']; } })), /operation POST action/);
+      await assert.rejects(edit(makeEditProps({ action: target })), /operation POST action/);
+      await assert.rejects(deleteRecord(makeDeleteProps({ action: target })), /operation POST action/);
+      await assert.rejects(action(makeActionProps({ action: target })), /operation POST action/);
     }
+    assert.equal(children, 0);
   });
 
   it("survives malformed error pointers by listing them unmatched", async () => {

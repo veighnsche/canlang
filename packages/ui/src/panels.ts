@@ -45,7 +45,7 @@ import type {
 import { BUSINESS_ERROR_CODES, CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
-import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { escapeAttr, escapeHtml, operationPostPath } from "./escape.js";
 import { collapse } from "./groups.js";
 import {
   canonicalDefaultTag,
@@ -179,6 +179,8 @@ export async function tabs(props: TabsProps): Promise<string> {
     label = ` aria-label="${escapeAttr(caption)}"`;
   }
 
+  const postTo = props.binding === undefined ? undefined : operationPostPath(props.binding.postTo);
+
   // Selector-only bound tabset: no panels, just the preference form.
   if (items.length === 0 && props.binding !== undefined) {
     const binding = props.binding;
@@ -196,7 +198,7 @@ export async function tabs(props: TabsProps): Promise<string> {
       .join("");
     const save = escapeHtml(resolveCaption(SAVE_LABEL, props.context));
     return (
-      `<form action="${escapeAttr(safeHref(binding.postTo))}" method="post"${idAttr("tabs", props.id)}>` +
+      `<form action="${escapeAttr(postTo!)}" method="post"${idAttr("tabs", props.id)}>` +
       `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
       (binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`) +
       `<fieldset>${legend}<div class="flex flex-col gap-2">${radios}</div></fieldset>` +
@@ -247,7 +249,7 @@ export async function tabs(props: TabsProps): Promise<string> {
   }
   const save = escapeHtml(resolveCaption(SAVE_LABEL, props.context));
   return (
-    `<form action="${escapeAttr(safeHref(props.binding.postTo))}" method="post"${idAttr("tabs", props.id)}>` +
+    `<form action="${escapeAttr(postTo!)}" method="post"${idAttr("tabs", props.id)}>` +
     `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
     (props.binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(props.binding.version)}">`) +
     set +

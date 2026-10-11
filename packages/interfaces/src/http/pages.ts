@@ -74,7 +74,7 @@ function renderThrowResponse(deps: PageHttpDeps, err: unknown, path: string): Re
 }
 
 /** Keep the resolved request identity authoritative over renderer-supplied values. */
-function bindRowQueryRunner(deps: PageHttpDeps, identity: ResolvedIdentity, query = deps.query): RowQueryRunner {
+function bindRowQueryRunner(deps: PageHttpDeps, identity: ResolvedIdentity, query = deps.query, receiver: unknown = deps): RowQueryRunner {
   return async (_invocation: unknown, model: string, args: ListQueryArgs) => {
     const limit = args.limit ?? COLLECTION_DEFAULT_LIMIT;
     if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
@@ -83,7 +83,7 @@ function bindRowQueryRunner(deps: PageHttpDeps, identity: ResolvedIdentity, quer
     if (query === undefined) {
       throw buildBusinessError('validation', 'Authorized page queries are not configured.');
     }
-    return query(identity, model, { ...args, limit });
+    return query.call(receiver, identity, model, { ...args, limit });
   };
 }
 
@@ -188,11 +188,11 @@ async function preferenceSource(
     values[field.name] = saved?.value ?? field.defaultValue;
     versions[field.name] = saved?.version ?? '0';
   }
-  return {
+  return Object.freeze({
     ...source,
     preferences: Object.freeze({ [descriptor.owner]: Object.freeze(values) }),
     preferenceVersions: Object.freeze({ [descriptor.owner]: Object.freeze(versions) }),
-  };
+  });
 }
 
 /** Bound tabs save through their actual page route and return to that view. */
@@ -385,12 +385,15 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
 
   const partial = isPartialRequest(request);
   let scope: PageReadScope | undefined;
+  let query: RowQueryRunner;
   try {
-    scope = await deps.createReadScope?.(identity);
+    scope = await deps.createReadScope?.(identity, source);
+    const scopedQuery = scope?.query;
+    query = bindRowQueryRunner(deps, identity, scopedQuery, scopedQuery === undefined ? deps : scope);
+    await scope?.onQueryBound?.(query);
   } catch (err) {
     return renderThrowResponse(deps, err, pathname);
   }
-  const query = bindRowQueryRunner(deps, identity, scope?.query ?? deps.query);
   if (partial) {
     const context = buildPresentationContext({
       ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),

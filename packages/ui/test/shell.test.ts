@@ -799,30 +799,49 @@ describe("bottom-right account menu DOM", () => {
     }
   });
 
-  it("neutralizes hostile switchTeam and signOut route URLs", async () => {
-    const html = await renderPage(
-      makeContext(),
-      makeDescriptor(),
-      [],
-      makeShell({
-        routes: {
-          signIn: "/sign-in",
-          signOut: "javascript:alert(1)",
-          switchTeam: "javascript:alert(1)",
-        },
-      }),
-    );
-    assert.ok(!html.includes("javascript:"));
-    const page = await loadHtml(html);
-    try {
-      const forms = [...page.document.querySelectorAll(".can-account form")];
-      assert.ok(forms.length >= 1);
-      for (const form of forms) {
-        assert.equal(form.getAttribute("action"), "#");
+  it("refuses foreign account POST routes and preserves mounted actions", async () => {
+    for (const target of ["javascript:alert(1)", "//evil.example/auth", "/\\evil.example/auth", "https://evil.example/auth"]) {
+      for (const field of ["switchTeam", "signOut"] as const) {
+        await assert.rejects(renderPage(makeContext(), makeDescriptor(), [], makeShell({
+          routes: { signIn: "https://login.example/sign-in", signOut: "/mount/sign-out", switchTeam: "/mount/team", [field]: target },
+        })), /operation POST action/);
       }
-    } finally {
-      await page.close();
     }
+    const html = await renderPage(makeContext(), makeDescriptor(), [], makeShell({
+      routes: { signIn: "https://login.example/sign-in", signOut: "/mount/sign-out", switchTeam: "/mount/team" },
+    }));
+    assert.ok(html.includes('action="/mount/sign-out"'));
+    assert.ok(html.includes('action="/mount/team"'));
+    assert.ok(html.includes('name="_csrf" value="csrf-123"'));
+    const anonymous = await renderPage(makeContext({ principal: null }), makeDescriptor(), [], makeShell({
+      account: { authenticated: false, teams: [] },
+      routes: { signIn: "https://login.example/sign-in", signOut: "/mount/sign-out", switchTeam: "/mount/team" },
+    }));
+    assert.ok(anonymous.includes('href="https://login.example/sign-in"'));
+  });
+
+  it("refuses applicable account POST routes before children while leaving partial anonymous and current-only routes unused", async () => {
+    let children = 0;
+    const body = () => { children += 1; return ['<p>authored child</p>']; };
+    for (const field of ['signOut', 'switchTeam'] as const) {
+      const shell = makeShell({ routes: { signIn: '/sign-in', signOut: '/mount/sign-out', switchTeam: '/mount/team', [field]: 'https://foreign.example/auth' } });
+      await assert.rejects(renderPage(makeContext(), makeDescriptor(), body, shell), /operation POST action/);
+      assert.equal(children, 0, 'applicable invalid POST must precede authored evaluation');
+    }
+    const foreign = makeShell({ routes: { signIn: 'https://login.example/sign-in', signOut: '//foreign.example/out', switchTeam: '//foreign.example/team' } });
+    const partial = await renderPage(makeContext({ isPartial: true }), makeDescriptor(), body, foreign);
+    assert.equal(children, 1); assert.ok(partial.includes('<p>authored child</p>')); assert.ok(!partial.includes('can-account'));
+    const anonymous = await renderPage(makeContext({ principal: null }), makeDescriptor(), body, {
+      ...foreign, account: { authenticated: false, teams: [] },
+    });
+    assert.equal(children, 2); assert.ok(anonymous.includes('href="https://login.example/sign-in"'));
+    const current = await renderPage(makeContext(), makeDescriptor(), body, makeShell({
+      routes: { signIn: '/sign-in', signOut: '/mount/sign-out?team=t1', switchTeam: 'https://foreign.example/unused' },
+      account: { authenticated: true, userLabel: 'Ada', teams: [{ id: 't1', label: 'Red' }], currentTeamId: 't1' },
+    }));
+    assert.equal(children, 3); assert.ok(current.includes('action="/mount/sign-out?team=t1"'));
+    assert.ok(current.includes('name="_csrf" value="csrf-123"')); assert.ok(current.includes('aria-current="true">Red'));
+    assert.ok(!current.includes('foreign.example')); assert.equal((current.match(/class="can-account /g) ?? []).length, 1);
   });
 });
 
@@ -991,26 +1010,20 @@ describe("renderLogin", () => {
   });
 
   it("pins the login POST to same-app relative paths", async () => {
-    for (const action of [
-      "https://evil.example/sign-in",
-      "http://evil.example/",
-      "mailto:a@b.c",
-      "//evil.example/sign-in",
-      "/auth/login",
-    ]) {
-      const html = await renderLogin(makeLogin({ action }));
-      const expected = action === "/auth/login" ? "/auth/login" : "#";
-      assert.ok(
-        html.includes(`<form method="POST" action="${expected}">`),
-        `${action} should post to ${expected}`,
-      );
+    for (const action of ["https://evil.example/sign-in", "http://evil.example/", "mailto:a@b.c", "//evil.example/sign-in", "/\\evil.example/sign-in"]) {
+      await assert.rejects(renderLogin(makeLogin({ action })), /operation POST action/);
     }
+    const html = await renderLogin(makeLogin({ action: "/mount/auth/login?mode=password" }));
+    assert.ok(html.includes('<form method="POST" action="/mount/auth/login?mode=password">'));
+    assert.ok(html.includes('name="_csrf" value="csrf-123"'));
+    assert.ok(html.includes('name="username"'));
+    assert.ok(html.includes('name="password"'));
   });
 
   it("escapes hostile brand, action, error and idPrefix", async () => {
     const html = await renderLogin(
       makeLogin({
-        action: "javascript:alert(1)",
+        action: "/mount/auth/login",
         brand: `"><script>alert(1)</script>`,
         error: `"><script>alert(1)</script>`,
         idPrefix: `x"><script>alert(1)</script>`,
@@ -1019,7 +1032,7 @@ describe("renderLogin", () => {
     );
     assert.ok(!html.includes("<script>alert(1)</script>"));
     assert.ok(!html.includes("javascript:alert(1)"));
-    assert.match(html, /<form method="POST" action="#">/);
+    assert.match(html, /<form method="POST" action="\/mount\/auth\/login">/);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.match(html, /id="x&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;-username"/);
     assert.match(html, /for="x&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;-username"/);

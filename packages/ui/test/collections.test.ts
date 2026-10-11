@@ -2347,16 +2347,15 @@ describe("csvImport", () => {
     }
   });
 
-  it("never invents an endpoint: hostile postTo falls back to #", async () => {
+  it("refuses foreign CSV POST targets and preserves mounted actions and CSRF", async () => {
     const context = makeContext();
-    const page = await loadHtml(
-      await csvImport({ context, postTo: "javascript:steal()", label: "Import" }),
-    );
-    try {
-      assert.equal(page.document.querySelector("form")?.getAttribute("action"), "#");
-    } finally {
-      await page.close();
+    for (const postTo of ["javascript:steal()", "//evil.example/import", "/\\evil.example/import", "https://evil.example/import"]) {
+      await assert.rejects(csvImport({ context, postTo, label: "Import" }), /operation POST action/);
     }
+    const html = await csvImport({ context, postTo: "/mount/todos/import?mode=review", label: "Import" });
+    assert.ok(html.includes('action="/mount/todos/import?mode=review"'));
+    assert.ok(html.includes('name="_csrf" value="csrf-123"'));
+    assert.ok(html.includes('type="file" name="file"'));
   });
 
   it("renders the review table with formula-armored cells", async () => {

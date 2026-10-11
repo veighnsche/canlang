@@ -5,6 +5,9 @@
  * bindings and safe message values shared by compiler emission (lane 1) and route
  * dispatch (lane 6). This file is types and wire shapes only: no execution engine,
  * no second CRUD/policy engine, no browser business-state store.
+ * Protected POST targets below are rooted local paths with one leading slash.
+ * Absolute/network URLs, backslashes, whitespace, controls and fragments refuse;
+ * ordinary navigation links retain their separate URL policy.
  *
  * Member TS imports this module directly (workspace-wide pattern); the L7
  * contracts index re-exports it for external consumers. No duplicate
@@ -558,6 +561,12 @@ export type PageHistoryReader = (
 /** One request's authorized readers; this scope itself grants no authority. */
 export interface PageReadScope {
   readonly query: RowQueryRunner;
+  /**
+   * Host-only association hook, called once before rendering with the exact
+   * identity/limit-bound query installed by Interfaces and this scope as receiver.
+   * May retain private ownership; returns no replacement reader or authority.
+   */
+  readonly onQueryBound?: (query: RowQueryRunner) => void | Promise<void>;
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
   readonly observeDelivery?: PageDeliveryObserver;
