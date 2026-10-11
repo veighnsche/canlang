@@ -1837,6 +1837,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "cursor"
                 | "empty"
                 | "columns"
+                | "order"
                 | "display"
                 | "page"
         ),

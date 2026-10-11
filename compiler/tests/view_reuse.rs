@@ -34,9 +34,38 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
     let mut date_controls = 0;
     let mut disclosure_lists = 0;
     let mut original_agendas = 0;
+    let mut original_ordered_tables = 0;
     while let Some(node) = pending.pop() {
         pending.extend(&node.children);
         let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory == "table" && authored.contains("order=from") {
+            original_ordered_tables += 1;
+            let IrExpr::Array(order) = &node
+                .props
+                .iter()
+                .find(|(key, _)| key == "order")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("original table order");
+            };
+            assert_eq!(order.len(), 1);
+            assert!(matches!(&order[0].expr, IrExpr::Text(value) if value == "from"));
+            assert!(
+                node.props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            );
+            assert!(
+                !diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.message.contains("table order")
+                        && diagnostic.primary.start >= node.span.start
+                        && diagnostic.primary.end <= node.span.end)
+            );
+        }
         if node.factory == "calendar" && authored.contains("calendar Appointment start=") {
             original_agendas += 1;
             for (name, expected) in [
@@ -359,6 +388,10 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         "both original view uses retain their authored disclosure: {diagnostics:?}"
     );
     assert_eq!(date_controls, 1, "original date control occurs once");
+    assert_eq!(
+        original_ordered_tables, 3,
+        "all original CanBook table orders remain in raw checked IR"
+    );
     assert_eq!(
         original_agendas, 1,
         "complete original agenda raw IR is preserved without native acceptance: {diagnostics:?}"
