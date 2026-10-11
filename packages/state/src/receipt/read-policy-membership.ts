@@ -1,7 +1,7 @@
 /** Membership at a genuine installed source read, never a business owner call.
  * The checked native loader binds literal source/argument/Team ports. Only the
  * owning State reader opens the coherent observation lifetime below. */
-import type { ScenarioReceiptSourceOrigin, StoragePort, TeamScope } from '@canlang/contracts';
+import type { ProjectedRecord, ScenarioReceiptSourceOrigin, StoragePort, TeamScope } from '@canlang/contracts';
 import { isUserRef, type UserRef } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from '../invocation/scenario-membership-plan.js';
@@ -12,9 +12,13 @@ import type { ViewerGenerationCallbackReadObservation } from './callback-diagnos
 
 export type ReadPolicyMembershipHandle = Readonly<object>;
 export type InstalledSourceReadPredicate = (observation: Readonly<ViewerGenerationCallbackReadObservation>) => Promise<boolean>;
+export type InstalledSourceQueryPredicate = (record: Readonly<ProjectedRecord>,
+  observation?: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>;
+type InstalledRead = InstalledSourceReadPredicate | InstalledSourceQueryPredicate;
+type ReadStage = 'read-policy' | 'read-predicate';
 export interface ReadPolicyMembershipProducer {
   readonly source: ScenarioReceiptSourceOrigin;
-  /** Exact emitted read/callbackRead rule identity, not an application alias. */
+  /** Exact emitted read/callbackRead rule or checked query owner identity. */
   readonly rule: string;
   readonly sites: readonly ScenarioReceiptMembershipSite[];
   /** The literal adapter maps the actual native Team to its corresponding
@@ -26,7 +30,8 @@ export interface ReadPolicyMembershipProducer {
     site: ScenarioReceiptMembershipSite, callIndex: number) => { readonly person: UserRef; readonly team: TeamScope };
 }
 interface BoundRead {
-  readonly read: InstalledSourceReadPredicate;
+  readonly read: InstalledRead;
+  readonly stage: ReadStage;
   readonly source: ScenarioReceiptSourceOrigin;
   readonly rule: string;
   readonly team: ReadPolicyMembershipProducer['team'];
@@ -35,7 +40,8 @@ interface BoundRead {
   readonly callCount: number;
 }
 interface ReadLifetime {
-  readonly read: InstalledSourceReadPredicate;
+  readonly read: InstalledRead;
+  readonly stage: ReadStage;
   readonly observation: Readonly<ViewerGenerationCallbackReadObservation>;
   readonly store: StoragePort;
   readonly bound: readonly BoundRead[];
@@ -44,8 +50,8 @@ interface ReadLifetime {
   closed: boolean;
   count: number;
 }
-const bindings = new WeakMap<InstalledSourceReadPredicate, readonly BoundRead[]>();
-const invoked = new WeakSet<InstalledSourceReadPredicate>();
+const bindings = new WeakMap<InstalledRead, readonly BoundRead[]>();
+const invoked = new WeakSet<InstalledRead>();
 const handles = new WeakMap<ReadPolicyMembershipHandle, {
   readonly bound: BoundRead; readonly site: ScenarioReceiptMembershipSite; readonly callIndex: number;
 }>();
@@ -70,15 +76,16 @@ function teamSnapshot(team: TeamScope): string {
 /** Bind once per exact rule before any read. Shape checking alone does not
  * attest emitted JavaScript; the same verified native loader supplies these
  * ports and the installed ordinary/callback read predicate. */
-export function bindReadPolicyMembershipProducer(read: InstalledSourceReadPredicate,
+export function bindReadPolicyMembershipProducer(read: InstalledRead,
   producer: ReadPolicyMembershipProducer): readonly ReadPolicyMembershipHandle[] {
   if (typeof read !== 'function' || invoked.has(read)) return fail('owning installed predicate must bind before execution.');
   object(producer, ['source', 'rule', 'sites', 'team', 'capture']);
   if (typeof producer.team !== 'function' || typeof producer.capture !== 'function') return fail('literal native Team and capture ports required.');
   const rawSource = object(producer.source, ['path', 'sha256', 'module']);
   const source = Object.freeze({ path: text(rawSource.path), sha256: text(rawSource.sha256), module: text(rawSource.module) });
-  const rule = text(producer.rule), sites = checkScenarioReceiptMembershipSites(producer.sites);
-  if (sites.some(site => site.stage !== 'read-policy' || site.owner !== rule ||
+  const rule = text(producer.rule), sites = checkScenarioReceiptMembershipSites(producer.sites), stage = sites[0]?.stage;
+  if (stage !== 'read-policy' && stage !== 'read-predicate') return fail('an exact current-read stage is required.');
+  if (sites.some(site => site.stage !== stage || site.owner !== rule ||
       stableStringify(site.source) !== stableStringify(source))) return fail('exact original read-policy rule/source required.');
   const previous = bindings.get(read) ?? [];
   const occurrences = sites.map(site => stableStringify({ source: site.source, owner: site.owner, node: site.node }));
@@ -86,7 +93,7 @@ export function bindReadPolicyMembershipProducer(read: InstalledSourceReadPredic
   if (previous.length >= 200 || new Set(occurrences).size !== occurrences.length ||
       previous.some(bound => bound.rule === rule ||
       bound.occurrences.some(occurrence => occurrences.includes(occurrence)))) return fail('one bounded binding per exact rule/occurrence required.');
-  const bound: BoundRead = Object.freeze({ read, source, rule, team: producer.team, capture: producer.capture,
+  const bound: BoundRead = Object.freeze({ read, stage, source, rule, team: producer.team, capture: producer.capture,
     occurrences: Object.freeze(occurrences), callCount });
   const result: ReadPolicyMembershipHandle[] = [];
   for (const site of sites) site.calls.forEach((call, callIndex) => {
@@ -105,13 +112,42 @@ export function bindReadPolicyMembershipProducer(read: InstalledSourceReadPredic
  * No public open/registration API can issue a read observation. */
 export async function evaluateInstalledReadPolicy(read: InstalledSourceReadPredicate,
   input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort): Promise<boolean> {
+  return evaluateInstalledRead(read, 'read-policy', input, store, observation => read(observation));
+}
+
+/** Internal viewer query join. The original projected record remains the
+ * first argument; only State supplies the live predicate's second argument. */
+export async function evaluateInstalledReadPredicate(read: InstalledSourceQueryPredicate,
+  record: Readonly<ProjectedRecord>, input: Readonly<ViewerGenerationCallbackReadObservation>,
+  store: StoragePort): Promise<boolean> {
+  return evaluateInstalledRead(read, 'read-predicate', input, store, observation => read(record, observation));
+}
+
+/** Internal query selection only. Unchanged predicates retain their existing
+ * once-only execution after grant discovery; a checked membership predicate
+ * joins discovery and coherent replay of its actual candidate domain. */
+export function hasInstalledReadPredicateMembership(read: InstalledSourceQueryPredicate): boolean {
+  return bindings.get(read)?.some(bound => bound.stage === 'read-predicate') === true;
+}
+
+/** Internal accepted unbound route: record the actual function's first use
+ * without issuing membership authority or repeating its execution. */
+export function executeUnboundReadPredicate(read: InstalledSourceQueryPredicate,
+  record: Readonly<ProjectedRecord>): boolean | Promise<boolean> {
+  invoked.add(read);
+  return read(record);
+}
+
+async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
+  input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
+  execute: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>): Promise<boolean> {
   invoked.add(read);
   const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
-  const lifetime: ReadLifetime = { read, observation, store, bound: bindings.get(read) ?? [],
+  const lifetime: ReadLifetime = { read, stage, observation, store, bound: bindings.get(read) ?? [],
     pending: false, poisoned: false, closed: false, count: 0 };
   lifetimes.set(observation, lifetime); contexts.set(observation.context, lifetime);
   try {
-    const value = await read(observation);
+    const value = await execute(observation);
     if (lifetime.pending || lifetime.poisoned || typeof value !== 'boolean') return fail('caught, pending or malformed source read cannot authorize.');
     return value;
   } catch (error) { lifetime.poisoned = true; throw error; }
@@ -137,7 +173,8 @@ export async function evaluateReadPolicyMembership(observation: Readonly<ViewerG
     object(input, ['site']); const issued = handles.get(input.site);
     if (lifetime === undefined || lifetime.observation !== observation || lifetime.closed || lifetime.poisoned ||
         lifetime.pending || issued === undefined || issued.bound.read !== lifetime.read ||
-        !lifetime.bound.includes(issued.bound) || lifetime.count >= 200) return fail('exact live nonconcurrent source read/occurrence required.');
+        issued.bound.stage !== lifetime.stage || !lifetime.bound.includes(issued.bound) ||
+        lifetime.count >= 200) return fail('exact live nonconcurrent source read/occurrence required.');
     lifetime.pending = true; acquired = true; lifetime.count++;
     const team = issued.bound.team(observation);
     if (team === null) return fail('actual corresponding native Team required.');
