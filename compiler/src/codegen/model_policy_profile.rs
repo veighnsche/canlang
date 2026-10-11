@@ -440,6 +440,11 @@ pub(crate) fn local_stored_field_type(
     model: SymbolId,
     ty: &ResolvedType,
 ) -> bool {
+    // A lock compares the owning stored value; it does not read a User in
+    // a predicate or acquire invocation/identity authority.
+    if ty == &ResolvedType::Scalar(Scalar::User) {
+        return true;
+    }
     matches!(
         ty,
         ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool) | ResolvedType::Enum { .. }

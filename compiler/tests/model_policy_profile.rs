@@ -1,8 +1,9 @@
 //! Real checked rule IR, not fabricated local-call metadata.
 use canlang_compiler::{
-    analysis::{check_program, resolve::SymbolId},
+    analysis::{ResolvedType, Scalar, check_program, resolve::SymbolId},
     codegen::{
-        ir::{self, IrItemKind, IrProgram},
+        ir::{self, IrItemKind, IrProgram, IrType},
+        js,
         model_policy_profile::local_rule_fields,
     },
     source::{SourceDb, Span},
@@ -122,6 +123,96 @@ fn checked_local_arrays_unary_operations_and_constant_predicates_are_supported()
                 .map(|id| program.item(*id).name.as_str())
                 .collect::<Vec<_>>(),
             names
+        );
+    }
+}
+
+#[test]
+fn singular_user_lock_target_preserves_numeric_rule_and_refuses_changed_field_identity() {
+    let (program, model) = rule_with_fields(
+        "Other {title:text}\n policy Other read=members\n lock Item fields=account",
+        "row.count>=0",
+        ",account:user",
+    );
+    let field = program
+        .items
+        .iter()
+        .find(|item| item.name == "account")
+        .unwrap()
+        .id;
+    let other = program
+        .items
+        .iter()
+        .find(|item| item.name == "Other")
+        .unwrap()
+        .id;
+    let output = js::emit_program(&program);
+    let policies = output
+        .model_policies
+        .as_ref()
+        .expect("singular User lock target");
+    assert_eq!(policies.len(), 1);
+    let descriptor = serde_json::to_value(&policies[0]).unwrap();
+    assert_eq!(descriptor["model"], "LocalRule.Item");
+    // Written source order is retained: the fixture's lock precedes invariant.
+    assert_eq!(
+        descriptor["rules"],
+        serde_json::json!([
+            {"kind":"lock","id":"LocalRule.Item.lock.1","fields":["account"]},
+            {"kind":"invariant","id":"LocalRule.Item.require.1","dependencies":[]},
+        ])
+    );
+    assert!(local_rule_fields(&program, model, &program.invariants[0].pred).is_some());
+    for ty in [
+        ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::User))),
+        ResolvedType::Array {
+            element: Box::new(ResolvedType::Scalar(Scalar::User)),
+            ordered: true,
+            nonempty: false,
+        },
+        ResolvedType::Record {
+            symbol: other,
+            stored: true,
+        },
+        ResolvedType::Unknown,
+    ] {
+        let mut changed = program.clone();
+        let IrItemKind::Field { ty: actual, .. } = &mut changed.items[field.0 as usize].kind else {
+            panic!()
+        };
+        *actual = IrType::Known(ty);
+        assert!(
+            js::emit_program(&changed).model_policies.is_none(),
+            "unsupported User target acquired policy claim"
+        );
+        assert_eq!(changed.invariants.len(), 1);
+        assert_eq!(changed.locks.len(), 1);
+    }
+    let mut changed = program;
+    let IrItemKind::Field { owner, .. } = &mut changed.items[field.0 as usize].kind else {
+        panic!()
+    };
+    *owner = other;
+    assert!(
+        js::emit_program(&changed).model_policies.is_none(),
+        "foreign owning field acquired User lock claim"
+    );
+}
+
+#[test]
+fn user_predicates_and_nullable_or_array_user_lock_sources_keep_existing_refusals() {
+    let (program, model) = rule_with_fields("", "row.account==row.account", ",account:user");
+    assert!(local_rule_fields(&program, model, &program.invariants[0].pred).is_none());
+    assert!(js::emit_program(&program).model_policies.is_none());
+    for field in ["user?", "user[]"] {
+        let (program, _) = rule_with_fields(
+            "lock Item fields=account",
+            "row.count>=0",
+            &format!(",account:{field}"),
+        );
+        assert!(
+            js::emit_program(&program).model_policies.is_none(),
+            "{field}"
         );
     }
 }

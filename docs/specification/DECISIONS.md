@@ -11504,3 +11504,35 @@ assertion. This is not whole DEL-R01, Linux/native acceptance or a hold release.
 
 
 Coordinator defining source review CLEAR and exact four-path source/doc intake in LOCAL main after deadline. Owning declaration177/13,797 retained external diagnostics, actual engine refusals/script syntax/four-job CI parse reused. Runtime missing-producer failure remains unfinished. The recipient-specific no-merges instruction is honored through a requested single-parent descendant source carrier: parent Packages3fa259b45, tree equal this coherent reviewed main including its Node22 changes; all worker commit ancestry remains available, and coordinator never mutates its checkout. Packages adopts ff-only at its committed boundary and retries only actual failed runtime against genuine matching catalog/producers. Exact preparation/default/activation/publication/source/adoption holds and complete checkpoint remain unchanged.
+
+2026-10-11 — exact required-parent native count producer
+(implemented/source-tested; actual parent descriptor intake blocked/unfinished).
+Join the original bare parent.Child Member and required singular parameter,
+actual ownership/schema/type/slots and count+1 input against fresh checked source.
+Use the released optional admitted-reference parent DTO and one awaited genuine
+query executor/count bridge, existing int64 arithmetic and same created Model
+return. Keep real guards/effects in the existing collector; add no fixture-only
+guard-free body requirement, query clauses, carrier or business parent field.
+373 affected source/refusal cases and strict0 pass. Actual CLI/verified factory/
+installed export+count binder boundary passes, but mandatory installed State
+rejects parent closed shape. Capability U17 parser/contained-domain/empty-parent/
+recovery and Dev execution remain exact dependencies; full applications and
+unscoped two-hop ancestor observations remain open.
+
+2026-10-11 — original stored User lock target (implemented/tested; native retry external).
+Retain the existing exact stored-field/owner checks and admit singular User only
+as an unconditional lock target. The original Budget numeric invariant and
+account lock publish together in state.owner-model-policies@1, in authored order,
+with matching verified registry callbacks. User predicates, nullable/array/foreign/
+unknown targets remain unsupported; no new carrier, Identity authority or facade
+profile is added.13 focused checks and strict0 pass; prior unchanged results reused.
+Dev owns genuine first-row execution and retained transaction/authority/replay.
+
+2026-10-11 — released required-parent descriptor intake. Reuse exact reviewed
+State e237/mainbb9 source-owned output and rerun only the mandatory previously
+failed count positive:1/.74s PASS with unchanged original parent/count+1 and
+compiler/CLI/verified factory/installed State assertions. Earlier affected/strict
+checks remain valid. This closes descriptor intake only; genuine contained
+execution/authority/recovery stays Dev-owned, unscoped ancestor joins separate.
+
+Coordinator independent defining source reviews CLEAR for required-parent native COUNT and exact singular stored User lock policy. Coherent defining source/tests and scoped records integrated into LOCAL main after deadline; actual changed locked offline CLI build0. Owning373/strict/fmt, failed-only real installed descriptor1/.74s and user-lock13/strict/fmt reused. Main accepted Statee237 releases the parent parser; prior closed-parent failure stays historical. Genuine native count/first current-authority/empty/mutation/rollback/replay remain Dev consumers, unscoped second-hop source/native association remains separate, and complete checkpoint/full applications/precise holds remain unchanged.

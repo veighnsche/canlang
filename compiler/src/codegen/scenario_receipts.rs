@@ -48,10 +48,25 @@ pub(super) struct ReceiptQuery {
     pub id: String,
     pub source: ReceiptSource,
     pub model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<ReceiptQueryParent>,
     pub order: Vec<ReceiptQueryOrder>,
     pub limit: Option<u16>,
     pub archived: String,
     pub dependencies: Vec<ReceiptQueryDependency>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptQueryParent {
+    pub source: ReceiptSource,
+    pub model: String,
+    pub origin: ReceiptQueryParentOrigin,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub(super) enum ReceiptQueryParentOrigin {
+    AdmittedReference { parameter: String },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1196,9 +1211,16 @@ fn checked_native_first_query_plan<'a>(
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     let queries = facts.queries.as_deref().unwrap_or_default();
-    // Count and bare contained scans are source inventory only until their
-    // exact native query consumer is released. Existing projected/first scans
-    // retain their original explicit alias and predicate requirements.
+    if let [query] = queries
+        && query.count.is_some()
+    {
+        let plan = supplied?;
+        let expected = checked_native_count_query_plan(ir, owner, query, db?, entry_module)?;
+        return (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?)
+            .then_some(Some(plan));
+    }
+    // Other count and bare contained profiles remain source inventory only.
+    // Existing projected/first scans keep their exact authored clauses.
     if queries
         .iter()
         .any(|query| query.count.is_some() || query.alias.is_none() || query.predicate.is_none())
@@ -1303,6 +1325,7 @@ fn checked_native_first_query_plan<'a>(
             id: query.id.clone(),
             source: transport_source(&query.source, entry_module)?,
             model: query.model_name.clone(),
+            parent: None,
             order: vec![ReceiptQueryOrder {
                 field: "id".into(),
                 direction: "asc".into(),
@@ -1366,6 +1389,438 @@ fn checked_first_query_schema<'a>(
         match_stored_contract_field(ir, field, db)?;
     }
     Some(schema)
+}
+
+/// The released contained COUNT selector is the original required singular
+/// parent parameter. No aliases, nullable references or stored-path selectors
+/// enter this finite producer.
+fn checked_count_query_parent<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+) -> Option<&'a IrItem> {
+    let count = query.count.as_ref()?;
+    let (receiver, parameter_id) = count.contained_parent?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let parameter = ir.items.get(parameter_id.0 as usize)?;
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol: parent_id,
+                stored: true,
+            }),
+        array_bounds: None,
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let fact = facts.parameters.get(*index)?;
+    let child = checked_first_query_schema(ir, owner, query, db)?;
+    let mut parents = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == *parent_id);
+    let parent = parents.next()?;
+    let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
+    let authored_parameter = checked_effect_node(ir, owner, fact.node, db)?;
+    let parameter_name = authored_parameter
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::Name)?;
+    let text = &db.get(receiver.file)?.text;
+    if parents.next().is_some()
+        || parameter.id != parameter_id
+        || *parameter_owner != owner.id
+        || params.get(*index) != Some(&parameter_id)
+        || params.iter().filter(|id| **id == parameter_id).count() != 1
+        || fact.parameter != parameter_id
+        || fact.ty
+            != (ResolvedType::Record {
+                symbol: *parent_id,
+                stored: true,
+            })
+        || fact.default.is_some()
+        || fact.constraints.is_some()
+        || parameter.module != owner.module
+        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+        || parameter.span != parameter_name.span
+        || parameter_name.token()?.text(text) != parameter.name
+        || source_receiver.kind != SyntaxKind::NameRef
+        || text.get(receiver.start as usize..receiver.end as usize)? != parameter.name
+        || child.parent != Some(*parent_id)
+        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(*parent_id))
+        || parent.source != query.source
+        || parent.module != owner.module
+        || parent.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == ir.items[query.model.0 as usize].name)
+        })
+        || child.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == "parent")
+        })
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, parent, db)?;
+    for field in &parent.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    Some(parameter)
+}
+
+/// Match the actual original COUNT call to its true contained Member. The
+/// synthetic IR Query deliberately has no fabricated alias, predicate or CST
+/// Query fact; its original Member, parent binding and type census own it.
+pub(super) fn checked_count_query_ir<'a>(
+    ir: &'a IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    actual: &TypedExpr,
+    node: crate::analysis::NodeKey,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
+    use crate::analysis::NodeKey;
+    let mut owners = ir.items.iter().filter(|owner| {
+        matches!(owner.kind, IrItemKind::Scenario { .. })
+            && ir
+                .scenario_disclosures
+                .get(&owner.id)
+                .and_then(|value| value.source_facts())
+                .is_some_and(|facts| {
+                    facts.source == original.source
+                        && facts.creates.as_deref().is_some_and(|creates| {
+                            creates.iter().any(|created| created.node == original.node)
+                        })
+                })
+    });
+    let owner = owners.next()?;
+    if owners.next().is_some() {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [query] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let count = query.count.as_ref()?;
+    let (receiver, _) = count.contained_parent?;
+    let (target, args, slots) = match &actual.expr {
+        IrExpr::Call { target, args } => (target, args.as_slice(), None),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args.as_slice(), Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [domain] = args else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    let parent = scan.parent.as_deref()?;
+    let parameter = checked_count_query_parent(ir, owner, query, db)?;
+    let IrItemKind::Param {
+        ty: IrType::Known(parent_type),
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let array = ResolvedType::Array {
+        element: Box::new(ResolvedType::Record {
+            symbol: query.model,
+            stored: true,
+        }),
+        ordered: true,
+        nonempty: false,
+    };
+    if !matches!(target, IrCallTarget::Builtin {id, awaited:false} if id == "count")
+        || count.call != node
+        || count.slots.as_slice() != [Some(0)]
+        || slots.is_some_and(|slots| slots != count.slots.as_slice())
+        || count.statement != original.node
+        || original.model != query.model
+        || checked_created_model_result(ir, owner) != Some(original.model)
+        || actual.span != node_span(node)
+        || actual.ty != ResolvedType::Scalar(Scalar::Int)
+        || domain.ty != array
+        || query.source != original.source
+        || query.domain != query.node
+        || query.node.kind != SyntaxKind::Member as u8
+        || query.alias.is_some()
+        || query.predicate.is_some()
+        || query.first.is_some()
+        || query.projection.is_some()
+        || query.cardinality_guard.is_some()
+        || query.limit.is_some()
+        || query.archived
+        || !query.order.is_empty()
+        || !query.dependencies.is_empty()
+        || !count.parent_edges.is_empty()
+        || query.inputs.as_slice() != [count.contained_parent?]
+        || scan.source.is_some()
+        || scan.collection_call.is_some()
+        || scan.contract_collection_call.is_some()
+        || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(name) if name == &query.model_name)
+        || scan.where_pred.is_some()
+        || scan.where_async
+        || !scan.order.is_empty()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || scan.select.is_some()
+        || scan.select_param.is_some()
+        || parent.span != node_span(receiver)
+        || &parent.ty != parent_type
+        || !matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+    {
+        return None;
+    }
+    let census = facts.expression_types.as_deref()?;
+    if !census
+        .iter()
+        .any(|(at, ty)| *at == node && ty == &actual.ty)
+        || !census
+            .iter()
+            .any(|(at, ty)| *at == receiver && ty == &parent.ty)
+    {
+        return None;
+    }
+    let authored = checked_effect_node(ir, owner, node, db)?;
+    let text = &db.get(node.file)?.text;
+    let mut arguments = authored
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Argument);
+    let argument = arguments.next()?;
+    if arguments.next().is_some() {
+        return None;
+    }
+    let mut values = argument
+        .children
+        .iter()
+        .filter(|node| matches!(node.kind, SyntaxKind::Group | SyntaxKind::Member));
+    let mut source_domain = values.next()?;
+    if values.next().is_some() || source_domain.span != domain.span {
+        return None;
+    }
+    for _ in 0..=64 {
+        if !census
+            .iter()
+            .any(|(at, ty)| *at == NodeKey::of(source_domain) && ty == &domain.ty)
+        {
+            return None;
+        }
+        if source_domain.kind != SyntaxKind::Group {
+            break;
+        }
+        let mut grouped = source_domain
+            .children
+            .iter()
+            .filter(|node| matches!(node.kind, SyntaxKind::Group | SyntaxKind::Member));
+        source_domain = grouped.next()?;
+        if grouped.next().is_some() {
+            return None;
+        }
+    }
+    let mut heads = authored
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::NameRef);
+    let head = heads.next()?;
+    let member_name = source_domain
+        .children
+        .iter()
+        .rev()
+        .find(|node| node.kind == SyntaxKind::Name)?;
+    let mut receivers = source_domain
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::NameRef);
+    if heads.next().is_some()
+        || text.get(head.span.start as usize..head.span.end as usize)? != "count"
+        || NodeKey::of(source_domain) != query.node
+        || member_name.token()?.text(text) != ir.items.get(query.model.0 as usize)?.name
+        || NodeKey::of(receivers.next()?) != receiver
+        || receivers.next().is_some()
+    {
+        return None;
+    }
+    Some(query)
+}
+
+/// A bounded contained COUNT+1 Create uses the same prepared-query skeleton as
+/// first. No runtime handle or parent authority is issued by this source join.
+pub(super) fn checked_native_count_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    let count = query.count.as_ref()?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        effects,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let mut creates = effects.iter().filter_map(|statement| match statement {
+        IrStmt::Create { input, span, .. } => Some((input, span)),
+        _ => None,
+    });
+    let (input, span) = creates.next()?;
+    if creates.next().is_some() {
+        return None;
+    }
+    let IrStmt::Return { span: returned, .. } = effects.last()? else {
+        return None;
+    };
+    let [original] = facts.creates.as_deref()? else {
+        return None;
+    };
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let mut operands = entries.iter().filter_map(|(_, value)| match &value.expr {
+        IrExpr::Binary {
+            op: IrBinOp::Add,
+            left,
+            right,
+        } if matches!(right.expr, IrExpr::Int(1)) && left.span == node_span(count.call) => {
+            Some(left.as_ref())
+        }
+        _ => None,
+    });
+    let operand = operands.next()?;
+    if operands.next().is_some()
+        || query.id.is_empty()
+        || original.node != count.statement
+        || *span != node_span(count.statement)
+        || *returned != node_span(query.return_node)
+        || checked.source != query.source
+        || facts.source != query.source
+        || checked.returns.is_empty()
+        || checked.returns.len() > 200
+        || checked.returns.iter().any(|returned| {
+            returned.node != query.return_node
+                || returned.source != query.source
+                || returned.influences != query.influences
+                || returned.model_result.is_none()
+        })
+    {
+        return None;
+    }
+    checked_count_query_ir(ir, original, operand, count.call, db)?;
+    super::scenario_create_sources::checked_create_expression(
+        ir, original, operand, count.call, db,
+    )?;
+    let parameter = checked_count_query_parent(ir, owner, query, db)?;
+    let IrItemKind::Param {
+        ty: IrType::Known(ResolvedType::Record {
+            symbol: parent_id, ..
+        }),
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let mut ids = HashSet::new();
+    let kinds = [
+        InfluenceKind::QueryExistence,
+        InfluenceKind::QueryCardinality,
+        InfluenceKind::QueryMembership,
+        InfluenceKind::QueryOrder,
+    ];
+    if query.influences.len() != kinds.len() {
+        return None;
+    }
+    let influences = query
+        .influences
+        .iter()
+        .zip(kinds)
+        .map(|(influence, kind)| {
+            if influence.id.is_empty()
+                || !ids.insert(influence.id.as_str())
+                || influence.source != query.source
+                || influence.node != query.node
+                || influence.kind != kind
+                || influence.query_id.as_deref() != Some(query.id.as_str())
+            {
+                return None;
+            }
+            Some(ReceiptInfluence {
+                id: influence.id.clone(),
+                query_id: influence.query_id.clone(),
+                kind: match kind {
+                    InfluenceKind::QueryExistence => "query-existence",
+                    InfluenceKind::QueryCardinality => "query-cardinality",
+                    InfluenceKind::QueryMembership => "query-membership",
+                    InfluenceKind::QueryOrder => "query-order",
+                    _ => return None,
+                }
+                .into(),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(ReceiptDisclosurePlan {
+        version: 1,
+        source: transport_source(&query.source, entry)?,
+        queries: vec![ReceiptQuery {
+            id: query.id.clone(),
+            source: transport_source(&query.source, entry)?,
+            model: query.model_name.clone(),
+            parent: Some(ReceiptQueryParent {
+                source: transport_source(&query.source, entry)?,
+                model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
+                origin: ReceiptQueryParentOrigin::AdmittedReference {
+                    parameter: parameter.name.clone(),
+                },
+            }),
+            order: Vec::new(),
+            limit: None,
+            archived: "exclude".into(),
+            dependencies: Vec::new(),
+        }],
+        returns: checked
+            .returns
+            .iter()
+            .map(|returned| {
+                Some(ReceiptReturn {
+                    id: returned.id.clone(),
+                    source: transport_source(&returned.source, entry)?,
+                    influences: influences.clone(),
+                    dependencies: Vec::new(),
+                    intrinsics: Vec::new(),
+                    projection: None,
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    })
 }
 
 fn checked_first_query_row<'a>(
@@ -5176,6 +5631,31 @@ impl<'a> Sites<'a> {
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "count")
+                            && let Some(facts) = ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|value| value.source_facts())
+                            && let Some(query) = facts.queries.as_deref().and_then(|queries| {
+                                queries.iter().find(|query| {
+                                    query.count.as_ref().is_some_and(|count| {
+                                        node_span(count.call) == expression.span
+                                    })
+                                })
+                            })
+                        {
+                            let original = facts.creates.as_deref()?.iter().find(|created| {
+                                checked_created_model_result(ir, owner) == Some(created.model)
+                            })?;
+                            let call = query.count.as_ref()?.call;
+                            checked_count_query_ir(ir, original, expression, call, db?)?;
+                            super::scenario_create_sources::checked_create_expression(
+                                ir, original, expression, call, db?,
+                            )?;
+                            // This true contained domain is owned by its query
+                            // producer, never ordinary parent field observations.
+                            continue;
+                        }
                         if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "first")
                             && let Some(facts) = ir
                                 .scenario_disclosures

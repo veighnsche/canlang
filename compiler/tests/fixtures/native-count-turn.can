@@ -1,0 +1,15 @@
+## Test-authored bounded fixture preserving the original Chat count operand and arithmetic.
+app CountSources
+Given
+ Conversation {title:text}
+ Branch in Conversation {title:text}
+ Turn in Branch {position:int min=1}
+ policy Conversation read=members
+ policy Branch read=members
+ policy Turn read=members
+When
+ scenario append(branch:Branch) by=members -> Turn
+  do
+   create Turn {parent=branch,position=count(branch.Turn)+1} as turn
+   return turn
+Then

@@ -934,6 +934,16 @@ impl SourceExpressions<'_> {
                 },
                 SyntaxKind::Call,
             ) if self.operands && id == "count" && primitive(Scalar::Int) => {
+                if matches!(args.as_slice(), [domain] if matches!(domain.expr, IrExpr::Query(_))) {
+                    super::scenario_receipts::checked_count_query_ir(
+                        self.ir,
+                        self.original,
+                        actual,
+                        key,
+                        self.db,
+                    )?;
+                    return Some(());
+                }
                 let head = children.first()?;
                 if source_path(head, self.text)? != *id || args.len() != 1 {
                     return None;
@@ -951,6 +961,22 @@ impl SourceExpressions<'_> {
                     return None;
                 };
                 self.expression(&args[0], NodeKey::of(value), depth + 1)?;
+                true
+            }
+            (
+                IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    ..
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "count" && primitive(Scalar::Int) => {
+                super::scenario_receipts::checked_count_query_ir(
+                    self.ir,
+                    self.original,
+                    actual,
+                    key,
+                    self.db,
+                )?;
                 true
             }
             _ => false,
