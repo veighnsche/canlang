@@ -10427,7 +10427,23 @@ Working list/table cards retain their genuine HelpOffice host/browser qualificat
 
 2026-10-11 — originating Office evidence and original valid-reply reuse (implemented/tested/reviewed finite scope).
 
-Independent review exposed blank and comment-only ## lines concealing an omitted collection child. Correct both at the owning capture scanner in7d3138f9/471fb85a: skip only those layout-ignored lines, preserve real declarations and inline/string ##, mark omitted children incomplete without disclosing them, and withhold ranking/provider invocation. Reuse corrected owning1/1+1/1 and18 existing controls. The actual41-card/native/Chromium current-cache-stale/cleanup consumer passed1/1 in174685.48ms under unchanged180s using its one retained genuine provider reply; compare the complete current request except session occurrence/revision, never construct the live provider in retained mode, and do not relabel replay as a new latency observation. Original provider267.78ms and933/62 tokens happened once. Current CF emission/root noEmit0 qualify this source intake. Original joined OfficeG2 currently fails readiness HTTP500 IDENTITY_UNAVAILABLE before browser; G3 has not started. These finite outcomes do not accept the original supported profile/full plan or release any precise hold; complete filetree checkpoint unchanged.
+Independent review exposed blank and comment-only ## lines concealing an omitted collection child. Correct both at the owning capture scanner in7d3138f9/471fb85a: skip only those layout-ignored lines, preserve real declarations and inline/string ##, mark omitted children incomplete without disclosing them, and withhold ranking/provider invocation. Reuse corrected owning1/1+1/1 and18 existing controls. The actual41-card/native/Chromium current-cache-stale/cleanup consumer passed1/1 in174685.48ms under unchanged180s using its one retained genuine provider reply; compare the complete current request except session occurrence/revision, never construct the live provider in retained mode, and do not relabel replay as a new latency observation. Original provider267.78ms and933/62 tokens happened once. Current CF emission/root noEmit0 qualify this source intake. Original joined OfficeG2 currently fails readiness HTTP500 IDENTITY_UNAVAILABLE before browser; G3 has not started. These finite outcomes do not accept the original supported profile/full plan or release any precise hold; complete filetree checkpoint unchanged.The concrete native active_member catalog join uses an explicit host-native
+artifact derived from the same authored signatures and existing catalog schema.
+Keep generic Values availability external; its runtime has no host implementation.
+After Dev releases its exact current native facade/frame, Packages may emit the
+supported native availability and expose its owning installed artifact for
+explicit catalog selection. Compiler preserves StateRead/source restrictions;
+catalog metadata grants no runtime authority or replacement frame. This avoids
+a generic availability flip or a new per-entry scope parser.
+
+Three verified-context Choice consultations favor that contract with probabilities
+0.89/0.92/0.90 and confidence0.83/0.88/0.85. Full responses remain in the existing
+TECH-I01 record. This is advice about the prospective defining choice, not current
+native qualification: exact current Dev native-membership/stdlib/modules and
+original public export/frame correspondence remain necessary, with no whole-app
+prerequisite. Actual artifact emission is unfinished and all holds remain.
+
+
 
 ## 2026-10-11 — Original File occurrences in text (implemented; native consumer unfinished)
 
