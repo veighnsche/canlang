@@ -3910,3 +3910,16 @@ and source parent facts require their real current-policy observer; no actor-onl
 approximation. Dev retains browser/D1/current-grant/dispatch/persistence/full
 original application qualification. Coordinator finite native acceptance is
 pending;58/67, nine owner dependencies and every precise hold remain.
+
+
+**File inventory review correction — original checked types, 2026-10-11.**
+
+Coordinator review withheld9e55 release: initial type comparison read both sides
+from the same editable checked type table. Privately retain original resolved
+event field types at the defining effects check and compare them before sealing.
+The actual original Retained.attachment File-to-Text prebuild mutation now refuses
+E6008/no inventory. Six affected original-scope assertions pass .68s, including
+both genuine CLI/installed consumers; unchanged seventh declaration refusal is
+reused. True original types, aliases, constraints/defaults and source are retained.
+Changed strict all-target Clippy0 6.16s,fmt/diff0; coordinator exact correction acceptance is pending;
+Dev's native scheduled lifetime workflow remains unfinished.

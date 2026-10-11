@@ -492,7 +492,9 @@ fn original_event_absence_census_refuses_prebuild_field_metadata_edits() {
         .iter()
         .find_map(|field| field.default)
         .unwrap();
+    let attachment = identity("NativeFileDeferred.Retained.attachment");
     for mutation in [
+        "type",
         "trim",
         "min",
         "max",
@@ -514,6 +516,12 @@ fn original_event_absence_census_refuses_prebuild_field_metadata_edits() {
             .find(|field| field.field == note)
             .unwrap();
         match mutation {
+            "type" => {
+                changed
+                    .types
+                    .symbol_types
+                    .insert(attachment, ResolvedType::Scalar(Scalar::Text));
+            }
             "trim" | "min" => field.modifiers.retain(|modifier| modifier.name != mutation),
             "max" => {
                 field
