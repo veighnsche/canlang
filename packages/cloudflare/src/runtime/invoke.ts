@@ -60,6 +60,7 @@ import type {
   ListQueryArgs,
   ListQueryResult,
   PageDeliveryObserver,
+  PageHistoryReader,
   PageReadScope,
   PageRecordsQuery,
   QueryPredicate,
@@ -1146,6 +1147,7 @@ const STATE_TRANSACT_SPECIFIER = "@canlang/state/ports/transact";
 const STATE_GRANTS_SPECIFIER = "@canlang/state/policy/grants";
 /** T17b: mutation pipeline (`runMutationWrites`, stages scenario writes). */
 const STATE_PIPELINE_SPECIFIER = "@canlang/state/mutation/pipeline";
+const STATE_QUERY_SPECIFIER = "@canlang/state/query";
 
 /** Contracts values (a declared dependency — bare specifier, bundler-inlined). */
 const CONTRACTS_SPECIFIER = "@canlang/contracts";
@@ -9131,6 +9133,9 @@ export function createPageReadScopeCanonical(
 ): PageReadScope {
   const bindings = new Map<string, Set<string>>();
   const views = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
+  // Predicate candidates and navigation views are not final page admissions.
+  // Only the exact objects returned after the owning read revalidation qualify.
+  const historyViews = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
   let revision: number | undefined;
   const key = (id: string, version: string): string => JSON.stringify([id, version]);
   const checkpoint = async (): Promise<number> => {
@@ -9242,6 +9247,10 @@ export function createPageReadScopeCanonical(
         const locator = key(row.id, String(row.version)), models = bindings.get(locator) ?? new Set<string>();
         models.add(model); bindings.set(locator, models);
       }
+      for (let index = 0; index < result.length; index++) {
+        const row = served.records[index]!;
+        historyViews.set(result[index]!, { model, id: row.id, version: row.version });
+      }
       return Object.freeze(result);
     },
     query: async (_invocation: unknown, model: string, args: ListQueryArgs): Promise<ListQueryResult> => {
@@ -9253,7 +9262,59 @@ export function createPageReadScopeCanonical(
         const models = bindings.get(locator) ?? new Set<string>();
         models.add(model);
         bindings.set(locator, models);
+        historyViews.set(row, { model, id: row.id, version: Number(row.version) });
       }
+      return result;
+    },
+    readHistory: async (locator: Parameters<PageHistoryReader>[0]) => {
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const StateError = loaded.producers.errors;
+      const binding = typeof locator.record === 'object' && locator.record !== null
+        ? historyViews.get(locator.record) : undefined;
+      if (binding === undefined || binding.model !== locator.model) {
+        throw new StateError('validation', 'History requires the original admitted page record.');
+      }
+      const expectedRevision = await checkpoint();
+      assertCanonicalStore(opts.store, `${binding.model}.read`);
+      assertCanonicalMemberships(opts.memberships, `${binding.model}.read`);
+      const readPolicies = new Map<ModelName, { readonly by: GeneratedOperationDef['by']; readonly parent?: ModelName }>();
+      let model: ModelName | undefined = binding.model as ModelName;
+      while (model !== undefined) {
+        if (readPolicies.has(model)) throw new StateError('validation', 'Unsupported history containment scope.');
+        if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+        const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
+        if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
+            !loaded.models.some(candidate => candidate.name === model)) {
+          throw new StateError('validation', 'History requires its checked model read and containment facts.');
+        }
+        const parent: ModelName | undefined = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model)?.parent;
+        readPolicies.set(model, { by: def.by, ...(parent === undefined ? {} : { parent }) });
+        model = parent;
+      }
+      const queryModule = await loadProducerModule(STATE_QUERY_SPECIFIER, 'state viewer history producer');
+      const readHistory = requireProducerFn(queryModule, 'queryRecordHistoryForViewer', 'state viewer history producer') as
+        typeof import('@canlang/state/query').queryRecordHistoryForViewer;
+      const admissionModule = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'state page history fence producer');
+      const openFence = requireProducerFn(admissionModule, 'openFenceScope', 'state page history fence producer') as
+        typeof import('@canlang/state/invocation/admission').openFenceScope;
+      await checkpoint();
+      const fence = openFence(expectedRevision as Revision, opts.pageReads?.scope.owner ?? opts.identity.team?.team_id ?? 'app');
+      const enroll = fence.enroll;
+      fence.enroll = dependency => {
+        if (dependency.kind === 'record' && dependency.model === binding.model && dependency.id === binding.id &&
+            dependency.version !== binding.version) {
+          throw new StateError('conflict', 'Page record changed during rendering; refresh the page.');
+        }
+        enroll.call(fence, dependency);
+      };
+      const result = await readHistory({ store: opts.store, memberships: opts.memberships,
+        model: binding.model as ModelName, recordId: binding.id as RecordId,
+        policy: loaded.policy as Parameters<typeof readHistory>[0]['policy'],
+        readPolicies, context: { actorUserId: opts.identity.actor?.user_id ?? null,
+          teamId: opts.identity.team?.team_id ?? null },
+        fence,
+      });
+      await checkpoint();
       return result;
     },
     observeDelivery: async (locator: Parameters<PageDeliveryObserver>[0], selected: Parameters<PageDeliveryObserver>[1]) => {

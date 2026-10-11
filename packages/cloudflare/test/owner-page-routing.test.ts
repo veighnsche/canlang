@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
+import { createHash } from 'node:crypto';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, PageRecordsQuery } from '@canlang/contracts';
@@ -21,6 +22,19 @@ import { resolveProducerFile } from '../src/deploy/producer-files.js';
 const APP = 'TypedOperationForms';
 const MODEL = `${APP}.Entry`;
 const fixturePath = resolve('packages/cloudflare/test/fixtures/typed-operation-forms.json');
+async function databaseSnapshot(db: D1Database) {
+  const tables = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name!='_cf_METADATA' ORDER BY name").all<{name:string}>();
+  assert.equal(tables.success, true);
+  const result: Record<string, readonly Record<string, unknown>[]> = {};
+  for (const { name } of tables.results) {
+    const rows = await db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all<Record<string, unknown>>();
+    assert.equal(rows.success, true);
+    result[name] = rows.results.sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  }
+  return result;
+}
+const hasCode = (code: string) => (error: unknown) =>
+  typeof error === 'object' && error !== null && 'code' in error && error.code === code;
 
 test('page scopes route verified teams to distinct physical stores and retain canonical read admission', async () => {
   // Use the installed portable producer's native ESM loader, as the example
@@ -31,6 +45,10 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     'bun run --filter @canlang/cloudflare build')).href) as typeof import('../src/worker/assembly.js');
   // Existing compiled fixture; this checks the consumer, not Office acceptance.
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
+  const originalArtifact = JSON.stringify(artifact);
+  const capturedPaths = [fixturePath, resolve('packages/cloudflare/test/fixtures/typed-operation-forms.can')];
+  const hashes = () => Promise.all(capturedPaths.map(async path => createHash('sha256').update(await readFile(path)).digest('hex')));
+  const originalHashes = await hashes();
   const dir = await mkdtemp(join(tmpdir(), 'can-owner-pages-'));
   const worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
     script: 'export default { fetch() { return new Response("ok"); } }',
@@ -71,17 +89,31 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     });
     let routeCalls = 0;
     let fallbackCalls = 0;
+    let historyReads = 0, legacyHistoryReads = 0;
+    let duringHistoryRead: (() => Promise<void>) | undefined;
     const fallback = new Proxy(createD1Storage(identityDb), { get(target, property, receiver) {
       const value: unknown = Reflect.get(target, property, receiver);
       if (typeof value !== 'function') return value;
       return () => { fallbackCalls += 1; throw new Error('Routed page used default storage.'); };
     } });
-    const boundary = await createTeamOwnerStorageBoundary({ artifact, asm, app: APP, identities,
-      router: createD1OwnerRouter({ resolveBinding: scope => {
+    const ownerRouter = createD1OwnerRouter({ resolveBinding: scope => {
         routeCalls += 1;
         const db = scope.owner === teamA.team_id ? dbA : scope.owner === teamB.team_id ? dbB : null;
         return db === null ? null : { ...scope, db, initializeFresh: true };
-      } }) });
+      } });
+    const boundary = await createTeamOwnerStorageBoundary({ artifact, asm, app: APP, identities,
+      router: { async ownerScopedStoragePort(scope) {
+        const store = await ownerRouter.ownerScopedStoragePort(scope);
+        const bounded = store.historyReadBounded; assert.ok(bounded);
+        store.historyReadBounded = async function (request) {
+          assert.equal(this, store); historyReads++;
+          const entries = await bounded.call(store, request);
+          if (duringHistoryRead !== undefined) { const run = duringHistoryRead; duringHistoryRead = undefined; await run(); }
+          return entries;
+        };
+        store.historyFor = async () => { legacyHistoryReads++; throw new Error('Page history used legacy raw history.'); };
+        return store;
+      } } });
     const invoker = buildInvoker(artifact, asm, fallback, { memberships: identities, now: clock.nowMs, ownerStorage: boundary });
     let pageDeps: PageHttpDeps | undefined;
     const page = await assembleWorker(artifact, asm, {
@@ -96,12 +128,8 @@ test('page scopes route verified teams to distinct physical stores and retain ca
         cookie: buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false }).split(';')[0]!,
       }) },
     });
-    const stateSnapshot = async () => Promise.all([dbA, dbB].map(async db => ({
-      fence: (await db.prepare('SELECT * FROM fence').all()).results,
-      records: (await db.prepare('SELECT * FROM records ORDER BY id').all()).results,
-      receipts: (await db.prepare('SELECT * FROM receipts ORDER BY rowid').all()).results,
-      history: (await db.prepare('SELECT * FROM history ORDER BY rowid').all()).results,
-    })));
+    const stateSnapshot = async () => Promise.all([dbA, dbB].map(databaseSnapshot));
+    const resources = async () => ({ state: await stateSnapshot(), identity: await databaseSnapshot(identityDb) });
 
     assert.ok(pageDeps?.createReadScope);
     const declarations = [{ field: 'label', type: 'text' }, { field: 'count', type: 'int' },
@@ -173,6 +201,71 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.equal(fallbackCalls, 0);
       assert.deepEqual(await dbA.prepare('SELECT app, owner FROM state_owner_pin').first(), { app: APP, owner: teamA.team_id });
       assert.deepEqual(await dbB.prepare('SELECT app, owner FROM state_owner_pin').first(), { app: APP, owner: teamB.team_id });
+    }
+
+    // History authority belongs only to original rows actually returned by
+    // this scope; source predicate candidates never acquire that authority.
+    {
+      const scopeA = await pageDeps.createReadScope(identityA), scopeB = await pageDeps.createReadScope(identityB);
+      assert.ok(scopeA.readRecords); assert.ok(scopeB.readRecords);
+      assert.ok(scopeA.readHistory); assert.ok(scopeB.readHistory);
+      const nativeA = (await scopeA.readRecords(MODEL, {}))[0]!;
+      const nativeB = (await scopeB.readRecords(MODEL, {}))[0]!;
+      const queryA = (await scopeA.query(identityA, MODEL, {})).rows[0]!;
+      const queryB = (await scopeB.query(identityB, MODEL, {})).rows[0]!;
+      // Native records have their original source shape, rather than RowView's
+      // presentation shape. Reflect.apply passes that same object unchanged.
+      const nativeHistory = (scope: typeof scopeA, record: unknown) =>
+        Reflect.apply(scope.readHistory!, undefined, [{ model: MODEL, record }]) as ReturnType<NonNullable<typeof scopeA.readHistory>>;
+      const beforeReads = await resources();
+      const historyA = await nativeHistory(scopeA, nativeA);
+      const historyB = await scopeB.readHistory({ model: MODEL, record: queryB });
+      assert.deepEqual(await scopeA.readHistory({ model: MODEL, record: queryA }), historyA);
+      assert.deepEqual(await nativeHistory(scopeB, nativeB), historyB);
+      for (const [history, own, foreign, db, actor] of [
+        [historyA, 'Only team A', 'Only team B', dbA, users[0]!.user_id],
+        [historyB, 'Only team B', 'Only team A', dbB, users[1]!.user_id],
+      ] as const) {
+        assert.equal(history.revision, await createD1Storage(db).readRevision());
+        assert.equal(history.entries.length, 1);
+        assert.equal(history.entries[0]!.before, null);
+        assert.equal(history.entries[0]!.after!.label, own);
+        assert.equal(String(history.entries[0]!.after!.count), '1');
+        assert.deepEqual(Object.keys(history.entries[0]!.after!).sort(), ['count','label','owner']);
+        assert.equal(history.entries[0]!.actor, actor);
+        assert.equal(Object.hasOwn(history.entries[0]!, 'auditProjection'), false);
+        assert.equal(JSON.stringify(history).includes(foreign), false);
+      }
+      const beforeInvalid = historyReads;
+      for (const record of [{ ...nativeA }, { ...queryA }, nativeB, queryB])
+        await assert.rejects(() => nativeHistory(scopeA, record), hasCode('validation'));
+      await assert.rejects(() => scopeA.readHistory!({ model: `${APP}.PrivateEntry`, record: queryA }), hasCode('validation'));
+      let candidate: Record<string, unknown> | undefined;
+      assert.deepEqual(await scopeA.readRecords(MODEL, { where: (row: Record<string, unknown>) => { candidate = row; return false; } }), []);
+      assert.ok(candidate);
+      await assert.rejects(() => nativeHistory(scopeA, candidate), hasCode('validation'));
+      assert.equal(historyReads, beforeInvalid, 'unissued locators refuse before physical history');
+      assert.deepEqual(await resources(), beforeReads);
+
+      const updated = await invoker.invokeMutation({ operation: `${APP}.rename`, operation_id: uuidv7(FIXED_NOW, 3),
+        inputs: { entry: { id: String(nativeA.id), version: '1' }, newLabel: 'Only team A', delta: '1' } }, identityA);
+      assert.ok('result' in updated, JSON.stringify(updated)); assert.equal(updated.result.status, 'committed');
+      const afterUpdate = await resources();
+      assert.deepEqual(afterUpdate.state[1], beforeReads.state[1]); assert.deepEqual(afterUpdate.identity, beforeReads.identity);
+      await assert.rejects(() => nativeHistory(scopeA, nativeA), hasCode('conflict'));
+      await assert.rejects(() => scopeA.readHistory!({ model: MODEL, record: queryA }), hasCode('conflict'));
+      const currentScope = await pageDeps.createReadScope(identityA); assert.ok(currentScope.readHistory); assert.ok(currentScope.readRecords);
+      const currentNative = (await currentScope.readRecords(MODEL, {}))[0]!;
+      const currentQuery = (await currentScope.query(identityA, MODEL, {})).rows[0]!;
+      const current = await currentScope.readHistory({ model: MODEL, record: currentQuery });
+      assert.deepEqual(await nativeHistory(currentScope, currentNative), current);
+      assert.equal(current.revision, await createD1Storage(dbA).readRevision());
+      assert.deepEqual(current.entries.map(entry => [entry.version, String(entry.after!.count)]), [[1,'1'],[2,'2']]);
+      assert.deepEqual(current.entries[1]!.before, current.entries[0]!.after);
+      assert.equal(JSON.stringify(current).includes('Only team B'), false);
+      await assert.rejects(() => nativeHistory(currentScope, { ...currentNative, version: 1n }), hasCode('validation'));
+      assert.deepEqual(await resources(), afterUpdate);
+      assert.equal(legacyHistoryReads, 0); assert.equal(fallbackCalls, 0);
     }
 
     // No selected team, expired credential and absent trusted route refuse without State writes.
@@ -273,6 +366,31 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       }
     }
 
+    // Revocation at the actual bounded D1 await refuses the completed history
+    // and subsequent use of the same original row, without any State effects.
+    {
+      const scope = await pageDeps.createReadScope(identityB);
+      assert.ok(scope.readHistory);
+      const original = (await scope.query(identityB, MODEL, {})).rows[0]!;
+      const beforeRead = await resources();
+      let revokedResources: Awaited<ReturnType<typeof resources>> | undefined;
+      duringHistoryRead = async () => {
+        await identities.removeMembership(memberB.membership_id);
+        revokedResources = await resources();
+      };
+      await assert.rejects(() => scope.readHistory!({ model: MODEL, record: original }), hasCode('forbidden'));
+      assert.ok(revokedResources);
+      assert.deepEqual(revokedResources.state, beforeRead.state);
+      assert.deepEqual(await resources(), revokedResources, 'history refusal adds no effects after the intentional revocation');
+      const reads = historyReads;
+      await assert.rejects(() => scope.readHistory!({ model: MODEL, record: original }), hasCode('not_found'));
+      assert.equal(historyReads, reads, 'current revoked membership refuses before another physical history read');
+      assert.deepEqual(await resources(), revokedResources);
+      assert.equal(legacyHistoryReads, 0); assert.equal(fallbackCalls, 0);
+      // Restore the existing test's independent predicate-revocation setup.
+      await identities.reactivateMembership(memberB.membership_id, { is_owner: false, roles: [] });
+    }
+
     // Identity changes during an awaited source predicate cannot disclose the
     // earlier native projection; this revokes the actual other owner's member.
     {
@@ -319,6 +437,9 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.deepEqual(await stateSnapshot(), beforeState);
       assert.equal(fallbackCalls, 0);
     }
+    assert.equal(JSON.stringify(artifact), originalArtifact);
+    assert.deepEqual(await hashes(), originalHashes);
+    assert.equal(legacyHistoryReads, 0);
   } finally {
     await worker.dispose();
     await rm(dir, { recursive: true, force: true });

@@ -1985,6 +1985,11 @@ export async function assembleWorker(
           },
           query: async (_invocation: unknown, model: Parameters<RowQueryRunner>[1], args: Parameters<RowQueryRunner>[2]) =>
             (await selected()).query(identity, model, args),
+          readHistory: async (locator: Parameters<NonNullable<PageReadScope['readHistory']>>[0]) => {
+            const read = (await selected()).readHistory;
+            if (read === undefined) throw new Error('assembly: canonical page history reader is unavailable.');
+            return read(locator);
+          },
           observeDelivery: async (locator: Parameters<NonNullable<PageReadScope['observeDelivery']>>[0],
             fields: Parameters<NonNullable<PageReadScope['observeDelivery']>>[1]) => {
             const observe = (await selected()).observeDelivery;
