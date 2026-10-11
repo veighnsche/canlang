@@ -2572,8 +2572,8 @@
         "limits": "No whole-command budget/run returned-URL/native preparation acceptance; no reduction credit."
       },
       "remaining_prerequisite": {
-        "prerequisite": "Child/whole-command resource contract, sidecar/general race/partial-effect qualification and run returned-URL lifetime. Test scratch cleanup is complete.",
-        "owner": "Cloudflare command/resource contract owner"
+        "prerequisite": "Define normal CLI/Bun limits and observable cancellation/partial-effect behavior; qualify plan/TOML sidecar containment, concurrent path replacement and interrupted sequential publication. Existing scoped budgets do not establish a whole-command/process-tree bound. Run file-URL lifetime/failure cleanup and test scratch cleanup are implemented/tested; native preparation remains held.",
+        "owner": "Dev/Cloudflare command/resource and confirmed-writer owner; human retains native-preparation hold"
       },
       "application_testkit_loader": {
         "state": "implemented, tested, root-reviewed finite optional producer/consumer join",
@@ -2599,6 +2599,22 @@
         "source": "Existing MCP/HTTP builders already preserve entry-write errors. Extend same first-failure contract to child process diagnostics (including missing Bun) and output-read failure, with one attempted removal. Existing process normalization/messages and raw output-read identity survive a secondary removal exception. If reading succeeded, a cleanup-only exception still propagates. No wrapper/API/bytes/flags/budget change, no guaranteed removal claim.",
         "verification": "Eight new affected combinations first reproduce6fail/2pass (process/missing-Bun/read with cleanup masked primary; cleanup-only already visible). Correct both defining source owners then existing complete lifecycle file24/24passes,0skip/fail,11ms; current Cloudflare direct emit0. Finite independent source review CLEAR. Removed scratch remains explicitly conditional and fault controls assert it still exists before afterEach actual cleanup. Generated handler content/markers and unchanged installed artifacts/producer results reused at their recorded scopes; diff0.",
         "limits": "Secondary cleanup failure does not replace primary; no new aggregate error carrier or claim of reporting both through the existing API. Broader child/whole-command bounds, sidecars/races/partial writes/returned URL, security review and native preparation remain separate open/held gates."
+      },
+      "command_resource_and_url_lifetime": {
+        "state": "implemented, tested and reviewed finite run cleanup/URL and truthful failed-apply corrections; resource/sidecar parent unfinished",
+        "files": [
+          "packages/cloudflare/src/cli/platform.ts",
+          "packages/cloudflare/test/cli.test.ts",
+          "packages/cloudflare/src/preparation/host.ts",
+          "packages/cloudflare/src/upgrade/apply.ts",
+          "packages/cloudflare/test/deploy-apply.test.ts",
+          "packages/cloudflare/README.md"
+        ],
+        "contract": "Successful run staging survives CLI exit for its file-URL caller to remove, without a TTL/server promise. Failure attempts scratch removal without masking the operative thrown value. Local workerd and protected preview live until awaited owner disposal. After Wrangler is attempted, failure leaves remote outcome unconfirmed and requires inspection before manual retry; no automatic retry.",
+        "resource_scope": "Compiler termination30s/stdout16MiB/stderr8KiB/grace250ms and control30s/default60smax are separate existing callers. Wrangler configures180s child timeout. Normal CLI has no whole-command budget; three synchronous Bun bundlers have no explicit timeout. No process-tree or absolute exit guarantee follows.",
+        "validation": "CLI34 affected/unchanged controls pass on initial run; new URL fixture initially fails required-source validation, then corrected actual emitted CLI/independent post-exit import/removal passes1/1 with34 unselected. Mocked Wrangler8/8, current Cloudflare emit and frozen root noEmit0. Reuse accepted ancestry788/test scratch/cancellation/disposal outcomes.",
+        "limits": "Sidecar containment, concurrent replacement and interrupted non-atomic publication remain due. No real apply/native preparation, unchanged File/Office rerun, whole-plan acceptance or hold release.",
+        "review": "Independent exact-source review CLEAR for58bbedb8: primary thrown-value preservation, successful post-exit file lifetime and truthful one-attempt Wrangler uncertainty; unchanged validation reused. No real apply, broader resource acceptance or hold release."
       }
     },
     "DEL-D04": {
