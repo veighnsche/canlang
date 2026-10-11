@@ -442,13 +442,22 @@ function bindOriginalValueDefaults(set: FrameworkOpaqueDeclarationSet, values: F
     const reusedFields: Record<string, unknown> = Object.create(null);
     const originalFields: Record<string, unknown> = Object.create(null);
     for (const field of contract.fields) {
-      const raw = record(fields[field.name], ['type'], ['trim', 'min', 'max', 'format', 'distinctBy', 'excludedIds',
+      const raw = record(fields[field.name], ['type'], ['array', 'nullable', 'trim', 'min', 'max', 'format', 'distinctBy', 'excludedIds',
         'default', 'server', 'derived']);
-      same(type(raw.type), field.type);
-      const parsed = parseTypeId(field.type), base = parsed.base;
+      const array = Object.hasOwn(raw, 'array') ? boolean(raw.array) : undefined;
+      const nullable = Object.hasOwn(raw, 'nullable') ? boolean(raw.nullable) : undefined;
+      const spelling = `${string(raw.type)}${array === true ? '[]' : ''}${nullable === true ? '?' : ''}`;
+      const parsed = parseTypeId(spelling), canonicalType = printTypeId(parsed), base = parsed.base;
+      if (canonicalType !== spelling || array === false && parsed.array || nullable === false && parsed.nullable) {
+        return refuse('canonical original type wrappers required.');
+      }
+      same(canonicalType, field.type);
       const lengthBound = parsed.array || base.kind === 'stringlike' || base.kind === 'scalar' && base.name === 'text' ||
         base.kind === 'nominal' && Object.hasOwn(canonicalSchema.aliases ?? {}, base.path);
-      const forSchema = { ...raw };
+      // Native wrappers remain in the original journal; Values owns their
+      // grammar through the equivalent type spelling in this local schema.
+      const { array: _array, nullable: _nullable, ...schemaField } = raw;
+      const forSchema: Record<string, unknown> = { ...schemaField, type: canonicalType };
       // Native integer metadata retains its int64 wire in the journal. Values'
       // schema API takes exact numeric lengths; decode only those bounds here.
       if (lengthBound) for (const key of ['min', 'max'] as const) if (typeof raw[key] === 'string') {

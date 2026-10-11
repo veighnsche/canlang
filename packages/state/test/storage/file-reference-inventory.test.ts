@@ -453,6 +453,7 @@ function originalContractSet() {
   const originalContracts = {
     'App.Packet': { fields: {
       optional: { type: 'text?', default: null },
+      optional_file: { type: 'file?', default: null },
       enabled: { type: 'bool', default: false },
       label: { type: 'text', default: '' },
       attachments: { type: 'file[]', max: 4, default: [] },
@@ -498,6 +499,39 @@ describe('complete original opaque contract admission (no source qualification)'
     for (const max of ['04', '4.0', 'invalid', '9007199254740992', '5']) {
       const changed = structuredClone(set);
       Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { max });
+      assert.throws(() => admit(changed));
+    }
+  });
+
+  it('admits native own nullable and array wrappers without changing original contracts or defaults', () => {
+    const set = originalContractSet();
+    Object.assign(set.originalContracts['App.Packet'].fields.optional, { type: 'text', nullable: true });
+    Object.assign(set.originalContracts['App.Packet'].fields.optional_file, { type: 'file', nullable: true });
+    Object.assign(set.originalContracts['App.Packet'].fields.enabled, { array: false, nullable: false });
+    Object.assign(set.originalContracts['App.Packet'].fields.attachments, { type: 'file', array: true, min: '0', max: '4' });
+    Object.assign(set.valueTypes.contracts[0]!.fields.find(field => field.name === 'attachments')!, { min: 0 });
+    const before = structuredClone(set);
+    const bound = admit(set).get(set.id)!;
+    assert.deepEqual(set, before);
+    assert.deepEqual(bound.declarationSet.originalContracts, before.originalContracts);
+    assert.deepEqual(bound.declarationSet.valueDefaults, before.valueDefaults);
+    for (const change of [
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional, { nullable: false }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional, { nullable: 'true' }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional, { type: 'text?' }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional, { type: 'text?', nullable: false }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { array: false }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { array: 1 }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { type: 'file[]' }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { type: 'file[]', array: false }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { type: 'file?' }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional_file, { type: 'file[]!', nullable: true }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional_file, { extra: true }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.attachments, { max: '5' }),
+      (changed: typeof set) => Object.assign(changed.originalContracts['App.Packet'].fields.optional_file, { default: 'changed' }),
+      (changed: typeof set) => Object.assign(changed.valueDefaults.find(field => field.field === 'optional_file')!, { value: 'changed' }),
+    ]) {
+      const changed = structuredClone(set); change(changed);
       assert.throws(() => admit(changed));
     }
   });

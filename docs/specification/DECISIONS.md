@@ -8661,3 +8661,7 @@ Files must release the exact current-authorized finalized File-to-safeURL and
 nullable/no-file behavior before checked lowering and Dev's saved-source
 consumer can join. Skip this blocked issue; keep CRM source and File emission
 unchanged.
+
+### 2026-10-11 — admit genuine native raw contract wrappers (native unfinished)
+
+Dev's actual original contract capture retains separate own `array`/`nullable` markers, while the canonical Values schema spells them in the type. State accepts and preserves those raw boolean markers, derives only the local schema type through Values' existing grammar, and still compares every original field/constraint/default against its canonical owner. Contradictory, redundant or malformed wrappers and changed raw literals refuse; native int64 length wires retain their exact existing conversion. No Dev normalization or source reconstruction. Normal State emit including the DO asset and all5 original-default component controls pass; the native-shaped case covers14 refusals. Reuse six Images and previous CLI source qualifications unchanged. Dev's actual installed historical/current File authority join remains unqualified here; all human holds and complete checkpoint persist.
