@@ -6388,7 +6388,7 @@ impl<'a> Emitter<'a> {
                 None => call,
             };
         }
-        let transient_tabs = node.factory == "tabs"
+        let panel_tabs = node.factory == "tabs"
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
@@ -6428,7 +6428,7 @@ impl<'a> Emitter<'a> {
             } else {
                 value
             };
-            let value = if ((transient_tabs && key == "id")
+            let value = if ((panel_tabs && key == "id")
                 || (view_scope
                     && matches!(
                         key.as_str(),
@@ -6490,7 +6490,7 @@ impl<'a> Emitter<'a> {
                 // A2b: `fab` and `chatBubble` take grouped suites,
                 // never `children` (their F props have no children
                 // slot; shapes validated at decode).
-                if transient_tabs {
+                if panel_tabs {
                     let items =
                         node.children
                             .iter()

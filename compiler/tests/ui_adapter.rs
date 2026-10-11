@@ -88,6 +88,266 @@ fn bound_tabs_emit_source_options_and_request_owned_save_route() {
     assert!(js.contains("current:preferences.view"), "{js}");
 }
 
+// The original Loyalty declaration supplies the cases/captions. This finite
+// producer consumer does not qualify its other models or preference persistence.
+#[cfg(unix)]
+#[test]
+fn unguarded_bound_panels_reach_installed_ui_with_owned_labels_and_selection() {
+    use std::{path::Path, process::Command};
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let original = include_str!("../../draft/CanLoyalty.can");
+    let heading = original
+        .lines()
+        .find(|line| line.trim_start().starts_with("message heading_rewards ="))
+        .unwrap()
+        .trim();
+    let preference = original
+        .lines()
+        .find(|line| line.trim_start().starts_with("preferences { view:"))
+        .unwrap()
+        .trim()
+        .split(", location:")
+        .next()
+        .unwrap();
+    assert!(original.contains("     tabs preferences.view\n      tab rewards\n"));
+    assert!(original.contains("      tab history\n       timeline account.Earning\n"));
+    let source = format!(
+        r#"app BoundLoyalty
+Given
+ {heading}
+ Entry {{title:text}}
+ policy Entry read=public
+When
+Then
+ {preference} }}
+ page /loyalty title="My rewards"
+  tabs preferences.view
+   tab rewards
+    text "Reward panel"
+   tab history
+    text "History panel"
+ page /reverse title="Reversed panels"
+  tabs ((preferences.view))
+   tab history
+    text "History first"
+   tab rewards
+    text "Rewards second"
+ page /rows title="Row panels"
+  list Entry
+   tabs preferences.view
+    tab rewards
+     text row.title
+    tab history
+     text row.title
+"#
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("bound-panels.can");
+    std::fs::write(&input, &source).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    for module in artifact["modules"].as_array().unwrap() {
+        let path = scratch.path().join(module["path"].as_str().unwrap());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, module["js"].as_str().unwrap()).unwrap();
+    }
+    let runner = scratch.path().join("bound-panels.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const {appDefinition}=await import(pathToFileURL(process.argv[2]));
+const context={appDefaultLocale:'en',preferredLocales:['nl'],csrfToken:'csrf-bound',
+ path:'/loyalty',pollUrl:'/loyalty?fragment=body',preferenceVersions:{BoundLoyalty:{view:'7'}}};
+const page=appDefinition.pages.find(page=>page.path==='/loyalty');
+assert.deepEqual(page.preferenceFields,[{name:'view',options:['rewards','history'],defaultValue:'rewards'}]);
+for(const current of ['rewards','history']) {
+ const bound=await page.admit({...context,preferences:{BoundLoyalty:{view:current}}});
+ assert.equal(bound.preferences.BoundLoyalty.view,current);
+ const html=await page.render(context,bound);
+ const radios=[...html.matchAll(/<input type="radio"[^>]*>/g)].map(match=>match[0]);
+ assert.deepEqual(radios.map(radio=>/ value="([^"]+)"/.exec(radio)[1]),['rewards','history']);
+ assert.deepEqual(radios.filter(radio=>radio.includes(' checked')).map(radio=>/ value="([^"]+)"/.exec(radio)[1]),[current]);
+ assert.ok(radios[0].includes('aria-label="Beloningen"'));
+ assert.ok(radios[1].includes('aria-label="Geschiedenis"'));
+ assert.match(html,/<form action="\/loyalty\?fragment=body" method="post"/);
+ assert.ok(html.includes('name="_csrf" value="csrf-bound"'));
+ assert.ok(html.includes('name="_version" value="7"'));
+ assert.equal(html.split('Reward panel').length-1,1);
+ assert.equal(html.split('History panel').length-1,1);
+ assert.ok(html.indexOf('Reward panel')<html.indexOf('History panel'));
+}
+const defaultBindings=await page.admit(context);
+assert.equal(defaultBindings.preferences.BoundLoyalty.view,'rewards');
+const reverse=appDefinition.pages.find(page=>page.path==='/reverse');
+const reversed=await reverse.render(context,await reverse.admit(context));
+const reverseRadios=[...reversed.matchAll(/<input type="radio"[^>]*>/g)].map(match=>match[0]);
+assert.deepEqual(reverseRadios.map(radio=>/ value="([^"]+)"/.exec(radio)[1]),['history','rewards']);
+assert.ok(reverseRadios[1].includes(' checked'),'saved/default case survives authored reordering');
+const rows=appDefinition.pages.find(page=>page.path==='/rows');
+let queries=0;
+const rowContext={...context,invocation:{probe:'scope-only'},async query(invocation,model) {
+ queries++; assert.equal(invocation,this.invocation); assert.equal(model,'BoundLoyalty.Entry');
+ return {columns:[],rows:[{id:'first',fields:{title:'First row'}},{id:'second',fields:{title:'Second row'}}]};
+}};
+const rowHtml=await rows.render(rowContext,await rows.admit(rowContext));
+assert.equal(queries,1);
+for(const title of ['First row','Second row']) assert.equal(rowHtml.split(title).length-1,2);
+const ids=[...rowHtml.matchAll(/ id="([^"]+)"/g)].map(match=>match[1]);
+assert.equal(new Set(ids).size,ids.length,'same preference in repeated rows keeps distinct tab/panel ids');
+const invalid=await page.admit({...context,preferences:{BoundLoyalty:{view:'foreign'}}});
+await assert.rejects(page.render(context,invalid),/not a listed option/);
+assert.equal(invalid.preferences.BoundLoyalty.view,'foreign','renderer never rewrites accepted preference input');
+console.log('owning Loyalty labels/cases, selection/version/route and row scope reach installed UI');
+"#).unwrap();
+    let executed = Command::new("node")
+        .arg(&runner)
+        .arg(
+            scratch
+                .path()
+                .join(artifact["modules"][0]["path"].as_str().unwrap()),
+        )
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&executed.stdout));
+}
+
+#[test]
+fn gated_bound_panels_keep_the_specific_unsupported_profile() {
+    use std::{path::Path, process::Command};
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for gate in ["true", "false", "authenticated"] {
+        let source = format!(
+            "app BoundGate\nGiven\nWhen\nThen\n preferences {{view:enum(rewards,history)=rewards}}\n page / title=\"Page\"\n  tabs preferences.view\n   tab rewards\n    text \"Rewards\"\n   tab history\n    require {gate}\n    text \"History\"\n"
+        );
+        let input = scratch.path().join("gated.can");
+        std::fs::write(&input, source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(output.status.code(), Some(10), "{gate}: {artifact}");
+        assert!(
+            artifact["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008"
+                    && diagnostic["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("direct tab gate")),
+            "{gate}: {artifact}"
+        );
+        assert!(artifact.get("modules").is_none(), "{gate}: {artifact}");
+    }
+}
+
+#[test]
+fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_ir() {
+    use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
+    use canlang_compiler::analysis::check_program;
+    use canlang_compiler::codegen::ir::{self, IrExpr, IrUi};
+    use canlang_compiler::source::{SourceDb, Span};
+    use std::path::Path;
+    fn tabs(nodes: &[IrUi]) -> Option<&IrUi> {
+        nodes.iter().find_map(|node| {
+            if node.factory == "tabs" && node.props.iter().any(|(key, _)| key == "binding") {
+                Some(node)
+            } else {
+                tabs(&node.children)
+            }
+        })
+    }
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let original = include_str!("../../draft/CanLoyalty.can");
+    let mut db = SourceDb::new();
+    let id = db.add("draft/CanLoyalty.can".into(), original.into());
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, _) = check_program(&db, &[id], catalog.as_ref());
+    // Unresolved original imports and other unsupported workflows still prevent
+    // shipping. Raw IR inspects only this original source producer, not an app.
+    let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    let page = program
+        .modules
+        .iter()
+        .find(|module| module.name == "loyalty")
+        .unwrap()
+        .pages
+        .iter()
+        .find(|page| page.path == "/loyalty")
+        .unwrap();
+    let tabs = tabs(&page.render).unwrap_or_else(|| panic!("{diagnostics:?}"));
+    assert_eq!(tabs.children.len(), 2);
+    for (panel, case, label) in [
+        (&tabs.children[0], "rewards", "Rewards"),
+        (&tabs.children[1], "history", "History"),
+    ] {
+        assert_eq!(panel.factory, "tabItem");
+        assert!(panel.gate.is_none());
+        assert!(panel.props.iter().any(|(key, value)| key == "value"
+            && matches!(&value.expr, IrExpr::Text(value) if value == case)));
+        assert!(panel.props.iter().any(|(key, value)| key == "caption"
+            && matches!(&value.expr, IrExpr::Message(value) if value.source == label)));
+        assert!(!panel.children.is_empty());
+        assert!(
+            original[panel.span.start as usize..panel.span.end as usize]
+                .trim_start()
+                .starts_with(&format!("tab {case}"))
+        );
+        assert!(panel.children.iter().all(|child| child.span.file == id
+            && child.span.start >= panel.span.start
+            && child.span.end <= panel.span.end));
+    }
+    assert_eq!(
+        tabs.children[0]
+            .children
+            .iter()
+            .map(|child| child.factory.as_str())
+            .collect::<Vec<_>>(),
+        vec!["list", "table"]
+    );
+    assert_eq!(tabs.children[1].children[0].factory, "timeline");
+    assert!(
+        !page.admit.is_empty(),
+        "original enclosing authenticated page remains protected"
+    );
+}
+
 #[test]
 fn nominal_preference_tabs_keep_the_receiving_field_and_refuse_foreign_bindings() {
     use std::{path::PathBuf, process::Command};
@@ -540,7 +800,7 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         ),
         (
             "  tabs \"Unused\"@{nl=\"Ongebruikt\"}\n   tab \"One\"\n    text \"Body\"\n",
-            "tabs",
+            "bound tab panels",
         ),
         ("  stat 1,2\n", "stat"),
         ("  metrics 1\n", "metrics"),
@@ -574,13 +834,19 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
             .unwrap();
         assert!(!output.status.success(), "{profile} unexpectedly published");
         let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let expected_code = if profile == "bound tab panels" {
+            "E3001"
+        } else {
+            "E6008"
+        };
         assert!(
             diagnostic["diagnostics"]
                 .as_array()
                 .unwrap()
                 .iter()
                 .any(|error| {
-                    error["code"] == "E6008" && error["message"].as_str().unwrap().contains(profile)
+                    error["code"] == expected_code
+                        && error["message"].as_str().unwrap().contains(profile)
                 }),
             "{profile}: {}",
             String::from_utf8_lossy(&output.stdout)
