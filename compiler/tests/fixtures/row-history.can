@@ -1,0 +1,21 @@
+app RowHistory
+Given
+ Entry {label:text="First",token:secret server=random_secret()}
+ policy Entry read=members
+When
+ crud Entry by=members fields=label
+ scenario revise(entry:Entry) by=members
+  do set entry {label="Revised"}
+ scenario save(note:text="Later") by=public label="Save note"
+  do let supplied=note
+Then
+ page /history title="Row history"
+  list Entry
+   text row.label
+   show audit_body {row=row}
+   show audit_body {row=row}
+   form save display=inline
+ view audit_body(row:Entry)
+  card "Audit"
+   require row.label!="Hidden"
+   history

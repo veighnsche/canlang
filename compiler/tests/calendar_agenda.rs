@@ -52,8 +52,8 @@ fn checked_agenda_body_filters_and_preferences_reach_installed_consumers() {
             ),
         ),
         (
-            "bare-history",
-            source.replace("   actions cancel", "   actions cancel\n   history"),
+            "explicit-history-row",
+            source.replace("   actions cancel", "   actions cancel\n   history row"),
         ),
         (
             "filtered-lambda",

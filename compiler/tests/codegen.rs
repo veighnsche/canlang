@@ -1147,9 +1147,8 @@ fn golden_expenseflow_structure() {
         "row actions lack an owning factory profile"
     );
     assert!(
-        !entry.contains("$can$u$686973746f7279({")
-            && diags.iter().any(|d| d.code == "E6008" && d.message.contains("cannot lower history: the source profile has no complete owning factory payload")),
-        "row history lacks an owning factory profile"
+        entry.contains("$can$u$686973746f7279({context:") && entry.contains("const $can$rv$"),
+        "row history retains the original projected row for its admitted reader"
     );
     assert!(
         diags.iter().any(|d| d.code == "E6008"
@@ -1442,7 +1441,7 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        7,
+        6,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
@@ -1450,7 +1449,7 @@ fn golden_expenseflow_structure() {
         ("cannot lower pagination:", 0),
         ("cannot lower edit:", 0),
         ("cannot lower action:", 1),
-        ("cannot lower history:", 1),
+        ("cannot lower history:", 0),
         ("cannot lower stat:", 1),
         ("cannot lower list: option filter", 1),
         ("cannot lower list: option defaults", 1),
