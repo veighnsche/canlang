@@ -1631,7 +1631,7 @@ fn emit_program_with_sources(
                 .get(&item.id)
                 .and_then(|fact| fact.source_facts())
                 .and_then(|source| source.queries.as_ref())
-                .filter(|queries| !queries.is_empty() && queries.len() <= 2)
+                .filter(|queries| !queries.is_empty() && queries.len() <= 3)
                 .cloned()
             else {
                 continue;
