@@ -188,7 +188,12 @@ export function withDispatchProducer(
   originOccurrence: OccurrenceId | null,
   meta: DispatchProducerMeta,
 ): StoragePort {
+  const historyReadBounded = inner.historyReadBounded;
   return {
+    ...(historyReadBounded === undefined ? {} : {
+      historyReadBounded: (input: Parameters<NonNullable<StoragePort['historyReadBounded']>>[0]) =>
+        historyReadBounded.call(inner, input),
+    }),
     cohortIdOrder: inner.cohortIdOrder,
     cohortIdentityPage: (input) => inner.cohortIdentityPage(input),
     cohortLoad: (input) => inner.cohortLoad(input),

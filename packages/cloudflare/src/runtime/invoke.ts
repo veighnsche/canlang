@@ -1498,6 +1498,7 @@ interface StatePipelineProducer {
     readonly writes: ReadonlyArray<CanonicalPipelineWrite>;
     readonly context: InvocationContext;
     readonly store: StoragePort;
+    readonly secretFields?: ReadonlyMap<ModelName, readonly string[]>;
     readonly encodeField?: (type: CanTypeId, value: unknown) => unknown;
     /**
      * T32b: the triggering checkpoint POINT (revision + owner). Hook
@@ -1885,7 +1886,12 @@ export function assertRequiresFulfilled(
  * added later must be added here too (tsc enforces the return type).
  */
 export function withCanonicalCommitGuard(store: StoragePort, operation: string): StoragePort {
+  const historyReadBounded = store.historyReadBounded;
   return {
+    ...(historyReadBounded === undefined ? {} : {
+      historyReadBounded: (input: Parameters<NonNullable<StoragePort['historyReadBounded']>>[0]) =>
+        historyReadBounded.call(store, input),
+    }),
     cohortIdOrder: store.cohortIdOrder,
     cohortIdentityPage: input => store.cohortIdentityPage(input),
     cohortLoad: input => store.cohortLoad(input),
@@ -3530,6 +3536,9 @@ export function withStagedOverlay(store: StoragePort, staged: StagedRowView): St
     throw new Error('t17b: staged overlay cannot serve physical cohort checkpoints over staged rows.');
   };
   return {
+    historyReadBounded: () => {
+      throw new Error('t17b: staged overlay cannot serve physical history over staged rows.');
+    },
     cohortIdOrder: store.cohortIdOrder,
     cohortIdentityPage: refuseCohort, cohortLoad: refuseCohort,
     cohortRowPage: refuseCohort, cohortAnchorFact: refuseCohort,
@@ -4855,6 +4864,7 @@ async function runScenarioExecution(
   }
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
+    secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
     ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
     encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
     ...(stageSources === undefined ? {} : { stageSources }),
@@ -4884,6 +4894,9 @@ async function runScenarioExecution(
   };
   const overlay: StoragePort = ownerSession === undefined ? withStagedOverlay(opts.store, staged) : {
     ...opts.store,
+    historyReadBounded: () => {
+      throw new StateError('validation', 'Scenario owner views cannot serve physical history over staged rows.');
+    },
     load: readOwnerRow,
     query: async spec => {
       const limit = spec.limit ?? SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows;
@@ -5254,6 +5267,7 @@ async function runScenarioExecution(
         }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
+          secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
           writes: [
             {
               op: write.op,
@@ -5416,7 +5430,11 @@ async function runScenarioExecution(
               model: model as ModelName, authority: 'owner', modelDescriptor: descriptor,
               policy: loaded.policy as import('@canlang/state/policy/grants').PolicyTable,
               context: { actorUserId, teamId }, memberships: opts.memberships,
-              store: { ...opts.store, query: async request => rows.filter(row => request.archived === 'include' || row.archivedAt === null) },
+              store: { ...opts.store,
+                historyReadBounded: () => {
+                  throw new StateError('validation', 'Trusted query views cannot serve physical history over captured candidates.');
+                },
+                query: async request => rows.filter(row => request.archived === 'include' || row.archivedAt === null) },
               archived: query.archived ?? 'exclude',
               ...(selected?.where === undefined ? {} : { where: selected.where }),
               ...(selected?.order === undefined ? {} : { order: selected.order }),
@@ -9457,7 +9475,12 @@ export async function createWorkerDispatchJoinPort(
  * the return type.
  */
 export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort): StoragePort {
+  const historyReadBounded = store.historyReadBounded;
   return {
+    ...(historyReadBounded === undefined ? {} : {
+      historyReadBounded: (input: Parameters<NonNullable<StoragePort['historyReadBounded']>>[0]) =>
+        historyReadBounded.call(store, input),
+    }),
     cohortIdOrder: store.cohortIdOrder,
     cohortIdentityPage: input => store.cohortIdentityPage(input),
     cohortLoad: input => store.cohortLoad(input),
