@@ -11,6 +11,7 @@ import { evalPredicateForRow, isEqualOrUnder, isMetadataPath, withPolicyRow,
 import { projectCurrentRecordForViewerPolicy, type BaseQueryInput, type ViewerPageParentPolicy } from '../query/engine.js';
 import { assertDeliveryField, type DeliveryFieldSchema } from './grants.js';
 import { associationRowId, readAssociationRow, RECEIPT_ASSOCIATION_MODEL } from './tables.js';
+import { evaluateInstalledReadPolicy } from './read-policy-membership.js';
 
 export interface ViewerGenerationCallbackReadObservation {
   readonly context: ByContext;
@@ -201,7 +202,7 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
         const observation = Object.freeze({ context: Object.freeze({ ...coherent }), row, revision, fence });
         let readable = false, identityGranted = false;
         for (const grant of read.grants) {
-          const verdict = await grant.read(observation);
+          const verdict = await evaluateInstalledReadPolicy(grant.read, observation, store);
           if (typeof verdict !== 'boolean') invalid();
           if (verdict) {
             readable = true;
@@ -245,8 +246,8 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
       row = rows.get(rowModel)!; if (row.id !== parent.id) return false;
     }
     if (callbackRead !== undefined) {
-      const verdict = await callbackRead(Object.freeze({ context: Object.freeze({ ...coherent }),
-        row: current, revision, fence }));
+      const verdict = await evaluateInstalledReadPolicy(callbackRead, Object.freeze({ context: Object.freeze({ ...coherent }),
+        row: current, revision, fence }), store);
       if (typeof verdict !== 'boolean') invalid();
       return verdict;
     }

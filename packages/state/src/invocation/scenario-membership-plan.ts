@@ -13,7 +13,7 @@ export interface ScenarioReceiptMembershipSite {
   readonly owner: string;
   readonly node: ScenarioReceiptMembershipNode;
   readonly statement: ScenarioReceiptMembershipNode;
-  readonly stage: 'leading-require' | 'body-require' | 'send-dispatch';
+  readonly stage: 'leading-require' | 'body-require' | 'body-condition' | 'send-dispatch' | 'read-policy';
   readonly position: readonly (
     { readonly kind: 'guard' | 'body' | 'then' | 'else' | 'loop'; readonly index: number } |
     { readonly kind: 'match'; readonly arm: number; readonly statement: number }
@@ -90,11 +90,14 @@ export function checkScenarioReceiptMembershipSites(value: unknown): readonly Sc
   const sites = list(copy(value)); const identities = new Set<string>(); let occurrences = 0;
   for (const value of sites) {
     const site = object(value, ['version', 'source', 'owner', 'node', 'statement', 'stage', 'position', 'calls']);
-    if (site.version !== 1 || !['leading-require', 'body-require', 'send-dispatch'].includes(String(site.stage))) fail('closed v1 stage required.');
+    if (site.version !== 1 || typeof site.stage !== 'string' ||
+        !['leading-require', 'body-require', 'body-condition', 'send-dispatch', 'read-policy'].includes(site.stage)) fail('closed v1 stage required.');
     source(site.source); text(site.owner); node(site.node); node(site.statement);
     const guard = site.node as ScenarioReceiptMembershipNode, statement = site.statement as ScenarioReceiptMembershipNode;
     if (guard.start < statement.start || guard.end > statement.end) fail('guard must belong to its authored statement.');
-    for (const value of list(site.position)) {
+    const position = list(site.position);
+    if (site.stage === 'read-policy' && position.length !== 0) fail('read-policy requires its empty authored position.');
+    for (const value of position) {
       const kind = typeof value === 'object' && value !== null ? (value as Record<string, unknown>).kind : undefined;
       const part = object(value, kind === 'match' ? ['kind', 'arm', 'statement'] : ['kind', 'index']);
       if (kind === 'match') { index(part.arm); index(part.statement); }

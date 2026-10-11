@@ -366,6 +366,7 @@ export function bindScenarioReceiptMembershipProducer(def: GeneratedOperationDef
   const source = dataCopy(producer.source); origin(source); text(producer.app);
   assertScenarioReceiptMembershipSource(def, source);
   const sites = checkScenarioReceiptMembershipSites(producer.sites);
+  if (sites.some(site => site.stage === 'read-policy' || site.stage === 'send-dispatch')) return invalid('owner membership producer cannot bind read-policy or dispatch lifetimes.');
   if (sites.some(site => site.owner !== def.name || stableStringify(site.source) !== stableStringify(source))) return invalid('membership recipe differs from its canonical owning source/callable.');
   const bound: BoundMemberships = Object.freeze({ source: deepFreeze(source), app: producer.app, sites, capture: producer.capture });
   const handles: ScenarioReceiptMembershipHandle[] = [];
@@ -407,7 +408,7 @@ export async function evaluateScenarioReceiptMembership(call: AdmittedCall, stor
     if (owner === undefined || owner.session === null || issued === undefined || issued.def !== call.def ||
         membershipProducers.get(issued.def) !== issued.bound || issued.bound.app !== call.context.app ||
         stableStringify(issued.bound.source) !== stableStringify(state.bound.plan.source) ||
-        issued.site.stage === 'send-dispatch') return invalid('membership requires its actual bound active owner call/source/app, never a dispatch lifetime.');
+        issued.site.stage === 'send-dispatch' || issued.site.stage === 'read-policy') return invalid('membership requires its actual bound active owner call/source/app, never a read-policy or dispatch lifetime.');
     ownerHealthy(owner);
     if (owner.executingCall !== call || state.returnId !== null || state.pending !== 0 || owner.capture.pending !== 0 ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 || owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
