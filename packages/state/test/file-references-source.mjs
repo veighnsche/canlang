@@ -9,7 +9,10 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { runInNewContext } from 'node:vm';
 import { test } from 'node:test';
+import * as ts from 'typescript';
+import { encodeValue } from '@canlang/values';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { DEFAULT_FILE_POLICY, ingestVerifiedEventBytes, readCurrentFinalizedBytes } from '@canlang/files';
 import { createSqliteFileStore } from '@canlang/files/host/sqlite';
@@ -22,6 +25,7 @@ import { buildModelTableFromCanonical } from '../dist/src/mutation/models.js';
 import { buildPolicyTable } from '../dist/src/policy/grants.js';
 import { StateError } from '../dist/src/errors.js';
 import { bindDeclaredFileReferenceProfile, fileReferenceOccurrences } from '../dist/src/ports/file-reference-profile.js';
+import { bindOpaqueFileDeclarations } from '../dist/src/storage/opaque-file-declarations.js';
 import { FIXED_NOW, makeEnvelope, makeIdentity, uuidv7 } from '../dist/test/invocation/fixtures.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -262,6 +266,116 @@ test('real required File array source reaches winning State CRUD and current SQL
     assert.deepEqual(await store.load(MODEL, arrayRow.id), arrayRow);
   } finally {
     physical?.close(); rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+// Genuine compiler metadata/default admission only; no finalized File or
+// native source authority is supplied by these retained declarations.
+test('original CLI contract defaults retain complete raw declarations through installed State admission', async () => {
+  const scratch = mkdtempSync(join(root, 'compiler/target/file-original-defaults-'));
+  try {
+    const input = join(scratch, 'Defaults.can');
+    writeFileSync(input, `app OriginalDefaults
+Given
+ contract Packet {optional:file?=null,enabled:bool=false,label:text="",attachments:file[]=[] max=4,trimmed:text=" padded " trim,required:text}
+ contract Unused {note:text}
+When
+ scenario inspect(payload:Packet) read=true -> Packet by=members
+  do return payload
+Then
+`);
+    const compileEnv = { ...process.env }; delete compileEnv.CAN_CATALOG;
+    const compiled = spawnSync(resolve(process.argv[2] ?? join(root, 'compiler/target/debug/can')),
+      ['compile', '--format=json', '--catalog', join(root, 'packages/values/dist/catalog.json'), input],
+      { encoding: 'utf8', env: compileEnv });
+    assert.equal(compiled.status, 0, compiled.error?.message ?? compiled.stderr + compiled.stdout);
+    const artifact = JSON.parse(compiled.stdout);
+    const expressions = [];
+    for (const module of artifact.modules) {
+      const parsed = ts.createSourceFile(module.path, module.js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
+      for (const statement of parsed.statements) {
+        if (!ts.isVariableStatement(statement)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+          if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'appDefinition') continue;
+          assert.ok(declaration.initializer && ts.isObjectLiteralExpression(declaration.initializer));
+          const contracts = declaration.initializer.properties.find(property => ts.isPropertyAssignment(property) &&
+            (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) && property.name.text === 'contracts');
+          assert.ok(contracts && ts.isPropertyAssignment(contracts) && ts.isObjectLiteralExpression(contracts.initializer));
+          expressions.push(contracts.initializer.getText(parsed));
+        }
+      }
+    }
+    assert.equal(expressions.length, 1, 'one complete original native contracts map');
+    // Evaluate just the generated schema literal, never application executable code.
+    const nativeContracts = structuredClone(runInNewContext(`(${expressions[0]})`, Object.create(null), { timeout: 1_000 }));
+    const metadataWire = part => typeof part === 'bigint' ? encodeValue('int', part) :
+      Array.isArray(part) ? part.map(metadataWire) : part !== null && typeof part === 'object' ?
+        Object.fromEntries(Object.entries(part).map(([key, value]) => [key, metadataWire(value)])) : part;
+    const originalContracts = metadataWire(nativeContracts);
+    const packet = originalContracts['OriginalDefaults.Packet'].fields;
+    assert.deepEqual(Object.keys(originalContracts).sort(), ['OriginalDefaults.Packet', 'OriginalDefaults.Unused']);
+    for (const [field, literal] of [['optional', null], ['enabled', false], ['label', ''],
+      ['attachments', []], ['trimmed', ' padded ']]) {
+      assert.equal(Object.hasOwn(packet[field], 'default'), true);
+      assert.deepEqual(packet[field].default, literal);
+    }
+    assert.equal(Object.hasOwn(packet.required, 'default'), false);
+    assert.equal(packet.attachments.max, '4', 'retain genuine native integer length metadata as wire');
+    assert.equal(Object.hasOwn(originalContracts['OriginalDefaults.Unused'].fields.note, 'default'), false);
+    const valueDefaults = Object.entries(nativeContracts).flatMap(([contract, declaration]) =>
+      Object.entries(declaration.fields).filter(([, field]) => Object.hasOwn(field, 'default'))
+        .map(([field, declaration]) => ({ contract, field,
+          value: encodeValue(declaration.type, structuredClone(declaration.default)) })));
+    const loaded = loadArtifactDescriptors(artifact, { by: 'members' });
+    assert.ok(loaded.valueTypes && loaded.valueSchema);
+    assert.deepEqual(loaded.models, [], 'the complete source declares no models');
+    assert.ok(artifact.models === undefined || (Array.isArray(artifact.models) && artifact.models.length === 0),
+      'the complete artifact contains no authored models');
+    const artifactModels = artifact.models ?? [];
+    const callable = artifact.callables.find(item => item.id === 'OriginalDefaults.inspect');
+    const authored = artifact.operations.find(item => item.name === 'OriginalDefaults.inspect');
+    const canonical = loaded.registry.get('OriginalDefaults.inspect').descriptor;
+    const source = artifact.sources.find(item => item.path === input || item.path.endsWith('Defaults.can'));
+    assert.ok(callable && authored && canonical && source);
+    const inventory = { owner: 'OriginalDefaults', snapshotId: 'original-defaults', digest: `sha256:${source.sha256}` };
+    const snapshot = { ...inventory, installedRevision: 1, installedAt: 100 };
+    const from = { kind: 'callable', source: { ...source, module: callable.module }, callable };
+    const set = { id: 'original/defaults', inventory, snapshot, sources: artifact.sources,
+      canonicalModels: loaded.models, artifactModels, valueTypes: loaded.valueTypes,
+      originalContracts, valueDefaults, declarations: [
+        { id: 'inspect/inputs', source: from,
+          profile: { kind: 'inputs', canonical: canonical.inputs, artifact: authored.inputs.fields } },
+        { id: 'inspect/result', source: from,
+          profile: { kind: 'result', canonical: canonical.result, artifact: authored.result } },
+      ] };
+    const declarations = { ...inventory, canonicalModels: loaded.models, artifactModels,
+      valueTypes: loaded.valueTypes, frameworkModels: [], opaqueDeclarationSets: [set] };
+    const authority = { app: inventory.owner, stateOwner: inventory.owner,
+      stateStoreId: 'original-defaults/state', fileStoreId: 'original-defaults/files',
+      receiver: { app: inventory.owner, team: 'metadata-team', owner: 'metadata-owner' } };
+    const store = createMemoryStorage(authority);
+    await store.installFileReferenceInventory({ expectedRevision: 0, authority, snapshot, inventory: declarations });
+    const installed = await store.readFileReferenceInventory(inventory.owner);
+    assert.deepEqual(installed.inventory.opaqueDeclarationSets[0].originalContracts, originalContracts);
+    assert.deepEqual(installed.inventory.opaqueDeclarationSets[0].valueDefaults, valueDefaults);
+    const checkModels = historical => {
+      assert.deepEqual(historical.canonicalModels, loaded.models);
+      assert.deepEqual(historical.artifactModels, artifactModels);
+    };
+    for (const mutate of [
+      copy => { delete copy.originalContracts; },
+      copy => { copy.valueDefaults.shift(); },
+      copy => { copy.valueDefaults.find(item => item.field === 'enabled').value = true; },
+      copy => { copy.valueDefaults.find(item => item.field === 'trimmed').value = 'padded'; },
+      copy => { delete copy.originalContracts['OriginalDefaults.Unused']; },
+      copy => { delete copy.originalContracts['OriginalDefaults.Unused'].fields.note; },
+      copy => { copy.originalContracts['OriginalDefaults.Packet'].fields.attachments.max = 5; },
+    ]) {
+      const changed = structuredClone(set); mutate(changed);
+      assert.throws(() => bindOpaqueFileDeclarations([changed], checkModels), error => error instanceof StateError);
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 });
 

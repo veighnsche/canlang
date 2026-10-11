@@ -9,6 +9,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
   ClaimId,
+  FrameworkFilePayloadOrigin,
   ModelName,
   OperationId,
   OperationName,
@@ -38,6 +39,8 @@ import {
   newScheduleRow,
   newSupersessionRow,
   readDispatchRow,
+  readOccurrenceRow,
+  readScheduleRow,
   readDispatchImageControlPin,
 } from '../src/kernel/tables.js';
 import { KernelTableError } from '../src/kernel/tables.js';
@@ -74,6 +77,90 @@ import {
 const NOW = 1_758_000_000_000;
 const ACTOR = 'dispatcher-test';
 const MAX_AGE = 60_000;
+
+// Persistence header fixture; State separately validates the installed source closure.
+function opaqueHeader(model: ModelName, id: string, field: 'result' | 'payload'): FrameworkFilePayloadOrigin {
+  return { version: 1, inventory: { owner: 'expense', snapshotId: 'original', digest: 'digest' },
+    declarationSetId: 'original-declarations', slot: { model, id: id as RecordId, created: NOW, createdBy: ACTOR,
+      field, role: field === 'result' ? 'retained-result' : 'deferred-input' }, scope: { ...SCOPE },
+    origin: { kind: 'event-input', occurrenceId: id, sourceOccurrence: id,
+      declaration: { kind: 'declared-event', source: { path: 'expense.can', sha256: 'source', module: 'expense' },
+        event: 'expense.remind', inputsDeclarationId: 'event-inputs' },
+      lineage: { kind: 'schedule', key: 'reminder', replaces: null }, target: { kind: 'schedule' } }, files: [] };
+}
+
+it('captures actual receipt result and origin before a held load, then rejects duplicate origin disagreement', async () => {
+  const origin = opaqueHeader(WORK_OCCURRENCE_MODEL, 'held-receipt', 'result');
+  const expected = structuredClone(origin);
+  const result = { outputs: [{ ref: 'original-wire' }] };
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const ctx = fakeCtx(seed([]));
+  const staging = runStage(workOccurrencePutReceiptCommand.stage, { occurrenceId: 'held-receipt',
+    status: 'completed', result, filePayloadOrigin: origin, code: null, message: null },
+    { ...ctx, load: async () => { await held; return null; } });
+  result.outputs[0]!.ref = 'mutated';
+  (origin.inventory as { snapshotId: string }).snapshotId = 'mutated';
+  release();
+  const write = (await staging).writes?.[0];
+  if (write?.kind !== 'insert') throw new Error('missing insert');
+  const persisted = structuredClone(write.row);
+  assert.deepEqual(readOccurrenceRow(persisted).result, { outputs: [{ ref: 'original-wire' }] });
+  assert.deepEqual(readOccurrenceRow(persisted).filePayloadOrigin, expected);
+  const replay = fakeCtx(seed([{ model: WORK_OCCURRENCE_MODEL, row: persisted }]));
+  const disagree = { ...expected, declarationSetId: 'replacement' };
+  await assert.rejects(runStage(workOccurrencePutReceiptCommand.stage, { occurrenceId: 'held-receipt',
+    status: 'completed', result: null, filePayloadOrigin: disagree }, replay), KernelTableError);
+  assert.equal((await runStage(workOccurrencePutReceiptCommand.stage,
+    { occurrenceId: 'held-receipt', status: 'completed' }, replay)).writes, undefined);
+});
+
+it('captures schedule payload and origin before a held query and preserves predecessor metadata through replacement and cancel', async () => {
+  const original = opaqueHeader(WORK_SCHEDULE_MODEL, 'predecessor', 'payload');
+  const predecessor = scheduleRow('predecessor', { filePayloadOrigin: original });
+  const store = seed([{ model: WORK_SCHEDULE_MODEL, row: predecessor }]);
+  const ctx = fakeCtx(store);
+  const supplied = opaqueHeader(WORK_SCHEDULE_MODEL, 'next', 'payload');
+  const expected = structuredClone(supplied);
+  const payload = { nested: { file: 'original-wire' } };
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const staging = runStage(workSchedulePutCommand.stage, { key: 'reminder', scope: SCOPE, at: NOW,
+    event: 'expense.remind', occurrenceId: 'next', payload, filePayloadOrigin: supplied },
+    { ...ctx, query: async spec => { await held; return ctx.query(spec); } });
+  payload.nested.file = 'mutated';
+  (supplied.inventory as { digest: string }).digest = 'mutated';
+  release();
+  const staged = await staging;
+  const writes = staged.writes?.filter(write => write.model === WORK_SCHEDULE_MODEL) ?? [];
+  assert.equal(writes.length, 2);
+  for (const write of writes) {
+    if (write.kind !== 'insert' && write.kind !== 'update') throw new Error('unexpected write');
+    store.set(`${write.model}\0${write.row.id}`, structuredClone(write.row));
+    const data = readScheduleRow(write.row);
+    assert.deepEqual(data.filePayloadOrigin, write.row.id === 'next' ? expected : original);
+    if (write.row.id === 'predecessor') assert.equal(data.state, 'superseded');
+    else assert.deepEqual(data.payload, { nested: { file: 'original-wire' } });
+  }
+  const dueInput = { key: 'reminder', scope: SCOPE, at: NOW, event: 'expense.remind',
+    occurrenceId: 'next', filePayloadOrigin: expected };
+  const due = await stageDueSchedule(dueInput, ctx);
+  if (due.status !== 'ready') throw new Error('missing due admission');
+  assert.deepEqual(due.occurrence.filePayloadOrigin, expected);
+  const dueWrite = due.effects.writes?.[0];
+  if (dueWrite?.kind !== 'update') throw new Error('missing due update');
+  assert.deepEqual(readScheduleRow(dueWrite.row).filePayloadOrigin, expected);
+  await assert.rejects(stageDueSchedule({ ...dueInput,
+    filePayloadOrigin: { ...expected, declarationSetId: 'disagreement' } }, ctx), KernelTableError);
+  const cancelled = await runStage(workScheduleCancelCommand.stage, { key: 'reminder', scope: SCOPE }, ctx);
+  const cancel = cancelled.writes?.find(write => write.model === WORK_SCHEDULE_MODEL);
+  if (cancel?.kind !== 'update') throw new Error('missing cancel');
+  assert.deepEqual(readScheduleRow(cancel.row).filePayloadOrigin, expected);
+  assert.equal(readScheduleRow(cancel.row).state, 'cancelled');
+  await assert.rejects(runStage(workSchedulePutCommand.stage, { key: 'reminder', scope: SCOPE, at: NOW,
+    event: 'expense.remind', occurrenceId: 'next', payload: {},
+    filePayloadOrigin: { ...expected, declarationSetId: 'disagreement' } }, ctx), KernelTableError);
+});
 
 const GENERATION_FAMILIES = [
   { name: 'Images', original: 'std.ImagesV1.submit', cancel: 'std.ImagesV1.cancel', reconcile: 'std.ImagesV1.reconcile',

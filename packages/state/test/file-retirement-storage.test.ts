@@ -4,22 +4,29 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { runInNewContext } from 'node:vm';
+import * as ts from 'typescript';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ArtifactModel, CanTypeId, FileReferenceInventory, FileReferenceStoragePort,
-  FileRetirementAuthority, FinalizedFileIdentity, InstalledSnapshot, MigrationProgress,
-  RetireFinalizedFile, StagedRow, StoragePort } from '@canlang/contracts';
+import type { ArtifactModel, CanTypeId, CanValue, CompileArtifact, FileReferenceInventory, FileReferenceStoragePort,
+  FileRetirementAuthority, FinalizedFileIdentity, FrameworkFilePayloadOrigin, FrameworkOpaqueDeclarationSet,
+  FrameworkOpaqueDeliveryContext, FrameworkOpaqueValueDefault, InstalledSnapshot, MigrationProgress, ModelName, RetainedFinalizedFile,
+  RetireFinalizedFile, StagedRow, StoragePort, StoredRow, WireValue } from '@canlang/contracts';
 import { createTestMemoryStorage } from '../src/storage/memory.js';
 import { STATE_FILE_REFERENCE_PRODUCER } from '../src/storage/index.js';
-import { newAssociationRow, newReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../src/receipt/tables.js';
+import { newAssociationRow, newReceiptRow, withReceiptRowData, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../src/receipt/tables.js';
 import { stageFanoutOwnerScanWrite, FANOUT_OWNER_SCAN_MODEL } from '../src/fanout/navigation.js';
 import { FenceConflictError, StorageConstraintError, type StorageConstraintKind } from '../src/storage/port.js';
 import { createD1Storage, ensureSchema } from '../src/storage/d1.js';
-import { loadArtifactDescriptors } from '../src/invocation/registry.js';
-import { normalizeValueTypes } from '@canlang/values';
+import { isGeneratedOperationDef, loadArtifactDescriptors } from '../src/invocation/registry.js';
+import { encodeValue, normalizeValueTypes } from '@canlang/values';
 import { buildModelTableFromCanonical } from '../src/mutation/models.js';
 import { activate, resumeMigration, validateTransition } from '../src/migration/index.js';
-import { asId, asModel, asOperation, asRevision, asVersion, makeBatch, makeRow } from './invocation/fixtures.js';
+import { asId, asModel, asOperation, asOperationId, asRevision, asVersion, makeBatch, makeRow } from './invocation/fixtures.js';
 
 const MODEL = asModel('Documents.Record');
 const authority: FileRetirementAuthority = { app: 'documents', stateOwner: 'Documents',
@@ -173,6 +180,34 @@ for (const backend of backends) describe(`File retirement storage: ${backend.nam
     assert.equal((await fresh.readFileReferenceInventory(snapshot.owner))?.snapshot.installedRevision, 1);
     const revision = await fresh.readRevision(); await install(fresh);
     assert.equal(await fresh.readRevision(), revision);
+  });
+
+  if (backend.name !== 'memory') it('upgrades an actual old authority table additively and idempotently without backfilling File facts', async () => {
+    const store = await backend.setup(); await install(store);
+    const stagedRow = await insert(store, { attachment: { id: 'legacy-schema-file' } });
+    const row = await store.load(MODEL, stagedRow.id); assert.ok(row);
+    const installed = await store.readFileReferenceInventory(snapshot.owner);
+    const pointer = await store.readInstalledSnapshot(snapshot.owner), revision = await store.readRevision();
+    async function sql(statement: string): Promise<Record<string, unknown>[]> {
+      if (backend.name === 'd1') return (await database.prepare(statement).all<Record<string, unknown>>()).results;
+      return (await doPost('/exec', { sql: statement }))['rows'] as Record<string, unknown>[];
+    }
+    const originalAuthority = await sql('SELECT id, authority FROM file_reference_authority');
+    assert.equal(originalAuthority.length, 1, 'an installed authority row must predate the upgrade');
+    await sql('ALTER TABLE file_reference_authority DROP COLUMN opaque_lifetimes');
+    assert.ok(!(await sql('PRAGMA table_info(file_reference_authority)')).some(column => column['name'] === 'opaque_lifetimes'),
+      'the additive migration must start from the actual old table shape');
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (backend.name === 'd1') await ensureSchema(database);
+      else await doPost('/reopen', { authority });
+      assert.deepEqual(await sql('SELECT id, authority FROM file_reference_authority'), originalAuthority);
+      const rows = await sql('SELECT opaque_lifetimes FROM file_reference_authority');
+      assert.deepEqual(rows, [{ opaque_lifetimes: '[]' }], 'schema upgrade must not infer original opaque File facts');
+      assert.deepEqual(await store.readFileReferenceInventory(snapshot.owner), installed);
+      assert.deepEqual(await store.readInstalledSnapshot(snapshot.owner), pointer);
+      assert.deepEqual(await store.load(MODEL, row.id), row);
+      assert.equal(await store.readRevision(), revision);
+    }
   });
 
   it('derives every nested, collection, optional and archived File occurrence and refuses incomplete bounds', async () => {
@@ -451,6 +486,321 @@ describe('actual DO framework File admission', () => {
       fileReferenceInventory: { ...target, frameworkModels: [] } }));
     assert.deepEqual(await store.flipInstalledSnapshot(flip), { flipped: true, revision: 5 });
     assert.deepEqual((await store.readFileReferenceInventory(snapshot.owner))?.inventory, target);
+  });
+});
+
+/** Full compiled original closure; these cases qualify the actual DO stored
+ * consumer, not source-verified native dispatch or current File disclosure. */
+interface DOReceiptSource {
+  inventory: FileReferenceInventory;
+  model: ModelName;
+  origin: Extract<FrameworkFilePayloadOrigin['origin'], { kind: 'delivery-result' }>;
+}
+function originalDOContractDefaults(artifact: CompileArtifact): {
+  originalContracts: Readonly<Record<string, WireValue>>;
+  valueDefaults: readonly FrameworkOpaqueValueDefault[];
+} {
+  // Nominal artifact leaves erase defaults. Capture the actual native literal
+  // before normalization, without evaluating the application's executable code.
+  const expressions: string[] = [];
+  for (const module of artifact.modules) {
+    const parsed = ts.createSourceFile(module.path, module.js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
+    for (const statement of parsed.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'appDefinition') continue;
+        assert.ok(declaration.initializer && ts.isObjectLiteralExpression(declaration.initializer),
+          'original appDefinition must retain its native schema object');
+        const contracts = declaration.initializer.properties.find(property => ts.isPropertyAssignment(property) &&
+          (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) && property.name.text === 'contracts');
+        assert.ok(contracts && ts.isPropertyAssignment(contracts) && ts.isObjectLiteralExpression(contracts.initializer),
+          'original native contract schema is required; omitted metadata does not mean no defaults');
+        expressions.push(contracts.initializer.getText(parsed));
+      }
+    }
+  }
+  assert.equal(expressions.length, 1, 'one complete owning native contract schema');
+  function ownMetadata(value: unknown): Record<string, unknown> {
+    assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value), 'original metadata must be a record');
+    const prototype = Object.getPrototypeOf(value);
+    assert.ok(prototype === null || Object.getPrototypeOf(prototype) === null, 'original metadata must have a plain prototype');
+    return Object.fromEntries(Reflect.ownKeys(value).map(key => {
+      assert.equal(typeof key, 'string', 'original metadata has no symbol fields');
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+      assert.ok(descriptor.enumerable && Object.hasOwn(descriptor, 'value'), 'original metadata requires own data descriptors');
+      return [key, descriptor.value];
+    }));
+  }
+  function detachMetadata(value: unknown, nativeDefault = false): unknown {
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'bigint') return nativeDefault ? value : encodeValue('int', value);
+    if (typeof value === 'number') { assert.ok(Number.isFinite(value)); return value; }
+    if (Array.isArray(value)) {
+      assert.equal(Reflect.ownKeys(value).length, value.length + 1, 'original metadata arrays must be dense without extra properties');
+      return Array.from({ length: value.length }, (_, index) => {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        assert.ok(descriptor?.enumerable && Object.hasOwn(descriptor, 'value'), 'original metadata array requires own data');
+        return detachMetadata(descriptor.value, nativeDefault);
+      });
+    }
+    return Object.fromEntries(Object.entries(ownMetadata(value)).map(([name, item]) => [name, detachMetadata(item, nativeDefault)]));
+  }
+  const detachWire = (value: unknown): WireValue => detachMetadata(value) as WireValue;
+  const raw: unknown = runInNewContext(`(${expressions[0]})`, Object.create(null), { timeout: 1_000 });
+  const contracts = ownMetadata(raw);
+  assert.ok(artifact.valueTypes, 'complete original nominal inventory must accompany the native schema');
+  assert.deepEqual(Object.keys(contracts).sort(), artifact.valueTypes.contracts.map(contract => contract.name).sort(),
+    'native schema and artifact must retain the same complete contract closure');
+  const defaults: FrameworkOpaqueValueDefault[] = [], originalContracts: Record<string, WireValue> = {};
+  for (const contract of artifact.valueTypes.contracts) {
+    const originalContract = ownMetadata(contracts[contract.name]);
+    const fields = ownMetadata(originalContract['fields']);
+    assert.deepEqual(Object.keys(fields).sort(), contract.fields.map(field => field.name).sort(),
+      `original native fields are complete for ${contract.name}`);
+    for (const field of contract.fields) {
+      const original = ownMetadata(fields[field.name]);
+      assert.equal(original['type'], field.type);
+      if (Object.hasOwn(original, 'default')) {
+        assert.notEqual(typeof original['default'], 'function', 'only original literal defaults supply retained wire facts');
+        const value = detachWire(encodeValue(field.type, detachMetadata(original['default'], true) as CanValue));
+        defaults.push({ contract: contract.name, field: field.name, value });
+        original['default'] = value;
+      }
+      fields[field.name] = detachWire(original);
+    }
+    originalContracts[contract.name] = detachWire({ ...originalContract, fields });
+  }
+  return { originalContracts, valueDefaults: defaults };
+}
+function compileDOReceiptSource(): DOReceiptSource {
+  const root = fileURLToPath(new URL('../../../../', import.meta.url));
+  const binary = [process.env.CAN_COMPILER, join(root, 'compiler/target/debug/can'),
+    join(root, 'compiler/target/release/can'), join(root, 'target/debug/can')]
+    .find(path => path !== undefined && existsSync(path));
+  assert.ok(binary, 'actual DO opaque census requires the Can compiler');
+  const dir = mkdtempSync(join(tmpdir(), 'can-do-receipt-source-'));
+  try {
+    const input = join(dir, 'bound-images.can');
+    writeFileSync(input, readFileSync(join(root, 'packages/cloudflare/test/fixtures/typed-images-progress.can'), 'utf8')
+      .replace('app TypedImagesProgress', 'app Documents'));
+    const environment = { ...process.env }; delete environment.CAN_CATALOG;
+    const artifact = JSON.parse(execFileSync(binary, ['compile', '--format=json', '--catalog',
+      join(root, 'packages/values/dist/catalog.json'), input], { encoding: 'utf8', env: environment })) as CompileArtifact;
+    const { originalContracts, valueDefaults } = originalDOContractDefaults(artifact);
+    const loaded = loadArtifactDescriptors(artifact, { by: 'members' });
+    const callable = artifact.callables.find(item => item.id === 'Documents.generate');
+    const authored = artifact.operations?.find(item => item.name === 'Documents.generate');
+    const operation = loaded.registry.get(asOperation('Documents.generate'));
+    assert.ok(operation && isGeneratedOperationDef(operation), 'compiled generate must supply its actual generated descriptor');
+    const canonical = operation.descriptor;
+    const model = asModel('Documents.Job');
+    const field = artifact.models?.find(item => item.name === model)?.fields.find(item => item.name === 'request');
+    const source = artifact.sources.find(item => item.path === input || item.path.endsWith('bound-images.can'));
+    assert.ok(callable && authored && canonical && field && source && loaded.valueTypes);
+    if (field.field.kind !== 'delivery' || 'judgment' in field.field) throw new Error('actual Images delivery declaration required');
+    assert.equal(field.field.result.name, 'ImageRun');
+    assert.ok(field.field.result.fields.some(leaf => leaf.name === 'outputs' && leaf.type === 'GeneratedImage[]'));
+    assert.deepEqual(authored.result, { type: 'void' });
+    assert.deepEqual(canonical.result, { type: 'void' });
+    const originalSource = { ...source, module: callable.module };
+    const declaration: FrameworkOpaqueDeliveryContext = { kind: 'generation', canonical: field.field,
+      artifact: field.field, request: { source: 'bound-job', revision: '0' } };
+    const original = { owner: snapshot.owner, snapshotId: 'do-original', digest: `sha256:${source.sha256}` };
+    const callerSource = { kind: 'callable' as const, source: originalSource, callable };
+    const set: FrameworkOpaqueDeclarationSet = { id: 'do/original', inventory: original,
+      snapshot: { ...original, installedAt: snapshot.installedAt, installedRevision: asRevision(1) },
+      sources: artifact.sources, canonicalModels: loaded.models, artifactModels: artifact.models!, valueTypes: loaded.valueTypes!, originalContracts, valueDefaults,
+      declarations: [
+        { id: 'do/generate/inputs', source: callerSource,
+          profile: { kind: 'inputs', canonical: canonical.inputs, artifact: authored.inputs.fields } },
+        { id: 'do/generate/void', source: callerSource,
+          profile: { kind: 'void', canonical: { type: 'void' }, artifact: { type: 'void' } } },
+        { id: 'do/images/result', source: { kind: 'delivery', source: originalSource, context: declaration },
+          profile: { kind: 'provider-result', canonical: field.field.result, artifact: field.field.result } },
+      ] };
+    return { model, inventory: { ...original, canonicalModels: loaded.models, artifactModels: artifact.models!,
+      valueTypes: loaded.valueTypes!, frameworkModels: STATE_FILE_REFERENCE_PRODUCER.models, opaqueDeclarationSets: [set] },
+      origin: { kind: 'delivery-result', deliveryId: 'bound-delivery',
+        intent: { intentId: 'bound-delivery', operation: canonical.name,
+          operationId: asOperationId('bound-operation'), target: 'std.ImagesV1.submit', occurrenceIndex: 0 },
+        request: { binding: 'Documents.Images', from: 'deployment.comfyui' },
+        caller: { source: originalSource, callable, canonical, artifact: authored, resultDeclarationId: 'do/generate/void' },
+        association: { model, recordId: asId('bound-job'), field: 'request' }, declaration, resultDeclarationId: 'do/images/result' } };
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+describe('actual DO source-bound opaque receipt census', () => {
+  let compiled: DOReceiptSource;
+  before(() => { compiled = compileDOReceiptSource(); });
+  const meta = { nowMs: 100, actor: 'alice' };
+  function result(ref: string | null, sequence = '1') {
+    return { source: 'bound-job', revision: '0', sequence, state: 'succeeded',
+      outputs: ref === null ? [] : [{ position: '0', image: { id: ref } }], charged_jobs: '1', detail: null };
+  }
+  async function world() {
+    await backends.find(backend => backend.name === 'do')!.setup();
+    await doPost('/reopen', { authority, framework: 'state' });
+    const store = doProxy(), declarations = structuredClone(compiled.inventory), origin = structuredClone(compiled.origin);
+    await install(store, declarations);
+    const installed = (await store.readFileReferenceInventory(declarations.owner))!;
+    assert.deepEqual(installed.snapshot, declarations.opaqueDeclarationSets![0]!.snapshot);
+    const facts = (await doPost('/finalize-provider', { origin, receiver: { ...authority.receiver, principal: 'alice' },
+      retention, atMs: 1_000 }))['value'] as RetainedFinalizedFile;
+    const { retention: _retention, ...finalized } = facts;
+    const context = { source: origin.intent.target, declaredResult: origin.declaration.canonical.result,
+      request: { source: 'bound-job', revision: '0' } };
+    const row = newReceiptRow({ deliveryId: origin.deliveryId, revision: 1, status: 'succeeded', result: result(facts.ref),
+      error: null, contentRef: null, resultExpiresAtMs: null }, meta, context);
+    const originInput = { expectedRevision: asRevision(1), inventoryOwner: declarations.owner, declarationSetId: 'do/original',
+      model: asModel(RECEIPT_MODEL), row, field: 'result',
+      scope: { app: authority.app, ownerPackage: snapshot.owner, owner: authority.receiver.owner }, origin };
+    const binding = (await doPost('/prepare-origin', { input: originInput,
+      files: [{ path: ['outputs', 0, 'image'], ref: facts.ref }] }))['value'] as FrameworkFilePayloadOrigin;
+    const terminal = { ...row, data: { ...row.data, filePayloadOrigin: binding } };
+    const association = newAssociationRow({ recordModel: compiled.model, recordId: 'bound-job', field: 'request',
+      deliveryId: origin.deliveryId, source: origin.intent.target, revision: 1 }, meta);
+    const record = { ...makeRow({ id: 'bound-job', created: meta.nowMs, updated: meta.nowMs,
+      data: { label: 'Images', revision: '0', request: { id: origin.deliveryId, operation: origin.intent.target },
+        cancellation: null, reconciliation: null } }), parent: null };
+    const writes = [{ kind: 'insert' as const, model: compiled.model, row: record },
+      { kind: 'insert' as const, model: asModel(RECEIPT_ASSOCIATION_MODEL), row: association },
+      { kind: 'insert' as const, model: asModel(RECEIPT_MODEL), row: terminal }];
+    const retirement = (disposition: 'orphaned' | 'expired', atMs: number): RetireFinalizedFile => ({
+      expectedRevision: asRevision(2), inventory: identity(declarations), file: finalized, disposition,
+      retention, atMs, maxRows: 30, maxReferences: 100 });
+    return { store, declarations, origin, facts, context, terminal, binding, originInput, writes, retirement };
+  }
+  async function rejectedUpdate(store: FileReferenceStoragePort, original: StoredRow, replacement: StoredRow) {
+    await noEffects(store, async () => store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update',
+      model: asModel(RECEIPT_MODEL), id: original.id, expectedVersion: original.version, row: replacement }],
+      schedules: [{ op: 'replace', key: 'opaque-rollback', at: 1, event: asOperation('Documents.due'), payload: {} }] })));
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), original.id), original);
+    assert.equal(await store.scheduleGet('opaque-rollback'), null);
+  }
+  it('counts a real finalized result across SQLite reopening and preserves only unchanged expired positions', async () => {
+    const w = await world(), store = w.store;
+    await store.commit(makeBatch(1, { writes: w.writes }));
+    await noEffects(store, () => store.retireFinalizedFile(w.retirement('orphaned', 1_100)));
+    assert.equal(await store.readFinalizedFileRetirement(w.facts.ref), null);
+    await doPost('/reopen', { authority, framework: 'state' });
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), w.terminal.id), w.terminal);
+    await noEffects(store, () => store.retireFinalizedFile({ ...w.retirement('expired', 1_500), maxRows: 2 }));
+    const retired = await store.retireFinalizedFile(w.retirement('expired', 1_500));
+    assert.equal(retired.censusRevision, 2);
+    assert.equal(retired.file.ref, w.facts.ref);
+    const keep = { ...w.terminal, version: asVersion(2), archivedAt: 1_500, updated: 1_500,
+      data: { ...w.terminal.data, result: result(w.facts.ref, '2') } };
+    await store.commit(makeBatch(3, { writes: [{ kind: 'update', model: asModel(RECEIPT_MODEL), id: keep.id,
+      expectedVersion: w.terminal.version, row: keep }] }));
+    const movedBinding = structuredClone(w.binding);
+    Object.assign(movedBinding, { files: [movedBinding.files[0]!,
+      { path: ['outputs', 1, 'image'], file: movedBinding.files[0]!.file }] });
+    const moved = { ...keep, version: asVersion(3), data: { ...keep.data, filePayloadOrigin: movedBinding,
+      result: { ...result(w.facts.ref), outputs: [{ position: '0', image: { id: w.facts.ref } },
+        { position: '1', image: { id: w.facts.ref } }] } } };
+    await rejectedUpdate(store, keep, moved);
+    const empty = withReceiptRowData(keep, { deliveryId: w.origin.deliveryId, revision: 2, status: 'succeeded',
+      result: result(null, '2'), error: null, contentRef: null, resultExpiresAtMs: null,
+      filePayloadOrigin: { ...w.binding, files: [] } }, { ...meta, nowMs: 1_500 }, w.context);
+    await store.commit(makeBatch(4, { writes: [{ kind: 'update', model: asModel(RECEIPT_MODEL), id: empty.id,
+      expectedVersion: keep.version, row: empty }] }));
+    const reintroduced = { ...empty, version: asVersion(empty.version + 1),
+      data: { ...empty.data, result: result(w.facts.ref, '3'), filePayloadOrigin: w.binding } };
+    await rejectedUpdate(store, empty, reintroduced);
+    await doPost('/reopen', { authority, framework: 'state' });
+    assert.deepEqual(await store.readFinalizedFileRetirement(w.facts.ref), retired);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), empty.id), empty);
+    assert.equal(await store.readRevision(), 5);
+  });
+  it('refuses missing or mismatched original source bindings, complete profiles and receiving facts without SQL effects', async () => {
+    const w = await world(), store = w.store;
+    for (const files of [[], [{ path: ['outputs', 0, 'image', 'id'], ref: w.facts.ref }],
+      [{ path: ['outputs', 0, 'image'], ref: 'unknown-observation' }],
+      [{ path: ['outputs', 0, 'image'], ref: w.facts.ref }, { path: ['outputs', 0, 'image'], ref: w.facts.ref }]]) {
+      await noEffects(store, () => doPost('/prepare-origin', { input: w.originInput, files }));
+    }
+    await noEffects(store, () => doPost('/prepare-origin', { input: { ...w.originInput,
+      origin: { ...w.origin, resultDeclarationId: 'missing/result' } },
+      files: [{ path: ['outputs', 0, 'image'], ref: w.facts.ref }] }));
+    const withoutBinding = { ...w.terminal, data: { ...w.terminal.data } };
+    Reflect.deleteProperty(withoutBinding.data, 'filePayloadOrigin');
+    const badSource = structuredClone(w.binding);
+    if (badSource.origin.kind !== 'delivery-result') throw new Error('expected delivery result');
+    Object.assign(badSource.origin.caller.source, { sha256: 'f'.repeat(64) });
+    const badFacts = structuredClone(w.binding);
+    Object.assign(badFacts.files[0]!.file, { bytesDigest: 'renewed-digest' });
+    for (const row of [withoutBinding, { ...w.terminal, data: { ...w.terminal.data, filePayloadOrigin: { ...w.binding, files: [] } } },
+      { ...w.terminal, data: { ...w.terminal.data, filePayloadOrigin: badSource } },
+      { ...w.terminal, data: { ...w.terminal.data, filePayloadOrigin: { ...w.binding, declarationSetId: 'missing/original' } } }]) {
+      await noEffects(store, () => store.commit(makeBatch(1, { writes: [{ kind: 'insert', model: asModel(RECEIPT_MODEL), row }],
+        schedules: [{ op: 'replace', key: 'opaque-rollback', at: 1, event: asOperation('Documents.due'), payload: {} }] })));
+      assert.equal(await store.load(asModel(RECEIPT_MODEL), row.id), null);
+      assert.equal(await store.scheduleGet('opaque-rollback'), null);
+    }
+    await store.commit(makeBatch(1, { writes: w.writes }));
+    for (const binding of [badFacts, badSource]) await rejectedUpdate(store, w.terminal,
+      { ...w.terminal, version: asVersion(2), data: { ...w.terminal.data, filePayloadOrigin: binding } });
+    type OriginalContracts = Record<string, { fields: Record<string, Record<string, WireValue>> }>;
+    const originalContracts = w.declarations.opaqueDeclarationSets![0]!.originalContracts as unknown as OriginalContracts;
+    const originals = Object.entries(originalContracts).flatMap(([contract, definition]) =>
+      Object.entries(definition.fields).map(([field, metadata]) => ({ contract, field, metadata })));
+    const noDefault = originals.find(item => item.metadata['type'] === 'text' && !Object.hasOwn(item.metadata, 'default'));
+    const constrained = originals.find(item => typeof item.metadata['max'] === 'number' || typeof item.metadata['min'] === 'number');
+    assert.ok(noDefault, 'the complete original source must retain a text field with no own default');
+    assert.ok(constrained, 'the complete original source must retain a numeric field constraint');
+    function rawMutation(change: (contracts: OriginalContracts) => void): FileReferenceInventory {
+      const changed = structuredClone(w.declarations);
+      change(changed.opaqueDeclarationSets![0]!.originalContracts as unknown as OriginalContracts);
+      return changed;
+    }
+    const absentRaw = structuredClone(w.declarations);
+    Reflect.deleteProperty(absentRaw.opaqueDeclarationSets![0]!, 'originalContracts');
+    const rawDrift = [absentRaw,
+      rawMutation(contracts => { Reflect.deleteProperty(contracts, noDefault.contract); }),
+      rawMutation(contracts => { contracts['test.extra_original_contract'] = structuredClone(contracts[noDefault.contract]!); }),
+      rawMutation(contracts => { Reflect.deleteProperty(contracts[noDefault.contract]!.fields, noDefault.field); }),
+      rawMutation(contracts => { contracts[noDefault.contract]!.fields['extra_original_field'] = { type: 'text' }; }),
+      rawMutation(contracts => { contracts[noDefault.contract]!.fields[noDefault.field]!['type'] = 'bool'; }),
+      rawMutation(contracts => {
+        const metadata = contracts[constrained.contract]!.fields[constrained.field]!;
+        const key = typeof metadata['max'] === 'number' ? 'max' : 'min';
+        metadata[key] = (metadata[key] as number) + 1;
+      }),
+      rawMutation(contracts => { contracts[noDefault.contract]!.fields[noDefault.field]!['default'] = ''; }),
+    ];
+    for (const declarations of [{ ...w.declarations, opaqueDeclarationSets: [] },
+      { ...w.declarations, opaqueDeclarationSets: [{ ...w.declarations.opaqueDeclarationSets![0]!, sources: [] }] },
+      { ...w.declarations, opaqueDeclarationSets: [{ ...w.declarations.opaqueDeclarationSets![0]!, declarations: [] }] }, ...rawDrift]) {
+      await noEffects(store, () => store.installFileReferenceInventory({ expectedRevision: asRevision(2), authority,
+        snapshot: { ...snapshot, ...identity(declarations) }, inventory: declarations }));
+      assert.deepEqual(await store.readFileReferenceInventory(snapshot.owner), {
+        authority, snapshot: w.declarations.opaqueDeclarationSets![0]!.snapshot, inventory: w.declarations });
+    }
+    // Removal happens before the original File expiry. Saved header facts here
+    // test independent durable admission; copying them supplies no observation,
+    // native loader evidence, disclosure permission or renewed File authority.
+    const empty = withReceiptRowData(w.terminal, { deliveryId: w.origin.deliveryId, revision: 2, status: 'succeeded',
+      result: result(null, '2'), error: null, contentRef: null, resultExpiresAtMs: null,
+      filePayloadOrigin: { ...w.binding, files: [] } }, { ...meta, nowMs: 1_200 }, w.context);
+    await store.commit(makeBatch(2, { writes: [{ kind: 'update', model: asModel(RECEIPT_MODEL), id: empty.id,
+      expectedVersion: w.terminal.version, row: empty }] }));
+    await doPost('/reopen', { authority, framework: 'state' });
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), empty.id), empty);
+    assert.equal(await store.readFinalizedFileRetirement(w.facts.ref), null);
+    const renewed = structuredClone(w.binding);
+    Object.assign(renewed.files[0]!.file.retention, { retentionMs: retention.retentionMs + 1 });
+    const reintroduce = (binding: FrameworkFilePayloadOrigin) => withReceiptRowData(empty, {
+      deliveryId: w.origin.deliveryId, revision: 3, status: 'succeeded', result: result(w.facts.ref, '3'),
+      error: null, contentRef: null, resultExpiresAtMs: null, filePayloadOrigin: binding,
+    }, { ...meta, nowMs: 1_200 }, w.context);
+    await rejectedUpdate(store, empty, reintroduce(renewed));
+    assert.equal(await store.readRevision(), 3, 'renewal must lose at the same captured fence');
+    const originalFacts = reintroduce(w.binding);
+    await store.commit(makeBatch(3, { writes: [{ kind: 'update', model: asModel(RECEIPT_MODEL), id: empty.id,
+      expectedVersion: empty.version, row: originalFacts }] }));
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), empty.id), originalFacts);
+    assert.equal(await store.readRevision(), 4);
+    assert.equal(await store.readFinalizedFileRetirement(w.facts.ref), null);
   });
 });
 

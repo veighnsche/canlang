@@ -1,6 +1,7 @@
 /** Portable keyed-schedule stages; callers supply the existing system context. */
 import type {
   DomainWrite,
+  FrameworkFilePayloadOrigin,
   OccurrenceId,
   OperationName,
   OutboxId,
@@ -25,6 +26,9 @@ import {
   newScheduleRow,
   readScheduleRow,
   readOccurrenceRow,
+  readWorkFilePayloadOrigin,
+  requireWorkFilePayloadOriginReplay,
+  snapshotWorkFilePayloadOrigin,
   scheduleByKeyQuery,
 } from './tables.js';
 import type { OccurrenceRowData, ScheduleRowData } from './tables.js';
@@ -137,6 +141,7 @@ export interface DueScheduleInput {
   readonly occurrenceId: string;
   readonly event: string;
   readonly at: number;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
 }
 
 export type DueScheduleResult =
@@ -166,10 +171,13 @@ export async function stageDueSchedule(
   const at = argInstant(args, 'at', what);
   const event = argString(args, 'event', what);
   const occurrenceId = argString(args, 'occurrenceId', what);
+  const captured = snapshotWorkFilePayloadOrigin(args);
   const l3Key = embedScheduleKey(scope, key, what);
   const row = await ctx.load(WORK_SCHEDULE_MODEL, occurrenceId as RecordId);
   if (row === null) return { status: 'refused', reason: 'missing' };
   const data = readScheduleRow(row);
+  requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(captured, row,
+    WORK_SCHEDULE_MODEL, 'payload', 'deferred-input'), data.filePayloadOrigin);
   if (
     row.id !== data.occurrenceId ||
     data.occurrenceId !== occurrenceId ||
@@ -246,7 +254,16 @@ export const workSchedulePutCommand: SystemCommandDef = {
     // Capture after validation and before querying so caller mutations during
     // staging cannot change the lineage row or the L3 schedule operation.
     const payload = freezeRequest(payloadInput);
+    const captured = snapshotWorkFilePayloadOrigin(args);
     const entries = await loadKeyedSchedules(ctx, scope, key);
+    const collision = entries.find(entry => entry.row.id === occurrenceId);
+    if (collision !== undefined) {
+      requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(captured, collision.row,
+        WORK_SCHEDULE_MODEL, 'payload', 'deferred-input'), collision.data.filePayloadOrigin);
+    }
+    const filePayloadOrigin = readWorkFilePayloadOrigin(captured,
+      { id: occurrenceId as RecordId, created: ctx.now, createdBy: ctx.actor },
+      WORK_SCHEDULE_MODEL, 'payload', 'deferred-input');
     const previous = selectScheduleHead(entries);
     const writes: DomainWrite[] = [];
     let affectedOutboxIds: OutboxId[] = [];
@@ -295,6 +312,7 @@ export const workSchedulePutCommand: SystemCommandDef = {
           at,
           event,
           payload,
+          ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
           replaces: previous?.data.occurrenceId ?? null,
           state: 'pending',
         },

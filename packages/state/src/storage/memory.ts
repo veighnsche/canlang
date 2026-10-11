@@ -654,7 +654,7 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
           records.delete(key);
         }
       }
-      guardFileCommit(state.fileGuard, binding, live(), live(records), framework);
+      const nextGuard = guardFileCommit(state.fileGuard, binding, live(), live(records), framework);
       const outboxState = new Map(state.outbox);
       const next = expected + 1;
       const at = receipt?.createdAt ?? Date.now();
@@ -696,6 +696,7 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
       state.revision = next;
       state.fenceLog.set(next, { at, operation });
       state.records = records;
+      state.fileGuard = nextGuard;
       state.uniqueClaims = claims;
       state.outbox = outboxState;
       state.schedules = scheduleState;

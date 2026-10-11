@@ -10,6 +10,7 @@ import { KernelTableError, WORK_DISPATCH_MODEL, WORK_OCCURRENCE_MODEL, WORK_SCHE
   type FanoutChildRowData } from './tables.js';
 import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow,
   type HandlerOccurrenceRowData } from './handler-occurrence.js';
+import { resolveWorkOpaqueField } from './opaque-file-resolver.js';
 
 const string = Object.freeze({ kind: 'control', value: 'string' } as const);
 const number = Object.freeze({ kind: 'control', value: 'number' } as const);
@@ -20,6 +21,8 @@ const optionalNumber = Object.freeze({ ...number, optional: true } as const);
 const strings = Object.freeze({ kind: 'control', value: 'string-array' } as const);
 const deferred = Object.freeze({ kind: 'opaque', role: 'deferred-input' } as const);
 const result = Object.freeze({ kind: 'opaque', role: 'retained-result' } as const);
+const payloadOrigin = (payloadField: string) => Object.freeze({ kind: 'opaque', role: 'payload-origin',
+  payloadField, optional: true } as const);
 type Fields<T> = { readonly [K in keyof T]-?: Field };
 const dispatch = {
   intentId: string, operationId: string, source: string, occurrenceIndex: number,
@@ -32,10 +35,10 @@ const dispatch = {
   originalIntentId: optionalString, observationStartedAtMs: optionalNumber, observationDeadlineMs: optionalNumber,
 } satisfies Fields<DispatchRowData>;
 const occurrence = { occurrenceId: string, status: string, result, code: nullableString,
-  message: nullableString, recordedAtMs: number } satisfies Fields<OccurrenceRowData>;
+  message: nullableString, recordedAtMs: number, filePayloadOrigin: payloadOrigin('result') } satisfies Fields<OccurrenceRowData>;
 const schedule = { occurrenceId: string, key: string, scopeApp: string, scopeOwner: string,
   scopeOwnerPackage: string, at: number, event: string, payload: deferred,
-  replaces: nullableString, state: string } satisfies Fields<ScheduleRowData>;
+  replaces: nullableString, state: string, filePayloadOrigin: payloadOrigin('payload') } satisfies Fields<ScheduleRowData>;
 const every = { scopeKey: string, app: string, handler: string, scope: string,
   owner: string, slot: number } satisfies Fields<EverySlotRowData>;
 const supersession = { outboxId: string, byOccurrenceId: nullableString,
@@ -49,7 +52,7 @@ const fanoutChild = { fanoutId: string, parentOccurrence: string, handler: strin
   causeKind: nullableString, causeReason: nullableString } satisfies Fields<FanoutChildRowData>;
 const handler = { occurrenceId: string, sourceOccurrence: string, handler: string,
   event: string, payload: deferred, scopeApp: string, scopeOwner: string,
-  scopeOwnerPackage: string, state: string } satisfies Fields<HandlerOccurrenceRowData>;
+  scopeOwnerPackage: string, state: string, filePayloadOrigin: payloadOrigin('payload') } satisfies Fields<HandlerOccurrenceRowData>;
 
 const models: readonly FrameworkFileReferenceModel[] = Object.freeze([
   [WORK_DISPATCH_MODEL, dispatch, 'DispatchRowData'],
@@ -109,7 +112,7 @@ function closed(value: unknown, fields: Readonly<Record<string, Field>>): Record
   if (Object.keys(data).some(key => !Object.hasOwn(fields, key))) return invalid('unknown field.');
   for (const [key, field] of Object.entries(fields)) {
     if (!Object.hasOwn(data, key)) {
-      if (field.kind === 'control' && field.optional === true) continue;
+      if (field.kind === 'control' && field.optional === true || field.kind === 'opaque' && field.role === 'payload-origin' && field.optional) continue;
       return invalid(`missing ${key}.`);
     }
     const member = data[key];
@@ -157,4 +160,9 @@ function validateRow(model: ModelName, value: StoredRow): void {
   }
 }
 
-export const WORK_FILE_REFERENCE_PRODUCER: FrameworkFileReferenceProducer = Object.freeze({ models, validateRow });
+const resolveOpaqueField: NonNullable<FrameworkFileReferenceProducer['resolveOpaqueField']> = (model, value, field, context) => {
+  const row = copyJson(value) as StoredRow;
+  validateRow(model, row);
+  return resolveWorkOpaqueField(model, row, field, context);
+};
+export const WORK_FILE_REFERENCE_PRODUCER: FrameworkFileReferenceProducer = Object.freeze({ models, validateRow, resolveOpaqueField });

@@ -45,7 +45,7 @@ export const SCHEMA_STATEMENTS: ReadonlyArray<string> = [
   'CREATE TABLE IF NOT EXISTS schedules("key" TEXT PRIMARY KEY, at INTEGER NOT NULL, event TEXT NOT NULL, payload TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS unique_claims(model TEXT NOT NULL, key_name TEXT NOT NULL, key_value TEXT NOT NULL, record_id TEXT NOT NULL, PRIMARY KEY(model, key_name, key_value))',
   'CREATE TABLE IF NOT EXISTS snapshots(owner TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL, digest TEXT NOT NULL, installed_revision INTEGER NOT NULL, installed_at INTEGER NOT NULL)',
-  'CREATE TABLE IF NOT EXISTS file_reference_authority(id INTEGER PRIMARY KEY CHECK(id = 1), authority TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS file_reference_authority(id INTEGER PRIMARY KEY CHECK(id = 1), authority TEXT NOT NULL, opaque_lifetimes TEXT NOT NULL DEFAULT \'[]\')',
   'CREATE TABLE IF NOT EXISTS file_reference_inventories(owner TEXT PRIMARY KEY, installed TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS file_reference_migrations(migration_id TEXT PRIMARY KEY, inventory TEXT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS file_reference_publications(model TEXT NOT NULL, id TEXT NOT NULL, migration_id TEXT NOT NULL, PRIMARY KEY(model, id))',
@@ -79,6 +79,10 @@ export const ALTER_OUTBOX_HANDLER_CONTRACT: string =
 /** Original fenced publication revision; legacy rows deliberately remain NULL. */
 export const ALTER_OUTBOX_COMMITTED_REVISION: string =
   'ALTER TABLE outbox ADD COLUMN committed_revision INTEGER NULL';
+
+/** Legacy stores have no captured opaque lifetime facts; never backfill them. */
+export const ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES: string =
+  'ALTER TABLE file_reference_authority ADD COLUMN opaque_lifetimes TEXT NOT NULL DEFAULT \'[]\'';
 
 /** True when an ALTER failure is just "column already exists". */
 export function isDuplicateColumnError(error: unknown): boolean {

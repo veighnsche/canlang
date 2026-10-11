@@ -6,6 +6,10 @@ import {
   WORK_OCCURRENCE_MODEL,
   newOccurrenceRow,
   readOccurrenceRow,
+  readWorkFilePayloadOrigin,
+  requireWorkFilePayloadOriginReplay,
+  snapshotKernelJsonValue,
+  snapshotWorkFilePayloadOrigin,
 } from './tables.js';
 
 /**
@@ -25,25 +29,38 @@ export const workOccurrencePutReceiptCommand: SystemCommandDef = {
         `${what}: status must be completed or failed.`,
       );
     }
+    // Capture both original wire value and metadata before the first suspension.
+    const captured = snapshotKernelJsonValue({
+      result: args['result'] ?? null,
+      ...snapshotWorkFilePayloadOrigin(args),
+    }, what);
+    const recordedAtMs =
+      args['recordedAtMs'] === undefined ? ctx.now : argInstant(args, 'recordedAtMs', what);
+    const code = argNullableString(args, 'code', what);
+    const message = argNullableString(args, 'message', what);
     const existing = await ctx.load(
       WORK_OCCURRENCE_MODEL,
       occurrenceId as RecordId,
     );
     if (existing !== null) {
+      const receipt = readOccurrenceRow(existing);
+      requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(captured, existing,
+        WORK_OCCURRENCE_MODEL, 'result', 'retained-result'), receipt.filePayloadOrigin);
       return {
-        result: { duplicate: true, receipt: readOccurrenceRow(existing) },
+        result: { duplicate: true, receipt },
       };
     }
-    const recordedAtMs =
-      args['recordedAtMs'] === undefined ? ctx.now : argInstant(args, 'recordedAtMs', what);
-    const result = args['result'] ?? null;
+    const filePayloadOrigin = readWorkFilePayloadOrigin(captured,
+      { id: occurrenceId as RecordId, created: ctx.now, createdBy: ctx.actor },
+      WORK_OCCURRENCE_MODEL, 'result', 'retained-result');
     const row = newOccurrenceRow(
       {
         occurrenceId: occurrenceId as OccurrenceId,
         status,
-        result,
-        code: argNullableString(args, 'code', what),
-        message: argNullableString(args, 'message', what),
+        result: captured.result,
+        ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
+        code,
+        message,
         recordedAtMs,
       },
       { nowMs: ctx.now, actor: ctx.actor },
