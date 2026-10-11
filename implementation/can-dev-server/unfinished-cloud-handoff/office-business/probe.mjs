@@ -178,7 +178,17 @@ async function http(actor, operation, inputs, label, checkDenied=false) {
   return {entry,body};
 }
 async function grant(actor) {
-  const response=await fetch(`${origin}/mcp/grants`,{method:'POST',headers:{cookie:`${bridgeCookie}; ${actor.appCookie}`,origin,'content-type':'application/json'},body:JSON.stringify({client_id:'office-business-evaluator'})});
+  const headers={cookie:`${bridgeCookie}; ${actor.appCookie}`,origin,'content-type':'application/json'};
+  const bodyText=JSON.stringify({client_id:'office-business-evaluator'});
+  if (actor.team !== null) {
+    const before=await snapshot();
+    const missingCsrf=await fetch(`${origin}/mcp/grants`,{method:'POST',headers,body:bodyText});
+    assert.equal(missingCsrf.status,403,'session grant without CSRF refuses');
+    await missingCsrf.body?.cancel();
+    assert.deepEqual(await snapshot(),before,'missing-CSRF grant has no admitted resource effects');
+    facts.grantCsrfRefusals=(facts.grantCsrfRefusals??0)+1;
+  }
+  const response=await fetch(`${origin}/mcp/grants`,{method:'POST',headers:{...headers,'x-csrf-token':actor.csrf},body:bodyText});
   const body=await response.json();
   if(response.status!==200||!body.token) {
     const error = new Error(`MCP grant unavailable HTTP ${response.status}`);
