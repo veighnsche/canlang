@@ -1834,6 +1834,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "fab"
             | "fieldset"
             | "form"
+            | "fileInput"
             | "hero"
             | "history"
             | "input"
@@ -1841,6 +1842,9 @@ fn is_ui_factory(factory: &str) -> bool {
             | "list"
             | "modal"
             | "pagination"
+            | "progress"
+            | "range"
+            | "renderState"
             | "radio"
             | "select"
             | "stat"
@@ -1850,6 +1854,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "text"
             | "textarea"
             | "title"
+            | "tooltip"
     )
 }
 
@@ -1902,6 +1907,10 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             matches!(key, "field" | "tone" | "size" | "variant")
         }
         "checkbox" => key == "field",
+        "range" | "fileInput" => key == "field",
+        "progress" => matches!(key, "value" | "max"),
+        "renderState" => matches!(key, "kind" | "message"),
+        "tooltip" => key == "caption",
         "calendar" => matches!(
             key,
             "field"
@@ -2248,7 +2257,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
 fn is_form_field_control(factory: &str) -> bool {
     matches!(
         factory,
-        "input" | "textarea" | "radio" | "select" | "calendar" | "checkbox"
+        "input" | "textarea" | "radio" | "select" | "calendar" | "checkbox" | "range" | "fileInput"
     )
 }
 
@@ -5081,6 +5090,34 @@ impl<'a> Emitter<'a> {
         l: &str,
         r: &str,
     ) -> String {
+        fn supplied_array_element(ty: &ResolvedType) -> bool {
+            match ty {
+                ResolvedType::Scalar(_)
+                | ResolvedType::Enum { .. }
+                | ResolvedType::Record { .. } => true,
+                ResolvedType::StdNominal { .. } => {
+                    crate::analysis::types::checked_standard_nominal_name(ty).is_some()
+                }
+                ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                    supplied_array_element(inner)
+                }
+                _ => false,
+            }
+        }
+        if op == IrBinOp::Add
+            && let (
+                ResolvedType::Array { element: left, .. },
+                ResolvedType::Array { element: right, .. },
+            ) = (&left.ty, &right.ty)
+            && left == right
+            && supplied_array_element(left)
+        {
+            // The installed Values helper preserves ordered elements and
+            // references without mutating either supplied array. JavaScript
+            // call arguments retain authored once/left-to-right evaluation.
+            self.stdlib.insert("concat".to_string());
+            return format!("concat({l},{r})");
+        }
         let js_op = match op {
             IrBinOp::Add => "+",
             IrBinOp::Sub => "-",
@@ -6780,18 +6817,18 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
         }
-        if node.factory == "checkbox"
+        if matches!(node.factory.as_str(), "checkbox" | "range" | "fileInput")
             && (prepared_form.is_none()
                 || !node.children.is_empty()
                 || node.gate.is_some()
                 || form_prop_text(node, "field").is_none())
         {
             self.unsupported(
-                "checkbox UI control",
-                "only an owned prepared bool field control lowers",
+                "owned UI control",
+                "only an owned prepared field control lowers",
                 node.span,
             );
-            return self.throw_expr("unsupported checkbox profile");
+            return self.throw_expr("unsupported owned control profile");
         }
         if node.factory == "calendar"
             && form_prop_text(node, "kind").as_deref() != Some("agenda")
@@ -6858,6 +6895,16 @@ impl<'a> Emitter<'a> {
                 return self.throw_expr("unsupported UI option");
             }
             let typed = match key.as_str() {
+                "value" if node.factory == "progress" => {
+                    value.ty.nullable_inner().unwrap_or(&value.ty)
+                        == &ResolvedType::Scalar(Scalar::Int)
+                }
+                "max" if node.factory == "progress" => {
+                    value.ty == ResolvedType::Scalar(Scalar::Int)
+                }
+                "kind" if node.factory == "renderState" => {
+                    matches!(&value.expr, IrExpr::Text(kind) if kind == "loading")
+                }
                 "page" if matches!(node.factory.as_str(), "list" | "table" | "calendar") => {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
@@ -6868,7 +6915,7 @@ impl<'a> Emitter<'a> {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
-                "caption" | "title" | "text" | "label" => matches!(
+                "caption" | "title" | "text" | "label" | "message" => matches!(
                     value.ty,
                     ResolvedType::Scalar(Scalar::Text)
                         | ResolvedType::InlineMessage
@@ -7136,6 +7183,16 @@ impl<'a> Emitter<'a> {
                 } else {
                     predicate
                 }
+            } else if node.factory == "progress" {
+                let expression = self.lower_business_expr(value, "integer progress");
+                let invalid = if key == "value" {
+                    "return NaN;"
+                } else {
+                    "throw new RangeError('progress maximum is not exactly displayable');"
+                };
+                format!(
+                    "(value=>{{if(value==null)return null;const number=Number(value);if(!Number.isSafeInteger(number)){{{invalid}}}return number;}})({expression})"
+                )
             } else if node.factory == "history" && key == "record" {
                 original_history_row
                     .clone()
@@ -7391,7 +7448,12 @@ impl<'a> Emitter<'a> {
                         })
                         .collect::<Vec<_>>()
                         .join(",");
-                    props.push(format!("children:[{children}]"));
+                    let slot = if node.factory == "tooltip" {
+                        "content"
+                    } else {
+                        "children"
+                    };
+                    props.push(format!("{slot}:[{children}]"));
                 }
             }
         }

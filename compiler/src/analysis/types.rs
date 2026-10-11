@@ -419,17 +419,13 @@ pub struct CheckedJudgmentSpecificationCall {
     pub options: NodeKey,
 }
 
-/// Only the exact catalog-produced IncomingEmail type claims this identity.
+/// Only exact catalog-produced types in the consumed nominal profile claim identity.
 /// Consumers must not infer a nominal name from an anonymous object shape.
 pub(crate) fn checked_standard_nominal_name(ty: &ResolvedType) -> Option<&'static str> {
-    let ResolvedType::StdNominal {
-        name: "IncomingEmail",
-        ..
-    } = ty
-    else {
+    let ResolvedType::StdNominal { name, .. } = ty else {
         return None;
     };
-    let schema = nominal_schema("IncomingEmail")?;
+    let schema = nominal_schema(name)?;
     (ty == &std_nominal_object(schema)).then_some(schema.name)
 }
 
@@ -1120,7 +1116,10 @@ fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
         .iter()
         .map(|(name, kind)| (name.to_string(), std_nominal_leaf_type(kind)))
         .collect();
-    if schema.name == "IncomingEmail" {
+    if matches!(
+        schema.name,
+        "IncomingEmail" | "TextMessage" | "TextRequest" | "WorkflowInput" | "WorkflowDefinition"
+    ) {
         ResolvedType::StdNominal {
             name: schema.name,
             fields,

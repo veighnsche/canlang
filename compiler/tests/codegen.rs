@@ -780,14 +780,18 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        5,
+        4,
         "unsupported count: {diags:?}"
     );
     assert!(
         entry.contains("open:preferences.show_content"),
         "collapse carries the owning checked boolean preference without coercion"
     );
-    for (word, n) in [("tooltip", 1), ("collapse", 0), ("content", 1)] {
+    assert!(
+        entry.contains("$can$u$746f6f6c746970({") && entry.contains("content:["),
+        "tooltip owns its actual scoped content property"
+    );
+    for (word, n) in [("tooltip", 0), ("collapse", 0), ("content", 1)] {
         assert_eq!(
             diags
                 .iter()
@@ -1144,9 +1148,11 @@ fn golden_expenseflow_structure() {
     // G9 pages: admitted nodes remain visible in the test-only partial
     // artifact; refused owning profiles retain diagnostics and no usable call.
     assert!(
-        !entry.contains("$can$u$616374696f6e({")
-            && diags.iter().any(|d| d.code == "E6008" && d.message.contains("cannot lower action: the source profile has no complete owning factory payload")),
-        "row actions lack an owning factory profile"
+        entry.contains("operation:\"expenses.submit\",arguments:{expense:")
+            && !diags
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.starts_with("cannot lower action:")),
+        "singular row action uses its canonical protected form and owning record"
     );
     assert!(
         entry.contains("$can$u$686973746f7279({context:") && entry.contains("const $can$rv$"),
@@ -1443,14 +1449,14 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        6,
+        5,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
         ("cannot lower breadcrumbs:", 2),
         ("cannot lower pagination:", 0),
         ("cannot lower edit:", 0),
-        ("cannot lower action:", 1),
+        ("cannot lower action:", 0),
         ("cannot lower history:", 0),
         ("cannot lower stat:", 1),
         ("cannot lower list: option filter", 1),

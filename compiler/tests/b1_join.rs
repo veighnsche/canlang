@@ -11,14 +11,14 @@
 //!
 //! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * TeamTasks: `E6006 == 0` (every needed position bridged),
-//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 7`
-//!   (tooltip/collapse, breadcrumbs, bare edits and the list filter).
+//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 4`
+//!   (breadcrumbs, list filter and unsupported content value).
 //!   NOTE: `can compile` (CLI policy) refuses to print an artifact
 //!   while `E6008`s report; this test drives `emit()` directly to pin
 //!   the artifact SHAPE those diagnostics accompany. A zero-`E6008`
 //!   source (`demo.can`, TeamTasks minus the unlowered lines)
 //!   compiles end to end via the CLI; see the phase-2 evidence note.
-//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 8`
+//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 5`
 //!   with the real catalog: exact unsupported UI profiles remain refused;
 //!   nominal preference tabs, fixed order and named slots retain their
 //!   owning transport. Multi-value stat remains explicitly unavailable.
@@ -176,7 +176,7 @@ fn b1_teamtasks_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: bridged (E6006=0), pinned (E6007=0),
-    // Seven exact unsupported UI profiles (E6008). Nothing else may appear.
+    // Four exact unsupported UI profiles (E6008). Nothing else may appear.
     // (A2b closed the `delete` gap: bare delete lowers to deleteRecord.)
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
@@ -200,15 +200,16 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 7 {
-        failures.push(format!("expected E6008=7 pinned UI refusals, got {e6008}"));
+    if e6008 != 4 {
+        failures.push(format!("expected E6008=4 pinned UI refusals, got {e6008}"));
     }
     for (profile, expected) in [
-        ("cannot lower tooltip:", 1),
-        ("cannot lower collapse:", 1),
+        ("cannot lower tooltip:", 0),
+        ("cannot lower collapse:", 0),
         ("cannot lower breadcrumbs:", 2),
-        ("cannot lower edit:", 2),
+        ("cannot lower edit:", 0),
         ("cannot lower list: option filter", 1),
+        ("cannot lower content:", 1),
         ("cannot lower bound tabs", 0),
         ("cannot lower collection order", 0),
     ] {
@@ -336,14 +337,14 @@ fn b2_expenseflow_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 8 {
-        failures.push(format!("expected E6008=8 UI refusals, got {e6008}"));
+    if e6008 != 5 {
+        failures.push(format!("expected E6008=5 UI refusals, got {e6008}"));
     }
     for (profile, expected) in [
         ("cannot lower breadcrumbs:", 2),
-        ("cannot lower edit:", 1),
-        ("cannot lower action:", 1),
-        ("cannot lower history:", 1),
+        ("cannot lower edit:", 0),
+        ("cannot lower action:", 0),
+        ("cannot lower history:", 0),
         ("cannot lower stat:", 1),
         ("cannot lower list: option filter", 1),
         ("cannot lower list: option defaults", 1),
