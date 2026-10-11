@@ -9293,8 +9293,8 @@ Coordinator focused common-fixture review CLEAR for this coherent unfinished uni
 Coordinator focused generated-producer review CLEAR: unchanged source SHA57100433 matches embedded source, module operation descriptors equal artifact descriptors, and all eight claimed sites carry matching actual dependency/intrinsic and return-selection capture, including source omission versus supplied/default/null/empty paths, staged reads, implicit void and admitted reference version. Reuse actual installed artifact/module/registry controls and genuine State Memory12 source cases across8 sites with stable saved receipt/revision. No Compiler runtime source changed or capture metadata was hand-authored. The original ordinary read remains outside mutation capture. Original born(Create then read) and discard(Delete) still lack association at the existing whole-decline/native site exclusion; their required saved replay remains unfinished, with Compiler/native lifetime as defining owner, not waived by regeneration. Packages owns the affected original D1/reopen consumer and genuine descriptor assertions; finish has actual native capture despite its void result type. The artifact prerequisite is integrated and released at this finite producer scope, not whole shared-gate or original profile acceptance. All precise holds and complete checkpoint remain.
 ### 2026-10-11 — proposed original created-row and archive receipt capture
 
-**Proposal; coordinator review required before implementation.** The unchanged
-TypedScenarioValues source requires saved replay for exactly two still-declined
+**Contract reviewed CLEAR at local main5c882501; finite implementation reviewed CLEAR and integrated locally.** The unchanged
+TypedScenarioValues source requires saved replay for exactly two originally declined
 sites: `born` creates a root Counter with its literal count=1 default, sets
 count=count+1 and returns count; `discard(counter:Counter)` archives that admitted
 record and returns implicit void. The existing native runtime already stages
@@ -9305,8 +9305,8 @@ The defining implementation is the existing
 [State owner session, observation, retention and projection](../../packages/state/src/invocation/scenario-receipt.ts)
 and [Cloudflare create/delete helpers and current record view](../../packages/cloudflare/src/runtime/invoke.ts):
 beginScenarioReceiptMutation, observeScenarioReceiptDependency,
-retainScenarioReceipt and projectScenarioReceipt. Both compiler declines are
-currently in scenario_disclosure statements and scenario_receipts Sites; these
+retainScenarioReceipt and projectScenarioReceipt. Both initial compiler declines
+were in scenario_disclosure statements and scenario_receipts Sites; these
 owning APIs supply the actual rows rather than executor-created associations.
 
 For born, retain the original checked Create target, empty authored object,
@@ -9331,7 +9331,8 @@ once and selects the checked empty implicit-void path. Save the actual final
 archived change through the existing State owner association. Replay returns
 void without deleting again; the archived record is withheld from records, and
 no archived field or read permission is inferred from deletion. Existing current
-operation/receipt actor/team authority remains required. Hard removal is outside
+operation/receipt actor/team authority remains required. Empty void recovery does
+not require target read permission or survival of its lifetime. Hard removal is outside
 these original bytes and is not admitted by this proposal.
 
 Compiler owns the two checked effect/binding proofs and native correspondence;
@@ -9342,10 +9343,23 @@ association/replay, exact default/net-row/version/archive outcomes, no effects o
 replay, current-authority/lifetime withholding, rollback and source/IR skew
 refusals. Existing eight-site results are reused. No parent, File, array, hook,
 schedule, conditional-constructor, hard-delete or generic constructor profile is
-proposed. No new semantic choice is needed for these two sites: preserve the
+admitted. No new semantic choice is needed for these two sites: preserve the
 already released State projection and original archive mode. A disagreement on
 void recovery after archive would require one explicit owning policy decision;
 no external consultation or hold release is authorized by this proposal.
+
+The finite implementation retains checked CreateAs provenance, complete original
+literal defaults, root model/CRUD identity, ordered Set/current-field Return and
+direct required archive parameter. Native IR revalidates source spans, exact
+targets/bindings/defaults, emitted model inventory and archive mode. The existing
+owner session supplies both staged observations and one final net creation
+history entry; no new runtime API or hand-authored receipt metadata is introduced.
+The original two-site CLI/public module/installed State consumer and nine source/IR
+skew controls pass within189 distinct owning/affected assertions; changed strict
+Clippy and formatting pass. Packages' two original D1/reopen consumers remain pending. Other accepted checks and precise holds
+are reused unchanged.
+
+Coordinator focused analysis and native correspondence reviews CLEAR: exact checked root model, literal defaults, CreateAs binding, straight-line Set/current-field scalar Return and direct required archive/implicit void retain original source, emitted inventory, target, binding, mode and order. Unsupported profiles and skew controls decline whole capture. Original source/model and eight prior descriptors are unchanged; the regenerated artifact adds only born/discard capture and corresponding native module code. Reuse189 distinct owning/affected passes, genuine Memory association/default/net-row/history/version/late atomic rejection/aged replay/current membership/archive withholding, changed Clippy/fmt. No duplicate builds or tests. Discard empty void adds no target read or lifetime-survival gate. This accepts the finite producer/native component; Packages still owns the two original D1/reopen criteria. Full profile/plan acceptance, recipient holds and complete checkpoint remain unchanged.
 
 Coordinator focused defining-contract review CLEAR as a finite implementation decision using existing State/Cloudflare mechanisms, only for the two exact original source sites. Born saved count dependencies require current operation membership, current read authority and the original live creation/parent lifetime. Discard has a genuinely empty void result: existing projection requires current operation/receipt actor/team authority and withholds archived records, but does not require current target read permission or target lifetime survival for that empty result. Do not claim born lifetime rules for discard or expose archived fields. No new runtime carrier or semantic permission decision is needed; Compiler may implement only the checked effect/site and IR correspondence proof with the stated native/refusal controls. This review does not establish implementation, original required saved replay, D1/reopen or full-plan acceptance. All precise source/native/consultation holds and complete checkpoint remain unchanged.
 ### 2026-10-11 — genuine typed saved-receipt D1 consumer (unfinished create/delete capture)

@@ -4015,7 +4015,7 @@ decision; existing provider error/progress grants cannot supply them.
 
 Coordinator independent finite checked IR/JS and installed native-control reviews CLEAR. Retain owning146 affected assertions, strict all-target Clippy0/fmt and frozen graph22 results without reruns. Checked nonnullable owning Datetime >=now/<now uses the existing QueryPredicate and exact Values codec of trusted Identity admission time, preserving original source/field correspondence, order/once/current canonical query/UI bindings and unsupported-source refusal. Genuine generated child CRUD seeds real State rows and qualifies the ordinary direct-model-domain query; it does not qualify the separately failing ordinary contained-source create. This finite ordinary predicate producer/consumer is accepted; original paginated cursor-time correspondence, Dev parent issuance, original conditional policies/full application, diagnostic selection/source authority and all precise holds remain separate. Complete file-tree checkpoint is unchanged.
 
-**Original typed-scenario artifact repair; create/delete replay unfinished, 2026-10-11.**
+**Original typed-scenario receipts — native joins qualified; D1/reopen unfinished, 2026-10-11.**
 
 Regenerate the unchanged typed-scenario-values.can (57100433) with the actual
 checked CLI --native-scenario-receipts and installed Values catalog. The saved
@@ -4027,26 +4027,45 @@ and revision. Omitted/supplied/null/empty defaults, large integers, staged write
 implicit void and original admitted reference version retain their actual paths.
 No runtime source changes or unchanged compiler reruns; prior146/strict reused.
 
-Original born creates then reads a staged row, and discard deletes one; both
-still decline whole disclosure at the existing mutation/external-effect boundary
-and native Create/Delete site exclusion. Their required replay is unfinished,
-not waived by this artifact repair. The existing State/Cloudflare staged-row
-contract is reviewed for only the exact checked two-site proof below. Packages owns its
+In the initial artifact repair, original born and discard still declined whole
+disclosure at the mutation/external-effect boundary and native Create/Delete
+site exclusion. Their replay was not waived. Coordinator reviewed the exact checked
+create/delete proof contract against released staged-row ownership. Packages owns its
 original affected D1/reopen consumers and both test files; readBound stays an
 ordinary read. All precise holds,58/67 and the complete checkpoint remain.
-
-Coordinator focused generated-producer review CLEAR: unchanged source SHA57100433 matches embedded source, module operation descriptors equal artifact descriptors, and all eight claimed sites carry matching actual dependency/intrinsic and return-selection capture, including source omission versus supplied/default/null/empty paths, staged reads, implicit void and admitted reference version. Reuse actual installed artifact/module/registry controls and genuine State Memory12 source cases across8 sites with stable saved receipt/revision. No Compiler runtime source changed or capture metadata was hand-authored. The original ordinary read remains outside mutation capture. Original born(Create then read) and discard(Delete) still lack association at the existing whole-decline/native site exclusion; their required saved replay remains unfinished, with Compiler/native lifetime as defining owner, not waived by regeneration. Packages owns the affected original D1/reopen consumer and genuine descriptor assertions; finish has actual native capture despite its void result type. The artifact prerequisite is integrated and released at this finite producer scope, not whole shared-gate or original profile acceptance. All precise holds and complete checkpoint remain.
 
 Coordinator reviewed23b9 artifact CLEAR and integrated it in local main9397957b;
 Packages has the exact output for its original D1/reopen consumers. Subsequent
 finite inspection identifies existing genuine State/Cloudflare owner-session
 issuance for created rows and final archive changes, so no new runtime carrier
-is needed for the remaining two sites. The exact proposed born/discard contract
-is recorded in DECISIONS.md and the existing scenario_parameter_defaults row:
-original checked CreateAs/empty object/literal default/current-stage count reads
-and original direct Counter/archive/implicit void only. Preserve current member,
-read, creation lifetime and archived-record withholding through the released
-projection. Coordinator reviews this concrete context before implementation;
-there is no external consultation, generic-profile admission or hold release.
+is needed for the remaining two sites. The exact born/discard context is reviewed
+CLEAR at main5c882501. Compiler now retains checked CreateAs/empty object/literal
+defaults, exact root model/CRUD/binding and straight-line Set/current-field Return;
+direct required Counter/archive selects implicit void. Native IR joins exact
+source/target/binding/default/mode and current created receiver identity. The
+unchanged source's actual CLI artifact now captures all10 mutation sites; readBound
+stays ordinary read, and all other operation/source/schema facts remain unchanged.
 
-Coordinator focused defining-contract review CLEAR as a finite implementation decision using existing State/Cloudflare mechanisms, only for the two exact original source sites. Born saved count dependencies require current operation membership, current read authority and the original live creation/parent lifetime. Discard has a genuinely empty void result: existing projection requires current operation/receipt actor/team authority and withholds archived records, but does not require current target read permission or target lifetime survival for that empty result. Do not claim born lifetime rules for discard or expose archived fields. No new runtime carrier or semantic permission decision is needed; Compiler may implement only the checked effect/site and IR correspondence proof with the stated native/refusal controls. This review does not establish implementation, original required saved replay, D1/reopen or full-plan acceptance. All precise source/native/consultation holds and complete checkpoint remain unchanged.
+189 distinct owning/affected assertions pass: analysis31, codegen121, source/IR32,
+native5, zero skips. The new original two-site consumer proves actual owner
+association, default1 then staged2 observations in source order, one net insert
+and creation history/version1, archive/version2, late-require atomic rejection,
+unchanged ordinary/dedicated aged replay, later update frozen2, archive withholding
+and current membership. Nine IR target/binding/default/mode/order controls and
+nonempty/conditional/hard-remove source controls withdraw whole disclosure.
+Final changed strict all-target Clippy0 4.18s,fmt/diff0; unaffected accepted whole,
+corpus/editor/completion and eight-site12 results are reused. Only changed or failed
+owning scopes were retried. The initial Path trivia mismatch and test-only net
+history/raw-CLI serialization assumptions were corrected without a shared repair.
+
+Born projection retains current read and original creation lifetime. Discard's
+empty void retains current operation/receipt actor/team authority and withholds
+archived records; target read/lifetime survival is not an added prerequisite.
+Packages' eight-site real D1/reopen passed via f5d2b6ff/main7b7628f0. Packages owns
+the two original born/discard D1/reopen consumers after this exact artifact release.
+Finite coordinator implementation review is CLEAR and integrated. No further ready unheld
+Compiler edit is identified in the current execution view; named source/current
+policy/ingress/File/cursor/callback/application dependencies and precise human holds
+remain with their existing owners.58/67 and the full-plan checkpoint do not advance.
+
+Coordinator focused analysis and native correspondence reviews CLEAR: exact checked root model, literal defaults, CreateAs binding, straight-line Set/current-field scalar Return and direct required archive/implicit void retain original source, emitted inventory, target, binding, mode and order. Unsupported profiles and skew controls decline whole capture. Original source/model and eight prior descriptors are unchanged; the regenerated artifact adds only born/discard capture and corresponding native module code. Reuse189 distinct owning/affected passes, genuine Memory association/default/net-row/history/version/late atomic rejection/aged replay/current membership/archive withholding, changed Clippy/fmt. No duplicate builds or tests. Discard empty void adds no target read or lifetime-survival gate. This accepts the finite producer/native component; Packages still owns the two original D1/reopen criteria. Full profile/plan acceptance, recipient holds and complete checkpoint remain unchanged.

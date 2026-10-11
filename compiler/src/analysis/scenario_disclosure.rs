@@ -5,8 +5,10 @@
 use std::collections::{HashMap, HashSet};
 
 use super::catalog::{nominal_schema, std_capability, std_operation};
-use super::effects::{Effect, EffectTables, EffectTarget, EffectVerb};
-use super::resolve::{Binding, ContextVar, ResolveTables, ScopedName, SymbolKind, TypeRef};
+use super::effects::{DeleteMode, Effect, EffectTables, EffectTarget, EffectVerb, HandlerSource};
+use super::resolve::{
+    Binding, ContextVar, ModelOwner, ResolveTables, ScopedName, SymbolKind, TypeRef,
+};
 use super::types::{
     CheckedQueryClauseKind, CheckedQueryProjectionField, CheckedQueryProjectionMapping,
     SelectedCallTarget,
@@ -189,8 +191,27 @@ pub struct DisclosureFileInput {
     pub value: NodeKey,
 }
 
+/// Original literal model defaults for the empty, root-model create profile.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisclosureCreateDefault {
+    pub field: SymbolId,
+    pub default: NodeKey,
+    pub value: i128,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisclosureEffectKind {
+    Create {
+        model: SymbolId,
+        crud: SymbolId,
+        binding: String,
+        defaults: Vec<DisclosureCreateDefault>,
+    },
+    Delete {
+        model: SymbolId,
+        crud: SymbolId,
+        receiver: NodeKey,
+    },
     For {
         domain: NodeKey,
         limit: NodeKey,
@@ -687,6 +708,7 @@ enum Local {
     For(NodeKey),
     Send(NodeKey),
     Call(NodeKey),
+    Create(NodeKey),
 }
 type Env = HashMap<Local, ValuePath>;
 
@@ -2970,6 +2992,11 @@ impl<'a> Closure<'a> {
                         .cloned()
                         .map(|p| vec![p])
                         .ok_or_else(|| self.fail(key, "unaccounted immutable binding")),
+                    Some(Binding::CreateAs { node }) => env
+                        .get(&Local::Create(*node))
+                        .cloned()
+                        .map(|value| vec![value])
+                        .ok_or_else(|| self.fail(key, "unaccounted created binding")),
                     Some(Binding::SendAs { node }) => env
                         .get(&Local::Send(*node))
                         .cloned()
@@ -4035,6 +4062,7 @@ impl<'a> Closure<'a> {
         let local = match self.resolve.node_binding.get(&key) {
             Some(Binding::Symbol(id)) => Local::Symbol(*id),
             Some(Binding::Let { node }) => Local::Let(*node),
+            Some(Binding::CreateAs { node }) => Local::Create(*node),
             Some(Binding::ForItem { node }) => Local::For(*node),
             Some(Binding::SendAs { node }) => Local::Send(*node),
             Some(Binding::CallAs { .. }) => {
@@ -4170,6 +4198,225 @@ impl<'a> Closure<'a> {
             self.effect_proofs.push(proof);
         }
         Ok(())
+    }
+
+    /// The original empty constructor uses State-owned literal integer defaults.
+    /// Other model/default/lifetime profiles retain their whole-decline boundary.
+    fn literal_root_model(
+        &self,
+        model: SymbolId,
+        module: ModuleId,
+        anchor: NodeKey,
+    ) -> Result<(SymbolId, Vec<DisclosureCreateDefault>), DisclosureDecline> {
+        let fail = || self.fail(anchor, "root literal integer model profile required");
+        let symbol = self
+            .resolve
+            .symbols
+            .get(model.0 as usize)
+            .ok_or_else(fail)?;
+        let SymbolKind::Model {
+            fields,
+            owner: ModelOwner::Team,
+            crud: Some(crud),
+        } = &symbol.kind
+        else {
+            return Err(fail());
+        };
+        let data = self.effects.models.get(&model).ok_or_else(fail)?;
+        let crud_data = self.effects.cruds.get(crud).ok_or_else(fail)?;
+        if symbol.id != model || symbol.module != module || data.model != model || data.module != module
+            || data.owner != ModelOwner::Team || fields.is_empty() || fields.len() > 200
+            || !fields.iter().copied().eq(data.fields.iter().map(|field| field.field))
+            || !data.invariants.is_empty() || !data.uniques.is_empty() || !data.locks.is_empty()
+            || !data.retains.is_empty() || crud_data.crud != *crud || crud_data.model != model
+            || crud_data.module != module || crud_data.when.is_some()
+            || self.effects.scenarios.values().any(|scenario| {
+                matches!(&scenario.on, Some(HandlerSource::Hook {model: target, ..}) if *target == model)
+            })
+        {
+            return Err(fail());
+        }
+        let mut defaults = Vec::new();
+        for field in &data.fields {
+            let owned = self
+                .resolve
+                .symbols
+                .get(field.field.0 as usize)
+                .ok_or_else(fail)?;
+            if !matches!(owned.kind, SymbolKind::Field {owner, ..} if owner == model)
+                || owned.module != module
+                || field.server.is_some()
+                || field.required_array
+                || !field.modifiers.is_empty()
+                || self.types.symbol_types.get(&field.field)
+                    != Some(&ResolvedType::Scalar(Scalar::Int))
+            {
+                return Err(fail());
+            }
+            let default = field.default.ok_or_else(fail)?;
+            let node = self.nodes.get(&default).ok_or_else(fail)?;
+            if node.kind != SyntaxKind::Literal
+                || self.types.node_types.get(&default) != Some(&ResolvedType::Scalar(Scalar::Int))
+                || default.file != field.node.file
+                || default.start < field.node.start
+                || default.end > field.node.end
+            {
+                return Err(fail());
+            }
+            let integer = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Integer)
+                .ok_or_else(fail)?;
+            let source = self.db.get(default.file).ok_or_else(fail)?;
+            let value = source
+                .text
+                .get(integer.span.start as usize..integer.span.end as usize)
+                .and_then(|text| text.parse::<i128>().ok())
+                .ok_or_else(fail)?;
+            self.source(module, default)?;
+            defaults.push(DisclosureCreateDefault {
+                field: field.field,
+                default,
+                value,
+            });
+        }
+        Ok((*crud, defaults))
+    }
+
+    fn create(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        calls: &[NodeKey],
+    ) -> Result<SymbolId, DisclosureDecline> {
+        let fail = || self.fail(effect.node, "empty bound root create profile required");
+        let node = *self.nodes.get(&effect.node).ok_or_else(fail)?;
+        let Some(EffectTarget::Model(model)) = effect.target else {
+            return Err(fail());
+        };
+        let binding = effect
+            .binding
+            .as_ref()
+            .filter(|name| !name.is_empty())
+            .ok_or_else(fail)?;
+        if node.kind != SyntaxKind::Create
+            || !effect.args.is_empty()
+            || effect.when.is_some()
+            || self.statement_depth != 1
+            || self.loop_node.is_some()
+            || !calls.is_empty()
+            || !node
+                .children
+                .iter()
+                .any(|child| child.kind == SyntaxKind::Object)
+        {
+            return Err(fail());
+        }
+        let (crud, defaults) = self.literal_root_model(model, module, effect.node)?;
+        if !self
+            .effects
+            .cruds
+            .get(&crud)
+            .is_some_and(|data| data.create)
+        {
+            return Err(fail());
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::Create {
+                model,
+                crud,
+                binding: binding.clone(),
+                defaults,
+            },
+        )?;
+        Ok(model)
+    }
+
+    fn delete(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<(), DisclosureDecline> {
+        let refusal = self.fail(effect.node, "direct root archive profile required");
+        let fail = || refusal.clone();
+        let node = *self.nodes.get(&effect.node).ok_or_else(fail)?;
+        let Some(EffectTarget::Record { model: Some(model) }) = effect.target else {
+            return Err(fail());
+        };
+        let receiver = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Path)
+            .ok_or_else(fail)?;
+        let key = NodeKey::of(receiver);
+        let parameter = match self.query_binding(key) {
+            Some(Binding::Symbol(parameter)) => *parameter,
+            _ => return Err(fail()),
+        };
+        let Some(SymbolKind::Param { owner, .. }) = self
+            .resolve
+            .symbols
+            .get(parameter.0 as usize)
+            .map(|symbol| &symbol.kind)
+        else {
+            return Err(fail());
+        };
+        if !self.effects.scenarios.get(owner).is_some_and(|scenario| {
+            scenario
+                .params
+                .iter()
+                .any(|input| input.param == parameter && input.default.is_none())
+        }) {
+            return Err(fail());
+        }
+        if node.kind != SyntaxKind::Delete
+            || self.statement_depth != 1
+            || self.loop_node.is_some()
+            || !calls.is_empty()
+            || effect.when.is_some()
+            || !effect.args.is_empty()
+            || !matches!(
+                self.resolve
+                    .symbols
+                    .get(parameter.0 as usize)
+                    .map(|symbol| &symbol.kind),
+                Some(SymbolKind::Param { .. })
+            )
+            || self.types.symbol_types.get(&parameter)
+                != Some(&ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })
+            || self.expr(key, module, env, calls)?.iter().any(|value| {
+                value.record != Some(model)
+                    || !matches!(value.reference_origin, Some(ReferenceOrigin::Parameter(original)) if original == parameter)
+            })
+        {
+            return Err(fail());
+        }
+        let (crud, _) = self.literal_root_model(model, module, effect.node)?;
+        if !self
+            .effects
+            .cruds
+            .get(&crud)
+            .is_some_and(|data| data.delete && data.delete_mode == DeleteMode::Archive)
+        {
+            return Err(fail());
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::Delete {
+                model,
+                crud,
+                receiver: key,
+            },
+        )
     }
 
     fn set(
@@ -5354,6 +5601,66 @@ impl<'a> Closure<'a> {
         mut flows: Vec<Flow>,
         calls: &[NodeKey],
     ) -> Result<(Vec<Flow>, Vec<DisclosureReturn>), DisclosureDecline> {
+        if let Some(created) = effects
+            .iter()
+            .find(|effect| effect.verb == EffectVerb::Create)
+        {
+            // Keep this admission tied to the original straight-line created
+            // row workflow. Existing late requirements may reject both stages.
+            let fail = || {
+                self.fail(
+                    created.node,
+                    "create then set/current-field return profile required",
+                )
+            };
+            let Some(set) = effects.get(1) else {
+                return Err(fail());
+            };
+            let Some(returned) = effects.last() else {
+                return Err(fail());
+            };
+            if effects.first().map(|effect| effect.node) != Some(created.node)
+                || effects.len() < 3
+                || set.verb != EffectVerb::Set
+                || returned.verb != EffectVerb::Return
+                || effects[2..effects.len() - 1]
+                    .iter()
+                    .any(|effect| effect.verb != EffectVerb::Require)
+                || effects.iter().any(|effect| {
+                    !effect.then_effects.is_empty()
+                        || !effect.else_effects.is_empty()
+                        || !effect.match_arms.is_empty()
+                })
+            {
+                return Err(fail());
+            }
+            let receiver = self
+                .nodes
+                .get(&set.node)
+                .and_then(|node| {
+                    node.children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Path)
+                })
+                .ok_or_else(fail)?;
+            let value = returned
+                .value
+                .and_then(|key| self.nodes.get(&key))
+                .ok_or_else(fail)?;
+            let base = value
+                .children
+                .iter()
+                .find(|child| expression(child.kind))
+                .ok_or_else(fail)?;
+            if value.kind != SyntaxKind::Member
+                || !matches!(self.query_binding(NodeKey::of(receiver)), Some(Binding::CreateAs {node}) if *node == created.node)
+                || !matches!(self.query_binding(NodeKey::of(base)), Some(Binding::CreateAs {node}) if *node == created.node)
+                || self.types.node_types.get(&NodeKey::of(value))
+                    != Some(&ResolvedType::Scalar(Scalar::Int))
+            {
+                return Err(fail());
+            }
+        }
         let mut returns = Vec::new();
         for effect in effects {
             self.steps += 1;
@@ -5363,6 +5670,42 @@ impl<'a> Closure<'a> {
             let mut next = Vec::new();
             for flow in flows {
                 match effect.verb {
+                    EffectVerb::Create => {
+                        let model = self.create(effect, module, calls)?;
+                        self.effect_visits += 1;
+                        let mut path = flow;
+                        path.executed_effect = true;
+                        path.writes.join(&path.effect_guards);
+                        path.writes.join(&path.controls);
+                        path.env.insert(
+                            Local::Create(effect.node),
+                            ValuePath {
+                                record: Some(model),
+                                ..ValuePath::default()
+                            },
+                        );
+                        if path.env.len() > 256 {
+                            return Err(self.fail(effect.node, "binding closure bound"));
+                        }
+                        next.push(path);
+                    }
+                    EffectVerb::Delete => {
+                        // Only the original terminal archive with implicit void;
+                        // no post-delete read or scalar disclosure is introduced.
+                        if effects.len() != 1 || !returns.is_empty() {
+                            return Err(self.fail(
+                                effect.node,
+                                "terminal implicit-void archive profile required",
+                            ));
+                        }
+                        self.delete(effect, module, &flow.env, calls)?;
+                        self.effect_visits += 1;
+                        let mut path = flow;
+                        path.executed_effect = true;
+                        path.writes.join(&path.effect_guards);
+                        path.writes.join(&path.controls);
+                        next.push(path);
+                    }
                     EffectVerb::Let => {
                         let value = effect.value.ok_or_else(|| {
                             self.fail(effect.node, "missing immutable initializer")
