@@ -1649,6 +1649,7 @@ impl StandardValueCensus {
             required_array: false,
             flags: Vec::new(),
             names: Vec::new(),
+            event_field: None,
         };
         fn declared(row: &mut EmptyValueItem, ty: &IrType) {
             // Preserve both declared presence and whether analysis supplied it.
@@ -1912,6 +1913,103 @@ struct EmptyValueItem {
     required_array: bool,
     flags: Vec<bool>,
     names: Vec<String>,
+    event_field: Option<EmptyEventField>,
+}
+
+/// Retain the actual event schema facts beside its existing declaration census.
+/// This is metadata correspondence; it does not admit or execute an event.
+#[derive(Debug, Clone, PartialEq)]
+struct EmptyEventField {
+    default: Option<EmptyEventLiteral>,
+    trim: bool,
+    min: Option<EmptyEventLiteral>,
+    max: Option<EmptyEventLiteral>,
+    unique: bool,
+    machine: bool,
+    label: Option<(EmptyEventMessage, Vec<(String, EmptyEventMessage)>)>,
+    description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EmptyEventMessage {
+    source: String,
+    source_lang: String,
+    variants: Vec<(String, Option<String>)>,
+    params: Vec<(String, String, EmptyEventLiteral)>,
+}
+
+impl EmptyEventMessage {
+    fn capture(message: &IrMessage) -> Option<Self> {
+        Some(Self {
+            source: message.source.clone(),
+            source_lang: message.source_lang.clone(),
+            variants: message.variants.clone(),
+            params: message
+                .params
+                .iter()
+                .map(|param| {
+                    Some((
+                        param.name.clone(),
+                        param.type_id.clone(),
+                        EmptyEventLiteral::capture(&param.value)?,
+                    ))
+                })
+                .collect::<Option<_>>()?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EmptyEventLiteral {
+    ty: ResolvedType,
+    span: Span,
+    value: EmptyEventValue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum EmptyEventValue {
+    Int(i128),
+    Decimal(String),
+    Text(String),
+    Bool(bool),
+    Null,
+    Money(i128, String),
+    Duration(i128),
+    Date(String),
+    Datetime(String),
+    Array(Vec<EmptyEventLiteral>),
+    Object(Vec<(String, EmptyEventLiteral)>),
+}
+
+impl EmptyEventLiteral {
+    fn capture(expr: &TypedExpr) -> Option<Self> {
+        let value = match &expr.expr {
+            IrExpr::Int(value) => EmptyEventValue::Int(*value),
+            IrExpr::Decimal(value) => EmptyEventValue::Decimal(value.clone()),
+            IrExpr::Text(value) => EmptyEventValue::Text(value.clone()),
+            IrExpr::Bool(value) => EmptyEventValue::Bool(*value),
+            IrExpr::Null => EmptyEventValue::Null,
+            IrExpr::Money { minor, currency } => EmptyEventValue::Money(*minor, currency.clone()),
+            IrExpr::DurationMs(value) => EmptyEventValue::Duration(*value),
+            IrExpr::Date(value) => EmptyEventValue::Date(value.clone()),
+            IrExpr::Datetime(value) => EmptyEventValue::Datetime(value.clone()),
+            IrExpr::Array(values) => {
+                EmptyEventValue::Array(values.iter().map(Self::capture).collect::<Option<_>>()?)
+            }
+            IrExpr::Object(values) => EmptyEventValue::Object(
+                values
+                    .iter()
+                    .map(|(name, value)| Some((name.clone(), Self::capture(value)?)))
+                    .collect::<Option<_>>()?,
+            ),
+            _ => return None,
+        };
+        Some(Self {
+            ty: expr.ty.clone(),
+            span: expr.span,
+            value,
+        })
+    }
 }
 
 impl CheckedEmptyValueInventory {
@@ -1974,6 +2072,7 @@ impl CheckedEmptyValueInventory {
                 required_array: false,
                 flags: Vec::new(),
                 names: Vec::new(),
+                event_field: None,
             };
             match &item.kind {
                 IrItemKind::Contract { .. }
@@ -1981,8 +2080,22 @@ impl CheckedEmptyValueInventory {
                 | IrItemKind::JudgmentGenerated(_)
                 | IrItemKind::Capability { .. }
                 | IrItemKind::CapabilityOp { .. }
-                | IrItemKind::Event { .. }
                 | IrItemKind::Preferences { .. } => return None,
+                IrItemKind::Event { fields } => {
+                    row.links = fields.clone();
+                    let mut seen = HashSet::new();
+                    for id in fields {
+                        let field = ir.items.get(id.0 as usize)?;
+                        if field.id != *id
+                            || field.module != item.module
+                            || !seen.insert(id)
+                            || field.canonical != format!("{}.{}", item.canonical, field.name)
+                            || !matches!(field.kind,IrItemKind::Field { owner, .. } if owner == item.id)
+                        {
+                            return None;
+                        }
+                    }
+                }
                 IrItemKind::Model {
                     fields,
                     owner,
@@ -2007,11 +2120,63 @@ impl CheckedEmptyValueInventory {
                     owner,
                     ty,
                     required_array,
+                    default,
+                    server,
+                    modifiers,
+                    label,
+                    description,
                     ..
                 } => {
                     row.links.push(*owner);
                     row.types.push(known(ty)?);
                     row.required_array = *required_array;
+                    if matches!(
+                        ir.items.get(owner.0 as usize)?.kind,
+                        IrItemKind::Event { .. }
+                    ) {
+                        if server.is_some() {
+                            return None;
+                        }
+                        let literal =
+                            |value: &Option<TypedExpr>| -> Option<Option<EmptyEventLiteral>> {
+                                match value {
+                                    None => Some(None),
+                                    Some(value) => Some(Some(EmptyEventLiteral::capture(value)?)),
+                                }
+                            };
+                        let default = match default {
+                            None => None,
+                            Some(IrDefault::Literal(value)) => {
+                                Some(EmptyEventLiteral::capture(value)?)
+                            }
+                            _ => return None,
+                        };
+                        row.event_field = Some(EmptyEventField {
+                            default,
+                            trim: modifiers.trim,
+                            min: literal(&modifiers.min)?,
+                            max: literal(&modifiers.max)?,
+                            unique: modifiers.unique,
+                            machine: modifiers.machine,
+                            label: match label {
+                                None => None,
+                                Some(label) => Some((
+                                    EmptyEventMessage::capture(&label.text)?,
+                                    label
+                                        .values
+                                        .iter()
+                                        .map(|(name, message)| {
+                                            Some((
+                                                name.clone(),
+                                                EmptyEventMessage::capture(message)?,
+                                            ))
+                                        })
+                                        .collect::<Option<_>>()?,
+                                )),
+                            },
+                            description: description.clone(),
+                        });
+                    }
                 }
                 IrItemKind::Param {
                     owner, index, ty, ..
@@ -3663,22 +3828,43 @@ impl<'a> Cx<'a> {
                     handlers,
                 });
         }
-        fn empty_schema_source(node: &SyntaxNode) -> bool {
+        fn empty_schema_source<'n>(node: &'n SyntaxNode, events: &mut Vec<&'n SyntaxNode>) -> bool {
+            if node.kind == SyntaxKind::Event {
+                events.push(node);
+            }
             !matches!(
                 node.kind,
                 SyntaxKind::Import
                     | SyntaxKind::Contract
                     | SyntaxKind::Judgment
                     | SyntaxKind::Capability
-                    | SyntaxKind::Event
                     | SyntaxKind::Preferences
                     | SyntaxKind::Error
                     | SyntaxKind::BadToken
-            ) && node.children.iter().all(empty_schema_source)
+            ) && node
+                .children
+                .iter()
+                .all(|child| empty_schema_source(child, events))
         }
-        if self.diags.is_empty()
-            && !self.trees.is_empty()
-            && self.trees.iter().all(|(_, tree)| empty_schema_source(tree))
+        let mut source_events = Vec::new();
+        let empty_source = !self.trees.is_empty()
+            && self
+                .trees
+                .iter()
+                .all(|(_, tree)| empty_schema_source(tree, &mut source_events));
+        let events_match = self.empty_inventory_events_match_source(&program, &source_events);
+        if self.diags.is_empty() && empty_source && !events_match {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "complete empty value inventory requires the original checked event fields"
+                    .to_string(),
+                source_events
+                    .first()
+                    .map_or(self.trees[0].1.span, |node| node.span),
+            ));
+        } else if self.diags.is_empty()
+            && empty_source
+            && events_match
             && let Some((modules, items)) = CheckedEmptyValueInventory::census(&program)
         {
             program.committed_sources.empty_value_inventory = Some(CheckedEmptyValueInventory {
@@ -3694,6 +3880,119 @@ impl<'a> Cx<'a> {
             });
         }
         (program, std::mem::take(&mut self.diags))
+    }
+
+    /// Match every original event and ordered field before allowing that
+    /// declaration in the existing complete-empty contract census.
+    fn empty_inventory_events_match_source(&self, ir: &IrProgram, nodes: &[&SyntaxNode]) -> bool {
+        if ir
+            .items
+            .iter()
+            .filter(|item| matches!(item.kind, IrItemKind::Event { .. }))
+            .count()
+            != nodes.len()
+        {
+            return false;
+        }
+        let mut seen = HashSet::new();
+        for node in nodes {
+            let matches: Vec<_> = self
+                .program
+                .effects
+                .records
+                .values()
+                .filter(|record| record.node == NodeKey::of(node))
+                .collect();
+            let [record] = matches.as_slice() else {
+                return false;
+            };
+            if !self.program.effects.event_fields_match_checked(record) {
+                return false;
+            }
+            let Some(item) = ir.items.get(record.record.0 as usize) else {
+                return false;
+            };
+            let IrItemKind::Event { fields } = &item.kind else {
+                return false;
+            };
+            let Some(module) = ir.modules.get(item.module.0 as usize) else {
+                return false;
+            };
+            let name = kids(node).into_iter().find_map(|part| {
+                name_text(self.db, part)
+                    .filter(|name| !matches!(name.as_str(), "export" | "event"))
+                    .map(|name| (name, part.span))
+            });
+            if item.id != record.record
+                || item.module != record.module
+                || module.id != item.module
+                || module.file != node.span.file
+                || !seen.insert(item.id)
+                || name.as_ref() != Some(&(item.name.clone(), item.span))
+                || item.canonical != format!("{}.{}", module.name, item.name)
+                || fields
+                    != &record
+                        .fields
+                        .iter()
+                        .map(|field| field.field)
+                        .collect::<Vec<_>>()
+            {
+                return false;
+            }
+            let source_fields: Vec<_> = node
+                .children
+                .iter()
+                .filter(|node| node.kind == SyntaxKind::Field)
+                .collect();
+            if source_fields.len() != fields.len() {
+                return false;
+            }
+            for ((source, data), id) in source_fields.iter().zip(&record.fields).zip(fields) {
+                let Some(field) = ir.items.get(id.0 as usize) else {
+                    return false;
+                };
+                let Some(symbol) = self.program.symbols.get(id.0 as usize) else {
+                    return false;
+                };
+                let (
+                    IrItemKind::Field {
+                        owner,
+                        ty: IrType::Known(ty),
+                        ..
+                    },
+                    SymbolKind::Field {
+                        owner: checked_owner,
+                        type_node,
+                    },
+                ) = (&field.kind, &symbol.kind)
+                else {
+                    return false;
+                };
+                let name = kids(source)
+                    .into_iter()
+                    .find_map(|part| name_text(self.db, part).map(|name| (name, part.span)));
+                if field.id != *id
+                    || symbol.id != *id
+                    || *owner != item.id
+                    || *checked_owner != item.id
+                    || field.module != item.module
+                    || symbol.module != item.module
+                    || field.canonical != format!("{}.{}", item.canonical, field.name)
+                    || name.as_ref() != Some(&(field.name.clone(), field.span))
+                    || data.node != NodeKey::of(source)
+                    || data.field != *id
+                    || data.type_node != *type_node
+                    || type_node.file != source.span.file
+                    || type_node.start < source.span.start
+                    || type_node.end > source.span.end
+                    || self.node(type_node).is_none()
+                    || self.program.types.symbol_types.get(id) != Some(ty)
+                {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     /// Copy modules, decoding pages and descriptions (G9).
