@@ -9502,3 +9502,13 @@ Reuse the coordinator's once-completed three independently worded Choice request
 ```
 
 Coordinator finite cursor codec/adapter source review CLEAR and LOCAL main integration complete. Recorded changed checks are reused; genuine paired native pagination remains unfinished. No whole-plan count or complete file-tree checkpoint is advanced.
+
+## 2026-10-11 — Own the finite Office ambiguity design locally
+
+**Selected proposal; eligibility and live acceptance unfinished:** pursue one read-only list/table construct-card witness in the existing Office profile, with identical owning query/member read policy/model/operations and explicit intent for separate columns. Both complete current source variants compile; table row children require its existing `display=split` profile and `columns`, while list retains its own header. No keyword-only source repair is required by A5 and no source is edited automatically. Preserve the frozen Office source, six structural drafts and unsafe/deterministic abstentions.
+
+Dev's inferred source-owner/human design release was not an original Dev-specific instruction and is removed as a local design barrier. Compiler must still produce the real unknown collection-presentation head diagnostic, exact span, known slot, complete inventory and profile exclusions; the current proposed source reports only unresolved `row` references and cannot activate ranking. Global board/gallery/calendar alternatives cannot be silently omitted. Actual execution/publication restrictions and previously rejected T11 project-packet transmissions remain separate, precise holds.
+
+Three once-completed exact human-authorized JEV Choice requests favor this conditional design A/A/A, confidence .94/.91/.88, with full responses/uncertainty in the [existing ranking assessment](../../design/jev/can-dev-ranking-20261009/assessment.md#office-witness-design-2026-10-11). They advise the next design step, not eligibility or acceptance. The [existing ranking design](../../design/can-dev-jev-ranking.md#finite-office-ambiguity-design-2026-10-11) retains the exact proposed source and valid full alternatives. Reuse qualified Office/card scopes until the genuine branch changes their consumed inputs; T04/T11/G2–G3 remain unfinished.
+
+Coordinator finite proposal-stage review CLEAR: the valid full variants and current E2001 limitation are retained without inventing eligibility; complete real candidate/profile classification and live qualification remain unfinished. Exact next Compiler prerequisite is released after its current coherent callback producer. No accepted card result, full-plan count or complete checkpoint is advanced.
