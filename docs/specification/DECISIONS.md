@@ -11403,3 +11403,21 @@ Coordinator original source/trigger and independent finite scope reviews CLEAR. 
 The existing query dependency field/type carries a direct parent read when its required singular native model equals ArtifactModel.parent and no business field or app scope shadows containment. Track the actual owner-row top-level parent with the existing active predicate getter/immediate marker; retain its canonical {id} model wire through the original candidate association. Visible source row and complete ancestor authority own this linkage, without a parent business-field grant. Reuse final effects, current Identity and saved-lifetime checks. Ordinary data, ordering and accepted first/count behavior retain their existing scope. The separately demonstrated contained-domain/empty-result gap needs a checked selector and retained owning parent witness from Packages; the suggested additive shape is a defining-owner proposal, not an accepted shared contract. Compiler still owns exact original one-/two-hop occurrences and Dev owns private parent-row native binding.
 
 Coordinator independent defining source review CLEAR; finite direct query parent metadata integrated locally after deadline. Reuse owning63 outcomes, actual changed main State/DO/CF/root0. No business-field shadow or parent ordering/grant invented, original saved linkage/current authority retained. Parent selector/empty witness and genuine source/native consumers remain separately owned ready outputs; accepted first/count remain retired. Complete checkpoint/full-plan counts and exact holds unchanged.
+
+2026-10-11 — original ordered first query and narrowed receiver correspondence
+(implemented/tested bounded producer; original native execution unfinished).
+Keep the original first(Allowance/Budget as row where row.account==actor order=row.id)
+call, selected overload/slots, Let and full candidate domain. Reserved id order
+is query influence, not a fabricated stored field. Publish the receiver type
+already proved by the original narrowing environment at that exact occurrence,
+so private source census and IR agree without a consumer waiver. Join account
+control and all four query influences to every original checked Return path of
+the same created Run while retaining its actual effects and selected-row reads.
+Emit one awaited firstQuery(c, originalIssuedQueryResult) using the released
+native facade; generic array first remains pure.412 affected and strict0 pass,
+including actual CLI/verified factory/installed State and same-span refusals.
+Genuine row issuance, mutation, final authority, rollback/replay and full original
+application remain Dev-owned. Original contained/ancestor counts require U17
+parent scope from Capability/Dev; no business-field substitution.
+
+Coordinator independent defining analysis/type/source-admission and codegen/source-seal reviews CLEAR, finite original first-query source in LOCAL main after deadline. Owning412 and actualCLI/installedState1.13s/strict0/fmt reused; actual main locked offline CLI build passes. Eleven defining Compiler source/test/fixture paths imported; duplicate Statea7 and unrelated stopped alternate setup supplier excluded. Current State/native facade remains intact. Dev original private selected-row/current authority/rollback/replay execution and whole apps remain unfinished; all precise holds and complete checkpoint unchanged. Existing U17 view reconciled with accepted direct metadata and exact missing parent selector/witness.

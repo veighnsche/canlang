@@ -1420,7 +1420,9 @@ fn collect_owner(
                     }
                     Some(ty) if query.is_some() => {
                         let query = query?;
-                        let contract = ir.items.get(query.projection.contract.0 as usize)?;
+                        let contract = ir
+                            .items
+                            .get(query.projection.as_ref()?.contract.0 as usize)?;
                         if descriptor.result.as_deref()
                             != Some(format!("{}[]", contract.canonical).as_str())
                         {
@@ -1706,7 +1708,12 @@ pub(super) fn complete_read_query_child<'a>(
     let scan_source = scan.source.as_deref()?;
     let select_source = select.source.as_deref()?;
     let projection = select_source.projection.as_deref()?;
-    let contract = ir.items.get(query.projection.contract.0 as usize)?;
+    let source_projection = query.projection.as_ref()?;
+    let cardinality_guard = query.cardinality_guard?;
+    if query.first.is_some() {
+        return None;
+    }
+    let contract = ir.items.get(source_projection.contract.0 as usize)?;
     if checked.scenario != child.id
         || source.scenario != child.id
         || !source.read
@@ -1716,16 +1723,16 @@ pub(super) fn complete_read_query_child<'a>(
         || !source.calls.is_empty()
         || !checked.effects.is_empty()
         || query.source != source.source
-        || query.projection.source != source.source
-        || query.model != query.projection.model
+        || source_projection.source != source.source
+        || query.model != source_projection.model
         || query.node != scan_source.node
         || query.domain != scan_source.domain
-        || query.projection.node != select_source.node
-        || projection.contract != query.projection.contract
+        || source_projection.node != select_source.node
+        || projection.contract != source_projection.contract
         || projection.model != query.model
-        || projection.alias != query.projection.alias
-        || projection.fields != query.projection.fields
-        || contract.id != query.projection.contract
+        || projection.alias != source_projection.alias
+        || projection.fields != source_projection.fields
+        || contract.id != source_projection.contract
         || !matches!(contract.kind, IrItemKind::Contract { .. })
         || !matches!(result, Some(ResolvedType::Array { element, ordered: true, nonempty: false })
             if matches!(element.as_ref(), ResolvedType::Record {symbol, ..} if *symbol == contract.id))
@@ -1750,9 +1757,9 @@ pub(super) fn complete_read_query_child<'a>(
         || select.contract_collection_call.is_some()
         || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(name) if name == &query.model_name)
         || !matches!(&select.domain, super::ir::IrQueryDomain::Value { .. })
-        || query.cardinality_guard.file != guard.file
-        || query.cardinality_guard.start != guard.start
-        || query.cardinality_guard.end != guard.end
+        || cardinality_guard.file != guard.file
+        || cardinality_guard.start != guard.start
+        || cardinality_guard.end != guard.end
         || query.return_node.file != returned_span.file
         || query.return_node.start != returned_span.start
         || query.return_node.end != returned_span.end
@@ -1834,7 +1841,7 @@ fn match_query_disclosure(
         "field": dep.field_name, "type": dep.type_id
     })).collect::<Vec<_>>();
     let mut fields = Vec::new();
-    for mapped in &query.projection.fields {
+    for mapped in &query.projection.as_ref()?.fields {
         let field = ir.items.get(mapped.field.0 as usize)?;
         let mut value = serde_json::json!({"name": field.name, "kind": match mapped.mapping {
             CheckedQueryProjectionMapping::StoredReference => "reference",

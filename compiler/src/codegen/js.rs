@@ -1656,9 +1656,14 @@ fn emit_program_with_sources(
                 item,
                 &models,
                 &module_path(&entry_name),
-                db,
                 emitter.value_types.as_ref(),
-                emitter.send_guards,
+                super::scenario_receipts::NativeReceiptSources {
+                    db,
+                    send_guards: emitter.send_guards,
+                    query_plan: query_receipts
+                        .and_then(|recipes| recipes.get(&item.canonical))
+                        .map(|recipe| &recipe.plan),
+                },
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
             } else if super::scenario_receipts::has_original_guarded_send(
@@ -1692,7 +1697,14 @@ fn emit_program_with_sources(
         }
         if let Some(query_receipts) = query_receipts {
             for item in &ir.items {
-                if let Some(recipe) = query_receipts.get(&item.canonical) {
+                if let Some(recipe) = query_receipts.get(&item.canonical)
+                    && ir
+                        .scenario_disclosures
+                        .get(&item.id)
+                        .and_then(|fact| fact.source_facts())
+                        .and_then(|source| source.queries.as_ref())
+                        .is_some_and(|queries| queries.iter().all(|query| query.first.is_none()))
+                {
                     emitter.native_receipts.insert(item.id, recipe.clone());
                     emitter.prepared_query_receipts.insert(item.id);
                 }
@@ -4210,12 +4222,12 @@ impl<'a> Emitter<'a> {
                     member
                 }
             }
-            IrExpr::Call { target, args } => self.lower_call(target, args, span),
+            IrExpr::Call { target, args } => self.lower_call(target, args, span, &expr.ty),
             IrExpr::BoundCall {
                 target,
                 args,
                 slots,
-            } => self.lower_bound_call(target, args, slots, span),
+            } => self.lower_bound_call(target, args, slots, span, &expr.ty),
             IrExpr::Binary { .. } => self.lower_binary_tree(expr),
             IrExpr::Unary { op, operand } => self.lower_unary(*op, operand, span),
             IrExpr::Array(items) => {
@@ -4459,12 +4471,95 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Only a fresh-source prepared owning receipt can specialize first. The
+    /// original issued query object goes directly to the native frame; generic
+    /// first(array) remains the ordinary pure builtin.
+    fn native_first_query(
+        &self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        slots: Option<&[Option<usize>]>,
+        at: Span,
+        result: &ResolvedType,
+    ) -> bool {
+        let Some(source) = self.query_capture.as_ref() else {
+            return false;
+        };
+        let Some(first) = source.query.first.as_ref() else {
+            return false;
+        };
+        let [domain] = args else {
+            return false;
+        };
+        let IrExpr::Query(query) = &domain.expr else {
+            return false;
+        };
+        let Some(fact) = query.source.as_deref() else {
+            return false;
+        };
+        let Some(collection) = query.collection_call.as_deref() else {
+            return false;
+        };
+        let row = ResolvedType::Record {
+            symbol: source.query.model,
+            stored: true,
+        };
+        let array = ResolvedType::Array {
+            element: Box::new(row.clone()),
+            ordered: true,
+            nonempty: false,
+        };
+        first.call.file == at.file
+            && first.call.start == at.start
+            && first.call.end == at.end
+            && matches!(target,IrCallTarget::Builtin {id,awaited:false}
+                if id=="first")
+            && slots.is_none_or(|slots| slots == [Some(0)])
+            && *result == ResolvedType::Nullable(Box::new(row))
+            && domain.ty == array
+            && fact.node == source.query.node
+            && fact.domain == source.query.domain
+            && fact.result == array
+            && collection.node == first.call
+            && collection.query == source.query.node
+            && collection.alias == source.query.alias
+            && collection.model == source.query.model
+            && collection.builtin == "first"
+            && collection.overload == first.overload
+            && collection.predicate.is_none()
+            && source.query.projection.is_none()
+            && source.query.cardinality_guard.is_none()
+            && fact.projection.is_none()
+            && query.contract_collection_call.is_none()
+            && query.parent.is_none()
+            && query.select.is_none()
+            && query.select_param.is_none()
+            && query.limit.is_none()
+            && query.archived.is_none()
+            && !query.where_async
+            && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.query.model_name)
+            && query.order.len() == 1
+            && query.order[0].field == "id"
+            && !query.order[0].descending
+    }
+
     /// Lower a call: catalog builtins import from `@canlang/stdlib`
     /// (availability-checked at link time); capability operations import
     /// from their owning package module as `await op(c, ...)`.
-    fn lower_call(&mut self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> String {
+    fn lower_call(
+        &mut self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        span: Span,
+        result: &ResolvedType,
+    ) -> String {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
+        }
+        if self.native_first_query(target, args, None, span, result) {
+            self.stdlib.insert("firstQuery".into());
+            let query = self.lower_expr(&args[0]);
+            return format!("await firstQuery(c,{query})");
         }
         let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         self.lower_call_rendered(target, &parts, args.first().map(|arg| &arg.ty), span, true)
@@ -4478,10 +4573,12 @@ impl<'a> Emitter<'a> {
         args: &[TypedExpr],
         slots: &[Option<usize>],
         span: Span,
+        result: &ResolvedType,
     ) -> String {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
+        let native_first = self.native_first_query(target, args, Some(slots), span, result);
         let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         let capture = binding_ident("a", &self.binding_seq.to_string());
         self.binding_seq += 1;
@@ -4498,13 +4595,19 @@ impl<'a> Emitter<'a> {
             .flatten()
             .and_then(|index| args.get(index))
             .map(|arg| &arg.ty);
-        let call = self.lower_call_rendered(target, &ordered, domain_type, span, false);
-        let awaited = matches!(
-            target,
-            IrCallTarget::Builtin { awaited: true, .. }
-                | IrCallTarget::DeriveFn(_)
-                | IrCallTarget::CapabilityOp(_)
-        );
+        let call = if native_first {
+            self.stdlib.insert("firstQuery".into());
+            format!("firstQuery(c,{})", ordered[0])
+        } else {
+            self.lower_call_rendered(target, &ordered, domain_type, span, false)
+        };
+        let awaited = native_first
+            || matches!(
+                target,
+                IrCallTarget::Builtin { awaited: true, .. }
+                    | IrCallTarget::DeriveFn(_)
+                    | IrCallTarget::CapabilityOp(_)
+            );
         format!(
             "{}(({capture})=>{call})([{}])",
             if awaited { "await " } else { "" },
@@ -5439,7 +5542,12 @@ impl<'a> Emitter<'a> {
                     js_string(&source.query.id)
                 );
             }
-            if fact.node == source.query.projection.node {
+            if source
+                .query
+                .projection
+                .as_ref()
+                .is_some_and(|projection| fact.node == projection.node)
+            {
                 let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain else {
                     unreachable!("checked source local projection domain");
                 };

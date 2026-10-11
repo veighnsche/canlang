@@ -1,0 +1,21 @@
+app FirstSources
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Budget { account:user unique, cap:int min=1, parallel:int=2 min=1 max=10, spent:int=0 min=0, held:int=0 min=0, running:int=0 min=0 max=10, active:bool=true }
+ Run {budget:Budget,request:delivery(Mail.send)?}
+ policy Budget read=members and row.account==actor
+ policy Run read=members fields=budget,request.status
+ invariant Budget: row.spent+row.held<=row.cap and row.running<=row.parallel
+ lock Budget fields=account
+When
+ scenario generate(enabled:bool,accept:bool) by=members -> Run
+  do
+   let budget=first(Budget as row where row.account==actor order=row.id)
+   require budget!=null and budget.active and budget.running<budget.parallel and budget.spent+budget.held+1<=budget.cap
+   create Run {budget} as run
+   set budget {held=budget.held+1,running=budget.running+1}
+   send Mail.send {to="recipient@example.test",subject="Source first",body="Original ordered selection"} when=enabled as request
+   set run {request}
+   require accept
+   return run
+Then

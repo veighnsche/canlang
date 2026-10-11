@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use crate::analysis::scenario_disclosure::{
     DependencyRole, DisclosureChoice, DisclosureEffectKind, DisclosureIntrinsicKind,
-    DisclosureModelResult, DisclosureSource, ScenarioDisclosure,
+    DisclosureModelResult, DisclosureSource, InfluenceKind, ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
@@ -33,6 +33,14 @@ pub(super) struct ReceiptDisclosurePlan {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
+}
+
+/// Original source and the independently prepared guards/query plan consumed
+/// together by the native receipt matcher. This is private compiler input.
+pub(super) struct NativeReceiptSources<'a> {
+    pub db: Option<&'a SourceDb>,
+    pub send_guards: Option<&'a HashMap<Span, PreparedSendGuard>>,
+    pub query_plan: Option<&'a ReceiptDisclosurePlan>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -412,10 +420,14 @@ pub(super) fn collect_native_scenario_receipt(
     item: &IrItem,
     models: &[JsModel],
     entry_module: &str,
-    db: Option<&SourceDb>,
     value_types: Option<&JsValueTypes>,
-    send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
+    sources: NativeReceiptSources<'_>,
 ) -> Option<NativeScenarioReceipt> {
+    let NativeReceiptSources {
+        db,
+        send_guards,
+        query_plan,
+    } = sources;
     let IrItemKind::Scenario {
         trusted: false,
         event_source: None,
@@ -424,8 +436,6 @@ pub(super) fn collect_native_scenario_receipt(
         result,
         read: false,
         expose_excluded: false,
-        by,
-        guards,
         effects,
         params,
         ..
@@ -477,13 +487,15 @@ pub(super) fn collect_native_scenario_receipt(
     if has_original_images_source(ir, item.id) {
         checked_images_source(ir, item, db?)?;
     }
-    let sites = Sites::collect(ir, item, params, by, guards, effects, send_guards)?;
+    let first_plan =
+        checked_native_first_query_plan(ir, item, checked, query_plan, entry_module, db)?;
+    let sites = Sites::collect(ir, item, send_guards, db)?;
     match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
             source,
-            queries: Vec::new(),
+            queries: first_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
@@ -506,9 +518,9 @@ pub(super) fn collect_native_scenario_receipt(
         HashMap::<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>::new();
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
-    let mut data_nodes: usize = 7;
+    let mut data_nodes: usize = if first_plan.is_some() { 38 } else { 7 };
     for returned in &checked.returns {
-        if !returned.influences.is_empty()
+        if (first_plan.is_none() && !returned.influences.is_empty())
             || returned.node.file != checked.node.file
             || returned.id.is_empty()
             || !return_ids.insert(returned.id.clone())
@@ -523,8 +535,11 @@ pub(super) fn collect_native_scenario_receipt(
         {
             return None;
         }
-        data_nodes = data_nodes
-            .checked_add(9 + 10 * returned.dependencies.len() + 16 * returned.intrinsics.len())?;
+        data_nodes = data_nodes.checked_add(
+            9 + 5 * returned.influences.len()
+                + 10 * returned.dependencies.len()
+                + 16 * returned.intrinsics.len(),
+        )?;
         if data_nodes > 20_000 {
             return None;
         }
@@ -579,7 +594,12 @@ pub(super) fn collect_native_scenario_receipt(
         let mut plan_return = ReceiptReturn {
             id: returned.id.clone(),
             source: transport_source(&returned.source, entry_module)?,
-            influences: Vec::new(),
+            influences: first_plan.map_or_else(Vec::new, |plan| {
+                plan.returns
+                    .iter()
+                    .find(|candidate| candidate.id == returned.id)
+                    .map_or_else(Vec::new, |candidate| candidate.influences.clone())
+            }),
             dependencies: Vec::new(),
             intrinsics: Vec::new(),
             projection: None,
@@ -794,6 +814,18 @@ pub(super) fn collect_native_scenario_receipt(
                     if parent.id != dependency.model {
                         return None;
                     }
+                } else if checked
+                    .source_facts
+                    .as_deref()
+                    .and_then(|facts| facts.queries.as_deref())
+                    .is_some_and(|queries| {
+                        queries
+                            .iter()
+                            .any(|query| query.first.is_some() && query.model == dependency.model)
+                    })
+                    && checked_first_query_row(ir, item, base, db?)?.id != dependency.model
+                {
+                    return None;
                 }
                 let reference_type = reference_operand_type_id(ir, ty);
                 if let Some(reference_type) = reference_type {
@@ -1149,6 +1181,369 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     }
     Some(recipe)
+}
+
+/// A prepared first-query plan contributes only its original source domain
+/// associations. Effects, row reads, decisions and the created result remain
+/// owned by this collector rather than the query preparation's skeleton.
+fn checked_native_first_query_plan<'a>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    supplied: Option<&'a ReceiptDisclosurePlan>,
+    entry_module: &str,
+    db: Option<&SourceDb>,
+) -> Option<Option<&'a ReceiptDisclosurePlan>> {
+    let facts = checked.source_facts.as_deref()?;
+    let queries = facts.queries.as_deref().unwrap_or_default();
+    if queries.iter().all(|query| query.first.is_none()) {
+        return supplied.is_none().then_some(None);
+    }
+    let [query] = queries else {
+        return None;
+    };
+    if checked.returns.is_empty() || checked.returns.len() > 200 {
+        return None;
+    }
+    let plan = supplied?;
+    let first = query.first.as_ref()?;
+    let [dependency] = query.dependencies.as_slice() else {
+        return None;
+    };
+    let [order] = query.order.as_slice() else {
+        return None;
+    };
+    if checked_created_model_result(ir, owner).is_none()
+        || query.projection.is_some()
+        || query.cardinality_guard.is_some()
+        || query.source != checked.source
+        || checked.returns.iter().any(|returned| {
+            returned.source != checked.source
+                || query.return_node != returned.node
+                || returned.influences != query.influences
+        })
+        || query.id.is_empty()
+        || first.binding.kind != SyntaxKind::Let as u8
+        || query.limit.is_some()
+        || query.archived
+        || !query.inputs.is_empty()
+        || order.field.is_some()
+        || order.field_name != "id"
+        || order.descending
+        || dependency.id.is_empty()
+        || dependency.source != query.source
+        || dependency.model != query.model
+        || dependency.model_name != query.model_name
+        || dependency.field_name != "account"
+        || dependency.type_id != "user"
+        || dependency.ty != ResolvedType::Scalar(Scalar::User)
+        || dependency.role != DependencyRole::Control
+        || !dependency.calls.is_empty()
+        || query.influences.len() != 4
+    {
+        return None;
+    }
+    // Retain exact source and declaration membership even when the selected
+    // row is not an original parameter or the model being returned.
+    let db = db?;
+    let model = checked_first_query_schema(ir, owner, query, db)?;
+    if !model.fields.iter().any(|field| {
+        field.id == dependency.field && field.name == "account" && field.ty == dependency.ty
+    }) {
+        return None;
+    }
+    let kinds = [
+        InfluenceKind::QueryExistence,
+        InfluenceKind::QueryCardinality,
+        InfluenceKind::QueryMembership,
+        InfluenceKind::QueryOrder,
+    ];
+    let mut ids = HashSet::new();
+    let influences = query
+        .influences
+        .iter()
+        .zip(kinds)
+        .map(|(influence, expected)| {
+            if influence.id.is_empty()
+                || !ids.insert(influence.id.as_str())
+                || influence.source != query.source
+                || influence.node != query.node
+                || influence.kind != expected
+                || influence.query_id.as_deref() != Some(query.id.as_str())
+            {
+                return None;
+            }
+            Some(ReceiptInfluence {
+                id: influence.id.clone(),
+                query_id: influence.query_id.clone(),
+                kind: match expected {
+                    InfluenceKind::QueryExistence => "query-existence",
+                    InfluenceKind::QueryCardinality => "query-cardinality",
+                    InfluenceKind::QueryMembership => "query-membership",
+                    InfluenceKind::QueryOrder => "query-order",
+                    _ => return None,
+                }
+                .into(),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let expected = ReceiptDisclosurePlan {
+        version: 1,
+        source: transport_source(&checked.source, entry_module)?,
+        queries: vec![ReceiptQuery {
+            id: query.id.clone(),
+            source: transport_source(&query.source, entry_module)?,
+            model: query.model_name.clone(),
+            order: vec![ReceiptQueryOrder {
+                field: "id".into(),
+                direction: "asc".into(),
+            }],
+            limit: None,
+            archived: "exclude".into(),
+            dependencies: vec![ReceiptQueryDependency {
+                id: dependency.id.clone(),
+                source: transport_source(&dependency.source, entry_module)?,
+                role: ReceiptRole::Control,
+                field: dependency.field_name.clone(),
+                type_id: "user".into(),
+            }],
+        }],
+        returns: checked
+            .returns
+            .iter()
+            .map(|returned| {
+                Some(ReceiptReturn {
+                    id: returned.id.clone(),
+                    source: transport_source(&returned.source, entry_module)?,
+                    influences: influences.clone(),
+                    dependencies: Vec::new(),
+                    intrinsics: Vec::new(),
+                    projection: None,
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    };
+    (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+}
+
+fn checked_first_query_schema<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut schemas = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.id == query.model);
+    let schema = schemas.next()?;
+    if schemas.next().is_some()
+        || !schema.model
+        || schema.module != owner.module
+        || schema.canonical != query.model_name
+        || schema.source != query.source
+        || schema.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == "id")
+        })
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, schema, db)?;
+    for field in &schema.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    Some(schema)
+}
+
+fn checked_first_query_row<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [query] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let first = query.first.as_ref()?;
+    let IrExpr::Name(name) = &value.expr else {
+        return None;
+    };
+    let original = facts
+        .creates
+        .as_deref()?
+        .iter()
+        .find(|created| checked_created_model_result(ir, owner) == Some(created.model))?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let mut bindings = effects.iter().filter_map(|effect| match effect {
+        IrStmt::Let {
+            name: binding,
+            value,
+            span,
+        } if *span == node_span(first.binding) => Some((binding, value)),
+        _ => None,
+    });
+    let (binding, selected) = bindings.next()?;
+    let authored = checked_effect_node(ir, owner, first.binding, db)?;
+    let names: Vec<_> = authored
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Name)
+        .collect();
+    let [keyword, source_binding] = names.as_slice() else {
+        return None;
+    };
+    let text = &db.get(first.binding.file)?.text;
+    if bindings.next().is_some()
+        || keyword.token()?.text(text) != "let"
+        || source_binding.token()?.text(text) != name
+        || binding != name
+        || first.binding.end > value.span.start
+        || !facts.expression_types.as_deref()?.iter().any(|(node, ty)| {
+            node_span(*node) == value.span
+                && ty == &value.ty
+                && (node.kind == SyntaxKind::Path as u8 || node.kind == SyntaxKind::NameRef as u8)
+        })
+    {
+        return None;
+    }
+    created_record_name_matches(
+        value,
+        &ResolvedType::Record {
+            symbol: query.model,
+            stored: true,
+        },
+        name,
+        value.span,
+        db,
+    )?;
+    super::scenario_create_sources::checked_create_expression(
+        ir, original, selected, first.call, db,
+    )?;
+    checked_first_query_schema(ir, owner, query, db)
+}
+
+/// Exact selected original first call; ordinary Query expressions stay outside
+/// the native scalar visitor. The source operand matcher checks its CST too.
+pub(super) fn checked_first_query_ir<'a>(
+    ir: &'a IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    actual: &TypedExpr,
+    node: crate::analysis::NodeKey,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
+    let mut owners = ir.items.iter().filter(|owner| {
+        matches!(owner.kind, IrItemKind::Scenario { .. })
+            && ir
+                .scenario_disclosures
+                .get(&owner.id)
+                .and_then(|value| value.source_facts())
+                .is_some_and(|facts| {
+                    facts.source == original.source
+                        && facts.creates.as_deref().is_some_and(|creates| {
+                            creates.iter().any(|created| created.node == original.node)
+                        })
+                })
+    });
+    let owner = owners.next()?;
+    if owners.next().is_some() {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [query] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let first = query.first.as_ref()?;
+    let IrExpr::Call {
+        target: IrCallTarget::Builtin { id, awaited: false },
+        args,
+    } = &actual.expr
+    else {
+        return None;
+    };
+    let [domain] = args.as_slice() else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    let source = scan.source.as_deref()?;
+    let collection = scan.collection_call.as_deref()?;
+    let record = ResolvedType::Record {
+        symbol: query.model,
+        stored: true,
+    };
+    let array = ResolvedType::Array {
+        element: Box::new(record.clone()),
+        ordered: true,
+        nonempty: false,
+    };
+    let [alias, predicate, order] = source.clauses.as_slice() else {
+        return None;
+    };
+    let [metadata_order] = query.order.as_slice() else {
+        return None;
+    };
+    if id != "first"
+        || first.call != node
+        || actual.span != node_span(node)
+        || actual.ty != ResolvedType::Nullable(Box::new(record))
+        || domain.ty != array
+        || query.source != original.source
+        || query.projection.is_some()
+        || query.cardinality_guard.is_some()
+        || query.limit.is_some()
+        || query.archived
+        || !query.inputs.is_empty()
+        || source.node != query.node
+        || source.domain != query.domain
+        || source.domain_type != array
+        || source.result != array
+        || source.projection.is_some()
+        || collection.node != first.call
+        || collection.builtin != "first"
+        || collection.overload != first.overload
+        || collection.query != query.node
+        || collection.alias != query.alias
+        || collection.model != query.model
+        || collection.predicate.is_some()
+        || alias.node != query.alias
+        || !matches!(&alias.kind,
+            crate::analysis::types::CheckedQueryClauseKind::As {name} if name == "row")
+        || !alias.expressions.is_empty()
+        || predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
+        || predicate.expressions.as_slice() != [query.predicate]
+        || order.kind != crate::analysis::types::CheckedQueryClauseKind::Order
+        || order.expressions.as_slice() != [metadata_order.node]
+        || metadata_order.field.is_some()
+        || metadata_order.field_name != "id"
+        || metadata_order.descending
+        || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(model) if model == &query.model_name)
+        || scan.parent.is_some()
+        || scan.where_async
+        || scan.select.is_some()
+        || scan.select_param.is_some()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || scan.contract_collection_call.is_some()
+        || scan.order.len() != 1
+        || scan.order[0].field != "id"
+        || scan.order[0].descending
+        || scan.where_pred.as_ref().is_none_or(|predicate| {
+            predicate.span != node_span(query.predicate)
+                || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        })
+    {
+        return None;
+    }
+    checked_first_query_schema(ir, owner, query, db)?;
+    Some(query)
 }
 
 fn transport_source(source: &DisclosureSource, entry_module: &str) -> Option<ReceiptSource> {
@@ -2683,7 +3078,14 @@ fn match_effect_proofs(
                 let (model_item, descriptor) =
                     root_effect_model(ir, owner, models, *model, (*crud)?, true)?;
                 if checked_created_model_result(ir, owner).is_some() {
-                    ordered_created_model_effects(owner, proof.node, *model, checked_binding, db)?;
+                    ordered_created_model_effects(
+                        ir,
+                        owner,
+                        proof.node,
+                        *model,
+                        checked_binding,
+                        db,
+                    )?;
                 } else {
                     ordered_root_effects(owner, proof.node, *model, checked_binding, db)?;
                 }
@@ -3396,7 +3798,7 @@ fn checked_scenario_create(
     }
     super::scenario_create_sources::checked_created_schema(ir, owner, models, original, db)?;
     if checked_created_model_result(ir, owner) == Some(*model) {
-        ordered_created_model_effects(owner, proof.node, *model, binding, db)?;
+        ordered_created_model_effects(ir, owner, proof.node, *model, binding, db)?;
     } else {
         ordered_intermediate_call_create(ir, owner, checked, proof.node, *model, binding, db)?;
     }
@@ -3601,7 +4003,6 @@ fn checked_created_statements(
                     .filter(|node| node.kind == SyntaxKind::Path);
                 let receiver = paths.next()?;
                 if paths.next().is_some()
-                    || direct_source_path_name(receiver, text)? != original.binding
                     || record.span != receiver.span
                     || original
                         .expression_types
@@ -3611,16 +4012,29 @@ fn checked_created_statements(
                 {
                     return None;
                 }
-                created_record_name_matches(
-                    record,
-                    &ResolvedType::Record {
-                        symbol: original.model,
-                        stored: true,
-                    },
-                    &original.binding,
-                    *span,
-                    db,
-                )?;
+                let binding = direct_source_path_name(receiver, text)?;
+                if binding == original.binding {
+                    created_record_name_matches(
+                        record,
+                        &ResolvedType::Record {
+                            symbol: original.model,
+                            stored: true,
+                        },
+                        &original.binding,
+                        *span,
+                        db,
+                    )?;
+                } else {
+                    let selected = checked_first_query_row(ir, owner, record, db)?;
+                    if record.ty
+                        != (ResolvedType::Record {
+                            symbol: selected.id,
+                            stored: true,
+                        })
+                    {
+                        return None;
+                    }
+                }
                 checked_created_object_entries(ir, original, changes, authored, *span, db)?;
                 (SyntaxKind::Set, *span, None)
             }
@@ -3922,6 +4336,7 @@ fn ordered_intermediate_call_create(
 }
 
 fn ordered_created_model_effects(
+    ir: &IrProgram,
     owner: &IrItem,
     create: crate::analysis::NodeKey,
     model: crate::analysis::SymbolId,
@@ -3994,7 +4409,11 @@ fn ordered_created_model_effects(
             symbol: model,
             stored: true,
         };
-        created_record_name_matches(before, &record, binding, *before_at, db)?;
+        if matches!(&before.expr, IrExpr::Name(name) if name == binding) {
+            created_record_name_matches(before, &record, binding, *before_at, db)?;
+        } else {
+            checked_first_query_row(ir, owner, before, db)?;
+        }
         created_record_name_matches(after, &record, binding, *after_at, db)?;
         let IrExpr::Object(entries) = &changes.expr else {
             return None;
@@ -4454,12 +4873,19 @@ impl<'a> Sites<'a> {
     fn collect(
         ir: &'a IrProgram,
         owner: &'a IrItem,
-        params: &'a [crate::analysis::SymbolId],
-        by: &'a [IrGuard],
-        guards: &'a [IrStmt],
-        effects: &'a [IrStmt],
         send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
+        db: Option<&SourceDb>,
     ) -> Option<Self> {
+        let IrItemKind::Scenario {
+            params,
+            by,
+            guards,
+            effects,
+            ..
+        } = &owner.kind
+        else {
+            return None;
+        };
         let mut out = Self::default();
         let mut pending = Vec::new();
         for (index, id) in params.iter().enumerate() {
@@ -4738,6 +5164,36 @@ impl<'a> Sites<'a> {
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "first")
+                            && let Some(facts) = ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|value| value.source_facts())
+                            && facts.queries.as_deref().is_some_and(|queries| {
+                                queries.iter().any(|query| query.first.is_some())
+                            })
+                        {
+                            let original = facts.creates.as_deref()?.iter().find(|created| {
+                                checked_created_model_result(ir, owner) == Some(created.model)
+                            })?;
+                            let query = checked_first_query_ir(
+                                ir,
+                                original,
+                                expression,
+                                facts.queries.as_ref()?.first()?.first.as_ref()?.call,
+                                db?,
+                            )?;
+                            super::scenario_create_sources::checked_create_expression(
+                                ir,
+                                original,
+                                expression,
+                                query.first.as_ref()?.call,
+                                db?,
+                            )?;
+                            // Query candidate fields have their separate query
+                            // observation path, not ordinary parent row reads.
+                            continue;
+                        }
                         // A checked bound-child predicate reads only the
                         // retained projection. Its element-local decisions
                         // belong to Values, not once-per-parent observations.

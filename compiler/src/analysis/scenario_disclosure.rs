@@ -109,9 +109,11 @@ pub struct DisclosureQuery {
     pub order: Vec<DisclosureQueryOrder>,
     pub limit: Option<u16>,
     pub archived: bool,
-    pub cardinality_guard: NodeKey,
+    pub cardinality_guard: Option<NodeKey>,
     pub return_node: NodeKey,
-    pub projection: DisclosureQueryProjection,
+    pub projection: Option<DisclosureQueryProjection>,
+    /// Exact original first invocation and its immutable selected-row binding.
+    pub first: Option<DisclosureFirstQuery>,
     pub influences: Vec<DisclosureInfluence>,
 }
 
@@ -130,9 +132,19 @@ impl DisclosureQuery {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DisclosureQueryOrder {
-    pub field: SymbolId,
+    /// Reserved metadata order has no authored field declaration.
+    pub field: Option<SymbolId>,
     pub field_name: String,
     pub descending: bool,
+    pub node: NodeKey,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureFirstQuery {
+    pub call: NodeKey,
+    pub overload: usize,
+    pub binding: NodeKey,
+    pub actor: NodeKey,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -327,7 +339,8 @@ pub struct CheckedScenarioSource {
     pub creates: Option<Vec<CheckedScenarioCreate>>,
     /// Optional bounded source inventory, never permission or effect admission.
     pub decision_sites: Option<Vec<CheckedDecisionSite>>,
-    /// Complete bounded query lineage only; absence is not an empty proof.
+    /// Original supported query occurrences; this inventory grants no closure.
+    /// Unhandled query uses still decline the executable scenario independently.
     pub queries: Option<Vec<DisclosureQuery>>,
     /// Private owning stored-field/Contract snapshots and two-parent Model
     /// source operands. File declarations here grant no receipt admission.
@@ -1109,6 +1122,9 @@ struct ValuePath {
     intrinsics: Vec<DisclosureIntrinsic>,
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
     decisions: Vec<DisclosureDecision>,
+    influences: Vec<DisclosureInfluence>,
+    /// Original first call and Let; never a copied/foreign record receiver.
+    first_query: Option<(NodeKey, NodeKey)>,
     record: Option<SymbolId>,
     model_result: Option<DisclosureModelResult>,
     reference: Option<DisclosureIntrinsicKind>,
@@ -1141,6 +1157,11 @@ enum ReferenceOrigin {
 
 impl ValuePath {
     fn join(&mut self, other: &Self) {
+        for influence in &other.influences {
+            if !self.influences.iter().any(|prior| prior.id == influence.id) {
+                self.influences.push(influence.clone());
+            }
+        }
         for read in &other.observed {
             if !self.observed.contains(read) {
                 self.observed.push(read.clone());
@@ -2470,6 +2491,13 @@ impl<'a> Closure<'a> {
                 }
             }
         }
+        for binding in &scenario.effects {
+            if binding.verb == EffectVerb::Let
+                && let Some(query) = self.checked_first_query_source(scenario, binding)
+            {
+                pending.push((query.model, true));
+            }
+        }
         let mut seen = HashSet::new();
         let mut inventory = Vec::new();
         let mut field_count = 0usize;
@@ -2714,6 +2742,9 @@ impl<'a> Closure<'a> {
         let [query] = queries.as_slice() else {
             return Ok(None);
         };
+        let Some(projection) = query.projection.as_ref() else {
+            return Ok(None);
+        };
         let fail = || self.fail(scenario.node, "incomplete finite query declaration");
         if !scenario.read
             || scenario.on.is_some()
@@ -2765,8 +2796,8 @@ impl<'a> Closure<'a> {
             if matches!(self.resolve.symbols.get(symbol.0 as usize).map(|s| &s.kind), Some(SymbolKind::Model {..})))
             || !matches!(self.types.symbol_results.get(&scenario.scenario),
                 Some(Some(ResolvedType::Array {element, ordered: true, nonempty: false}))
-                if matches!(element.as_ref(), ResolvedType::Record {symbol, ..} if *symbol == query.projection.contract)
-                    && matches!(self.resolve.symbols.get(query.projection.contract.0 as usize).map(|s| &s.kind), Some(SymbolKind::Contract {..})))
+                if matches!(element.as_ref(), ResolvedType::Record {symbol, ..} if *symbol == projection.contract)
+                    && matches!(self.resolve.symbols.get(projection.contract.0 as usize).map(|s| &s.kind), Some(SymbolKind::Contract {..})))
         {
             return Err(fail());
         }
@@ -2987,6 +3018,26 @@ impl<'a> Closure<'a> {
         &self,
         scenario: &super::effects::ScenarioData,
     ) -> Option<Vec<DisclosureQuery>> {
+        if !scenario.read {
+            let mut first = Vec::new();
+            for binding in &scenario.effects {
+                let Some(value) = binding.value.and_then(|key| self.query_group(key)) else {
+                    continue;
+                };
+                if binding.verb == EffectVerb::Let
+                    && matches!(self.types.selected_calls.get(&value).map(|call| &call.target),
+                        Some(SelectedCallTarget::Builtin {id,..}) if id == "first")
+                {
+                    first.push(self.checked_first_query_source(scenario, binding)?);
+                    if first.len() > 200 {
+                        return None;
+                    }
+                }
+            }
+            if !first.is_empty() {
+                return Some(first);
+            }
+        }
         let authored = self.nodes.get(&scenario.node)?;
         let mut pending = vec![*authored];
         let mut query_nodes = Vec::new();
@@ -3232,18 +3283,211 @@ impl<'a> Closure<'a> {
             order: Vec::new(),
             limit: None,
             archived: false,
-            cardinality_guard: guard.node,
+            cardinality_guard: Some(guard.node),
             return_node: returned.node,
-            projection: DisclosureQueryProjection {
+            projection: Some(DisclosureQueryProjection {
                 node: select_key,
                 source: self.source(scenario.module, select_key).ok()?,
                 contract: projection.contract,
                 model,
                 alias: projection.alias,
                 fields: projection.fields.clone(),
-            },
+            }),
+            first: None,
             influences,
         }])
+    }
+
+    /// The original ordered account scan selects one owning mutable row. The
+    /// whole candidate domain remains retained; first is never a query limit.
+    /// This inventory is available even when another original source leaf
+    /// declines. Native execution still needs the complete owner/source join.
+    fn checked_first_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        binding: &Effect,
+    ) -> Option<DisclosureQuery> {
+        if scenario.read
+            || scenario.on.is_some()
+            || binding.verb != EffectVerb::Let
+            || !binding.then_effects.is_empty()
+            || !binding.else_effects.is_empty()
+            || !binding.match_arms.is_empty()
+        {
+            return None;
+        }
+        let call = self.query_group(binding.value?)?;
+        let fact = self.types.checked_collection_calls.get(&call)?;
+        let selected = self.types.selected_calls.get(&call)?;
+        if fact.node != call
+            || fact.builtin != "first"
+            || fact.predicate.is_some()
+            || !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
+                if id == "first" && *overload == fact.overload)
+            || selected.arguments.len() != 1
+            || selected.slots.as_slice() != [Some(0)]
+            || self.query_group(selected.arguments[0])? != fact.query
+        {
+            return None;
+        }
+        let query = self.types.checked_queries.get(&fact.query)?;
+        let owner = self.resolve.symbols.get(fact.model.0 as usize)?;
+        let SymbolKind::Model { fields, .. } = &owner.kind else {
+            return None;
+        };
+        let record = ResolvedType::Record {
+            symbol: fact.model,
+            stored: true,
+        };
+        let array = ResolvedType::Array {
+            element: Box::new(record.clone()),
+            ordered: true,
+            nonempty: false,
+        };
+        let [alias, predicate, order] = query.clauses.as_slice() else {
+            return None;
+        };
+        if query.node != fact.query
+            || query.projection.is_some()
+            || query.domain_type != array
+            || query.result != array
+            || self.types.node_types.get(&query.domain) != Some(&array)
+            || self.types.node_types.get(&fact.query) != Some(&array)
+            || self.types.node_types.get(&call)
+                != Some(&ResolvedType::Nullable(Box::new(record.clone())))
+            || !matches!(self.query_binding(query.domain), Some(Binding::Symbol(model)) if *model == fact.model)
+            || alias.node != fact.alias
+            || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+            || !alias.expressions.is_empty()
+            || predicate.kind != CheckedQueryClauseKind::Where
+            || predicate.expressions.len() != 1
+            || order.kind != CheckedQueryClauseKind::Order
+            || order.expressions.len() != 1
+            || owner.module != scenario.module
+        {
+            return None;
+        }
+        let predicate_node = predicate.expressions[0];
+        let (account, actor) = self.query_binary(predicate_node, "==")?;
+        let field = self.query_member(account, alias.node, fact.model)?;
+        let declaration = self.resolve.symbols.get(field.0 as usize)?;
+        let actor = self.query_group(actor)?;
+        let order_node = self.query_group(order.expressions[0])?;
+        if declaration.name != "account"
+            || !fields.contains(&field)
+            || self.types.symbol_types.get(&field) != Some(&ResolvedType::Scalar(Scalar::User))
+            || self.types.node_types.get(&account) != Some(&ResolvedType::Scalar(Scalar::User))
+            || !matches!(
+                self.query_binding(actor),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            )
+            || self.nodes.get(&actor)?.kind != SyntaxKind::NameRef
+            || self.word(self.nodes.get(&actor)?)? != "actor"
+            || !matches!(
+                self.types.node_types.get(&actor),
+                Some(ResolvedType::Scalar(Scalar::User))
+            )
+            || self.types.node_types.get(&predicate_node)
+                != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.query_member_name(order_node, alias.node, fact.model) != Some("id")
+            || self.types.node_types.get(&order_node) != Some(&ResolvedType::Scalar(Scalar::Text))
+            || self.nodes.get(&order.node)?.children.iter().any(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::Selectors | SyntaxKind::Descending | SyntaxKind::Path
+                )
+            })
+            || fields.iter().any(|field| {
+                self.resolve
+                    .symbols
+                    .get(field.0 as usize)
+                    .is_none_or(|field| field.name == "id")
+            })
+        {
+            return None;
+        }
+        let returned = scenario.effects.last()?;
+        let returned_value = self.query_group(returned.value?)?;
+        let Binding::CreateAs { node: created } = self.query_binding(returned_value)? else {
+            return None;
+        };
+        let created = scenario
+            .effects
+            .iter()
+            .find(|effect| effect.node == *created)?;
+        let result = self
+            .types
+            .symbol_results
+            .get(&scenario.scenario)?
+            .as_ref()?;
+        if returned.verb != EffectVerb::Return
+            || created.verb != EffectVerb::Create
+            || !matches!((result, &created.target),
+                (ResolvedType::Record {symbol,stored:true}, Some(EffectTarget::Model(model))) if symbol == model)
+            || self.types.node_types.get(&returned_value) != Some(result)
+            || created.node.end > returned.node.start
+            || binding.node.end > created.node.start
+        {
+            return None;
+        }
+        let id = self.opaque("query", fact.query, "").ok()?;
+        let source = self.source(scenario.module, fact.query).ok()?;
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", fact.query, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node: fact.query,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(DisclosureQuery {
+            dependencies: vec![self.query_dependency(
+                account,
+                scenario.module,
+                fact.model,
+                field,
+                DependencyRole::Control,
+                &id,
+            )?],
+            id,
+            source,
+            node: fact.query,
+            domain: query.domain,
+            model: fact.model,
+            model_name: owner.canonical.clone(),
+            alias: alias.node,
+            predicate: predicate_node,
+            inputs: Vec::new(),
+            order: vec![DisclosureQueryOrder {
+                field: None,
+                field_name: "id".into(),
+                descending: false,
+                node: order_node,
+            }],
+            limit: None,
+            archived: false,
+            cardinality_guard: None,
+            return_node: returned.node,
+            projection: None,
+            first: Some(DisclosureFirstQuery {
+                call,
+                overload: fact.overload,
+                binding: binding.node,
+                actor,
+            }),
+            influences,
+        })
     }
 
     fn query_group(&self, mut key: NodeKey) -> Option<NodeKey> {
@@ -3473,10 +3717,11 @@ impl<'a> Closure<'a> {
             let [query] = queries.as_slice() else {
                 return None;
             };
-            if query.projection.contract != fact.contract {
+            let projection = query.projection.as_ref()?;
+            if projection.contract != fact.contract {
                 return None;
             }
-            (ValuePath::default(), Some(query.projection.clone()))
+            (ValuePath::default(), Some(projection.clone()))
         } else {
             // The root stored Contract is observed once at its actual field
             // occurrence. Copies, helper results and unrelated queries cannot
@@ -4181,6 +4426,12 @@ impl<'a> Closure<'a> {
                     Some(Binding::Let { node }) => env
                         .get(&Local::Let(*node))
                         .cloned()
+                        .filter(|value| {
+                            value.record.is_none()
+                                || value
+                                    .first_query
+                                    .is_none_or(|(_, original)| original == *node)
+                        })
                         .map(|p| vec![p])
                         .ok_or_else(|| self.fail(key, "unaccounted immutable binding")),
                     Some(Binding::CreateAs { node }) => env
@@ -4828,7 +5079,17 @@ impl<'a> Closure<'a> {
                     .get(n.span.start as usize..n.span.end as usize)
             })
             .ok_or_else(|| self.fail(key, "missing checked operator"))?;
-        if matches!(op, "??" | "==" | "!=")
+        let first_null_check = op == "!=" && calls.is_empty()
+            && [(children[0], children[1]), (children[1], children[0])].iter().any(|(value, null)| {
+                let key = NodeKey::of(value);
+                self.types.node_types.get(&NodeKey::of(null)) == Some(&ResolvedType::Null)
+                    && matches!(self.query_binding(key), Some(Binding::Let {node})
+                        if env.get(&Local::Let(*node)).is_some_and(|value| {
+                            value.record.is_some() && value.first_query.is_some_and(|(_, original)| original == *node)
+                        }))
+            });
+        if !first_null_check
+            && matches!(op, "??" | "==" | "!=")
             && children.iter().any(|operand| {
                 matches!(self.types.node_types.get(&NodeKey::of(operand)),
                             Some(ResolvedType::Nullable(inner))
@@ -4963,6 +5224,33 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing checked call selection"))?
             .clone();
+        if calls.is_empty()
+            && self.statement_depth == 1
+            && matches!(&selected.target, SelectedCallTarget::Builtin {id,..} if id == "first")
+        {
+            let original = self.effects.scenarios.values().find_map(|scenario| {
+                if scenario.module != module {
+                    return None;
+                }
+                scenario
+                    .effects
+                    .iter()
+                    .filter(|binding| binding.verb == EffectVerb::Let)
+                    .find_map(|binding| {
+                        let query = self.checked_first_query_source(scenario, binding)?;
+                        (query.first.as_ref()?.call == key).then_some(query)
+                    })
+            });
+            if let Some(query) = original {
+                let first = query.first.as_ref().expect("checked first source");
+                return Ok(vec![ValuePath {
+                    record: Some(query.model),
+                    first_query: Some((first.call, first.binding)),
+                    influences: query.influences,
+                    ..ValuePath::default()
+                }]);
+            }
+        }
         // State retains and reauthorizes the complete child association before
         // disclosing any parent result. Counting its exact returned wire needs
         // no fabricated parent scalar/row observation. Other uses still refuse
@@ -5764,6 +6052,13 @@ impl<'a> Closure<'a> {
             .get(&local)
             .cloned()
             .ok_or_else(|| self.fail(key, "missing shorthand provenance"))?;
+        if value.record.is_some()
+            && value
+                .first_query
+                .is_some_and(|(_, binding)| local != Local::Let(binding))
+        {
+            return Err(self.fail(key, "copied first query row binding"));
+        }
         Ok(vec![self.input_value(key, module, calls, value)?])
     }
 
@@ -7144,7 +7439,7 @@ impl<'a> Closure<'a> {
             decisions: merged.decisions,
             dependencies: merged.reads,
             intrinsics: merged.intrinsics,
-            influences: Vec::new(),
+            influences: merged.influences,
             model_result: value.model_result,
         })
     }
@@ -7763,6 +8058,7 @@ impl<'a> Closure<'a> {
                             );
                             let admitted_guard = self.control(ValuePath {
                                 intrinsics: value.intrinsics.clone(),
+                                influences: value.influences.clone(),
                                 // Whole canonical Contract/reference-field
                                 // authority belongs to the successful guard,
                                 // including void/effect returns. Keep existing
@@ -7772,6 +8068,7 @@ impl<'a> Closure<'a> {
                                         if self.resolve.symbols.get(symbol.0 as usize)
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
                                         || self.reference_operand_type_id(&dependency.ty).is_some()
+                                        || !value.influences.is_empty()
                                 }).cloned().collect(),
                                 ..ValuePath::default()
                             })?;
@@ -8356,13 +8653,14 @@ mod tests {
         );
         assert_eq!(query.inputs.len(), 3);
         assert_eq!(query.inputs[0].1, query.inputs[2].1);
-        assert_eq!(query.projection.fields.len(), 7);
+        let projection = query.projection.as_ref().unwrap();
+        assert_eq!(projection.fields.len(), 7);
         assert!(matches!(
-            query.projection.fields[0].mapping,
+            projection.fields[0].mapping,
             CheckedQueryProjectionMapping::StoredReference
         ));
         assert!(matches!(
-            query.projection.fields[1].mapping,
+            projection.fields[1].mapping,
             CheckedQueryProjectionMapping::Version
         ));
         assert_eq!(query.influences.len(), 4);
