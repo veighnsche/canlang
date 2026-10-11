@@ -1217,7 +1217,7 @@ impl<'a> Checker<'a> {
             let inner = nullable_inner(&ty).cloned().unwrap_or(ty);
             // Completion envelopes navigate their declared leaves
             // (T35/R24); unknown leaves fail like unknown fields.
-            if let ResolvedType::Object(fields) = &inner {
+            if let ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } = &inner {
                 match fields.iter().find(|(name, _)| name == segment) {
                     Some((_, ty)) => {
                         current = Some(ty.clone());
@@ -1426,7 +1426,7 @@ impl<'a> Checker<'a> {
                     _ => None,
                 }
             }
-            ResolvedType::Object(fields) => fields
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => fields
                 .iter()
                 .find(|(name, _)| name == segment)
                 .map(|(_, ty)| ty.clone()),

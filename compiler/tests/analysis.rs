@@ -1073,7 +1073,9 @@ fn draft_outcome_table() {
         ("draft/CanGallery.can", 22),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
-        ("draft/CanInbox.can", 41),
+        // Exact IncomingEmail identity clears only the replay guard E3002;
+        // all other original findings and all 52 corpus rows remain.
+        ("draft/CanInbox.can", 40),
         ("draft/CanInvoice.can", 203),
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),

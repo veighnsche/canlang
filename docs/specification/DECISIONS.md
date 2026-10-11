@@ -8516,3 +8516,34 @@ Local selected intake380eacf2: reused independent source review and proportionat
 Bounded public std.EmailV1.send/EmailAccepted completions now compile through the real CLI using the original four Email handler bodies/models/order (source04dff3035aad95549faeffd3191d5257400a85edafdd1ebfe20496a23a660004). Candidate admission preserves exact source/catalog/import/declaration/header/typed ordered body and original CST statement census, ordinary/unanchored same-module primitive model cohorts, guarded Create/Set and late rejection order. Mixed seven-handler, unbound, unsupported ops/SEND/calls/queries/anchored profiles remain refused; trusted handlers acquire no public operation authority. Actual untouched CLI artifact/modules bind original census references, closed EmailAccepted/DeliveryError and installed Values schemas: new3/3 1.68s. Corrected provenance2/2 .04s and Images6/6 1.95s pass; fresh existing library162/codegen121/delivery9/scope2/nativehook6/modelprofile11 (311) plus private2 are reused. Actual Unknown envelope-base representation and two obsolete assertions are corrected without generic Unknown admission. Strict all-target Clippy0 32.63s after mechanical conditional lint repair, fmt/diff0. Reviewed51b3774a safe FF preserves a4 and all unfinished edits. Dev changed public receiving journey is pending; reuse accepted original private317 late rollback1/1 57309.76ms. Frozen whole1457 and subsequent File1/Images6/new public3 qualify their recorded scopes;58/67/nine and precise holds remain.
 
 Local original-ancestry integratione28b406c: independent finite source/CST/IR/census/publication review CLEAR. Reuse actual CLI source/native schema3/3, provenance2/2, Images6/6, affected311/private2 and changed strict Clippy0. Supported original public Email four-body/two-route source04dff303 is released with complete input/result/error schemas and no ordinary operation authority. Unsupported mixed/private/provider/anchored/void/raw/unbound branches retain E6008 refusal. Dev changed genuine public terminal receiving remains its separate consumer exit; no whole-plan or unsupported provider activation acceptance.
+
+
+### IncomingEmail retains checked nominal identity (implemented; native pure qualification pending, 2026-10-11)
+
+The unchanged CanInbox107 replay guard compares the complete stored IncomingEmail
+with the verified event value before the existing else-create. Preserve that
+identity in ResolvedType::StdNominal only for IncomingEmail; keep its exact12-field
+catalog schema through ordinary type propagation and existing source inventory.
+Emit canonical equality and named input/result/model field schemas through
+installed Values. Anonymous objects, lookalike contracts, other named schemas and
+opaque leaves acquire no nominal equality. Values contracts are frozen canonical
+structural objects; the compile-time identity gate supplies the nominal distinction,
+so no runtime brand or new Contracts/Values ABI is introduced.
+
+Three independently worded equivalent JEV Choice requests (jev-latest resolved
+jev-1.13.0) advised explicit nominal twice (probabilities0.61/0.52) and a checked
+sidecar once (0.57), with confidence0.41/0.35/0.28. Requests, responses and
+uncertainty are saved in the existing compiler status record. Investigation of
+actual locals/signatures/generic choice/fields/emission showed a sidecar would
+need parallel identity propagation and stale-proof machinery. The explicit type
+is the smaller complete mechanism for this required guard. Advice is not
+acceptance; broader standard nominal migration is outside this change.
+
+All52 corpus assertions preserve51 rows and remove only Inbox replay E3002
+(41→40). Existing example/effect field traversal is preserved. Related458 distinct
+source/schema/integrity outcomes pass and strict all-target Clippy0 in8.12s. Native
+pure fifthcase currently fails at module import because the Cloudflare stdlib
+facade does not export the existing implemented Values choose helper; Packages
+owns that exact common repair. The unchanged CLI/native witness remains required.
+Authenticated standard event ingress, State commit/replay and File authority stay
+external, unfinished criteria; no full Inbox or whole-plan acceptance is claimed.

@@ -1049,6 +1049,7 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
         | ResolvedType::Array { .. }
         | ResolvedType::Union(_)
         | ResolvedType::Object(_)
+        | ResolvedType::StdNominal { .. }
         | ResolvedType::Operation(_)
         | ResolvedType::InlineMessage
         | ResolvedType::Opaque(_) => None,
@@ -1061,7 +1062,10 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
 pub fn is_structural(ty: &ResolvedType) -> bool {
     match ty {
         ResolvedType::Nullable(inner) => is_structural(inner),
-        ResolvedType::Array { .. } | ResolvedType::Record { .. } | ResolvedType::Object(_) => true,
+        ResolvedType::Array { .. }
+        | ResolvedType::Record { .. }
+        | ResolvedType::Object(_)
+        | ResolvedType::StdNominal { .. } => true,
         ResolvedType::Error
         | ResolvedType::Unknown
         | ResolvedType::Null
@@ -1471,6 +1475,18 @@ impl StandardValueCensus {
 
     fn declared(&mut self, item: &IrItem, ty: &ResolvedType, path: &str) -> Option<()> {
         match ty {
+            ResolvedType::StdNominal { .. } => {
+                let name = crate::analysis::types::checked_standard_nominal_name(ty)?;
+                self.roots.push((name.to_string(), item.span));
+                self.selections.push(StandardValueSelection {
+                    item: Some(item.id),
+                    module: item.module,
+                    position: format!("{}:{path}", item.canonical),
+                    identity: name.to_string(),
+                    binding: None,
+                    span: item.span,
+                });
+            }
             ResolvedType::StdDelivery { capability, op } => {
                 self.operation(capability, op, item.span)?;
                 self.selections.push(StandardValueSelection {
@@ -4835,7 +4851,7 @@ impl<'a> Cx<'a> {
                 }
                 ResolvedType::Unknown
             }
-            ResolvedType::Object(fields) => fields
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => fields
                 .iter()
                 .find(|(name, _)| name == field)
                 .map(|(_, ty)| ty.clone())
