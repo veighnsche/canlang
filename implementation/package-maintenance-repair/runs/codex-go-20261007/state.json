@@ -6767,7 +6767,7 @@
         }
       },
       "original_list_columns": {
-        "state": "implemented and owning component-tested; Compiler original installed consumer unfinished",
+        "state": "Shared list consumer and original Compiler producer/installed consumer reviewed and qualified at their recorded scope",
         "existing_requirement": "Compiler C11 list_columns_prerequisite recorded604e6929 for unchanged CanBook386/390; accepted UI-COMPONENTS232 and catalog38.",
         "source": [
           "packages/contracts/src/presentation.ts",
@@ -6776,8 +6776,13 @@
         ],
         "contract": "Optional ListProps.columns selects authorized result.columns/own projected row.fields in authored order. Existing cell formatting/locale/valueLabels/escaping renders ordered dt/dd before original row body or split link. Missing metadata/any selected own projection refuses before callbacks. Empty declarations only validate zero-row names then empty body; no disclosure. Query/parent/page/cursor/occurrence and callback body/order/selection remain canonical; absent columns retains exact prior HTML.",
         "validation": "Contracts/UI/Interfaces emits and actual UI browser build0 (shared with the date correction). Four changed maintained list controls PASS:3 first-pass outcomes reused; only failed formatted int assertion corrected to existing bidi isolation and rechecked1/1 16.043ms/167.797ms process. Source was unchanged after browser build. No remaining affected failure.",
-        "remaining": "Compiler original CanBook386/390 lowering and installed consumer; original full application/browser/persistence and all precise holds remain.",
-        "coordinator_review": "Finite source review CLEAR for ordered selected authorized metadata/own projections and existing cells/body; all missing-field refusal precedes callbacks, empty names-only declaration reveals no metadata, absent columns retains original HTML/query/split behavior. Four owning controls/emissions/browser bundle reused."
+        "remaining": "Only separate original application/browser/persistence/current dispatch and precise holds remain; satisfied list-column lowering/rendering criterion is retired.",
+        "coordinator_review": "Finite source review CLEAR for ordered selected authorized metadata/own projections and existing cells/body; all missing-field refusal precedes callbacks, empty names-only declaration reveals no metadata, absent columns retains original HTML/query/split behavior. Four owning controls/emissions/browser bundle reused.",
+        "compiler_consumer": {
+          "source": "bbfae23a1ee2eabb15c6f112d8a65548e8f372b5",
+          "record": "implementation/compiler-completion/status.json#committed_model_event_source/original_ordered_list_columns",
+          "outcome": "Original CanBook386/390 ordered selectors plus actual installed metadata/projection/escaped body/identity/version/occurrence and first-failure/no later prepared forms qualify137 affected/strict0; finite independent source review CLEAR. Reuse unchanged owning consumer4/emissions/browser."
+        }
       }
     },
     "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",

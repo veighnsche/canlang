@@ -104,11 +104,11 @@
     "reused_results": "Unchanged successful prefix/library/analysis/corpus and editor/client TypeScript; currentaffected producer/native repairs and allunrun targets supply actual delta, old failures superseded by meaningful current cases."
   },
   "latest_component": {
-    "base_commit": "f0f41ff9919510a2d6c082eba332b233ccb7ad5b",
-    "state": "original_event_owned_pair_reviewed_and_qualified_native_lifetime_separate",
-    "record": "committed_model_event_source.declared_file_event_inputs",
-    "outcome": "Original event-owned canonical/flat pair emitted and qualified by123 affected/strict0; exact Dev scheduled File origin consumer now has original event inputFields excluding cohort args. Native lifetime/current grant/replay/reopen remain Dev-owned.",
-    "source_commit": "0e4c31b62115b609c2fac07fe3124af824476210"
+    "base_commit": "928f51433948844b1a5485b418a41889e807ba4e",
+    "state": "finite_original_list_producer_and_installed_consumer_reviewed_qualified",
+    "record": "committed_model_event_source.original_ordered_list_columns",
+    "outcome": "Original ordered list columns and source-order failure sequencing qualify137 affected/strict0 and are independently source-reviewed. Full original application and exact external/held remainder remain.",
+    "source_commit": "bbfae23a1ee2eabb15c6f112d8a65548e8f372b5"
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -870,12 +870,12 @@
       "scope_limit": "Finite original disclosure producer/native render independently source-reviewed CLEAR and locally integrated. Unsupported original list columns/filter/default/calendar, nullable content and shared authored edit remainder retain their exact prerequisites; no full original application/browser/persistence/current-authority dispatch or new whole qualification.",
       "remaining_original_findings": 23,
       "list_columns_prerequisite": {
-        "state": "shared_consumer_released_original_compiler_lowering_pending",
+        "state": "shared_consumer_and_original_compiler_native_scopes_reviewed_and_qualified",
         "source": "Unchanged CanBook386/390 nested Attempt/Notice lists with authored columns; accepted UI-COMPONENTS232 and UI catalog38 advertise the selector.",
         "owner": "UI + Contracts defining native list-columns contract, then Compiler producer.",
         "required_output": "Reviewed shared ordered ListProps/native columns consumera58 is integrated in main9a326. Compiler originalCanBook386/390 lowering/installed consumer now proceeds against existing authorized ColumnMeta/projected fields; no new authority API.",
         "evidence": "Contracts presentation.ts573-595 ListProps has no columns; UI collections.ts199-227 list consumes only renderRow or split heading. Existing RowQueryRunner/ListQueryResult at presentation.ts454-466/474 already supplies authorized fields/ColumnMeta; Interfaces passes this query through.",
-        "scope_limit": "Read-only prerequisite investigation; preserve current E6008/no artifact until exact owning release. No common UI/Contracts rewrite, extra validation or new native credit."
+        "scope_limit": "Exact released existing native columns output consumed; finite compiler producer and installed consumer137 affected/strict0 pass. Full application authority and separate unsupported query profiles remain."
       },
       "coordinator_review": "Exact6af finite source review CLEAR for shared collapse/Details decoder, checked lexical open, caption/children/row/view/gate/id and explicit slot refusals.161 affected/strict0/fmt reused. Accepted only finite producer/native rendering; original application/browser/persistence/current dispatch remain open."
     },
@@ -910,6 +910,17 @@
       "consumer_output": "Genuine same-load module event.inputs retains original full Values constraint schema; event.inputFields is the existing flat ArtifactOperationInput profile. Preserve original artifact sources/module proof and whole declaration field order; obtain CanonicalInputDef using owning existing adapter, never fabricate ArtifactOperationInput from types or strip handler fields. Exact named Dev NativeFileDeferred.Retained entry:Entry/attachment:file/note:text min1 max16 trim deferred scheduling/rollback/replay/reopen join is Dev-owned.",
       "scope_limit": "Accepted only compiler producer/installed module descriptor correspondence. Genuine declared-event ingress, scheduled File origin/current grants/lifetime/native retained consumer remain Dev-owned; precise holds unchanged.",
       "source_review": "Independent finite source review CLEAR for exact original event field identity/order, unchanged complete Values schema, supported existing artifact mappings and exclusion of handler/cohort fields. Owning 123 affected/strict/fmt outcomes reused; no ingress/File/current-authority acceptance."
+    },
+    "original_ordered_list_columns": {
+      "base_commit": "928f51433948844b1a5485b418a41889e807ba4e",
+      "state": "finite_original_list_producer_and_installed_consumer_reviewed_qualified",
+      "shared_input": "Exact reviewed list columns a58b8600/main9a326363 consumed as86ad8c10; existing authorized ColumnMeta and projected fields only.",
+      "implemented": "Original CanBook386/390 list columns use the existing checked selector decoder and one ordered factory prop. Complete row/view/page/parent/gate/source occurrence and authored body remain. Whole-child settlement before siblings that contain source awaits preserves once/order/first failure through views, row callbacks, groups, panels, slots and forms; a failed native list prevents later prepared forms.",
+      "tested": "137 distinct affected PASS: codegen121 (120 initial .29s reused; only obsolete unsequenced ExpenseFlow modal golden corrected/rechecked1/1 .29s), ui_adapter11/11 .55s, view_reuse5/5 .56s with required actual engines. Original unchanged CanBook rawIR preserves four ordered Attempt/Notice columns in two view uses and own parent/page. Actual CLI/installed UI proves reversed model-column order, escaped values, intact body/row identity/version/distinct occurrences/split selection, missing metadata or projected column rejection and zero later form preparation after first rejection. Unknown/missing selectors refuse CLI10/no modules. Strict all-target Clippy0 4.09s,fmt/diff0; no unresolved affected failures/ignored/bodySKIP. Accepted unchanged date result reused.",
+      "initial_failure": "Initial native list negative rejected before Promise.all attached while later form preparation awaited, causing an unhandled rejection. Corrected compiler producer sequencing now propagates first failure before later prepared forms. Initial codegen120 PASS/1 FAIL obsolete modal expectation; final failed golden alone passes.",
+      "accepted": true,
+      "scope_limit": "Accepted finite source/IR/installed list rendering and evaluation order only. Original agenda body/filter/defaults and table order retain exact shared prerequisites; application/browser/persistence/current dispatch,23 source findings,nine overlaps and holds remain.",
+      "source_review": "Independent finite source review CLEAR for checked ordered selectors, authorized native metadata/projection and whole-child settlement before source-await siblings. Once/order/gates/deferred callback boundaries and first failure preserved; ordinary no-source-await groups unchanged. Owning137 affected/strict/fmt results reused."
     }
   },
   "typed_file_association_prerequisite": {

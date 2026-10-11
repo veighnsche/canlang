@@ -12819,7 +12819,7 @@ impl<'a> Cx<'a> {
             ]
         } else {
             &[
-                "parent", "empty", "limit", "cursor", "order", "search", "display",
+                "parent", "empty", "limit", "cursor", "columns", "order", "search", "display",
             ]
         };
         self.check_ui_attributes(node, word, admitted);

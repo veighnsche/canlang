@@ -1821,6 +1821,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "limit"
                 | "cursor"
                 | "empty"
+                | "columns"
                 | "display"
                 | "page"
                 | "order"
@@ -6162,6 +6163,8 @@ impl<'a> Emitter<'a> {
         prepared_form: Option<&str>,
         view_scope: bool,
     ) -> String {
+        // Settle earlier children before later siblings cross a source await.
+        let sequence_children = node.children.iter().any(ui_immediate_uses_async);
         if let Some(view) = &node.view {
             // Evaluate the supplied authorized row once in the caller scope,
             // then shadow it only for this declaration-owned expansion.
@@ -6178,7 +6181,12 @@ impl<'a> Emitter<'a> {
             let children = node
                 .children
                 .iter()
-                .map(|child| self.lower_ui_occurrence(child, ctx, &nested, None, true))
+                .map(|child| {
+                    sequence_ui_child(
+                        self.lower_ui_occurrence(child, ctx, &nested, None, true),
+                        sequence_children,
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(",");
             self.exit_scope();
@@ -6200,7 +6208,16 @@ impl<'a> Emitter<'a> {
                 .children
                 .iter()
                 .map(|child| {
-                    self.lower_ui_occurrence(child, ctx, occurrences, prepared_form, view_scope)
+                    sequence_ui_child(
+                        self.lower_ui_occurrence(
+                            child,
+                            ctx,
+                            occurrences,
+                            prepared_form,
+                            view_scope,
+                        ),
+                        sequence_children,
+                    )
                 })
                 .collect::<Vec<_>>()
                 .join(",");
@@ -6378,7 +6395,16 @@ impl<'a> Emitter<'a> {
                 .children
                 .iter()
                 .map(|child| {
-                    self.lower_ui_occurrence(child, ctx, occurrences, Some(&prepared), view_scope)
+                    sequence_ui_child(
+                        self.lower_ui_occurrence(
+                            child,
+                            ctx,
+                            occurrences,
+                            Some(&prepared),
+                            view_scope,
+                        ),
+                        sequence_children,
+                    )
                 })
                 .collect::<Vec<_>>()
                 .join(",");
@@ -6515,12 +6541,15 @@ impl<'a> Emitter<'a> {
                     .children
                     .iter()
                     .map(|c| {
-                        self.lower_ui_occurrence(
-                            c,
-                            &child_ctx,
-                            &child_occurrences,
-                            None,
-                            view_scope,
+                        sequence_ui_child(
+                            self.lower_ui_occurrence(
+                                c,
+                                &child_ctx,
+                                &child_occurrences,
+                                None,
+                                view_scope,
+                            ),
+                            sequence_children,
                         )
                     })
                     .collect::<Vec<_>>()
@@ -6559,18 +6588,21 @@ impl<'a> Emitter<'a> {
                                         )
                                     ));
                                 }
-                                // Eager arrays preserve authored depth-first evaluation:
-                                // each caption then its descendants, exactly once.
+                                // Captions and descendants retain source order;
+                                // source-await siblings settle before later items.
                                 let children = item
                                     .children
                                     .iter()
                                     .map(|child| {
-                                        self.lower_ui_occurrence(
-                                            child,
-                                            ctx,
-                                            occurrences,
-                                            prepared_form,
-                                            view_scope,
+                                        sequence_ui_child(
+                                            self.lower_ui_occurrence(
+                                                child,
+                                                ctx,
+                                                occurrences,
+                                                prepared_form,
+                                                view_scope,
+                                            ),
+                                            sequence_children,
                                         )
                                     })
                                     .collect::<Vec<_>>()
@@ -6590,18 +6622,30 @@ impl<'a> Emitter<'a> {
                     if let Some(main) = kids.next() {
                         props.push(format!(
                             "main:[{}]",
-                            self.lower_ui_occurrence(
-                                main,
-                                ctx,
-                                occurrences,
-                                prepared_form,
-                                view_scope
+                            sequence_ui_child(
+                                self.lower_ui_occurrence(
+                                    main,
+                                    ctx,
+                                    occurrences,
+                                    prepared_form,
+                                    view_scope
+                                ),
+                                sequence_children
                             )
                         ));
                     }
                     let rest: Vec<String> = kids
                         .map(|c| {
-                            self.lower_ui_occurrence(c, ctx, occurrences, prepared_form, view_scope)
+                            sequence_ui_child(
+                                self.lower_ui_occurrence(
+                                    c,
+                                    ctx,
+                                    occurrences,
+                                    prepared_form,
+                                    view_scope,
+                                ),
+                                sequence_children,
+                            )
                         })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
@@ -6635,12 +6679,15 @@ impl<'a> Emitter<'a> {
                             .filter(|c| crate::codegen::ir::ui_slot_name(c) == Some(name))
                         {
                             for grand in &child.children {
-                                group.push(self.lower_ui_occurrence(
-                                    grand,
-                                    ctx,
-                                    occurrences,
-                                    prepared_form,
-                                    view_scope,
+                                group.push(sequence_ui_child(
+                                    self.lower_ui_occurrence(
+                                        grand,
+                                        ctx,
+                                        occurrences,
+                                        prepared_form,
+                                        view_scope,
+                                    ),
+                                    sequence_children,
                                 ));
                             }
                         }
@@ -6651,7 +6698,16 @@ impl<'a> Emitter<'a> {
                         .children
                         .iter()
                         .map(|c| {
-                            self.lower_ui_occurrence(c, ctx, occurrences, prepared_form, view_scope)
+                            sequence_ui_child(
+                                self.lower_ui_occurrence(
+                                    c,
+                                    ctx,
+                                    occurrences,
+                                    prepared_form,
+                                    view_scope,
+                                ),
+                                sequence_children,
+                            )
                         })
                         .collect::<Vec<_>>()
                         .join(",");
@@ -6804,10 +6860,11 @@ impl<'a> Emitter<'a> {
             // cross-ref must name exactly what `export const` declares.
             export: page_binding(page, "descriptor"),
         });
+        let sequence_children = page.render.iter().any(ui_immediate_uses_async);
         let children = page
             .render
             .iter()
-            .map(|n| self.lower_ui(n))
+            .map(|n| sequence_ui_child(self.lower_ui(n), sequence_children))
             .collect::<Vec<_>>()
             .join(",");
         // Pages reading `preferences` bind the admit() record first: the
@@ -6827,6 +6884,16 @@ impl<'a> Emitter<'a> {
             Some(format!("page {}", page.path)),
             &format!("export async function {func}(c,bindings){{{preamble}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}}"),
         );
+    }
+}
+
+/// Await the whole child, including promise-returning factories and gates,
+/// when siblings contain a source await. The expression still runs once.
+fn sequence_ui_child(value: String, sequence: bool) -> String {
+    if sequence {
+        format!("await ({value})")
+    } else {
+        value
     }
 }
 
