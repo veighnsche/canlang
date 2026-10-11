@@ -54,9 +54,14 @@ fn text(db: &SourceDb, node: NodeKey) -> &str {
 fn assert_first(db: &SourceDb, program: &CheckedProgram, name: &str, model: &str) {
     let source = disclosure(program, name).source_facts().unwrap();
     let queries = source.queries.as_ref().expect("original first inventory");
-    let [query] = queries.as_slice() else {
-        panic!("one original ordered first query");
-    };
+    let mut first_queries = queries.iter().filter(|query| query.first.is_some());
+    let query = first_queries
+        .next()
+        .expect("one original ordered first query");
+    assert!(
+        first_queries.next().is_none(),
+        "unique original first query"
+    );
     let first = query
         .first
         .as_ref()
@@ -66,10 +71,13 @@ fn assert_first(db: &SourceDb, program: &CheckedProgram, name: &str, model: &str
     assert!(text(db, first.call).starts_with("first("));
     assert!(text(db, first.binding).starts_with("let "));
     assert_eq!(text(db, first.actor), "actor");
-    assert_eq!(text(db, query.predicate), "row.account==actor");
+    let alias = query.alias.expect("original first query alias");
+    let predicate = query.predicate.expect("original first query predicate");
+    assert_eq!(text(db, predicate), "row.account==actor");
     assert!(text(db, query.return_node).starts_with("return run"));
     assert!(query.projection.is_none());
     assert!(query.cardinality_guard.is_none());
+    assert!(query.count.is_none());
     assert!(query.inputs.is_empty());
     assert_eq!(query.limit, None);
     assert!(!query.archived);
@@ -128,7 +136,7 @@ fn assert_first(db: &SourceDb, program: &CheckedProgram, name: &str, model: &str
     assert_eq!(call.builtin, "first");
     assert_eq!(call.overload, first.overload);
     assert_eq!(call.query, query.node);
-    assert_eq!(call.alias, query.alias);
+    assert_eq!(call.alias, alias);
     assert_eq!(call.model, query.model);
     assert!(call.predicate.is_none());
 }
@@ -149,13 +157,16 @@ fn bounded_original_first_retains_selected_reads_and_created_return_influences()
             disclosure(&program, "FirstSources.generate")
         );
     };
-    let query = &complete
+    let queries = complete
         .source_facts
         .as_ref()
         .unwrap()
         .queries
         .as_ref()
-        .unwrap()[0];
+        .unwrap();
+    let [query] = queries.as_slice() else {
+        panic!("bounded source retains exactly one original first query");
+    };
     assert!(!complete.returns.is_empty());
     for returned in &complete.returns {
         assert_eq!(returned.node, query.return_node);

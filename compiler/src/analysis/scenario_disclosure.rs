@@ -102,8 +102,8 @@ pub struct DisclosureQuery {
     pub domain: NodeKey,
     pub model: SymbolId,
     pub model_name: String,
-    pub alias: NodeKey,
-    pub predicate: NodeKey,
+    pub alias: Option<NodeKey>,
+    pub predicate: Option<NodeKey>,
     pub inputs: Vec<(NodeKey, SymbolId)>,
     pub dependencies: Vec<DisclosureDependency>,
     pub order: Vec<DisclosureQueryOrder>,
@@ -114,6 +114,8 @@ pub struct DisclosureQuery {
     pub projection: Option<DisclosureQueryProjection>,
     /// Exact original first invocation and its immutable selected-row binding.
     pub first: Option<DisclosureFirstQuery>,
+    /// Original count invocation; this source inventory issues no query handle.
+    pub count: Option<DisclosureCountQuery>,
     pub influences: Vec<DisclosureInfluence>,
 }
 
@@ -145,6 +147,28 @@ pub struct DisclosureFirstQuery {
     pub overload: usize,
     pub binding: NodeKey,
     pub actor: NodeKey,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureCountQuery {
+    pub call: NodeKey,
+    pub overload: usize,
+    pub slots: Vec<Option<usize>>,
+    pub statement: NodeKey,
+    /// A true contained Member scans this original required parent parameter.
+    /// An unscoped model scan has no contained parent selector.
+    pub contained_parent: Option<(NodeKey, SymbolId)>,
+    /// Actual metadata occurrences in the original predicate, in operand order.
+    /// These are ownership facts, never fabricated authored field identities.
+    pub parent_edges: Vec<DisclosureQueryParentEdge>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureQueryParentEdge {
+    pub node: NodeKey,
+    pub receiver: NodeKey,
+    pub child: SymbolId,
+    pub parent: SymbolId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2498,6 +2522,21 @@ impl<'a> Closure<'a> {
                 pending.push((query.model, true));
             }
         }
+        for query in self.checked_count_query_sources(scenario)? {
+            pending.push((query.model, true));
+            if let Some((_, parameter)) = query.count.as_ref()?.contained_parent
+                && let Some(ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                }) = self.types.symbol_types.get(&parameter)
+            {
+                pending.push((*symbol, true));
+            }
+            for edge in &query.count.as_ref()?.parent_edges {
+                pending.push((edge.child, true));
+                pending.push((edge.parent, true));
+            }
+        }
         let mut seen = HashSet::new();
         let mut inventory = Vec::new();
         let mut field_count = 0usize;
@@ -3019,7 +3058,7 @@ impl<'a> Closure<'a> {
         scenario: &super::effects::ScenarioData,
     ) -> Option<Vec<DisclosureQuery>> {
         if !scenario.read {
-            let mut first = Vec::new();
+            let mut first = self.checked_count_query_sources(scenario)?;
             for binding in &scenario.effects {
                 let Some(value) = binding.value.and_then(|key| self.query_group(key)) else {
                     continue;
@@ -3035,6 +3074,15 @@ impl<'a> Closure<'a> {
                 }
             }
             if !first.is_empty() {
+                first.sort_by_key(|query| {
+                    let call = query
+                        .first
+                        .as_ref()
+                        .map(|fact| fact.call)
+                        .or_else(|| query.count.as_ref().map(|fact| fact.call))
+                        .unwrap_or(query.node);
+                    (call.start, call.end)
+                });
                 return Some(first);
             }
         }
@@ -3272,8 +3320,8 @@ impl<'a> Closure<'a> {
             domain: scan.domain,
             model,
             model_name: owner.canonical.clone(),
-            alias: scan_alias.node,
-            predicate,
+            alias: Some(scan_alias.node),
+            predicate: Some(predicate),
             inputs: vec![
                 (membership.1, targets),
                 (equality.1, location),
@@ -3294,8 +3342,477 @@ impl<'a> Closure<'a> {
                 fields: projection.fields.clone(),
             }),
             first: None,
+            count: None,
             influences,
         }])
+    }
+
+    /// Retain original model counts independently from executable disclosure.
+    /// Supplied arrays and derived value arrays remain ordinary pure count.
+    fn checked_count_query_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<DisclosureQuery>> {
+        if scenario.read || scenario.on.is_some() {
+            return Some(Vec::new());
+        }
+        let mut queries = Vec::new();
+        let mut visited = 0usize;
+        for statement in scenario.guards.iter().chain(&scenario.effects) {
+            let mut pending = vec![*self.nodes.get(&statement.node)?];
+            while let Some(node) = pending.pop() {
+                visited += 1;
+                if visited > 16384 {
+                    return None;
+                }
+                if node.kind == SyntaxKind::Examples {
+                    continue;
+                }
+                pending.extend(node.children.iter().rev());
+                if node.kind != SyntaxKind::Call {
+                    continue;
+                }
+                let call = NodeKey::of(node);
+                let callee = node.children.iter().find(|part| expression(part.kind))?;
+                let is_count = matches!(self.query_binding(NodeKey::of(callee)),
+                    Some(Binding::Builtin {id}) if id == "count");
+                if !is_count {
+                    continue;
+                }
+                let mut arguments = node
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Argument);
+                let argument = arguments.next()?;
+                let mut values = argument
+                    .children
+                    .iter()
+                    .filter(|part| expression(part.kind));
+                let supplied = NodeKey::of(values.next()?);
+                if arguments.next().is_some() || values.next().is_some() {
+                    return None;
+                }
+                let domain = self.query_group(supplied)?;
+                let Some(ResolvedType::Array { element, .. }) = self.types.node_types.get(&domain)
+                else {
+                    continue;
+                };
+                let ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                } = element.as_ref()
+                else {
+                    continue;
+                };
+                // Parameter arrays and other local arrays are pure values.
+                // A model-query inventory requires its actual Query or Member.
+                if !matches!(
+                    self.nodes.get(&domain)?.kind,
+                    SyntaxKind::Query | SyntaxKind::Member
+                ) {
+                    continue;
+                }
+                if self.nodes.get(&domain)?.kind == SyntaxKind::Member {
+                    let (receiver, name) = self.count_member(domain)?;
+                    if let Some(ResolvedType::Record { symbol, .. }) =
+                        self.types.node_types.get(&receiver)
+                        && self
+                            .resolve
+                            .symbols
+                            .get(symbol.0 as usize)?
+                            .fields_of()
+                            .iter()
+                            .any(|field| {
+                                self.resolve
+                                    .symbols
+                                    .get(field.0 as usize)
+                                    .is_some_and(|field| field.name == name)
+                            })
+                    {
+                        // An authored field array is a supplied value. It must
+                        // never borrow implicit child-collection provenance.
+                        continue;
+                    }
+                }
+                queries.push(self.checked_count_query_source(
+                    scenario,
+                    statement.node,
+                    call,
+                    supplied,
+                    *model,
+                )?);
+                if queries.len() > 200 {
+                    return None;
+                }
+            }
+        }
+        queries.sort_by_key(|query| (query.count.as_ref().unwrap().call.start, query.node.end));
+        Some(queries)
+    }
+
+    fn checked_count_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        statement: NodeKey,
+        call: NodeKey,
+        supplied: NodeKey,
+        model: SymbolId,
+    ) -> Option<DisclosureQuery> {
+        let selected = self.types.selected_calls.get(&call)?;
+        let SelectedCallTarget::Builtin {
+            id: builtin,
+            overload,
+        } = &selected.target
+        else {
+            return None;
+        };
+        let node = self.query_group(supplied)?;
+        let record = ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        };
+        let array = ResolvedType::Array {
+            element: Box::new(record.clone()),
+            ordered: true,
+            nonempty: false,
+        };
+        let owner = self.checked_count_model(model, scenario.module)?;
+        if builtin != "count"
+            || selected.arguments.as_slice() != [supplied]
+            || selected.slots.as_slice() != [Some(0)]
+            || self.types.node_types.get(&call) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || self.types.node_types.get(&node) != Some(&array)
+            || self.types.node_types.get(&supplied) != Some(&array)
+            || statement.file != call.file
+            || statement.start > call.start
+            || statement.end < call.end
+            || scenario.node.file != statement.file
+            || scenario.node.start > statement.start
+            || scenario.node.end < statement.end
+        {
+            return None;
+        }
+        let source = self.source(scenario.module, node).ok()?;
+        let id = self.opaque("query", node, "").ok()?;
+        let mut dependencies = Vec::new();
+        let mut inputs = Vec::new();
+        let mut parent_edges = Vec::new();
+        let (domain, alias, predicate, contained_parent) = match self.nodes.get(&node)?.kind {
+            SyntaxKind::Member => {
+                if self.types.checked_queries.contains_key(&node)
+                    || self.types.checked_collection_calls.contains_key(&call)
+                {
+                    return None;
+                }
+                let (receiver, name) = self.count_member(node)?;
+                let parameter = self.query_parameter(scenario, receiver)?;
+                let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
+                let SymbolKind::Model {
+                    owner: ModelOwner::ChildOf(actual_parent),
+                    ..
+                } = &owner.kind
+                else {
+                    return None;
+                };
+                let parent_owner = self.checked_count_model(parent, scenario.module)?;
+                if hops != 0
+                    || *actual_parent != parent
+                    || owner.name != name
+                    || !self.original_reference_parameter(receiver, parameter)
+                    || self.model_has_field(parent, name)
+                    || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
+                    || parent_owner.id != parent
+                {
+                    return None;
+                }
+                inputs.push((receiver, parameter));
+                (node, None, None, Some((receiver, parameter)))
+            }
+            SyntaxKind::Query => {
+                let fact = self.types.checked_collection_calls.get(&call)?;
+                let query = self.types.checked_queries.get(&node)?;
+                let [alias, predicate] = query.clauses.as_slice() else {
+                    return None;
+                };
+                let authored = self.nodes.get(&node)?;
+                let clauses: Vec<_> = authored
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::QueryClause)
+                    .map(NodeKey::of)
+                    .collect();
+                let domains: Vec<_> = authored
+                    .children
+                    .iter()
+                    .filter(|part| expression(part.kind))
+                    .map(NodeKey::of)
+                    .collect();
+                let alias_names: Vec<_> = self
+                    .nodes
+                    .get(&alias.node)?
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Name)
+                    .map(|part| self.word(part))
+                    .collect::<Option<Vec<_>>>()?;
+                let where_names: Vec<_> = self
+                    .nodes
+                    .get(&predicate.node)?
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Name)
+                    .map(|part| self.word(part))
+                    .collect::<Option<Vec<_>>>()?;
+                if fact.node != call
+                    || fact.builtin != "count"
+                    || fact.overload != *overload
+                    || fact.query != node
+                    || fact.model != model
+                    || fact.alias != alias.node
+                    || fact.predicate.is_some()
+                    || query.node != node
+                    || query.projection.is_some()
+                    || query.domain_type != array
+                    || query.result != array
+                    || self.types.node_types.get(&query.domain) != Some(&array)
+                    || !matches!(self.query_binding(query.domain), Some(Binding::Symbol(id)) if *id == model)
+                    || self.nodes.get(&query.domain)?.kind != SyntaxKind::NameRef
+                    || self.word(self.nodes.get(&query.domain)?)? != owner.name
+                    || !matches!(&alias.kind, CheckedQueryClauseKind::As { name }
+                        if alias_names == ["as", name.as_str()])
+                    || !alias.expressions.is_empty()
+                    || predicate.kind != CheckedQueryClauseKind::Where
+                    || predicate.expressions.len() != 1
+                    || clauses != [alias.node, predicate.node]
+                    || domains != [query.domain]
+                    || where_names != ["where"]
+                {
+                    return None;
+                }
+                let predicate_node = predicate.expressions[0];
+                let actual_predicates: Vec<_> = self
+                    .nodes
+                    .get(&predicate.node)?
+                    .children
+                    .iter()
+                    .filter(|part| expression(part.kind))
+                    .map(NodeKey::of)
+                    .collect();
+                if actual_predicates != [predicate_node]
+                    || self.types.node_types.get(&predicate_node)
+                        != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                let (equality, unfinished) = self.query_binary(predicate_node, "and")?;
+                let (candidate_parent, supplied_parent) = self.query_binary(equality, "==")?;
+                let (outer_receiver, outer_name) = self.count_member(candidate_parent)?;
+                let (candidate, inner_name) = self.count_member(outer_receiver)?;
+                if outer_name != "parent"
+                    || inner_name != "parent"
+                    || !self.query_row(candidate, alias.node, model)
+                {
+                    return None;
+                }
+                let first_edge = self.checked_count_parent_edge(
+                    outer_receiver,
+                    candidate,
+                    model,
+                    scenario.module,
+                )?;
+                let second_edge = self.checked_count_parent_edge(
+                    candidate_parent,
+                    outer_receiver,
+                    first_edge.parent,
+                    scenario.module,
+                )?;
+                let (parameter_node, parameter_name) = self.count_member(supplied_parent)?;
+                let parameter = self.query_parameter(scenario, parameter_node)?;
+                let (parameter_model, hops) =
+                    self.checked_call_parent_path(parameter_node, parameter, 0)?;
+                let supplied_edge = self.checked_count_parent_edge(
+                    supplied_parent,
+                    parameter_node,
+                    parameter_model,
+                    scenario.module,
+                )?;
+                if parameter_name != "parent"
+                    || hops != 0
+                    || parameter_model != first_edge.parent
+                    || supplied_edge.parent != second_edge.parent
+                    || self.types.node_types.get(&equality)
+                        != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                let field = self.query_member(unfinished, alias.node, model)?;
+                if self.resolve.symbols.get(field.0 as usize)?.name != "unfinished"
+                    || self.types.symbol_types.get(&field)
+                        != Some(&ResolvedType::Scalar(Scalar::Bool))
+                    || self.types.node_types.get(&unfinished)
+                        != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                dependencies.push(self.query_dependency(
+                    unfinished,
+                    scenario.module,
+                    model,
+                    field,
+                    DependencyRole::Control,
+                    &id,
+                )?);
+                inputs.push((parameter_node, parameter));
+                parent_edges.extend([first_edge, second_edge, supplied_edge]);
+                (query.domain, Some(alias.node), Some(predicate_node), None)
+            }
+            _ => return None,
+        };
+        let returned = scenario.effects.last()?;
+        if returned.verb != EffectVerb::Return {
+            return None;
+        }
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", node, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(DisclosureQuery {
+            id,
+            source,
+            node,
+            domain,
+            model,
+            model_name: owner.canonical.clone(),
+            alias,
+            predicate,
+            inputs,
+            dependencies,
+            order: Vec::new(),
+            limit: None,
+            archived: false,
+            cardinality_guard: None,
+            return_node: returned.node,
+            projection: None,
+            first: None,
+            count: Some(DisclosureCountQuery {
+                call,
+                overload: *overload,
+                slots: selected.slots.clone(),
+                statement,
+                contained_parent,
+                parent_edges,
+            }),
+            influences,
+        })
+    }
+
+    fn count_member(&self, key: NodeKey) -> Option<(NodeKey, &str)> {
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let mut receivers = node.children.iter().filter(|part| expression(part.kind));
+        let receiver = NodeKey::of(receivers.next()?);
+        if receivers.next().is_some() {
+            return None;
+        }
+        let name = node
+            .children
+            .iter()
+            .rev()
+            .find(|part| part.kind == SyntaxKind::Name)?;
+        Some((receiver, self.word(name)?))
+    }
+
+    fn model_has_field(&self, model: SymbolId, name: &str) -> bool {
+        let Some(owner) = self.resolve.symbols.get(model.0 as usize) else {
+            return true;
+        };
+        let SymbolKind::Model { fields, .. } = &owner.kind else {
+            return true;
+        };
+        fields.iter().any(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_none_or(|member| member.name == name)
+        })
+    }
+
+    fn checked_count_model(
+        &self,
+        model: SymbolId,
+        module: ModuleId,
+    ) -> Option<&super::resolve::Symbol> {
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let data = self.effects.models.get(&model)?;
+        let definition = self.checked_created_model(model, module)?;
+        if owner.id != model
+            || owner.module != module
+            || data.module != module
+            || definition.declaration.model != model
+            || definition.declaration.node != data.node
+        {
+            return None;
+        }
+        Some(owner)
+    }
+
+    fn checked_count_parent_edge(
+        &self,
+        node: NodeKey,
+        receiver: NodeKey,
+        child: SymbolId,
+        module: ModuleId,
+    ) -> Option<DisclosureQueryParentEdge> {
+        let (actual_receiver, name) = self.count_member(node)?;
+        let owner = self.checked_count_model(child, module)?;
+        let SymbolKind::Model {
+            owner: ModelOwner::ChildOf(parent),
+            ..
+        } = owner.kind
+        else {
+            return None;
+        };
+        self.checked_count_model(parent, module)?;
+        if actual_receiver != receiver
+            || name != "parent"
+            || self.model_has_field(child, "parent")
+            || self.effects.models.get(&child)?.owner != ModelOwner::ChildOf(parent)
+            || self.types.node_types.get(&receiver)
+                != Some(&ResolvedType::Record {
+                    symbol: child,
+                    stored: true,
+                })
+            || self.types.node_types.get(&node)
+                != Some(&ResolvedType::Record {
+                    symbol: parent,
+                    stored: true,
+                })
+        {
+            return None;
+        }
+        Some(DisclosureQueryParentEdge {
+            node,
+            receiver,
+            child,
+            parent,
+        })
     }
 
     /// The original ordered account scan selects one owning mutable row. The
@@ -3466,8 +3983,8 @@ impl<'a> Closure<'a> {
             domain: query.domain,
             model: fact.model,
             model_name: owner.canonical.clone(),
-            alias: alias.node,
-            predicate: predicate_node,
+            alias: Some(alias.node),
+            predicate: Some(predicate_node),
             inputs: Vec::new(),
             order: vec![DisclosureQueryOrder {
                 field: None,
@@ -3486,6 +4003,7 @@ impl<'a> Closure<'a> {
                 binding: binding.node,
                 actor,
             }),
+            count: None,
             influences,
         })
     }

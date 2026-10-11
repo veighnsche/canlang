@@ -4522,7 +4522,7 @@ impl<'a> Emitter<'a> {
             && fact.result == array
             && collection.node == first.call
             && collection.query == source.query.node
-            && collection.alias == source.query.alias
+            && Some(collection.alias) == source.query.alias
             && collection.model == source.query.model
             && collection.builtin == "first"
             && collection.overload == first.overload

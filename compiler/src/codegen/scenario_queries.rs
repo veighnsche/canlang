@@ -206,6 +206,7 @@ fn checked_query_plan(
         || source.source != original.source
         || source.queries != original.queries
         || queries.len() != 1
+        || queries.iter().any(|query| query.count.is_some())
     {
         return None;
     }
@@ -465,6 +466,8 @@ fn checked_first_query_plan(
     use super::ir::IrCallTarget;
     use crate::analysis::{ResolvedType, Scalar};
     let first = q.first.as_ref()?;
+    let alias = q.alias?;
+    let predicate_node = q.predicate?;
     let IrItemKind::Scenario {
         read: false,
         effects,
@@ -542,7 +545,7 @@ fn checked_first_query_plan(
         || collection.builtin != "first"
         || collection.overload != first.overload
         || collection.query != q.node
-        || collection.alias != q.alias
+        || collection.alias != alias
         || collection.model != q.model
         || collection.predicate.is_some()
         || program.types.checked_collection_calls.get(&first.call) != Some(collection)
@@ -563,7 +566,7 @@ fn checked_first_query_plan(
         || query.where_async
         || query.contract_collection_call.is_some()
         || query.where_pred.as_ref().is_none_or(|predicate| {
-            !same_span(q.predicate, predicate.span)
+            !same_span(predicate_node, predicate.span)
                 || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
         })
         || query.order.len() != 1
