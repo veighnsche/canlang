@@ -11226,3 +11226,17 @@ Coordinator defining source reviews CLEAR and finite State source/tests/docs int
 ## 2026-10-11 — Generated-form cancellation at the installed Chromium boundary (tested finite transport scope)
 
 Reuse the reviewed f1 generated-form per-occurrence controller and original owning cleanup/settlement. The released Dev9bb native browser consumer has meaningful real request/body abort and obsolete/current owner controls. Main forms/client contains newer protected POST source than that worker parent, so run only the four affected existing cases once against actual main installed UI. All4 pass in Chromium153, no external calls, frozen outputs unchanged and awaited browser/socket/server cleanup. Worker4/.97s and unchanged Node/two/ten-variant outcomes remain at their recorded scopes. This closes the exact generated-form browser transport criterion after deadline; no compiled business/State/server rollback/plain-action/handle/full-parent acceptance. Packages owns the demonstrated plain-action prepared metadata association using existing derived-input/submit machinery; preserve MCP-only top-level action_handle refusal and all exact operational holds. Existing filetree coverage is reconciled, complete checkpoint unadvanced.
+
+2026-10-11 — lexical value identity and bounded created guarded Model result
+(implemented/tested producer; original native workflows unfinished).
+Preserve original resolver bindings before fixture lookup, including same-named
+let values, while keeping authored example fixture substitutions. Admit the
+existing exact populated Create→Set→guarded standard SEND→Set→late Require→same
+Model Return workflow with ordered original operand/schema/type correspondence;
+SEND false never selects a different parent return. Email literal operands keep
+their checked contextual type, original span and decoded value. No new runtime
+carrier, fake row or broad constructor profile.393 affected and strict0 pass;
+original full query/SEND/child, actual dispatch/rollback/replay and held policies
+remain separate.
+
+Coordinator defining source reviews CLEAR and finite local integration after deadline: original lexical resolver identity, contextual operand Email type/span/value, full created sequence/Rule/source correspondence and corruption refusals are reviewed. Reuse scoped393 and strict/fmt0 with proportionate actual main locked/offline CLI rebuild. Native dispatch/rollback/replay and original applications remain unaccepted. Exact first-query helper uses the actual named @canlang/stdlib/native frame export firstQuery(c,result); State1f96 exists and original source/native consumers are active. Exact holds preserved; complete filetree checkpoint unadvanced.

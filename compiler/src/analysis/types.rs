@@ -830,6 +830,10 @@ pub struct TypeTable {
     /// Resolved value references, including fixed contexts. Retained for IR so
     /// enum-valued bindings are not reconstructed as case spellings.
     pub bound_names: HashSet<NodeKey>,
+    /// Exact local value references, distinguished from module fixtures and
+    /// contextual roots before lowering. A same-spelled fixture cannot replace
+    /// an authored parameter, let, alias or effect binding.
+    pub(crate) lexical_value_references: HashSet<NodeKey>,
     /// Exact fixed-context identity from the original resolver, kept private
     /// so IR can distinguish contextual roots from same-spelled lexical values.
     pub(crate) contextual_references: HashMap<NodeKey, ContextVar>,
@@ -992,6 +996,25 @@ pub fn check_types(
                 binding,
                 Binding::Builtin { .. } | Binding::Predicate | Binding::Error
             )
+        })
+        .map(|(key, _)| *key)
+        .collect();
+    typer.types.lexical_value_references = tables
+        .node_binding
+        .iter()
+        .filter(|(_, binding)| match binding {
+            Binding::Symbol(id) => {
+                matches!(tables.symbols[id.0 as usize].kind, SymbolKind::Param { .. })
+            }
+            Binding::Let { .. }
+            | Binding::QueryAlias { .. }
+            | Binding::ForItem { .. }
+            | Binding::CohortChild { .. }
+            | Binding::CreateAs { .. }
+            | Binding::CallAs { .. }
+            | Binding::SendAs { .. }
+            | Binding::RouteParam { .. } => true,
+            _ => false,
         })
         .map(|(key, _)| *key)
         .collect();

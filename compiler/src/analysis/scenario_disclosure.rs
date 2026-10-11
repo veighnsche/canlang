@@ -7517,7 +7517,72 @@ impl<'a> Closure<'a> {
                             })
                     })
             });
-            if !direct_model_return && !created_child_return {
+            let created_send_return = self.result_model.is_some_and(|model| {
+                let Some(index) = effects
+                    .iter()
+                    .position(|effect| effect.node == created.node)
+                else {
+                    return false;
+                };
+                let tail = &effects[index..];
+                if tail.len() < 5
+                    || effects[..index]
+                        .iter()
+                        .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+                    || !matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
+                    || created.binding.is_none()
+                    || tail[1].verb != EffectVerb::Set
+                    || tail[2].verb != EffectVerb::Send
+                    || tail[2].when.is_none()
+                    || tail[2].binding.is_none()
+                    || tail[3].verb != EffectVerb::Set
+                    || !matches!(tail[3].target, Some(EffectTarget::Record {model: Some(actual)}) if actual == model)
+                    || tail[4..tail.len() - 1]
+                        .iter()
+                        .any(|effect| effect.verb != EffectVerb::Require)
+                    || effects.iter().any(|effect| {
+                        !effect.then_effects.is_empty()
+                            || !effect.else_effects.is_empty()
+                            || !effect.match_arms.is_empty()
+                    })
+                {
+                    return false;
+                }
+                let sent = &tail[2];
+                let assigned = &tail[3];
+                let receiver = self.nodes.get(&assigned.node).and_then(|node| {
+                    node.children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Path)
+                });
+                let returned = &tail[tail.len() - 1];
+                receiver.is_some_and(|receiver| {
+                    matches!(self.query_binding(NodeKey::of(receiver)),
+                        Some(Binding::CreateAs {node}) if *node == created.node)
+                })
+                    && assigned.args.iter().any(|argument| {
+                        let key = argument.value.unwrap_or(argument.key_node);
+                        matches!(self.query_binding(key),
+                            Some(Binding::SendAs {node}) if *node == sent.node)
+                            && self.query_group(key).is_some_and(|key| {
+                                matches!(self.types.node_types.get(&key),
+                                    Some(ResolvedType::StdDelivery { .. }))
+                            })
+                    })
+                    && returned.verb == EffectVerb::Return
+                    && returned.value.is_some_and(|key| {
+                        matches!(self.query_binding(key),
+                            Some(Binding::CreateAs {node}) if *node == created.node)
+                            && self.query_group(key).is_some_and(|key| {
+                                self.types.node_types.get(&key)
+                                    == Some(&ResolvedType::Record {
+                                        symbol: model,
+                                        stored: true,
+                                    })
+                            })
+                    })
+            });
+            if !direct_model_return && !created_child_return && !created_send_return {
                 // Keep this admission tied to the original straight-line created
                 // row workflow. Existing late requirements may reject both stages.
                 let fail = || {

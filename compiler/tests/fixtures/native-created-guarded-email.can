@@ -1,0 +1,15 @@
+app CreatedGuardedEmail
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Entry {count:int=0,attempt:delivery(Mail.send)?}
+ policy Entry read=members fields=count,attempt.status
+When
+ scenario deliver(enabled:bool,accept:bool) -> Entry by=members
+  do
+   create Entry {count=0} as entry
+   set entry {count=entry.count+1}
+   send Mail.send {to="recipient@example.test",subject="Created guarded Email",body="Original request"} when=enabled as attempt
+   set entry {attempt}
+   require accept
+   return entry
+Then
