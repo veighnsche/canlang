@@ -206,7 +206,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       import original from './main.js';
       import { artifact, modules, verdict } from './artifact.js';
       import { derivedInputs } from './derived-inputs.js';
-      import { handleOperationRequest, handleCsvRequest, INPUT_CHOICES_VERSION } from './http-operations.js';
+      import { handleOperationRequest, handleCsvRequest, createSourceFormBindings, INPUT_CHOICES_VERSION } from './http-operations.js';
       import { assembleWorker, buildInvoker, createTeamOwnerStorageBoundary } from './assembly.js';
       import { createD1Storage } from '../vendor/state/storage/d1.js';
       import { createD1OwnerRouter } from '../vendor/state/storage/owner-router.js';
@@ -236,8 +236,11 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
           // Public HTTP expires at 24 hours; the genuine seven-day session stays live.
           // Use the installed operation factory, baked catalog and activation verdict.
           const now=()=>Date.now()+25*60*60000;
+          const revision=JSON.stringify({artifact_version:artifact.artifact_version,language_version:artifact.language_version,
+            sources:artifact.sources.map(({path,sha256})=>({path,sha256})).sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:a.sha256<b.sha256?-1:a.sha256>b.sha256?1:0)});
+          const formBindings=await createSourceFormBindings(env.CAN_FORM_BINDING_KEY,revision);
           const installed=await assembleWorker(artifact,modules,{store:createD1Storage(env.DB),identityStore:identities,
-            ownerStorage,now,files:{usesFiles:false,canonical:filesPort},http:{derivedInputs,
+            ownerStorage,now,files:{usesFiles:false,canonical:filesPort},http:{derivedInputs,formBindings,
               createCsvHandler:deps=>req=>handleCsvRequest(deps,req),
               createOperationHandler:Object.assign(deps=>(req,op)=>handleOperationRequest(deps,req,op),
                 {inputChoicesVersion:INPUT_CHOICES_VERSION})}},verdict);
@@ -280,6 +283,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       modules: { ...evidence.bundle.modules, 'worker/native-scenario-test-host.js': testHost }, binaryModules: evidence.bundle.binaries,
       d1Databases: [{ binding: 'DB', id: databaseId }, ...owners.map(item => ({ binding: item.binding, id: item.id }))],
       d1Persist: persistence, vars: { ...selectPreviewWorkerVars({ resources: { d1: { binding:'DB', availability:'real_local' }, identity: { backingBinding:'DB', availability:'real_local' } } }, origin),
+        CAN_FORM_BINDING_KEY: randomBytes(32).toString('base64url'),
         CAN_STATE_OWNERS: { version: 1, owners: owners.map(item => ({ owner: item.owner,
           binding: item.binding, initializeFresh: true })) } } });
     const identityDb = await worker.getD1Database('DB');
@@ -477,6 +481,16 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.equal(afterCsvCommit[key]!.receipts!.count,beforeCsvReview[key]!.receipts!.count+1);
       assert.equal(afterCsvCommit[key]!.fence_log!.count,beforeCsvReview[key]!.fence_log!.count+1);
     }
+    const renewedCsvResponse=await request(ava,'/__native_saved/csv/review',csvBody);
+    assert.equal(renewedCsvResponse.status,200);
+    assert.equal(renewedCsvResponse.headers.get('x-native-retained-commits'),'0');
+    assert.equal(renewedCsvResponse.headers.get('x-native-retained-files'),'0');
+    const renewedCsv=object(await renewedCsvResponse.json());
+    const renewedConsent=object(renewedCsv.consent); assert.equal(typeof renewedConsent.review_token,'string');
+    assert.notEqual(renewedConsent.review_token,csvConsent.review_token);
+    assert.deepEqual(renewedCsv.rows,csvReview.rows); assert.deepEqual(renewedCsv.counts,csvReview.counts);
+    csvSelection.consent=renewedConsent;
+    assert.deepEqual(await resources(),afterCsvCommit,'aged renewed review changes no resource');
     const recoveredCsv=await expiredCsv(ava,csvSelection); assert.equal(recoveredCsv.response.status,200);
     assert.equal(recoveredCsv.body.operation,arrayInput.name); assert.equal(recoveredCsv.body.review_id,csvReview.review_id);
     const csvPrincipal=object(recoveredCsv.body.principal);
