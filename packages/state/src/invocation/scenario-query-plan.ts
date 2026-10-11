@@ -6,7 +6,7 @@ import type {
 } from '@canlang/contracts';
 import {
   compareInt, compareDecimal, compareMoney, decodeValue, encodeValue,
-  parseTypeId, printTypeId, validateValue, type Decimal, type MoneyValue,
+  normalizeValueTypes, parseTypeId, printTypeId, validateValue, type Decimal, type MoneyValue,
   type NormalizedSchema,
 } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -97,7 +97,11 @@ export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[
     for (const value of list(query.dependencies)) {
       const dep = object(value, ['id', 'source', 'role', 'field', 'type']);
       const id = text(dep.id); local.push(id); source(dep.source); fieldName(dep.field); checkedType(dep.type, true);
-      if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(String(dep.field))) fail('declared metadata-named query fields require a separate owning path join.');
+      if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(String(dep.field))) fail('declared metadata-named query fields require a separate owning path join.');
+      if (dep.field === 'parent') {
+        const type = parseTypeId(dep.type as string);
+        if (type.base.kind !== 'nominal' || type.array || type.nullable) fail('parent requires a required singular owning model reference.');
+      }
       if (dep.role !== 'data' && dep.role !== 'control') fail('closed query dependency role required.');
       const encoded = stableStringify(dep);
       if (dependencyIds.has(id) && dependencyIds.get(id) !== encoded) fail('query dependency identity drifts.');
@@ -197,9 +201,17 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
     const model = models.find(model => model.name === query.model) ?? fail('query requires its owning model inventory.');
     for (const dependency of query.dependencies) {
       const field = model.fields.find(field => field.name === dependency.field);
+      if (dependency.field === 'parent') {
+        if (field !== undefined || Object.hasOwn(model, 'scope') || model.parent !== dependency.type ||
+            !models.some(parent => parent.name === model.parent) || schema &&
+            (Object.hasOwn(schema.contracts, dependency.type) || Object.hasOwn(schema.enums, dependency.type) ||
+              Object.hasOwn(schema.aliases ?? {}, dependency.type))) fail('unshadowed declared parent containment required.');
+        continue;
+      }
       if (field === undefined || artifactType(field, models, schema) !== dependency.type) fail('query dependency disagrees with owning field.');
     }
     for (const term of query.order) {
+      if (term.field === 'parent') fail('parent metadata is not an ordered business field.');
       if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(term.field)) continue;
       if (!query.dependencies.some(dep => dep.role === 'control' && dep.field === term.field)) fail('ordering requires its actual control dependency.');
     }
@@ -225,6 +237,21 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   }
 }
 
+function dependencyWire(record: ProjectedRecord, dependency: ScenarioReceiptQueryPlan['dependencies'][number]): unknown {
+  if (dependency.field === 'parent') {
+    if (record.parent === null || record.parent.model !== dependency.type) return fail('exact declared parent metadata required.');
+    return { id: record.parent.id };
+  }
+  if (!Object.hasOwn(record.data, dependency.field)) return fail('actual query observation field is missing.');
+  return record.data[dependency.field];
+}
+function checkDependencyWire(record: ProjectedRecord, dependency: ScenarioReceiptQueryPlan['dependencies'][number], schema?: NormalizedSchema): unknown {
+  const wire = dependencyWire(record, dependency);
+  // Stored containment is a model wire, never a nominal contract or a data field.
+  canonicalWire(dependency.type, wire, dependency.field === 'parent' && schema === undefined
+    ? normalizeValueTypes({ contracts: [] }, [dependency.type]).valueSchema : schema);
+  return wire;
+}
 type Candidate = { readonly row: Pick<StoredRow, 'id' | 'version'>; readonly record: ProjectedRecord };
 export function queryProjectionWire(projection: ScenarioReceiptQueryProjection, queryPlan: ScenarioReceiptQueryPlan,
   candidates: readonly Candidate[], selectedIndices: readonly number[]): unknown[] {
@@ -238,8 +265,9 @@ export function queryProjectionWire(projection: ScenarioReceiptQueryProjection, 
       if (mapping.kind === 'reference') value = { id: candidate.row.id, version: String(candidate.row.version) };
       else if (mapping.kind === 'version') value = String(candidate.row.version);
       else {
-        if (mapping.field === undefined || !Object.hasOwn(candidate.record.data, mapping.field)) return fail('selected projected field is missing.');
-        value = candidate.record.data[mapping.field];
+        const dependency = queryPlan.dependencies.find(dep => dep.role === 'data' && dep.field === mapping.field);
+        if (dependency === undefined) return fail('selected projected field is missing.');
+        value = dependencyWire(candidate.record, dependency);
       }
       Object.defineProperty(out, mapping.name, { value: copy(value), enumerable: true, writable: true, configurable: true });
     }
@@ -261,8 +289,7 @@ export function projectReadQueryProjectionWire(projection: ScenarioReceiptQueryP
     for (const field of mapping.fields) {
       if (field.kind !== 'field') continue;
       const dependency = checked.dependencies.find(dep => dep.role === 'data' && dep.field === field.field)!;
-      if (!Object.hasOwn(record.data, dependency.field)) fail('selected projected field is missing.');
-      canonicalWire(dependency.type, record.data[dependency.field]);
+      checkDependencyWire(record, dependency);
     }
   }
   return queryProjectionWire(mapping, checked,
@@ -361,8 +388,7 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
         const required = candidate.matched && (dependency.role === 'data' || query.order.some(term => term.field === dependency.field));
         if (required && !ids.includes(dependency.id)) fail('complete selected data and order observations required.');
         if (!ids.includes(dependency.id)) continue;
-        if (!Object.hasOwn(projected.data, dependency.field)) fail('actual query observation field is missing.');
-        canonicalWire(dependency.type, projected.data[dependency.field], schema);
+        checkDependencyWire(projected as ProjectedRecord, dependency, schema);
       }
     }
     unique(identities);
@@ -400,8 +426,8 @@ result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: re
         if (projected === null || projected.id !== candidate.row.id || projected.version !== candidate.row.version) return false;
         for (const dependency of query.dependencies) {
           if (!candidate.dependencies.includes(dependency.id)) continue;
-          if (!Object.hasOwn(projected.data, dependency.field) || !same(projected.data[dependency.field], candidate.record.data[dependency.field])) return false;
-          canonicalWire(dependency.type, projected.data[dependency.field], bound.valueSchema);
+          if (!same(checkDependencyWire(projected, dependency, bound.valueSchema),
+            dependencyWire(candidate.record, dependency))) return false;
         }
       }
     }
