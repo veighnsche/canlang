@@ -1,6 +1,8 @@
 app NativeFileRetirement
 Given
  contract Metadata {note:text}
+ ## Unused complete raw declarations remain part of the installed source closure.
+ contract UnusedDefaults {optional:text?=null,optional_file:file?=null,enabled:bool=false,label:text="",attachments:file[]=[] min=0 max=4,trimmed:text=" padded " trim min=0 max=16,required:text}
  Entry {label:text="Uploaded",attachment:file?,metadata:Metadata?}
  policy Entry read=owner fields=label,attachment,metadata
  policy Entry read=members fields=label

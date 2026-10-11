@@ -370,7 +370,7 @@ test('native File retirement guards every owner writer and resumes original SQLi
         {cwd:root,env,timeout:60000,maxBuffer:32*1024*1024});
       const artifact=JSON.parse(stdout) as CompileArtifact,originalArtifact=JSON.stringify(artifact);
       assert.ok(artifact.sources.some(source=>resolve(source.path)===fixture&&source.sha256===hashes[0]));
-      assert.deepEqual(artifact.valueTypes?.contracts.map(contract=>contract.name),[`${app}.Metadata`]);
+      assert.deepEqual(artifact.valueTypes?.contracts.map(contract=>contract.name),[`${app}.Metadata`,`${app}.UnusedDefaults`]);
       assert.equal(artifact.operations?.find(operation=>operation.name===`${app}.attach`)?.result?.disclosure?.version,1);
       const asm=await assembleModules({artifact,sourcePath:fixture},{workDir:join(dir,'modules'),
         stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
@@ -398,6 +398,45 @@ test('native File retirement guards every owner writer and resumes original SQLi
       assert.equal(installed.inventory.frameworkModels.length,13);
       assert.deepEqual(installed.inventory.artifactModels,artifact.models);
       assert.deepEqual(installed.inventory.valueTypes,artifact.valueTypes);
+      const declarationSets=installed.inventory.opaqueDeclarationSets;assert.ok(declarationSets);
+      assert.equal(declarationSets.length,1);
+      const originalSet=declarationSets[0]!;
+      assert.equal(originalSet.id,`${installed.inventory.snapshotId}:declarations`);
+      assert.deepEqual(originalSet.sources,artifact.sources);
+      assert.deepEqual(originalSet.canonicalModels,installed.inventory.canonicalModels);
+      assert.deepEqual(originalSet.artifactModels,artifact.models);
+      assert.deepEqual(originalSet.valueTypes,artifact.valueTypes);
+      assert.deepEqual(originalSet.originalContracts,{
+        [`${app}.Metadata`]:{fields:{note:{type:'text'}}},
+        [`${app}.UnusedDefaults`]:{fields:{
+          optional:{type:'text',nullable:true,default:null},optional_file:{type:'file',nullable:true,default:null},
+          enabled:{type:'bool',default:false},label:{type:'text',default:''},
+          attachments:{type:'file',array:true,min:'0',max:'4',default:[]},
+          trimmed:{type:'text',default:' padded ',trim:true,min:'0',max:'16'},required:{type:'text'},
+        }},
+      },'complete original own metadata preserves absent defaults and raw literals before normalization');
+      assert.deepEqual(originalSet.valueDefaults,[
+        {contract:`${app}.UnusedDefaults`,field:'optional',value:null},
+        {contract:`${app}.UnusedDefaults`,field:'optional_file',value:null},
+        {contract:`${app}.UnusedDefaults`,field:'enabled',value:false},
+        {contract:`${app}.UnusedDefaults`,field:'label',value:''},
+        {contract:`${app}.UnusedDefaults`,field:'attachments',value:[]},
+        {contract:`${app}.UnusedDefaults`,field:'trimmed',value:' padded '},
+      ],'one exact original default per own default, including unused File-free leaves');
+      assert.deepEqual(originalSet.declarations.map(declaration=>declaration.id).sort(),[
+        `${app}.Entry.create:inputs`,`${app}.Entry.update:inputs`,`${app}.Entry.delete:inputs`,
+        `${app}.attach:inputs`,`${app}.attach:result`,
+      ].sort(),'complete actual four-callable input census and only the declared attach result');
+      for(const declaration of originalSet.declarations){
+        assert.equal(declaration.source.kind,'callable');
+        if(declaration.source.kind!=='callable')throw new Error('Native declaration lacks its original callable source');
+        const originalSource=declaration.source;
+        assert.deepEqual(originalSource.callable,artifact.callables.find(callable=>
+          `${callable.id}:${declaration.profile.kind}`===declaration.id));
+        assert.ok(artifact.sources.some(source=>source.path===originalSource.source.path&&
+          source.sha256===originalSource.source.sha256));
+        assert.equal(originalSource.source.module,originalSource.callable.module);
+      }
       assert.equal(binding.store.fileRetirementAuthority.fileStoreId,physical.fileStoreId);
       const routed=await binding.ownerStorage.forIdentity(identity);
       assert.deepEqual(routed.fileRetirementAuthority,binding.store.fileRetirementAuthority);
@@ -558,6 +597,9 @@ test('native File retirement guards every owner writer and resumes original SQLi
         stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
       binding=await createNativeFileRetirementBinding({...input,artifact:reopenedArtifact,asm:reopenedAssembly,physicalSqliteFileStore:physical});
       assert.equal(physical.fileStoreId,fileStoreId);assert.deepEqual(await resources(),beforeReopen,'genuine rebind preserves original inventory and fence');
+      const reopenedInventory=await binding.store.readFileReferenceInventory(app);assert.ok(reopenedInventory);
+      assert.deepEqual(reopenedInventory,installed,'physical reopen retains the complete original snapshot and declaration/default closure');
+      assert.deepEqual(reopenedInventory.inventory.opaqueDeclarationSets,[originalSet]);
       const resumed=await binding.retireAndDelete(interrupted,'orphaned');assert.equal(resumed.result,'deleted');
       assert.deepEqual(resumed.retirement,originalDecision);assert.equal(physical.blobs.read(blobKeyForFile(interrupted)),null);
       const journal=new DatabaseSync(filePath);
