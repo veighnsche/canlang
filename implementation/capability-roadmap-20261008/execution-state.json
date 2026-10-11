@@ -1034,6 +1034,15 @@
                     "coordinator_review": "Independent defining source review CLEAR; private parent/child lifetime and lease before synchronous metadata capture preserve exact source grants, R, tracked Identity and first/final failure checks. Reuse State60, normal State/DO emission and strict boundary13/971/1433/0; no unchanged rerun. Integrated after deadline, no full-plan credit."
                   }
                 }
+              },
+              "observer_loader": {
+                "state": "implemented_tested_reviewed_loader_component_in_LOCAL_main; original_Office_retry_unfinished",
+                "problem": "Original frozen Office genuine workerd import fails before observer/Identity: top-level new URL(observer.js,import.meta.url) rejects relative module identity. Dev verified unchanged full bundle at actual pinned2026-07-15.",
+                "implementation": "Keep receiptObserverModuleUrl exact relative ./observer.js string; lazy loadReceiptObserver imports that same specifier. Preserve exact optional absence and propagate present initialization/nested missing dependency failures; no resolver fallback or authority/lifetime change.",
+                "validation": "Normal State tsc --noEmitOnError and DO worker emit0. Node exact missing-module1/1 passed0.595584ms. Genuine local workerd2/2 passed400.030167ms (startup/actual lazy module selection; present initialization+nested-dependency failures). Initial workerd cases blocked by sandbox loopback EPERM; only those affected cases rerun with approved local ports. Reuse unchanged Node result. No Can artifact, source/native or Office qualification.",
+                "owner": "Capability/State defining loader; coordinator exact review/integration; Dev unchanged original frozen Office/native consumer retry.",
+                "remaining": "Dev intake exact reviewed State output and retry only affected original frozen native import/Office G2 scope; existing source/native-preparation/activation/publication and recipient holds persist.",
+                "coordinator_review": "Independent defining source review CLEAR: module-owned fixed relative observer specifier resolves lazily, no consumer needs the former absolute URL, exact missing identity classification and initialization/nested dependency failures preserved. Reuse Node1+genuine pinned workerd2 and normal State/DOemit0; changed primary normal State emission0. Dev affected original frozen Office/native retry remains unaccepted."
               }
             }
           },
