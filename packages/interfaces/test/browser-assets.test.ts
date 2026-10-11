@@ -136,3 +136,31 @@ test('assets: served bodies are caller-proof copies; no session read', async () 
   const res2 = await handleAssetsRequest(t, authed);
   assert.equal(await res2.text(), JS);
 });
+
+test('assets: registration pins each getter once before later input mutation', async () => {
+  const bytes = new TextEncoder().encode(JS);
+  const reads = { key: 0, bytes: 0, mime: 0, cache: 0, maxAgeSeconds: 0, immutable: 0 };
+  const cache = {
+    get maxAgeSeconds() { return ++reads.maxAgeSeconds === 1 ? 60 : 120; },
+    get immutable() { return ++reads.immutable === 1; },
+  };
+  const t = createAssetTable([{
+    get key() { reads.key++; return 'a.js'; },
+    get bytes() { reads.bytes++; return bytes; },
+    get mime() {
+      bytes.fill(88);
+      return ++reads.mime === 1 ? 'application/javascript' : 'text/html';
+    },
+    get cache() { reads.cache++; bytes.fill(89); return cache; },
+  }]);
+  const response = handleAssetsRequest(t, get(`${ASSETS_PREFIX}a.js`));
+  assert.equal(response.headers.get('content-type'), 'application/javascript');
+  assert.equal(response.headers.get('cache-control'), 'public, max-age=60, immutable');
+  assert.equal(await response.text(), JS);
+  const head = handleAssetsRequest(t, get(`${ASSETS_PREFIX}a.js`, 'HEAD'));
+  assert.equal(head.headers.get('content-type'), 'application/javascript');
+  assert.equal(head.headers.get('cache-control'), 'public, max-age=60, immutable');
+  assert.equal(head.headers.get('content-length'), String(new TextEncoder().encode(JS).length));
+  assert.equal(await head.text(), '');
+  assert.deepEqual(reads, { key: 1, bytes: 1, mime: 1, cache: 1, maxAgeSeconds: 1, immutable: 1 });
+});

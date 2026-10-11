@@ -52,40 +52,49 @@ export interface AssetTable {
  * dot-segments (traversal-shaped keys never enter the table),
  * non-admitted MIME, or negative/non-integer max age. Served bodies
  * are per-request copies, so later caller mutation of the input
- * bytes cannot change served content. The lookup is frozen and each
+ * bytes cannot change served content. Each field is captured once, with bytes
+ * copied before later getters, and the validated scalars are stored unchanged.
+ * The lookup is frozen and each
  * returned row exposes a defensive byte copy of the registered content.
  */
 export function createAssetTable(rows: readonly AssetRow[]): AssetTable {
   const seen = new Set<string>();
   const frozen = rows.map((row) => {
-    if (typeof row.key !== 'string' || row.key === '') {
+    const key = row.key;
+    if (typeof key !== 'string' || key === '') {
       throw new Error('asset table: key must be a non-empty string.');
     }
-    const segments = row.key.split('/');
+    const segments = key.split('/');
     if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-      throw new Error(`asset table: key ${JSON.stringify(row.key)} is traversal-shaped.`);
+      throw new Error(`asset table: key ${JSON.stringify(key)} is traversal-shaped.`);
     }
-    if (seen.has(row.key)) {
-      throw new Error(`asset table: duplicate key ${JSON.stringify(row.key)}.`);
+    if (seen.has(key)) {
+      throw new Error(`asset table: duplicate key ${JSON.stringify(key)}.`);
     }
-    seen.add(row.key);
-    if (!(row.bytes instanceof Uint8Array)) {
-      throw new Error(`asset table: key ${JSON.stringify(row.key)} bytes must be a Uint8Array.`);
+    seen.add(key);
+    const inputBytes = row.bytes;
+    if (!(inputBytes instanceof Uint8Array)) {
+      throw new Error(`asset table: key ${JSON.stringify(key)} bytes must be a Uint8Array.`);
     }
-    if (!ADMITTED_MIME.has(row.mime)) {
-      throw new Error(`asset table: key ${JSON.stringify(row.key)} has non-admitted MIME.`);
+    const bytes = new Uint8Array(inputBytes);
+    const mime = row.mime;
+    if (!ADMITTED_MIME.has(mime)) {
+      throw new Error(`asset table: key ${JSON.stringify(key)} has non-admitted MIME.`);
     }
-    if (!Number.isInteger(row.cache.maxAgeSeconds) || row.cache.maxAgeSeconds < 0) {
-      throw new Error(`asset table: key ${JSON.stringify(row.key)} has an invalid max age.`);
+    const cache = row.cache;
+    const maxAgeSeconds = cache.maxAgeSeconds;
+    if (!Number.isInteger(maxAgeSeconds) || maxAgeSeconds < 0) {
+      throw new Error(`asset table: key ${JSON.stringify(key)} has an invalid max age.`);
     }
-    if (typeof row.cache.immutable !== 'boolean') {
-      throw new Error(`asset table: key ${JSON.stringify(row.key)} has a non-boolean immutable flag.`);
+    const immutable = cache.immutable;
+    if (typeof immutable !== 'boolean') {
+      throw new Error(`asset table: key ${JSON.stringify(key)} has a non-boolean immutable flag.`);
     }
     return Object.freeze({
-      key: row.key,
-      bytes: new Uint8Array(row.bytes),
-      mime: row.mime,
-      cache: Object.freeze({ ...row.cache }),
+      key,
+      bytes,
+      mime,
+      cache: Object.freeze({ maxAgeSeconds, immutable }),
     });
   });
   const byKey = new Map(frozen.map((row) => [row.key, row] as const));
