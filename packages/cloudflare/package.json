@@ -93,12 +93,16 @@
     "./runtime/bound-files": {
       "types": "./dist/runtime/bound-files.d.ts",
       "default": "./dist/runtime/bound-files.js"
+    },
+    "./distribution": {
+      "types": "./dist/distribution.d.ts",
+      "default": "./dist/distribution.js"
     }
   },
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/cloudflare",
-    "build:emit": "tsc -p tsconfig.json && chmod +x dist/cli/platform.js dist/dev/control-cli.js",
+    "build:emit": "tsc -p tsconfig.json && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/platform.js dist/dev/control-cli.js",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
     "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"

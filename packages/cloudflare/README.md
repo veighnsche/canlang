@@ -48,6 +48,21 @@ requires canonical output parents, rejecting existing symlinks. Browser routing
 is still the serving host's responsibility. See the
 [installed regression evidence](../../implementation/installed-worker-assets/README.md).
 
+## Explicit native builtin catalog
+
+`@canlang/cloudflare/distribution` exposes `distribution.nativeCatalog`, the
+installed `dist/native-catalog.json` emitted by the owning build. Pass its local
+path to the Compiler's existing `--catalog` input for the native Cloudflare
+facade. The artifact derives every signature, effect, feature and entry from
+Values, changing only `builtin:active_member` availability to `implemented`.
+Generic Values keeps that entry `external`; default catalog selection is unchanged.
+
+Emission requires the actual native `active_member` export to be the owning
+function. It refuses incomplete producers and removes stale native catalog output.
+Availability does not create a membership frame or authorize a call: original
+checked source/marker, owning State/Work execution, current Team and awaited
+lifetime restrictions remain required by their producers and Compiler lowering.
+
 ## Deployment links
 
 Set optional `CAN_DEPLOYMENT_BASE` to the trusted HTTP(S) root base for the
