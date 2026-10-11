@@ -6004,10 +6004,15 @@
       "existing_files": [
         "packages/state/src/fanout/membership.ts",
         "packages/state/src/fanout/progress.ts",
-        "packages/cloudflare/src/runtime/invoke.ts"
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/contracts/src/state.ts",
+        "packages/state/src/storage/sqlite-codecs.ts",
+        "packages/state/src/storage/memory.ts",
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts"
       ],
       "new_files_proposal_only": [],
-      "status": "blocked",
+      "status": "implementing",
       "depends_on_packets": [],
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
@@ -6050,11 +6055,11 @@
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
       "current_execution": {
-        "disposition": "owner-contract-released-producer-joins-unfinished",
-        "next_work": "ready-exact-producer-dispatch",
+        "disposition": "bounded-storage-implemented-tested-critically-reviewed-local-main; changed-State-and-native-consumers-unfinished",
+        "next_work": "Capability changed State/lifecycle consumer qualification; Dev exact original native join",
         "owner": "Packages bounded storage identity/decode; Capability State profile; Dev native consumer",
-        "accepted_scope": "Defining original private cohort profile only, preserving original scope; no implementation/runtime/native acceptance.",
-        "next_action": "Implement the exact first-materialization storage outputs including bounded anchor classification, State caller guards and native consumer; publish no append-only or page-only completion claim.",
+        "accepted_scope": "Mandatory four selected bounded StoragePort reads/order marker on actual Memory,D1,DO;25 actual backend controls and owning emissions/DO build0; independent critical review CLEAR including every returned SQL metadata column. Frozen source/caller/actual native acceptance remains separate.",
+        "next_action": "Consume exact reviewed a4+12c producer output; qualify only changed State/lifecycle/native original consumers, reuse storage25/critical review. No fallback, partial membership credit, query scan/sort barrier or whole-plan/hold release.",
         "done_when": "Original admitted child order/identity, membership and progress bytes persist; hostile cohort refuses before unbounded representation or checkpoint bypass.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-cohort"
       },

@@ -44,7 +44,7 @@ function serializeError(error) {
     name: error?.name ?? 'Error',
     message: error?.message ?? String(error),
   };
-  for (const field of ['kind', 'detail', 'expected', 'actual']) {
+  for (const field of ['kind', 'detail', 'expected', 'actual', 'code', 'retryable']) {
     if (error?.[field] !== undefined) {
       out[field] = error[field];
     }

@@ -23,6 +23,7 @@
  * Single-owner scope only: cross-store atomicity is NOT claimed.
  */
 import { after, describe, it } from 'node:test';
+import { StateError } from '@canlang/state/errors';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -34,6 +35,7 @@ import type {
   ModelName,
   RecordId,
   Revision,
+  StateErrorCode,
   StoragePort,
   StoredRow,
 } from '@canlang/contracts';
@@ -126,9 +128,15 @@ interface WorkerErrorJson {
   readonly detail?: string;
   readonly expected?: number;
   readonly actual?: number | null;
+  readonly code?: StateErrorCode;
+  readonly retryable?: boolean;
 }
 
 function rehydrate(error: WorkerErrorJson): Error {
+  if (error.name === 'StateError' && error.code !== undefined) {
+    return new StateError(error.code, error.message, null,
+      error.retryable === undefined ? undefined : { retryable: error.retryable });
+  }
   if (error.name === 'FenceConflictError') {
     return new FenceConflictError(
       error.expected as unknown as Revision,
@@ -163,9 +171,14 @@ function doProxy(mf: Miniflare): StoragePort {
     return data['value'] as T;
   };
   return {
+    cohortIdOrder: 'utf8-binary',
     readRevision: () => call('readRevision'),
     load: (model: ModelName, id: RecordId) => call('load', model, id),
     query: (spec) => call('query', spec),
+    cohortIdentityPage: (input) => call('cohortIdentityPage', input),
+    cohortLoad: (input) => call('cohortLoad', input),
+    cohortRowPage: (input) => call('cohortRowPage', input),
+    cohortAnchorFact: (input) => call('cohortAnchorFact', input),
     commit: (batch) => call('commit', batch),
     readReceipt: (identity) => call('readReceipt', identity),
     outboxPending: () => call('outboxPending'),

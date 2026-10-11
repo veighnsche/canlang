@@ -16,11 +16,14 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
+import { captureCohortRequest } from '../../src/storage/sqlite-codecs.js';
+import { StateError } from '../../src/errors.js';
 import type {
   ModelName,
   RecordId,
   Revision,
   StoragePort,
+  StateErrorCode,
 } from '@canlang/contracts';
 import {
   FenceConflictError,
@@ -57,9 +60,15 @@ interface WorkerErrorJson {
   readonly detail?: string;
   readonly expected?: number;
   readonly actual?: number | null;
+  readonly code?: StateErrorCode;
+  readonly retryable?: boolean;
 }
 
 function rehydrate(error: WorkerErrorJson): Error {
+  if (error.name === 'StateError' && error.code !== undefined) {
+    return new StateError(error.code, error.message, null,
+      error.retryable === undefined ? undefined : { retryable: error.retryable });
+  }
   if (error.name === 'FenceConflictError') {
     return new FenceConflictError(
       error.expected as unknown as Revision,
@@ -108,6 +117,11 @@ async function exec(sql: string, params: ReadonlyArray<unknown> = []): Promise<A
 function doProxy(): StoragePort {
   return {
     readRevision: () => call('readRevision'),
+    cohortIdOrder: 'utf8-binary',
+    cohortIdentityPage: async (input) => call('cohortIdentityPage', captureCohortRequest(input, 'identity')),
+    cohortLoad: async (input) => call('cohortLoad', captureCohortRequest(input, 'load')),
+    cohortRowPage: async (input) => call('cohortRowPage', captureCohortRequest(input, 'rows')),
+    cohortAnchorFact: async (input) => call('cohortAnchorFact', captureCohortRequest(input, 'anchor')),
     load: (model: ModelName, id: RecordId) => call('load', model, id),
     query: (spec) => call('query', spec),
     commit: (batch) => call('commit', batch),

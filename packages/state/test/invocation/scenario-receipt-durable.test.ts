@@ -67,6 +67,11 @@ async function nativeStore(kind: 'd1' | 'do') {
   };
   const call = async <T>(method: string, ...args: unknown[]): Promise<T> => await post('/call', { method, args }) as T;
   const proxy = (): StoragePort => ({
+    cohortIdOrder: 'utf8-binary',
+    cohortIdentityPage: (input) => call('cohortIdentityPage', input),
+    cohortLoad: (input) => call('cohortLoad', input),
+    cohortRowPage: (input) => call('cohortRowPage', input),
+    cohortAnchorFact: (input) => call('cohortAnchorFact', input),
     readRevision: () => call('readRevision'), load: (model, id) => call('load', model, id),
     query: spec => call('query', spec), commit: batch => call('commit', batch),
     readReceipt: identity => call('readReceipt', identity), outboxPending: () => call('outboxPending'),

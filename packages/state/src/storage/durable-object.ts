@@ -41,10 +41,22 @@ import {
   toMigrationOutcome,
   toMigrationFailure,
   mergePublishedColumns,
+  compileCohortIdentityPage,
+  compileCohortRowLoad,
+  compileCohortRowPage,
+  captureCohortRequest,
+  checkCohortIdentityRows,
+  toCohortStoredRow,
+  toCohortStoredRows,
 } from './sqlite-codecs.js';
+import type { CohortRecordRow } from './sqlite-codecs.js';
 import type { RecordRow, ReceiptRow, OutboxRow, RetainedOutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
 import type { DurableObjectStorage } from '@cloudflare/workers-types';
 import type {
+  CohortIdentityPageRequest,
+  CohortRowLoadRequest,
+  CohortRowPageRequest,
+  CohortAnchorFact,
   CommitBatch,
   CommitResult,
   DiscardStagedRows,
@@ -815,9 +827,66 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
     return binding !== undefined || state.authority !== null ? fileGuardCopy(input) : input;
   };
   const port: StoragePort = {
+    cohortIdOrder: 'utf8-binary',
     async readRevision(): Promise<Revision> {
       assertBinding();
       return readRevisionInner(storage);
+    },
+
+    async cohortIdentityPage(input: CohortIdentityPageRequest): Promise<ReadonlyArray<RecordId>> {
+      assertBinding();
+      input = captureCohortRequest(input, 'identity');
+      const { sql, bindings } = compileCohortIdentityPage(input);
+      const { expectedRevision, limit } = input;
+      const before = readRevisionInner(storage);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const rows = storage.sql.exec<{ id: string | null }>(sql, ...bindings).toArray();
+      const after = readRevisionInner(storage);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      return checkCohortIdentityRows(rows, limit);
+    },
+
+    async cohortLoad(input: CohortRowLoadRequest): Promise<StoredRow | null> {
+      assertBinding();
+      input = captureCohortRequest(input, 'load');
+      const { sql, bindings } = compileCohortRowLoad(input);
+      const expectedRevision = input.expectedRevision;
+      const before = readRevisionInner(storage);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const rows = storage.sql.exec<CohortRecordRow>(sql, ...bindings).toArray();
+      const after = readRevisionInner(storage);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      const row = rows[0] ?? null;
+      return row === null ? null : toCohortStoredRow(row);
+    },
+
+    async cohortRowPage(input: CohortRowPageRequest): Promise<ReadonlyArray<StoredRow>> {
+      assertBinding();
+      input = captureCohortRequest(input, 'rows');
+      const { sql, bindings } = compileCohortRowPage(input);
+      const expectedRevision = input.expectedRevision;
+      const before = readRevisionInner(storage);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const rows = storage.sql.exec<CohortRecordRow>(sql, ...bindings).toArray();
+      const after = readRevisionInner(storage);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      return toCohortStoredRows(rows);
+    },
+
+    async cohortAnchorFact(input: CohortRowLoadRequest): Promise<CohortAnchorFact> {
+      assertBinding();
+      input = captureCohortRequest(input, 'anchor');
+      const { model, id, expectedRevision } = input;
+      const before = readRevisionInner(storage);
+      if (before !== expectedRevision) throw new FenceConflictError(expectedRevision, before);
+      const rows = storage.sql.exec<{ fact: string }>("SELECT CASE WHEN EXISTS (SELECT 1 FROM records WHERE model = ? AND id = ?) THEN 'present' " +
+        "WHEN EXISTS (SELECT 1 FROM history WHERE model = ? AND record_id = ? AND change IN ('remove', 'archive')) " +
+        "THEN 'disposed' ELSE 'unknown' END AS fact", model, id, model, id).toArray();
+      const after = readRevisionInner(storage);
+      if (after !== expectedRevision) throw new FenceConflictError(expectedRevision, after);
+      const fact = rows[0]?.fact;
+      if (fact !== 'present' && fact !== 'disposed' && fact !== 'unknown') throw new Error('Invalid cohort anchor fact.');
+      return fact;
     },
 
     async load(model: ModelName, id: RecordId): Promise<StoredRow | null> {
