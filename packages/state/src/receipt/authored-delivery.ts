@@ -206,7 +206,10 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
           original.association.model !== input.model.name || original.association.recordId !== input.recordId ||
           original.association.field !== input.field ||
           (original.kind === 'delivery-skipped' ? original.send.target : original.intent.target) !== current.source ||
-          (original.kind === 'delivery-skipped') !== (stored.receipt.status === 'skipped'))) refuse();
+          // A queued lifetime can be skipped at its genuine preclaim fence.
+          // Its original delivery-result provenance remains unchanged; only
+          // a source-false receipt specifically requires delivery-skipped.
+          original.kind === 'delivery-skipped' && stored.receipt.status !== 'skipped')) refuse();
       const receipt = stored.receipt;
       if (retained.id !== current.deliveryId || receipt.deliveryId !== current.deliveryId || receipt.revision !== current.revision) refuse();
     }

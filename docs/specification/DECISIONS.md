@@ -10442,3 +10442,7 @@ unfinished mounted browser parent. Provider-void stays skipped, V05 release-host
 stays Dev/L7, and all precise holds including publication remain.
 
 Coordinator defining library review CLEAR and integration after deadline. Reuse47 Files/UI,28 Interfaces and actual public Files→UI1; changed normal dependency emissions/UI browser/root0. Private original-object occurrence binding and terminal closure issue no authority themselves; trusted native resolver/current grant/per-open URL enforcement remain Dev-owned and unaccepted. Original TextMessage/File lowering stays Compiler-owned. Complete filetree checkpoint and all exact holds remain unchanged.
+
+2026-10-11 — preserve queued receipt provenance after original preclaim skip (reviewed State DTO component).
+
+Exact8125f21d allows original queued delivery-result association to retain its immutable header when the same lifetime becomes skipped; delivery-skipped still requires skipped status. Exact association locator/source/callable/receipt revision/replay checks remain. Independent source review CLEAR; reuse28 affected authored/origin/resolver and normal State/DOemit0. Dev still must append actual skipped receipt/association to the same genuine work.dispatch.claim stage preserving ACK/checks with zero provider and no second transaction. This finite local source intake does not establish native claim/source/File issuer/atomicity or whole-plan acceptance. Complete checkpoint and exact holds remain unchanged.

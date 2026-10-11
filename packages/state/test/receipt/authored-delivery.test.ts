@@ -5,7 +5,7 @@ import type { ArtifactModel, CanTypeId, DomainWrite, FrameworkFilePayloadOrigin,
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { stageAuthoredDelivery, type AuthoredDeliveryInput, type AuthoredSkippedDelivery } from '../../src/receipt/authored-delivery.js';
-import { associationRowId, assertReceiptJoin, readAssociationRow, readReceiptRow, withReceiptRowData,
+import { associationRowId, assertReceiptJoin, readAssociationRow, readReceiptRow, withReceiptRowData, withAssociationRowData, ReceiptTableError,
   RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../../src/receipt/tables.js';
 import { asId, asModel, FIXED_NOW, makeBatch, makeRow } from '../invocation/fixtures.js';
 
@@ -203,5 +203,66 @@ test('skipped receipt join refuses same logical SEND in outbox or dispatch even 
       row: makeRow({ id: actual.intentId, data: { operationId: actual.operationId, source: actual.target, occurrenceIndex: actual.occurrenceIndex } }) }] }
       : { writes: staged.writes!, outbox: [actual] });
     assert.throws(() => assertReceiptJoin(batch), validation);
+  }
+});
+
+
+// A queued Memory carrier supplies the original result header identity. This
+// exercises the State DTO consumer only, not a native claim or File census.
+function queuedResultFixture() {
+  const { entry, binding } = sourceSkippedFixture();
+  assert.ok(entry.request);
+  const intent: OutboxIntent = { ...queued(), arguments: { ...entry.request } };
+  const { send: _send, guard: _guard, ...original } = binding.origin;
+  const resultBinding: FrameworkFilePayloadOrigin = { ...binding, slot: { ...binding.slot, id: asId(intent.intentId) },
+    origin: { ...original, kind: 'delivery-result', deliveryId: intent.intentId,
+      intent: { intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId,
+        target: intent.target, occurrenceIndex: intent.occurrenceIndex } } };
+  const context = { source: intent.target, declaredResult: deliveryDescriptor.result };
+  return { intent, binding: resultBinding, context };
+}
+
+test('queued result header survives a skipped Memory receipt and subsequent authored clear or replacement', async () => {
+  for (const clear of [false, true]) {
+    const s = fixture(), original = queuedResultFixture();
+    const pending: AuthoredDeliveryInput = { ...s.input(), value: { kind: 'delivery', id: original.intent.intentId, operation: TARGET },
+      skipped: new Map(), queued: new Map([[original.intent.intentId, original.intent]]), filePayloadOrigin: original.binding };
+    await s.apply((await stageAuthoredDelivery(pending, s.context)).writes!);
+    const receipt = await s.store.load(asModel(RECEIPT_MODEL), asId(original.intent.intentId)); assert.ok(receipt);
+    const association = await s.store.load(asModel(RECEIPT_ASSOCIATION_MODEL), asId(associationRowId(MODEL, 'record', 'request'))); assert.ok(association);
+    const revision = (await s.store.readRevision()) + 1;
+    const retained = withReceiptRowData(receipt, { deliveryId: original.intent.intentId, revision, status: 'skipped',
+      result: null, error: null, contentRef: null, resultExpiresAtMs: null }, { actor: 'caller', nowMs: FIXED_NOW + 1 }, original.context);
+    await s.apply([
+      { kind: 'update', model: asModel(RECEIPT_MODEL), id: receipt.id, expectedVersion: receipt.version, row: retained },
+      { kind: 'update', model: asModel(RECEIPT_ASSOCIATION_MODEL), id: association.id, expectedVersion: association.version,
+        row: withAssociationRowData(association, { recordModel: MODEL, recordId: 'record', field: 'request', deliveryId: original.intent.intentId,
+          source: TARGET, revision }, { actor: 'caller', nowMs: FIXED_NOW + 1 }) },
+    ]);
+    const saved = readReceiptRow(retained, original.context);
+    assert.equal(saved.receipt.status, 'skipped'); assert.deepEqual(saved.filePayloadOrigin, original.binding);
+    assert.deepEqual(saved.filePayloadOrigin?.files, [], 'pending no-result DTO retains its empty result facts');
+    await assert.rejects(stageAuthoredDelivery({ ...pending, revision }, s.context), validation);
+    await assert.rejects(stageAuthoredDelivery({ ...pending, recordId: 'retargeted', revision }, s.context), validation);
+    const update = await stageAuthoredDelivery({ ...s.input(), ...(clear ? { value: null } : {}), revision }, s.context);
+    await s.apply(update.writes!);
+    assert.deepEqual(await s.store.load(asModel(RECEIPT_MODEL), receipt.id), retained, 'association changes do not renew/reset the original receipt');
+    if (clear) assert.equal(await s.store.load(asModel(RECEIPT_ASSOCIATION_MODEL), association.id), null);
+    else assert.equal(readAssociationRow((await s.store.load(asModel(RECEIPT_ASSOCIATION_MODEL), association.id))!).deliveryId, 'skipped-original');
+  }
+});
+
+test('Memory-loaded source-skipped headers cannot accompany pending or failed receipt phases', async () => {
+  for (const status of ['pending', 'failed'] as const) {
+    const s = fixture(), original = sourceSkippedFixture();
+    await s.apply((await stageAuthoredDelivery({ ...s.input(original.entry), filePayloadOrigin: original.binding }, s.context)).writes!);
+    const receipt = await s.store.load(asModel(RECEIPT_MODEL), asId(original.entry.deliveryId)); assert.ok(receipt);
+    // Raw Memory is the DTO store here; deliberately retain an invalid phase
+    // to exercise the owning receipt reader invoked by association clearing.
+    const malformed = { ...receipt, version: (receipt.version + 1) as typeof receipt.version,
+      data: { ...receipt.data, status, error: status === 'failed' ? { code: 'failed', message: 'failure' } : null } };
+    await s.apply([{ kind: 'update', model: asModel(RECEIPT_MODEL), id: receipt.id, expectedVersion: receipt.version, row: malformed }]);
+    await assert.rejects(stageAuthoredDelivery({ ...s.input(), value: null }, s.context), ReceiptTableError);
+    assert.deepEqual(await s.store.load(asModel(RECEIPT_MODEL), receipt.id), malformed);
   }
 });
