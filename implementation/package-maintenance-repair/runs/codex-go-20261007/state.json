@@ -6168,6 +6168,18 @@
           "owner": "Compiler checked producer and end-to-end native consumer; Dev actual CF fixture materializer; coordinator finite source review/integration"
         },
         "limits": "No input/source rename, fixture/actor/caller/wire policy change, native preparation/backend/timezone/retirement/publication activation, new proof record or parent-count advancement."
+      },
+      "work_numeric_error_observation": {
+        "status": "implemented_tested_reviewed_CLEAR_finite_component_in_LOCAL_main; original_consumer_or_parent_criteria_separate",
+        "files": [
+          "packages/work-kernel/src/rows.ts",
+          "packages/work-kernel/conformance/numeric-text.contract.test.ts"
+        ],
+        "behavior": "Compare complete actual caller observation including original enumerable own-key names/order directly against unchanged frozen donor. Preserve donor-defined scalar observation domain. Existing negative controls mutate genuine observations and invoke same real comparator. Initial meaningful comparison exposed actual RowsStateError missing retryable/fields/conflict; restore original optional declarations/types/order with undefined values, no new options or semantics.",
+        "validation": "Node24 Work-kernel emission0 and final root types0. Initial complete74-scope run retains45 unaffected passes and exposes28 original StateError mismatches; minimal source repair then only28 affected errors+existing negative-controlgroup29/29PASS65.387291ms. All74 scopes pass/reused, primitive donor10213 observations unchanged.",
+        "review": "Independent finite source review CLEAR; frozen donor untouched, genuine positive/negative comparator and original source shape preserved.",
+        "limits": "This is original TV02/TEW01, not new VERIFY-TV01 assignment, native adoption or whole E02 closure. No extra scalar values/oracle regenerated/proof tree.",
+        "coordinator_review": "Independent defining review CLEAR: restore original optional error fields in donor declaration order and enumerable undefined values; complete actual own-key/order comparator rejects real observation mutations. Reuse74 scopes (45 unchanged plus29 affected rerun) and owning Node24 checks. Actual changed MAIN Work-kernel/root emission0. This closes original TV02/TEW01 only; no VERIFY-TV01, native or broader E02 acceptance."
       }
     },
     "REPLAY-IP07": {

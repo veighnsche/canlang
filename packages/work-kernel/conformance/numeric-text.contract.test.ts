@@ -11,12 +11,22 @@ function thaw(x:any):any {if(x?.$bits){const v=new DataView(new ArrayBuffer(8));
 function bits(n:number){const v=new DataView(new ArrayBuffer(8));v.setFloat64(0,n);return v.getBigUint64(0).toString(16).padStart(16,'0')}
 function observe(x:any):any {if(typeof x==='number')return {$bits:bits(x)};if(x===undefined)return {$undefined:true};if(Array.isArray(x))return x.map(observe);if(x&&typeof x==='object')return {$entries:Object.entries(x).map(([k,v])=>[k,observe(v)])};return x}
 function error(e:any){return {name:e.name,message:e.message,codePresent:'code' in e,code:observe(e.code),detailsPresent:'details' in e,details:observe(e.details),ownKeys:Object.keys(e)}}
-test('immutable primitive builtin observations',()=>{assert.equal(fixture.numbers.length,10213);for(const c of fixture.numbers){const actual=observeNumber(c.inputBits);assert.equal(actual.stringText,c.stringText);assert.equal(actual.jsonTokenText,c.jsonTokenText);if(!Number.isNaN(thaw({$bits:c.inputBits})))assert.equal(actual.observedBits,c.observedBits)}});
-for(const c of fixture.callers)test(c.leaf+'/'+c.id+'/'+(c.direction??''),()=>{const modules:any={rows,receipt,linkage,recovery};const args=thaw(c.args);if(c.leaf==='rows')args.push(c.direction);let actual;try{actual={ok:observe(modules[c.leaf][c.fn](...args))}}catch(e){actual={throw:error(e)}}if(actual.throw){const expected=c.expected.throw;const keys=['name','message','code','details'];const mandatory=(x:any)=>({...x,ownKeys:x.ownKeys.filter((k:string)=>keys.includes(k))});assert.deepEqual(mandatory(actual.throw),mandatory(expected));const extras=expected.ownKeys.filter((k:string)=>!keys.includes(k));assert.deepEqual(extras,expected.name==='StateError'?['retryable','fields','conflict']:[])}else assert.deepEqual(actual,c.expected)});
+function compareNumber(actual:any,expected:any){assert.equal(actual.stringText,expected.stringText);assert.equal(actual.jsonTokenText,expected.jsonTokenText);if(!Number.isNaN(thaw({$bits:expected.inputBits})))assert.equal(actual.observedBits,expected.observedBits)}
+function observeCaller(c:any):any {const modules:any={rows,receipt,linkage,recovery};const args=thaw(c.args);if(c.leaf==='rows')args.push(c.direction);try{return {ok:observe(modules[c.leaf][c.fn](...args))}}catch(e){return {throw:error(e)}}}
+function compareCaller(actual:any,expected:any){assert.deepEqual(actual,expected)}
+test('immutable primitive builtin observations',()=>{assert.equal(fixture.numbers.length,10213);for(const c of fixture.numbers)compareNumber(observeNumber(c.inputBits),c)});
+for(const c of fixture.callers)test(c.leaf+'/'+c.id+'/'+(c.direction??''),()=>{compareCaller(observeCaller(c),c.expected)});
 test('negative controls reject numeric and envelope mutations',()=>{
  const texts=new Map(fixture.numbers.map((x:any)=>[x.inputBits,x]));
- for(const [bits,bad,channel] of [['4415af1d78b58c40','9223372036854775807','stringText'],['c415af1d78b58c40','-9223372036854775808','stringText'],['8000000000000000','-0','stringText'],['7ff0000000000000','Infinity','jsonTokenText'],['7ff8000000000000','NaN','jsonTokenText']] as const){const c:any=texts.get(bits);assert.ok(c);assert.notEqual(c[channel],bad)}
- const exponential:any=fixture.numbers.find((x:any)=>x.stringText==='1e+21');assert.ok(exponential);assert.notEqual(exponential.stringText,'1e21');assert.notEqual(exponential.stringText,'1000000000000000000000');
- const c=fixture.numbers.find((x:any)=>x.inputBits==='3ff0000000000000');assert.notDeepEqual(observeNumber('3ff0000000000001'),c);
- const e=fixture.callers.find((x:any)=>x.expected.throw?.codePresent).expected.throw;assert.notDeepEqual({...e,code:'wrong'},e);assert.notDeepEqual({...e,ownKeys:[...e.ownKeys].reverse()},e);assert.notDeepEqual({...e,message:e.message+'!'},e);
+ for(const [bits,bad,channel] of [['4415af1d78b58c40','9223372036854775807','stringText'],['c415af1d78b58c40','-9223372036854775808','stringText'],['8000000000000000','-0','stringText'],['7ff0000000000000','Infinity','jsonTokenText'],['7ff8000000000000','NaN','jsonTokenText']] as const){const c:any=texts.get(bits);assert.ok(c);assert.throws(()=>compareNumber({...observeNumber(bits),[channel]:bad},c),assert.AssertionError)}
+ const exponential:any=fixture.numbers.find((x:any)=>x.stringText==='1e+21');assert.ok(exponential);for(const bad of ['1e21','1000000000000000000000'])assert.throws(()=>compareNumber({...observeNumber(exponential.inputBits),stringText:bad},exponential),assert.AssertionError);
+ const c=fixture.numbers.find((x:any)=>x.inputBits==='3ff0000000000000');assert.throws(()=>compareNumber(observeNumber('3ff0000000000001'),c),assert.AssertionError);
+ const caller=fixture.callers.find((x:any)=>x.expected.throw?.codePresent);const e=observeCaller(caller).throw;
+ for(const changed of [{...e,code:'wrong'},{...e,ownKeys:[...e.ownKeys].reverse()},{...e,message:e.message+'!'}])assert.throws(()=>compareCaller({throw:changed},caller.expected),assert.AssertionError);
+ const stateCaller=fixture.callers.find((x:any)=>x.expected.throw?.name==='StateError');const state=observeCaller(stateCaller).throw;
+ for(const key of ['retryable','fields','conflict']){
+  assert.throws(()=>compareCaller({throw:{...state,ownKeys:state.ownKeys.filter((k:string)=>k!==key)}},stateCaller.expected),assert.AssertionError);
+  assert.throws(()=>compareCaller({throw:{...state,ownKeys:state.ownKeys.map((k:string)=>k===key?key+'!':k)}},stateCaller.expected),assert.AssertionError);
+ }
+ assert.throws(()=>compareCaller({throw:{...state,ownKeys:[...state.ownKeys].reverse()}},stateCaller.expected),assert.AssertionError);
 });

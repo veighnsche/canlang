@@ -19,9 +19,12 @@
 // - Error classes carry the donor `.name` per direction
 //   ('KernelTableError' / 'StateError' + code 'validation'); class
 //   identity differs by module, so conformance compares name/code/
-//   message, never instanceof across modules.
+//   message/details and the complete own-key sequence, including the
+//   state donor's undefined retryable/fields/conflict validation fields.
 
 import type {
+  ConflictCurrent,
+  FieldError,
   ModelName,
   QuerySpec,
   RecordId,
@@ -60,10 +63,13 @@ export class RowsKernelError extends Error {
   }
 }
 
-/** State-direction failure. `.name`/`.code` match the state donor. */
+/** State-direction failure. Observed error shape matches the state donor. */
 export class RowsStateError extends Error {
   readonly code: StateErrorCode;
   readonly details: unknown;
+  readonly retryable?: boolean;
+  readonly fields?: FieldError[];
+  readonly conflict?: ConflictCurrent;
   constructor(message: string) {
     super(message);
     this.name = 'StateError';
