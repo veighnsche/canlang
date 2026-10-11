@@ -135,3 +135,29 @@ pointer is given.
 directory URL for portable Worker staging. Tests remain outside that module
 inventory. Compilation stays within each owning package; public commands also
 prepare declared dependencies.
+
+## CSV intake resource profile
+
+CSV review and commit retain the existing authenticated, CSRF-qualified 1 MiB
+streaming JSON body cap. Only these routes additionally cap JSON container
+depth at three: the root object, consent object or selection array, and each
+selection object. That guard runs before JSON graph allocation; byte/depth
+resource refusals precede later syntax admission. Other JSON routes have no
+implicit depth policy.
+
+After current catalog admission, CSV uses the same 1 MiB text byte ceiling and
+existing 1,000 data-row ceiling. Total cells, including header and malformed
+rows, are limited to 1,001 times the number of checked writable operation
+inputs allowed by its shape, with a minimum width of one. This provides capacity
+for every maximum valid row under the exact source. Allocation-free shared
+preflight checks Unicode, quoting and counts before `csv-parse` constructs
+records. Within the byte budget, malformed syntax retains priority over row or
+cell excess, including an unterminated quote after 1,001 rows. Accepted raw
+cells, defaults, duplicates, consent and current-authority invocation stay the
+same. Refusals carry safe `limit` messages and no input text.
+
+Shared parsing and browser advisory accept an optional `CsvResourceLimits`
+profile. Standalone callers have no implicit byte/cell quota, and advisory
+without checked metadata cannot certify the mounted profile. Original generated
+browser/durable and supported-host peak-memory qualification remain separate
+from the owning mounted resource checks.

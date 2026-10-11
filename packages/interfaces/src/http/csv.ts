@@ -61,7 +61,8 @@ import type {
 import { parseObjectBody } from '../internal/input-admission.js';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
 import { canonicalJson } from './canonical-json.js';
-import { CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
+import { CSV_GRAMMAR_MAX_ROWS, CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
+import type { CsvResourceLimits } from '@canlang/ui/csv/grammar';
 import { checkCsvHeader, mapCsvCells } from '@canlang/ui';
 import { decodeValue, encodeValue, isDecimal, SchemaError } from '@canlang/values';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
@@ -78,9 +79,25 @@ import {
   resolveRequestIdentity,
 } from './context.js';
 import { OPERATION_NAME_PATTERN } from './operations.js';
+import { JSON_BODY_MAX_BYTES } from './limits.js';
 
 const REVIEW_PATH = '/api/csv/review';
 const COMMIT_PATH = '/api/csv/commit';
+
+// CSV body containers: root1, consent/selection array2, selection object3.
+// This is an existing protocol-shape bound, not a global HTTP depth policy.
+const CSV_REQUEST_MAX_DEPTH = 3;
+
+function resourceLimits(derived: DerivedOperationInputs, allowed: readonly string[]): CsvResourceLimits {
+  const permitted = new Set(allowed);
+  const writable = new Set(derived.inputs.filter(input => input.kind !== 'delivery' && permitted.has(input.name)).map(input => input.name));
+  // Capacity for every maximum valid row and header under this exact source.
+  // Malformed rows still retain their verdict until the total budget is exceeded.
+  return {
+    maxBytes: JSON_BODY_MAX_BYTES,
+    maxCells: (CSV_GRAMMAR_MAX_ROWS + 1) * Math.max(1, writable.size),
+  };
+}
 
 /** One row's verdict: binds, fails (preserved with error), or repeats a valid row. */
 export type CsvRowStatus = 'valid' | 'invalid' | 'duplicate';
@@ -141,8 +158,13 @@ export class CsvParseError extends Error {
   override readonly name = 'CsvParseError';
 }
 
-/** More data rows than the shared grammar ceiling: request-level `limit`. */
-export class CsvTooManyRowsError extends Error {
+/** Caller byte/cell or fixed row resource refusal: request-level `limit`. */
+export class CsvResourceLimitError extends Error {
+  override readonly name: string = 'CsvResourceLimitError';
+}
+
+/** Preserve the existing public class for the original data-row ceiling. */
+export class CsvTooManyRowsError extends CsvResourceLimitError {
   override readonly name = 'CsvTooManyRowsError';
 }
 
@@ -153,13 +175,16 @@ export interface CsvDataRow {
 }
 
 /** Shared raw CSV grammar; this wrapper preserves authoritative error classes. */
-export function parseCsvText(text: string): { header: string[]; rows: CsvDataRow[] } {
+export function parseCsvText(text: string, limits?: CsvResourceLimits): { header: string[]; rows: CsvDataRow[] } {
   try {
-    const parsed = parseCsvGrammar(text);
+    const parsed = parseCsvGrammar(text, limits);
     return { header: [...parsed.header], rows: [...parsed.rows] };
   } catch (error) {
     if (!(error instanceof CsvGrammarError)) throw error;
-    if (error.kind === 'limit') throw new CsvTooManyRowsError(error.message);
+    if (error.kind === 'limit') {
+      if (error.resource === 'rows') throw new CsvTooManyRowsError(error.message);
+      throw new CsvResourceLimitError(error.message);
+    }
     throw new CsvParseError(error.message);
   }
 }
@@ -375,7 +400,7 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
     if (sessionToken === null || identity.actor === null) {
       return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
     }
-    const body = await parseObjectBody(request);
+    const body = await parseObjectBody(request, { maxDepth: CSV_REQUEST_MAX_DEPTH });
     await assertPostCsrf({
       sessionToken,
       headerValue: request.headers.get(CSRF_HEADER),
@@ -403,9 +428,9 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
     }
     let parsed: { header: string[]; rows: CsvDataRow[] };
     try {
-      parsed = parseCsvText(csv);
+      parsed = parseCsvText(csv, resourceLimits(derived, shape.allowed));
     } catch (err) {
-      if (err instanceof CsvTooManyRowsError) {
+      if (err instanceof CsvResourceLimitError) {
         return deny(deps, buildBusinessError('limit', err.message), operation);
       }
       if (err instanceof CsvParseError) {

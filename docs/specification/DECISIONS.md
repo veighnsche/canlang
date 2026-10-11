@@ -9724,3 +9724,37 @@ Coordinator finite producer review CLEAR and LOCAL main integration after the de
 The actual Creative list where can_view also needs an explicit read-predicate outer occurrence/current read frame; the shared helper node cannot identify that stage. Extend the same coherent State mechanism at the original viewer predicate seam when Compiler exact metadata and Dev route are supplied, preserving projection, order/limit and final fences. This engineering choice follows the demonstrated original consumer, creates no general pure-read relaxation and carries uncertainty only about the unreleased native join. Existing SEQ025 ordinary_source_read.membership_stages is the single execution record; consumers include C03/SEQ010 and original025/026. All holds remain.
 
 Coordinator independent finite State body-condition/read-policy review CLEAR and LOCAL main integration after deadline. Retain69 distinct affected controls and owning emit without unchanged reruns. Native source/role binding, original read-predicate and guarded SEND consumer acceptance remain unfinished; Compiler canonical-model rule-ID collision correction is separately owned. No full-plan completion or complete-checkpoint advancement.
+
+## 2026-10-11 — CSV source-derived allocation profile (implemented locally; original host qualification unfinished)
+
+For DEL-C01/SR02, select a CSV-only profile using the existing 1 MiB request/text
+cap and 1,000-data-row ceiling. Total header and data cells are bounded by 1,001
+times the number of checked writable operation inputs permitted by its shape,
+with minimum width one. JSON container depth three derives from the existing
+root/consent/selection-array/selection-object request schema. No arbitrary global
+byte, cell or depth default is introduced. Other JSON and standalone CSV callers
+retain their existing defaults; advisory can consume the same optional profile
+when its host supplies checked metadata.
+
+Constant-space Unicode/UTF8 byte and CSV lexical preflight precedes materialized
+record allocation. Within the explicit byte budget, complete Unicode and quote
+validation precede row/cell refusals, preserving malformed quotes after an
+oversized prefix. The existing library still materializes accepted exact cells.
+Caller byte/depth excess may refuse before later content/syntax admission, as
+the streaming body cap already does. Preserve BOM, CRLF/LF, lone CR, blanks,
+escaped quotes, field-count verdicts, defaults, decoded duplicate identity,
+consent, current authority and invocation order. Keep the original row-limit
+error class; byte/cell refusals have a resource error with safe messages.
+
+Three JEV requests favor preflight (.62/.63/.79, confidence .43/.45/.69) with no
+rationale. Moderate certainty is retained. Source adjudication favors the exact
+before-allocation criterion: a library discard pass still constructs a record.
+Owning emits pass; 19,608 bounded lexical inputs match the original configured
+parser. Original grammar and mounted resource cases pass 7/7, including exact
+source-width capacity, 1 MiB body, depth-three commit/depth-four refusal, late
+quote priority and no effects/disclosure. Independent source review is clear.
+Unchanged scalar/date/alias results are reused. Coordinator source acceptance
+and Dev's original installed/browser/durable maximum-work and peak-memory
+qualification remain open; no full parent/security acceptance or hold release.
+
+Coordinator finite CSV preflight/mounted receiver review CLEAR and LOCAL main integration after deadline. Reuse19,608 lexical correspondence inputs,7/7 affected grammar/mounted resource outcomes and owning emits. Dev original generated/browser/durable maximum-work/peak-memory qualification remains unfinished; full-plan counts, precise holds and complete checkpoint unchanged.

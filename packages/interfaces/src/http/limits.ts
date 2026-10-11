@@ -67,16 +67,42 @@ export async function readCappedBody(request: Request, maxBytes: number): Promis
 /**
  * Parse a JSON request body. Empty bodies and malformed JSON throw
  * `IdentityError('validation', 'Invalid JSON body.')`; oversize bodies throw
- * the `limit` error from {@link readCappedBody}.
+ * the `limit` error from {@link readCappedBody}. A caller may additionally
+ * select a container-depth ceiling before graph allocation; there is no
+ * implicit depth policy for other consumers.
  */
 export async function parseJsonBody(
   request: Request,
   maxBytes: number = JSON_BODY_MAX_BYTES,
+  maxDepth?: number,
 ): Promise<unknown> {
   const bytes = await readCappedBody(request, maxBytes);
   const text = new TextDecoder().decode(bytes);
   if (text.trim().length === 0) {
     throw new IdentityError('validation', 'Invalid JSON body.');
+  }
+  if (maxDepth !== undefined) {
+    if (!Number.isSafeInteger(maxDepth) || maxDepth < 1) {
+      throw new TypeError('JSON nesting ceiling must be a positive safe integer');
+    }
+    // Count containers outside strings before JSON.parse allocates a graph.
+    // This optional caller-owned resource refusal precedes syntax admission,
+    // as the existing streaming byte ceiling does; JSON.parse owns grammar.
+    let depth = 0;
+    let quoted = false;
+    let escaped = false;
+    for (let index = 0; index < text.length; index++) {
+      const char = text[index];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === '\\') escaped = true;
+        else if (char === '"') quoted = false;
+      } else if (char === '"') quoted = true;
+      else if (char === '{' || char === '[') {
+        depth++;
+        if (depth > maxDepth) throw new IdentityError('limit', 'Request JSON nesting is too deep.');
+      } else if (char === '}' || char === ']') depth--;
+    }
   }
   try {
     return JSON.parse(text) as unknown;

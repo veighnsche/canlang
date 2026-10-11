@@ -34,6 +34,7 @@ import { escapeAttr, escapeHtml } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
 import { digestBusinessError as digestUiBusinessError } from "../internal/business-errors.js";
 import { CSV_GRAMMAR_MAX_ROWS, CsvGrammarError, parseCsvGrammar } from "./grammar.js";
+import type { CsvResourceLimits } from "./grammar.js";
 import { message, resolveCaption } from "../messages.js";
 
 /** Row ceiling per review/commit. Pins server CSV_MAX_ROWS (interfaces csv.ts). */
@@ -84,12 +85,12 @@ export type CsvClientParse =
  * ceiling) return `{ok:false}` — only a non-string argument (programmer
  * misuse) throws.
  */
-export function parseCsvText(text: string): CsvClientParse {
+export function parseCsvText(text: string, limits?: CsvResourceLimits): CsvClientParse {
   if (typeof text !== "string") {
     throw new Error("parseCsvText needs CSV text");
   }
   try {
-    return { ok: true, ...parseCsvGrammar(text) };
+    return { ok: true, ...parseCsvGrammar(text, limits) };
   } catch (error) {
     if (!(error instanceof CsvGrammarError)) throw error;
     return { ok: false, error: { kind: error.kind, message: error.message } };
