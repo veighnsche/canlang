@@ -55,6 +55,7 @@ import type {
   Team,
   TeamId,
   UserId,
+  VerifiedTeamsMemberRemovedEnvelope,
 } from "@canlang/contracts";
 import type { D1Database } from '@cloudflare/workers-types';
 import type { HttpAuthConfiguration } from '../worker/assembly.js';
@@ -154,6 +155,13 @@ export interface IdentityStore {
   setMembershipRoles(membership_id: MembershipId, roles: Membership["roles"]): Promise<void>;
   setMembershipOwner(membership_id: MembershipId, is_owner: boolean): Promise<void>;
   removeMembership(membership_id: MembershipId): Promise<void>;
+  /** Exact owning optional command/read; preserve the original store receiver and arguments. */
+  removeMemberWithOccurrence?(input: {
+    readonly team_id: string; readonly member_user_id: string; readonly removed_by: string;
+    readonly namespace: string; readonly operationId: string;
+  }): Promise<VerifiedTeamsMemberRemovedEnvelope>;
+  readMemberRemovalOccurrence?(input: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]):
+    Promise<VerifiedTeamsMemberRemovedEnvelope | null>;
   reactivateMembership(
     membership_id: MembershipId,
     input: { is_owner: boolean; roles: Membership["roles"] },

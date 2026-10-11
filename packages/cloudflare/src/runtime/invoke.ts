@@ -5620,11 +5620,17 @@ async function runScenarioExecution(
   // This closure is installed only by the retained private-source drivers,
   // after their owning source/identity admission. Request query options can
   // never select owner authority or turn an ordinary scenario into a handler.
+  const removalSource = nativeIdentityRemovalCalls.get(call.context);
   const trustedOwnerReads = callable?.kind === 'handler' && (due !== undefined || cohort !== undefined) &&
-    call.context.kind === 'trusted' && call.context.actor === null && call.context.source === 'schedule' &&
-    typeof call.context.trustedSource === 'string' && (call.context.trustedSource.startsWith('schedule:') ||
-      call.context.trustedSource.startsWith('committed:') && loaded.committedChanges.get(call.context.trustedSource.slice(10))?.routes
-        .some(route => route.handler === opts.operation) === true) &&
+    call.context.kind === 'trusted' && call.context.actor === null &&
+    (call.context.source === 'schedule' && typeof call.context.trustedSource === 'string' &&
+      (call.context.trustedSource.startsWith('schedule:') ||
+        call.context.trustedSource.startsWith('committed:') && loaded.committedChanges.get(call.context.trustedSource.slice(10))?.routes
+          .some(route => route.handler === opts.operation) === true) ||
+      call.context.source === 'ingress' && call.context.trustedSource === 'identity:teams.member_removed' &&
+      removalSource !== undefined && removalSource.identities === opts.memberships &&
+      removalSource.scope.app === call.context.app && removalSource.scope.owner === call.checkpoint?.owner &&
+      removalSource.routes.some(route => route.handler === opts.operation)) &&
     call.checkpoint !== undefined && call.checkpoint.owner === (call.context.team?.teamId ?? call.context.app);
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
@@ -8179,6 +8185,256 @@ async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, '
   return routes.sort((left, right) => left.handler.localeCompare(right.handler));
 }
 
+/** Private original issuer association. Work JSON carries correspondence only. */
+interface NativeIdentityRemovalSource {
+  readonly identities: IdentityStore;
+  readonly scope: import('@canlang/contracts').WorkScope;
+  readonly original: import('@canlang/contracts').VerifiedTeamsMemberRemovedEnvelope;
+  readonly request: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0];
+  readonly routes: Awaited<ReturnType<typeof checkedPrivateSourceRoutes>>;
+  readonly verify: (now: number) => Promise<void>;
+}
+const nativeIdentityRemovalSources = new WeakMap<AssembledModules,
+  WeakMap<CompileArtifact, WeakMap<StoragePort, Map<string, NativeIdentityRemovalSource>>>>();
+const nativeIdentityRemovalCalls = new WeakMap<object, NativeIdentityRemovalSource>();
+function nativeIdentityRemovalSource(asm: AssembledModules, artifact: CompileArtifact,
+  store: StoragePort, identities: IdentityStore, occurrence: string, scope: import('@canlang/contracts').WorkScope) {
+  const source = nativeIdentityRemovalSources.get(asm)?.get(artifact)?.get(store)?.get(occurrence);
+  if (source === undefined || source.identities !== identities || stableStringify(source.scope) !== stableStringify(scope)) {
+    throw new AssemblyCorrespondenceError('Removal source requires its original installed issuer and physical owner association.');
+  }
+  return source;
+}
+
+/** The host supplies its installed namespace/owner binding, original request
+ * and originating credential resolver. Neither raw ingress JSON nor a saved
+ * envelope can install this association. Recovery obtains a genuine original
+ * from Identity's SELECT-only reader; only explicit issue() invokes mutation. */
+function identityRemovalPayload(original: import('@canlang/contracts').VerifiedTeamsMemberRemovedEnvelope) {
+  // Identity retains its native UserRef; the original typed event owns the
+  // canonical Work wire. Conversion never replaces the private issuer binding.
+  return Object.freeze({ ...original.membershipRemoval,
+    user: encodeValue('user', original.membershipRemoval.user) });
+}
+export async function createCanonicalIdentityRemovalSource(opts: {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly app: string;
+  readonly identities: IdentityStore;
+  readonly ownerStorage: import('../worker/assembly.js').TeamOwnerStorageBoundary;
+  readonly scope: import('@canlang/contracts').WorkScope;
+  readonly binding: import('../worker/assembly.js').IngressBinding;
+  readonly originalRequest: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0];
+  readonly resolveCaller: () => Promise<ResolvedIdentity>;
+  readonly now: () => number;
+  readonly deploymentBase?: string;
+}) {
+  const event = 'teams.member_removed';
+  const scope = Object.freeze({ ...opts.scope });
+  const binding = Object.freeze({ ...opts.binding });
+  const fields = ['team_id', 'member_user_id', 'removed_by', 'namespace', 'operationId'] as const;
+  const input = localPolicyObject(opts.originalRequest, [...fields]);
+  if (Object.keys(input).length !== fields.length || fields.some(field => typeof input[field] !== 'string' || input[field] === '') ||
+      typeof opts.resolveCaller !== 'function' || scope.app !== opts.app || opts.ownerStorage.app !== opts.app ||
+      binding.namespace !== input.namespace || binding.team !== input.team_id || binding.owner !== scope.owner ||
+      scope.owner !== input.team_id || typeof binding.adapter !== 'string' || binding.adapter === '') {
+    throw new AssemblyCorrespondenceError('Removal source requires its exact trusted namespace, team, owner and original request.');
+  }
+  const request = Object.freeze(Object.fromEntries(fields.map(field => [field, input[field]]))) as
+    Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0];
+  const identities = opts.identities;
+  const read = identities.readMemberRemovalOccurrence;
+  const issue = identities.removeMemberWithOccurrence;
+  if (typeof read !== 'function') throw new AssemblyCorrespondenceError('Removal source requires its owning SELECT-only reader.');
+  const store = (await opts.ownerStorage.forTrustedScope(scope, opts.now())).store;
+  assertCanonicalStore(store, event);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, store);
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  const routes = await checkedPrivateSourceRoutes(opts, loaded, event, scope);
+  if (routes.some(route => route.cohort || privateSourceMember(route.definition, 'id') !== opts.app)) {
+    throw new AssemblyCorrespondenceError('This removal source join requires ordinary checked handlers of its original app.');
+  }
+  const routeFacts = committedSourceData(routes.map(route => ({ handler: route.handler, invocation: route.invocation })));
+  let active = true;
+  let installedSource: NativeIdentityRemovalSource | undefined;
+  const verifyHost = async (now: number) => {
+    if (!active || identities.readMemberRemovalOccurrence !== read ||
+        (await opts.ownerStorage.forTrustedScope(scope, now)).store !== store) {
+      throw new AssemblyCorrespondenceError('Removal source lost its original reader or physical owner.');
+    }
+    await verifyCheckedAssembly(opts.asm, opts.artifact);
+    const current = await checkedPrivateSourceRoutes(opts, loaded, event, scope);
+    if (current.some(route => route.cohort || privateSourceMember(route.definition, 'id') !== opts.app) ||
+        stableStringify(current.map(route => ({ handler: route.handler, invocation: route.invocation }))) !== stableStringify(routeFacts)) {
+      throw new AssemblyCorrespondenceError('Removal source changed its complete original handler correspondence.');
+    }
+    await resolvePrivateSourceOwner(identities, scope, now);
+    // Closing during any of the actual owner/source admission awaits cannot
+    // leave a granting check behind for subsequent issuance or disclosure.
+    if (!active || identities.readMemberRemovalOccurrence !== read) {
+      throw new AssemblyCorrespondenceError('Removal source closed or lost its original reader during admission.');
+    }
+  };
+  const original = async (now: number) => {
+    await verifyHost(now);
+    // Original receiver and exact captured arguments; never a mutation fallback.
+    const envelope = await read.call(identities, request);
+    if (envelope === null) throw new AssemblyCorrespondenceError('Original removal occurrence is absent.');
+    if (envelope.namespace !== binding.namespace || envelope.operationKind !== event || envelope.deliveryId !== null ||
+        envelope.operationId !== request.operationId || envelope.removedBy.kind !== 'user' || envelope.removedBy.id !== request.removed_by ||
+        envelope.membershipRemoval.team_id !== request.team_id || envelope.membershipRemoval.user.kind !== 'user' ||
+        envelope.membershipRemoval.user.id !== request.member_user_id) {
+      throw new AssemblyCorrespondenceError('Original removal differs from its trusted request and namespace.');
+    }
+    for (const route of routes) checkedSourceEvent(route.definition, event, identityRemovalPayload(envelope));
+    await verifyHost(now);
+    return envelope;
+  };
+  const associate = async (now: number) => {
+    const envelope = await original(now);
+    const verify = async (currentNow: number) => {
+      if (stableStringify(await original(currentNow)) !== stableStringify(envelope)) {
+        throw new AssemblyCorrespondenceError('Removal source differs from its original issued outcome.');
+      }
+    };
+    let byArtifact = nativeIdentityRemovalSources.get(opts.asm);
+    if (byArtifact === undefined) { byArtifact = new WeakMap(); nativeIdentityRemovalSources.set(opts.asm, byArtifact); }
+    let byStore = byArtifact.get(opts.artifact);
+    if (byStore === undefined) { byStore = new WeakMap(); byArtifact.set(opts.artifact, byStore); }
+    let byOccurrence = byStore.get(store);
+    if (byOccurrence === undefined) { byOccurrence = new Map(); byStore.set(store, byOccurrence); }
+    const previous = byOccurrence.get(envelope.producerEventId);
+    if (previous !== undefined && (previous.identities !== identities || stableStringify(previous.scope) !== stableStringify(scope) ||
+        stableStringify(previous.request) !== stableStringify(request) || stableStringify(previous.original) !== stableStringify(envelope))) {
+      throw new AssemblyCorrespondenceError('Removal source cannot replace an original installed association.');
+    }
+    const source: NativeIdentityRemovalSource = Object.freeze({ identities, scope, original: envelope, request, routes, verify });
+    byOccurrence.set(envelope.producerEventId, source);
+    installedSource = source;
+    return source;
+  };
+  const route = async () => {
+    const now = opts.now(), source = await associate(now);
+    const handlersModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'removal handler association');
+    const stageHandler = requireProducerFn(handlersModule, 'stageHandlerOccurrence', 'removal handler association') as
+      typeof import('@canlang/work/kernel/handler-occurrence').stageHandlerOccurrence;
+    const occurrencesModule = await loadProducerModule('@canlang/work/kernel/occurrence-staging', 'removal source receipt');
+    const command = occurrencesModule['workOccurrencePutReceiptCommand'];
+    if (!isUnknownRecord(command)) throw new AssemblyCorrespondenceError('Removal source receipt command is unavailable.');
+    const stageReceipt = requireProducerFn(command, 'stage', 'removal source receipt') as
+      typeof import('@canlang/work/kernel/occurrence-staging').workOccurrencePutReceiptCommand.stage;
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'removal source receipt');
+    const occurrenceModel = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'removal source receipt') as ModelName;
+    const revision = await store.readRevision();
+    const existing = await store.cohortLoad({ model: occurrenceModel, id: source.original.producerEventId as RecordId, expectedRevision: revision });
+    if (existing !== null) {
+      const retained = await readNativeIdentityRemovalSource(opts, store, source.original.producerEventId, scope, now, revision);
+      return { status: 'replayed' as const, occurrenceId: source.original.producerEventId, handlers: retained.handlers };
+    }
+    const context = workStageContext(store, { actor: `identity:${event}`, now, operation: event });
+    const writes: DomainWrite[] = [], handlers: Array<{ handler: string; kind: 'ordinary'; occurrenceId: string }> = [];
+    for (const selected of routes) {
+      const staged = await stageHandler({ source: { occurrenceId: source.original.producerEventId, event,
+        payload: identityRemovalPayload(source.original), scope }, handler: selected.handler }, context);
+      if (staged.status !== 'ready') throw new AssemblyCorrespondenceError('Removal source has a conflicting or partial handler association.');
+      writes.push(...staged.effects.writes ?? []);
+      handlers.push({ handler: selected.handler, kind: 'ordinary', occurrenceId: staged.occurrence.occurrenceId });
+    }
+    const terminal = await stageReceipt({ occurrenceId: source.original.producerEventId, status: 'completed',
+      result: { kind: 'identity-removal-source', event, scope, envelope: source.original, handlers } }, context);
+    if (terminal.writes?.length !== 1 || (terminal.outboxAck?.length ?? 0) !== 0) {
+      throw new AssemblyCorrespondenceError('Removal source requires one original source receipt without provider acknowledgement.');
+    }
+    await source.verify(now);
+    await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+    await store.commit({ expectedRevision: revision, writes: [...writes, ...terminal.writes], history: [], receipt: null,
+      outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+    return { status: 'completed' as const, occurrenceId: source.original.producerEventId, handlers };
+  };
+  return Object.freeze({
+    /** Explicit original command/retry. Credential and actual SQL owner checks precede fresh issuance. */
+    async issue() {
+      await verifyHost(opts.now());
+      if (typeof issue !== 'function' || identities.removeMemberWithOccurrence !== issue) {
+        throw new AssemblyCorrespondenceError('Atomic removal issuance is not configured.');
+      }
+      const caller = await opts.resolveCaller();
+      if (caller.actor?.user_id !== request.removed_by || caller.team?.team_id !== request.team_id) {
+        throw new AssemblyCorrespondenceError('Removal issuance requires its current originating caller and team.');
+      }
+      await verifyHost(opts.now());
+      // No await separates this final lifetime/receiver check from issuance.
+      if (!active || identities.removeMemberWithOccurrence !== issue) {
+        throw new AssemblyCorrespondenceError('Removal source closed or lost its original issuer before issuance.');
+      }
+      await issue.call(identities, request);
+      return route();
+    },
+    /** Cold/lost-ack recovery is SELECT-only until genuine Work route staging. */
+    recover: route,
+    async invoke(handler: string) {
+      const now = opts.now(), source = await associate(now);
+      const retained = await readNativeIdentityRemovalSource(opts, store, source.original.producerEventId, scope, now);
+      const selected = retained.handlers.find(route => privateSourceMember(route, 'handler') === handler);
+      if (selected === undefined) throw new AssemblyCorrespondenceError('Removal source has no selected original ordinary route.');
+      return invokeRetainedHandlerOccurrenceCanonical({ artifact: opts.artifact, asm: opts.asm, app: opts.app, store, identities,
+        selector: { sourceOccurrence: source.original.producerEventId, handler, event, scope }, now: opts.now,
+        ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
+    },
+    close() {
+      active = false;
+      const registered = nativeIdentityRemovalSources.get(opts.asm)?.get(opts.artifact)?.get(store);
+      if (installedSource !== undefined && registered?.get(installedSource.original.producerEventId) === installedSource) {
+        registered.delete(installedSource.original.producerEventId);
+      }
+    },
+  });
+}
+
+async function readNativeIdentityRemovalSource(opts: Pick<CanonicalRetainedHandlerOccurrenceOpts, 'asm' | 'artifact' | 'identities'>,
+  store: StoragePort, occurrence: string, scope: import('@canlang/contracts').WorkScope, now: number, expectedRevision?: Revision) {
+  const source = nativeIdentityRemovalSource(opts.asm, opts.artifact, store, opts.identities, occurrence, scope);
+  await source.verify(now);
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'original removal source receipt');
+  const model = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'original removal source receipt') as ModelName;
+  const read = requireProducerFn(tables, 'readOccurrenceRow', 'original removal source receipt') as
+    typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+  const row = expectedRevision === undefined ? await store.load(model, occurrence as RecordId)
+    : await store.cohortLoad({ model, id: occurrence as RecordId, expectedRevision });
+  if (row === null || row.archivedAt !== null) throw new AssemblyCorrespondenceError('Removal source has no original physical source receipt.');
+  const receipt = read(row), result = localPolicyObject(receipt.result, ['kind', 'event', 'scope', 'envelope', 'handlers']);
+  const handlers = nativeCallArray(result.handlers, 200);
+  if (Object.keys(result).length !== 5 || receipt.status !== 'completed' || receipt.code !== null || receipt.message !== null ||
+      receipt.occurrenceId !== occurrence || result.kind !== 'identity-removal-source' || result.event !== 'teams.member_removed' ||
+      stableStringify(result.scope) !== stableStringify(scope) || stableStringify(result.envelope) !== stableStringify(source.original) ||
+      handlers.length !== source.routes.length) {
+    throw new AssemblyCorrespondenceError('Removal source receipt differs from its original issuer, cause, scope or complete routes.');
+  }
+  const module = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'original removal handler association');
+  const rowId = requireProducerFn(module, 'handlerOccurrenceRowId', 'original removal handler association') as
+    typeof import('@canlang/work/kernel/handler-occurrence').handlerOccurrenceRowId;
+  const readHandler = requireProducerFn(module, 'readHandlerOccurrenceRow', 'original removal handler association') as
+    typeof import('@canlang/work/kernel/handler-occurrence').readHandlerOccurrenceRow;
+  const handlerModel = requireProducerString(module, 'WORK_HANDLER_OCCURRENCE_MODEL', 'original removal handler association') as ModelName;
+  for (const [index, route] of source.routes.entries()) {
+    const id = rowId(occurrence, route.handler);
+    if (stableStringify(handlers[index]) !== stableStringify({ handler: route.handler, kind: 'ordinary', occurrenceId: id })) {
+      throw new AssemblyCorrespondenceError('Removal source changed its original ordinary route inventory.');
+    }
+    const row = expectedRevision === undefined ? await store.load(handlerModel, id as RecordId)
+      : await store.cohortLoad({ model: handlerModel, id: id as RecordId, expectedRevision });
+    if (row === null || row.archivedAt !== null) throw new AssemblyCorrespondenceError('Removal source lost its physical ordinary association.');
+    const retained = readHandler(row);
+    if (retained.sourceOccurrence !== occurrence || retained.handler !== route.handler || retained.event !== 'teams.member_removed' ||
+        retained.scopeApp !== scope.app || retained.scopeOwner !== scope.owner || retained.scopeOwnerPackage !== scope.ownerPackage ||
+        stableStringify(retained.payload) !== stableStringify(identityRemovalPayload(source.original))) {
+      throw new AssemblyCorrespondenceError('Removal handler association differs from its original emitted event and scope.');
+    }
+  }
+  await source.verify(now);
+  return { receipt, result, handlers, payload: identityRemovalPayload(source.original) };
+}
+
 async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, store: StoragePort,
   occurrenceId: string, event: string, scope: import('@canlang/contracts').WorkScope,
   expectedRevision?: Revision) {
@@ -8791,16 +9047,26 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     typeof import('@canlang/ui').mintOperationId;
   const now = opts.now();
   const completion = loaded.standardCompletions?.has(selector.event) === true;
-  const trustedSource = `${completion ? 'completion' : loaded.committedChanges.has(selector.event) ? 'committed' : 'schedule'}:${selector.event}`;
+  const removal = selector.event === 'teams.member_removed';
+  const sourceKind = removal ? 'ingress' : 'schedule';
+  const originalRemoval = removal ? nativeIdentityRemovalSource(opts.asm, opts.artifact, opts.store,
+    opts.identities, selector.sourceOccurrence, selector.scope) : undefined;
+  const readConsumed = () => {
+    if (originalRemoval !== undefined && nativeIdentityRemovalSource(opts.asm, opts.artifact, opts.store,
+      opts.identities, selector.sourceOccurrence, selector.scope) !== originalRemoval) {
+      throw new AssemblyCorrespondenceError('Removal handler lost its original live source association.');
+    }
+    return removal ? readNativeIdentityRemovalSource(opts, opts.store, selector.sourceOccurrence, selector.scope, now)
+      : readCheckedRetainedSource(opts, loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope, now);
+  };
+  const trustedSource = `${removal ? 'identity' : completion ? 'completion' : loaded.committedChanges.has(selector.event) ? 'committed' : 'schedule'}:${selector.event}`;
   const context = workStageContext(opts.store, { actor: trustedSource, now, operation: selector.handler });
   const identity = await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
-  const consumed = completion ? await readCheckedRetainedSource(opts, loaded, opts.store,
-    selector.sourceOccurrence, selector.event, selector.scope, now) : undefined;
+  const consumed = completion || removal ? await readConsumed() : undefined;
   const retained = await stageRetained(selector, context);
   if (retained.status !== 'ready') {
     if (consumed !== undefined) {
-      const current = await readCheckedRetainedSource(opts, loaded, opts.store,
-        selector.sourceOccurrence, selector.event, selector.scope, now);
+      const current = await readConsumed();
       if (stableStringify(current.result) !== stableStringify(consumed.result)) {
         throw new AssemblyCorrespondenceError('Retained handler completion source changed during recovery.');
       }
@@ -8811,8 +9077,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     ? await readCheckedCommittedSource(loaded, opts.store, selector.sourceOccurrence, selector.event, selector.scope) : undefined);
   const verifyCommitted = async (): Promise<void> => {
     if (committed === undefined) return;
-    const current = await readCheckedRetainedSource(opts, loaded, opts.store,
-      selector.sourceOccurrence, selector.event, selector.scope, now);
+    const current = await readConsumed();
     const route = current.handlers.find(entry => privateSourceMember(entry, 'handler') === selector.handler);
     if (stableStringify(current.result) !== stableStringify(committed.result) ||
         stableStringify(current.payload) !== stableStringify(retained.occurrence.payload) ||
@@ -8861,7 +9126,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         throw new Error(`Retained private handler guard ${JSON.stringify(guard.name)} no longer holds.`);
       }
     }
-    if (completion) {
+    if (completion || removal) {
       await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
       await verifyCommitted();
     }
@@ -8871,12 +9136,12 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     return opts.store.commit(batch);
   } };
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: selector.handler, operationId,
-    identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now };
+    identity, inputs: admittedInputs, source: sourceKind, memberships: opts.identities, now: () => now };
   const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
   try {
     const outcome = await loaded.producers.invoke.invoke({ registry: descriptors.registry,
       envelope: { operation: selector.handler, operation_id: operationId, inputs: admittedInputs },
-      identity, app: opts.app, source: 'schedule', kind: 'trusted', trustedSource,
+      identity, app: opts.app, source: sourceKind, kind: 'trusted', trustedSource,
       store: guardedStore, memberships: opts.identities, clock: { nowMs: () => now },
       conflictServerOnly: loaded.conflictServerOnly,
       execute: async call => {
@@ -8887,7 +9152,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         if (current.status !== 'ready') throw new RetainedHandlerOccurrenceChanged(current);
         if (current.row.version !== retained.row.version ||
             JSON.stringify(current.occurrence.payload) !== JSON.stringify(retained.occurrence.payload) ||
-            call.context.actor !== null || call.context.app !== opts.app || call.context.source !== 'schedule' ||
+            call.context.actor !== null || call.context.app !== opts.app || call.context.source !== sourceKind ||
             call.context.trustedSource !== trustedSource ||
             (call.context.team?.teamId ?? (committed === undefined || completion && selector.scope.owner === 'app' ? 'app' : call.context.app)) !== selector.scope.owner) {
           throw new Error('Retained private handler changed its captured source or admitted owner.');
@@ -8903,9 +9168,14 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         try {
           // This existing seam slot supplies origin effects/identity, not a
           // Work due gate: the derived retained handler occurrence is origin.
-          business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
-            { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId }, undefined,
-            guardedStore, committedSourceStage.stageSources);
+          if (originalRemoval !== undefined) nativeIdentityRemovalCalls.set(call.context, originalRemoval);
+          try {
+            business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
+              { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId }, undefined,
+              guardedStore, committedSourceStage.stageSources);
+          } finally {
+            if (originalRemoval !== undefined) nativeIdentityRemovalCalls.delete(call.context);
+          }
         } catch (error) {
           if (!isRequireFailure(error)) throw new Error('Retained handler execution failed.', { cause: error });
           refusal = closedDispatchErrorForCause({ kind: 'handler-require-false', require: error.message });
