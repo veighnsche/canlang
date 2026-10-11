@@ -1,0 +1,32 @@
+app NativeExplicitInputs
+use std {ImageRequest}
+Given
+ Run {count:int=0}
+ judgment Choice version=1
+  pick choice "Choose a label" options=runtime {fallback="Fallback",other="Other"}
+ policy Run read=members
+When
+ crud Run by=members fields=count delete=remove
+ scenario generate(prompt:ImageRequest.prompt,negative:ImageRequest.negative="",width:ImageRequest.width=512,height:ImageRequest.height=512) -> Run by=members
+  do
+   require negative!=""
+   require width!=512 or prompt=="rollback"
+   require height!=512 or prompt=="rollback"
+   create Run {} as run
+   return run
+ scenario from_turn(prompt:text,negative:text,width:int,height:int,accept:bool) -> Run by=members
+  do
+   call generate {height,width,prompt,negative} as run
+   require accept
+   return run
+ scenario choice(value:Choice.pick.choice="fallback") -> Run by=members
+  do
+   require value=="other"
+   create Run {} as run
+   return run
+ scenario chosen(value:Choice.pick.choice,accept:bool) -> Run by=members
+  do
+   call choice {value} as run
+   require accept
+   return run
+Then

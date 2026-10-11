@@ -5456,8 +5456,13 @@ async function runScenarioExecution(
     throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
   }
   if (child !== undefined && (!receiptAware || (scenarioDef?.descriptor.inputs ?? []).some(field =>
-      field.kind !== 'delivery' && (field.computedDefault === true || field.default !== undefined)))) {
-    throw new loaded.producers.errors('validation', 'Child scenarios require checked disclosure without input defaults.');
+      field.kind !== 'delivery' && (field.computedDefault === true || (field.default !== undefined &&
+        // An explicit original input never evaluates its declared default.
+        // Retain the owning scalar/alias codec and refuse every omitted or
+        // computed/defaulted reference profile before child execution.
+        (field.default.kind !== 'literal' || !nativeScenarioScalarInput(loaded, field) ||
+          !Object.hasOwn(call.inputs, field.name))))))) {
+    throw new loaded.producers.errors('validation', 'Child scenarios require checked disclosure and explicitly supplied owning scalar literal-default inputs.');
   }
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
