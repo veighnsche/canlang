@@ -6371,15 +6371,21 @@ impl<'a> Cx<'a> {
                     && matches!(&expr.expr, IrExpr::Name(name) if scope.callback_values.contains(name))
                     && crate::analysis::types::checked_standard_nominal_name(&expr.ty)
                         == Some("TextMessage");
-                for (field, field_span) in fields.iter().rev().zip(field_spans.iter().rev()) {
+                for (index, (field, field_span)) in fields
+                    .iter()
+                    .rev()
+                    .zip(field_spans.iter().rev())
+                    .enumerate()
+                {
                     let inferred = self.member_ty(&expr.ty, field);
+                    let outermost = index + 1 == fields.len();
                     let field_ty = if copied_message_member {
                         inferred
-                    } else if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
+                    } else if outermost && !matches!(ty, ResolvedType::Unknown) {
                         ty.clone()
                     } else if !matches!(inferred, ResolvedType::Unknown) {
                         inferred
-                    } else if *field == fields[0] {
+                    } else if outermost {
                         ty.clone()
                     } else {
                         ResolvedType::Unknown

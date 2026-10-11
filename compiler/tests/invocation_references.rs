@@ -652,8 +652,13 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
             ),
         ),
         (
-            "default-child",
-            source.replace("child(value:int,note:text)", "child(value:int=1,note:text)"),
+            "omitted-default-child",
+            source
+                .replace("child(value:int,note:text)", "child(value:int=1,note:text)")
+                .replace(
+                    "call child {note=\"first\",value}",
+                    "call child {note=\"first\"}",
+                ),
         ),
         (
             "array-child",

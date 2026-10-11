@@ -794,7 +794,7 @@ Then
     }
 
     #[test]
-    fn native_emission_uses_prepared_source_guards_and_fresh_dispatch_context() {
+    fn prepared_guards_keep_fresh_context_without_incomplete_native_receipts() {
         use std::io::Write;
         use std::process::{Command, Stdio};
         let (db, program, ir, catalog) = fixture();
@@ -813,13 +813,23 @@ Then
                 read_predicates: None,
             },
         );
-        assert!(
-            !emitted
+        // These Create/SEND bodies lack the complete admitted receipt profile.
+        // Prepared Rule syntax is independent of executable artifact admission.
+        assert_eq!(
+            emitted
                 .diagnostics
                 .iter()
-                .any(|d| d.code == "E6008" && d.message.contains("send dispatch")),
+                .filter(|d| d.code == "E6008" && d.message.contains("send dispatch"))
+                .count(),
+            2,
             "{:?}",
             emitted.diagnostics
+        );
+        assert!(
+            emitted
+                .operations
+                .iter()
+                .all(|operation| operation.disclosure.is_none())
         );
         let js = &emitted.entry.js;
         assert_eq!(js.matches("when:{rule:").count(), 2, "{js}");

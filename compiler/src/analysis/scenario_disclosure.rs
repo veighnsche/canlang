@@ -5335,6 +5335,312 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// Singular model slots retain their actual named declaration. Only the
+    /// original nullable slot's literal null is a default; CALL supplies it.
+    fn explicit_model_call_parameter(
+        &self,
+        parameter: &super::effects::ParamData,
+    ) -> Option<(SymbolId, bool)> {
+        let ty = self.types.symbol_types.get(&parameter.param)?;
+        let (base, nullable) = match ty {
+            ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+            ty => (ty, false),
+        };
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = base
+        else {
+            return None;
+        };
+        let model = self.resolve.symbols.get(symbol.0 as usize)?;
+        if !matches!(model.kind, SymbolKind::Model { .. })
+            || self.types.value_constraints.contains_key(&parameter.param)
+            || self
+                .types
+                .field_reuse_sources
+                .contains_key(&parameter.param)
+        {
+            return None;
+        }
+        let declared = *self.nodes.get(&parameter.type_node)?;
+        let named = if nullable {
+            if declared.kind != SyntaxKind::NullableType {
+                return None;
+            }
+            declared
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::NamedType)?
+        } else {
+            declared
+        };
+        if named.kind != SyntaxKind::NamedType {
+            return None;
+        }
+        let path = named
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)?;
+        if !matches!(self.resolve.node_typeref.get(&NodeKey::of(path)),
+            Some(TypeRef::Symbol(actual)) if actual == symbol)
+            || super::path_segments(path, &self.db.get(path.span.file)?.text)
+                != [model.name.as_str()]
+        {
+            return None;
+        }
+        match (nullable, parameter.default) {
+            (false, None) => {}
+            (true, Some(default))
+                if self.nodes.get(&default)?.kind == SyntaxKind::Literal
+                    && self.types.node_types.get(&default) == Some(&ResolvedType::Null)
+                    && self
+                        .db
+                        .get(default.file)?
+                        .text
+                        .get(default.start as usize..default.end as usize)?
+                        == "null" => {}
+            _ => return None,
+        }
+        Some((*symbol, nullable))
+    }
+
+    /// The ordinary File[] child slot keeps its original empty literal default.
+    /// That literal is declaration evidence and is not a supplied CALL operand.
+    fn explicit_file_array_call_parameter(&self, parameter: &super::effects::ParamData) -> bool {
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        if !ordinary_file_array(ty)
+            || self.types.value_constraints.contains_key(&parameter.param)
+            || self
+                .types
+                .field_reuse_sources
+                .contains_key(&parameter.param)
+        {
+            return false;
+        }
+        let Some(node) = self.nodes.get(&parameter.type_node) else {
+            return false;
+        };
+        let Some(element) = node
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::NamedType)
+        else {
+            return false;
+        };
+        let Some(default) = parameter.default else {
+            return false;
+        };
+        let Some(value) = self.nodes.get(&default) else {
+            return false;
+        };
+        node.kind == SyntaxKind::ArrayType
+            && self.direct_builtin_parameter_type(NodeKey::of(element), Scalar::File)
+            && value.kind == SyntaxKind::Array
+            && !value.children.iter().any(|node| expression(node.kind))
+            && self.types.node_types.get(&default) == Some(ty)
+    }
+
+    /// Original required caller parameters remain source operands, not copied
+    /// lexical values which happen to carry the same resolved model type.
+    fn original_call_model_parameter(
+        &self,
+        key: NodeKey,
+        statement: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId)> {
+        let node = self.nodes.get(&key)?;
+        if !matches!(node.kind, SyntaxKind::Name | SyntaxKind::NameRef) {
+            return None;
+        }
+        let Some(Binding::Symbol(parameter)) = self.query_binding(key) else {
+            return None;
+        };
+        let SymbolKind::Param { owner, .. } = self.resolve.symbols.get(parameter.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.get(&owner)?;
+        let parameter_data = scenario
+            .params
+            .iter()
+            .find(|param| param.param == *parameter)?;
+        let (model, nullable) = self.explicit_model_call_parameter(parameter_data)?;
+        (!nullable
+            && !scenario.read
+            && scenario.on.is_none()
+            && scenario.module == module
+            && statement.file == scenario.node.file
+            && scenario.node.start <= statement.start
+            && statement.end <= scenario.node.end
+            && key.file == statement.file
+            && statement.start <= key.start
+            && key.end <= statement.end
+            && self.types.node_types.get(&key) == self.types.symbol_types.get(parameter))
+        .then_some((*parameter, model))
+    }
+
+    fn preceding_call_create(
+        &self,
+        effect: &Effect,
+        module: ModuleId,
+        key: NodeKey,
+        model: SymbolId,
+        created: NodeKey,
+    ) -> bool {
+        let Some(node) = self.nodes.get(&key) else {
+            return false;
+        };
+        if !matches!(node.kind, SyntaxKind::Name | SyntaxKind::NameRef)
+            || !matches!(self.query_binding(key), Some(Binding::CreateAs {node}) if *node == created)
+        {
+            return false;
+        }
+        let mut owners = self.effects.scenarios.values().filter(|scenario| {
+            scenario.module == module
+                && scenario.node.file == effect.node.file
+                && scenario.node.start <= effect.node.start
+                && effect.node.end <= scenario.node.end
+        });
+        let Some(owner) = owners.next() else {
+            return false;
+        };
+        if owners.next().is_some() {
+            return false;
+        }
+        let Some(position) = owner
+            .effects
+            .iter()
+            .position(|statement| statement.node == effect.node)
+        else {
+            return false;
+        };
+        let Some(previous) = position
+            .checked_sub(1)
+            .and_then(|position| owner.effects.get(position))
+        else {
+            return false;
+        };
+        let Some(original) = self.checked_create_source(previous, module) else {
+            return false;
+        };
+        previous.verb == EffectVerb::Create
+            && previous.node == created
+            && original.model == model
+            && self.word(node) == Some(original.binding.as_str())
+    }
+
+    /// CALL-only stored File[] observation. No ordinary expression/result or
+    /// File intrinsic gains admission from this source-backed input leaf.
+    fn call_file_array_operand(
+        &self,
+        key: NodeKey,
+        statement: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        let fail = || {
+            self.fail(
+                key,
+                "File[] call input needs original stored parameter member",
+            )
+        };
+        let node = self.nodes.get(&key).ok_or_else(fail)?;
+        if node.kind != SyntaxKind::Member || !calls.is_empty() || self.loop_node.is_some() {
+            return Err(fail());
+        }
+        let mut operands = node.children.iter().filter(|node| expression(node.kind));
+        let base = NodeKey::of(operands.next().ok_or_else(fail)?);
+        let name = node
+            .children
+            .iter()
+            .rev()
+            .find(|node| node.kind == SyntaxKind::Name)
+            .and_then(|node| self.word(node))
+            .ok_or_else(fail)?;
+        let (parameter, model) = self
+            .original_call_model_parameter(base, statement, module)
+            .ok_or_else(fail)?;
+        if operands.next().is_some() {
+            return Err(fail());
+        }
+        let owner = self
+            .resolve
+            .symbols
+            .get(model.0 as usize)
+            .ok_or_else(fail)?;
+        let SymbolKind::Model { fields, .. } = &owner.kind else {
+            return Err(fail());
+        };
+        let field = fields
+            .iter()
+            .filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+            .find(|field| field.name == name)
+            .ok_or_else(fail)?;
+        let SymbolKind::Param {
+            owner: scenario, ..
+        } = self
+            .resolve
+            .symbols
+            .get(parameter.0 as usize)
+            .ok_or_else(fail)?
+            .kind
+        else {
+            return Err(fail());
+        };
+        let scenario = self.effects.scenarios.get(&scenario).ok_or_else(fail)?;
+        let inventory = self.checked_stored_contracts(scenario).ok_or_else(fail)?;
+        let mut originals = inventory
+            .iter()
+            .filter(|schema| schema.model && schema.id == model)
+            .flat_map(|schema| schema.fields.iter())
+            .filter(|original| original.id == field.id);
+        let original = originals.next().ok_or_else(fail)?;
+        if originals.next().is_some()
+            || !matches!(field.kind, SymbolKind::Field {owner,..} if owner == model)
+            || field.module != owner.module
+            || original.owner != model
+            || original.name != name
+            || !ordinary_file_array(&original.ty)
+            || original.required_array
+            || original.reuse.is_some()
+            || original.min.is_some()
+            || original.max.as_ref().map(|(_, max, _)| *max) != Some(8)
+            || self.types.node_types.get(&key) != Some(&original.ty)
+            || self.types.symbol_types.get(&field.id) != Some(&original.ty)
+        {
+            return Err(fail());
+        }
+        let data = self
+            .effects
+            .models
+            .get(&model)
+            .and_then(|model| model.fields.iter().find(|data| data.field == field.id))
+            .ok_or_else(fail)?;
+        if data.default.is_some() || data.server.is_some() || data.required_array {
+            return Err(fail());
+        }
+        Ok(vec![ValuePath {
+            reads: vec![DisclosureDependency {
+                id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                source: self.source(module, key)?,
+                node: key,
+                calls: calls.to_vec(),
+                role: DependencyRole::Data,
+                model,
+                field: field.id,
+                model_name: owner.canonical.clone(),
+                field_name: name.into(),
+                ty: original.ty.clone(),
+                type_id: "file[]".into(),
+            }],
+            observed: vec![(key, calls.to_vec())],
+            ..ValuePath::default()
+        }])
+    }
+
     fn input_value(
         &self,
         key: NodeKey,
@@ -6352,7 +6658,7 @@ impl<'a> Closure<'a> {
             return Err(self.fail(effect.node, "child needs complete acyclic source closure"));
         }
         if effect.args.len() != child.params.len() || child.params.len() > 200 {
-            return Err(self.fail(effect.node, "call requires complete scalar authored inputs"));
+            return Err(self.fail(effect.node, "call requires complete authored inputs"));
         }
         let mut slots = HashMap::new();
         for parameter in &child.params {
@@ -6361,18 +6667,21 @@ impl<'a> Closure<'a> {
                 .symbol_types
                 .get(&parameter.param)
                 .ok_or_else(|| self.fail(effect.node, "missing child input type"))?;
-            let ResolvedType::Scalar(scalar) = ty else {
-                return Err(self.fail(
-                    effect.node,
-                    "child reference or composite input outside source profile",
-                ));
+            let eligible = match ty {
+                ResolvedType::Scalar(scalar) => {
+                    primitive_type(ty)
+                        && self.explicit_scalar_call_parameter(parameter, child.module, *scalar)
+                }
+                ResolvedType::Record { .. } | ResolvedType::Nullable(_) => {
+                    self.explicit_model_call_parameter(parameter).is_some()
+                }
+                ty if ordinary_file_array(ty) => self.explicit_file_array_call_parameter(parameter),
+                _ => false,
             };
-            if !primitive_type(ty)
-                || !self.explicit_scalar_call_parameter(parameter, child.module, *scalar)
-            {
+            if !eligible {
                 return Err(self.fail(
                     effect.node,
-                    "child input needs explicit checked scalar declaration",
+                    "child input needs explicit checked declaration",
                 ));
             }
             let declaration = self
@@ -6392,14 +6701,58 @@ impl<'a> Closure<'a> {
                 return Err(self.fail(argument.key_node, "duplicate child input"));
             }
             let key = argument.value.unwrap_or(argument.key_node);
-            if self.types.node_types.get(&key) != Some(expected) {
-                return Err(self.fail(key, "child input lacks exact checked scalar type"));
-            }
-            let values = match argument.value {
-                Some(value) => self.expr(value, module, env, calls)?,
-                None => self.lexical(argument.key_node, module, env, calls)?,
+            let parameter = child
+                .params
+                .iter()
+                .find(|parameter| {
+                    self.resolve
+                        .symbols
+                        .get(parameter.param.0 as usize)
+                        .is_some_and(|declaration| declaration.name == argument.key)
+                })
+                .ok_or_else(|| self.fail(key, "missing checked child slot"))?;
+            let model_slot = self.explicit_model_call_parameter(parameter);
+            let supplied_type = match (model_slot, expected) {
+                (Some((_, true)), ResolvedType::Nullable(inner)) => inner.as_ref(),
+                _ => expected,
             };
-            if values.iter().any(|value| {
+            if self.types.node_types.get(&key) != Some(supplied_type) {
+                return Err(self.fail(key, "child input lacks exact checked supplied type"));
+            }
+            let values = if ordinary_file_array(expected) {
+                self.call_file_array_operand(key, effect.node, module, calls)?
+            } else {
+                match argument.value {
+                    Some(value) => self.expr(value, module, env, calls)?,
+                    None => self.lexical(argument.key_node, module, env, calls)?,
+                }
+            };
+            if let Some((model, nullable)) = model_slot {
+                if !calls.is_empty() || self.loop_node.is_some() || self.statement_depth != 1 {
+                    return Err(self.fail(key, "model call input needs original root occurrence"));
+                }
+                for value in &values {
+                    let original = if nullable {
+                        matches!(value.reference_origin,
+                            Some(ReferenceOrigin::Parent { parameter, model: actual, depth: 2 })
+                            if actual == model && self.checked_call_parent_path(key, parameter, 0) == Some((model, 2)))
+                    } else {
+                        matches!(value.reference_origin,
+                            Some(ReferenceOrigin::Parameter(parameter))
+                            if self.original_call_model_parameter(key, effect.node, module) == Some((parameter, model)))
+                            || matches!(value.model_result,
+                                Some(DisclosureModelResult::Create { model: actual, node })
+                                if actual == model && self.preceding_call_create(effect, module, key, model, node))
+                    };
+                    if !original
+                        || value.record != Some(model)
+                        || value.delivery.is_some()
+                        || value.members.is_some()
+                    {
+                        return Err(self.fail(key, "model child input lacks original provenance"));
+                    }
+                }
+            } else if values.iter().any(|value| {
                 value.record.is_some() || value.delivery.is_some() || value.members.is_some()
             }) {
                 return Err(self.fail(key, "opaque child input provenance"));
@@ -7115,7 +7468,56 @@ impl<'a> Closure<'a> {
                     && effects.iter().all(|effect| effect.then_effects.is_empty()
                         && effect.else_effects.is_empty() && effect.match_arms.is_empty())
             });
-            if !direct_model_return {
+            let created_child_return = self.result_model.is_some_and(|model| {
+                if effects.len() < 3
+                    || effects.get(effects.len() - 3).map(|effect| effect.node)
+                        != Some(created.node)
+                    || effects[..effects.len() - 3]
+                        .iter()
+                        .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+                    || effects.iter().any(|effect| {
+                        !effect.then_effects.is_empty()
+                            || !effect.else_effects.is_empty()
+                            || !effect.match_arms.is_empty()
+                    })
+                {
+                    return false;
+                }
+                let called = &effects[effects.len() - 2];
+                let returned = &effects[effects.len() - 1];
+                let Some(EffectTarget::Operation(operation)) = &called.target else {
+                    return false;
+                };
+                let Some(EffectTarget::Model(created_model)) = created.target else {
+                    return false;
+                };
+                called.verb == EffectVerb::Call
+                    && called.binding.is_some()
+                    && self.complete_model_children.get(operation) == Some(&model)
+                    && called.args.iter().any(|argument| {
+                        let key = argument.value.unwrap_or(argument.key_node);
+                        matches!(self.query_binding(key), Some(Binding::CreateAs {node})
+                            if *node == created.node)
+                            && self.types.node_types.get(&key)
+                                == Some(&ResolvedType::Record {
+                                    symbol: created_model,
+                                    stored: true,
+                                })
+                    })
+                    && returned.verb == EffectVerb::Return
+                    && returned.value.is_some_and(|key| {
+                        matches!(self.query_binding(key), Some(Binding::CallAs {node})
+                            if *node == called.node)
+                            && self.query_group(key).is_some_and(|key| {
+                                self.types.node_types.get(&key)
+                                    == Some(&ResolvedType::Record {
+                                        symbol: model,
+                                        stored: true,
+                                    })
+                            })
+                    })
+            });
+            if !direct_model_return && !created_child_return {
                 // Keep this admission tied to the original straight-line created
                 // row workflow. Existing late requirements may reject both stages.
                 let fail = || {
@@ -7632,6 +8034,11 @@ fn compatible(left: &[DisclosureDecision], right: &[DisclosureDecision]) -> bool
                 && a.choice != b.choice
         })
     })
+}
+
+fn ordinary_file_array(ty: &ResolvedType) -> bool {
+    matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
+        if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
 }
 
 fn primitive_type(ty: &ResolvedType) -> bool {

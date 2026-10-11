@@ -4597,3 +4597,38 @@ joins; State File[] ABI0b is released, native child SEND remains owner-dependent
 58/67/nine and precise C14/C23 holds remain unchanged.
 
 Coordinator independent original request/type/source whole-IR seal and original row-ID dependency/once-emission reviews CLEAR. Reuse owning45 affected/strict/fmt results at their recorded scopes. Exact checked source producer is accepted in LOCAL main after locked CLI integration build; genuine native Images receiving/header/current-stage row/authority/fence/rollback/replay remains Dev-owned unfinished. Required State3d5 row-ID and main42 stored File[] components remain closed; no duplicate carrier, version reinterpretation, source rewrite or native/full-plan/hold release.
+
+**Local continuation — original supplied Ref/File[] CALL joins, 2026-10-11
+(implemented/tested bounded producer; native workflows unfinished).**
+Original Chat Branch Create→ask→Run Return and Creative's six explicit operands
+now join required Ref, exactly two-parent nullable Conversation?=null and
+ordinary attachments:file[]=[] to actual owning interfaces. Preserve explicit
+argument order, original declaration/default/schema/type/semantic correspondence;
+omitted, empty/computed/aliased or mutated operands refuse. Fix repeated Member
+IR typing by outer position: Turn→Branch→Conversation retains each owning type.
+The existing awaited dependency observer captures the original stored File array
+once; optional callSites.fileInputs carries exact {name,dependencyId} only.
+
+Consume only exact released Capability0b three Contracts/State source files,
+reviewed LOCALmain42c76a1d8: Contracts/State emit0; owner84/common results reused.
+No fake Files/current rows or native authority is issued. Rich owning5 PASS
+.78s Node24.19, including actual CLI/verified assembly/installed descriptors;
+enhanced once-awaited File capture assertion passes affected case1/.75s.
+Related library170 (169 initial + corrected failed-only partial-guard assertion1),
+codegen121, invocation7 (6 initial + corrected failed-only omitted-default
+refusal1), native5/2.16s, created7/.14s and scalar-defaults3/.15s PASS:318 distinct
+cases. The two stale assertions contradicted the accepted complete-receipt and
+fully-supplied scalar-default scopes; original omission/refusal controls remain.
+Final strictalltargets0 13.37s after equivalent conditional lint correction,
+fmt0. Unchanged whole/corpus/editor/completion results are reused.
+
+Dev owns genuine original File captures/target/child admission and rollback/
+replay. The transitive child SEND exclusion remains; original query/transcript,
+nullable flow and Create→Set→SEND→Set→Model Return producers remain unfinished.
+Next ready C03 defect: decision serialization lacks the released sealed
+TextMessage[] leaf.58/67/nine and precise C14/C23 holds remain unchanged.
+Actual rebuilt locked CLI a850 remains exit10/complete=true/omitted0/no modules
+with the same ten SEND/richCALL/heldC14 findings. Diff0; this finite join does not
+qualify the original full application bodies.
+
+Coordinator independent defining admission and emission reviews CLEAR; exact eight Compiler paths are intaken, already-main State0b copies excluded. Owning318 and strict/fmt results reused at their scopes. Original query first selection feeding mutable owning-row/created Run retained influences is an exact defining State/Dev join, now assigned; complete application/child SEND/native/File[] consumers remain unfinished and precise holds unchanged. Complete checkpoint unadvanced.

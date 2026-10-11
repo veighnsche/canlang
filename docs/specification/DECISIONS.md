@@ -11139,3 +11139,21 @@ Coordinator independent defining request nominal/type/source whole-IR seal and o
 An emitted module/source pair can contain multiple original callables. Select the installed provider-result declaration issued for the exact authenticated original caller ID, retaining all existing complete source/canonical/artifact/context/result-profile checks and zero/multiple refusal. The defining producer already emits caller-prefixed declaration IDs. Reuse the original conditional SEND carrier and checked Compiler disclosure; do not infer declaration authority from source equality alone.
 
 Focused Dev9eef6929 source/test carrier independently reviewed CLEAR. Only fixture API/setup expectations change to actual not-claimed/guard-false preclaim versus skipped canonical receipt, dispatched ACK and unique membership reactivation. The actual PRIMARY mainab522 source closure passes both original scalar/nullable/array and historical-model Email native cases2/2 in50085ms (50.95s Vitest,51.30s process), zero skips, real CLI/verified assembly/Identity/owner D1. Source/deferred guard-false, one ACK fence/no claim/provider, current/in-flight membership refusal and rollback, historical versus live values, positive provider result, original headers/receipts/history/replay/no-repeat, currency/resources/awaited cleanup remain meaningful. Changed normal CF/root0; worker2/2 58780ms remains separately credited, unchanged owning results reused. Retain earlier failed closures as failures. Close only this finite original guarded Email consumer after deadline; Images/receiving Files/richer CALL/signed ingress/full applications/G3 and full plans remain unfinished, exact holds unchanged. Incremental retained filetree coverage is reconciled; complete checkpoint is not advanced.
+
+2026-10-11 — original supplied Ref and stored File[] CALL correspondence
+(implemented/tested bounded producer; original native workflows unfinished).
+
+Required model inputs retain the exact original parameter or immediately
+preceding CreateAs; nullable Conversation?=null accepts the original required
+Turn's two checked containment edges. An ordinary supplied file[]=[] child slot
+keeps its declaration default as metadata and consumes the original stored
+Turn.attachments:file[] max8 dependency. Preserve actual declaration/schema,
+source argument order, recursive operand types and semantics; omission, literal
+empty/computed/aliased operands and source/interface skew remain refusals.
+Use existing awaited dependency capture and released State0b File observations;
+optional callSites.fileInputs carries only the original {name,dependencyId}.
+Repeated identical Member names select the outer checked type by position.
+318 affected cases and strictalltargets0 pass; native File authority, child SEND,
+query/nullable body and complete original application acceptance remain separate.
+
+Coordinator independent defining source reviews CLEAR; exact eight Compiler paths match main preimages. Reuse owning318/strict/fmt and already-accepted State84, no duplicate State source intake or unchanged native rerun. The original first Allowance/Budget query selects a genuine nullable current-stage row for later reads/Set and contributes to singular created Run result recovery: Capability owns retaining that authentic influence; Dev owns its actual native mutable-owner binding. This is a defining finite original workflow join, not a new general query profile. Count containment/transcript copied Files and child SEND stay separate unmet criteria. Integrated locally after deadline; no complete-application acceptance or recipient hold release, coverage incrementally reconciled and complete checkpoint unchanged.
