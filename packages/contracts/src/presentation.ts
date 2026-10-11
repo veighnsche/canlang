@@ -45,6 +45,11 @@ export function collectionFilterName(occurrence: string, field: string): string 
   return `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:${encodeURIComponent(field)}`;
 }
 
+/** Opaque continuation transport for one source occurrence; never authority. */
+export function collectionCursorName(occurrence: string): string {
+  return `can-cursor:${encodeURIComponent(occurrence)}`;
+}
+
 /**
  * Name of the pre-session token field in the login form. Rendered by lane
  * 05 from the `GET /auth/login` descriptor value, read by the lane 6

@@ -9547,3 +9547,27 @@ and publication/native-preparation holds. This local source unit is unfinished
 at the parent scope and makes no LOC reduction or full-parent acceptance claim.
 
 Coordinator finite source/test review CLEAR and exact coherent source integrated in LOCAL main. Reuse22 affected media cases, original File1/1 and only-own-output correction5/5; original Dev/L7 generated/durable host acceptance and separate File scope remain unfinished. No complete checkpoint or whole-parent acceptance is advanced.
+
+## 2026-10-11 — Original occurrence cursor GET transport (implemented locally; native join unfinished)
+
+Complete the coordinator-released shared prerequisite for original source
+pagination using the existing PresentationContext path/query and occurrence
+convention. `collectionCursorName(occurrence)` encodes one source occurrence;
+page:true collection queries consume exactly one nonempty own URL token when
+no explicit authored cursor is supplied. Next GET links replace only that
+occurrence token and retain team, filters, sibling cursors/selections and other
+query values. Own filter apply/clear removes its continuation and the legacy
+global cursor. The original authorized reader owns token validation, time and
+current grants; UI supplies no authority and no new pagination algorithm.
+
+Finite source review exposed URL normalization producing a protocol-relative
+pathname; reject it before query or rendering. Contracts/UI/Interfaces emit
+passed. The owning collection suite passed118/118 once, and two maintained
+Interfaces controls passed with real authenticated full/partial page dispatch,
+original query identity, filters and independent next links. Compiler154c0b34
+and Dev62eb061c are defining original source/time-cursor outputs in coordinator
+localmain; genuine generated HTTP continuation remains Dev's consumer gate.
+Keep parent/native-preparation/publication holds and previously accepted controls
+at their existing scope.
+
+Coordinator finite GET transport source/test review CLEAR and exact coherent source integrated in LOCAL main. Reuse118 owning UI and2 authenticated full/partial Interfaces outcomes; genuine compiled native HTTP continuation remains unfinished. No parent acceptance or complete checkpoint is advanced.

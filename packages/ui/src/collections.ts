@@ -24,7 +24,7 @@ import type {
   RowView,
   TableProps,
 } from "@canlang/contracts";
-import { CSRF_FIELD, COLLECTION_FILTER_PREFIX, collectionFilterName } from "@canlang/contracts";
+import { CSRF_FIELD, COLLECTION_FILTER_PREFIX, collectionCursorName, collectionFilterName } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderState, rowHeading } from "./components.js";
@@ -122,6 +122,27 @@ const SCALAR_CELL_TYPES = new Set([
 /** Collection page-size bound: default 25 (runner), max 100, reject overflow. */
 const MAX_LIMIT = 100;
 
+/** The dispatcher supplies the current same-app path/query for GET controls. */
+function collectionPageUrl(context: PresentationContext): URL {
+  const current = context.pollUrl ?? context.path;
+  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
+    throw new TypeError("Collection pagination requires a same-app relative URL.");
+  }
+  const url = new URL(current, "https://can.invalid");
+  if (url.pathname.startsWith("//")) throw new TypeError("Invalid collection pagination URL.");
+  return url;
+}
+
+function sourceCursor(props: Pick<ListProps, "context" | "cursor" | "page" | "occurrence">): string | undefined {
+  if (props.cursor !== undefined || props.page !== true || props.occurrence === undefined) return props.cursor;
+  if (props.occurrence.trim() === "") throw new TypeError("Collection pagination requires a nonempty source occurrence.");
+  const values = collectionPageUrl(props.context).searchParams.getAll(collectionCursorName(props.occurrence));
+  if (values.length > 1 || values[0] === "") {
+    throw new TypeError("Collection pagination requires one nonempty occurrence cursor.");
+  }
+  return values[0];
+}
+
 /** Pass S3 query args through, including only defined optionals. */
 function queryArgs(
   props: Pick<ListProps, "context" | "parent" | "where" | "order" | "search" | "count" | "limit" | "cursor" | "page" | "occurrence">,
@@ -133,6 +154,7 @@ function queryArgs(
   ) {
     throw new Error(`${factory}: limit must be an integer 1..${String(MAX_LIMIT)}`);
   }
+  const cursor = sourceCursor(props);
   return {
     ...(props.parent === undefined ? {} : { parent: props.parent }),
     ...(props.where === undefined ? {} : { where: props.where }),
@@ -142,7 +164,7 @@ function queryArgs(
     }),
     ...(props.count === undefined ? {} : { includeCount: true as const }),
     ...(props.limit === undefined ? {} : { limit: props.limit }),
-    ...(props.cursor === undefined ? {} : { cursor: props.cursor }),
+    ...(cursor === undefined ? {} : { cursor }),
     ...(props.page === undefined ? {} : { page: props.page }),
     ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
   };
@@ -187,11 +209,16 @@ function cellLocale(context: PresentationContext): string {
 }
 
 /** Trailing more-note when the runner reports another page. */
-function moreNote(context: PresentationContext, nextCursor: string | undefined): string {
-  if (nextCursor === undefined) {
-    return "";
+function moreNote(props: Pick<ListProps, "context" | "page" | "occurrence">, nextCursor: string | undefined): string {
+  if (nextCursor === undefined) return "";
+  const caption = escapeHtml(resolveCaption(MORE_ROWS, props.context));
+  if (props.page === true && props.occurrence !== undefined) {
+    if (nextCursor === "") return "";
+    const url = collectionPageUrl(props.context);
+    url.searchParams.set(collectionCursorName(props.occurrence), nextCursor);
+    return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}"><a rel="next" href="${escapeAttr(url.pathname + url.search)}">${caption}</a></p>`;
   }
-  return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}">${escapeHtml(resolveCaption(MORE_ROWS, context))}</p>`;
+  return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}">${caption}</p>`;
 }
 
 /**
@@ -252,7 +279,7 @@ export async function list(props: ListProps): Promise<string> {
   const rowsHtml = occurrence === undefined ? summaries
     : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
-    return `${heading}${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
+    return `${heading}${rowsHtml}${moreNote(props, result.nextCursor)}`;
   }
   return wrapWithControls(props.controls, heading + rowsHtml, props);
 }
@@ -312,7 +339,7 @@ export function sourceFilterControls(
   const url = new URL(current, "https://can.invalid");
   const prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`;
   const hidden = (excluded: (name: string) => boolean): string => [...url.searchParams]
-    .filter(([name]) => name !== "cursor" && !excluded(name))
+    .filter(([name]) => name !== "cursor" && name !== collectionCursorName(occurrence) && !excluded(name))
     .map(([name, value]) => `<input type="hidden" name="${escapeAttr(name)}" value="${escapeAttr(value)}">`)
     .join("");
   const action = escapeAttr(url.pathname);
@@ -405,7 +432,7 @@ export async function table(props: TableProps): Promise<string> {
   const rowsHtml = occurrence === undefined ? summaries
     : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
-    return `${filterControls}${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
+    return `${filterControls}${rowsHtml}${moreNote(props, result.nextCursor)}`;
   }
   return filterControls + await wrapWithControls(props.controls, rowsHtml, props);
 }
@@ -1115,7 +1142,7 @@ export async function board(props: BoardProps): Promise<string> {
     .join("");
   const boardHtml = `<div class="flex gap-4">${sections}</div>`;
   if (props.controls === undefined) {
-    return `${boardHtml}${moreNote(props.context, result.nextCursor)}`;
+    return `${boardHtml}${moreNote(props, result.nextCursor)}`;
   }
   return wrapWithControls(props.controls, boardHtml, props);
 }

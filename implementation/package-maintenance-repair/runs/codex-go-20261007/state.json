@@ -7296,6 +7296,21 @@
             "evidence": "implementation/compiler-completion/status.json#committed_model_event_source/calendar_agenda_prerequisite/request_time/compiler_join",
             "remaining": "Original paginated query-time/cursor decision and producer; Dev ordinary contained-create parent issuance and full original application remain separate."
           }
+        },
+        "occurrence_cursor_transport": {
+          "status": "implemented and locally tested; original generated/native continuation unfinished",
+          "required_outcome": "Original bare page:true source occurrence can consume its authenticated opaque continuation through GET and render its next control without changing independent collection/filter state.",
+          "owners": "Packages shared Contracts/UI transport; Compiler checked source occurrence/page lowering; Dev/L7 actual authenticated original query/time continuation.",
+          "implementation": "Add collectionCursorName(occurrence) using existing encoded occurrence convention. UI consumes one nonempty own URL cursor only for page:true without an explicit cursor. Next GET link replaces only owncursor and preserves team/filter/sibling cursor/selection/query. Ownfilterapply/clear resets own+legacyglobalcursor. Raw and normalized same-app route checks prevent protocol-relative href. Existing non-page note/explicit cursor semantics retained. No new State cursor carrier/authentication/algorithm.",
+          "source_review": "Finite independent review identified normalized // pathname escape. Fixed before first runtime checks; new route refusal control included. Other source transport requirements clear. Coordinator finite source/test review CLEAR and exact local integration complete; genuine compiled HTTP continuation remains Dev-owned and unfinished.",
+          "checks": {
+            "runtime": "Node24.19.0",
+            "owner_emits": "Contracts/UI/Interfaces PASS; initial new test used wrong DOM helper shape, repaired to existing async loadHtml/document/close before runtime qualification.",
+            "ui_collections": "118/118 PASS, 373.936042ms; owning original file once after changed shared collection query/controls.",
+            "interfaces_original_table_context": "2/2 PASS, 271.47ms; authored filter/reset current context and genuine full/partial authenticated page→twoTables→query/next links.",
+            "reuse": "Existing State cursor, Compiler source and Dev authenticated/time controls reused at their own scope; no synthetic authentication or whole generated/native acceptance claim."
+          },
+          "remaining_dependency": "Original Compiler154c0b34 bare pagination and Dev62eb061c page-only-now cursor producers are released in coordinator localmain; coordinator/Dev consumes this exact UI transport for genuine generated HTTP continuation. Separate native preparation/publication holds preserved."
         }
       },
       "history_audit_fixture_prerequisite": {

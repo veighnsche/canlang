@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { collectionCursorName, collectionFilterName } from "@canlang/contracts";
 import type {
   CollectionControls,
   ColumnMeta,
@@ -78,6 +79,64 @@ async function rejectsWith(fn: () => Promise<unknown>, ...needles: string[]): Pr
   }
   assert.fail("expected rejection, but the call succeeded");
 }
+
+describe("source table occurrence cursor transport", () => {
+  it("reads independent occurrence cursors and encodes each next GET link without changing sibling state", async () => {
+    const occurrences = ['page:/visits/table:é😀', 'page:/visits/table:other'];
+    const params = new URLSearchParams([
+      ['team', 'own-team'], ['q', 'own query'], ['unrelated', 'retained'],
+      [collectionFilterName(occurrences[0]!, 'state'), 'open'],
+      [`can-row:${occurrences[0]}`, 'selected-row'],
+      [collectionCursorName(occurrences[0]!), 'first-current'],
+      [collectionCursorName(occurrences[1]!), 'second-current'],
+    ]);
+    const hostileNext = '\"><img src=x onerror=alert(1)> &/+%😀';
+    const seen: SeenCall[] = [];
+    const context = makeContext({ path: '/visits', pollUrl: `/visits?${params}`,
+      query: stubRunner(seen, { rows: [row('selected-row', { title: 'Own row' })],
+        columns: [{ field: 'title', type: 'text', label: 'Title' }], nextCursor: hostileNext }) });
+    for (const [index, occurrence] of occurrences.entries()) {
+      const html = await table({ context, model: 'App.Visit', columns: ['title'], page: true, occurrence, limit: 2 });
+      assert.equal(seen[index]!.invocation, context.invocation);
+      assert.deepEqual(seen[index]!.args, { page: true, occurrence, limit: 2,
+        cursor: index === 0 ? 'first-current' : 'second-current' });
+      const page = await loadHtml(html);
+      try {
+      const href = page.document.querySelector('.can-more a')?.getAttribute('href');
+      assert.ok(href);
+      const next = new URL(href, 'https://can.invalid');
+      assert.equal(next.origin, 'https://can.invalid'); assert.equal(next.pathname, '/visits');
+      const expected = new URLSearchParams(params);
+      expected.set(collectionCursorName(occurrence), hostileNext);
+      assert.deepEqual([...next.searchParams], [...expected]);
+      assert.equal(next.searchParams.get(collectionCursorName(occurrences[1 - index]!)),
+        index === 0 ? 'second-current' : 'first-current');
+      assert.equal(page.document.querySelectorAll('img').length, 0);
+      } finally { await page.close(); }
+    }
+  });
+
+  it("refuses duplicate or empty occurrence cursors before query and preserves explicit cursor precedence", async () => {
+    const occurrence = 'page:/visits/table:one';
+    const name = collectionCursorName(occurrence);
+    const seen: SeenCall[] = [];
+    for (const entries of [[[name, '']], [[name, 'one'], [name, 'two']]] as [string, string][][]) {
+      const context = makeContext({ path: '/visits', pollUrl: `/visits?${new URLSearchParams(entries)}`,
+        query: stubRunner(seen, { rows: [], columns: [{ field: 'title', type: 'text', label: 'Title' }] }) });
+      await assert.rejects(table({ context, model: 'App.Visit', columns: ['title'], page: true, occurrence }));
+      assert.equal(seen.length, 0);
+    }
+    const unsafe = makeContext({ path: '/visits', pollUrl: '/x/..//other.example/page',
+      query: stubRunner(seen, { rows: [], columns: [] }) });
+    await assert.rejects(table({ context: unsafe, model: 'App.Visit', columns: ['title'], page: true, occurrence }),
+      /Invalid collection pagination URL/);
+    assert.equal(seen.length, 0);
+    const context = makeContext({ path: '/visits', pollUrl: `/visits?${new URLSearchParams([[name, ''], [name, 'duplicate']])}`,
+      query: stubRunner(seen, { rows: [], columns: [{ field: 'title', type: 'text', label: 'Title' }] }) });
+    await table({ context, model: 'App.Visit', columns: ['title'], page: true, occurrence, cursor: 'explicit-original' });
+    assert.deepEqual(seen[0]!.args, { page: true, occurrence, cursor: 'explicit-original' });
+  });
+});
 
 describe("list", () => {
   it("renders selected authorized columns in authored order before each original row body", async () => {
