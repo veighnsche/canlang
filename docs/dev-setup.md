@@ -108,6 +108,15 @@ records the scope: 150 typed exports across 13 owners pass, while all 797
 Miniflare 4.20260730.0 SDK declaration diagnostics remain visible. This is a
 scoped Can/consumer result; whole-program strict library checking does not pass.
 
+The installed declaration and Worker/runtime consumers also accept
+`--minimum-node22` when invoked with exactly Node22.0.0, the declared minimum
+engine. Use that executable to run both existing scripts with `--skip-build`
+and `--minimum-node22` against matching built outputs. This mode retains actual
+checkout-read denial using Node22's `--experimental-permission`, including the
+nested installed Work serving control. Default invocations retain the separate
+Node24 permission profile. CI runs both profiles; minimum-engine qualification
+does not establish other hosts or original native application acceptance.
+
 ## Run one example app locally
 
 No compiled-app serving yet: the B1 join (`tests/integration/b1-team-tasks.md`)

@@ -11478,3 +11478,29 @@ Consume the exact source/test shared ABI at reviewed Packages b55347f9/main4415c
 Coordinator independent defining State source review CLEAR and finite contained-domain component in LOCAL main after deadline. Six defining State source/test paths only; already accepted shared Contracts ABI omitted. Owning79/Contracts3 reused, actual changed main State/DO-worker→CF/root0. Latest Dev exact ten installed-producer realpaths are worker-local; no primary output capture conflict remains. Exact original admitted or single prior stored-ref origin, same stage/store/source, scoped physical/provisional candidates, genuine empty parent witness, selected-only data versus complete control domain, current/final/saved authority and lifetime preserved. Original Compiler/native adoption plus actual unscoped two-hop ancestor observation remain next defining outputs; full apps, precise holds and complete checkpoint unchanged.
 
 Final intake diff check found one whitespace-only blank test line152; strip that trailing indentation without changing executable statements or assertions. Defining review/owning79 and successful changed main State4.27s/CF5.07s/root4.81s remain applicable; no semantic rerun or invalid source result is claimed.
+
+## 2026-10-11 — Explicit minimum Node installed consumers (implemented; runtime qualification unfinished)
+
+Add `--minimum-node22` to the two existing tarball-only installed consumers.
+Require exactly Node22.0.0, matching the declared `node >=22` minimum, and use
+its experimental permission flag for the primary consumer and nested actual
+Work serving control. Preserve real checkout-read denial, producer containment,
+runtime/assets/Wasm/workerd and negative assertions. Default Node24 invocation
+keeps its existing version guard and permission arguments. Workspace CI captures
+the minimum executable before restoring Node24 and runs both profiles within
+the same four meaningful jobs. No new consumer framework or product API.
+
+The official macOS ARM archive digest and actual executable version are verified.
+The genuine isolated minimum declaration consumer passes177 typed exports across
+13 owners with zero Can/consumer diagnostics and797 third-party diagnostics
+retained. Wrong-engine and implicit-minimum invocations refuse before packing;
+script syntax, parsed CI and finite independent source review pass. Unchanged
+Node24 consumer outcomes are reused. Bun temp sandbox EPERM was retried only for
+the affected actual consumers. Runtime qualification reaches a missing genuine
+native-catalog artifact: this worktree lacks the released native membership/
+frame/facade closure. Obtain the coordinator's exact reviewed source carrier and
+rerun only that failed installed-runtime scope; no synthesized catalog or weaker
+assertion. This is not whole DEL-R01, Linux/native acceptance or a hold release.
+
+
+Coordinator defining source review CLEAR and exact four-path source/doc intake in LOCAL main after deadline. Owning declaration177/13,797 retained external diagnostics, actual engine refusals/script syntax/four-job CI parse reused. Runtime missing-producer failure remains unfinished. The recipient-specific no-merges instruction is honored through a requested single-parent descendant source carrier: parent Packages3fa259b45, tree equal this coherent reviewed main including its Node22 changes; all worker commit ancestry remains available, and coordinator never mutates its checkout. Packages adopts ff-only at its committed boundary and retries only actual failed runtime against genuine matching catalog/producers. Exact preparation/default/activation/publication/source/adoption holds and complete checkpoint remain unchanged.
