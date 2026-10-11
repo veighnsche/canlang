@@ -9430,3 +9430,75 @@ prerequisite; no whole CanBook/application or unrelated hold is accepted here.
 Owning changed4/4 CLI/public-module/original-source/IR checks pass0.72s; strict all-target Clippy0 5.48s,fmt/diff0. The focused review exposed and fixed duplicate model/where object-key overrides, now covered by the owning refusal controls. Unchanged ordinary native146 and corpus/editor/completion results are reused; paginated runtime qualification remains Dev-owned and unfinished.
 
 Coordinator finite checked source/IR/emission review CLEAR and LOCAL main integration complete. Recorded changed checks are reused; genuine paired native pagination remains unfinished. No whole-plan count or complete file-tree checkpoint is advanced.
+
+## 2026-10-11 — Preserve original page-query time in authenticated continuation
+
+**Accepted engineering choice; native compiled qualification unfinished:** choose B, the closed page-only `{kind:"page-query-now"}` operand. Compiler emits it only for checked paginated nonnullable owning Datetime `>=now`/`<now` comparisons. Dev resolves it before generic State normalization/read with the owning datetime codec, using trusted current Identity admission on the first page and the authenticated original query time on continuation. Ordinary unpaged comparisons, guards and other `now` remain current. Generic State gets concrete wire predicates and retains full normalization and current authority; no generic predicate API or extra awaited presentation callback is introduced.
+
+Cursor v2 carries original `queryTimeMs` separately from renewable issuance/expiry, with the existing digest/revision/after, canonical HMAC, finite lease and token bound. V1 lacks the required observation and refuses continuation with a first-page restart. Invalid/extra-key/wrong-field/unsupported operands refuse; independent occurrences retain separate bindings. Direct codec and existing actual hosted Memory controls pass5/5; root noEmit passes0. Genuine Compiler output and the native D1 continuation workflow remain prerequisites to qualification, not an inferred human decision hold.
+
+Reuse the coordinator's once-completed three independently worded Choice requests comparing the additional awaited collection-time callback (A), the closed adapter-resolved operand (B), and a concrete unresolved decision (undecided). Human authorized the exact payload/destination after the actual transmission rejection. The exact retained responses below are advice; their confidence (.53/.43/.73) and undecided mass (.17/.26/.09) do not prove correct runtime behavior.
+
+```json
+[
+  {
+    "model": "jev-1.13.0",
+    "answers": {
+      "page_query_time": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.53,
+        "probabilities": {
+          "A": 0.14,
+          "B": 0.69,
+          "undecided": 0.17
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1085,
+      "output_tokens": 42
+    }
+  },
+  {
+    "model": "jev-1.13.0",
+    "answers": {
+      "page_query_time": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.43,
+        "probabilities": {
+          "A": 0.12,
+          "B": 0.62,
+          "undecided": 0.26
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1091,
+      "output_tokens": 42
+    }
+  },
+  {
+    "model": "jev-1.13.0",
+    "answers": {
+      "page_query_time": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.73,
+        "probabilities": {
+          "A": 0.09,
+          "B": 0.82,
+          "undecided": 0.09
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1090,
+      "output_tokens": 42
+    }
+  }
+]
+```
+
+Coordinator finite cursor codec/adapter source review CLEAR and LOCAL main integration complete. Recorded changed checks are reused; genuine paired native pagination remains unfinished. No whole-plan count or complete file-tree checkpoint is advanced.

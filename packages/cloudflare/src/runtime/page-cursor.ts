@@ -3,7 +3,7 @@ import { base64UrlToBytes, bytesToBase64Url } from '@canlang/identity';
 import type { WorkScope } from '@canlang/contracts';
 
 const DOMAIN = 'can-page-cursor';
-const VERSION = 1;
+const VERSION = 2;
 const LIFETIME_MS = 15 * 60 * 1_000;
 const MAX_TOKEN_CHARS = 4_096;
 
@@ -11,13 +11,19 @@ export interface PageCursorPosition {
   readonly revision: number;
   /** ID of the final returned authorized row; no stored sort values. */
   readonly after: string;
+  /** Original admitted query time, retained when the cursor lease is renewed. */
+  readonly queryTimeMs: number;
 }
 
 export type PageCursorDecoded =
   | { readonly status: 'valid'; readonly bindingDigest: string; readonly position: PageCursorPosition }
   | { readonly status: 'invalid' | 'stale' };
 
-/** Fixed-domain codec; the admitted page adapter owns the checked binding tuple. */
+/**
+ * Fixed-domain codec; the admitted page adapter owns the checked binding tuple.
+ * Version 1 continuations are invalid: their query time cannot be recovered
+ * safely from a renewable issuance time. The caller must restart the query.
+ */
 export interface PageCursorCodec {
   encode(bindingDigest: string, position: PageCursorPosition, nowMs: number): Promise<string>;
   decode(token: string, nowMs: number): Promise<PageCursorDecoded>;
@@ -53,11 +59,12 @@ export async function createPageCursorCodec(key: Uint8Array | string): Promise<P
     async encode(bindingDigest: string, position: PageCursorPosition, nowMs: number): Promise<string> {
       if (typeof bindingDigest !== 'string' || !/^[a-f0-9]{64}$/.test(bindingDigest) || !validTime(nowMs) ||
           !Number.isSafeInteger(position.revision) || position.revision < 0 ||
-          typeof position.after !== 'string' || position.after === '') {
-        throw new TypeError('Page cursors require a checked binding digest, revision, visible position and clock.');
+          typeof position.after !== 'string' || position.after === '' ||
+          !Number.isSafeInteger(position.queryTimeMs) || position.queryTimeMs < 0 || position.queryTimeMs > nowMs) {
+        throw new TypeError('Page cursors require a checked binding digest, revision, visible position, original query time and clock.');
       }
       const payload = new TextEncoder().encode(JSON.stringify([
-        DOMAIN, VERSION, bindingDigest, position.revision, position.after, nowMs, nowMs + LIFETIME_MS,
+        DOMAIN, VERSION, bindingDigest, position.revision, position.after, position.queryTimeMs, nowMs, nowMs + LIFETIME_MS,
       ]));
       // Base64url length plus the fixed 32-byte MAC and separator, before signing.
       if (Math.ceil(payload.length * 4 / 3) + 44 > MAX_TOKEN_CHARS) {
@@ -81,16 +88,18 @@ export async function createPageCursorCodec(key: Uint8Array | string): Promise<P
         text = new TextDecoder('utf-8', { fatal: true }).decode(payload);
         parsed = JSON.parse(text) as unknown;
       } catch { return { status: 'invalid' }; }
-      if (!Array.isArray(parsed) || parsed.length !== 7 || JSON.stringify(parsed) !== text ||
+      if (!Array.isArray(parsed) || parsed.length !== 8 || JSON.stringify(parsed) !== text ||
           parsed[0] !== DOMAIN || parsed[1] !== VERSION ||
           typeof parsed[2] !== 'string' || !/^[a-f0-9]{64}$/.test(parsed[2]) ||
           !Number.isSafeInteger(parsed[3]) || parsed[3] < 0 ||
           typeof parsed[4] !== 'string' || parsed[4] === '' ||
-          !validTime(parsed[5]) || !Number.isSafeInteger(parsed[6]) || parsed[6] !== parsed[5] + LIFETIME_MS) {
+          !Number.isSafeInteger(parsed[5]) || parsed[5] < 0 ||
+          !validTime(parsed[6]) || parsed[5] > parsed[6] ||
+          !Number.isSafeInteger(parsed[7]) || parsed[7] !== parsed[6] + LIFETIME_MS) {
         return { status: 'invalid' };
       }
-      if (parsed[5] > nowMs || parsed[6] <= nowMs) return { status: 'stale' };
-      return { status: 'valid', bindingDigest: parsed[2], position: { revision: parsed[3], after: parsed[4] } };
+      if (parsed[6] > nowMs || parsed[7] <= nowMs) return { status: 'stale' };
+      return { status: 'valid', bindingDigest: parsed[2], position: { revision: parsed[3], after: parsed[4], queryTimeMs: parsed[5] } };
     },
   });
 }
