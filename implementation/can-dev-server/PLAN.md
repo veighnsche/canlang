@@ -1,5 +1,101 @@
 # First `can dev` implementation plan
 
+## Current execution: finish the declared first slice
+
+Planning baseline: local main `d11745e10d240c7e3185fcfc5f67dc8343d06da8`,
+2026-10-11. This section is the scheduling view; the checkpoint notes below
+retain their original evidence scope. Apply [finite execution](../../AGENTS.md#finite-execution).
+This refresh changes planning, not product semantics, execution permissions,
+external disclosure permissions or recipient-specific holds.
+
+The authoritative first slice is [one Office supplies app](../../design/can-dev-first-slice.md#declared-profile):
+one self-contained source, team-scoped local D1, real Identity, generated browser
+controls, compiled examples and revisioned local JSON controls. Its contract
+explicitly excludes files, external providers, schedules, composed applications
+and deployment. Their existing platform obligations remain in their owning
+plans; completing them is not a prerequisite for this first slice.
+
+There are **14 stable task IDs, T00–T13**, and **three integration/support gates**.
+T00's witness is frozen. T04 and T11 have explicit first-slice implementation or
+qualification gaps. The other eleven tasks have selected producer/consumer
+results to reuse; they are not eleven new implementation jobs. Final task
+closure still requires the relevant G2 observations. G1 has a recorded passing
+shared-join result; G2 and G3 remain open. Do not add these overlapping task and
+gate identities to the other plans' counts.
+
+| Existing ID | Current remainder and defining owner | Finite exit / evidence to reuse |
+| --- | --- | --- |
+| T00 | Evaluation owner retains the hidden Office witness, Task 1 prompt, caller matrix and independent expectations. No new source task is identified. | Preserve the frozen source and A1–A7 criteria; record only necessary spelling changes without weakening behavior. |
+| T01 | Dev/compiler: selected capture is qualified; retain actual membership/currentness and immutable input checks at G2. | Reuse capture, source-edit/symlink, supersession and watcher results. A changed consumed input triggers only its affected check. |
+| T02 | Compiler: selected Office language/page/fixture profile has actual emitted consumers. No first-slice language defect is identified here. | Reuse actual Office artifact and first-profile compiler results; fix a newly demonstrated Office source/emission defect in its owner if one appears. |
+| T03 | State/UI/Interfaces: selected Office form/search/view/count/member behavior is qualified. | Reuse browser/business observations, including visible filtered count, empty results, second-member access and outsider denial. Join their actual artifact at G2. |
+| T05 | Compiler/Testkit: selected Office and G1 example emission is qualified. | Keep original emitted rows and independently authored expectations; reuse actual source-owned selector/fixture outcomes. |
+| T06 | Dev/Identity: first-slice installed bundle, auth and local resource admission are qualified. | Reuse actual Identity/D1/HTTP/MCP/assets and missing-binding/refusal checks. Nonroot mounts, mixed owners and provider activation are separate obligations. |
+| T07 | Dev/Testkit: actual Office examples execute 2/2 twice in isolated scopes; G1 executes its three rows. | Reuse actual executed counts, caller identities, fresh resources and denial effects; no zero-row or handwritten substitute. |
+| T04 | Compiler owns the complete diagnostic-site/candidate branch; Dev owns its source-current first-profile qualification join. All 41 selected card consumers are qualified, but candidate coverage remains unknown and `messageKinds` empty. | Finish the bounded diagnostic branch for the six existing drafts and no-suggestion/structural cases. Supply actual complete candidate IDs and truthful intent evidence for an eligible ambiguity; keep unsupported/incomplete branches abstaining. Reuse the 41-card/browser result unless its consumed behavior changes. |
+| T08 | Dev: native session/watch/stop/revision lifecycle has qualified selected cases; the old daemon-stop timeout is superseded by the peer-disconnect correction. | Reuse duplicate/foreign owner, invalid-edit stale serving, repaired reset, watcher, retained revision and owned cleanup outcomes. Do not reopen the old timeout without a new failure. |
+| T09 | Dev: selected native Office preview/browser/asset/auth consumer is qualified. | Reuse protected loopback, real login and browser results; retain the same artifact/build/resource join at G2. |
+| T10 | Dev: selected safe failure/list/detail/old-reference and failed-rerun occurrence joins are qualified; richer actor/trace/row evidence is not established. | Use the existing bounded redacted occurrence. Preserve explicit unavailable evidence as A6 allows; add a producer only for a specifically unmet A6 requirement. |
+| T11 | Dev consumes T04's eligible branch, validates the bounded ranking response and performs the required live case. The previously rejected exact external project packets remain held. | One admitted live ambiguity plus the existing deterministic/refusal/timeout/invalid/stale controls satisfies the stated functional matrix. Exact disclosure authorization is a prerequisite to transmission; local preparation is independent. |
+| T12 | Dev/Testkit: actual failed isolated reruns and eviction/refusal controls are qualified. | Reuse distinct new-run IDs, retained artifact and before/after restoration results; keep `replay.available=false` and saved receipt recovery separate. |
+| T13 | Dev: selected native JSON lifecycle/help/example/failure controls are qualified; T04/T11 supply the remaining help behavior. | Reuse actual native CLI/Unix controls, exact-session/revision refusals and owned stop. G2 checks the joined supported commands; no second control protocol. |
+
+Current concrete correction: the original Office --cohort run now times out in the native source-invalid control (office-browser.mjs:76, REQUEST_TIMEOUT), after browser19/business36/examples2/2 twice passed. Dev owns the control/producer boundedness defect; retain those valid passed scopes and correct only the affected failure. No timeout increase, source narrowing or reopening of the separately resolved daemon-stop failure. G2 is not qualified by the partial run.
+
+### Ordered completion and stopping conditions
+
+1. **T04 diagnostic branch, then T11.** Compiler releases the necessary actual
+   branch/candidate facts; Dev joins the existing qualified card bundle and safe
+   occurrence. Do not wait for complete Compiler, Capability or Packages plans.
+   Prepare the exact bounded request locally while disclosure remains held.
+   An authorized request must use the original privacy/choice contract; this
+   planning refresh does not authorize a rejected transmission.
+2. **G2: one complete Office A1–A6 qualification.** Once the missing A5 branch and
+   live case are released, qualify the real joined source/artifact/native
+   controls and resources at one coherent tuple. Reuse unchanged producer checks
+   and the existing business/browser/example/failure observations at their valid
+   scopes. Freeze the consumed producer/output closure during the integrated
+   run. Repeat a failed or invalidated scope after its correction, not every
+   successful suite or unrelated File/provider workflow. Record one concise
+   outcome in this plan and the existing evaluator result. All hard A1–A6
+   criteria remain required; partial passes do not close G2.
+3. **G3: the finite A7 study.** Evaluation owner freezes prompt, introduction,
+   model/settings, time budget, candidates and conditions. Run the existing
+   minimum of three fresh agent attempts and three fresh attempts per comparison
+   condition. A qualifying run may count toward both requirements when its setup
+   matches; preserve independent runs, denominators and counterbalancing.
+   Publish all outcomes once. If the measured non-regression/improvement rule is
+   not met, retain deterministic default and requestable advisory ranking rather
+   than rerunning until a favorable claim appears. G2 and exact disclosure
+   authorization gate dependent trials.
+4. **Close the declared slice.** T04/T11 and G2/G3 close only at their stated
+   criteria. Failed criteria produce a concrete correction or honestly failed
+   support outcome. Completion does not start Task 2/3, new platforms/providers,
+   publication or additional experiments automatically.
+
+### Existing platform handoffs retained outside the first slice
+
+These are concrete remainders already named in the four plans. They are linked
+handoffs, not additional first-slice task IDs. The owning plan defines each
+accepted matrix; a generic "broader workflow" note below cannot enlarge it.
+
+| Existing owning scope | Remaining Dev output / prerequisite | Bounded completion |
+| --- | --- | --- |
+| Packages DEL-B02 / Compiler S9-Q08 | Original page-only CLI/configured-root consumer a31 is qualified1/1 40911.67ms, host-loader8b2/2 and current Dev boundary42/zero. Remaining operation/nonroot route/form/auth/assets/Files/poll profiles only where the owning deployment contract requires them. | Consume the released helper/lowering and explicit host base. Qualify the defined routes and configuration refusals; root-only first-slice admission stays explicit. |
+| Packages TECH-F02 / Capability File-reference and retention scopes | Original source/lifetime/receiver/File observations for opaque receipt, deferred input, handler/result and raw defaults; consume State/Work persisted census, guard, reopen/migration release. | Preserve complete original declarations/defaults and same-fence correspondence, including trusted actor-null receiving where required. Existing scalar/required/ordinary/nullable collection, deletion/race/reopen/retry results are reusable. Do not repeat them as a new task. |
+| Packages TECH-F01 / TECH-F02 / ingress contract | Host/deployment supplies namespace→adapter/team/owner binding, key/signature/age verifier and durable authenticated occurrence/request/delivery correlation. | Dev installs only the configured verifier/sink and qualifiers for the named provider. Missing contract or credentials remain an owner/external gate; no public unverified ingress or generic provider framework. |
+| Capability SEQ-048 / Compiler Task39 and original-source dispositions | Genuine original committed-model, Workbench pure `staff`/`can_work`, checked query/call/reference-array/Fact[] source and policy lineage. | Source owner releases exact original corrections; Compiler releases the actual missing checked profile; Dev qualifies that original source through current authority and one root fence. Reuse finite static calls, public query, stored-member and committed-source consumers. |
+| Capability membership/preclaim/dispatch scopes | Source-issued membership observers, frozen lexical SEND inputs and actual eligible State/Work evidence→original commit lifetime. | Consume the owning stage/guard/source outputs. Qualify the named original true/false/revocation/replay matrix without cloning eligibility, replaying guards or requesting a second origin carrier. |
+| Compiler S9-Q02 / Capability scoped receipts and context | Remaining explicitly selected source/return/default/Set/Send/hook/query/loop profiles, including supported public Email terminal receiving after the reviewed original seven-handler private late-write/replay result8c1/1. | Use the existing authored witness and acceptance matrix. Dev's exact private late-write rollback outcome is released; Compiler public Email publication now supplies the next prerequisite; an unlisted profile first needs an accepted finite requirement, not an automatic widening. |
+| Packages rendered-form / owner-routing scopes | Missing unchecked-checkbox transport in the owning partial form; mixed app/team model routing where the existing contract requires it. | Owning producer supplies the declared field-presence rule or model-aware boundary, then Dev runs only that affected real consumer. No blind false inference or cross-owner fallback. |
+| Compiler / Capability original-app and page-pilot scopes | Current State/D1/grant/version and named original source/application consumer joins not supplied by fixture passes. | Use the owning finite source/workflow list, preserve deliberate negatives and record missing source/design releases. Other unrelated applications never gate Office G2. |
+
+Human BDD3/Task22/native-preparation, source-specific exclusions, external-packet,
+publication and recipient-specific holds remain with their owners. A held gate
+has a release condition; it is not a reason to idle an independent ready task.
+
+## Recorded component outcomes and historical checkpoints
+
 **Explicit app URL context and Dev root host producer (implemented/finite host tested; original source join unfinished):** consume only coordinator-reviewed Packagesdd688cfe's nine Contracts/Interfaces/CF paths. Dev produces optional own-data CAN_DEPLOYMENT_BASE before DB awaits, separate from CAN_AUTH_ORIGIN; validate through actual Values and reject nonroot mounts before serving. Protected preview supplies the genuine bound root URL and refuses conflicting overrides. Preserve original base through HTTP/MCP mutation/read/child scenarios, full/partial/form-error page contexts/read scopes/input choices and due/retained/source/cohort execution. Private hook/predicate bases live only in their exact per-invocation owner frames, not cached descriptors/identity facts. Source review finds no propagation/security defect. Contracts/Interfaces/CF clean emissions0, frozen root noEmit0 and boundaries13/948/1420/zero pass. Existing worker-main19/19 and both new actual Interfaces assembly full/partial/request-spoof/config-refusal cases pass; preview admission/base2/2 passes. An earlier full existing assembly run had three original canonical Vitest canApp accessor-metadata fixture failures, sent as exact Packages/coordinator prerequisite rather than weakened production checks, plus a5s concurrent cold-start timeout; its unchanged original first page case then passes1/1 in1066.23ms without timeout changes when rerun alone (22 unrelated cases unselected). Actual bundled D1/auth full case passes1/1 in5894.09ms (6457.54ms total) after opening Miniflare bookkeeping before capturing the entire unchanged physical-table baseline; earlier incorrect pristine snapshot failure is unqualified. Original auth/CRUD/revocation/limits and zero schema effects for malformed/accessor/missing explicit configuration remain. Compiler's reviewed f8fb77fa in localmain5fd18e70 now supplies checked app_url(path)→app_url(c,path) lowering and original native destination recipe, with its necessary previously reviewed565 destination binding prerequisite. Dev consumes only the exact four production and two defining test/fixture paths; the actual locked CLI rebuild passes0 in19.41s, and the original source consumer below now qualifies the root host at its finite scope; hand-written assembly/host fixtures establish no original source workflow acceptance. Full mounted routes/form/auth/assets/Files/poll and original application/Office/G2–G3/opaque State/Work dependencies remain pending. This checkpoint is **unfinished**; publication/recipient holds persist.
 
 **Original compiled URL preview (implemented/finite workflow tested; exact shared boundary registration released; current scan due):** consume the entire original urlSource literal from reviewed Compilerf8’s existing anonymous-message-consumer.mjs without narrowing or editing its declarations. Actual capture/locked native CLI/installed portable preview/global D1/Identity/protected root passes1/1 in40911.67ms (41720.40ms total), zero failures/cancellations/skips. Dev admits page-only apps through the unchanged activation/resources/source/security gates; authenticated discovery must be exactly empty for the original zero-operation census, and readiness selects the declared root or first actual page. Full/partial links use only the genuine bound root despite request/header spoofing, retain escaped query/caption bytes, reject the genuine nonslash team UUID through the safe422 rule_failed envelope, preserve effectful foreign-origin refusal/assets/artifact/source/compiler/installed-graph currency and awaited disposal. Earlier Vitest producer-accessor and old business-operation admission failures are unqualified. CF clean emission0, frozen root noEmit0 and existing admission21/21 in24ms pass. Final frozen boundary13/948/1423/3 is blocked solely by the original recipe reader/equality sites at native-local-rules-d1.integration.test.ts666/692/799; Packages b92c9e1d exact registration is independently reviewed and locally integrated; Dev owns one actual current-source full boundary scan after intake. Reuse the unchanged original native result; policy tests alone do not qualify this consumer. No local bypass, mounted route acceptance, original application/Office/G2–G3 qualification or publication follows. This checkpoint is **unfinished**.

@@ -1,5 +1,47 @@
 # Canlang language design decisions
 
+## 2026-10-11 — finite execution of the four existing plans
+
+**Accepted planning decision.** The human requested all remaining work in the
+Packages, Compiler, Capability and dev-server plans to be made finishable while
+preventing overengineering. Reconcile their existing requirements and recorded
+outcomes at local main `b430380a86b576998ba1acd183cfdbab350583ee`; do not add
+canonical tasks or infer acceptance from active/unmerged work.
+
+Use one current execution view in each owning plan and the existing
+[cross-plan index](../../implementation/REMAINING-WORK.md). Retain original
+acceptance recipes, source examples, negative/security behavior and precise
+holds. Historical readiness, source pins and unfinished notes do not reopen a
+later accepted criterion. Remaining accounting is 28/48 selected package
+packets, 9/67 overlapping compiler references and 31/63 capability stages.
+The dev-server first slice has explicit T04/T11 gaps followed by G2/G3; other
+selected producer outcomes are reused, not automatically counted as whole
+task completion. These different units are not summed into a job count.
+
+Every remaining outcome names its owner, required output, concrete prerequisite
+and finite exit. Cross-owner work proceeds through contract, producer, consumer
+and affected validation; it does not wait for another entire plan. A missing
+defining profile is a bounded decision gate, not speculative implementation.
+The existing Office first-slice contract excludes Files/providers/composition/
+schedules/deployment, so those platform obligations do not block Office G2.
+T11's previously rejected exact project packet still requires disclosure
+authorization, and G3 retains the original independent/counterbalanced study
+criteria and honest failed outcomes.
+
+The shared [finite-execution policy](../../AGENTS.md#finite-execution) prohibits
+duplicate proof/review trees, unchanged reruns, new carriers without a required
+gap, intake-only cycles and repeated manual history reconstruction. It preserves
+complete behavior, proportionate additional checks for actual risks, full merge
+coverage and the unadvanced complete review checkpoint. Capture-sensitive runs
+freeze or isolate their consumed inputs.
+
+**Remaining uncertainty.** Original membership/event identity, selected wider
+profiles, source exclusions, human BDD3/Task22/native preparation, exact external
+disclosure and real provider/data/host releases remain explicit dependencies.
+This planning repair selects no new product semantics, waives no hold and grants
+no implementation/publication authority. Existing JEV advice remains advisory;
+difficult defining decisions use the existing authorized consultation rule.
+
 ## Current status
 
 The numbered list below is the historical audit of the drafts, including the choices that were open at that point. [DESIGN.md](DESIGN.md) now defines the chosen v1 design; [REQUIREMENTS.md](REQUIREMENTS.md) retains the product requirements. Historical **MINE** entries are not additional rules when the v1 design replaces them. **OPEN** below records the earlier question, not a second unresolved specification.
