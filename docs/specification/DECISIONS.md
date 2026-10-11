@@ -11604,3 +11604,16 @@ exact outputs. Reuse prior contained-domain/parent and runtime qualifications;
 no new carrier/profile/version, full app acceptance, push or hold release.
 
 Coordinator manual defining review CLEAR and coherent three-path Contracts/source/type-fixture/README intake after deadline. Optional queryId names an existing query only on original return ordinary dependencies; legacy omission/intrinsics remain mandatory. Actual source-exclusive use, same source/owner/stage/store, completed candidate capture consumed by Return and full current/final/saved authority remain defining Compiler/Capability implementations, not rights from typed shape. Preserve every actual second hop and reject unassociated missing or forged/foreign/unconsumed/unfinished associations. Owning strict/focused assembly1 reused; actual changed main Contracts/root0, no unchanged runtime/consumer rerun or native/full app claim. Shared ABI counted once in existing TECH-S02 and its consumers, precise holds and complete checkpoint unchanged.
+
+2026-10-12 — original first and contained count composition
+(implemented/tested bounded producer; native execution unfinished).
+Compose only the exact ordered first-selected Budget and second-Create contained
+Turn count on the same first Run Return. Keep separate query occurrences and
+owning statements, combine their eight source influences, and emit both genuine
+once-awaited selectors. Preserve original Budget policies/typed reads and the
+existing guarded SEND tail. No generic multiquery or runtime carrier is needed.
+377 affected checks pass; real native execution/authority/rollback/replay remains
+Dev-owned. Exact Packages e51 candidate-only queryId shape is the next defining
+handoff; omission keeps ordinary dependencies mandatory.
+
+Coordinator independent defining source review CLEAR for original bounded first/count/two-Create composition, coherently integrated after deadline with related controls/records. Exact once/lazy query and constructor/effect order, two query DTOs/eight influences, same original Run result and prepared/copy/corruption/source/schema refusals remain. Owning377/strict/fmt reused; changed main locked offline CLI0. Actual native implementation/authority/current read policies/final fence/atomic rollback/replay/full original apps remain Dev/Capability consumers. No proof from metadata, broader query profile, carrier or hold release. Shared e51 candidate association is already available at shape-only scope; source/runtime matcher remains incomplete. Complete filetree checkpoint unchanged.

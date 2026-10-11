@@ -72,10 +72,13 @@ pub(super) fn collect_complete_query_receipt(
     let plan = checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
     let original = program.scenario_disclosures().get(&owner.id)?;
     let queries = original.source_facts()?.queries.as_ref()?;
-    let [query] = queries.as_slice() else {
-        return None;
-    };
-    if query.first.is_some() || query.count.is_some() {
+    let query = queries.first()?;
+    if queries
+        .iter()
+        .any(|query| query.first.is_some() || query.count.is_some())
+    {
+        let expected_influences =
+            super::scenario_receipts::checked_native_query_influences(queries)?;
         let (fresh, diagnostics) = super::ir::build(program, db, catalog);
         if !diagnostics.is_empty() {
             return None;
@@ -103,7 +106,7 @@ pub(super) fn collect_complete_query_receipt(
                     || returned.id != emitted.id
                     || returned.source != query.source
                     || returned.model_result.is_none()
-                    || returned.influences != query.influences
+                    || returned.influences != expected_influences
                     || emitted.projection.is_some()
                 {
                     return None;
@@ -134,6 +137,9 @@ pub(super) fn collect_complete_query_receipt(
             returns: native_returns,
         });
     }
+    let [query] = queries.as_slice() else {
+        return None;
+    };
     let (fresh, diagnostics) = super::ir::build(program, db, catalog);
     if !diagnostics.is_empty() {
         return None;
@@ -205,7 +211,8 @@ fn checked_query_plan(
     if source.node != original.node
         || source.source != original.source
         || source.queries != original.queries
-        || queries.len() != 1
+        || queries.is_empty()
+        || queries.len() > 2
     {
         return None;
     }
@@ -220,32 +227,27 @@ fn checked_query_plan(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
-    if queries[0].first.is_some() {
-        return checked_first_query_plan(program, ir, owner, &queries[0], entry_module);
+    if queries
+        .iter()
+        .any(|query| query.first.is_some() || query.count.is_some())
+    {
+        super::scenario_receipts::checked_native_query_influences(queries)?;
+        let mut plans = queries.iter().map(|query| {
+            if query.first.is_some() {
+                checked_first_query_plan(program, ir, owner, query, entry_module)
+            } else {
+                checked_count_query_plan(program, ir, owner, query, db, entry_module)
+            }
+        });
+        let first = plans.next()??;
+        return if let Some(count) = plans.next() {
+            super::scenario_receipts::merge_native_query_plans(first, count?)
+        } else {
+            Some(first)
+        };
     }
-    if queries[0].count.is_some() {
-        let plan = super::scenario_receipts::checked_native_count_query_plan(
-            ir,
-            owner,
-            &queries[0],
-            db,
-            entry_module,
-        )?;
-        let count = queries[0].count.as_ref()?;
-        let selected = program.types.selected_calls.get(&count.call)?;
-        if !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
-            if id == "count" && *overload == count.overload)
-            || selected.slots != count.slots
-            || selected.arguments.len() != 1
-            || program.types.checked_queries.contains_key(&queries[0].node)
-            || program
-                .types
-                .checked_collection_calls
-                .contains_key(&count.call)
-        {
-            return None;
-        }
-        return Some(plan);
+    if queries.len() != 1 {
+        return None;
     }
     let [
         IrStmt::Let { value: scan, .. },
@@ -480,6 +482,33 @@ fn checked_query_plan(
 
 /// Exact original owning first-query source. Generic arrays, copied queries and
 /// projections cannot supply this plan or the native first-row hook.
+fn checked_count_query_plan(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    let plan =
+        super::scenario_receipts::checked_native_count_query_plan(ir, owner, query, db, entry)?;
+    let count = query.count.as_ref()?;
+    let selected = program.types.selected_calls.get(&count.call)?;
+    if !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
+        if id == "count" && *overload == count.overload)
+        || selected.slots != count.slots
+        || selected.arguments.len() != 1
+        || program.types.checked_queries.contains_key(&query.node)
+        || program
+            .types
+            .checked_collection_calls
+            .contains_key(&count.call)
+    {
+        return None;
+    }
+    Some(plan)
+}
+
 fn checked_first_query_plan(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -489,6 +518,9 @@ fn checked_first_query_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     use super::ir::IrCallTarget;
     use crate::analysis::{ResolvedType, Scalar};
+    let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let expected_influences =
+        super::scenario_receipts::checked_native_query_influences(facts.queries.as_deref()?)?;
     let first = q.first.as_ref()?;
     let alias = q.alias?;
     let predicate_node = q.predicate?;
@@ -663,7 +695,7 @@ fn checked_first_query_plan(
                 || checked.returns.iter().any(|returned| {
                     returned.node != q.return_node
                         || returned.source != q.source
-                        || returned.influences != q.influences
+                        || returned.influences != expected_influences
                 })
             {
                 return None;

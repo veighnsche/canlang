@@ -1626,12 +1626,13 @@ fn emit_program_with_sources(
             let Some(plan) = queries.get(&item.canonical) else {
                 continue;
             };
-            let Some(query) = ir
+            let Some(checked_queries) = ir
                 .scenario_disclosures
                 .get(&item.id)
                 .and_then(|fact| fact.source_facts())
                 .and_then(|source| source.queries.as_ref())
-                .and_then(|queries| (queries.len() == 1).then(|| queries[0].clone()))
+                .filter(|queries| !queries.is_empty() && queries.len() <= 2)
+                .cloned()
             else {
                 continue;
             };
@@ -1641,7 +1642,7 @@ fn emit_program_with_sources(
             emitter.native_query_sources.insert(
                 item.id,
                 NativeQuerySource {
-                    query,
+                    queries: checked_queries,
                     return_id: return_id.into(),
                     plan: plan.clone(),
                 },
@@ -2564,7 +2565,7 @@ struct OriginalUiRow {
 
 #[derive(Clone)]
 struct NativeQuerySource {
-    query: crate::analysis::scenario_disclosure::DisclosureQuery,
+    queries: Vec<crate::analysis::scenario_disclosure::DisclosureQuery>,
     return_id: String,
     plan: serde_json::Value,
 }
@@ -4030,9 +4031,9 @@ impl<'a> Emitter<'a> {
         if let IrExpr::Member { base, field } = &expr.expr
             && let Some(dependency) = self.query_capture.as_ref().and_then(|source| {
                 source
-                    .query
-                    .dependencies
+                    .queries
                     .iter()
+                    .flat_map(|query| &query.dependencies)
                     .find(|dependency| {
                         dependency.node.file == span.file
                             && dependency.node.start == span.start
@@ -4482,10 +4483,18 @@ impl<'a> Emitter<'a> {
         at: Span,
         result: &ResolvedType,
     ) -> bool {
-        let Some(source) = self.query_capture.as_ref() else {
+        let Some(source) = self.query_capture.as_ref().and_then(|capture| {
+            capture.queries.iter().find(|query| {
+                query.first.as_ref().is_some_and(|call| {
+                    call.call.file == at.file
+                        && call.call.start == at.start
+                        && call.call.end == at.end
+                })
+            })
+        }) else {
             return false;
         };
-        let Some(first) = source.query.first.as_ref() else {
+        let Some(first) = source.first.as_ref() else {
             return false;
         };
         let [domain] = args else {
@@ -4501,7 +4510,7 @@ impl<'a> Emitter<'a> {
             return false;
         };
         let row = ResolvedType::Record {
-            symbol: source.query.model,
+            symbol: source.model,
             stored: true,
         };
         let array = ResolvedType::Array {
@@ -4517,18 +4526,18 @@ impl<'a> Emitter<'a> {
             && slots.is_none_or(|slots| slots == [Some(0)])
             && *result == ResolvedType::Nullable(Box::new(row))
             && domain.ty == array
-            && fact.node == source.query.node
-            && fact.domain == source.query.domain
+            && fact.node == source.node
+            && fact.domain == source.domain
             && fact.result == array
             && collection.node == first.call
-            && collection.query == source.query.node
-            && Some(collection.alias) == source.query.alias
-            && collection.model == source.query.model
+            && collection.query == source.node
+            && Some(collection.alias) == source.alias
+            && collection.model == source.model
             && collection.builtin == "first"
             && collection.overload == first.overload
             && collection.predicate.is_none()
-            && source.query.projection.is_none()
-            && source.query.cardinality_guard.is_none()
+            && source.projection.is_none()
+            && source.cardinality_guard.is_none()
             && fact.projection.is_none()
             && query.contract_collection_call.is_none()
             && query.parent.is_none()
@@ -4537,7 +4546,7 @@ impl<'a> Emitter<'a> {
             && query.limit.is_none()
             && query.archived.is_none()
             && !query.where_async
-            && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.query.model_name)
+            && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.model_name)
             && query.order.len() == 1
             && query.order[0].field == "id"
             && !query.order[0].descending
@@ -4553,10 +4562,18 @@ impl<'a> Emitter<'a> {
         at: Span,
         result: &ResolvedType,
     ) -> bool {
-        let Some(source) = self.query_capture.as_ref() else {
+        let Some(source) = self.query_capture.as_ref().and_then(|capture| {
+            capture.queries.iter().find(|query| {
+                query.count.as_ref().is_some_and(|call| {
+                    call.call.file == at.file
+                        && call.call.start == at.start
+                        && call.call.end == at.end
+                })
+            })
+        }) else {
             return false;
         };
-        let Some(count) = source.query.count.as_ref() else {
+        let Some(count) = source.count.as_ref() else {
             return false;
         };
         let Some((parent_node, parameter)) = count.contained_parent else {
@@ -4576,7 +4593,7 @@ impl<'a> Emitter<'a> {
         };
         let array = ResolvedType::Array {
             element: Box::new(ResolvedType::Record {
-                symbol: source.query.model,
+                symbol: source.model,
                 stored: true,
             }),
             ordered: true,
@@ -4590,21 +4607,21 @@ impl<'a> Emitter<'a> {
             && count.slots == [Some(0)]
             && *result == ResolvedType::Scalar(Scalar::Int)
             && domain.ty == array
-            && domain.span.file == source.query.node.file
-            && domain.span.start == source.query.node.start
-            && domain.span.end == source.query.node.end
+            && domain.span.file == source.node.file
+            && domain.span.start == source.node.start
+            && domain.span.end == source.node.end
             && parent.span.file == parent_node.file
             && parent.span.start == parent_node.start
             && parent.span.end == parent_node.end
             && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
             && matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty),default:None,..}
                 if ty == &parent.ty && matches!(ty,ResolvedType::Record {stored:true,..}))
-            && matches!(&query.domain, super::ir::IrQueryDomain::Model(model) if model == &source.query.model_name)
-            && source.query.first.is_none()
-            && source.query.projection.is_none()
-            && source.query.alias.is_none()
-            && source.query.predicate.is_none()
-            && source.query.cardinality_guard.is_none()
+            && matches!(&query.domain, super::ir::IrQueryDomain::Model(model) if model == &source.model_name)
+            && source.first.is_none()
+            && source.projection.is_none()
+            && source.alias.is_none()
+            && source.predicate.is_none()
+            && source.cardinality_guard.is_none()
             && count.parent_edges.is_empty()
             && query.source.is_none()
             && query.collection_call.is_none()
@@ -5609,54 +5626,57 @@ impl<'a> Emitter<'a> {
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
-        if let Some(source) = self.query_capture.clone() {
-            let original_scan = query
-                .source
-                .as_ref()
-                .is_some_and(|fact| fact.node == source.query.node);
-            let contained_count = source.query.count.as_ref().is_some_and(|count| {
-                count.contained_parent.is_some()
-                    && source.query.node.file == span.file
-                    && source.query.node.start == span.start
-                    && source.query.node.end == span.end
-            });
-            if original_scan || contained_count {
-                self.stdlib.insert("executeScenarioReceiptQuery".into());
-                self.enter_scope();
-                let row = self.bind("row");
-                let predicate = query
-                    .where_pred
-                    .as_ref()
-                    .map(|predicate| self.lower_expr(predicate))
-                    .unwrap_or_else(|| {
-                        assert!(contained_count, "checked source query predicate");
-                        "true".into()
-                    });
-                self.exit_scope();
-                return format!(
-                    "await executeScenarioReceiptQuery(c,{},async({row})=>{predicate})",
-                    js_string(&source.query.id)
-                );
-            }
-            if source.query.projection.as_ref().is_some_and(|projection| {
-                query
+        if let Some(capture) = self.query_capture.clone() {
+            for source in &capture.queries {
+                let original_scan = query
                     .source
                     .as_ref()
-                    .is_some_and(|fact| fact.node == projection.node)
-            }) {
-                let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain else {
-                    unreachable!("checked source local projection domain");
-                };
-                let selected = self.lower_expr(base);
-                let projected = self.append_select("$querySelected", false, query);
-                self.stdlib.insert("bindScenarioReceiptQueryResult".into());
-                // Preserve exact selected-array identity, source-order map and
-                // reference/version values. The owning Return selects once,
-                // after this result binding, in either real runtime lifetime.
-                return format!(
-                    "(($querySelected)=>{{const $queryResult={projected};bindScenarioReceiptQueryResult(c,{},$querySelected,$queryResult);return $queryResult;}})({selected})",
-                    js_string(&source.return_id)
-                );
+                    .is_some_and(|fact| fact.node == source.node);
+                let contained_count = source.count.as_ref().is_some_and(|count| {
+                    count.contained_parent.is_some()
+                        && source.node.file == span.file
+                        && source.node.start == span.start
+                        && source.node.end == span.end
+                });
+                if original_scan || contained_count {
+                    self.stdlib.insert("executeScenarioReceiptQuery".into());
+                    self.enter_scope();
+                    let row = self.bind("row");
+                    let predicate = query
+                        .where_pred
+                        .as_ref()
+                        .map(|predicate| self.lower_expr(predicate))
+                        .unwrap_or_else(|| {
+                            assert!(contained_count, "checked source query predicate");
+                            "true".into()
+                        });
+                    self.exit_scope();
+                    return format!(
+                        "await executeScenarioReceiptQuery(c,{},async({row})=>{predicate})",
+                        js_string(&source.id)
+                    );
+                }
+                if source.projection.as_ref().is_some_and(|projection| {
+                    query
+                        .source
+                        .as_ref()
+                        .is_some_and(|fact| fact.node == projection.node)
+                }) {
+                    let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain
+                    else {
+                        unreachable!("checked source local projection domain");
+                    };
+                    let selected = self.lower_expr(base);
+                    let projected = self.append_select("$querySelected", false, query);
+                    self.stdlib.insert("bindScenarioReceiptQueryResult".into());
+                    // Preserve exact selected-array identity, source-order map and
+                    // reference/version values. The owning Return selects once,
+                    // after this result binding, in either real runtime lifetime.
+                    return format!(
+                        "(($querySelected)=>{{const $queryResult={projected};bindScenarioReceiptQueryResult(c,{},$querySelected,$queryResult);return $queryResult;}})({selected})",
+                        js_string(&capture.return_id)
+                    );
+                }
             }
         }
         match &query.domain {

@@ -557,7 +557,7 @@ pub(super) fn collect_native_scenario_receipt(
         HashMap::<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>::new();
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
-    let mut data_nodes: usize = if first_plan.is_some() { 38 } else { 7 };
+    let mut data_nodes: usize = first_plan.map_or(7, |plan| 7 + 40 * plan.queries.len());
     for returned in &checked.returns {
         if (first_plan.is_none() && !returned.influences.is_empty())
             || returned.node.file != checked.node.file
@@ -1225,6 +1225,98 @@ pub(super) fn collect_native_scenario_receipt(
 /// A prepared first-query plan contributes only its original source domain
 /// associations. Effects, row reads, decisions and the created result remain
 /// owned by this collector rather than the query preparation's skeleton.
+/// Existing native selectors admit only their individual source profile or
+/// the authored first-then-contained-count composition on the same result.
+pub(super) fn checked_native_query_influences(
+    queries: &[crate::analysis::scenario_disclosure::DisclosureQuery],
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    match queries {
+        [query]
+            if query.first.is_some() != query.count.is_some()
+                && query.projection.is_none()
+                && query.cardinality_guard.is_none() => {}
+        [first, count]
+            if first.first.is_some()
+                && first.count.is_none()
+                && count.first.is_none()
+                && count.count.is_some()
+                && first.projection.is_none()
+                && first.cardinality_guard.is_none()
+                && count.projection.is_none()
+                && count.cardinality_guard.is_none()
+                && first.source == count.source
+                && first.return_node == count.return_node
+                && first.id != count.id
+                && first.first.as_ref()?.binding.file == count.count.as_ref()?.statement.file
+                && first.first.as_ref()?.binding.end <= count.count.as_ref()?.statement.start
+                && count.count.as_ref()?.contained_parent.is_some()
+                && count.count.as_ref()?.parent_edges.is_empty() => {}
+        _ => return None,
+    }
+    let mut ids = HashSet::new();
+    let mut influences = Vec::new();
+    for query in queries {
+        if query.influences.len() != 4 {
+            return None;
+        }
+        for influence in &query.influences {
+            if influence.id.is_empty()
+                || !ids.insert(&influence.id)
+                || influence.source != query.source
+                || influence.node != query.node
+                || influence.query_id.as_deref() != Some(query.id.as_str())
+            {
+                return None;
+            }
+            influences.push(influence.clone());
+        }
+    }
+    Some(influences)
+}
+
+/// Merge already checked individual selectors, retaining original query and
+/// Return identity/order. Each individual plan contributes only its own four
+/// influences; no complete recipe or ordinary observations are reconstructed.
+pub(super) fn merge_native_query_plans(
+    mut first: ReceiptDisclosurePlan,
+    count: ReceiptDisclosurePlan,
+) -> Option<ReceiptDisclosurePlan> {
+    if first.version != count.version
+        || serde_json::to_value(&first.source).ok()? != serde_json::to_value(&count.source).ok()?
+        || first.queries.len() != 1
+        || count.queries.len() != 1
+        || first.queries[0].id == count.queries[0].id
+        || first.returns.len() != count.returns.len()
+    {
+        return None;
+    }
+    for (returned, counted) in first.returns.iter_mut().zip(count.returns) {
+        if returned.id != counted.id
+            || serde_json::to_value(&returned.source).ok()?
+                != serde_json::to_value(&counted.source).ok()?
+            || returned.influences.len() != 4
+            || counted.influences.len() != 4
+            || !returned.dependencies.is_empty()
+            || !counted.dependencies.is_empty()
+            || !returned.intrinsics.is_empty()
+            || !counted.intrinsics.is_empty()
+            || returned.projection.is_some()
+            || counted.projection.is_some()
+            || returned.influences.iter().any(|influence| {
+                counted
+                    .influences
+                    .iter()
+                    .any(|other| other.id == influence.id)
+            })
+        {
+            return None;
+        }
+        returned.influences.extend(counted.influences);
+    }
+    first.queries.extend(count.queries);
+    Some(first)
+}
+
 fn checked_native_first_query_plan<'a>(
     ir: &IrProgram,
     owner: &IrItem,
@@ -1235,32 +1327,50 @@ fn checked_native_first_query_plan<'a>(
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     let queries = facts.queries.as_deref().unwrap_or_default();
-    if let [query] = queries
-        && query.count.is_some()
-    {
-        let plan = supplied?;
-        let expected = checked_native_count_query_plan(ir, owner, query, db?, entry_module)?;
-        return (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?)
-            .then_some(Some(plan));
-    }
-    // Other count and bare contained profiles remain source inventory only.
-    // Existing projected/first scans keep their exact authored clauses.
     if queries
         .iter()
-        .any(|query| query.count.is_some() || query.alias.is_none() || query.predicate.is_none())
+        .all(|query| query.first.is_none() && query.count.is_none())
     {
-        return None;
-    }
-    if queries.iter().all(|query| query.first.is_none()) {
+        if queries
+            .iter()
+            .any(|query| query.alias.is_none() || query.predicate.is_none())
+        {
+            return None;
+        }
         return supplied.is_none().then_some(None);
     }
-    let [query] = queries else {
-        return None;
+    checked_native_query_influences(queries)?;
+    let plan = supplied?;
+    let db = db?;
+    let expected = match queries {
+        [query] if query.count.is_some() => {
+            checked_native_count_query_plan(ir, owner, query, db, entry_module)?
+        }
+        [query] => {
+            checked_native_first_query_source_plan(ir, owner, checked, query, entry_module, db)?
+        }
+        [first, count] => merge_native_query_plans(
+            checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
+            checked_native_count_query_plan(ir, owner, count, db, entry_module)?,
+        )?,
+        _ => return None,
     };
+    (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+}
+
+fn checked_native_first_query_source_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    entry_module: &str,
+    db: &SourceDb,
+) -> Option<ReceiptDisclosurePlan> {
+    let facts = checked.source_facts.as_deref()?;
+    let expected_influences = checked_native_query_influences(facts.queries.as_deref()?)?;
     if checked.returns.is_empty() || checked.returns.len() > 200 {
         return None;
     }
-    let plan = supplied?;
     let first = query.first.as_ref()?;
     let [dependency] = query.dependencies.as_slice() else {
         return None;
@@ -1275,7 +1385,7 @@ fn checked_native_first_query_plan<'a>(
         || checked.returns.iter().any(|returned| {
             returned.source != checked.source
                 || query.return_node != returned.node
-                || returned.influences != query.influences
+                || returned.influences != expected_influences
         })
         || query.id.is_empty()
         || first.binding.kind != SyntaxKind::Let as u8
@@ -1300,7 +1410,6 @@ fn checked_native_first_query_plan<'a>(
     }
     // Retain exact source and declaration membership even when the selected
     // row is not an original parameter or the model being returned.
-    let db = db?;
     let model = checked_first_query_schema(ir, owner, query, db)?;
     if !model.fields.iter().any(|field| {
         field.id == dependency.field && field.name == "account" && field.ty == dependency.ty
@@ -1379,7 +1488,7 @@ fn checked_native_first_query_plan<'a>(
             })
             .collect::<Option<Vec<_>>>()?,
     };
-    (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+    Some(expected)
 }
 
 fn checked_first_query_schema<'a>(
@@ -1540,9 +1649,15 @@ pub(super) fn checked_count_query_ir<'a>(
         return None;
     }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let [query] = facts.queries.as_deref()? else {
+    let queries = facts.queries.as_deref()?;
+    checked_native_query_influences(queries)?;
+    let mut selected = queries
+        .iter()
+        .filter(|query| query.count.as_ref().is_some_and(|count| count.call == node));
+    let query = selected.next()?;
+    if selected.next().is_some() {
         return None;
-    };
+    }
     let count = query.count.as_ref()?;
     let (receiver, _) = count.contained_parent?;
     let (target, args, slots) = match &actual.expr {
@@ -1703,6 +1818,7 @@ pub(super) fn checked_native_count_query_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     let count = query.count.as_ref()?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let expected_influences = checked_native_query_influences(facts.queries.as_deref()?)?;
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
     };
@@ -1732,7 +1848,11 @@ pub(super) fn checked_native_count_query_plan(
         .iter()
         .filter(|created| created.node == count.statement);
     let original = owning.next()?;
-    if owning.next().is_some() || originals.is_empty() || originals.len() > 2 {
+    if owning.next().is_some()
+        || originals.is_empty()
+        || originals.len() > 2
+        || facts.queries.as_deref()?.len() == 2 && originals.len() != 2
+    {
         return None;
     }
     if originals.len() == 2 {
@@ -1774,7 +1894,7 @@ pub(super) fn checked_native_count_query_plan(
         || checked.returns.iter().any(|returned| {
             returned.node != query.return_node
                 || returned.source != query.source
-                || returned.influences != query.influences
+                || returned.influences != expected_influences
                 || returned.model_result.is_none()
         })
     {
@@ -1875,9 +1995,13 @@ fn checked_first_query_row<'a>(
     db: &SourceDb,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let [query] = facts.queries.as_deref()? else {
+    let queries = facts.queries.as_deref()?;
+    checked_native_query_influences(queries)?;
+    let mut selected = queries.iter().filter(|query| query.first.is_some());
+    let query = selected.next()?;
+    if selected.next().is_some() {
         return None;
-    };
+    }
     let first = query.first.as_ref()?;
     let IrExpr::Name(name) = &value.expr else {
         return None;
@@ -1965,9 +2089,15 @@ pub(super) fn checked_first_query_ir<'a>(
         return None;
     }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let [query] = facts.queries.as_deref()? else {
+    let queries = facts.queries.as_deref()?;
+    checked_native_query_influences(queries)?;
+    let mut selected = queries
+        .iter()
+        .filter(|query| query.first.as_ref().is_some_and(|first| first.call == node));
+    let query = selected.next()?;
+    if selected.next().is_some() {
         return None;
-    };
+    }
     let first = query.first.as_ref()?;
     let source_alias = query.alias?;
     let source_predicate = query.predicate?;
@@ -4931,9 +5061,18 @@ fn checked_created_pair<'a>(
     {
         return None;
     }
-    let [query] = facts.queries.as_deref()? else {
+    let queries = facts.queries.as_deref()?;
+    checked_native_query_influences(queries)?;
+    let mut selected = queries.iter().filter(|query| {
+        query
+            .count
+            .as_ref()
+            .is_some_and(|count| count.statement == second.node)
+    });
+    let query = selected.next()?;
+    if selected.next().is_some() {
         return None;
-    };
+    }
     let count = query.count.as_ref()?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
     let parent_type = ResolvedType::Record {
@@ -6028,8 +6167,12 @@ impl<'a> Sites<'a> {
                                 .scenario_disclosures
                                 .get(&owner.id)
                                 .and_then(|value| value.source_facts())
-                            && facts.queries.as_deref().is_some_and(|queries| {
-                                queries.iter().any(|query| query.first.is_some())
+                            && let Some(query) = facts.queries.as_deref().and_then(|queries| {
+                                queries.iter().find(|query| {
+                                    query.first.as_ref().is_some_and(|first| {
+                                        node_span(first.call) == expression.span
+                                    })
+                                })
                             })
                         {
                             let original = facts.creates.as_deref()?.iter().find(|created| {
@@ -6039,7 +6182,7 @@ impl<'a> Sites<'a> {
                                 ir,
                                 original,
                                 expression,
-                                facts.queries.as_ref()?.first()?.first.as_ref()?.call,
+                                query.first.as_ref()?.call,
                                 db?,
                             )?;
                             super::scenario_create_sources::checked_create_expression(
