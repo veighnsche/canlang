@@ -18,6 +18,7 @@ pub enum CallResultFact {
     Void,
     Scalar(ResolvedType),
     Opaque(ResolvedType),
+    Model(ResolvedType),
 }
 #[derive(Debug, Clone)]
 pub struct CallInput {
@@ -213,6 +214,15 @@ pub(crate) fn checked_source<'a>(
             .count()
             != 1
         || params.len() != source.parameters.len()
+    {
+        return None;
+    }
+    if super::scenario_receipts::checked_created_model_result(ir, owner).is_some()
+        && (owner.canonical != format!("{}.{}", module.name, owner.name)
+            || file
+                .text
+                .get(owner.span.start as usize..owner.span.end as usize)?
+                != owner.name)
     {
         return None;
     }
@@ -416,11 +426,13 @@ fn collect_owner(
                 if result != declared {
                     return None;
                 }
+                let model_result =
+                    super::scenario_receipts::checked_created_model_result(ir, child);
                 let query = if *child_read {
                     checked_source(ir, child, db)?;
                     Some(complete_read_query_child(ir, child)?)
                 } else {
-                    if binding.is_some() {
+                    if binding.is_some() && model_result.is_none() {
                         return None;
                     }
                     None
@@ -436,6 +448,13 @@ fn collect_owner(
                     return None;
                 }
                 let result_fact = match declared {
+                    Some(ty) if model_result.is_some() && binding.is_some() => {
+                        let model = ir.items.get(model_result?.0 as usize)?;
+                        if descriptor.result.as_deref() != Some(model.canonical.as_str()) {
+                            return None;
+                        }
+                        CallResultFact::Model(ty.clone())
+                    }
                     Some(ty) if query.is_some() => {
                         let query = query?;
                         let contract = ir.items.get(query.projection.contract.0 as usize)?;
@@ -513,6 +532,15 @@ fn collect_owner(
                     || params.len() != descriptor.inputs.len()
                     || params.len() > 256
                 {
+                    return None;
+                }
+                // The declaration owns positional interface order; authored
+                // CALL argument order is checked separately below.
+                if params.iter().zip(&descriptor.inputs).any(|(id, input)| {
+                    ir.items
+                        .get(id.0 as usize)
+                        .is_none_or(|parameter| parameter.name != input.name)
+                }) {
                     return None;
                 }
                 let mut keys = HashSet::new();
@@ -607,6 +635,8 @@ fn collect_owner(
             // The finite nested-call consumer profile excludes framework Send effects.
             // Root/standalone receipt profiles retain their existing Send support.
             IrStmt::Send { .. } if is_child => return None,
+            IrStmt::Create { .. }
+                if super::scenario_receipts::checked_created_model_result(ir, owner).is_some() => {}
             IrStmt::Let { .. }
             | IrStmt::Require { .. }
             | IrStmt::Return { .. }

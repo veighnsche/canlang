@@ -175,6 +175,30 @@ pub struct DisclosureReturn {
     pub dependencies: Vec<DisclosureDependency>,
     pub intrinsics: Vec<DisclosureIntrinsic>,
     pub influences: Vec<DisclosureInfluence>,
+    /// Checked lexical producer of a newly-created singular stored result.
+    /// This is source provenance; the native owner must bind its current row.
+    pub(crate) model_result: Option<DisclosureModelResult>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DisclosureModelResult {
+    Create {
+        model: SymbolId,
+        node: NodeKey,
+    },
+    Call {
+        model: SymbolId,
+        node: NodeKey,
+        operation: SymbolId,
+    },
+}
+
+impl DisclosureModelResult {
+    pub(crate) fn model(self) -> SymbolId {
+        match self {
+            Self::Create { model, .. } | Self::Call { model, .. } => model,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -437,6 +461,8 @@ pub fn analyze_scenario_disclosure(
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
+        complete_model_children: HashMap::new(),
+        result_model: None,
     };
     let mut out = HashMap::new();
     // Resolve only proven acyclic children. A prior wave can establish a
@@ -449,6 +475,22 @@ pub fn analyze_scenario_disclosure(
                 ScenarioDisclosure::Declined(_) => None,
             })
             .collect();
+        cx.complete_model_children = out
+            .iter()
+            .filter_map(|(id, value)| {
+                let ScenarioDisclosure::Complete(checked) = value else {
+                    return None;
+                };
+                let model = stored_result_model(types.symbol_results.get(id)?.as_ref()?, resolve)?;
+                (!checked.returns.is_empty()
+                    && checked.returns.iter().all(|returned| {
+                        returned
+                            .model_result
+                            .is_some_and(|origin| origin.model() == model)
+                    }))
+                .then_some((*id, model))
+            })
+            .collect();
         let prior_complete = cx.complete_children.len();
         for scenario in effects.scenarios.values() {
             if cx.complete_children.contains(&scenario.scenario) {
@@ -459,6 +501,7 @@ pub fn analyze_scenario_disclosure(
             cx.effect_proofs.clear();
             cx.loop_node = None;
             cx.effect_visits = 0;
+            cx.result_model = None;
             let result = (|| {
                 if scenario.on.is_some() {
                     return Err(cx.fail(scenario.node, "trusted handler"));
@@ -470,7 +513,12 @@ pub fn analyze_scenario_disclosure(
                     .symbol_results
                     .get(&scenario.scenario)
                     .ok_or_else(|| cx.fail(scenario.node, "missing checked result signature"))?;
-                if signature.as_ref().is_some_and(|ty| !result_type(ty)) {
+                cx.result_model = signature
+                    .as_ref()
+                    .and_then(|ty| stored_result_model(ty, resolve));
+                if signature.as_ref().is_some_and(|ty| !result_type(ty))
+                    && cx.result_model.is_none()
+                {
                     return Err(cx.fail(scenario.node, "unsupported result shape"));
                 }
                 let source = cx.source(scenario.module, scenario.node)?;
@@ -625,6 +673,18 @@ pub fn analyze_scenario_disclosure(
                 if returns.is_empty() {
                     return Err(cx.fail(scenario.node, "no established return path"));
                 }
+                if let Some(model) = cx.result_model
+                    && returns.iter().any(|returned| {
+                        returned
+                            .model_result
+                            .is_none_or(|origin| origin.model() != model)
+                    })
+                {
+                    return Err(cx.fail(
+                        scenario.node,
+                        "result requires its newly-created model provenance",
+                    ));
+                }
                 for path in &mut returns {
                     path.id = cx.opaque(
                         "return",
@@ -734,6 +794,8 @@ pub fn checked_read_decision_sites(
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
+        complete_model_children: HashMap::new(),
+        result_model: None,
     };
     let mut sites = Vec::new();
     let mut steps = 0;
@@ -860,6 +922,8 @@ pub fn checked_read_predicate_site(
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
+        complete_model_children: HashMap::new(),
+        result_model: None,
     };
     let mut calls = Vec::new();
     let mut steps = 0;
@@ -948,6 +1012,7 @@ struct ValuePath {
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
     decisions: Vec<DisclosureDecision>,
     record: Option<SymbolId>,
+    model_result: Option<DisclosureModelResult>,
     reference: Option<DisclosureIntrinsicKind>,
     input: Option<(SymbolId, String, Scalar)>,
     members: Option<Vec<(String, ValuePath)>>,
@@ -1016,6 +1081,8 @@ struct Flow {
 
 struct Closure<'a> {
     complete_children: HashSet<SymbolId>,
+    complete_model_children: HashMap<SymbolId, SymbolId>,
+    result_model: Option<SymbolId>,
     db: &'a SourceDb,
     resolve: &'a ResolveTables,
     types: &'a TypeTable,
@@ -1862,6 +1929,7 @@ impl<'a> Closure<'a> {
                 dependencies: Vec::new(),
                 intrinsics: Vec::new(),
                 influences: query.influences.clone(),
+                model_result: None,
             }],
             effects: Vec::new(),
         }))
@@ -5067,7 +5135,8 @@ impl<'a> Closure<'a> {
         if child.read && child.on.is_none() {
             return self.query_child_call(effect, module, env, calls, &child, *operation);
         }
-        if effect.binding.is_some() || child.on.is_some() {
+        let child_model = self.complete_model_children.get(operation).copied();
+        if (effect.binding.is_some() && child_model.is_none()) || child.on.is_some() {
             return Err(self.fail(
                 effect.node,
                 "read or trusted child call outside source profile",
@@ -5078,7 +5147,7 @@ impl<'a> Closure<'a> {
             .symbol_results
             .get(operation)
             .ok_or_else(|| self.fail(effect.node, "missing child result signature"))?;
-        if signature.as_ref().is_some_and(|ty| !primitive_type(ty))
+        if (signature.as_ref().is_some_and(|ty| !primitive_type(ty)) && child_model.is_none())
             || self.types.effect_call_results.get(&effect.node) != Some(signature)
         {
             return Err(self.fail(effect.node, "unsupported or mismatched child result"));
@@ -5148,6 +5217,18 @@ impl<'a> Closure<'a> {
                 input_keys: keys,
             },
         )?;
+        if let Some(model) = child_model
+            && effect.binding.is_some()
+        {
+            for path in &mut paths {
+                path.record = Some(model);
+                path.model_result = Some(DisclosureModelResult::Call {
+                    model,
+                    node: effect.node,
+                    operation: *operation,
+                });
+            }
+        }
         Ok(paths)
     }
 
@@ -5513,6 +5594,7 @@ impl<'a> Closure<'a> {
             dependencies: merged.reads,
             intrinsics: merged.intrinsics,
             influences: Vec::new(),
+            model_result: value.model_result,
         })
     }
 
@@ -5818,60 +5900,78 @@ impl<'a> Closure<'a> {
             .iter()
             .find(|effect| effect.verb == EffectVerb::Create)
         {
-            // Keep this admission tied to the original straight-line created
-            // row workflow. Existing late requirements may reject both stages.
-            let fail = || {
-                self.fail(
-                    created.node,
-                    "create then set/current-field return profile required",
-                )
-            };
-            let Some(set) = effects.get(1) else {
-                return Err(fail());
-            };
-            let Some(returned) = effects.last() else {
-                return Err(fail());
-            };
-            if effects.first().map(|effect| effect.node) != Some(created.node)
-                || effects.len() < 3
-                || set.verb != EffectVerb::Set
-                || returned.verb != EffectVerb::Return
-                || effects[2..effects.len() - 1]
-                    .iter()
-                    .any(|effect| effect.verb != EffectVerb::Require)
-                || effects.iter().any(|effect| {
-                    !effect.then_effects.is_empty()
-                        || !effect.else_effects.is_empty()
-                        || !effect.match_arms.is_empty()
-                })
-            {
-                return Err(fail());
-            }
-            let receiver = self
-                .nodes
-                .get(&set.node)
-                .and_then(|node| {
-                    node.children
+            let direct_model_return = self.result_model.is_some_and(|model| {
+                effects.len() == 2
+                    && effects.first().map(|effect| effect.node) == Some(created.node)
+                    && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
+                    && effects.last().is_some_and(|returned| {
+                        returned.verb == EffectVerb::Return
+                            && returned.value.is_some_and(|key| {
+                                matches!(self.query_binding(key), Some(Binding::CreateAs {node}) if *node == created.node)
+                                    && self.query_group(key).is_some_and(|key| {
+                                        self.types.node_types.get(&key) == Some(&ResolvedType::Record {symbol: model, stored: true})
+                                    })
+                            })
+                    })
+                    && effects.iter().all(|effect| effect.then_effects.is_empty()
+                        && effect.else_effects.is_empty() && effect.match_arms.is_empty())
+            });
+            if !direct_model_return {
+                // Keep this admission tied to the original straight-line created
+                // row workflow. Existing late requirements may reject both stages.
+                let fail = || {
+                    self.fail(
+                        created.node,
+                        "create then set/current-field return profile required",
+                    )
+                };
+                let Some(set) = effects.get(1) else {
+                    return Err(fail());
+                };
+                let Some(returned) = effects.last() else {
+                    return Err(fail());
+                };
+                if effects.first().map(|effect| effect.node) != Some(created.node)
+                    || effects.len() < 3
+                    || set.verb != EffectVerb::Set
+                    || returned.verb != EffectVerb::Return
+                    || effects[2..effects.len() - 1]
                         .iter()
-                        .find(|child| child.kind == SyntaxKind::Path)
-                })
-                .ok_or_else(fail)?;
-            let value = returned
-                .value
-                .and_then(|key| self.nodes.get(&key))
-                .ok_or_else(fail)?;
-            let base = value
-                .children
-                .iter()
-                .find(|child| expression(child.kind))
-                .ok_or_else(fail)?;
-            if value.kind != SyntaxKind::Member
-                || !matches!(self.query_binding(NodeKey::of(receiver)), Some(Binding::CreateAs {node}) if *node == created.node)
-                || !matches!(self.query_binding(NodeKey::of(base)), Some(Binding::CreateAs {node}) if *node == created.node)
-                || self.types.node_types.get(&NodeKey::of(value))
-                    != Some(&ResolvedType::Scalar(Scalar::Int))
-            {
-                return Err(fail());
+                        .any(|effect| effect.verb != EffectVerb::Require)
+                    || effects.iter().any(|effect| {
+                        !effect.then_effects.is_empty()
+                            || !effect.else_effects.is_empty()
+                            || !effect.match_arms.is_empty()
+                    })
+                {
+                    return Err(fail());
+                }
+                let receiver = self
+                    .nodes
+                    .get(&set.node)
+                    .and_then(|node| {
+                        node.children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::Path)
+                    })
+                    .ok_or_else(fail)?;
+                let value = returned
+                    .value
+                    .and_then(|key| self.nodes.get(&key))
+                    .ok_or_else(fail)?;
+                let base = value
+                    .children
+                    .iter()
+                    .find(|child| expression(child.kind))
+                    .ok_or_else(fail)?;
+                if value.kind != SyntaxKind::Member
+                    || !matches!(self.query_binding(NodeKey::of(receiver)), Some(Binding::CreateAs {node}) if *node == created.node)
+                    || !matches!(self.query_binding(NodeKey::of(base)), Some(Binding::CreateAs {node}) if *node == created.node)
+                    || self.types.node_types.get(&NodeKey::of(value))
+                        != Some(&ResolvedType::Scalar(Scalar::Int))
+                {
+                    return Err(fail());
+                }
             }
         }
         let mut returns = Vec::new();
@@ -5894,6 +5994,10 @@ impl<'a> Closure<'a> {
                             Local::Create(effect.node),
                             ValuePath {
                                 record: Some(model),
+                                model_result: Some(DisclosureModelResult::Create {
+                                    model,
+                                    node: effect.node,
+                                }),
                                 ..ValuePath::default()
                             },
                         );
@@ -6067,7 +6171,8 @@ impl<'a> Closure<'a> {
                             }
                             if effect.verb == EffectVerb::Call
                                 && effect.binding.is_some()
-                                && evaluated.query_child.is_some()
+                                && (evaluated.query_child.is_some()
+                                    || evaluated.model_result.is_some())
                             {
                                 path.env.insert(Local::Call(effect.node), evaluated.clone());
                                 if path.env.len() > 256 {
@@ -6114,10 +6219,73 @@ impl<'a> Closure<'a> {
                     }
                     EffectVerb::Return => {
                         let values = match effect.value {
+                            Some(key)
+                                if matches!(
+                                    self.query_binding(key),
+                                    Some(Binding::CallAs { .. })
+                                ) && self.result_model.is_some() =>
+                            {
+                                let Some(Binding::CallAs { node }) = self.query_binding(key) else {
+                                    unreachable!();
+                                };
+                                let value = flow
+                                    .env
+                                    .get(&Local::Call(*node))
+                                    .filter(|value| {
+                                        value.model_result.is_some_and(|origin| {
+                                            Some(origin.model()) == self.result_model
+                                        })
+                                    })
+                                    .cloned()
+                                    .ok_or_else(|| {
+                                        self.fail(
+                                            key,
+                                            "direct child model result provenance required",
+                                        )
+                                    })?;
+                                if self.types.node_types.get(&self.query_group(key).ok_or_else(
+                                    || self.fail(key, "missing direct result operand"),
+                                )?) != Some(&ResolvedType::Record {
+                                    symbol: self.result_model.unwrap(),
+                                    stored: true,
+                                }) {
+                                    return Err(
+                                        self.fail(key, "direct child model result type mismatch")
+                                    );
+                                }
+                                vec![value]
+                            }
                             Some(key) => self.expr(key, module, &flow.env, calls)?,
                             None => vec![ValuePath::default()],
                         };
                         for value in values {
+                            if let Some(model) = self.result_model {
+                                let direct = effect.value.and_then(|key| self.query_binding(key));
+                                let matches = match (direct, value.model_result) {
+                                    (
+                                        Some(Binding::CreateAs { node }),
+                                        Some(DisclosureModelResult::Create {
+                                            model: actual,
+                                            node: producer,
+                                        }),
+                                    )
+                                    | (
+                                        Some(Binding::CallAs { node }),
+                                        Some(DisclosureModelResult::Call {
+                                            model: actual,
+                                            node: producer,
+                                            ..
+                                        }),
+                                    ) => *node == producer && model == actual,
+                                    _ => false,
+                                };
+                                if !matches {
+                                    return Err(self.fail(
+                                        effect.node,
+                                        "direct newly-created model result required",
+                                    ));
+                                }
+                            }
                             if !compatible(&flow.evaluated, &value.decisions) {
                                 continue;
                             }
@@ -6289,6 +6457,19 @@ fn result_type(ty: &ResolvedType) -> bool {
     primitive_type(base)
         || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
         || matches!(base, ResolvedType::Array { element, .. } if primitive_type(element))
+}
+
+fn stored_result_model(ty: &ResolvedType, resolve: &ResolveTables) -> Option<SymbolId> {
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = ty
+    else {
+        return None;
+    };
+    let declaration = resolve.symbols.get(symbol.0 as usize)?;
+    (declaration.id == *symbol && matches!(declaration.kind, SymbolKind::Model { .. }))
+        .then_some(*symbol)
 }
 
 fn checked_stored_contract_type_id(

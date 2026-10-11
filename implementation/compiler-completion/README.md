@@ -4382,3 +4382,24 @@ consumes reviewed State f95 plus its aee/743 source-policy closure; its source
 result preparation and Dev current-stage binder remain unfinished.
 
 Coordinator independent defining lazy-drawer source review CLEAR; exact source preimages match LOCAL main and owning142/strict0/fmt results are reused. Genuine CLI/verified installed UI/Interfaces full-partial3 and table2 qualify their exact producer scope, retaining current queried row/context, named outer aliases, lazy sequential once/order/first-failure behavior and descriptor-backed inactive fields. Actual original frozen source20→18 diagnostics/no modules still fails; Dev original native current-authority/application acceptance remains unfinished. Complete checkpoint and precise holds unchanged.
+
+**Local continuation — created singular model CALL results, 2026-10-11
+(unfinished original/native joins).** Consume exact reviewed State aee/743/f95
+and required90d source-policy/model-result closure; normal State emit0 and defining
+owner results95/60/83 are reused. Compiler records exact Create/complete-child
+model provenance and admits only its direct owning stored result through original
+source, receipt, operation descriptor and bound CALL. Existing empty root/default
+create profile remains; arbitrary child-wire members, copied aliases, comparisons,
+existing/removed/nullable/array/composite results and source/IR/descriptor corruption
+refuse. Owning6 pass, including actual CLI/verified assembly/public installed
+State registry (the test-only nonexistent artifact-loader subpath is corrected).
+Related disclosure32, existing native4/5, codegen121 and other UI results retain
+scope; the failed generation case is confirmed as the earlier sealed TextRequest/
+TextMessage anonymous-object consumer gap, which is the next ready Compiler fix.
+Original populated/contained creates, rich CALL inputs/query bodies and Dev's
+actual current-stage model binder remain required; no fabricated row execution
+or full C04/application acceptance. Frozen C04 source strictalltargets0 10.83s,
+fmt/diff0; the separate gallery fixture retry remains unqualified.58/67/nine
+and precise holds remain unchanged.
+
+Coordinator independent defining direct-model CALL source review CLEAR, integrated locally after deadline. Source/receipt/operation/staticCALL provenance, owning model and once-evaluated result retain authored argument order. Six actualCLI/verifiedassembly/public installed-registry/refusal controls and related32/4/strict0/fmt0 reused; exact compiler source preimages match. Retain newer already-reviewed State f95/0a/receipt/guard/census APIs rather than reimporting the worker older prerequisite copies. Original richer/populated/contained source and actual Dev owner-row binding are separate unfinished criteria; the prior nominal consumer failure remains a Compiler next leaf. Complete checkpoint and exact holds unchanged.

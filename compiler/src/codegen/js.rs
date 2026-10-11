@@ -5859,23 +5859,36 @@ impl<'a> Emitter<'a> {
                     && self.hook.is_none()
                     && let IrEffectCallTarget::Operation { operation, .. } = target
                 {
-                    let mut matches =
-                        self.receipt_call_sites.iter().filter(|site| {
-                            site.span == *span
-                                && site.operation == *operation
-                                && site.binding == *binding
-                                && match (&site.result, result) {
-                                    (super::scenario_calls::CallResultFact::Void, None) => {
-                                        binding.is_none()
-                                    }
-                                    (
-                                        super::scenario_calls::CallResultFact::Scalar(expected),
-                                        Some(actual),
-                                    ) => binding.is_none() && expected == actual,
-                                    (
-                                        super::scenario_calls::CallResultFact::Opaque(expected),
-                                        Some(actual),
-                                    ) => expected == actual
+                    let mut matches = self.receipt_call_sites.iter().filter(|site| {
+                        site.span == *span
+                            && site.operation == *operation
+                            && site.binding == *binding
+                            && match (&site.result, result) {
+                                (super::scenario_calls::CallResultFact::Void, None) => {
+                                    binding.is_none()
+                                }
+                                (
+                                    super::scenario_calls::CallResultFact::Scalar(expected),
+                                    Some(actual),
+                                ) => binding.is_none() && expected == actual,
+                                (
+                                    super::scenario_calls::CallResultFact::Model(expected),
+                                    Some(actual),
+                                ) => expected == actual
+                                    && binding.is_some()
+                                    && self.ir.items.get(operation.0 as usize).is_some_and(
+                                        |child| {
+                                            super::scenario_receipts::checked_created_model_result(
+                                                self.ir, child,
+                                            )
+                                            .is_some()
+                                        },
+                                    ),
+                                (
+                                    super::scenario_calls::CallResultFact::Opaque(expected),
+                                    Some(actual),
+                                ) => {
+                                    expected == actual
                                         && self.ir.items.get(operation.0 as usize).is_some_and(
                                             |child| {
                                                 super::scenario_calls::complete_read_query_child(
@@ -5883,10 +5896,11 @@ impl<'a> Emitter<'a> {
                                                 )
                                                 .is_some()
                                             },
-                                        ),
-                                    _ => false,
+                                        )
                                 }
-                        });
+                                _ => false,
+                            }
+                    });
                     let site = matches.next().cloned();
                     if matches.next().is_none()
                         && let Some(site) = site
@@ -10821,6 +10835,11 @@ impl<'a> Emitter<'a> {
                                 })
                             });
                     let disclosure = if prepared_query
+                        || super::scenario_receipts::checked_created_model_result(self.ir, item)
+                            .and_then(|model| self.ir.items.get(model.0 as usize))
+                            .is_some_and(|model| {
+                                published_result.as_deref() == Some(model.canonical.as_str())
+                            })
                         || published_result.as_deref().is_some_and(|type_id| {
                             type_id == "void"
                                 || super::scenario_receipts::supported_type_id(type_id)
