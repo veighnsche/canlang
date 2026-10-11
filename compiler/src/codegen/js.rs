@@ -1773,6 +1773,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "calendar"
             | "card"
             | "chatBubble"
+            | "checkbox"
             | "collapse"
             | "content"
             | "copy"
@@ -1845,6 +1846,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "input" | "textarea" | "radio" | "select" => {
             matches!(key, "field" | "tone" | "size" | "variant")
         }
+        "checkbox" => key == "field",
         "calendar" => matches!(key, "field" | "kind"),
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
         "hero" => key == "caption",
@@ -1995,7 +1997,7 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
 fn is_form_field_control(factory: &str) -> bool {
     matches!(
         factory,
-        "input" | "textarea" | "radio" | "select" | "calendar"
+        "input" | "textarea" | "radio" | "select" | "calendar" | "checkbox"
     )
 }
 
@@ -6220,6 +6222,19 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
         }
+        if node.factory == "checkbox"
+            && (prepared_form.is_none()
+                || !node.children.is_empty()
+                || node.gate.is_some()
+                || form_prop_text(node, "field").is_none())
+        {
+            self.unsupported(
+                "checkbox UI control",
+                "only an owned prepared bool field control lowers",
+                node.span,
+            );
+            return self.throw_expr("unsupported checkbox profile");
+        }
         if node.factory == "calendar"
             && (prepared_form.is_none()
                 || !node.children.is_empty()
@@ -6245,6 +6260,9 @@ impl<'a> Emitter<'a> {
             let typed = match key.as_str() {
                 "page" if matches!(node.factory.as_str(), "list" | "table") => {
                     matches!(value.expr, IrExpr::Bool(true))
+                }
+                "field" if node.factory == "checkbox" => {
+                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "kind" | "field" if node.factory == "calendar" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
@@ -6332,6 +6350,15 @@ impl<'a> Emitter<'a> {
             let mut authored = Vec::new();
             for child in &node.children {
                 collect_authored_form_fields(child, &mut authored);
+            }
+            let mut placed = std::collections::HashSet::new();
+            if authored.iter().any(|field| !placed.insert(field)) {
+                self.unsupported(
+                    "form authored controls",
+                    "each writable input admits only one authored control",
+                    node.span,
+                );
+                return self.throw_expr("duplicate authored form control");
             }
             if !node.children.is_empty() {
                 request.push(format!(

@@ -7963,7 +7963,7 @@ fn a2b_composite_unique_emits_sparse_member_and_registry_rule() {
 /// bare delete infers the full deleteRecord card.
 #[test]
 fn a2b_ui_profiles_lower_to_factories() {
-    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name\n Then\n  page / title=\"Shop\"\n   card \"Go\"\n    form Item.create\n     fieldset \"Details\"\n      input name\n      radio name\n      select name\n    fab\n     button opens=dlg\n     button opens=dlg\n    modal \"Dialog\" id=dlg\n     slot content\n      text \"x\"\n    list Item empty=\"No items yet\"\n     chat_bubble\n      slot content\n       content row.name\n      slot header\n       text row.name\n     delete\n";
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"}, choice:enum(one,two), pick:enum(one,two) }\n  policy Item read=members\n When\n  crud Item by=members fields=name,choice,pick\n Then\n  page / title=\"Shop\"\n   card \"Go\"\n    form Item.create\n     fieldset \"Details\"\n      input name\n      radio choice\n      select pick\n    fab\n     button opens=dlg\n     button opens=dlg\n    modal \"Dialog\" id=dlg\n     slot content\n      text \"x\"\n    list Item empty=\"No items yet\"\n     chat_bubble\n      slot content\n       content row.name\n      slot header\n       text row.name\n     delete\n";
     let (artifact, diags) = a2a_emit(src);
     assert!(
         diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
@@ -7971,7 +7971,7 @@ fn a2b_ui_profiles_lower_to_factories() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("$can$u$6669656c64736574({context:c,caption:$can$h$636865636b65645f6d657373616765(\"Details\",{},undefined,\"en\"),children:[$can$u$696e707574({...$can$f$666f726d.field(\"name\")}),$can$u$726164696f({...$can$f$666f726d.field(\"name\")}),$can$u$73656c656374({...$can$f$666f726d.field(\"name\")})]})"),
+        js.contains("$can$u$6669656c64736574({context:c,caption:$can$h$636865636b65645f6d657373616765(\"Details\",{},undefined,\"en\"),children:[$can$u$696e707574({...$can$f$666f726d.field(\"name\")}),$can$u$726164696f({...$can$f$666f726d.field(\"choice\")}),$can$u$73656c656374({...$can$f$666f726d.field(\"pick\")})]})"),
         "fieldset group + field controls:\n{js}"
     );
     assert!(
