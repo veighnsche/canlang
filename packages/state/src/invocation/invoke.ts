@@ -70,6 +70,8 @@ import {
   type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple, type ViewerPageParentPolicy,
 } from '../query/engine.js';
 import type { InterimContainment } from '../mutation/models.js';
+import { captureSourceReadPolicies, type ViewerSourceReadPolicy } from '../query/source-policy.js';
+import type { InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
@@ -704,6 +706,8 @@ export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'order' | 'limit'
 
 /** T17a canonical read invocation input: no clock, no executor, no receipts. */
 export interface InvokeReadInput {
+  /** Verified installed declarations, never supplied through selection/JSON. */
+  readonly sourceReadPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly registry: OperationRegistry;
   /** Checked owning declarations from trusted host wiring, never ReadSelection. */
   readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
@@ -770,6 +774,8 @@ function generatedReadModel(operation: string): ModelName {
  * creates (candidate preconditions gate update/delete only).
  */
 export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedRecordsResult> {
+  const sourceReadPolicies = input.sourceReadPolicies === undefined ? undefined : captureSourceReadPolicies(input.sourceReadPolicies);
+  const predicate = input.selection?.predicate;
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {
     throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
@@ -825,9 +831,9 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
   const where = input.selection?.where;
   const order = input.selection?.order;
   const limit = input.selection?.limit;
-  const predicate = input.selection?.predicate;
   const modelDescriptor = input.models?.find((descriptor) => descriptor.name === model);
   return queryRecords({
+    ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
     policy: input.policy,
     model,
     ...(modelDescriptor !== undefined ? { modelDescriptor } : {}),
@@ -1013,7 +1019,7 @@ export interface InvokeReadPageInput extends Omit<InvokeReadInput, 'selection' |
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
   readonly selection?: ViewerPageSelection;
   /** Trusted generated-source filter over already projected rows. */
-  readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+  readonly generatedPredicate?: InstalledSourceQueryPredicate;
 }
 
 export type ViewerPageTransform<Result> = (page: Readonly<ViewerPageResult>) => Result | Promise<Result>;
@@ -1041,6 +1047,8 @@ export function invokeReadPage(input: InvokeReadPageInput): Promise<ViewerPageRe
 export function invokeReadPage<Result>(input: InvokeReadPageInput, transform: ViewerPageTransform<Result>): Promise<Result>;
 export async function invokeReadPage(input: InvokeReadPageInput,
   transform?: ViewerPageTransform<unknown>): Promise<unknown> {
+  const sourceReadPolicies = input.sourceReadPolicies === undefined ? undefined : captureSourceReadPolicies(input.sourceReadPolicies);
+  const generatedPredicate = input.generatedPredicate;
   // Do not spread the per-call selection before admission/closed input checks.
   let finalizePage: (() => Promise<void>) | undefined;
   const admitted = await invokeReadScenario({
@@ -1064,8 +1072,8 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
         throw new StateError('validation', 'Unknown page selection field.');
       }
-      if (input.generatedPredicate !== undefined &&
-          (typeof input.generatedPredicate !== 'function' || selection.continuation !== undefined)) {
+      if (generatedPredicate !== undefined &&
+          (typeof generatedPredicate !== 'function' || selection.continuation !== undefined)) {
         throw new StateError('validation', 'Generated page filters do not support cursor continuation.');
       }
       const order = viewerPageOrder(selection.order);
@@ -1099,16 +1107,33 @@ export async function invokeReadPage(input: InvokeReadPageInput,
           selected = ancestor;
         }
       }
-      const scopes: CheckedViewerPageDefinition[8] = [model, ...parentPolicies.keys()].map(name => {
+      const scopeModels = new Set<ModelName>([model, ...parentPolicies.keys()]);
+      if (sourceReadPolicies !== undefined) {
+        let ancestor = input.containment.get(model)?.parent;
+        const visited = new Set<ModelName>([model]);
+        while (ancestor !== undefined) {
+          if (visited.has(ancestor)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
+          visited.add(ancestor); scopeModels.add(ancestor);
+          readDef(ancestor);
+          ancestor = input.containment.get(ancestor)?.parent;
+        }
+      }
+      const scopes: CheckedViewerPageDefinition[8] = [...scopeModels].map(name => {
         const containment = input.containment.get(name);
         const relation: ViewerPageTuple | null = containment?.parent !== undefined ? ['parent', containment.parent] :
           containment?.scope !== undefined ? ['scope', containment.scope] : null;
         const policy = input.policy.get(name);
-        const policyTuple: ViewerPageTuple | null = policy === undefined ? null : [
-          [...policy.secretFields], policy.grants.map(grant => [pageByTuple(grant.by), [...grant.fields],
-            grant.when === undefined ? null : viewerPagePredicateTuple(grant.when)]),
-        ];
-        return [name, relation, pageByTuple(name === model ? call.def.by : parentPolicies.get(name)!.by), policyTuple];
+        const installed = sourceReadPolicies?.get(name);
+        const policyTuple: ViewerPageTuple | null = installed !== undefined && 'grants' in installed
+          ? ['installed-source', [...installed.fields], [...installed.secretFields], installed.parent ?? null,
+            installed.grants.map(grant => [...grant.fields])]
+          : policy === undefined ? null : [
+            [...policy.secretFields], policy.grants.map(grant => [pageByTuple(grant.by), [...grant.fields],
+              grant.when === undefined ? null : viewerPagePredicateTuple(grant.when)]),
+          ];
+        const readBy = name === model ? call.def.by : parentPolicies.get(name)?.by ?? readDef(name).by;
+        return [name, relation, pageByTuple(readBy), installed !== undefined && 'by' in installed
+          ? ['installed-legacy', pageByTuple(installed.by), installed.parent ?? null, policyTuple] : policyTuple];
       });
       const definitionPrefix: CheckedViewerPageDefinitionPrefix = [
         'viewer-page/v1', [model, call.def.descriptor.name, pageByTuple(call.def.by)],
@@ -1123,7 +1148,8 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       return queryRecordsPageWithParentPolicies({
         policy: input.policy, model, modelDescriptor: descriptor, authority: 'viewer', context,
         memberships: input.memberships, store: input.store, fence: openFenceScope(call.revision, call.teamId ?? 'app'), selection,
-        ...(input.generatedPredicate === undefined ? {} : { generatedPredicate: input.generatedPredicate }),
+        ...(generatedPredicate === undefined ? {} : { generatedPredicate }),
+        ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
       }, parentPolicies, call.def.by, async (page, childGrants, parents) => {
         const queryDefinition: CheckedViewerPageDefinition = [
           ...definitionPrefix, [true, [...childGrants], parents.map(item => [item.model, true, [...item.allowed]] as const)],

@@ -257,8 +257,9 @@ function checkFrameworkDeclaration(declaration: FrameworkFileReferenceModel): vo
         if (!text(value.payloadField) || value.optional !== true || payload === undefined ||
             object(payload).kind !== 'opaque' || !['retained-result', 'deferred-input'].includes(object(payload).role as string)) return refuse('exact owning opaque header link required');
       } else {
-        keys(value, ['kind', 'role']);
+        keys(value, ['kind', 'role', ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
         if (value.role !== 'retained-result' && value.role !== 'deferred-input') return refuse('owning opaque role required');
+        if (Object.hasOwn(value, 'optional') && (value.role !== 'deferred-input' || value.optional !== true)) return refuse('only deferred inputs may be absent');
       }
     } else if (value.kind === 'control') {
       keys(value, ['kind', 'value', ...(value.value === 'object' ? ['fields'] : []), ...(Object.hasOwn(value, 'nullable') ? ['nullable'] : []), ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
@@ -452,10 +453,13 @@ function census(state: FileGuardState, rows: readonly FileGuardRow[], maxRows: n
       for (const [field, descriptor] of Object.entries(declaration.fields)) {
         if (!Object.hasOwn(data, field)) {
           if (descriptor.kind === 'control' && descriptor.optional === true ||
-              descriptor.kind === 'opaque' && descriptor.role === 'payload-origin' && descriptor.optional === true) continue;
+              descriptor.kind === 'opaque' && (descriptor.role === 'payload-origin' || descriptor.role === 'deferred-input') && descriptor.optional === true) continue;
           return refuse('required owning framework field absent');
         }
-        if (descriptor.kind === 'opaque') continue;
+        if (descriptor.kind === 'opaque') {
+          if (descriptor.role === 'payload-origin' && !Object.hasOwn(data, descriptor.payloadField)) return refuse('orphan opaque payload origin');
+          continue;
+        }
         const value = data[field];
         if (value === null && descriptor.nullable === true) continue;
         if (descriptor.value === 'object') {
@@ -470,6 +474,7 @@ function census(state: FileGuardState, rows: readonly FileGuardRow[], maxRows: n
       catch { return refuse('actual owning framework validator refused row'); }
       for (const [field, descriptor] of Object.entries(declaration.fields)) {
         if (descriptor.kind !== 'opaque' || descriptor.role === 'payload-origin') continue;
+        if (descriptor.role === 'deferred-input' && descriptor.optional === true && !Object.hasOwn(data, field)) continue;
         const references = opaqueOccurrences(state, entry.model, row, field, descriptor.role, profile,
           installed.get(entry.model));
         for (const reference of references) {

@@ -160,8 +160,47 @@ export function readDispatchImageControlPin(value: object): DispatchImageControl
   return Object.freeze({ originalIntentId, observationStartedAtMs: startedAt, observationDeadlineMs: deadline });
 }
 
+/** Source correspondence retained as data; shape never grants execution authority. */
+export interface DispatchSourceGuard {
+  readonly rule: string;
+  readonly source: { readonly path: string; readonly sha256: string; readonly module: string };
+  readonly owner: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly inputs: Readonly<Record<string, unknown>>;
+}
+
+/** Own bounded encoded JSON. No accessors, inherited payloads or mutable aliases. */
+export function readDispatchSourceGuard(data: Readonly<Record<string, unknown>>): DispatchSourceGuard | null {
+  const property = Object.getOwnPropertyDescriptor(data, 'sourceGuard');
+  if (property === undefined) {
+    if (Reflect.has(data, 'sourceGuard')) throw new KernelTableError('work.dispatch.sourceGuard must be own data.');
+    return null;
+  }
+  if (!('value' in property) || !property.enumerable) throw new KernelTableError('work.dispatch.sourceGuard must be own data.');
+  const fail = (): never => { throw new KernelTableError('work.dispatch.sourceGuard requires bounded closed own JSON data.'); };
+  const record = (value: unknown, keys?: readonly string[]): Record<string, unknown> => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return fail();
+    if (keys !== undefined && (Reflect.ownKeys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key)))) return fail();
+    return value as Record<string, unknown>;
+  };
+  const text = (value: unknown): string => typeof value === 'string' && value.length > 0 && value.length <= 4096 ? value : fail();
+  const guard = record(snapshotKernelJsonValue(property.value, 'work.dispatch.sourceGuard'), ['rule', 'source', 'owner', 'node', 'inputs']);
+  text(guard.rule); text(guard.owner);
+  const source = record(guard.source, ['path', 'sha256', 'module']);
+  text(source.path); text(source.module);
+  if (typeof source.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(source.sha256)) return fail();
+  const node = record(guard.node, ['start', 'end']);
+  if (!Number.isSafeInteger(node.start) || !Number.isSafeInteger(node.end) ||
+      (node.start as number) < 0 || (node.end as number) <= (node.start as number)) return fail();
+  record(guard.inputs);
+  return guard as unknown as DispatchSourceGuard;
+}
+
 /** Claim lifecycle per staged intent. Flat for store querying. */
 export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin> {
+  readonly sourceGuard?: DispatchSourceGuard;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly intentId: OutboxId;
   readonly operationId: string;
   readonly source: string;
@@ -423,7 +462,7 @@ export function readWorkFilePayloadOrigin(
   data: Readonly<Record<string, unknown>>,
   row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
   model: ModelName,
-  field: 'payload' | 'result',
+  field: 'payload' | 'result' | 'sourceGuard',
   role: 'retained-result' | 'deferred-input',
 ): FrameworkFilePayloadOrigin | undefined {
   if (!Object.hasOwn(data, 'filePayloadOrigin')) return undefined;
@@ -445,7 +484,7 @@ export function readWorkFilePayloadOrigin(
   const scope = closedOriginRecord(origin['scope'], ['app', 'owner', 'ownerPackage'], 'filePayloadOrigin.scope');
   for (const key of ['app', 'owner', 'ownerPackage']) checkString(scope, key, 'filePayloadOrigin.scope');
   const recipe = checkRecord(origin['origin'], 'filePayloadOrigin.origin');
-  if (!['delivery-result', 'event-input', 'handler-result', 'source-routing', 'standard-completion'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
+  if (!['delivery-result', 'event-input', 'handler-result', 'source-routing', 'standard-completion', 'send-guard'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
     throw new KernelTableError('filePayloadOrigin.origin has an unknown kind.');
   }
   if (!Array.isArray(origin['files'])) throw new KernelTableError('filePayloadOrigin.files must be an array.');
@@ -494,6 +533,34 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
       'work.dispatch.retryClass must be transient, terminal or null.',
     );
   }
+  const sourceGuard = readDispatchSourceGuard(data);
+  const filePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'sourceGuard', 'deferred-input');
+  if ((sourceGuard === null) !== (filePayloadOrigin === undefined)) {
+    throw new KernelTableError('work.dispatch sourceGuard and its original payload header must be present together.');
+  }
+  if (sourceGuard !== null && filePayloadOrigin !== undefined) {
+    const origin = filePayloadOrigin.origin;
+    if (origin.kind !== 'send-guard') throw new KernelTableError('work.dispatch requires its original send-guard origin.');
+    closedOriginRecord(origin, ['kind', 'intent', 'declaration', 'inputsDeclarationId'], 'send-guard origin');
+    closedOriginRecord(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard'], 'send-guard intent');
+    closedOriginRecord(origin.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'], 'send-guard declaration');
+    const declaration = origin.declaration, intent = origin.intent;
+    closedOriginRecord(declaration.source, ['path', 'sha256', 'module'], 'send-guard source');
+    closedOriginRecord(declaration.node, ['start', 'end'], 'send-guard node');
+    if (intent.intentId !== row.id || intent.intentId !== data['intentId'] || intent.operationId !== data['operationId'] ||
+        intent.target !== data['source'] || intent.occurrenceIndex !== data['occurrenceIndex'] ||
+        intent.dispatchGuard !== sourceGuard.rule || declaration.rule !== sourceGuard.rule ||
+        intent.operation !== declaration.owner || declaration.owner !== sourceGuard.owner || declaration.target !== intent.target ||
+        typeof declaration.binding !== 'string' || declaration.binding === '' ||
+        typeof origin.inputsDeclarationId !== 'string' || origin.inputsDeclarationId === '' ||
+        declaration.source.path !== sourceGuard.source.path || declaration.source.sha256 !== sourceGuard.source.sha256 ||
+        declaration.source.module !== sourceGuard.source.module ||
+        declaration.node.start !== sourceGuard.node.start || declaration.node.end !== sourceGuard.node.end ||
+        !Array.isArray(declaration.inputs) || declaration.inputs.length !== Object.keys(sourceGuard.inputs).length ||
+        declaration.inputs.some((input, index) => input.name !== Object.keys(sourceGuard.inputs)[index])) {
+      throw new KernelTableError('work.dispatch sourceGuard differs from its original physical intent/declaration.');
+    }
+  }
   const correlation = readDispatchImageCorrelation(data);
   const controlPin = readDispatchImageControlPin(data);
   if (controlPin !== null && (correlation === null ||
@@ -504,6 +571,8 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
   return {
     ...(correlation ?? {}),
     ...(controlPin ?? {}),
+    ...(sourceGuard === null ? {} : { sourceGuard }),
+    ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
     intentId: checkString(data, 'intentId', 'work.dispatch'),
     operationId: checkString(data, 'operationId', 'work.dispatch'),
     source: checkString(data, 'source', 'work.dispatch'),
@@ -671,12 +740,14 @@ export function newDispatchRow(
   input: Pick<
     DispatchRowData,
     'intentId' | 'operationId' | 'source' | 'occurrenceIndex' | 'originOccurrence'
-  > & Partial<DispatchImageCorrelation>,
+  > & Partial<DispatchImageCorrelation> & { readonly sourceGuard?: DispatchSourceGuard; readonly filePayloadOrigin?: FrameworkFilePayloadOrigin },
   meta: NewRowMeta,
 ): StoredRow {
   const correlation = readDispatchImageCorrelation(input as unknown as Readonly<Record<string, unknown>>);
+  const sourceGuard = readDispatchSourceGuard(input as unknown as Readonly<Record<string, unknown>>);
   const data: DispatchRowData = {
     ...input,
+    ...(sourceGuard === null ? {} : { sourceGuard }),
     ...(correlation ?? {}),
     state: 'pending',
     attempts: 0,

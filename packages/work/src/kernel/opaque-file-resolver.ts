@@ -3,7 +3,7 @@ import type { FrameworkFileReferenceProducer, FrameworkOpaqueCallable, Framework
   FrameworkOpaqueDeclarationSet, FrameworkOpaqueEventInputOrigin, FrameworkOpaqueSourceRoute,
   FrameworkOpaqueValueProjection, ModelName, StoredRow } from '@canlang/contracts';
 import { normalizeSchema, parseTypeId, printTypeId, type SchemaDescriptor } from '@canlang/values';
-import { KernelTableError, WORK_OCCURRENCE_MODEL, WORK_SCHEDULE_MODEL, fanoutIntentRowId,
+import { KernelTableError, WORK_DISPATCH_MODEL, WORK_OCCURRENCE_MODEL, WORK_SCHEDULE_MODEL, fanoutIntentRowId,
   readWorkFilePayloadOrigin, snapshotKernelJsonValue } from './tables.js';
 import { WORK_HANDLER_OCCURRENCE_MODEL, handlerOccurrenceRowId } from './handler-occurrence.js';
 
@@ -230,9 +230,9 @@ function schemaFieldDescriptor(artifact: unknown, canonical?: unknown): Data {
 export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer['resolveOpaqueField']> = (model, suppliedRow, field, suppliedContext) => {
   const snapshot = snapshotKernelJsonValue({ row: suppliedRow, context: suppliedContext }, 'Work opaque resolution');
   const row = snapshot.row, context = snapshot.context;
-  if (model === WORK_OCCURRENCE_MODEL ? field !== 'result' :
+  if (model === WORK_DISPATCH_MODEL ? field !== 'sourceGuard' : model === WORK_OCCURRENCE_MODEL ? field !== 'result' :
       (model !== WORK_SCHEDULE_MODEL && model !== WORK_HANDLER_OCCURRENCE_MODEL) || field !== 'payload') return refuse('unknown exact opaque slot.');
-  const binding = readWorkFilePayloadOrigin(row.data, row, model, field as 'result' | 'payload',
+  const binding = readWorkFilePayloadOrigin(row.data, row, model, field as 'result' | 'payload' | 'sourceGuard',
     field === 'result' ? 'retained-result' : 'deferred-input');
   if (binding === undefined) return refuse('original payload binding required, including empty/null values.');
   same(context.binding, binding, 'supplied persisted binding');
@@ -268,7 +268,29 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
     values.push({ path, kind: 'result', declarationId: id, presence: absent ? 'no-result' : 'value' });
   };
   const data = row.data as Data, origin = object(binding.origin), ownerScope = scope(binding.scope);
-  if (model !== WORK_OCCURRENCE_MODEL) {
+  if (model === WORK_DISPATCH_MODEL) {
+    const declared = closed(origin, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
+    if (declared.kind !== 'send-guard') return refuse('original SEND guard recipe required.');
+    const intent = closed(declared.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']);
+    string(intent.operation); same(intent.intentId, row.id, 'original guard intent');
+    same(intent.intentId, data.intentId, 'guard dispatch identity');
+    same(intent.operationId, data.operationId, 'guard original operation');
+    same(intent.target, data.source, 'guard original target');
+    same(intent.occurrenceIndex, data.occurrenceIndex, 'guard original ordinal');
+    const guard = closed(data.sourceGuard, ['rule', 'source', 'owner', 'node', 'inputs']);
+    const original = closed(declared.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+    same(intent.dispatchGuard, original.rule, 'retained intent guard');
+    same(guard.rule, original.rule, 'physical source guard');
+    same(guard.source, original.source, 'guard source'); same(guard.owner, original.owner, 'guard owner');
+    same(guard.node, original.node, 'guard occurrence'); same(original.target, intent.target, 'guard target');
+    same(original.owner, intent.operation, 'guard owning callable');
+    const selected = declaration(string(declared.inputsDeclarationId), ['inputs']);
+    same(selected.source, { kind: 'send-guard', ...original }, 'complete original guard declaration');
+    if (selected.profile.kind !== 'inputs') return refuse('complete original guard inputs required.');
+    same(selected.profile.artifact.map(input => ({ name: input.name, type: input.valueType })), original.inputs, 'original guard lexical profile');
+    same(Object.keys(object(guard.inputs)), array(original.inputs).map(input => object(input).name), 'complete lexical input order');
+    projectInputs(['inputs'], selected.id);
+  } else if (model !== WORK_OCCURRENCE_MODEL) {
     same(ownerScope, { app: data.scopeApp, owner: data.scopeOwner, ownerPackage: data.scopeOwnerPackage }, 'input row scope');
     const input = event(origin, row, model, ownerScope);
     projectInputs([], eventDeclarationId(input));
@@ -425,7 +447,8 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
       if (operationSchema.mutation !== undefined && typeof operationSchema.mutation !== 'boolean') return refuse('invalid schema operation mutation control.');
       const matches = set.declarations.filter(candidate => candidate.profile.kind === 'inputs' &&
         (candidate.source.kind === 'event' ? candidate.source.event === operation : candidate.source.kind === 'callable' ?
-          candidate.source.callable.id === operation : `${candidate.source.context.canonical.capability}.${candidate.source.context.canonical.operation}` === operation));
+          candidate.source.callable.id === operation : candidate.source.kind === 'delivery' &&
+          `${candidate.source.context.canonical.capability}.${candidate.source.context.canonical.operation}` === operation));
       if (matches.length !== 1) return refuse('schema operation lacks one original owning input profile.');
       const selected = matches[0]!;
       if (selected.profile.kind !== 'inputs') return refuse('schema input profile required.');

@@ -160,8 +160,8 @@ export {
   type TransactionPort,
 } from './ports/index.js';
 export type { MembershipReader } from './policy/roles.js';
-export { bindReadPolicyMembershipProducer, evaluateReadPolicyMembership,
-  type ReadPolicyMembershipProducer, type ReadPolicyMembershipHandle, type InstalledSourceReadPredicate, type InstalledSourceQueryPredicate,
+export { bindInstalledSourceQueryPredicate, bindReadPolicyMembershipProducer, evaluateReadPolicyMembership,
+  type InstalledSourceQueryPredicateProducer, type ReadPolicyMembershipProducer, type ReadPolicyMembershipHandle, type InstalledSourceReadPredicate, type InstalledSourceQueryPredicate,
 } from './receipt/read-policy-membership.js';
 export { bindScenarioDispatchMembershipProducer,
   type ScenarioDispatchMembershipPorts, type ScenarioDispatchMembershipProducer,
@@ -177,12 +177,15 @@ export {
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
+  bindScenarioReceiptMembershipSource, type ScenarioReceiptMembershipSourceAssociation,
   bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembership,
+  bindScenarioReceiptSendMembershipProducer, evaluateScenarioReceiptSendMembership,
   type ScenarioReceiptMembershipProducer, type ScenarioReceiptMembershipSite, type ScenarioReceiptMembershipHandle,
   type ScenarioReceiptCallProducer, type ScenarioReceiptCallFrame,
   bindScenarioReceiptQueryProducer, executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency, bindScenarioReceiptQueryResult,
   type ScenarioReceiptQueryProducer, type ScenarioReceiptQueryResult, type ScenarioReceiptQuerySlot, type ScenarioReceiptQueryHandle,
   type ScenarioReceiptFrameworkProducer, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
+  type ScenarioReceiptSendGuard, type ScenarioReceiptSendGuardFrame, type ScenarioReceiptSourceSendGuard,
   type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
 } from './invocation/scenario-receipt.js';

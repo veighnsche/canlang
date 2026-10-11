@@ -5,6 +5,7 @@ import type {
   FrameworkFilePayloadOrigin, FrameworkOpaqueCallable, FrameworkOpaqueDeclaration,
   FrameworkOpaqueDeclarationSet, FrameworkOpaqueDeliveryContext, FrameworkOpaqueEventDeclaration,
   FrameworkOpaqueEventInputOrigin, FrameworkOpaquePayloadOrigin, FrameworkOpaqueSourceRoute,
+  FrameworkOpaqueSendGuardDeclaration,
   FrameworkOpaqueValueDefault, FrameworkOpaqueValueProjection, ScenarioReceiptSourceOrigin,
 } from '@canlang/contracts';
 import { decodeValue, encodeValue, normalizeSchema, normalizeValueTypes, parseTypeId, printTypeBase, printTypeId, validateValue,
@@ -124,6 +125,25 @@ function callableShape(value: FrameworkOpaqueCallable['callable']): void {
 }
 function sourceEqual(a: FrameworkOpaqueDeclaration['source'], b: FrameworkOpaqueDeclaration['source']): boolean {
   return stableStringify(a) === stableStringify(b);
+}
+function guardIdentity(value: unknown): string {
+  const result = string(value);
+  if (result.length > 4096 || /[\u0000-\u001f\u007f]/.test(result)) return refuse('bounded send-guard identity required.');
+  try { encodeURIComponent(result); } catch { return refuse('valid send-guard identity required.'); }
+  return result;
+}
+function sendGuard(set: FrameworkOpaqueDeclarationSet, value: FrameworkOpaqueSendGuardDeclaration, tagged = false): void {
+  record(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs', ...(tagged ? ['kind'] : [])]);
+  for (const key of ['rule', 'owner', 'binding', 'target'] as const) guardIdentity(value[key]);
+  source(set, value.source); guardIdentity(value.source.path); guardIdentity(value.source.module);
+  record(value.node, ['start', 'end']);
+  if (integer(value.node.end) <= integer(value.node.start)) return refuse('nonempty original send-guard interval required.');
+  const names = new Set<string>();
+  for (const input of array(value.inputs)) {
+    const item = record(input, ['name', 'type']), name = guardIdentity(item.name);
+    if (names.has(name)) return refuse('complete unique send-guard lexical inputs required.');
+    names.add(name); guardIdentity(item.type); type(item.type);
+  }
 }
 function declaration(bound: BoundOpaqueDeclarations, id: string, kind?: FrameworkOpaqueDeclaration['profile']['kind']): BoundDeclaration {
   const found = owner(bound).declarations.get(string(id));
@@ -302,13 +322,15 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
       if (declarations.has(string(item.id))) return refuse('duplicate original declaration ID.');
       const from = item.source;
       record(from, from.kind === 'callable' ? ['kind', 'source', 'callable'] : from.kind === 'event' ?
-        ['kind', 'source', 'event'] : ['kind', 'source', 'context']);
+        ['kind', 'source', 'event'] : from.kind === 'send-guard' ?
+          ['kind', 'rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'] : ['kind', 'source', 'context']);
       source(set, from.source);
       if (from.kind === 'callable') {
         callableShape(from.callable);
         if (from.callable.module !== from.source.module) return refuse('original source/callable module correspondence required.');
       } else if (from.kind === 'event') string(from.event);
       else if (from.kind === 'delivery') deliveryContext(bound, from.context);
+      else if (from.kind === 'send-guard') sendGuard(set, from, true);
       else return refuse('checked source kind required.');
       const profile = item.profile;
       record(profile, ['kind', 'canonical', 'artifact']);
@@ -316,9 +338,17 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
       if (profile.kind === 'inputs') {
         const canonical = array(profile.canonical), artifact = array(profile.artifact);
         if (canonical.length !== artifact.length) return refuse('complete ordered original inputs required.');
+        if (from.kind === 'send-guard' && canonical.length !== from.inputs.length) return refuse('complete original send-guard inputs required.');
         const members = new Map<string, BoundInput>();
         for (let index = 0; index < canonical.length; index++) {
           const input = boundInput(values, canonical[index] as CanonicalInputDef, artifact[index] as ArtifactOperationInput);
+          if (from.kind === 'send-guard') {
+            const expected = from.inputs[index]!;
+            if (input.declaration.name !== expected.name || input.profile.type !== expected.type || input.declaration.required !== true ||
+                ['default', 'computedDefault'].some(key => Object.hasOwn(canonical[index]!, key) || Object.hasOwn(artifact[index]!, key))) {
+              return refuse('exact ordered send-guard lexical input profile without defaults required.');
+            }
+          }
           if (members.has(input.declaration.name)) return refuse('duplicate original input.');
           members.set(input.declaration.name, input);
         }
@@ -353,6 +383,7 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
   if (array(picked.path).some(part => typeof part === 'string' ? part === '' : typeof part !== 'number' || !Number.isSafeInteger(part) || part < 0)) return refuse('exact projection path required.');
   if (picked.kind === 'inputs') {
     const selected = declaration(bound, picked.declarationId, 'inputs');
+    if (selected.declaration.source.kind === 'send-guard') same(picked.path, ['inputs']);
     const inputs = selected.inputs!;
     const data = record(wire, [], [...inputs.keys()]);
     const found: { path: readonly (string | number)[]; ref: string }[] = [];
@@ -647,7 +678,17 @@ function bounds(value: unknown): void {
   if (Object.values(item).some(value => integer(value) === 0)) return refuse('positive source routing bounds required.');
 }
 function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOrigin): void {
-  if (value.kind === 'delivery-result') {
+  if (value.kind === 'send-guard') {
+    record(value, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
+    sendGuard(bound.declarationSet, value.declaration);
+    record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']);
+    for (const key of ['intentId', 'operation', 'operationId', 'target', 'dispatchGuard'] as const) guardIdentity(value.intent[key]);
+    integer(value.intent.occurrenceIndex);
+    if (value.intent.dispatchGuard !== value.declaration.rule || value.intent.operation !== value.declaration.owner ||
+        value.intent.target !== value.declaration.target) return refuse('actual original send-guard intent required.');
+    const selected = declaration(bound, value.inputsDeclarationId, 'inputs').declaration;
+    if (!sourceEqual(selected.source, { kind: 'send-guard', ...value.declaration })) return refuse('exact original send-guard input source required.');
+  } else if (value.kind === 'delivery-result') {
     record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
     callable(bound, value.caller); deliveryContext(bound, value.declaration);
     record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);

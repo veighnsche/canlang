@@ -174,7 +174,7 @@ it('publishes exactly nine frozen owning descriptors covering actual constructor
     assert.ok(Object.isFrozen(declaration.source));
     assert.ok(Object.isFrozen(declaration.fields));
     const required = Object.entries(declaration.fields).filter(([, field]) => !(field.kind === 'control' && field.optional ||
-      field.kind === 'opaque' && field.role === 'payload-origin' && field.optional)).map(([key]) => key);
+      field.kind === 'opaque' && (field.role === 'payload-origin' || field.role === 'deferred-input') && field.optional)).map(([key]) => key);
     assert.deepEqual(required.sort(), Object.keys(row.data).sort(), String(model));
     for (const field of Object.values(declaration.fields)) assert.ok(Object.isFrozen(field));
     producer.validateRow(model, row);
@@ -197,7 +197,7 @@ it('keeps all three payload positions opaque for benign and embedded File-like J
     if (field.kind === 'opaque') opaque.push(`${declaration.model}.${name}:${field.role}`);
     else assert.equal(field.kind, 'control');
   }
-  assert.deepEqual(opaque.sort(), ['work.occurrence.result:retained-result', 'work.schedule.payload:deferred-input',
+  assert.deepEqual(opaque.sort(), ['work.dispatch.sourceGuard:deferred-input', 'work.dispatch.filePayloadOrigin:payload-origin', 'work.occurrence.result:retained-result', 'work.schedule.payload:deferred-input',
     'work.handler_occurrence.payload:deferred-input', 'work.occurrence.filePayloadOrigin:payload-origin',
     'work.schedule.filePayloadOrigin:payload-origin', 'work.handler_occurrence.filePayloadOrigin:payload-origin'].sort());
   for (const model of [WORK_OCCURRENCE_MODEL, WORK_SCHEDULE_MODEL, WORK_HANDLER_OCCURRENCE_MODEL]) {

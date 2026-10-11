@@ -13,9 +13,11 @@ import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescript
 import { invoke, type ExecutionEffects } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { beginScenarioReceiptMutation, bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembership,
+  bindScenarioReceiptMembershipSource, assertScenarioReceiptMembershipSource,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, bindScenarioReceiptQueryProducer,
   executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency, selectScenarioReceiptReturn,
   type ScenarioReceiptMembershipSite, type ScenarioReceiptMembershipProducer } from '../../src/invocation/scenario-receipt.js';
+import { bindScenarioDispatchMembershipProducer } from '../../src/invocation/dispatch-membership.js';
 import { checkScenarioReceiptMembershipSites } from '../../src/invocation/scenario-membership-plan.js';
 import { FIXED_NOW, asModel, createMemoryIdentityStore, makeEnvelope, makeIdentity, seedMember, seedRow, uuidv7 } from './fixtures.js';
 import { field, modelDef } from '../mutation/fixtures.js';
@@ -27,24 +29,24 @@ const source = () => ({ path: 'membership.can', sha256: 'a'.repeat(64), module: 
 const isStateError = (error: unknown) => error instanceof StateError;
 const empty = (): ExecutionEffects => ({ result: null, writes: [], history: [], outbox: [], schedules: [],
   uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
-function recipe(owner = ROOT, stage: ScenarioReceiptMembershipSite['stage'] = 'body-require', offset = 10): ScenarioReceiptMembershipSite {
-  return { version: 1, source: source(), owner, node: { start: offset, end: offset + 20 },
+function recipe(owner = ROOT, stage: ScenarioReceiptMembershipSite['stage'] = 'body-require', offset = 10, origin = source()): ScenarioReceiptMembershipSite {
+  return { version: 1, source: origin, owner, node: { start: offset, end: offset + 20 },
     statement: { start: offset - 1, end: offset + 21 }, stage, position: [{ kind: 'body', index: offset }], calls: [{
-      source: source(), node: { start: offset + 1, end: offset + 19 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
+      source: origin, node: { start: offset + 1, end: offset + 19 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
       arguments: [{ node: { start: offset + 2, end: offset + 3 }, type: 'user' },
         { node: { start: offset + 4, end: offset + 5 }, type: 'Team' }], slots: [0, 1], defaults: [], chain: [],
     }] };
 }
-function artifact(query = false): ArtifactDescriptorSlice {
-  const disclosure = (id: string) => ({ version: 1 as const, source: source(), returns: [
-    { id, source: source(), dependencies: [], influences: [] },
-  ], ...(query ? { queries: [{ id: 'tasks', source: source(), model: MODEL, order: [], limit: null,
-    archived: 'exclude' as const, dependencies: [{ id: 'person-control', source: source(), role: 'control' as const,
+function artifact(query = false, transport = source()): ArtifactDescriptorSlice {
+  const disclosure = (id: string) => ({ version: 1 as const, source: transport, returns: [
+    { id, source: transport, dependencies: [], influences: [] },
+  ], ...(query ? { queries: [{ id: 'tasks', source: transport, model: MODEL, order: [], limit: null,
+    archived: 'exclude' as const, dependencies: [{ id: 'person-control', source: transport, role: 'control' as const,
       field: 'person', type: 'user' as CanTypeId }] }] } : {}) });
-  return { artifact_version: 1, sources: [{ path: source().path, sha256: source().sha256 }],
-    modules: [{ path: source().module, js: 'export const identity="Membership.review";', map: {
-      version: 3, file: source().module, sources: [source().path], sourcesContent: [null], names: [], mappings: '',
-    } }], callables: [ROOT, CHILD].map(id => ({ id, kind: 'operation' as const, module: source().module,
+  return { artifact_version: 1, sources: [{ path: transport.path, sha256: transport.sha256 }],
+    modules: [{ path: transport.module, js: 'export const identity="Membership.review";', map: {
+      version: 3, file: transport.module, sources: [transport.path], sourcesContent: [null], names: [], mappings: '',
+    } }], callables: [ROOT, CHILD].map(id => ({ id, kind: 'operation' as const, module: transport.module,
       export: 'identity', member: [id.split('.').at(-1)!] })),
     models: [{ name: MODEL, deleteMode: 'archive', fields: [
       { name: 'approved', field: { kind: 'boolean' }, required: true, serverOnly: false },
@@ -53,14 +55,14 @@ function artifact(query = false): ArtifactDescriptorSlice {
       result: { type: 'void' as CanTypeId, disclosure: disclosure(name === ROOT ? 'root-return' : 'child-return') } })),
   };
 }
-async function world(options: { active?: boolean; query?: boolean } = {}) {
+async function world(options: { active?: boolean; query?: boolean; transport?: ReturnType<typeof source> } = {}) {
   const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
   const actor = await seedMember(memberships, { isOwner: false });
   const subject = await memberships.createUser('subject@example.test');
   const member = options.active === false ? null : await memberships.createMembership({ team_id: actor.team.team_id,
     user_id: subject.user_id, is_owner: false, roles: [] });
   const identity = makeIdentity({ userId: actor.user.user_id, team: actor.team, membership: actor.membership });
-  const loaded = loadArtifactDescriptors(artifact(options.query), { by: 'public' });
+  const loaded = loadArtifactDescriptors(artifact(options.query, options.transport), { by: 'public' });
   const parent = loaded.registry.get(ROOT), child = loaded.registry.get(CHILD);
   assert.ok(parent && isGeneratedOperationDef(parent)); assert.ok(child && isGeneratedOperationDef(child));
   const table = buildModelTable([modelDef(MODEL, { fields: { approved: field({ required: true }), person: field({ required: true }) } })]);
@@ -73,10 +75,10 @@ async function world(options: { active?: boolean; query?: boolean } = {}) {
 type World = Awaited<ReturnType<typeof world>>;
 /** Test-only analogue of Dev's private once-only evaluated argument staging.
  * The public observer input never carries this pair. No frame survives read. */
-function native(w: World, def: GeneratedOperationDef = w.parent, sites = [recipe(def.name)]) {
+function native(w: World, def: GeneratedOperationDef = w.parent, sites = [recipe(def.name)], origin = source()) {
   const frames = new WeakMap<AdmittedCall, { person: ReturnType<typeof makeUserRef>; team: NonNullable<AdmittedCall['context']['team']> }>();
   let captures = 0;
-  const handles = bindScenarioReceiptMembershipProducer(def, { source: source(), app: APP, sites,
+  const handles = bindScenarioReceiptMembershipProducer(def, { source: origin, app: APP, sites,
     capture: (call, owningSite, callIndex) => {
       captures++; assert.equal(owningSite.owner, def.name); assert.ok(Object.isFrozen(owningSite));
       assert.equal(owningSite.calls[callIndex]!.target.kind, 'builtin');
@@ -391,4 +393,123 @@ test('metadata cannot activate and loader producer binds only once before observ
     assert.throws(() => bindScenarioReceiptMembershipProducer(late.parent, producer), isStateError);
     return finish(call, late, session);
   } })).status, 'committed');
+});
+
+const logicalMembershipSource = () => ({ ...source(), module: 'Membership' });
+const transportedMembershipSource = () => ({ ...source(), module: '$can$m$4d656d62657273686970.mjs' });
+
+for (const active of [true, false]) test(`logical Membership source reaches actual captured ${active ? 'positive' : 'negative'} membership through its exact installed transport`, async () => {
+  const transport = transportedMembershipSource(), logical = logicalMembershipSource();
+  const w = await world({ active, transport });
+  const association = { logical: { ...logical }, transport: { ...transport } };
+  bindScenarioReceiptMembershipSource(w.parent, association);
+  // The loader's mutable input cannot replace the retained logical or callable tuple.
+  association.logical.module = 'Foreign'; association.logical.sha256 = 'b'.repeat(64);
+  association.transport.module = 'foreign.mjs';
+  const producer = native(w, w.parent, [recipe(ROOT, 'body-condition', 10, logical)], logical);
+  assert.throws(() => bindScenarioReceiptMembershipSource(w.parent, { logical, transport }), isStateError);
+  let saved: AdmittedCall | undefined;
+  assert.equal((await invoke({ ...w, execute: async call => {
+    saved = call;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    assert.equal(await producer.evaluate(call), active);
+    await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: active } }, cause);
+    return finish(call, w, session);
+  } })).status, 'committed');
+  assert.equal(producer.captures, 1);
+  assert.equal((await w.store.load(MODEL, w.row.id))!.data['approved'], active);
+  assert.ok(saved);
+  await assert.rejects(evaluateScenarioReceiptMembership(saved, w.store, { site: producer.handles[0]! }), isStateError);
+});
+
+for (const mismatch of ['transport-module', 'transport-path', 'transport-sha', 'logical-path', 'logical-sha'] as const)
+  test(`source association refuses ${mismatch} and retains the actual definition for a correct loader binding`, async () => {
+    const transport = transportedMembershipSource(), logical = logicalMembershipSource();
+    const w = await world({ transport });
+    const wrong = { logical: { ...logical }, transport: { ...transport } };
+    if (mismatch === 'transport-module') wrong.transport.module = '$can$m$466f726569676e.mjs';
+    if (mismatch === 'transport-path') wrong.transport.path = 'foreign.can';
+    if (mismatch === 'transport-sha') wrong.transport.sha256 = 'b'.repeat(64);
+    if (mismatch === 'logical-path') wrong.logical.path = 'foreign.can';
+    if (mismatch === 'logical-sha') wrong.logical.sha256 = 'b'.repeat(64);
+    assert.throws(() => bindScenarioReceiptMembershipSource(w.parent, wrong), isStateError);
+    bindScenarioReceiptMembershipSource(w.parent, { logical, transport });
+    const producer = native(w, w.parent, [recipe(ROOT, 'body-condition', 10, logical)], logical);
+    assert.equal((await invoke({ ...w, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      assert.equal(await producer.evaluate(call), true); return finish(call, w, session);
+    } })).status, 'committed');
+    assert.equal(producer.captures, 1);
+  });
+
+for (const mismatch of ['module', 'path', 'sha'] as const) test(`associated logical ${mismatch} substitution cannot bind an owner or dispatch producer`, async () => {
+  const logical = logicalMembershipSource(), transport = transportedMembershipSource();
+  const w = await world({ transport }); bindScenarioReceiptMembershipSource(w.parent, { logical, transport });
+  const wrong = { ...logical };
+  if (mismatch === 'module') wrong.module = transport.module;
+  if (mismatch === 'path') wrong.path = 'foreign.can';
+  if (mismatch === 'sha') wrong.sha256 = 'b'.repeat(64);
+  assert.throws(() => native(w, w.parent, [recipe(ROOT, 'body-condition', 10, wrong)], wrong), isStateError);
+  assert.throws(() => bindScenarioDispatchMembershipProducer(w.parent, {
+    source: wrong, app: APP, predicate: 'guard', sites: [recipe(ROOT, 'send-dispatch', 10, wrong)],
+    store: w.store, memberships: w.memberships,
+    readExecution: () => { throw new Error('source refusal must precede execution'); },
+    registerRevalidation: () => { assert.fail('source refusal must precede enrollment'); },
+    admit: () => { throw new Error('source refusal must precede admission'); },
+    capture: () => { throw new Error('source refusal must precede argument capture'); },
+  }), isStateError);
+  const producer = native(w, w.parent, [recipe(ROOT, 'body-condition', 10, logical)], logical);
+  assert.equal((await invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    assert.equal(await producer.evaluate(call), true); return finish(call, w, session);
+  } })).status, 'committed');
+});
+
+test('source association requires the actual loaded definition once before source use or invocation', async () => {
+  const transport = transportedMembershipSource(), logical = logicalMembershipSource();
+  const w = await world({ transport });
+  assert.throws(() => bindScenarioReceiptMembershipSource({ ...w.parent }, { logical, transport }), isStateError);
+  bindScenarioReceiptMembershipSource(w.parent, { logical, transport });
+  assert.throws(() => bindScenarioReceiptMembershipSource(w.parent, { logical, transport }), isStateError);
+  assert.throws(() => assertScenarioReceiptMembershipSource({ ...w.parent }, logical), isStateError);
+  const used = await world();
+  assertScenarioReceiptMembershipSource(used.parent, source());
+  assert.throws(() => bindScenarioReceiptMembershipSource(used.parent, { logical: source(), transport: source() }), isStateError);
+  const late = await world({ transport });
+  assert.equal((await invoke({ ...late, execute: async call => {
+    assert.throws(() => bindScenarioReceiptMembershipSource(late.parent, { logical, transport }), isStateError);
+    const session = await beginScenarioReceiptMutation(call, late.store, { table: late.table, bounds });
+    return finish(call, late, session);
+  } })).status, 'committed');
+  assert.throws(() => bindScenarioReceiptMembershipSource(late.parent, { logical, transport }), isStateError);
+});
+
+for (const mode of ['copy-handle', 'foreign-handle'] as const) test(`logical source association preserves ${mode} refusal and owner poisoning`, async () => {
+  const transport = transportedMembershipSource(), logical = logicalMembershipSource();
+  const w = await world({ transport });
+  bindScenarioReceiptMembershipSource(w.parent, { logical, transport });
+  bindScenarioReceiptMembershipSource(w.child, { logical, transport });
+  const producer = native(w, w.parent, [recipe(ROOT, 'body-condition', 10, logical)], logical);
+  const foreign = native(w, w.child, [recipe(CHILD, 'body-condition', 10, logical)], logical);
+  const before = await business(w);
+  await assert.rejects(invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: true } }, cause);
+    producer.stage(call);
+    const site = mode === 'copy-handle' ? { ...producer.handles[0] } : foreign.handles[0]!;
+    await assert.rejects(evaluateScenarioReceiptMembership(call, w.store, { site }), isStateError);
+    await assert.rejects(session.finalize(), isStateError); return empty();
+  } }), isStateError);
+  assert.deepEqual(await business(w), before);
+});
+
+test('an explicit identical logical and transport tuple preserves the existing owner recipe', async () => {
+  const w = await world();
+  bindScenarioReceiptMembershipSource(w.parent, { logical: source(), transport: source() });
+  const producer = native(w);
+  assert.equal((await invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    assert.equal(await producer.evaluate(call), true); return finish(call, w, session);
+  } })).status, 'committed');
+  assert.equal(producer.captures, 1);
 });
