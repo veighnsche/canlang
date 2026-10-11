@@ -41,3 +41,21 @@ the committed opt-in WASM assets beside the binding hosts; rebuilding Rust
 remains the separate root `bun run build:values-wasm` command. The `./distribution` export
 locates the module and binding trees after installation. Opt-in hosts and
 assets use the explicit `./bindings/*` exports listed in the manifest.
+
+Timezone calculation keeps the original host-accepted zone string. Its two
+private formatter caches each retain at most 64 entries, with least-recently-used
+eviction. Rebuilding an evicted entry uses the same original string and formatter
+options; the limit changes retention, never zone admission or returned values.
+It bounds 128 retained calculation formatters, not total ICU memory or construction
+work. Validation still uses the current host on every call.
+
+The language/runtime release must pin the actual Intl host build and its loaded
+ICU, timezone and CLDR data for calendar, zone and localized output correspondence
+under [DESIGN's calendar, localization and language-version rules](../../docs/specification/DESIGN.md).
+Runtime engine compatibility alone does not establish
+those data identities; alias names reported by Node and Bun need not match.
+When data versions are not exposed, the release owner must identify them through
+the pinned runtime artifact rather than borrow another host's versions. The
+independent currency scale table remains the checked-in SIX publication dated
+2026-09-17 in `src/currency-data.ts`. No cache policy changes that table or the
+release's existing semantic corpus requirement.
