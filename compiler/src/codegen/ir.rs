@@ -10100,12 +10100,9 @@ impl<'a> Cx<'a> {
                     .iter()
                     .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
                     .copied();
-                if bound_target.is_some() && kids(node).iter().any(|n| n.kind == SyntaxKind::Tab) {
-                    self.diags.push(Diagnostic::error(
-                        "E6008",
-                        "cannot lower bound tabs with authored tab panels".to_string(),
-                        node.span,
-                    ));
+                let bound_panels =
+                    bound_target.is_some() && kids(node).iter().any(|n| n.kind == SyntaxKind::Tab);
+                if bound_panels && !self.validate_bound_panels(scope, node) {
                     return None;
                 }
                 // Transient panel identity is independent of its localized
@@ -10128,21 +10125,29 @@ impl<'a> Cx<'a> {
                         props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
                     }
                 }
+                let mut bound_options = None;
                 if let Some(target) = bound_target {
                     let (binding, caption) = self.decode_bound_tabs(scope, target)?;
+                    if bound_panels {
+                        bound_options = Some(binding.clone());
+                    }
                     props.push(("binding".to_string(), binding));
                     if let Some(caption) = caption {
                         props.push(("caption".to_string(), caption));
                     }
                 }
-                let children = kids(node)
-                    .iter()
-                    .filter(|child| child.kind == SyntaxKind::Tab)
-                    .enumerate()
-                    .map(|(ordinal, child)| {
-                        self.decode_transient_tab(scope, child, ordinal, row_ctx.clone())
-                    })
-                    .collect();
+                let children = if let Some(binding) = bound_options {
+                    self.decode_bound_panels(scope, node, &binding, row_ctx.clone())?
+                } else {
+                    kids(node)
+                        .iter()
+                        .filter(|child| child.kind == SyntaxKind::Tab)
+                        .enumerate()
+                        .map(|(ordinal, child)| {
+                            self.decode_transient_tab(scope, child, ordinal, row_ctx.clone())
+                        })
+                        .collect()
+                };
                 let gate = self.decode_gate(scope, node);
                 Some(IrUi {
                     view: None,
@@ -10373,7 +10378,169 @@ impl<'a> Cx<'a> {
         Some(value)
     }
 
-    /// One transient panel payload consumed only by its owning `tabs`.
+    /// Join the private source correspondence before decoding editable tables.
+    fn validate_bound_panels(&mut self, scope: &Scope, node: &SyntaxNode) -> bool {
+        let valid = self
+            .program
+            .types
+            .bound_tabs(&NodeKey::of(node))
+            .is_some_and(|fact| {
+                if fact.module != scope.module || !fact.matches(self.program) {
+                    return false;
+                }
+                let tabs: Vec<_> = kids(node)
+                    .into_iter()
+                    .filter(|child| child.kind == SyntaxKind::Tab)
+                    .collect();
+                if tabs.len() != fact.panels.len() {
+                    return false;
+                }
+                tabs.iter()
+                    .zip(&fact.panels)
+                    .all(|(tab, (original, header, value))| {
+                        if NodeKey::of(tab) != *original {
+                            return false;
+                        }
+                        let Some(mut authored) = kids(tab)
+                            .into_iter()
+                            .find(|child| is_expression(child.kind))
+                        else {
+                            return false;
+                        };
+                        while authored.kind == SyntaxKind::Group {
+                            let Some(inner) = kids(authored)
+                                .into_iter()
+                                .find(|child| is_expression(child.kind))
+                            else {
+                                return false;
+                            };
+                            authored = inner;
+                        }
+                        authored.kind == SyntaxKind::NameRef
+                            && NodeKey::of(authored) == *header
+                            && kids(authored)
+                                .iter()
+                                .find_map(|child| name_text(self.db, child))
+                                .as_deref()
+                                == Some(value.as_str())
+                    })
+            });
+        if !valid {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tab panels have no matching original checked selector/header correspondence"
+                    .to_string(),
+                node.span,
+            ));
+            return false;
+        }
+        if kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::Tab)
+            .any(|tab| {
+                kids(tab)
+                    .into_iter()
+                    .any(|child| is_gate_leaf(self.db, child))
+            })
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower bound tabs with a direct tab gate".to_string(),
+                node.span,
+            ));
+            return false;
+        }
+        true
+    }
+
+    fn decode_bound_panels(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        binding: &TypedExpr,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<Vec<IrUi>> {
+        let fact = self.program.types.bound_tabs(&NodeKey::of(node))?.clone();
+        let options =
+            match &binding.expr {
+                IrExpr::Object(fields) => fields
+                    .iter()
+                    .find(|(name, _)| name == "options")
+                    .and_then(|(_, value)| {
+                        if let IrExpr::Array(options) = &value.expr {
+                            Some(options)
+                        } else {
+                            None
+                        }
+                    }),
+                _ => None,
+            };
+        let ResolvedType::Enum { cases, .. } = &fact.ty else {
+            return None;
+        };
+        let Some(options) = options.filter(|options| options.len() == cases.len()) else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tab options do not match their original checked enum".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let mut captions = std::collections::HashMap::new();
+        for (option, case) in options.iter().zip(cases) {
+            let IrExpr::Object(fields) = &option.expr else {
+                return None;
+            };
+            let value = fields
+                .iter()
+                .find(|(key, _)| key == "value")
+                .map(|(_, value)| &value.expr);
+            let caption = fields
+                .iter()
+                .find(|(key, _)| key == "label")
+                .map(|(_, value)| value.clone());
+            if !matches!(value, Some(IrExpr::Text(value)) if value == case) || caption.is_none() {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "bound tab options do not match their original checked enum".to_string(),
+                    node.span,
+                ));
+                return None;
+            }
+            captions.insert(case.clone(), caption.expect("checked option caption"));
+        }
+        let mut panels = Vec::new();
+        for (tab, (_, _, case)) in kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::Tab)
+            .zip(&fact.panels)
+        {
+            self.check_ui_attributes(tab, "tab", &[]);
+            let caption = captions.get(case)?.clone();
+            panels.push(IrUi {
+                view: None,
+                factory: "tabItem".to_string(),
+                props: vec![
+                    (
+                        "value".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Text(case.clone()),
+                            ResolvedType::Scalar(Scalar::Text),
+                            tab.span,
+                        ),
+                    ),
+                    ("caption".to_string(), caption),
+                ],
+                children: self.decode_ui_children(scope, tab, row_ctx.clone()),
+                row_scope: None,
+                gate: None,
+                span: tab.span,
+            });
+        }
+        Some(panels)
+    }
+
+    /// Existing owned preference binding shared by selector leaves and panels.
     fn decode_bound_tabs(
         &mut self,
         scope: &Scope,
@@ -10705,6 +10872,7 @@ impl<'a> Cx<'a> {
             "input" | "textarea" | "radio" | "select" => {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
+            "hero" => self.decode_compact_hero(scope, node, row_ctx),
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
             "fab" => Some(self.decode_fab(scope, node, row_ctx)),
             "chat_bubble" => Some(self.decode_chat_bubble(scope, node, row_ctx)),
@@ -10736,6 +10904,58 @@ impl<'a> Cx<'a> {
                 None
             }
         }
+    }
+
+    /// The compact hero is a scope-transparent group. Authored slots need
+    /// their separate owning producer and must never flatten into children.
+    fn decode_compact_hero(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "hero", &[]);
+        if !ui_attributes(self.db, node).is_empty() {
+            return None;
+        }
+        if kids(node)
+            .into_iter()
+            .any(|child| child.kind == SyntaxKind::Slot)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower compact hero: authored slots need a separate factory profile"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let mut props = Vec::new();
+        if kids(node)
+            .into_iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+        {
+            let caption = self.decode_single_ui_caption(scope, node, "hero")?;
+            props.push(("caption".to_string(), caption));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower compact hero: needs a nonempty content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "hero".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     /// Expand only the checked local declaration in its owning module scope.

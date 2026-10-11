@@ -254,3 +254,185 @@ fn original_tab_gate_narrowing_is_local_to_its_own_body() {
         "{diagnostics:?}"
     );
 }
+
+#[test]
+fn unguarded_bound_panels_require_original_checked_header_and_preference_facts() {
+    use canlang_compiler::analysis::catalog::Catalog;
+    use canlang_compiler::analysis::resolve::SymbolKind;
+    use canlang_compiler::analysis::{ResolvedType, Scalar};
+    use canlang_compiler::codegen::ir::{self, IrExpr, IrProgram, IrUi};
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
+
+    fn owned(source: &str) -> (SourceDb, CheckedProgram, Catalog) {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("bound-panels.can".into(), source.into());
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (checked, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, checked, catalog)
+    }
+
+    fn tabs(nodes: &[IrUi]) -> Vec<&IrUi> {
+        let mut found = Vec::new();
+        for node in nodes {
+            if node.factory == "tabs" {
+                found.push(node);
+            }
+            found.extend(tabs(&node.children));
+        }
+        found
+    }
+
+    fn bound_tabs(ir: &IrProgram) -> Vec<&IrUi> {
+        ir.modules
+            .iter()
+            .flat_map(|module| &module.pages)
+            .flat_map(|page| tabs(&page.render))
+            .collect()
+    }
+
+    let source = SOURCE.replace("    require authenticated\n", "");
+    let (db, checked, catalog) = owned(&source);
+    let (valid, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let panels = bound_tabs(&valid);
+    assert_eq!(panels.len(), 1);
+    assert_eq!(panels[0].children.len(), 2);
+    assert!(panels[0].props.iter().any(|(name, _)| name == "binding"));
+    assert!(panels[0].children.iter().all(|panel| panel.gate.is_none()));
+    for (panel, expected) in panels[0].children.iter().zip(["discovery", "assignments"]) {
+        assert_eq!(panel.factory, "tabItem");
+        assert!(panel.props.iter().any(|(name, value)| {
+            name == "value" && matches!(&value.expr, IrExpr::Text(case) if case == expected)
+        }));
+    }
+
+    for mutation in [
+        "selector-type-removed",
+        "selector-type-edited",
+        "header-type-removed",
+        "header-type-edited",
+        "header-case-removed",
+        "receiving-symbol",
+        "receiving-owner",
+        "receiving-type",
+        "owning-module-name",
+    ] {
+        let (db, mut checked, catalog) = owned(&source);
+        let selector = *checked
+            .types
+            .node_types
+            .keys()
+            .find(|key| source[key.start as usize..key.end as usize].trim() == "preferences.view")
+            .expect("checked bound selector type");
+        let header_start = source.find("tab discovery").unwrap() + "tab ".len();
+        let header = *checked
+            .types
+            .resolved_cases
+            .iter()
+            .find(|key| key.start as usize <= header_start && key.end as usize > header_start)
+            .expect("checked direct panel case");
+        assert!(checked.types.node_types.contains_key(&header));
+        let preferences = checked
+            .symbols
+            .iter()
+            .find_map(|symbol| match &symbol.kind {
+                SymbolKind::Preferences { fields } => Some(fields[0]),
+                _ => None,
+            })
+            .expect("receiving preference field");
+        match mutation {
+            "selector-type-removed" => {
+                checked.types.node_types.remove(&selector);
+            }
+            "selector-type-edited" => {
+                checked
+                    .types
+                    .node_types
+                    .insert(selector, ResolvedType::Scalar(Scalar::Text));
+            }
+            "header-type-removed" => {
+                checked.types.node_types.remove(&header);
+            }
+            "header-type-edited" => {
+                checked
+                    .types
+                    .node_types
+                    .insert(header, ResolvedType::Scalar(Scalar::Text));
+            }
+            "header-case-removed" => {
+                checked.types.resolved_cases.remove(&header);
+            }
+            "receiving-symbol" => {
+                checked.symbols[preferences.0 as usize]
+                    .canonical
+                    .push_str("Edited");
+            }
+            "receiving-owner" => {
+                let SymbolKind::Field { owner, .. } =
+                    &mut checked.symbols[preferences.0 as usize].kind
+                else {
+                    panic!("receiving field");
+                };
+                *owner = preferences;
+            }
+            "receiving-type" => {
+                checked
+                    .types
+                    .symbol_types
+                    .insert(preferences, ResolvedType::Scalar(Scalar::Text));
+            }
+            "owning-module-name" => {
+                checked.modules[0].name.push_str("Edited");
+            }
+            _ => unreachable!(),
+        }
+        let (refused, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mutation}: {diagnostics:?}"
+        );
+        assert!(bound_tabs(&refused).is_empty(), "{mutation}");
+    }
+
+    let mut result = DiagnosticResult::new("bound-panels", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.finish();
+    for bytes in [
+        source.clone(),
+        source.replace("Own assignments", "Edited assignments"),
+    ] {
+        let mut foreign = SourceDb::new();
+        foreign.add("bound-panels.can".into(), bytes);
+        let (artifact, diagnostics) = emit(
+            &checked,
+            &EmitSources {
+                db: &foreign,
+                result: &result,
+                catalog: Some(&catalog),
+                options: EmitOptions::new(),
+            },
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6011"),
+            "{diagnostics:?}"
+        );
+        assert!(artifact.modules.is_empty());
+        assert!(artifact.pages.is_empty());
+    }
+}
