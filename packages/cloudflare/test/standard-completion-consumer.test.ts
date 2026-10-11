@@ -1,7 +1,7 @@
-/** Unchanged Compiler private completion projection consumed through real
+/** Unchanged selected Compiler completion projection consumed through real
  * Identity/owner D1, State and Work. Sends and member seeds are explicitly
  * trusted host component setup; this does not qualify authored SEND, provider
- * authentication, public E6008 publication, or a whole application. */
+ * authentication, unsupported terminal profiles, or a whole application. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
@@ -40,6 +40,11 @@ import { createNativeStandardCompletionSourceCommand, invokeRetainedHandlerOccur
 import { createBoundCohortTick } from '../dist/runtime/cohort-tick.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+const fixtureProfile = (() => {
+  const profile = process.env.CAN_STANDARD_COMPLETION_PROFILE ?? 'private';
+  if (profile !== 'private' && profile !== 'public') throw new Error('CAN_STANDARD_COMPLETION_PROFILE must be private or public');
+  return profile;
+})();
 const APP = 'CompletionProjection', ENTRY = asModel(`${APP}.Entry`), AUDIT = asModel(`${APP}.CompletionAudit`), EVENT = `${APP}.Primary.send.completed`;
 const bounds = { maxSources: 8, maxHandlers: 8, maxMembers: 8, chunkSize: 2 };
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
@@ -59,21 +64,27 @@ async function snapshot(db: D1Database) {
   return result;
 }
 
-test('unchanged native private completion consumes original retained Email and frozen owner cohort in D1',
+test(`unchanged native ${fixtureProfile} completion consumes original retained Email and frozen owner cohort in D1`,
   { timeout: 120000 }, async () => {
     const fixtureRoot = process.env.CAN_STANDARD_COMPLETION_FIXTURE_ROOT ??
-      join(root, 'compiler/target/standard-completion-private-qualification');
+      join(root, `compiler/target/standard-completion-${fixtureProfile}-qualification`);
     const artifactPath = join(fixtureRoot, 'artifact.json'), sourcePath = join(fixtureRoot, 'completion-projection.can');
     const catalogPath = join(fixtureRoot, 'catalog.json');
     const originals = await Promise.all([artifactPath, sourcePath, catalogPath].map(path => readFile(path)));
     const artifact = JSON.parse(originals[0]!.toString('utf8')) as CompileArtifact;
     assert.equal(artifact.artifact_version, 1); assert.equal(artifact.modules.length, 1);
     assert.deepEqual(artifact.sources, [{ path: 'completion-projection.can', sha256: hash(originals[1]!) }]);
-    assert.equal(originals[1]!.length, 1291);
-    assert.equal(hash(originals[1]!), '317bd50a2f1431a3c9008e0913427c40b18a4ac4154ba68bc777662371d34a5b',
-      'exact released effectful private source, consumed unchanged');
+    if (fixtureProfile === 'private') {
+      assert.equal(originals[1]!.length, 1291);
+      assert.equal(hash(originals[1]!), '317bd50a2f1431a3c9008e0913427c40b18a4ac4154ba68bc777662371d34a5b',
+        'exact released effectful private source, consumed unchanged');
+    } else {
+      assert.equal(hash(originals[1]!), '04dff3035aad95549faeffd3191d5257400a85edafdd1ebfe20496a23a660004',
+        'exact released public C05 source, consumed unchanged');
+    }
     assert.equal(hash(originals[2]!), hash(await readFile(fileURLToPath(distribution.catalog))), 'exact owning installed catalog');
-    assert.deepEqual(artifact.operations, [], 'private source fixture retains the public publication refusal');
+    if (fixtureProfile === 'private') assert.deepEqual(artifact.operations, [], 'private source fixture retains the public publication refusal');
+    else assert.deepEqual(artifact.operations, [], 'public C05 source declares completion handlers, not public business operations');
     const artifactJson = JSON.stringify(artifact), dir = await mkdtemp(join(tmpdir(), 'can-native-completion-consumer-'));
     let worker: Miniflare | undefined, sequence = 0;
     const clock = { nowMs: () => Date.now() }, nextId = () => asOperationId(uuidv7(clock.nowMs(), ++sequence));
@@ -108,9 +119,14 @@ test('unchanged native private completion consumes original retained Email and f
         { source: 'std.ImagesV1.submit', event: `${APP}.Images.submit.completed`, binding: `${APP}.Images`, from: 'deployment.images',
           resultType: 'ImageRun', handlers: [`${APP}.image_result`] },
       ];
-      assert.deepEqual(definition['standardCompletions'], expectedCensus);
-      assert.deepEqual(artifact.callables.map(callable => callable.id),
-        [`${APP}.primary_first`, `${APP}.secondary`, `${APP}.primary_cohort`, `${APP}.primary_last`, `${APP}.cash`, `${APP}.text_result`, `${APP}.image_result`]);
+      assert.deepEqual(definition['standardCompletions'], fixtureProfile === 'private' ? expectedCensus : expectedCensus.slice(0, 2));
+      if (fixtureProfile === 'private') {
+        assert.deepEqual(artifact.callables.map(callable => callable.id),
+          [`${APP}.primary_first`, `${APP}.secondary`, `${APP}.primary_cohort`, `${APP}.primary_last`, `${APP}.cash`, `${APP}.text_result`, `${APP}.image_result`]);
+      } else {
+        assert.deepEqual(artifact.callables.map(callable => callable.id),
+          [`${APP}.primary_first`, `${APP}.secondary`, `${APP}.primary_cohort`, `${APP}.primary_last`]);
+      }
       assert.deepEqual(object(definition['cohorts'])[`${APP}.primary_cohort`], { kind: 'model', model: ENTRY, bind: 'entry' });
       worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true, script: 'export default {fetch(){return new Response("ok")}}',
         d1Databases: { IDENTITY: 'completion-identity', A: 'completion-owner-a', B: 'completion-owner-b' }, d1Persist: join(dir, 'd1') });
