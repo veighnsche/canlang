@@ -3,17 +3,19 @@ import type {
   ArtifactOperation, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes,
   CompileArtifact, FileReferenceStoragePort, FrameworkFilePayloadOrigin, FrameworkOpaqueCallable,
   FrameworkOpaqueDeclarationSet, FrameworkOpaqueEventDeclaration, FrameworkOpaqueValueProjection,
+  FrameworkOpaqueDeliveryContext, FrameworkOpaqueSendGuardDeclaration,
   ModelName, ResolvedIdentity, RetainedFinalizedFile, Revision, StoredRow, WorkScope,
 } from '@canlang/contracts';
 import { bindOpaqueFileDeclarations, prepareFrameworkFilePayloadOrigin, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '@canlang/state/storage';
 import { observeRetainedCanonicalFile, type CanonicalFileBinding } from './file-staging.js';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import { stableStringify } from '@canlang/state/invocation';
+import type { ScenarioReceiptDeliveryOriginFrame, ScenarioReceiptSendGuard } from '@canlang/state/invocation';
 
 export interface RetainedOpaqueFileSource {
   readonly model: ModelName;
   readonly row: StoredRow;
-  readonly field: 'payload' | 'result';
+  readonly field: 'payload' | 'result' | 'sourceGuard';
   readonly binding: FrameworkFilePayloadOrigin;
 }
 
@@ -106,7 +108,14 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     }
     for (const declaration of set.declarations) {
       const source = declaration.source.source;
-      const emitted = artifact.modules.filter(module => module.path === source.module);
+      // A SEND declaration retains the Compiler's original logical module.
+      // Its actual owning callable identifies the physical emitted module.
+      const from = declaration.source;
+      const owners = from.kind === 'send-guard' ?
+        artifact.callables.filter(callable => callable.id === from.owner) : [];
+      if (declaration.source.kind === 'send-guard' && owners.length !== 1) refuse('send guard lacks its exact original callable owner');
+      const emitted = artifact.modules.filter(module => module.path ===
+        (declaration.source.kind === 'send-guard' ? owners[0]!.module : source.module));
       if (emitted.length !== 1 || !emitted[0]!.map?.sources.includes(source.path) ||
           artifact.sources.filter(candidate => candidate.path === source.path && candidate.sha256 === source.sha256).length !== 1) {
         refuse('declaration lacks exact original module/source correspondence');
@@ -138,6 +147,40 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     }
     return Object.freeze({ source: inputs.source.source, callable: actual[0]!, canonical: operation.canonical,
       artifact: operation.artifact, resultDeclarationId: result.id });
+  };
+  const sendGuard = (guard: ScenarioReceiptSendGuard, profile?: Extract<FrameworkOpaqueDeclarationSet['declarations'][number]['profile'], { kind: 'inputs' }>): {
+    readonly declaration: FrameworkOpaqueSendGuardDeclaration; readonly inputsDeclarationId: string;
+  } => {
+    const original = captureData(guard);
+    const matches = set.declarations.filter(candidate => candidate.source.kind === 'send-guard' &&
+      candidate.profile.kind === 'inputs' && equal(candidate.source, { kind: 'send-guard', ...original }));
+    if (matches.length !== 1 || matches[0]!.source.kind !== 'send-guard') refuse('send guard lacks its exact installed original lexical input declaration');
+    if (profile !== undefined && !equal(matches[0]!.profile, profile)) refuse('guard typed census differs from the original emitted declaration');
+    const { kind: _kind, ...declaration } = matches[0]!.source;
+    return Object.freeze({ declaration: Object.freeze(declaration), inputsDeclarationId: matches[0]!.id });
+  };
+  const delivery = (model: string, field: string, send: ScenarioReceiptDeliveryOriginFrame['send']): {
+    readonly declaration: FrameworkOpaqueDeliveryContext; readonly resultDeclarationId: string;
+  } => {
+    const original = captureData(send);
+    const caller = callable(original.operation);
+    const models = artifact.models?.filter(candidate => candidate.name === model);
+    const canonical = canonicalModels.filter(candidate => candidate.name === model);
+    const fields = models?.length === 1 ? models[0]!.fields.filter(candidate => candidate.name === field) : [];
+    const authored = fields?.length === 1 ? fields[0]!.field : undefined;
+    const checked = canonical.length === 1 ? canonical[0]!.fields[field]?.delivery : undefined;
+    if (authored?.kind !== 'delivery' || checked === undefined || !equal(authored, checked) ||
+        original.target !== `${checked.capability}.${checked.operation}`) refuse('delivery lacks its exact original model/field/target declaration');
+    const matches = set.declarations.filter(candidate => candidate.source.kind === 'delivery' &&
+      candidate.profile.kind === 'provider-result' && equal(candidate.source.source, caller.source) &&
+      equal(candidate.source.context.canonical, checked) && equal(candidate.source.context.artifact, authored) &&
+      equal(candidate.profile.canonical, checked.result) && equal(candidate.profile.artifact, authored.result));
+    if (matches.length !== 1 || matches[0]!.source.kind !== 'delivery') refuse('delivery lacks its complete installed original provider result declaration');
+    const declaration = matches[0]!.source.context;
+    if (original.target !== 'std.EmailV1.send' || declaration.kind !== 'capability' || 'judgment' in checked) {
+      refuse('conditional native Email requires its original ordinary capability context');
+    }
+    return Object.freeze({ declaration, resultDeclarationId: matches[0]!.id });
   };
   const occurrences = (projection: FrameworkOpaqueValueProjection, value: unknown) =>
     resolveOpaqueFileProjection(bound, projection, value);
@@ -264,5 +307,5 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return origin;
   };
   await current();
-  return Object.freeze({ installed, set, bound, event, callable, occurrences, prepare, prepareControl, revalidateSource });
+  return Object.freeze({ installed, set, bound, event, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource });
 }
