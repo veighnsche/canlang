@@ -9113,3 +9113,15 @@ Keep original bare history E6008 until the reviewed bounded current-authorized
 State reader and Packages presentation bind the actual source row/revision and
 current policy. Full original CanBook/application/browser/D1/current dispatch
 remains separately owned; no actor-only policy or hold release is accepted.
+
+
+### 2026-10-11 — original resolved event field type correspondence
+
+Coordinator review found that comparing lowered types against the same editable
+checked type table could seal a prebuild File-to-Text edit. Pin original resolved
+event field types privately at the defining check and compare current lowering
+inputs before the complete empty inventory seal. The concrete mutation refuses
+and both original installed inventory consumers still pass (affected6/6);
+unchanged declaration refusal is reused. This corrects correspondence only,
+retaining original aliases/constraints/defaults and every authority boundary.
+Exact coordinator release and native deferred lifetime acceptance remain due.

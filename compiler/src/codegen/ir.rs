@@ -3906,7 +3906,11 @@ impl<'a> Cx<'a> {
             let [record] = matches.as_slice() else {
                 return false;
             };
-            if !self.program.effects.event_fields_match_checked(record) {
+            if !self
+                .program
+                .effects
+                .event_fields_match_checked(record, &self.program.types)
+            {
                 return false;
             }
             let Some(item) = ir.items.get(record.record.0 as usize) else {
