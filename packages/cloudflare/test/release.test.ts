@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -72,6 +72,49 @@ describe("release stamp (B5-J3)", () => {
       packageVersions: { ...inputs.packageVersions, "@canlang/files": "0.2.0" },
     };
     expect(() => assertLockstep(drifted)).toThrow(/@canlang\/files/);
+  });
+
+  it("never omits invalid or unreadable workspace manifests from lockstep", () => {
+    const root = mkdtempSync(join(tmpdir(), "can-lockstep-"));
+    try {
+      mkdirSync(join(root, "compiler"));
+      writeFileSync(join(root, "package.json"), JSON.stringify({ version: RELEASE_VERSION }));
+      writeFileSync(join(root, "compiler", "Cargo.toml"), `[package]\nversion = "${RELEASE_VERSION}"\n`);
+      const directory = join(root, "packages", "demo");
+      mkdirSync(directory, { recursive: true });
+      mkdirSync(join(root, "packages", "without-manifest"));
+      const path = join(directory, "package.json");
+      const valid = { name: "@canlang/demo", version: RELEASE_VERSION };
+      for (const invalid of ["{", "null", JSON.stringify({ ...valid, version: 1 }), JSON.stringify({ version: RELEASE_VERSION })]) {
+        writeFileSync(path, invalid);
+        expect(() => readLockstepInputs(root)).toThrow(path);
+      }
+      rmSync(path);
+      mkdirSync(path);
+      expect(() => readLockstepInputs(root)).toThrow(path);
+      rmSync(path, { recursive: true });
+      symlinkSync(join(directory, "missing-package.json"), path);
+      expect(() => readLockstepInputs(root)).toThrow(path);
+      rmSync(path);
+      writeFileSync(path, JSON.stringify(valid));
+      expect(readLockstepInputs(root).packageVersions).toEqual({ "@canlang/demo": RELEASE_VERSION });
+      for (const name of ["__proto__", "constructor"]) {
+        writeFileSync(path, JSON.stringify({ ...valid, name }));
+        const tree = readLockstepInputs(root);
+        expect(Object.hasOwn(tree.packageVersions, name)).toBe(true);
+        expect(tree.packageVersions[name]).toBe(RELEASE_VERSION);
+        const inputs: LockstepInputs = { ...tree, platformVersion: RELEASE_VERSION, contractsVersion: RELEASE_CONTRACTS_VERSION };
+        expect(() => assertLockstep(inputs)).not.toThrow();
+        expect(() => assertLockstep({ ...inputs, packageVersions: { [name]: "9.9.9" } })).toThrow(name);
+      }
+      writeFileSync(path, JSON.stringify(valid));
+      const duplicate = join(root, "packages", "duplicate");
+      mkdirSync(duplicate);
+      writeFileSync(join(duplicate, "package.json"), JSON.stringify({ ...valid, version: "9.9.9" }));
+      expect(() => readLockstepInputs(root)).toThrow(/duplicate workspace name/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

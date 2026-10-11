@@ -18,7 +18,7 @@
  * Pure core (`assertLockstep`) takes injected inputs so tests pin it
  * without touching the filesystem.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,10 +57,16 @@ function readJson(path: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
 }
 
+function isMissingPath(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
 /**
  * Read the tree facts `assertLockstep` needs (everything except the two
  * compiled-in constants the caller passes: `PLATFORM_CLI_VERSION` and
  * `CONTRACTS_VERSION`). `repoRoot` is the checkout root.
+ * Only absent manifests are skipped; existing invalid/unreadable manifests
+ * and duplicate names cannot silently remove workspace version inputs.
  */
 export function readLockstepInputs(repoRoot: string): TreeVersions {
   const rootPkg = readJson(join(repoRoot, "package.json"));
@@ -76,12 +82,26 @@ export function readLockstepInputs(repoRoot: string): TreeVersions {
     let pkg: Record<string, unknown>;
     try {
       pkg = readJson(pkgPath);
-    } catch {
-      continue;
+    } catch (error) {
+      if (isMissingPath(error)) {
+        try {
+          lstatSync(pkgPath);
+        } catch (statError) {
+          if (isMissingPath(statError)) continue;
+        }
+      }
+      throw new Error(`release stamp: unreadable workspace manifest ${pkgPath}`, { cause: error });
     }
-    if (typeof pkg["name"] === "string" && typeof pkg["version"] === "string") {
-      packageVersions[pkg["name"]] = pkg["version"];
+    if (typeof pkg !== "object" || pkg === null || Array.isArray(pkg) ||
+        typeof pkg["name"] !== "string" || typeof pkg["version"] !== "string") {
+      throw new Error(`release stamp: workspace manifest ${pkgPath} carries no string name/version`);
     }
+    if (Object.hasOwn(packageVersions, pkg["name"])) {
+      throw new Error(`release stamp: duplicate workspace name ${JSON.stringify(pkg["name"])} at ${pkgPath}`);
+    }
+    Object.defineProperty(packageVersions, pkg["name"], {
+      value: pkg["version"], enumerable: true, configurable: true, writable: true,
+    });
   }
   if (typeof rootPkg["version"] !== "string") {
     throw new Error("release stamp: root package.json carries no string version");
@@ -112,7 +132,7 @@ export function assertLockstep(inputs: LockstepInputs): void {
   }
   for (const name of Object.keys(inputs.packageVersions).sort()) {
     const version = inputs.packageVersions[name] as string;
-    const exempt = LOCKSTEP_EXEMPT_PACKAGES[name];
+    const exempt = Object.hasOwn(LOCKSTEP_EXEMPT_PACKAGES, name) ? LOCKSTEP_EXEMPT_PACKAGES[name] : undefined;
     if (exempt !== undefined) {
       if (version !== exempt) {
         drifts.push(
