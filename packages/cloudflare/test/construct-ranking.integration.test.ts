@@ -13,6 +13,73 @@ import { prepareLocalPreviewCapture } from "../src/dev/preview-inputs.js";
 
 const project = resolve(import.meta.dirname, "../../..");
 
+it("retains the actual unknown Office collection coverage gap without a provider call", async () => {
+  const source = "app OfficeChoice\nGiven\n Supply {name:text,quantity:int?,available:bool=true}\n policy Supply read=members\nWhen\n crud Supply by=members fields=name,quantity,available\nThen\n page / title=\"Supplies\"\n  stock_rows Supply empty=\"No supplies\"\n   text row.name,row.quantity,row.available\n";
+  const appRoot = await mkdtemp(join(project, ".can-dev-office-choice-"));
+  const runtimeDir = await mkdtemp(join(tmpdir(), "can-office-choice-control-"));
+  const appPath = join(appRoot, "OfficeChoice.can");
+  await writeFile(appPath, source);
+  const version = async (name: string) => (JSON.parse(await readFile(
+    join(project, `packages/${name}/package.json`), "utf8")) as { version: string }).version;
+  const valuesVersion = await version("values"), uiVersion = await version("ui"), cloudflareVersion = await version("cloudflare");
+  let providerCalls = 0;
+  let owner: Awaited<ReturnType<typeof startDevSessionService>> | undefined;
+  try {
+    owner = await startDevSessionService({ selectedApp: "OfficeChoice", runtimeDir,
+      // This refusal checks the actual compiler/help consumer only; no installed
+      // preview qualification or runtime card evidence is claimed.
+      capture: { checkoutRoot: project, appPath, profile: "local-d1-identity",
+        compilerPath: join(project, "compiler/target/debug/can"),
+        catalogPath: join(project, "packages/values/dist/catalog.json"),
+        helpIndexPath: join(project, "docs/specification/CONSTRUCT-HELP.md"),
+        packageInputPaths: [
+          { name: `@canlang/values@${valuesVersion}/dist/src/catalog.js`, path: join(project, "packages/values/dist/src/catalog.js") },
+          { name: `@canlang/ui@${uiVersion}/dist/src/catalog.js`, path: join(project, "packages/ui/dist/src/catalog.js") },
+          { name: `@canlang/cloudflare@${cloudflareVersion}/dist/dev/compiler-check.js`, path: join(project, "packages/cloudflare/dist/dev/compiler-check.js") },
+          { name: `@canlang/cloudflare@${cloudflareVersion}/dist/dev/preview-builder.js`, path: join(project, "packages/cloudflare/dist/dev/preview-builder.js") },
+        ],
+        extraInputPaths: [
+          { name: "grammar", path: "docs/specification/GRAMMAR.md" },
+          { name: `source:@canlang/values@${valuesVersion}/src/catalog.ts`, path: join(project, "packages/values/src/catalog.ts") },
+          { name: `source:@canlang/ui@${uiVersion}/src/catalog.ts`, path: join(project, "packages/ui/src/catalog.ts") },
+        ],
+      },
+      constructRanking: { allowExternal: () => true, transport: { choose: async () => {
+        providerCalls++; throw new Error("incomplete compiler inventory must remain local");
+      } } },
+    });
+    const client = await attachDevSessionService({ checkoutRoot: project, app: "OfficeChoice",
+      profile: "local-d1-identity", runtimeDir });
+    const checked = await client.request({ command: "check" }) as SessionCheckResponse;
+    expect(checked.state).toBe("errors"); expect(checked.current).toBe(true);
+    expect(checked.evidence).toMatchObject({ capture_complete: true, analysis_complete: true,
+      diagnostics_reported: 1, diagnostics_omitted: 0, diagnostics_service_omitted: 0 });
+    const detail = await client.request({ command: "diagnostic.detail",
+      payload: { revision: checked.revision, index: 0 } }) as {
+      source: { sha256: string }; diagnostic: { code: string; primary: { start: number; end: number };
+        construct_candidates: CompilerConstructCandidates };
+      construct_help: { disposition: string; grammarCoverage: string; candidateCoverage: string;
+        cards: unknown[]; classification: unknown[] };
+    };
+    expect(detail.source.sha256).toBe(createHash("sha256").update(source).digest("hex"));
+    expect(detail.diagnostic).toMatchObject({ code: "E2001", primary: { start: 197, end: 207 },
+      construct_candidates: { version: 1, disposition: "unknown", slot: "then.collection-presentation",
+        complete: false, ids: [] } });
+    expect(detail.diagnostic.construct_candidates.context).toBeUndefined();
+    expect(Buffer.from(source).subarray(197, 207).toString("utf8")).toBe("stock_rows");
+    expect(detail.construct_help).toMatchObject({ disposition: "unknown", grammarCoverage: "unknown",
+      candidateCoverage: "unknown", cards: [], classification: [] });
+    expect(await client.request({ command: "construct.rank", payload: { revision: checked.revision, index: 0 } }))
+      .toMatchObject({ result: { state: "candidate_coverage_unknown",
+        reason: "captured compiler ranking context is incomplete" } });
+    expect(providerCalls).toBe(0);
+    expect(await client.request({ command: "preview.status" })).toMatchObject({ state: "unavailable", serving_build: null });
+  } finally {
+    await owner?.stop(); await rm(appRoot, { recursive: true, force: true });
+    await rm(runtimeDir, { recursive: true, force: true });
+  }
+}, 60_000);
+
 it("retains released native originating context and keeps unqualified ranking local by default", async () => {
   const scratch = await mkdtemp(join(tmpdir(), "can-native-rank-"));
   const root = join(scratch, "source");
