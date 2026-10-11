@@ -11278,3 +11278,26 @@ Coordinator intake and Dev's selected original native recovery/effect-timing
 consumer remain separate; all holds and the broader parent remain unchanged.
 
 Coordinator defining atomic recovery source review CLEAR and finite LOCAL main intake after deadline. Owning27 affected accounts/D1 controls and source owner normal checks reused; actual changed main Identity/CF/root emission passes. No source/activation/publication/preparation hold released; Dev genuine native selected recovery and final effect timing remains distinct from accepted library atomicity. Existing queue prerequisites are reconciled with released removal/ingress/capture/recovery producer scopes;22/48 packet count and complete filetree checkpoint unchanged.
+
+## 2026-10-11 — Closed provider explanations (implemented; observation lifetime consumer unfinished)
+
+Replace blacklist-based free-text admission in existing `specificOrGeneric`
+with an internal exact phrase/category mapping. Return fixed authored literals
+for the five existing safe Mail, Ollama and ComfyUI explanations; all other
+provider text returns the adapter's trusted generic fallback. Preserve the
+exported signature, bounded type/length/control-character checks, and existing
+`redactUntrusted` API. A text scrub alone cannot establish safe disclosure.
+Generic-only would discard established legitimate specificity; expanding a
+secret-pattern blacklist would retain an open-ended confidentiality gap.
+
+Three equivalent JEV Choice responses favor the closed mapping at confidence
+1.0; advice only. Node24 Services emission passes and twelve affected genuine
+loopback/helper groups pass, preserving original delivery/job identities,
+failure versus observation status, model partial snapshots and image output
+bytes. Media retains its first nonempty message selection; a later recognized
+phrase cannot replace earlier unsafe evidence. Finite independent security
+source review is clear. Work/Dev's original creation anchor, complete bounded
+observation and evidence lifetime qualification remain separate; holds and
+unsupported provider-void remain unchanged.
+
+Coordinator direct defining source/test review CLEAR and finite LOCAL main intake after deadline. Reuse12 affected loopback/helper groups and advisory outcomes; actual changed main Services/CF/root emission passes. Original Work/Dev bounded observation/evidence lifetime remains distinct. Complete filetree checkpoint and full-plan counts remain unchanged.

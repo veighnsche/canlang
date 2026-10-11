@@ -96,6 +96,67 @@ describe('mail redaction', () => {
     );
   });
 
+  it('preserves closed mail specificity in rejected reconciliation', async () => {
+    for (const message of [
+      'Unknown recipient domain',
+      'No mailbox here',
+      'No mailbox for recipient',
+    ]) {
+      await withServer(
+        { kind: 'invalid-schema', body: { status: 'rejected', message } },
+        async (server) => {
+          const completion = await makeAdapter(server.url).reconcile('del_1');
+          assert.deepEqual(completion, {
+            delivery_id: 'del_1',
+            status: 'failed',
+            result: null,
+            error: { code: 'provider_rejected', message },
+          });
+          assert.equal(server.requests.length, 0);
+        },
+      );
+    }
+  });
+
+  it('uses generic explanations for arbitrary rejection and rejected reconciliation messages', async () => {
+    for (const message of [
+      'bearer synthetic-private-token',
+      'Account email reviewer@example.test',
+      'Account number 123456789',
+      'Message body: private review notes',
+      'Trace: send (/private/mail.js:10:3)',
+      'Unknown recipient domain: reviewer@example.test',
+      'private notes: Unknown recipient domain',
+      'VAE decode failed',
+      'unrecognized provider explanation',
+    ]) {
+      const expected = {
+        delivery_id: 'del_1',
+        status: 'failed',
+        result: null,
+        error: {
+          code: 'provider_rejected',
+          message: 'Mail delivery rejected by provider.',
+        },
+      };
+      await withServer(
+        { kind: 'reject', status: 400, body: { error: message } },
+        async (server) => {
+          const completion = await makeAdapter(server.url).send(INPUT, { deliveryId: 'del_1' });
+          assert.deepEqual(completion, expected);
+        },
+      );
+      await withServer(
+        { kind: 'invalid-schema', body: { status: 'rejected', message } },
+        async (server) => {
+          const completion = await makeAdapter(server.url).reconcile('del_1');
+          assert.deepEqual(completion, expected);
+          assert.equal(server.requests.length, 0);
+        },
+      );
+    }
+  });
+
   it('falls back to generic on multiline provider messages', async () => {
     await withServer(
       {
@@ -133,7 +194,7 @@ describe('mail redaction', () => {
   });
 
   it('bounds specificity by length and type', () => {
-    assert.equal(specificOrGeneric('ok', 'generic'), 'ok');
+    assert.equal(specificOrGeneric('ok', 'generic'), 'generic');
     assert.equal(
       specificOrGeneric('x'.repeat(201), 'generic'),
       'generic',
@@ -144,5 +205,33 @@ describe('mail redaction', () => {
       specificOrGeneric(`has token=${FAKE_TOKEN} inside`, 'generic'),
       'generic',
     );
+    const message = 'Unknown recipient domain';
+    const generic = 'Mail delivery rejected by provider.';
+    assert.equal(specificOrGeneric(message, generic, message.length), message);
+    assert.equal(specificOrGeneric(message, generic, message.length - 1), generic);
+    for (const raw of ['', `${message}\n`, `${message}\r`, `${message}\0`]) {
+      assert.equal(specificOrGeneric(raw, generic), generic);
+    }
+  });
+
+  it('selects only exact authored explanations in their adapter category', () => {
+    const permitted = [
+      ['Unknown recipient domain', 'Mail delivery rejected by provider.'],
+      ['No mailbox here', 'Mail delivery rejected by provider.'],
+      ['No mailbox for recipient', 'Mail delivery rejected by provider.'],
+      ['model overloaded, try again', 'Model provider reported an error mid-stream.'],
+      ['VAE decode failed', 'Image provider reported run failure.'],
+    ] as const;
+    for (const [message, generic] of permitted) {
+      assert.equal(specificOrGeneric(message, generic), message);
+      assert.equal(specificOrGeneric(`private ${message}`, generic), generic);
+      assert.equal(specificOrGeneric(`${message} private`, generic), generic);
+      for (const category of new Set(permitted.map((entry) => entry[1]))) {
+        if (category !== generic) {
+          assert.equal(specificOrGeneric(message, category), category);
+        }
+      }
+      assert.equal(specificOrGeneric(message, 'generic'), 'generic');
+    }
   });
 });

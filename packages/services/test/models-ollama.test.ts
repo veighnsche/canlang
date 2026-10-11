@@ -565,6 +565,43 @@ describe('models: streaming runs', () => {
     });
   });
 
+  it('mid-stream arbitrary provider errors use generic text and keep partial evidence', async () => {
+    for (const message of [
+      'bearer synthetic-private-token',
+      'Account email reviewer@example.test',
+      'Account number 123456789',
+      'Message body: private review notes',
+      'Trace: generate (/private/model.js:10:3)',
+      'model overloaded, try again: private notes',
+      'private notes: model overloaded, try again',
+      'Unknown recipient domain',
+      'unrecognized provider explanation',
+    ]) {
+      const lines = [
+        { model: MODEL, message: { role: 'assistant', content: 'Hi' }, done: false },
+        { error: message },
+      ];
+      await withServer({ kind: 'stream', lines }, async (server) => {
+        const run = makeAdapter(server.url).generateStream(inputFor(), { deliveryId: 'del_9' });
+        assert.deepEqual(await run.done(), {
+          delivery_id: 'del_9',
+          status: 'failed',
+          result: null,
+          error: {
+            code: 'provider_error',
+            message: 'Model provider reported an error mid-stream.',
+          },
+        });
+        assert.deepEqual(
+          run.snapshots().map((snapshot) => [snapshot.state, snapshot.content]),
+          [['running', ''], ['running', 'Hi'], ['failed', 'Hi']],
+        );
+        assert.equal(server.requests.length, 1);
+        assert.equal(server.requests[0]?.stream, true);
+      });
+    }
+  });
+
   it('streams ending without done:true fail and keep partial evidence', async () => {
     const lines = [
       { model: MODEL, message: { role: 'assistant', content: 'Hi' }, done: false },

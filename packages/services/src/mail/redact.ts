@@ -2,10 +2,9 @@
  * `DeliveryError` construction and redaction (DESIGN section 8).
  *
  * The error payload stays the closed `{code, message}` shape. Provider
- * bytes are never embedded raw: tokens, credentials, bodies, stack
- * traces and account data are stripped, and provider specificity is
- * used only when it survives redaction untouched; otherwise a generic
- * classification/explanation is used.
+ * specificity selects only fixed adapter-owned explanations. Arbitrary
+ * provider text falls back to a generic classification/explanation;
+ * surviving a text scrub does not establish safe disclosure.
  */
 import type { DeliveryError } from '@canlang/contracts';
 
@@ -36,11 +35,24 @@ export function redactUntrusted(text: string): string {
     .replace(ACCOUNT_ID, 'acct_[REDACTED]');
 }
 
+const SPECIFIC_EXPLANATIONS: ReadonlyMap<string, ReadonlyMap<string, string>> = new Map([
+  ['Mail delivery rejected by provider.', new Map([
+    ['Unknown recipient domain', 'Unknown recipient domain'],
+    ['No mailbox here', 'No mailbox here'],
+    ['No mailbox for recipient', 'No mailbox for recipient'],
+  ])],
+  ['Model provider reported an error mid-stream.', new Map([
+    ['model overloaded, try again', 'model overloaded, try again'],
+  ])],
+  ['Image provider reported run failure.', new Map([
+    ['VAE decode failed', 'VAE decode failed'],
+  ])],
+]);
+
 /**
- * Use provider-supplied specificity only when it is a short single-line
- * string that redaction leaves byte-identical; otherwise fall back to
- * the generic explanation. Any sign of sensitive content discards the
- * whole message rather than leaking its structure.
+ * Match bounded provider evidence exactly within the adapter's authored
+ * fallback category. Return fixed explanations, never provider text;
+ * unknown or modified evidence falls back to the trusted generic.
  */
 export function specificOrGeneric(
   raw: unknown,
@@ -56,9 +68,5 @@ export function specificOrGeneric(
   if (raw.includes('\n') || raw.includes('\r') || raw.includes('\0')) {
     return generic;
   }
-  const redacted = redactUntrusted(raw);
-  if (redacted !== raw) {
-    return generic;
-  }
-  return redacted;
+  return SPECIFIC_EXPLANATIONS.get(generic)?.get(raw) ?? generic;
 }
