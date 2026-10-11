@@ -18,9 +18,20 @@ export interface ViewerGenerationCallbackDiagnosticInput extends Pick<BaseQueryI
   readonly field: string;
   readonly schema: DeliveryFieldSchema;
   readonly readPolicies: ReadonlyMap<ModelName, ViewerPageParentPolicy>;
-  readonly origin: GenerationCallbackOrigin;
-  /** Checked explicit callback authority. Empty fields avoid an invented app field. */
-  readonly callbackPolicy: InterimModelPolicy;
+  /** Legacy engine-local origin; installed native consumers resolve after authorization. */
+  readonly origin?: GenerationCallbackOrigin;
+  /** Installed checked declaration + original dispatch resolver; never request data. */
+  readonly resolveOrigin?: (association: Readonly<{
+    model: ModelName; recordId: RecordId; field: string; deliveryId: string;
+    source: GenerationCallbackOrigin['source']; expectedRevision: Revision;
+  }>, store: StoragePort) => Promise<GenerationCallbackOrigin>;
+  /** Legacy checked callback authority, exclusive with callbackRead. */
+  readonly callbackPolicy?: InterimModelPolicy;
+  /** Installed verified source predicate. Use this coherent context for all Identity
+   * reads and this checkpoint/fence for relations; no ambient/precomputed grant. */
+  readonly callbackRead?: (observation: Readonly<{
+    context: ByContext; row: StoredRow; revision: Revision; fence: BaseQueryInput['fence'];
+  }>) => Promise<boolean>;
   /** Installed real Work reader, never a request-provided callback. */
   readonly readDiagnostics: (request: GenerationCallbackDiagnosticRequest,
     store: StoragePort) => Promise<GenerationCallbackDiagnosticResult>;
@@ -110,12 +121,16 @@ function captureDiagnostic(value: GenerationCallbackDiagnosticResult,
 /** Deny before Work lookup; recheck actual Identity facts and State fence after all awaits. */
 export async function queryGenerationCallbackDiagnosticsForViewer(
   input: ViewerGenerationCallbackDiagnosticInput): Promise<ViewerGenerationCallbackDiagnosticResult> {
-  const { store, memberships, fence, readDiagnostics } = input;
+  const { store, memberships, fence, readDiagnostics, resolveOrigin, callbackRead } = input;
   const model = input.model, id = text(input.recordId) as RecordId, field = text(input.field);
   assertDeliveryField(input.schema, model, field);
-  const origin = captureOrigin(input.origin), policy = new Map(input.policy), reads = new Map(input.readPolicies);
+  const legacyOrigin = input.origin === undefined ? undefined : captureOrigin(input.origin);
+  const policy = new Map(input.policy), reads = new Map(input.readPolicies);
   const callbackPolicy = input.callbackPolicy, context = Object.freeze({ ...input.context });
-  if (callbackPolicy.model !== model || callbackPolicy.grants.some(grant => grant.fields.length !== 0)) invalid();
+  if (callbackPolicy === undefined ? typeof callbackRead !== 'function' :
+      callbackRead !== undefined || callbackPolicy.model !== model ||
+      callbackPolicy.grants.some(grant => grant.fields.length !== 0)) invalid();
+  if (resolveOrigin !== undefined && (typeof resolveOrigin !== 'function' || legacyOrigin !== undefined)) invalid();
   if (typeof store.cohortLoad !== 'function' || typeof readDiagnostics !== 'function') invalid();
   const revision = await store.readRevision();
   if (fence !== undefined && fence.revision !== revision) throw new FenceConflictError(fence.revision, revision);
@@ -129,8 +144,10 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
   const rows = new Map<ModelName, StoredRow>();
   if (current !== null) rows.set(model, current);
   let diagnostic: GenerationCallbackDiagnosticResult | undefined;
+  let origin: GenerationCallbackOrigin | undefined = legacyOrigin, originAuthorized = true;
   const authority = await observeRowGrantAuthority(byContext, async coherent => {
-    if (current === null || current.archivedAt !== null || context.teamId !== origin.scope.owner) return false;
+    if (current === null || current.archivedAt !== null ||
+        legacyOrigin !== undefined && context.teamId !== legacyOrigin.scope.owner) return false;
     let row = current, rowModel = model; const visited = new Set<ModelName>();
     while (true) {
       if (visited.has(rowModel) || visited.size >= 100) invalid();
@@ -167,8 +184,14 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
       }
       row = rows.get(rowModel)!; if (row.id !== parent.id) return false;
     }
-    const callbackContext = withPolicyRow(callbackPolicy, coherent, current);
-    for (const grant of callbackPolicy.grants) {
+    if (callbackRead !== undefined) {
+      const verdict = await callbackRead(Object.freeze({ context: Object.freeze({ ...coherent }),
+        row: current, revision, fence }));
+      if (typeof verdict !== 'boolean') invalid();
+      return verdict;
+    }
+    const callbackContext = withPolicyRow(callbackPolicy!, coherent, current);
+    for (const grant of callbackPolicy!.grants) {
       if (await evaluateBy(grant.by, callbackContext) &&
           (grant.when === undefined || evalPredicateForRow(grant.when, current))) return true;
     }
@@ -179,16 +202,31 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
     const delivery = current!.data[field];
     if (delivery !== null && delivery !== undefined) {
       record(delivery);
-      if (Reflect.ownKeys(delivery).length !== 2 || own(delivery, 'operation') !== origin.source) invalid();
+      const source = own(delivery, 'operation');
+      if (Reflect.ownKeys(delivery).length !== 2 ||
+          source !== 'std.ImagesV1.submit' && source !== 'std.TextGenerationV1.generate') invalid();
       const deliveryId = text(own(delivery, 'id'));
       const association = await store.cohortLoad({ model: RECEIPT_ASSOCIATION_MODEL as ModelName,
         id: associationRowId(model, id, field) as RecordId, expectedRevision: revision });
       if (association === null) invalid();
       const saved = readAssociationRow(association);
       if (saved.locator.recordId !== id || saved.locator.field !== field ||
-          saved.source !== origin.source || saved.deliveryId !== deliveryId) invalid();
-      const request = deepFreeze({ origin, deliveryId, expectedRevision: revision });
-      diagnostic = captureDiagnostic(await readDiagnostics(request, store), request);
+          saved.source !== source || saved.deliveryId !== deliveryId) invalid();
+      if (resolveOrigin !== undefined) {
+        origin = captureOrigin(await resolveOrigin(Object.freeze({ model, recordId: id, field,
+          deliveryId, source, expectedRevision: revision }), store));
+      }
+      if (origin === undefined || origin.source !== source) invalid();
+      originAuthorized = context.teamId === origin.scope.owner;
+      // A resolver is asynchronous evidence too. Refuse lost authority before Work,
+      // then keep the final check below for movement during the evidence read.
+      await authority.revalidate();
+      const resolvedRevision = await store.readRevision();
+      if (resolvedRevision !== revision) throw new FenceConflictError(revision, resolvedRevision);
+      if (originAuthorized) {
+        const request = deepFreeze({ origin, deliveryId, expectedRevision: revision });
+        diagnostic = captureDiagnostic(await readDiagnostics(request, store), request);
+      }
     } else {
       // Null is observed only after authorization, and must have no dangling association.
       const association = await store.cohortLoad({ model: RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -199,7 +237,7 @@ export async function queryGenerationCallbackDiagnosticsForViewer(
   await authority.revalidate();
   const actual = await store.readRevision();
   if (actual !== revision) throw new FenceConflictError(revision, actual);
-  if (!authority.value) return Object.freeze({ outcome: 'withheld' });
+  if (!authority.value || !originAuthorized) return Object.freeze({ outcome: 'withheld' });
   return diagnostic === undefined ? Object.freeze({ outcome: 'no-association', revision }) :
-    deepFreeze({ outcome: 'observed', revision, origin, diagnostic });
+    deepFreeze({ outcome: 'observed', revision, origin: origin!, diagnostic });
 }

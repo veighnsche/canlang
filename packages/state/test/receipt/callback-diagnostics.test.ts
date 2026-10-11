@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import type { GenerationCallbackDiagnosticRequest, GenerationCallbackDiagnosticResult,
   GenerationCallbackFailure, GenerationCallbackOrigin, ModelName, QueryPredicate, StoragePort } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
-import { queryGenerationCallbackDiagnosticsForViewer } from '../../src/receipt/callback-diagnostics.js';
+import { queryGenerationCallbackDiagnosticsForViewer,
+  type ViewerGenerationCallbackDiagnosticInput } from '../../src/receipt/callback-diagnostics.js';
 import { newAssociationRow, RECEIPT_ASSOCIATION_MODEL } from '../../src/receipt/tables.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
@@ -78,6 +79,14 @@ async function setup(options: { parent?: boolean; archive?: boolean; association
     ]) });
   return { memberships, member, store, table, write, associate, policy, callbackPolicy, input, requests,
     get reads() { return reads; } };
+}
+
+/** Installed Native hooks consume State's observed row and tracked Identity reader. */
+type MutableDiagnosticInput = { -readonly [Key in keyof ViewerGenerationCallbackDiagnosticInput]:
+  ViewerGenerationCallbackDiagnosticInput[Key] };
+function installedInput(s: Awaited<ReturnType<typeof setup>>): MutableDiagnosticInput {
+  const { origin: _origin, callbackPolicy: _callbackPolicy, ...input } = s.input();
+  return { ...input, callbackRead: async () => true, resolveOrigin: async () => origin() };
 }
 
 test('current delivery identity plus explicit callback grant exposes only safe immutable diagnostics without effects', async () => {
@@ -232,4 +241,177 @@ test('origin and caller input are captured before the evidence await; output det
   mutable.failures[0] = { ...failure(), handler: 'changed-after-return' };
   assert.deepEqual(result.diagnostic, diagnostic());
   assert.ok(Object.isFrozen(result.origin.handlers));
+});
+
+test('authorized absent delivery needs no invented origin and never resolves origin or reads Work', async () => {
+  for (const installResolver of [false, true]) {
+    const s = await setup({ association: false }), input = installedInput(s);
+    let resolutions = 0;
+    const { resolveOrigin: _resolver, ...withoutResolver } = input;
+    const result = await queryGenerationCallbackDiagnosticsForViewer(installResolver ? {
+      ...withoutResolver, resolveOrigin: async () => { resolutions++; throw new Error('absent origin lookup'); },
+    } : withoutResolver);
+    assert.deepEqual(result, { outcome: 'no-association', revision: await s.store.readRevision() });
+    assert.equal(resolutions, 0);
+    assert.equal(s.reads, 0);
+  }
+});
+
+test('empty delivery denied by installed callback predicate performs no origin, association or Work lookup', async () => {
+  const s = await setup({ association: false }), load = s.store.cohortLoad.bind(s.store);
+  s.store.cohortLoad = async request => {
+    assert.notEqual(request.model, RECEIPT_ASSOCIATION_MODEL);
+    return load(request);
+  };
+  let predicates = 0, resolutions = 0;
+  const result = await queryGenerationCallbackDiagnosticsForViewer({ ...installedInput(s),
+    callbackRead: async ({ row, context }) => {
+      predicates++; assert.equal(row.data.request, null); assert.equal(context.actorUserId, 'caller'); return false;
+    },
+    resolveOrigin: async () => { resolutions++; throw new Error('denied origin lookup'); },
+  });
+  assert.deepEqual(result, { outcome: 'withheld' });
+  assert.equal(predicates, 1);
+  assert.equal(resolutions, 0);
+  assert.equal(s.reads, 0);
+});
+
+test('installed origin resolver receives exact current association and preserves original source revision', async () => {
+  const s = await setup(), revision = await s.store.readRevision();
+  let resolutions = 0;
+  const result = await queryGenerationCallbackDiagnosticsForViewer({ ...installedInput(s),
+    callbackRead: async ({ row, context, revision: observedRevision, fence }) => {
+      assert.equal(row.id, ID); assert.equal(row.data.title, 'Book');
+      assert.equal(context.actorUserId, 'caller'); assert.equal(context.teamId, TEAM);
+      assert.equal(observedRevision, revision); assert.equal(fence, undefined); return true;
+    },
+    resolveOrigin: async (request, store) => {
+      resolutions++; assert.equal(store, s.store);
+      assert.deepEqual(request, { model: MODEL, recordId: ID, field: 'request', deliveryId: DELIVERY,
+        source: 'std.ImagesV1.submit', expectedRevision: revision });
+      return origin();
+    },
+  });
+  assert.deepEqual(result, { outcome: 'observed', revision, origin: origin(), diagnostic: diagnostic() });
+  assert.equal(resolutions, 1);
+  assert.equal(s.requests[0]!.origin.sourceRevision, '7');
+  assert.notEqual(s.requests[0]!.origin.sourceRevision, String(revision));
+
+  for (const mismatch of ['id', 'source'] as const) {
+    const invalidAssociation = await setup({ association: false });
+    await invalidAssociation.write({ op: 'update', model: MODEL, id: ID,
+      data: { request: { id: DELIVERY, operation: origin().source } } });
+    await invalidAssociation.associate(mismatch === 'id' ? 'different-delivery' : DELIVERY,
+      mismatch === 'source' ? 'std.TextGenerationV1.generate' : origin().source);
+    await assert.rejects(queryGenerationCallbackDiagnosticsForViewer({ ...installedInput(invalidAssociation),
+      resolveOrigin: async () => { assert.fail('resolver must follow exact association matching'); },
+    }), stateCode('validation'));
+    assert.equal(invalidAssociation.reads, 0);
+  }
+});
+
+test('installed relational callback predicate uses the observed parent, current account and tracked subject membership', async () => {
+  for (const recovery of [false, true]) {
+    for (const mode of ['allowed', 'account', 'subject', 'parent', 'subject-during-work', 'parent-during-work'] as const) {
+      const s = await setup({ parent: true, archive: true });
+      const subject = await s.memberships.createMembership({ team_id: TEAM, user_id: 'Book', is_owner: false,
+        roles: [{ role: ROLE, granted_at: new Date(FIXED_NOW).toISOString(), granted_by: 'caller' }] });
+      if (mode === 'account') await s.memberships.createMembership({ team_id: TEAM, user_id: 'other-account',
+        is_owner: false, roles: [] });
+      if (mode === 'subject') await s.memberships.removeMembership(subject.membership_id);
+      if (mode === 'parent') await s.write({ op: 'remove', model: PARENT, id: asId('shelf') });
+      const input = installedInput(s);
+      if (mode === 'account') input.context = { actorUserId: 'other-account', teamId: TEAM };
+      if (recovery) input.policy = policyTable(modelPolicy(MODEL, { grants: [
+        grant('members', ['request.id']),
+        grant('members', ['request.result'], { op: 'eq', field: 'title', value: 'Unmet result condition' }),
+      ] }), modelPolicy(PARENT, { grants: [grant('members', ['title'])] }));
+      let predicates = 0;
+      input.callbackRead = async ({ context, row }) => {
+        predicates++;
+        assert.notEqual(context.memberships, s.memberships, 'predicate must use the authority observation reader');
+        if (row.createdBy !== context.actorUserId || row.data.title !== 'Book' ||
+            row.parent?.model !== PARENT || row.parent.id !== 'shelf' || context.teamId === null) return false;
+        const currentSubject = await context.memberships.findMembership(context.teamId, row.data.title as string);
+        return currentSubject?.status === 'active' && currentSubject.roles.some(role => role.role === ROLE);
+      };
+      input.readDiagnostics = async (request, store) => {
+        await s.input().readDiagnostics(request, store);
+        if (mode === 'subject-during-work') await s.memberships.removeMembership(subject.membership_id);
+        if (mode === 'parent-during-work') await s.write({ op: 'remove', model: PARENT, id: asId('shelf') });
+        return diagnostic();
+      };
+      if (mode === 'subject-during-work' || mode === 'parent-during-work') {
+        await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), mode === 'parent-during-work'
+          ? (error: unknown) => error instanceof FenceConflictError : stateCode('forbidden'));
+        assert.equal(s.reads, 1);
+      } else {
+        const result = await queryGenerationCallbackDiagnosticsForViewer(input);
+        assert.equal(result.outcome, mode === 'allowed' ? 'observed' : 'withheld');
+        assert.equal(s.reads, mode === 'allowed' ? 1 : 0);
+      }
+      if (mode === 'parent') assert.equal(predicates, 0, 'parent authority precedes callback evaluation');
+      if (mode === 'allowed') assert.equal(predicates, 2, 'relational subjects require complete snapshot evaluation');
+    }
+  }
+});
+
+test('Identity and State movement during installed predicate and origin resolver awaits refuses disclosure', async () => {
+  for (const stage of ['predicate', 'resolver'] as const) {
+    for (const movement of ['identity', 'state'] as const) {
+      const s = await setup(), input = installedInput(s);
+      const move = async () => {
+        if (movement === 'identity') await s.memberships.removeMembership(s.member.membership_id);
+        else await s.write({ op: 'update', model: MODEL, id: ID, data: { title: 'Moved' } });
+      };
+      if (stage === 'predicate') input.callbackRead = async () => { await move(); return true; };
+      else input.resolveOrigin = async () => { await move(); return origin(); };
+      await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), movement === 'state'
+        ? (error: unknown) => error instanceof FenceConflictError : stateCode('forbidden'));
+      assert.equal(s.reads, 0, `${stage}/${movement} must refuse before Work`);
+    }
+  }
+});
+
+test('installed callback authority requires a boolean and one exclusive policy implementation', async () => {
+  for (const malformed of ['true', 1, null, {}]) {
+    const s = await setup();
+    await assert.rejects(queryGenerationCallbackDiagnosticsForViewer({ ...installedInput(s),
+      callbackRead: async () => malformed as unknown as boolean,
+      resolveOrigin: async () => { assert.fail('malformed callback authority cannot resolve origin'); },
+    }), stateCode('validation'));
+    assert.equal(s.reads, 0);
+  }
+  const s = await setup();
+  await assert.rejects(queryGenerationCallbackDiagnosticsForViewer({ ...installedInput(s),
+    callbackPolicy: s.callbackPolicy(),
+  }), stateCode('validation'));
+  await assert.rejects(queryGenerationCallbackDiagnosticsForViewer({ ...installedInput(s),
+    origin: origin(),
+  }), stateCode('validation'));
+  const { callbackRead: _predicate, ...missingAuthority } = installedInput(s);
+  await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(missingAuthority), stateCode('validation'));
+  assert.equal(s.reads, 0);
+});
+
+test('installed origin and refusal outputs reject malformed shape, wrong source, field and owner', async () => {
+  for (const mode of ['shape', 'source', 'field', 'owner', 'refusal'] as const) {
+    const s = await setup(), input = installedInput(s);
+    input.resolveOrigin = async () => {
+      if (mode === 'shape') return { ...origin(), sourceRevision: 'association-revision' };
+      if (mode === 'source') return { ...origin(), source: 'std.TextGenerationV1.generate',
+        event: 'Callback.Images.generate.progressed' };
+      if (mode === 'owner') return { ...origin(), scope: { ...origin().scope, owner: 'other-team' } };
+      return origin();
+    };
+    if (mode === 'field') input.field = 'otherRequest';
+    if (mode === 'refusal') input.readDiagnostics = async (request, store) => {
+      await s.input().readDiagnostics(request, store);
+      return { outcome: 'unsupported', reason: 'private-source-failure' } as unknown as GenerationCallbackDiagnosticResult;
+    };
+    if (mode === 'owner') {
+      assert.deepEqual(await queryGenerationCallbackDiagnosticsForViewer(input), { outcome: 'withheld' });
+    } else await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), stateCode('validation'));
+    assert.equal(s.reads, mode === 'refusal' ? 1 : 0);
+  }
 });
