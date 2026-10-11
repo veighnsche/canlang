@@ -8288,6 +8288,131 @@ impl<'a> Closure<'a> {
         result
     }
 
+    /// Two original contained creates may retain the first row as their result.
+    /// The later row must directly store that exact CreateAs and use its own
+    /// checked contained count; this does not admit arbitrary multi-create bodies.
+    fn checked_created_pair(&self, effects: &[Effect], module: ModuleId, created: &Effect) -> bool {
+        let Some(model) = self.result_model else {
+            return false;
+        };
+        let mut creates = effects
+            .iter()
+            .enumerate()
+            .filter(|(_, effect)| effect.verb == EffectVerb::Create);
+        let Some((index, first)) = creates.next() else {
+            return false;
+        };
+        let Some((second_index, second)) = creates.next() else {
+            return false;
+        };
+        if creates.next().is_some()
+            || first.node != created.node
+            || second_index != index + 1
+            || effects[..index]
+                .iter()
+                .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+        {
+            return false;
+        }
+        let Some(first) = self.checked_create_source(first, module) else {
+            return false;
+        };
+        let Some(second) = self.checked_create_source(second, module) else {
+            return false;
+        };
+        let ModelOwner::ChildOf(parent) = first.definition.declaration.owner else {
+            return false;
+        };
+        if first.model != model
+            || second.model == model
+            || first.binding == second.binding
+            || second.definition.declaration.owner != ModelOwner::ChildOf(parent)
+        {
+            return false;
+        }
+        let Some(first_parent) = first.inputs.iter().find(|input| input.name == "parent") else {
+            return false;
+        };
+        let Some(second_parent) = second.inputs.iter().find(|input| input.name == "parent") else {
+            return false;
+        };
+        let Some(Binding::Symbol(parameter)) = self.query_binding(first_parent.value_node) else {
+            return false;
+        };
+        if self.checked_call_parent_path(first_parent.value_node, *parameter, 0)
+            != Some((parent, 0))
+            || self.checked_call_parent_path(second_parent.value_node, *parameter, 0)
+                != Some((parent, 0))
+        {
+            return false;
+        }
+        let result_type = ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        };
+        let mut result_inputs = second.inputs.iter().filter(|input| input.ty == result_type);
+        let Some(result_input) = result_inputs.next() else {
+            return false;
+        };
+        if result_inputs.next().is_some()
+            || result_input.field.is_none()
+            || !matches!(self.query_binding(result_input.value_node),
+                Some(Binding::CreateAs {node}) if *node == first.node)
+        {
+            return false;
+        }
+        self.effects.scenarios.values().any(|scenario| {
+            scenario.module == module
+                && scenario
+                    .effects
+                    .iter()
+                    .any(|effect| effect.node == first.node)
+                && scenario
+                    .effects
+                    .iter()
+                    .any(|effect| effect.node == second.node)
+                && self
+                    .checked_count_query_sources(scenario)
+                    .is_some_and(|queries| {
+                        queries.iter().any(|query| {
+                            let Some(count) = &query.count else {
+                                return false;
+                            };
+                            query.model == second.model
+                                && count.statement == second.node
+                                && count
+                                    .contained_parent
+                                    .is_some_and(|(_, actual)| actual == *parameter)
+                                && second.inputs.iter().any(|input| {
+                                    let Some((counted, increment)) =
+                                        self.query_binary(input.value_node, "+")
+                                    else {
+                                        return false;
+                                    };
+                                    input.field.is_some()
+                                        && input.ty == ResolvedType::Scalar(Scalar::Int)
+                                        && self.query_group(counted) == Some(count.call)
+                                        && self.query_group(increment).is_some_and(|increment| {
+                                            self.nodes.get(&increment).is_some_and(|node| {
+                                                node.kind == SyntaxKind::Literal
+                                                    && self.types.node_types.get(&increment)
+                                                        == Some(&ResolvedType::Scalar(Scalar::Int))
+                                                    && self.db.get(increment.file).and_then(
+                                                        |source| {
+                                                            source.text.get(
+                                                                increment.start as usize
+                                                                    ..increment.end as usize,
+                                                            )
+                                                        },
+                                                    ) == Some("1")
+                                            })
+                                        })
+                                })
+                        })
+                    })
+        })
+    }
+
     fn statements_inner(
         &mut self,
         effects: &[Effect],
@@ -8299,10 +8424,13 @@ impl<'a> Closure<'a> {
             .iter()
             .find(|effect| effect.verb == EffectVerb::Create)
         {
+            let created_pair = self.checked_created_pair(effects, module, created);
             let direct_model_return = self.result_model.is_some_and(|model| {
                 effects.len() >= 2
-                    && effects.get(effects.len() - 2).map(|effect| effect.node) == Some(created.node)
-                    && effects[..effects.len() - 2].iter().all(|effect| matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+                    && ((effects.get(effects.len() - 2).map(|effect| effect.node) == Some(created.node)
+                            && effects[..effects.len() - 2].iter().all(|effect| matches!(effect.verb, EffectVerb::Let | EffectVerb::Require)))
+                        || (created_pair && effects.len() >= 3
+                            && effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)))
                     && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
                     && effects.last().is_some_and(|returned| {
                         returned.verb == EffectVerb::Return
@@ -8372,20 +8500,20 @@ impl<'a> Closure<'a> {
                 else {
                     return false;
                 };
-                let tail = &effects[index..];
-                if tail.len() < 5
+                let tail = &effects[index + 1 + usize::from(created_pair)..];
+                if tail.len() < 4
                     || effects[..index]
                         .iter()
                         .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
                     || !matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
                     || created.binding.is_none()
-                    || tail[1].verb != EffectVerb::Set
-                    || tail[2].verb != EffectVerb::Send
-                    || tail[2].when.is_none()
-                    || tail[2].binding.is_none()
-                    || tail[3].verb != EffectVerb::Set
-                    || !matches!(tail[3].target, Some(EffectTarget::Record {model: Some(actual)}) if actual == model)
-                    || tail[4..tail.len() - 1]
+                    || tail[0].verb != EffectVerb::Set
+                    || tail[1].verb != EffectVerb::Send
+                    || tail[1].when.is_none()
+                    || tail[1].binding.is_none()
+                    || tail[2].verb != EffectVerb::Set
+                    || !matches!(tail[2].target, Some(EffectTarget::Record {model: Some(actual)}) if actual == model)
+                    || tail[3..tail.len() - 1]
                         .iter()
                         .any(|effect| effect.verb != EffectVerb::Require)
                     || effects.iter().any(|effect| {
@@ -8396,8 +8524,8 @@ impl<'a> Closure<'a> {
                 {
                     return false;
                 }
-                let sent = &tail[2];
-                let assigned = &tail[3];
+                let sent = &tail[1];
+                let assigned = &tail[2];
                 let receiver = self.nodes.get(&assigned.node).and_then(|node| {
                     node.children
                         .iter()
