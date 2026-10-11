@@ -6752,6 +6752,27 @@ impl<'a> Emitter<'a> {
                 } = &field.kind
                 {
                     defaults.push((field.name.clone(), expr.clone()));
+                } else if let IrItemKind::Field {
+                    owner: field_owner,
+                    ty: IrType::Known(ResolvedType::Nullable(inner)),
+                    default: None,
+                    server: None,
+                    ..
+                } = &field.kind
+                    && *field_owner == item.id
+                    && field.id == *field_id
+                    && field.module == item.module
+                    && field.canonical == format!("{}.{}", item.canonical, field.name)
+                    && let ResolvedType::Enum { cases, owner: Some(enum_owner) } = inner.as_ref()
+                    && self.ir.items.get(enum_owner.0 as usize).is_some_and(|declaration| {
+                        let IrItemKind::Field { ty: IrType::Known(original), .. } = &declaration.kind else { return false; };
+                        let original = if let ResolvedType::Nullable(inner) = original { inner.as_ref() } else { original };
+                        declaration.id == *enum_owner
+                            && matches!(original, ResolvedType::Enum { cases: original, owner: Some(original_owner) }
+                                if original == cases && original_owner == enum_owner)
+                    })
+                {
+                    defaults.push((field.name.clone(), TypedExpr::new(IrExpr::Null, ResolvedType::Nullable(inner.clone()), field.span)));
                 }
             }
         }
