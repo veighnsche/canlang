@@ -1880,6 +1880,11 @@ export function assertRequiresFulfilled(
  */
 export function withCanonicalCommitGuard(store: StoragePort, operation: string): StoragePort {
   return {
+    cohortIdOrder: store.cohortIdOrder,
+    cohortIdentityPage: input => store.cohortIdentityPage(input),
+    cohortLoad: input => store.cohortLoad(input),
+    cohortRowPage: input => store.cohortRowPage(input),
+    cohortAnchorFact: input => store.cohortAnchorFact(input),
     readRevision: () => store.readRevision(),
     load: (model, id) => store.load(model, id),
     query: (spec) => store.query(spec),
@@ -3478,7 +3483,13 @@ function stagedKey(model: string, id: string): string {
  * (delegation list mirrors the commit guard; tsc enforces it).
  */
 export function withStagedOverlay(store: StoragePort, staged: StagedRowView): StoragePort {
+  const refuseCohort = (): never => {
+    throw new Error('t17b: staged overlay cannot serve physical cohort checkpoints over staged rows.');
+  };
   return {
+    cohortIdOrder: store.cohortIdOrder,
+    cohortIdentityPage: refuseCohort, cohortLoad: refuseCohort,
+    cohortRowPage: refuseCohort, cohortAnchorFact: refuseCohort,
     readRevision: () => store.readRevision(),
     load: async (model, id) => {
       const key = stagedKey(model as string, id as string);
@@ -4455,7 +4466,9 @@ async function loadLocalOwnerPolicyControl(input: {
               catch (error) { if (!failed) { failed = true; firstFailure = error; } throw firstFailure; }
             };
             const refuse = (): never => guarded(() => { throw new input.native.producers.errors('validation', 'Native hooks cannot access raw storage or unjoined effects.'); });
-            const store: StoragePort = Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
+            const store: StoragePort = Object.freeze({ cohortIdOrder: 'utf16' as const,
+              cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
+              readRevision: refuse, load: refuse, query: refuse, commit: refuse,
               readReceipt: refuse, outboxGet: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
               readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
               publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
@@ -4533,7 +4546,9 @@ async function loadLocalOwnerPolicyControl(input: {
             if (!active || !frame.active) throw new input.native.producers.errors('validation', 'Owner model rule frame is closed.');
           };
           const refuse = (): never => { assertLive(); throw new input.native.producers.errors('validation', 'Local owner model rules cannot access storage.'); };
-          const store: StoragePort = Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
+          const store: StoragePort = Object.freeze({ cohortIdOrder: 'utf16' as const,
+            cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
+            readRevision: refuse, load: refuse, query: refuse, commit: refuse,
             readReceipt: refuse, outboxGet: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
             readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
             publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
@@ -7012,17 +7027,34 @@ function emittedPrivateCohort(definition: unknown, handler: string, event: strin
 
 async function stagePrivateSourceCohort(opts: CanonicalDueScheduleOpts, loaded: LoadedCanonicalDescriptors,
   definition: unknown, handler: string, captured: unknown, inputs: unknown,
-  bounds: FanoutTriggerJoinBounds, producers: FanoutStateProducers, meta: FanoutRowMeta) {
+  bounds: FanoutTriggerJoinBounds, producers: FanoutStateProducers, meta: FanoutRowMeta, expectedRevision: Revision) {
   const declared = emittedPrivateCohort(definition, handler, opts.due.event, opts.due.scope.owner, captured, inputs);
   loaded.producers.registry.loadArtifactDescriptors({ ...opts.artifact, operations: [declared.invocation] }, { by: () => 'owner' });
   if (!loaded.models.some(model => model.name === declared.cohort.model)) throw new Error('Cohort names an unknown owning model.');
-  if (declared.cohort.kind === 'anchored-collection' && !(await classifyFanoutAnchor(opts.store, declared.cohort.parent)).known) {
-    return { status: 'refused' as const, reason: 'unknown-cohort-anchor' };
+  if (declared.cohort.kind === 'anchored-collection') {
+    const anchor = await opts.store.cohortAnchorFact({ model: declared.cohort.parent.model as ModelName,
+      id: declared.cohort.parent.id as RecordId, expectedRevision });
+    if (anchor === 'unknown') return { status: 'refused' as const, reason: 'unknown-cohort-anchor' };
+  }
+  const membership = await loadProducerModule(STATE_FANOUT_MEMBERSHIP_SPECIFIER, 'private cohort membership');
+  const capture = requireProducerFn(membership, 'capturePrivateFanoutIdentities', 'private cohort membership') as
+    typeof import('@canlang/state/fanout/membership').capturePrivateFanoutIdentities;
+  const checkIdentity = requireProducerFn(membership, 'checkPrivateFanoutIdentity', 'private cohort membership') as
+    typeof import('@canlang/state/fanout/membership').checkPrivateFanoutIdentity;
+  const limits = privateSourceMember(membership, 'PRIVATE_FANOUT_LIMITS') as
+    typeof import('@canlang/state/fanout/membership').PRIVATE_FANOUT_LIMITS;
+  checkIdentity(opts.due.occurrenceId);
+  checkIdentity(handler);
+  if (!Number.isSafeInteger(bounds.chunkSize) || bounds.chunkSize < 1) {
+    throw new Error('Native cohort chunk needs a positive finite bound.');
   }
   const members = producers.staging.stageFanoutMembership(
-    await drainFanoutCohortIdentities(opts.store, declared.cohort, bounds.pageLimit), 'work.fanout_intent.members');
+    await capture({ store: opts.store, cohort: declared.cohort,
+      pageLimit: Math.min(bounds.pageLimit, limits.page), expectedRevision }),
+    'work.fanout_intent.members');
   return { status: 'ready' as const, staged: fanoutAdmissionWrites(producers,
-    { sourceOccurrence: opts.due.occurrenceId, handler }, declared.cohort.kind, members, bounds.chunkSize, meta) };
+    { sourceOccurrence: opts.due.occurrenceId, handler }, declared.cohort.kind, members,
+    Math.min(bounds.chunkSize, limits.page), meta) };
 }
 
 /** Consume one exact source head and freeze every cohort handler of that event together. */
@@ -7059,7 +7091,7 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
     // Mixed ordinary/cohort routes require a common source transaction too;
     // this bounded consumer refuses them rather than consuming only one route.
     const route = await stagePrivateSourceCohort(opts, loaded, definition, handler, captured, inputs,
-      bounds, producers, { actor: trustedSource, nowMs: now });
+      bounds, producers, { actor: trustedSource, nowMs: now }, revision);
     if (route.status !== 'ready') return route;
     const staged = route.staged;
     writes.push(...staged.writes);
@@ -7149,13 +7181,17 @@ async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, '
 }
 
 async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, store: StoragePort,
-  occurrenceId: string, event: string, scope: import('@canlang/contracts').WorkScope) {
+  occurrenceId: string, event: string, scope: import('@canlang/contracts').WorkScope,
+  expectedRevision?: Revision) {
   const checked = loaded.committedChanges.get(event);
   if (checked === undefined || checked.ownerPackage !== scope.ownerPackage) throw new Error('Committed source lacks its checked route.');
   const tables = await loadProducerModule('@canlang/work/kernel/tables', 'committed source receipt');
   const read = requireProducerFn(tables, 'readOccurrenceRow', 'committed source receipt') as
     typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
-  const row = await store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, occurrenceId as RecordId);
+  const row = expectedRevision === undefined
+    ? await store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, occurrenceId as RecordId)
+    : await store.cohortLoad({ model: tables['WORK_OCCURRENCE_MODEL'] as ModelName,
+      id: occurrenceId as RecordId, expectedRevision });
   if (row === null) throw new Error('Committed source has no physical occurrence receipt.');
   const receipt = read(row);
   const result = localPolicyObject(receipt.result);
@@ -7181,9 +7217,9 @@ async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, st
 async function readCheckedRetainedSource(
   opts: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact' | 'identities'>,
   loaded: LoadedCanonicalDescriptors, store: StoragePort, occurrenceId: string, event: string,
-  scope: import('@canlang/contracts').WorkScope, now: number) {
+  scope: import('@canlang/contracts').WorkScope, now: number, expectedRevision?: Revision) {
   if (!loaded.standardCompletions?.has(event)) {
-    return readCheckedCommittedSource(loaded, store, occurrenceId, event, scope);
+    return readCheckedCommittedSource(loaded, store, occurrenceId, event, scope, expectedRevision);
   }
   const source = loaded.standardCompletions.get(event)!;
   if (source.app !== scope.app || source.ownerPackage !== scope.ownerPackage) {
@@ -7195,8 +7231,10 @@ async function readCheckedRetainedSource(
   const installed = installedNativeCompletionSource(opts.asm, opts.artifact, scope, opts.identities);
   await installed.verify(now);
   const tables = await loadProducerModule('@canlang/work/kernel/tables', 'completion source locator');
-  const row = await store.load(requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'completion source locator') as ModelName,
-    occurrenceId as RecordId);
+  const occurrenceModel = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'completion source locator') as ModelName;
+  const row = expectedRevision === undefined
+    ? await store.load(occurrenceModel, occurrenceId as RecordId)
+    : await store.cohortLoad({ model: occurrenceModel, id: occurrenceId as RecordId, expectedRevision });
   if (row === null) throw new AssemblyCorrespondenceError('Completion has no consumed physical source.');
   // This physical field only locates the delivery. The owning Work read must
   // prove the original delivery, source, and complete retained route inventory.
@@ -7221,7 +7259,8 @@ async function readCheckedRetainedSource(
   }
   checkedCompletionPayload(source, payload);
   await installed.verify(now);
-  if (await store.readRevision() !== read.revision) {
+  if ((expectedRevision !== undefined && read.revision !== expectedRevision) ||
+      await store.readRevision() !== read.revision) {
     throw new AssemblyCorrespondenceError('Completion source revision changed after its checked read.');
   }
   return { receipt, result, payload, handlers,
@@ -7270,7 +7309,7 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
     if (route.cohort) {
       if (producers === undefined) throw new Error('Private source cohort producer is unavailable.');
       const staged = await stagePrivateSourceCohort(opts, loaded, route.definition, route.handler,
-        captured, inputs, bounds, producers, { actor: trustedSource, nowMs: now });
+        captured, inputs, bounds, producers, { actor: trustedSource, nowMs: now }, revision);
       if (staged.status !== 'ready') return staged;
       writes.push(...staged.staged.writes);
       fanouts.push({ handler: route.handler, fanoutId: staged.staged.fanoutId });
@@ -7330,9 +7369,10 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
     typeof import('@canlang/work/kernel/tables').readScheduleRow;
   const readReceipt = requireProducerFn(tables, 'readOccurrenceRow', 'cohort retained source') as
     typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+  const sourceRevision = await opts.store.readRevision();
   const committed = due === undefined
     ? await readCheckedRetainedSource(opts, loaded, opts.store, selectedSource.occurrenceId,
-      selectedSource.event, selectedSource.scope, opts.now()) : undefined;
+      selectedSource.event, selectedSource.scope, opts.now(), sourceRevision) : undefined;
   const completion = loaded.standardCompletions?.has(selectedSource.event) === true;
   let source: { occurrenceId: string; event: string; payload: unknown; scopeOwner: string };
   let receipt: ReturnType<typeof readReceipt>;
@@ -7341,8 +7381,10 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
     source = { occurrenceId: selectedSource.occurrenceId, event: selectedSource.event,
       payload: committed.payload, scopeOwner: selectedSource.scope.owner };
   } else {
-    const row = await opts.store.load(tables['WORK_SCHEDULE_MODEL'] as ModelName, selectedSource.occurrenceId as RecordId);
-    const receiptRow = await opts.store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, selectedSource.occurrenceId as RecordId);
+    const row = await opts.store.cohortLoad({ model: tables['WORK_SCHEDULE_MODEL'] as ModelName,
+      id: selectedSource.occurrenceId as RecordId, expectedRevision: sourceRevision });
+    const receiptRow = await opts.store.cohortLoad({ model: tables['WORK_OCCURRENCE_MODEL'] as ModelName,
+      id: selectedSource.occurrenceId as RecordId, expectedRevision: sourceRevision });
     if (row === null || receiptRow === null || due === undefined) throw new Error('Private cohort has no admitted source receipt.');
     const schedule = readSchedule(row);
     receipt = readReceipt(receiptRow);
@@ -7373,9 +7415,14 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
   if (!inventory.some((entry: unknown) => isUnknownRecord(entry) && entry.handler === opts.handler && entry.fanoutId === fanoutId)) {
     throw new Error('Private cohort is absent from its committed source receipt.');
   }
-  const intent = await opts.store.load(T34F7_FANOUT_INTENT_MODEL, fanoutId as RecordId);
+  const intent = await opts.store.cohortLoad({ model: T34F7_FANOUT_INTENT_MODEL, id: fanoutId as RecordId, expectedRevision: sourceRevision });
   if (intent === null) throw new Error('Private cohort has no frozen intent.');
-  const frozen = producers.tables.readFanoutIntentRow(intent);
+  const membership = await loadProducerModule(STATE_FANOUT_MEMBERSHIP_SPECIFIER, 'private cohort source');
+  const readIntent = requireProducerFn(membership, 'readPrivateFanoutIntentRow', 'private cohort source') as
+    typeof import('@canlang/state/fanout/membership').readPrivateFanoutIntentRow;
+  const limits = privateSourceMember(membership, 'PRIVATE_FANOUT_LIMITS') as
+    typeof import('@canlang/state/fanout/membership').PRIVATE_FANOUT_LIMITS;
+  const frozen = readIntent(intent);
   if (frozen.handler !== opts.handler || frozen.sourceOccurrence !== source.occurrenceId || frozen.cohort !== declared.cohort.kind) {
     throw new Error('Private cohort source and frozen intent disagree.');
   }
@@ -7388,7 +7435,7 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
       throw new Error('Committed cohort differs from its original frozen source cut.');
     }
   }
-  const bounds = committed === undefined ? privateSourceMember(receipt.result, 'bounds') : { pageLimit: committed.bounds.maxMembers, chunkSize: committed.bounds.chunkSize };
+  const bounds = committed === undefined ? privateSourceMember(receipt.result, 'bounds') : { pageLimit: Math.min(limits.page, Number(committed.bounds.maxMembers)), chunkSize: committed.bounds.chunkSize };
   if (!isUnknownRecord(bounds) || !Number.isSafeInteger(bounds.pageLimit) || Number(bounds.pageLimit) < 1 ||
       !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) throw new Error('Cohort source lost its admission bounds.');
   const admittedInputs: Record<string, unknown> = Object.create(null);
@@ -8393,6 +8440,8 @@ async function runReadScenarioSeam(
     throw new StateError('validation', 'Read scenarios cannot perform effects or bypass the viewer read port.');
   };
   const readonlyStore: StoragePort = {
+    cohortIdOrder: opts.store.cohortIdOrder,
+    cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
     readRevision: () => opts.store.readRevision(),
     load: refuse, query: refuse, commit: refuse, readReceipt: refuse,
     outboxPending: refuse, outboxGet: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
@@ -9234,6 +9283,11 @@ export async function createWorkerDispatchJoinPort(
  */
 export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort): StoragePort {
   return {
+    cohortIdOrder: store.cohortIdOrder,
+    cohortIdentityPage: input => store.cohortIdentityPage(input),
+    cohortLoad: input => store.cohortLoad(input),
+    cohortRowPage: input => store.cohortRowPage(input),
+    cohortAnchorFact: input => store.cohortAnchorFact(input),
     readRevision: () => store.readRevision(),
     load: (model, id) => store.load(model, id),
     query: (spec) => store.query(spec),
@@ -11319,6 +11373,7 @@ interface FanoutOutcomeProducer {
 interface FanoutLifecycleProducer {
   classifyFanoutChildLifecycle(input: {
     readonly store: StoragePort;
+    readonly expectedRevision?: Revision;
     readonly model: string;
     readonly recordId: string;
     readonly anchor?: { readonly model: string; readonly id: string };
@@ -12229,6 +12284,42 @@ export type FanoutChildClaimOutcome =
   /** Guard-false on the current snapshot: pinned skipped/non-applicable. */
   | { readonly status: "skipped"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow };
 
+/** Private native read group. Generic fanout callers retain their existing ports. */
+interface PrivateFanoutReads {
+  readonly readIntent: typeof import('@canlang/state/fanout/membership').readPrivateFanoutIntentRow;
+  readonly readChild: typeof import('@canlang/state/fanout/membership').readPrivateFanoutChildRow;
+  readonly readCheckpoint: typeof import('@canlang/state/fanout/membership').readPrivateFanoutCheckpointRow;
+  readonly load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+  readonly page: (fanoutId: string, after: string | null, limit: number) => Promise<ReadonlyArray<StoredRow>>;
+  readonly revision: () => Revision;
+  readonly advance: (revision: Revision) => void;
+}
+
+async function openPrivateFanoutReads(store: StoragePort): Promise<PrivateFanoutReads> {
+  // Pin the actual owner methods; no wrapper may replace the physical issuer.
+  const load = store.cohortLoad;
+  const page = store.cohortRowPage;
+  if (typeof load !== 'function' || typeof page !== 'function') {
+    throw new Error('Native cohort requires its bounded owning storage read ports.');
+  }
+  const membership = await loadProducerModule(STATE_FANOUT_MEMBERSHIP_SPECIFIER, 'private retained fanout');
+  const readIntent = requireProducerFn(membership, 'readPrivateFanoutIntentRow', 'private retained fanout') as
+    typeof import('@canlang/state/fanout/membership').readPrivateFanoutIntentRow;
+  const readChild = requireProducerFn(membership, 'readPrivateFanoutChildRow', 'private retained fanout') as
+    typeof import('@canlang/state/fanout/membership').readPrivateFanoutChildRow;
+  const readCheckpoint = requireProducerFn(membership, 'readPrivateFanoutCheckpointRow', 'private retained fanout') as
+    typeof import('@canlang/state/fanout/membership').readPrivateFanoutCheckpointRow;
+  let revision = await store.readRevision();
+  return {
+    readIntent, readChild, readCheckpoint,
+    load: (model, id) => load.call(store, { model, id, expectedRevision: revision }),
+    page: (fanoutId, after, limit) => page.call(store, { model: T34F7_FANOUT_CHILD_MODEL,
+      fanoutId, after: after as RecordId | null, limit, expectedRevision: revision }),
+    revision: () => revision,
+    advance: next => { revision = next; },
+  };
+}
+
 /** T34-F7: pin result (pending-row claim-time pin, attempts unchanged). */
 interface FanoutPinResult {
   readonly row: StoredRow;
@@ -12254,14 +12345,16 @@ async function pinFanoutChildTerminal(input: {
   readonly meta: FanoutRowMeta;
   readonly producers: FanoutStateProducers;
   readonly what: string;
+  readonly reads?: PrivateFanoutReads | undefined;
 }): Promise<FanoutPinResult> {
-  const { store, childRow, result, nowMs, policy, meta, producers, what } = input;
-  const data = producers.tables.readFanoutChildRow(childRow);
-  const checkpointRow = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, data.fanoutId as RecordId);
+  const { store, childRow, result, nowMs, policy, meta, producers, what, reads } = input;
+  const load = reads?.load ?? ((model: ModelName, id: RecordId) => store.load(model, id));
+  const data = (reads?.readChild ?? producers.tables.readFanoutChildRow)(childRow);
+  const checkpointRow = await load(T34F7_FANOUT_CHECKPOINT_MODEL, data.fanoutId as RecordId);
   if (checkpointRow === null) {
     throw new Error(`t34-f7: ${what}: checkpoint row missing for a terminal pin.`);
   }
-  const checkpoint = producers.tables.readFanoutCheckpointRow(checkpointRow);
+  const checkpoint = (reads?.readCheckpoint ?? producers.tables.readFanoutCheckpointRow)(checkpointRow);
   const staged = producers.outcome.stageFanoutChildOutcomeWrite({
     row: childRow,
     result,
@@ -12277,7 +12370,7 @@ async function pinFanoutChildTerminal(input: {
     meta,
   });
   const batch: CommitBatch = {
-    expectedRevision: await store.readRevision(),
+    expectedRevision: reads?.revision() ?? await store.readRevision(),
     writes: [staged.write, advance],
     history: [],
     receipt: null,
@@ -12288,13 +12381,15 @@ async function pinFanoutChildTerminal(input: {
   };
   producers.join.assertFanoutChildJoin(batch);
   try {
-    await store.commit(batch);
+    const committed = await store.commit(batch);
+    reads?.advance(committed.revision);
   } catch (error) {
     if (fanoutStateErrorCode(error) !== null) throw error;
     if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
       throw error;
     }
-    const reloaded = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+    if (reads !== undefined) throw error;
+    const reloaded = await load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
     if (reloaded === null) {
       throw new Error(`t34-f7: ${what}: child row vanished under a pin race.`);
     }
@@ -12303,7 +12398,7 @@ async function pinFanoutChildTerminal(input: {
     if (replayed === null) throw error;
     return { row: reloaded, outcome: replayed };
   }
-  const stagedData = producers.tables.readFanoutChildRow(staged.row);
+  const stagedData = (reads?.readChild ?? producers.tables.readFanoutChildRow)(staged.row);
   return { row: staged.row, outcome: fanoutTerminalOrThrow(staged.row, stagedData, what) };
 }
 
@@ -12320,9 +12415,15 @@ async function pinFanoutChildTerminal(input: {
  * Single-shot (T24b precedent): a fence conflict with the row still
  * pending reads as refused-stale (the world moved; re-drive).
  */
-export async function claimFanoutChild(
+export async function claimFanoutChild(opts: ClaimFanoutChildOpts): Promise<FanoutChildClaimOutcome> {
+  return claimFanoutChildWithReads(opts);
+}
+
+async function claimFanoutChildWithReads(
   opts: ClaimFanoutChildOpts,
+  reads?: PrivateFanoutReads,
 ): Promise<FanoutChildClaimOutcome> {
+  const load = reads?.load ?? ((model: ModelName, id: RecordId) => opts.store.load(model, id));
   const producers = opts.producers ?? (await loadFanoutStateProducers());
   checkFanoutRowMeta(opts.meta, "claim");
   checkFanoutPolicy(opts.policy, "claim");
@@ -12345,11 +12446,11 @@ export async function claimFanoutChild(
     opts.child.handler,
     opts.child.recordId,
   );
-  const current = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
+  const current = await load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
   if (current === null) {
     throw new Error(`t34-f7: no fanout child row for ${JSON.stringify(key)} (producer write missing).`);
   }
-  const data = producers.tables.readFanoutChildRow(current);
+  const data = (reads?.readChild ?? producers.tables.readFanoutChildRow)(current);
   const terminal = fanoutChildOutcomeFromData(data);
   if (terminal !== null) {
     return { status: "replayed", outcome: terminal, row: current };
@@ -12373,6 +12474,7 @@ export async function claimFanoutChild(
     ) {
       const pinned = await pinFanoutChildTerminal({
         store: opts.store,
+        reads,
         childRow: current,
         result: {
           kind: "failed",
@@ -12398,6 +12500,7 @@ export async function claimFanoutChild(
     if (verdict !== true) {
       const pinned = await pinFanoutChildTerminal({
         store: opts.store,
+        reads,
         childRow: current,
         result: { kind: "skipped", reason: "non-applicable" },
         nowMs: opts.meta.nowMs,
@@ -12412,6 +12515,7 @@ export async function claimFanoutChild(
   if (fence !== undefined && (await fence.revalidateAuthority()) !== true) {
     const pinned = await pinFanoutChildTerminal({
       store: opts.store,
+      reads,
       childRow: current,
       result: {
         kind: "failed",
@@ -12431,8 +12535,8 @@ export async function claimFanoutChild(
     opts.meta,
   );
   try {
-    await opts.store.commit({
-      expectedRevision: await opts.store.readRevision(),
+    const committed = await opts.store.commit({
+      expectedRevision: reads?.revision() ?? await opts.store.readRevision(),
       writes: [
         {
           kind: "update",
@@ -12449,6 +12553,7 @@ export async function claimFanoutChild(
       uniqueClaims: [],
       uniqueReleases: [],
     });
+    reads?.advance(committed.revision);
   } catch (error) {
     if (fanoutStateErrorCode(error) !== null) throw error;
     if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
@@ -12456,7 +12561,8 @@ export async function claimFanoutChild(
     }
     // Lost race: observe the winner. Terminal replays, running
     // holds, still-pending reads stale (the world moved; re-drive).
-    const reloaded = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
+    if (reads !== undefined) throw error;
+    const reloaded = await load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
     if (reloaded === null) {
       throw new Error("t34-f7: claim: child row vanished under a claim race.");
     }
@@ -12642,8 +12748,13 @@ export interface ReleaseStaleFanoutClaimsResult {
  * (a release is not an attempt); fresh/uncertain claims are
  * untouched (a live worker may hold them).
  */
-export async function releaseStaleFanoutClaims(
+export async function releaseStaleFanoutClaims(opts: ReleaseStaleFanoutClaimsOpts): Promise<ReleaseStaleFanoutClaimsResult> {
+  return releaseStaleFanoutClaimsWithReads(opts);
+}
+
+async function releaseStaleFanoutClaimsWithReads(
   opts: ReleaseStaleFanoutClaimsOpts,
+  reads?: PrivateFanoutReads,
 ): Promise<ReleaseStaleFanoutClaimsResult> {
   const producers = opts.producers ?? (await loadFanoutStateProducers());
   checkFanoutRowMeta(opts.meta, "release");
@@ -12663,11 +12774,11 @@ export async function releaseStaleFanoutClaims(
     cursor: opts.cursor,
     limit: opts.limit,
   });
-  const page = producers.tables.fanoutChildPageResult(await opts.store.query(query), opts.limit);
+  const page = producers.tables.fanoutChildPageResult((reads === undefined ? await opts.store.query(query) : await reads.page(opts.fanoutId, opts.cursor, opts.limit)), opts.limit);
   const released: string[] = [];
   const skipped: { readonly childId: string; readonly reason: string }[] = [];
   for (const row of page.rows) {
-    const data = producers.tables.readFanoutChildRow(row);
+    const data = (reads?.readChild ?? producers.tables.readFanoutChildRow)(row);
     if (data.state !== "running") continue;
     if (!isFanoutRowClaimStale(row.updated, opts.nowMs, opts.maxClaimAgeMs)) continue;
     const back = producers.tables.withFanoutRowData(
@@ -12676,8 +12787,8 @@ export async function releaseStaleFanoutClaims(
       opts.meta,
     );
     try {
-      await opts.store.commit({
-        expectedRevision: await opts.store.readRevision(),
+      const committed = await opts.store.commit({
+        expectedRevision: reads?.revision() ?? await opts.store.readRevision(),
         writes: [
           {
             kind: "update",
@@ -12694,11 +12805,13 @@ export async function releaseStaleFanoutClaims(
         uniqueClaims: [],
         uniqueReleases: [],
       });
+      reads?.advance(committed.revision);
     } catch (error) {
       if (fanoutStateErrorCode(error) !== null) throw error;
       if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
         throw error;
       }
+      if (reads !== undefined) throw error;
       skipped.push({ childId: data.childId, reason: "contention" });
       continue;
     }
@@ -12929,9 +13042,11 @@ async function driveFanoutTurnChild(input: {
   readonly policy: RetryPolicy;
   readonly meta: FanoutRowMeta;
   readonly producers: FanoutStateProducers;
+  readonly reads?: PrivateFanoutReads;
 }): Promise<FanoutTurnDrivenChild> {
-  const { store, childRow, cohort, producers, policy, meta } = input;
-  const data = producers.tables.readFanoutChildRow(childRow);
+  const { store, childRow, cohort, producers, policy, meta, reads } = input;
+  const load = reads?.load ?? ((model: ModelName, id: RecordId) => store.load(model, id));
+  const data = (reads?.readChild ?? producers.tables.readFanoutChildRow)(childRow);
   const child: FanoutChildId = {
     parentOccurrence: data.parentOccurrence,
     handler: data.handler,
@@ -12964,6 +13079,7 @@ async function driveFanoutTurnChild(input: {
     try {
       const pinned = await pinFanoutChildTerminal({
         store,
+        reads,
         childRow: row,
         result,
         nowMs: meta.nowMs,
@@ -12983,11 +13099,13 @@ async function driveFanoutTurnChild(input: {
       if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
         throw error;
       }
+      if (reads !== undefined) throw error;
       return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "pin-contention" };
     }
   };
   const lifecycle = await producers.lifecycle.classifyFanoutChildLifecycle({
     store,
+    ...(reads === undefined ? {} : { expectedRevision: reads.revision() }),
     model: cohort.model,
     recordId: data.recordId,
     ...(cohort.anchor === undefined ? {} : { anchor: cohort.anchor }),
@@ -12998,12 +13116,13 @@ async function driveFanoutTurnChild(input: {
   if (lifecycle.status === "unknown") {
     return tryPin(childRow, { kind: "failed", reason: lifecycle.reason }, "turn pin unknown");
   }
-  let domainRow = await store.load(cohort.model as ModelName, data.recordId as RecordId);
+  let domainRow = await load(cohort.model as ModelName, data.recordId as RecordId);
   if (domainRow === null || domainRow.archivedAt !== null) {
     // Raced disposal between classification and the guard read:
     // re-classify once and pin — never execute a dead row.
     const raced = await producers.lifecycle.classifyFanoutChildLifecycle({
       store,
+      ...(reads === undefined ? {} : { expectedRevision: reads.revision() }),
       model: cohort.model,
       recordId: data.recordId,
       ...(cohort.anchor === undefined ? {} : { anchor: cohort.anchor }),
@@ -13020,7 +13139,7 @@ async function driveFanoutTurnChild(input: {
   const claimFence = input.fenceFor(child);
   let claim: FanoutChildClaimOutcome;
   try {
-    claim = await claimFanoutChild({
+    claim = await claimFanoutChildWithReads({
       store,
       child,
       snapshotVersion: childRow.version,
@@ -13029,14 +13148,16 @@ async function driveFanoutTurnChild(input: {
       readCurrentSnapshot: async () => {
         let current: StoredRow | null;
         try {
-          current = await store.load(cohort.model as ModelName, data.recordId as RecordId);
+          current = await load(cohort.model as ModelName, data.recordId as RecordId);
         } catch (error) {
+          if (reads !== undefined) throw error;
           snapshotFailure.lifecycle = { status: "unknown", reason: "infra-read-failure" };
           throw error;
         }
         if (current === null || current.archivedAt !== null) {
           snapshotFailure.lifecycle = await producers.lifecycle.classifyFanoutChildLifecycle({
             store,
+            ...(reads === undefined ? {} : { expectedRevision: reads.revision() }),
             model: cohort.model,
             recordId: data.recordId,
             ...(cohort.anchor === undefined ? {} : { anchor: cohort.anchor }),
@@ -13050,7 +13171,7 @@ async function driveFanoutTurnChild(input: {
       policy,
       meta,
       producers,
-    });
+    }, reads);
   } catch (error) {
     const raced = snapshotFailure.lifecycle;
     if (raced === null) throw error;
@@ -13086,9 +13207,9 @@ async function driveFanoutTurnChild(input: {
   const claimChangedResult = (): FanoutTurnDrivenChild => ({ childId: data.childId,
     recordId: data.recordId, status: 'retry', detail: 'claim-changed' });
   const requireWinningClaim = async (): Promise<StoredRow> => {
-    const current = await store.load(T34F7_FANOUT_CHILD_MODEL, claimedRow.id);
+    const current = await load(T34F7_FANOUT_CHILD_MODEL, claimedRow.id);
     if (current === null || current.version !== claimedRow.version ||
-        producers.tables.readFanoutChildRow(current).state !== 'running') {
+        (reads?.readChild ?? producers.tables.readFanoutChildRow)(current).state !== 'running') {
       throw new FanoutClaimChanged('The child claim was released or replaced.');
     }
     return current;
@@ -13108,7 +13229,9 @@ async function driveFanoutTurnChild(input: {
         }
       }
     }
-    return store.commit(batch);
+    const result = await store.commit(batch);
+    reads?.advance(result.revision);
+    return result;
   } };
   const occurrenceIds: string[] = [];
   const execute = async (call: FanoutAdmittedCall): Promise<CanonicalExecutionEffects> => {
@@ -13129,7 +13252,7 @@ async function driveFanoutTurnChild(input: {
     // Retries may refresh other dependencies, but cannot borrow a rival's
     // released/reclaimed child generation to acknowledge this attempt.
     const childNow = await requireWinningClaim();
-    const checkpointNow = await store.load(
+    const checkpointNow = await load(
       T34F7_FANOUT_CHECKPOINT_MODEL,
       data.fanoutId as RecordId,
     );
@@ -13152,7 +13275,7 @@ async function driveFanoutTurnChild(input: {
           producers.outcome.stageFanoutCheckpointAdvanceWrite({
             row: checkpointNow,
             recordId: staged.recordId,
-            cursor: producers.tables.readFanoutCheckpointRow(checkpointNow).cursor,
+            cursor: (reads?.readCheckpoint ?? producers.tables.readFanoutCheckpointRow)(checkpointNow).cursor,
             meta,
           }),
         ]
@@ -13183,7 +13306,7 @@ async function driveFanoutTurnChild(input: {
     const versioned = isUnknownRecord(reference) &&
       (reference.kind === 'ref' || reference.type === 'record') && reference.versioned === true;
     const current = versioned
-      ? await store.load(cohort.model as ModelName, data.recordId as RecordId) : null;
+      ? await load(cohort.model as ModelName, data.recordId as RecordId) : null;
     await producers.invoke.invokeFanoutChild({
       registry: input.invoke.registry,
       store: claimedStore,
@@ -13215,12 +13338,12 @@ async function driveFanoutTurnChild(input: {
       // commit — claims carry no completion), then pin terminal
       // failed/inaccessible-record with the checkpoint (F5-exact).
       // Attempts unchanged throughout — the claim never executed.
-      const refused = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+      const refused = await load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
       if (refused === null) {
         throw new Error("t34-f7: turn: child row vanished after a refusal.");
       }
       if (refused.version !== claimedRow.version) return claimChangedResult();
-      const refusedData = producers.tables.readFanoutChildRow(refused);
+      const refusedData = (reads?.readChild ?? producers.tables.readFanoutChildRow)(refused);
       const already = fanoutChildOutcomeFromData(refusedData);
       if (already !== null) {
         return { childId: data.childId, recordId: data.recordId, status: "replayed", detail: pinDetail(already) };
@@ -13231,8 +13354,8 @@ async function driveFanoutTurnChild(input: {
         meta,
       );
       try {
-        await store.commit({
-          expectedRevision: await store.readRevision(),
+        const committed = await store.commit({
+          expectedRevision: reads?.revision() ?? await store.readRevision(),
           writes: [
             {
               kind: "update",
@@ -13249,15 +13372,18 @@ async function driveFanoutTurnChild(input: {
           uniqueClaims: [],
           uniqueReleases: [],
         });
+        reads?.advance(committed.revision);
       } catch (backError) {
         if (fanoutStateErrorCode(backError) !== null) throw backError;
         if (!isFanoutFenceConflict(backError, producers) && !isFanoutStorageConstraint(backError, producers)) {
           throw backError;
         }
+        if (reads !== undefined) throw backError;
         return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "refusal-contention" };
       }
       const pinned = await pinFanoutChildTerminal({
         store,
+        reads,
         childRow: back,
         result: {
           kind: "failed",
@@ -13275,12 +13401,12 @@ async function driveFanoutTurnChild(input: {
       // Business rejection: the rejected attempt committed no child
       // effects; pin running -> failed/business-rejection (the
       // rejected attempt counts — F5-exact).
-      const rejected = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+      const rejected = await load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
       if (rejected === null) {
         throw new Error("t34-f7: turn: child row vanished after a rejection.");
       }
       if (rejected.version !== claimedRow.version) return claimChangedResult();
-      const rejectedData = producers.tables.readFanoutChildRow(rejected);
+      const rejectedData = (reads?.readChild ?? producers.tables.readFanoutChildRow)(rejected);
       const already = fanoutChildOutcomeFromData(rejectedData);
       if (already !== null) {
         return { childId: data.childId, recordId: data.recordId, status: "replayed", detail: pinDetail(already) };
@@ -13289,11 +13415,11 @@ async function driveFanoutTurnChild(input: {
     }
     throw error;
   }
-  const recorded = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+  const recorded = await load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
   if (recorded === null) {
     throw new Error("t34-f7: turn: child row vanished after its unit commit.");
   }
-  const recordedData = producers.tables.readFanoutChildRow(recorded);
+  const recordedData = (reads?.readChild ?? producers.tables.readFanoutChildRow)(recorded);
   const outcome = fanoutChildOutcomeFromData(recordedData);
   return {
     childId: data.childId,
@@ -13465,25 +13591,36 @@ export interface RunRetainedFanoutSchedulerTurnOpts extends Omit<RunFanoutSchedu
  * The actual owner boundary selects storage before any read; a scope or cursor
  * alone cannot authorize the write. This never reports child completion.
  */
-export async function maintainFanoutNavigationCanonical(opts: {
+interface FanoutNavigationMaintenanceOpts {
   readonly boundary: import('../worker/assembly.js').TeamOwnerStorageBoundary;
   readonly scope: import('@canlang/contracts').WorkScope;
   readonly now: number;
   readonly intentRow?: StoredRow;
   readonly advanceOwnerScan?: boolean;
   readonly sourceAssembly?: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact' | 'identities'>;
-}): Promise<{ readonly wrapped: boolean; readonly navigationWrite?: DomainWrite }> {
+}
+
+export async function maintainFanoutNavigationCanonical(opts: FanoutNavigationMaintenanceOpts):
+  Promise<{ readonly wrapped: boolean; readonly navigationWrite?: DomainWrite }> {
+  const { wrapped, navigationWrite } = await maintainFanoutNavigationWithReads(opts);
+  return { wrapped, ...(navigationWrite === undefined ? {} : { navigationWrite }) };
+}
+
+async function maintainFanoutNavigationWithReads(opts: FanoutNavigationMaintenanceOpts & { readonly expectedRevision?: Revision }):
+  Promise<{ readonly wrapped: boolean; readonly navigationWrite?: DomainWrite; readonly committedRevision?: Revision }> {
   const { boundary, now, intentRow, advanceOwnerScan } = opts;
   const scope = Object.freeze({ ...opts.scope });
   const { store } = await boundary.forTrustedScope(scope, now);
-  const revision = await store.readRevision();
+  const revision = opts.expectedRevision ?? await store.readRevision();
+  const load = (model: ModelName, id: RecordId) => opts.expectedRevision === undefined
+    ? store.load(model, id) : store.cohortLoad({ model, id, expectedRevision: revision });
   const module = await loadProducerModule('@canlang/state/fanout/navigation', 'state fanout maintenance');
   const scanModel = requireProducerString(module, 'FANOUT_OWNER_SCAN_MODEL', 'state fanout maintenance') as ModelName;
   const scanId = requireProducerFn(module, 'fanoutOwnerScanRowId', 'state fanout maintenance') as
     typeof import('@canlang/state/fanout/navigation').fanoutOwnerScanRowId;
   const stageScan = requireProducerFn(module, 'stageFanoutOwnerScanWrite', 'state fanout maintenance') as
     typeof import('@canlang/state/fanout/navigation').stageFanoutOwnerScanWrite;
-  const scan = await store.load(scanModel, scanId(scope.owner) as RecordId);
+  const scan = await load(scanModel, scanId(scope.owner) as RecordId);
   const meta = { actor: 'scheduler:fanout-navigation', nowMs: now };
   const writes: DomainWrite[] = [];
   let navigationWrite: DomainWrite | undefined;
@@ -13500,7 +13637,7 @@ export async function maintainFanoutNavigationCanonical(opts: {
     writes.push(stageScan({ row: scan, owner: scope.owner, visitedIntentRow: null, meta }));
   } else {
     const producers = await loadFanoutStateProducers();
-    const current = await store.load(T34F7_FANOUT_INTENT_MODEL, intentRow.id);
+    const current = await load(T34F7_FANOUT_INTENT_MODEL, intentRow.id);
     if (current === null || current.version !== intentRow.version ||
         JSON.stringify(producers.tables.readFanoutIntentRow(current)) !==
           JSON.stringify(producers.tables.readFanoutIntentRow(intentRow))) {
@@ -13512,9 +13649,9 @@ export async function maintainFanoutNavigationCanonical(opts: {
       typeof import('@canlang/work/kernel/tables').readScheduleRow;
     const readReceipt = requireProducerFn(work, 'readOccurrenceRow', 'fanout maintenance source') as
       typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
-    const sourceRow = await store.load(requireProducerString(work, 'WORK_SCHEDULE_MODEL', 'fanout maintenance source') as ModelName,
+    const sourceRow = await load(requireProducerString(work, 'WORK_SCHEDULE_MODEL', 'fanout maintenance source') as ModelName,
       intent.sourceOccurrence as RecordId);
-    const receiptRow = await store.load(requireProducerString(work, 'WORK_OCCURRENCE_MODEL', 'fanout maintenance source') as ModelName,
+    const receiptRow = await load(requireProducerString(work, 'WORK_OCCURRENCE_MODEL', 'fanout maintenance source') as ModelName,
       intent.sourceOccurrence as RecordId);
     if (receiptRow === null) throw new Error('Fanout maintenance lost its admitted source.');
     const receipt = readReceipt(receiptRow);
@@ -13533,14 +13670,14 @@ export async function maintainFanoutNavigationCanonical(opts: {
         throw new AssemblyCorrespondenceError('Completion navigation requires its original installed native source.');
       }
       const loaded = await loadCanonicalDescriptors(assembly.asm, assembly.artifact);
-      const original = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now);
+      const original = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now, revision);
       const route = original.handlers.find(route => privateSourceMember(route, 'handler') === intent.handler);
       if (privateSourceMember(route, 'kind') !== 'fanout' || privateSourceMember(route, 'fanoutId') !== intent.fanoutId ||
           stableStringify(privateSourceMember(route, 'members')) !== stableStringify(intent.members)) {
         throw new AssemblyCorrespondenceError('Completion navigation differs from its original frozen route.');
       }
       verifyCompletion = async () => {
-        const current = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now);
+        const current = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now, revision);
         if (stableStringify(current.result) !== stableStringify(original.result)) {
           throw new AssemblyCorrespondenceError('Completion navigation lost its original consumed source.');
         }
@@ -13565,10 +13702,16 @@ export async function maintainFanoutNavigationCanonical(opts: {
       typeof import('@canlang/state/fanout/navigation').fanoutNavigationRowId;
     const stageNavigation = requireProducerFn(module, 'stageFanoutNavigationWrite', 'state fanout maintenance') as
       typeof import('@canlang/state/fanout/navigation').stageFanoutNavigationWrite;
-    const row = await store.load(navigationModel, navigationId(scope.owner, intent.fanoutId) as RecordId);
+    const row = await load(navigationModel, navigationId(scope.owner, intent.fanoutId) as RecordId);
     const childQuery = requireProducerFn(module, 'fanoutNavigationChildQuery', 'state fanout maintenance') as
       typeof import('@canlang/state/fanout/navigation').fanoutNavigationChildQuery;
-    if ((await store.query(childQuery({ row, owner: scope.owner, intentRow: current, limit: 1 }))).length !== 0) {
+    const childPage = opts.expectedRevision === undefined
+      ? await store.query(childQuery({ row, owner: scope.owner, intentRow: current, limit: 1 }))
+      : await store.cohortRowPage({ model: T34F7_FANOUT_CHILD_MODEL, fanoutId: intent.fanoutId,
+        after: row === null ? null : (requireProducerFn(module, 'readFanoutNavigationRow', 'state fanout maintenance') as
+          typeof import('@canlang/state/fanout/navigation').readFanoutNavigationRow)(row, { owner: scope.owner, intentRow: current }).lastVisitedChildId as RecordId | null,
+        limit: 1, expectedRevision: revision });
+    if (childPage.length !== 0) {
       return { wrapped: false };
     }
     navigationWrite = stageNavigation({ row, owner: scope.owner, intentRow: current, visitedChildRow: null, meta });
@@ -13579,9 +13722,9 @@ export async function maintainFanoutNavigationCanonical(opts: {
   // the same revision-fenced maintenance commit; no synthetic child is used.
   await boundary.forTrustedScope(scope, now);
   await verifyCompletion?.();
-  await store.commit({ expectedRevision: revision, writes, history: [], receipt: null,
+  const committed = await store.commit({ expectedRevision: revision, writes, history: [], receipt: null,
     outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
-  return { wrapped: true, ...(navigationWrite === undefined ? {} : { navigationWrite }) };
+  return { wrapped: true, committedRevision: committed.revision, ...(navigationWrite === undefined ? {} : { navigationWrite }) };
 }
 
 /** One durable slice, not admission, coverage, or completion. */
@@ -13611,7 +13754,7 @@ export async function runRetainedFanoutSchedulerTurn(
   checkClosedText(opts.fanoutId, 'retained turn fanout id');
   checkClosedText(opts.cohort.model, 'retained turn cohort model');
   checkClosedText(opts.invoke.refInput, 'retained turn ref input');
-  if (!Number.isSafeInteger(opts.bounds.pageLimit) || opts.bounds.pageLimit < 1 ||
+  if (!Number.isSafeInteger(opts.bounds.pageLimit) || opts.bounds.pageLimit < 1 || opts.bounds.pageLimit > 100 ||
       !Number.isSafeInteger(opts.bounds.maxDrives) || opts.bounds.maxDrives < 1 ||
       !Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0 ||
       typeof opts.evaluateGuard !== 'function' || typeof opts.readSnapshot !== 'function' ||
@@ -13622,14 +13765,15 @@ export async function runRetainedFanoutSchedulerTurn(
   if ((opts.invoke.identity.team?.team_id ?? 'app') !== opts.owner) {
     throw new Error('Retained fanout owner disagrees with the actual invocation identity.');
   }
-  const intentRow = await opts.store.load(T34F7_FANOUT_INTENT_MODEL, opts.fanoutId as RecordId);
+  const reads = await openPrivateFanoutReads(opts.store);
+  const intentRow = await reads.load(T34F7_FANOUT_INTENT_MODEL, opts.fanoutId as RecordId);
   if (intentRow === null || intentRow.id !== opts.retainedIntent.id ||
       intentRow.id !== opts.fanoutId || intentRow.version !== opts.retainedIntent.version ||
-      JSON.stringify(producers.tables.readFanoutIntentRow(intentRow)) !==
-        JSON.stringify(producers.tables.readFanoutIntentRow(opts.retainedIntent))) {
+      JSON.stringify(reads.readIntent(intentRow)) !==
+        JSON.stringify(reads.readIntent(opts.retainedIntent))) {
     throw new Error('Retained fanout turn needs its exact current named intent and frozen membership.');
   }
-  const intent = producers.tables.readFanoutIntentRow(intentRow);
+  const intent = reads.readIntent(intentRow);
   if (intent.handler !== opts.invoke.childOperation ||
       intent.cohort !== (opts.cohort.anchor === undefined ? 'model' : 'anchored-collection')) {
     throw new Error('Retained fanout intent disagrees with its actual child operation or cohort.');
@@ -13652,12 +13796,12 @@ export async function runRetainedFanoutSchedulerTurn(
       typeof import('@canlang/state/fanout/navigation').stageFanoutOwnerScanWrite,
   };
   const binding = { owner: opts.owner, intentRow };
-  let navigationRow = await opts.store.load(navigation.navigationModel, navigation.rowId(opts.owner, opts.fanoutId) as RecordId);
+  let navigationRow = await reads.load(navigation.navigationModel, navigation.rowId(opts.owner, opts.fanoutId) as RecordId);
   const initialCursor = navigationRow === null ? null : navigation.read(navigationRow, binding).lastVisitedChildId;
-  const childQuery = navigation.query({ ...binding, row: navigationRow, limit: opts.bounds.pageLimit });
+  navigation.query({ ...binding, row: navigationRow, limit: opts.bounds.pageLimit });
   let scanWrite: DomainWrite | null = null;
   if (opts.advanceOwnerScan === true) {
-    const row = await opts.store.load(navigation.scanModel, navigation.scanId(opts.owner) as RecordId);
+    const row = await reads.load(navigation.scanModel, navigation.scanId(opts.owner) as RecordId);
     scanWrite = navigation.stageScan({ row, owner: opts.owner, visitedIntentRow: intentRow, meta: opts.meta });
   }
   const fenceFor = (child: FanoutChildId): FanoutClaimFenceInput => {
@@ -13666,7 +13810,7 @@ export async function runRetainedFanoutSchedulerTurn(
     return fence;
   };
   const childIdentity = (row: StoredRow): FanoutChildId => {
-    const child = producers.tables.readFanoutChildRow(row);
+    const child = reads.readChild(row);
     if (child.fanoutId !== intent.fanoutId || child.parentOccurrence !== intent.sourceOccurrence ||
         child.handler !== intent.handler || !intent.members.includes(child.recordId)) {
       throw new Error('Retained child is outside the original source membership.');
@@ -13684,10 +13828,10 @@ export async function runRetainedFanoutSchedulerTurn(
     }
     return opts.store.commit(batch);
   } };
-  const released = await releaseStaleFanoutClaims({ store: releaseStore, fanoutId: opts.fanoutId,
+  const released = await releaseStaleFanoutClaimsWithReads({ store: releaseStore, fanoutId: opts.fanoutId,
     cursor: initialCursor, limit: opts.bounds.pageLimit, nowMs: opts.meta.nowMs,
-    maxClaimAgeMs: opts.maxClaimAgeMs, meta: opts.meta, producers });
-  const page = producers.tables.fanoutChildPageResult(await opts.store.query(childQuery), opts.bounds.pageLimit);
+    maxClaimAgeMs: opts.maxClaimAgeMs, meta: opts.meta, producers }, reads);
+  const page = producers.tables.fanoutChildPageResult(await reads.page(opts.fanoutId, initialCursor, opts.bounds.pageLimit), opts.bounds.pageLimit);
   const driven: FanoutTurnDrivenChild[] = [];
   const visits = page.rows.slice(0, opts.bounds.maxDrives);
   const stageVisit = (row: StoredRow | null): DomainWrite => navigation.stage({
@@ -13708,7 +13852,7 @@ export async function runRetainedFanoutSchedulerTurn(
     const visitStore: StoragePort = { ...opts.store, commit: async batch => {
       const terminalWrite = batch.writes.find(write => write.model === T34F7_FANOUT_CHILD_MODEL &&
         write.kind !== 'remove' && write.row.id === childRow.id &&
-        fanoutChildOutcomeFromData(producers.tables.readFanoutChildRow(write.row)) !== null);
+        fanoutChildOutcomeFromData(reads.readChild(write.row)) !== null);
       if (terminalWrite === undefined || terminalWrite.kind === 'remove') return opts.store.commit(batch);
       const visitWrite = stageVisit(terminalWrite.row);
       // Canonical unit commits already performed the driver's winning claim,
@@ -13723,19 +13867,20 @@ export async function runRetainedFanoutSchedulerTurn(
       committedVisit = true;
       return result;
     } };
-    const result = await driveFanoutTurnChild({ ...opts, store: visitStore, childRow, fenceFor, producers });
+    const result = await driveFanoutTurnChild({ ...opts, store: visitStore, childRow, fenceFor, producers, reads });
     if (!committedVisit) {
-      const revision = await opts.store.readRevision();
-      const current = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+      const revision = reads.revision();
+      const current = await reads.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
       if (current === null) throw new Error('Retained visited child disappeared before navigation maintenance.');
       childIdentity(current);
       const visitWrite = stageVisit(current);
       if (await fence.revalidateAuthority() !== true) {
         throw new FanoutCommitAuthorityChanged('Retained navigation maintenance lost its owner authority.');
       }
-      await opts.store.commit({ expectedRevision: revision,
+      const committed = await opts.store.commit({ expectedRevision: revision,
         writes: [visitWrite, ...(scanWrite === null ? [] : [scanWrite])], history: [], receipt: null,
         outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+      reads.advance(committed.revision);
       acceptVisit(visitWrite);
     }
     driven.push(result);
@@ -13747,17 +13892,19 @@ export async function runRetainedFanoutSchedulerTurn(
       if (opts.sourceOwner.scope.owner !== opts.owner || opts.sourceOwner.scope.app !== opts.invoke.app) {
         throw new Error('Retained navigation source owner disagrees with its actual invocation.');
       }
-      const wrap = await maintainFanoutNavigationCanonical({ ...opts.sourceOwner,
-        now: opts.meta.nowMs, intentRow, advanceOwnerScan: opts.advanceOwnerScan === true });
+      const wrap = await maintainFanoutNavigationWithReads({ ...opts.sourceOwner,
+        now: opts.meta.nowMs, intentRow, expectedRevision: reads.revision(), advanceOwnerScan: opts.advanceOwnerScan === true });
       if (!wrap.wrapped || wrap.navigationWrite === undefined) throw new Error('Retained source navigation did not wrap.');
+      if (wrap.committedRevision === undefined) throw new Error('Retained navigation has no successful commit revision.');
+      reads.advance(wrap.committedRevision);
       acceptVisit(wrap.navigationWrite);
     } else {
-    const revision = await opts.store.readRevision();
+    const revision = reads.revision();
     const retainedMember = intent.members[0];
     if (retainedMember === undefined) {
       throw new Error('Empty retained membership has no admitted child authority for navigation maintenance.');
     }
-    const retainedChild = await opts.store.load(T34F7_FANOUT_CHILD_MODEL,
+    const retainedChild = await reads.load(T34F7_FANOUT_CHILD_MODEL,
       producers.tables.fanoutChildRowId(intent.sourceOccurrence, intent.handler, retainedMember) as RecordId);
     if (retainedChild === null) throw new Error('Retained wrap requires an actual admitted child authority.');
     const wrapFence = fenceFor(childIdentity(retainedChild));
@@ -13765,9 +13912,10 @@ export async function runRetainedFanoutSchedulerTurn(
     if (await wrapFence.revalidateAuthority() !== true) {
       throw new FanoutCommitAuthorityChanged('Retained navigation wrap lost its owner authority.');
     }
-    await opts.store.commit({ expectedRevision: revision,
+    const committed = await opts.store.commit({ expectedRevision: revision,
       writes: [visitWrite, ...(scanWrite === null ? [] : [scanWrite])], history: [], receipt: null,
       outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+    reads.advance(committed.revision);
     acceptVisit(visitWrite);
     }
   }

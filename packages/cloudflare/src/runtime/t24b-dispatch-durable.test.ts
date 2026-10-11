@@ -34,9 +34,11 @@ import type {
   RecordVersion,
   Revision,
   StoragePort,
+  StateErrorCode,
   ClaimId,
 } from "@canlang/contracts";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
+import { StateError } from "@canlang/state/errors";
 import { FenceConflictError, StorageConstraintError } from "@canlang/state/storage/port";
 import { assembleDispatchCommands } from "../worker/assembly.js";
 import {
@@ -190,6 +192,8 @@ interface WorkerErrorJson {
   readonly detail?: string;
   readonly expected?: number;
   readonly actual?: number | null;
+  readonly code?: StateErrorCode;
+  readonly retryable?: boolean;
 }
 
 async function doPost(path: string, body: unknown): Promise<Record<string, unknown>> {
@@ -205,6 +209,10 @@ async function doPost(path: string, body: unknown): Promise<Record<string, unkno
 }
 
 function rehydrate(error: WorkerErrorJson): Error {
+  if (error.name === "StateError" && error.code !== undefined) {
+    return new StateError(error.code, error.message, null,
+      error.retryable === undefined ? undefined : { retryable: error.retryable });
+  }
   if (error.name === "FenceConflictError") {
     return new FenceConflictError(
       error.expected as unknown as Revision,
@@ -232,6 +240,11 @@ async function doCall<T>(method: string, ...args: ReadonlyArray<unknown>): Promi
 
 function doProxy(): StoragePort {
   return {
+    cohortIdOrder: "utf8-binary",
+    cohortIdentityPage: (input) => doCall("cohortIdentityPage", input),
+    cohortLoad: (input) => doCall("cohortLoad", input),
+    cohortRowPage: (input) => doCall("cohortRowPage", input),
+    cohortAnchorFact: (input) => doCall("cohortAnchorFact", input),
     readRevision: () => doCall("readRevision"),
     load: (model: ModelName, id: RecordId) => doCall("load", model, id),
     query: (spec) => doCall("query", spec),
