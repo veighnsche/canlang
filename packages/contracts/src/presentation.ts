@@ -458,7 +458,7 @@ export interface ListQueryResult {
   readonly columns: readonly ColumnMeta[];
   /**
    * Checked nonsecret/servable declarations supplied only for zero-row results.
-   * Table/board may validate authored names/group types, then render only their
+   * List/table/board may validate authored names/group types, then render only their
    * empty state. Never authorizes a header, field value, enum group or export;
    * nonempty results must ignore it. Absence retains legacy validation behavior.
    */
@@ -573,6 +573,8 @@ export interface SharedStateProps {
 export interface ListProps {
   readonly context: PresentationContext;
   readonly model: string;
+  /** Ordered rendering selection from authorized column metadata and projected fields. */
+  readonly columns?: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
   readonly order?: readonly string[];
