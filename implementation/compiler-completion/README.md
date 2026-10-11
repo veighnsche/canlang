@@ -4336,3 +4336,29 @@ original IR/census/SEND sealing remains intentionally closed until these precise
 requirements are available. Continue exact released intake;58/67/nine unchanged.
 
 Coordinator review CLEAR for the four defining source units; frozen changed-source strict0 and meaningful scoped results qualify this batch. Integrated in LOCAL main after deadline. Later Packages breadcrumb/concat/field-fragment producers are released and ready for exact original lowering; stale prerequisite claims above are historical. Actual original native36 diagnostics/no modules remains unfinished. Production invocation identity stays accepted, C14 original observation remains held at its exact scope. Complete checkpoint unchanged.
+
+**Local continuation — admitted breadcrumbs and native concat, 2026-10-11
+(unfinished original application joins).** Bare breadcrumbs read the genuine
+dispatcher-issued context.breadcrumbs once and forward its unchanged label and
+ancestry to installed UI. Missing carriers and authored substitutes refuse;
+gates prevent carrier reads. Fix the demonstrated nav=none spelling decoder
+without admitting other navigation values. Actual CLI/verified assembly/real
+full and partial page dispatcher/Identity-memory/UI2/2 proves hidden, denied,
+unavailable, missing and unrelated ancestors stay absent; localization,
+escaping and current-page semantics survive. A scripted dynamic dispatcher
+descriptor retains the original compiled body, without dynamic compiler-route
+or native business/application credit.
+
+The exact canonical Cloudflare concat export now supplies original TextMessage
+arrays, including their checked role/content/file[] schema, unchanged element
+identity, order/duplicates/frozen copies and first failure. Owning2/2 includes
+an actual native Memory read with unchanged revision and empty attachments;
+no File authority is fabricated. Breadcrumbs2, concat2, codegen121, UI11,
+B1/B2shape2 and full52 corpus1 pass (139 distinct); changed strictalltargets0
+in7.00s and format/diff0. Only failed stale assertions are corrected before
+their owning retry; all remaining UI refusals persist. Exact a850 original
+native compile exits10, complete=true, omitted0, modules0, diagnostics36→29.
+Complete original census and SEND sealing remain closed while named producer
+and native-owner prerequisites persist;58/67/nine and holds are unchanged.
+
+Coordinator defining source review CLEAR; owning139 and changed-source strict0/fmt0 reused. Integrated locally after deadline; actual original native29 diagnostics/zero modules still fails, and original application, G2/G3 and full-plan acceptance remain unfinished. Complete filetree checkpoint unchanged.

@@ -11010,7 +11010,7 @@ impl<'a> Cx<'a> {
                         }
                         "nav" => {
                             let spelling = value
-                                .and_then(|v| name_text(self.db, v))
+                                .and_then(|v| opens_spelling(self.db, v))
                                 .unwrap_or_default();
                             if spelling == "none" {
                                 nav_none = true;
@@ -13598,32 +13598,24 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode bare `breadcrumbs`: the derived-ancestry leaf consumes the
-    /// current declared destination ancestry from its render context, so
-    /// no authored ancestry is lowered. `pages=` stays a checked route
-    /// selector decoded generically.
+    /// current declared destination ancestry from its trusted render context.
+    /// This finite profile accepts no authored substitute or selector.
     fn decode_breadcrumbs(
         &mut self,
         scope: &Scope,
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
-        self.diags.push(Diagnostic::error(
-            "E6008",
-            "cannot lower breadcrumbs: ancestry and label carriers are not implemented".to_string(),
-            node.span,
-        ));
-        let mut props = Vec::new();
-        if kids(node).iter().any(|n| is_expression(n.kind)) {
+        self.check_ui_attributes(node, "breadcrumbs", &[]);
+        if kids(node)
+            .iter()
+            .any(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+        {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower breadcrumbs: derived-ancestry leaves take no header".to_string(),
                 node.span,
             ));
-        }
-        for (name, value) in ui_attributes(self.db, node) {
-            if let Some(value) = value {
-                props.push((name.clone(), self.decode_expr(scope, value)));
-            }
         }
         let children = self.decode_ui_children(scope, node, row_ctx);
         if !children.is_empty() {
@@ -13637,7 +13629,7 @@ impl<'a> Cx<'a> {
         IrUi {
             view: None,
             factory: "breadcrumbs".to_string(),
-            props,
+            props: Vec::new(),
             children,
             row_scope: None,
             gate: self.decode_gate(scope, node),
