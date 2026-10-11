@@ -32,6 +32,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 import type {
   CompileArtifact,
   ModelName,
@@ -1483,19 +1484,52 @@ describe("dedicated retained mutation recovery", () => {
   });
 
   it("requires the positive installed recovery export instead of falling back to ordinary invoke", async () => {
-    const f = await retainedCrudFixture();
-    const before = await f.snapshot();
-    const producer = f.loaded.producers.invoke;
-    const original = producer.invokeRetainedReceiptOnly;
-    assert.ok(typeof original === "function", "current installed State must provide recovery");
-    const isolated = producer as { invokeRetainedReceiptOnly?: typeof original };
-    delete isolated.invokeRetainedReceiptOnly;
-    try {
-      const denied = await f.invoker.invokeRetainedMutation(f.envelope, f.identity);
-      assert.ok("error" in denied, JSON.stringify(denied));
-      assert.equal(denied.error.code, "validation");
-      assert.match(denied.error.message, /lacks retained-receipt-only recovery/);
-      assert.deepEqual(await f.snapshot(), before);
-    } finally { isolated.invokeRetainedReceiptOnly = original; }
+    const f = await retainedCrudFixture(), before = await f.snapshot();
+    assert.equal(typeof f.loaded.producers.invoke.invokeRetainedReceiptOnly, "function");
+    // A request-local registry legitimately reloads installed producers. Mutating
+    // the cached holder cannot simulate an unavailable installed callable.
+    const directory = tempDir(), payload = join(directory, "missing-recovery.json"), script = join(directory, "missing-recovery.mjs");
+    writeFileSync(payload, JSON.stringify({ artifact: f.artifact, asm: f.asm, envelope: f.envelope,
+      assemblyUrl: new URL("../worker/assembly.js", import.meta.url).href }));
+    writeFileSync(script, `
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire,registerHooks} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const fixture=JSON.parse(readFileSync(process.argv[2],'utf8'));
+const require=createRequire(fixture.assemblyUrl);
+const invokeUrl=pathToFileURL(require.resolve('@canlang/state/invocation/invoke')).href;
+let filtered=0;
+registerHooks({load(url,context,nextLoad){
+  const result=nextLoad(url,context);
+  if(url!==invokeUrl)return result;
+  const source=typeof result.source==='string'?result.source:Buffer.from(result.source).toString('utf8'), marker='export function invokeRetainedReceiptOnly(';
+  assert.equal(source.split(marker).length,2);
+  filtered++;
+  // Preserve named facades and every other producer while removing the
+  // positive callable export. Its original function body stays unchanged.
+  return {...result,source:source.replace(marker,
+    'export const invokeRetainedReceiptOnly=undefined; function fixtureRetainedReceiptOnly(')};
+}});
+const {createMemoryIdentityStore,createFrozenClock}=await import(pathToFileURL(require.resolve('@canlang/identity/testing')).href);
+const {issueMcpGrant,resolveIdentity}=await import(pathToFileURL(require.resolve('@canlang/identity')).href);
+const {createMemoryStorage}=await import(pathToFileURL(require.resolve('@canlang/state/storage/memory')).href);
+const {buildInvoker}=await import(fixture.assemblyUrl);
+const clock=createFrozenClock(Date.now()), memberships=createMemoryIdentityStore({clock});
+const team=await memberships.createTeam({timezone:'UTC'});
+const user=await memberships.createUser({email:'missing-recovery@test.invalid',password_hash:'unused',email_verified:true});
+await memberships.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:true,roles:[]});
+const grant=await issueMcpGrant(memberships,{team_id:team.team_id,user_id:user.user_id,client_id:'missing-recovery'},{clock});
+const identity=await resolveIdentity(memberships,{mcp_grant_token:grant.token},{clock});
+const physical=createMemoryStorage();let commits=0;
+const store={...physical,commit:async()=>{commits++;throw Error('recovery must not commit');}};
+const invoker=buildInvoker(fixture.artifact,fixture.asm,store,{memberships,now:clock.nowMs});
+const denied=await invoker.invokeRetainedMutation(fixture.envelope,identity);
+assert.ok('error' in denied,JSON.stringify(denied));assert.equal(denied.error.code,'validation');
+assert.match(denied.error.message,/lacks retained-receipt-only recovery/);
+assert.equal(filtered,1);assert.equal(commits,0);assert.equal(await physical.readRevision(),0);
+`);
+    execFileSync(process.execPath, [script, payload], { timeout: 10000, encoding: "utf8" });
+    assert.deepEqual(await f.snapshot(), before);
   });
 });
