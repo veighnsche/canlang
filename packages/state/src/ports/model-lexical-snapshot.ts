@@ -1,5 +1,5 @@
 /** Typed frozen SEND lexical snapshots; traversal facts never grant live authority. */
-import type { CanTypeId, ModelName } from '@canlang/contracts';
+import type { CanTypeId, ModelName, StoredRow } from '@canlang/contracts';
 import { parseTypeId, printTypeId } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { copyScenarioFileData } from '../invocation/scenario-file-assignment.js';
@@ -9,9 +9,16 @@ import { bindDeclaredFileReferenceProfile, bindFileReferenceProfile, fileReferen
   type FileReferenceProfile, type FileReferenceProfileBound, type FileReferenceOccurrence } from './file-reference-profile.js';
 
 export interface ModelLexicalSnapshotProfile { readonly type: CanTypeId; readonly model: ModelName }
+/** Retained names describe original presence, never a field grant or value. */
+export interface ModelLexicalSnapshotRead {
+  readonly row: Readonly<StoredRow>;
+  /** Legacy snapshots did not capture presence; null cannot establish absence. */
+  readonly sourcePresence: Readonly<{ readonly fields: readonly string[] }> | null;
+}
 const profiles = new WeakMap<ModelLexicalSnapshotProfile, {
   readonly parent: string | undefined;
   readonly fields: ReadonlyMap<string, FileReferenceProfile | Error>;
+  readonly required: readonly string[];
 }>();
 const refuse = (message: string): never => { throw new StateError('validation', `Model lexical snapshot: ${message}`); };
 function object(value: unknown, keys?: readonly string[]): Record<string, unknown> {
@@ -70,15 +77,19 @@ export function bindModelLexicalSnapshotProfile(bound: FileReferenceProfileBound
     fields.set(field.name, bindFileReferenceProfile(bound, model, field.name));
   }
   const profile = Object.freeze({ type, model });
-  profiles.set(profile, { parent, fields });
+  profiles.set(profile, { parent, fields, required: artifact.fields.filter(field => field.required).map(field => field.name) });
   return profile;
 }
 
-export function modelLexicalSnapshotOccurrences(profile: ModelLexicalSnapshotProfile,
-  wire: unknown): readonly FileReferenceOccurrence[] {
+function snapshot(profile: ModelLexicalSnapshotProfile, wire: unknown): ModelLexicalSnapshotRead & {
+  readonly files: readonly FileReferenceOccurrence[];
+} {
   const owner = profiles.get(profile) ?? refuse('authentic owning snapshot profile required.');
-  const row = object(copyScenarioFileData(wire),
-    ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent', 'data']);
+  const copied = object(copyScenarioFileData(wire));
+  const hasPresence = Object.hasOwn(copied, 'sourcePresence');
+  const row = object(copied,
+    ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent', 'data',
+      ...(hasPresence ? ['sourcePresence'] : [])]);
   identity(row.id); integer(row.version, 1); integer(row.created); integer(row.updated);
   identity(row.createdBy); identity(row.updatedBy);
   if (row.archivedAt !== null) return refuse('only live lexical snapshots are supported.');
@@ -90,6 +101,18 @@ export function modelLexicalSnapshotOccurrences(profile: ModelLexicalSnapshotPro
     identity(parent.id);
   }
   const data = object(row.data), found: FileReferenceOccurrence[] = [];
+  let sourcePresence: ModelLexicalSnapshotRead['sourcePresence'] = null;
+  if (hasPresence) {
+    const presence = object(row.sourcePresence, ['fields']);
+    if (!Array.isArray(presence.fields)) return refuse('closed original field presence required.');
+    const fields = presence.fields as unknown[];
+    if (fields.some(field => typeof field !== 'string' || !owner.fields.has(field)) ||
+        new Set(fields).size !== fields.length || owner.required.some(field => !fields.includes(field)) ||
+        Object.keys(data).some(field => !fields.includes(field))) {
+      return refuse('exact declared original field presence required.');
+    }
+    sourcePresence = { fields: fields as string[] };
+  }
   for (const [field, value] of Object.entries(data)) {
     const declared = owner.fields.get(field);
     if (declared === undefined) return refuse('undeclared projected data field.');
@@ -98,5 +121,17 @@ export function modelLexicalSnapshotOccurrences(profile: ModelLexicalSnapshotPro
       found.push({ path: ['data', field, ...occurrence.path], ref: occurrence.ref });
     }
   }
-  return deepFreeze(found);
+  const { sourcePresence: _presence, ...projected } = row;
+  return deepFreeze({ row: projected as unknown as StoredRow, sourcePresence, files: found });
+}
+
+/** Checked historical wires and original presence; this issues no live row authority. */
+export function readModelLexicalSnapshot(profile: ModelLexicalSnapshotProfile, wire: unknown): ModelLexicalSnapshotRead {
+  const checked = snapshot(profile, wire);
+  return Object.freeze({ row: checked.row, sourcePresence: checked.sourcePresence });
+}
+
+export function modelLexicalSnapshotOccurrences(profile: ModelLexicalSnapshotProfile,
+  wire: unknown): readonly FileReferenceOccurrence[] {
+  return snapshot(profile, wire).files;
 }

@@ -137,6 +137,8 @@ export {
   type FileReferenceProfile,
   type FileReferenceProfileBound,
   type FileReferenceOccurrence,
+  bindModelLexicalSnapshotProfile, readModelLexicalSnapshot, modelLexicalSnapshotOccurrences,
+  type ModelLexicalSnapshotProfile, type ModelLexicalSnapshotRead,
   type CommittedFileReference, type CurrentFileSlot, type FileSlotLocator,
   type CommittedFileReferences, type FileReferenceConsumer, type FileReferenceConsumerInput,
   createSystemRegistry,

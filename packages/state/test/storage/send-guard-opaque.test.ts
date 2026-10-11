@@ -6,7 +6,7 @@ import type { FrameworkFilePayloadOrigin, FrameworkFileReferenceModel, Framework
 import { normalizeValueTypes } from '@canlang/values';
 import { bindOpaqueFileDeclarations, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '../../src/storage/opaque-file-declarations.js';
 import { bindFileFrameworkProducers, emptyFileGuard, guardFileCommit, checkedFileInventory } from '../../src/storage/file-retirement.js';
-import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences } from '../../src/ports/model-lexical-snapshot.js';
+import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences, readModelLexicalSnapshot } from '../../src/ports/model-lexical-snapshot.js';
 import { asId, asModel, asRevision, makeRow } from '../invocation/fixtures.js';
 
 const source = { path: 'guard.can', sha256: 'a'.repeat(64), module: 'guard.mjs' };
@@ -212,6 +212,78 @@ test('SEND model lexical snapshots census nested Files while partial projected f
     { ...modelSnapshot(), data: { packet: { photo: { id: 'one' }, photos: ['not-a-file'] } } }]) {
     assert.throws(() => resolveOpaqueFileProjection(bound, snapshotProjection, { run: wire }));
   }
+});
+
+function sourcePresenceSet(): FrameworkOpaqueDeclarationSet {
+  const set = modelSnapshotSet();
+  const memo = { name: 'memo', field: { kind: 'string' as const }, valueType: 'text?' as CanTypeId,
+    required: false, serverOnly: false, nullable: true };
+  Object.assign(set.artifactModels[0]!, { fields: [...set.artifactModels[0]!.fields, memo] });
+  const { name: _name, field: _field, ...canonical } = memo;
+  Object.assign(set.canonicalModels[0]!.fields, { memo: canonical });
+  return set;
+}
+
+test('SEND snapshot source presence preserves original names across partial projection and nullable null', () => {
+  const set = sourcePresenceSet(), bound = admit(set);
+  const profile = bindModelLexicalSnapshotProfile({ canonicalModels: set.canonicalModels,
+    artifactModels: new Map(set.artifactModels.map(model => [asModel(model.name), model])), valueTypes: set.valueTypes }, asModel('Guard.Run'))!;
+  const full = { ...modelSnapshot(), data: { ...modelSnapshot().data, memo: null },
+    sourcePresence: { fields: ['packet', 'memo', 'hidden'] } };
+  assert.deepEqual(readModelLexicalSnapshot(profile, full).sourcePresence, { fields: ['packet', 'memo', 'hidden'] });
+  const read = readModelLexicalSnapshot(profile, full);
+  assert.deepEqual(read.row, { ...modelSnapshot(), data: full.data });
+  assert.ok(Object.isFrozen(read));
+  assert.ok(Object.isFrozen(read.row));
+  assert.ok(Object.isFrozen(read.row.data));
+  assert.equal(Object.hasOwn(read.row, 'sourcePresence'), false);
+  assert.deepEqual(resolveOpaqueFileProjection(bound, snapshotProjection, { run: full }), [
+    { path: ['run', 'data', 'packet', 'photo'], ref: 'one' },
+    { path: ['run', 'data', 'packet', 'photos', 0], ref: 'two' },
+  ]);
+  const deniedPacket = { ...modelSnapshot(), data: {}, sourcePresence: { fields: ['packet'] } };
+  assert.deepEqual(readModelLexicalSnapshot(profile, deniedPacket).sourcePresence, { fields: ['packet'] });
+  assert.deepEqual(readModelLexicalSnapshot(profile, deniedPacket).row.data, {});
+  assert.deepEqual(resolveOpaqueFileProjection(bound, snapshotProjection, { run: deniedPacket }), []);
+  // The omitted optional memo/hidden names remain absent; denied packet remains present.
+  assert.deepEqual(readModelLexicalSnapshot(profile, { ...full, data: {} }).sourcePresence, { fields: ['packet', 'memo', 'hidden'] });
+  assert.equal(readModelLexicalSnapshot(profile, modelSnapshot()).sourcePresence, null);
+  assert.equal(readModelLexicalSnapshot(profile, { ...modelSnapshot(), data: {} }).sourcePresence, null);
+  const presence = readModelLexicalSnapshot(profile, full).sourcePresence!;
+  assert.ok(Object.isFrozen(presence));
+  const names = presence.fields;
+  assert.ok(Object.isFrozen(names));
+  full.sourcePresence.fields.push('later');
+  assert.deepEqual(names, ['packet', 'memo', 'hidden']);
+  assert.throws(() => readModelLexicalSnapshot({ ...profile }, deniedPacket));
+});
+
+test('SEND source presence refuses malformed declarations and validates the entire owning snapshot', () => {
+  const set = sourcePresenceSet();
+  const profile = bindModelLexicalSnapshotProfile({ canonicalModels: set.canonicalModels,
+    artifactModels: new Map(set.artifactModels.map(model => [asModel(model.name), model])), valueTypes: set.valueTypes }, asModel('Guard.Run'))!;
+  const sparse: unknown[] = ['packet']; sparse.length = 2;
+  for (const sourcePresence of [null, {}, { fields: 'packet' }, { fields: sparse },
+    { fields: ['packet'], extra: true }, { fields: ['packet', 1] }, { fields: ['packet', 'packet'] },
+    { fields: ['packet', 'unknown'] }, { fields: [] }, { fields: ['memo'] }]) {
+    const wire = { ...modelSnapshot(), data: {}, sourcePresence };
+    assert.throws(() => readModelLexicalSnapshot(profile, wire));
+    assert.throws(() => modelLexicalSnapshotOccurrences(profile, wire));
+  }
+  for (const wire of [
+    { ...modelSnapshot(), data: { memo: null }, sourcePresence: { fields: ['packet'] } },
+    { ...modelSnapshot(), data: { hidden: 'secret' }, sourcePresence: { fields: ['packet', 'hidden'] } },
+    { ...modelSnapshot(), version: 0, sourcePresence: { fields: ['packet'] } },
+    { ...modelSnapshot(), parent: { model: 'Guard.Other', id: 'parent' }, sourcePresence: { fields: ['packet'] } },
+  ]) {
+    assert.throws(() => readModelLexicalSnapshot(profile, wire));
+    assert.throws(() => modelLexicalSnapshotOccurrences(profile, wire));
+  }
+  let reads = 0;
+  const accessor = Object.defineProperty({ ...modelSnapshot() }, 'sourcePresence', { enumerable: true,
+    get() { reads++; return { fields: ['packet'] }; } });
+  assert.throws(() => readModelLexicalSnapshot(profile, accessor));
+  assert.equal(reads, 0);
 });
 
 test('model lexical profile retains exact containment and refuses copied profiles and namespace collisions', () => {

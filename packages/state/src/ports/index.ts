@@ -22,6 +22,9 @@ export {
   type FileReferenceProfileBound,
   type FileReferenceOccurrence,
 } from './file-reference-profile.js';
+export { bindModelLexicalSnapshotProfile, readModelLexicalSnapshot, modelLexicalSnapshotOccurrences,
+  type ModelLexicalSnapshotProfile, type ModelLexicalSnapshotRead,
+} from './model-lexical-snapshot.js';
 export {
   createInvoker,
   createTransactionPort,

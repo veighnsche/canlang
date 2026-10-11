@@ -1336,7 +1336,8 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
   const profiles = frameworkModelInputs.get(call.def as GeneratedOperationDef)?.get(guard.rule);
   const producer = referenceProducers.get(call.def as GeneratedOperationDef);
   const inputs = object(supplied, guard.inputs.map(input => input.name)), values: Record<string, unknown> = {};
-  const models: Array<{ readonly name: string; readonly profile: ModelLexicalSnapshotProfile; readonly row: StoredRow }> = [];
+  const models: Array<{ readonly name: string; readonly profile: ModelLexicalSnapshotProfile; readonly row: StoredRow;
+    readonly sourcePresence: Readonly<{ readonly fields: readonly string[] }> }> = [];
   // Preserve private row identity before copying any input or yielding.
   for (const input of guard.inputs) {
     const profile = profiles?.get(input.name);
@@ -1345,7 +1346,8 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       if (issued?.session !== owner || issued.model !== profile.model || issued.stage !== stage) {
         return invalid('SEND model input requires its actual current-stage owner row.');
       }
-      models.push({ name: input.name, profile, row: checkedRow(dataCopy(actual)) });
+      const row = checkedRow(dataCopy(actual));
+      models.push({ name: input.name, profile, row, sourcePresence: deepFreeze({ fields: Object.keys(row.data) }) });
     } else {
       const wire = dataCopy(inputs[input.name]);
       const value = state.bound.valueSchema === undefined ? decodeValue(input.type, wire)
@@ -1372,7 +1374,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       teamId = call.context.team?.teamId ?? null;
     const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
-    for (const { name, profile, row } of models) {
+    for (const { name, profile, row, sourcePresence } of models) {
       const read = reads.get(profile.model);
       if (read === undefined || !('grants' in read)) return invalid('SEND model requires original ordered source field grants.');
       const project = async (current: StoredRow, observed: ByContext, load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
@@ -1390,7 +1392,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         async (model, id) => { healthy(); const row = await owner.session!.views.final.get(model, id); healthy(); return row; }, healthy));
       healthy();
       if (authority.value.record === null) throw new StateError('forbidden', 'Current SEND model field authority is unavailable.');
-      const snapshot = deepFreeze({ ...row, parent: row.parent ?? null, data: dataCopy(authority.value.record.data) });
+      const snapshot = deepFreeze({ ...row, parent: row.parent ?? null, data: dataCopy(authority.value.record.data), sourcePresence });
       modelLexicalSnapshotOccurrences(profile, snapshot);
       await authority.revalidate(); healthy();
       values[name] = snapshot;
