@@ -444,7 +444,7 @@ export async function runOfficeCohort() {
   const local=path=>import(pathToFileURL(join(installed,'packages/cloudflare/dist',path)).href);
   const execute=promisify(execFile);
   const facts={schema:'office-cohort-local.v1',outcome:'incomplete',ownership:'in_process_session_with_native_controls',
-    remaining:['T11 eligible live witness and exact external packet authorization','Office A1–A6/G2 qualification','G3 fresh trials']};
+    remaining:['G2 join with retained T04/T11 controls','G3 fresh trials']};
   let owner;
   const builds=new Map();
   try {
