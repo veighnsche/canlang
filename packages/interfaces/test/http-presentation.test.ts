@@ -10,6 +10,8 @@ import type {
   AdmittedBindings,
   PageDescriptor,
   PageDeliveryObserver,
+  PageGenerationCallbackDiagnosticsObserver,
+  PageGenerationCallbackDiagnosticResult,
   PageRecordsReader,
   PresentationContext,
   ResolvedIdentity,
@@ -534,6 +536,98 @@ test('presentation installs exact scoped native readers without exposing effects
   assert.deepEqual(Object.keys(context.canonical!), ['builtinRoles', 'readRecords', 'observeDelivery']);
   assert.equal(Object.isFrozen(context.canonical), true);
   assert.equal('readRecords' in source.canonical, false);
+});
+
+test('presentation forwards each whole nullable closed generation diagnostic result without projection', async () => {
+  const locator = { record: { id: 'own-row', version: 3n }, field: 'generation' };
+  const outcomes: readonly (PageGenerationCallbackDiagnosticResult | null)[] = [null, {
+    outcome: 'complete', snapshotAttribution: 'unsupported', failures: [{
+      deliveryId: 'own-delivery', sourceOccurrence: 'own-source', occurrenceId: 'own-occurrence',
+      handler: 'TestApp.generated', event: 'std.TextV1.generate.completed', recordedAtMs: 1_729_000_000_123n,
+      code: 'require-false', message: 'handler requirement rejected the occurrence',
+    }],
+  }, { outcome: 'unsupported', reason: 'store-profile' }];
+  for (const outcome of outcomes) {
+    let calls = 0;
+    const observer: PageGenerationCallbackDiagnosticsObserver = async actual => {
+      calls++; assert.equal(actual, locator); return outcome;
+    };
+    const context = buildPresentationContext({ request: testRequest('/hello'), pathname: '/hello',
+      isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal: fakeIdentity(),
+      query: fakeQuery(), observeGenerationCallbackDiagnostics: observer });
+    assert.equal(context.canonical?.observeGenerationCallbackDiagnostics, observer);
+    assert.equal(await context.canonical!.observeGenerationCallbackDiagnostics!(locator), outcome);
+    assert.equal(calls, 1);
+  }
+});
+
+test('generation callback observer can only be installed by the presentation read scope', async () => {
+  const principal = fakeIdentity();
+  const source = buildPageSourceContext(principal);
+  let injectedCalls = 0;
+  const injected: PageGenerationCallbackDiagnosticsObserver = async () => { injectedCalls++; return null; };
+  const poisoned = { ...source, canonical: { ...source.canonical, observeGenerationCallbackDiagnostics: injected } };
+  const common = { request: testRequest('/hello'), pathname: '/hello', isPartial: false,
+    appDefaultLocale: 'en', csrfToken: '', principal, source: poisoned, query: fakeQuery() };
+  const absent = buildPresentationContext(common);
+  assert.equal(absent.canonical?.observeGenerationCallbackDiagnostics, undefined);
+  assert.equal(Object.hasOwn(absent.canonical!, 'observeGenerationCallbackDiagnostics'), false);
+  const refusal = new Error('original generation observation refusal');
+  const locator = { record: { id: 'own-row', version: 3n }, field: 'generation' };
+  const installed: PageGenerationCallbackDiagnosticsObserver = async actual => {
+    assert.equal(actual, locator); throw refusal;
+  };
+  const context = buildPresentationContext({ ...common, observeGenerationCallbackDiagnostics: installed });
+  assert.equal(context.canonical?.observeGenerationCallbackDiagnostics, installed);
+  assert.equal(context.canonical?.builtinRoles, source.canonical.builtinRoles);
+  assert.equal(Object.isFrozen(context.canonical), true);
+  await assert.rejects(context.canonical!.observeGenerationCallbackDiagnostics!(locator), error => error === refusal);
+  assert.equal(injectedCalls, 0);
+});
+
+test('authenticated full and partial pages use their exact scoped whole generation observer once', async () => {
+  for (const partial of [false, true]) {
+    const row = { id: 'own-generation-row', version: 4n, title: 'Own projected row' };
+    const locator = { record: row, field: 'generation' };
+    let source: PageSourceContext | undefined;
+    let current: ResolvedIdentity | undefined;
+    let reads = 0, scopes = 0, bodyReads = 0;
+    const observer: PageGenerationCallbackDiagnosticsObserver = async actual => {
+      reads++; assert.equal(actual, locator); assert.equal(actual.record, row);
+      assert.equal(actual.field, 'generation');
+      assert.equal(current?.actor?.user_id, identity.userId);
+      assert.equal(current?.team?.team_id, identity.teamId);
+      return null;
+    };
+    const page: PageDescriptor = {
+      owner: 'TestApp', path: '/hello', title: 'Hello',
+      admit: async actual => { source = actual as PageSourceContext; return {}; },
+      render: async context => {
+        assert.equal(context.principal, current); assert.equal(context.invocation, current);
+        assert.equal(context.actor, source!.actor); assert.equal(context.team, source!.team);
+        assert.equal(context.canonical?.builtinRoles, source!.canonical.builtinRoles);
+        assert.equal(context.canonical?.observeGenerationCallbackDiagnostics, observer);
+        assert.equal(Object.isFrozen(context.canonical), true);
+        const projected = await context.canonical!.readRecords!('TestApp.Job', {});
+        assert.equal(projected[0], row);
+        assert.equal(await context.canonical!.observeGenerationCallbackDiagnostics!(locator), null);
+        return '<p>whole scoped generation observation</p>';
+      },
+    };
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const scopedDeps = { ...deps, createReadScope: (principal: ResolvedIdentity) => {
+      scopes++; current = principal; assert.ok(source);
+      return { query: fakeQuery(), readRecords: async (model: string) => {
+        assert.equal(model, 'TestApp.Job'); return [row];
+      }, observeGenerationCallbackDiagnostics: observer };
+    } };
+    const request = testRequest(`/hello?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) });
+    Object.defineProperty(request, 'json', { value: () => { bodyReads++; throw new Error('request body read'); } });
+    const response = await handlePageRequest(scopedDeps, request);
+    assert.equal(response.status, 200); assert.match(await response.text(), /whole scoped generation observation/);
+    assert.equal(reads, 1); assert.equal(scopes, 1); assert.equal(bodyReads, 0);
+  }
 });
 
 test('unbound presentation source reads explicitly refuse', async () => {

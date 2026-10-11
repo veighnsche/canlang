@@ -406,6 +406,9 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
       ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
       ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
+      ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
+        observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
+      }),
       ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
       ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
       appId: deps.app.appId, sessionToken,
@@ -471,6 +474,9 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
     ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
     ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
+    ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
+      observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
+    }),
     ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
     ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
     appId: deps.app.appId, sessionToken,

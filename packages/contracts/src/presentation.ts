@@ -21,7 +21,7 @@ import type {
 import type { DeliveryStatus } from "./services.js";
 import type { HistoryEntry, Revision } from "./state.js";
 import type { DatetimeValue, UserRef } from "./values.js";
-import type { ReceiptProperty } from "./work.js";
+import type { GenerationCallbackDiagnosticResult, GenerationCallbackFailure, ReceiptProperty } from "./work.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
@@ -189,6 +189,7 @@ export interface PageSourceContext {
     /** Render-only native records from this request's authorized viewer scope. */
     readonly readRecords?: PageRecordsReader;
     readonly observeDelivery?: PageDeliveryObserver;
+    readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
   };
 }
 
@@ -534,6 +535,18 @@ export type PageDeliveryObserver = (
   selected: readonly ReceiptProperty[],
 ) => Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null>;
 
+/** Native page result: the owning adapter converts the safe Work timestamp to Can int. */
+export type PageGenerationCallbackDiagnosticResult =
+  | (Omit<Extract<GenerationCallbackDiagnosticResult, { readonly outcome: "complete" }>, "failures"> & {
+    readonly failures: readonly (Omit<GenerationCallbackFailure, "recordedAtMs"> & { readonly recordedAtMs: bigint })[];
+  })
+  | Extract<GenerationCallbackDiagnosticResult, { readonly outcome: "unsupported" }>;
+
+/** Whole selected historical diagnostic observation; the owner enforces current grants. */
+export type PageGenerationCallbackDiagnosticsObserver = (
+  locator: { readonly record: unknown; readonly field: string },
+) => Promise<PageGenerationCallbackDiagnosticResult | null>;
+
 /** The owning reader rechecks this original projected row at the page checkpoint. */
 export type PageHistoryReader = (
   locator: { readonly model: string; readonly record: RowView },
@@ -548,6 +561,7 @@ export interface PageReadScope {
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
   readonly observeDelivery?: PageDeliveryObserver;
+  readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
 
 /**

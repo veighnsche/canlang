@@ -9,6 +9,14 @@ ingress verifier); this package ships the shell, not the engines.
 Ownership per `implementation/PLAN.md`: lane 06 (account/session/team
 identity, HTTP/MCP routing, canonical request/result and upload transport).
 
+An admitted `PageReadScope` can install `observeGenerationCallbackDiagnostics`
+on the frozen page `canonical` context. Full and partial page paths forward the
+exact observer, accepting only the original `{ record, field }` locator and
+returning one whole nullable closed result. Source extras cannot install it.
+The native result uses Can `int` (`bigint`) for `failures[].recordedAtMs`; the
+owning binding validates and converts the Work timestamp and enforces current
+authority. Interfaces does not derive origin facts or issue diagnostics.
+
 ## Install
 
 Private workspace package (`"private": true`, ESM, `"node": ">=22"`).
