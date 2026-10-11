@@ -9395,3 +9395,38 @@ Three independently worded equivalent abstract Choice requests unanimously advis
 The existing language-version rules require the actual release Intl runtime artifact/build and its loaded ICU/timezone/CLDR data, with the independent checked-in SIX2026-09-17 currency table. Exposed data versions or identified pinned artifact/vendor data supply that identity; an engine range, resolved alias name or another host's versions cannot. Dev/L7 owns the exact declared release-host output and existing semantic corpus qualification. This is the existing data-correspondence requirement, not a new profile/carrier or a human policy decision; cache correctness supplies no release/data acceptance.
 
 Values emission passes0. The frozen affected timezone file passes21/21 on Node24.19.0 (ICU78.3/tz2026b/CLDR48.0;122.518292ms) and21/21 on Bun1.4.2 (ICU78.1;tz/CLDR not exposed;249ms),zero failures/skips/cancellations. The new actual Intl/Map control checks both retained capacities throughout insertion, hot reuse/cold reconstruction across72 admitted raw spellings, exact outputs and invalid-zone refusals, restoring instrumentation in finally. Original20 timezone controls run once because their producer changed. Unchanged locale/money/179-owning/237-profile/seven-variant results remain at their original tuples and are not repeated. Finite source/test review CLEAR; coordinator finite source/test review and LOCAL main integration complete; exact Dev/L7 release-host/data qualification remains. All precise activation/publication/preparation holds and the complete checkpoint remain.
+
+2026-10-11 — original paginated Upcoming/Past query time (implemented producer; native join unfinished).
+
+Choose the closed page-only operand `{kind:"page-query-now"}` at the checked
+owning nonnullable Datetime `>=now`/`<now` comparison value. Reuse the coordinator's
+three independent equivalent JEV Choice requests and saved responses in
+`/private/tmp/canlang-page-query-time-choice.json`: B/B/B, confidences
+.53/.43/.73 and B probabilities .69/.62/.82. The alternative was a narrowly
+scoped awaited collection-query-time callback; both preserved original query
+time separately from renewed cursor issuance/expiry and current authorization.
+The selected operand avoids that additional callback. Agreement is advice;
+moderate confidence and genuine continuation behavior still require the owning
+runtime checks. This is an engineering choice, not a human design-approval gate.
+
+Compiler seals the original bare pagination marker's span/prop position together
+with original collection/model/field/predicate facts. Only that original Table
+where emits the exact one-key operand; ordinary tables retain the existing
+Values datetime codec of current admitted `c.now`. Forged, dropped, duplicated,
+moved or malformed pagination, authored page/cursor headers, foreign model/field
+and displaced/overridden where cannot gain this profile. Existing filter/default,
+order, body, source occurrence and first-failure behavior remain their owners.
+
+Dev resolves the operand from current admitted time on page one or authenticated
+original query time on continuation before generic State normalization/read.
+The cursor retains the bounded original time separately from renewable
+issuance/expiry; current guards and other now expressions remain current.
+Full app/source/model/actor/team/occurrence/query/revision binding, expiry,
+tamper/current-authority and filter-change refusals remain required. Generic
+State receives only the concrete owning Datetime wire value. The exact Dev
+consumer release and genuine paginated qualification are the remaining
+prerequisite; no whole CanBook/application or unrelated hold is accepted here.
+
+Owning changed4/4 CLI/public-module/original-source/IR checks pass0.72s; strict all-target Clippy0 5.48s,fmt/diff0. The focused review exposed and fixed duplicate model/where object-key overrides, now covered by the owning refusal controls. Unchanged ordinary native146 and corpus/editor/completion results are reused; paginated runtime qualification remains Dev-owned and unfinished.
+
+Coordinator finite checked source/IR/emission review CLEAR and LOCAL main integration complete. Recorded changed checks are reused; genuine paired native pagination remains unfinished. No whole-plan count or complete file-tree checkpoint is advanced.
