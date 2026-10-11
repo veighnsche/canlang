@@ -355,7 +355,7 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
     fail("IDENTITY_UNAVAILABLE", `seeded member team selection returned HTTP ${selection.status}`);
   }
   const grantResponse = await dev.dispatchUrl(`${origin}/mcp/grants`, {
-    method: "POST", headers: { "content-type": "application/json", cookie: sessionCookie },
+    method: "POST", headers: { "content-type": "application/json", cookie: sessionCookie, "x-csrf-token": csrf },
     body: JSON.stringify({ client_id: "can-dev-local-probe" }),
   });
   let granted: unknown;
