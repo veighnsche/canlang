@@ -23,7 +23,7 @@ import type {
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
 import type { HistoryEntry, Revision } from "./state.js";
-import type { DatetimeValue, UserRef } from "./values.js";
+import type { DatetimeValue, FileValue, UserRef } from "./values.js";
 import type { GenerationCallbackDiagnosticResult, GenerationCallbackFailure, ReceiptProperty } from "./work.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
@@ -248,6 +248,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly query: RowQueryRunner;
   /** Current-authorized history reader supplied only by the admitted page scope. */
   readonly readHistory?: PageHistoryReader;
+  /** Original File occurrence to current authorized link; a File ID alone grants nothing. */
+  readonly presentFile?: PageFilePresenter;
   /**
    * Pinned minor-unit currency scales (lane 2 table) for money display;
    * absent scales fail money rendering loudly rather than guessing.
@@ -571,6 +573,7 @@ export interface PageReadScope {
   readonly onQueryBound?: (query: RowQueryRunner) => void | Promise<void>;
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
+  readonly presentFile?: PageFilePresenter;
   readonly observeDelivery?: PageDeliveryObserver;
   readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
@@ -608,7 +611,8 @@ export interface TitleProps {
 
 export interface TextProps {
   readonly context: PresentationContext;
-  readonly values: readonly TextValue[];
+  /** File arrays retain their original ordered occurrences, including duplicates. */
+  readonly values: readonly (TextValue | FileValue | readonly FileValue[])[];
 }
 
 export interface ContentProps {
@@ -1793,6 +1797,15 @@ export interface FileLinkView {
   readonly caption?: MessageValue;
   readonly status?: DeliveryStatus;
 }
+
+/**
+ * Trusted admitted scope binds the original File object to its actual current
+ * row, checked field and attachment. Null withholds the occurrence; missing
+ * configuration is unavailable. Returned URLs must recheck current Identity,
+ * row/field/File authority on every open and never grant access by possession.
+ * Renderer props, copied IDs and request metadata cannot establish that binding.
+ */
+export type PageFilePresenter = (file: FileValue) => Promise<FileLinkView | null>;
 
 /** `file` display props: field wiring plus the authorized file links. */
 export interface FileProps extends FieldControlProps {

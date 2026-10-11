@@ -4,6 +4,8 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { makeFileValue } from '@canlang/values';
+import type { FileValue, PageFilePresenter } from '@canlang/contracts';
 import { TestOnlyFixedPrincipal } from '../src/ports.js';
 import {
   appendUploadContent,
@@ -20,6 +22,8 @@ import {
   handleFinalize,
   intentsUrlFor,
   routeHost,
+  createPageFilePresentation,
+  type PageFileOccurrence,
 } from '../src/bridge.js';
 import {
   BINDING,
@@ -29,6 +33,75 @@ import {
   makeHarness,
   uploadRequest,
 } from './helpers.js';
+
+describe('page File occurrence presentation', () => {
+  it('binds original identities per page and snapshots nested positions without granting copies', async () => {
+    const file = makeFileValue('file-one');
+    const path: (string | number)[] = [2, 'attachments', 0];
+    const occurrence = { model: 'Chat.Conversation', recordId: 'conversation-one', field: 'messages', ref: file.id, path };
+    const seen: PageFileOccurrence[] = [];
+    const page = createPageFilePresentation(async captured => {
+      seen.push(captured);
+      assert.equal(Object.isFrozen(captured), true); assert.equal(Object.isFrozen(captured.path), true);
+      return { href: '/files/current-authorized-open' };
+    });
+    const other = createPageFilePresentation(async () => { throw new Error('foreign page must not resolve'); });
+    assert.equal(Object.isFrozen(page), true);
+    page.bind(file, occurrence); page.bind(file, { ...occurrence, path: [...path] });
+    occurrence.recordId = 'changed'; path.splice(0, path.length, 'changed');
+    assert.deepEqual(await page.presentFile(file), { href: '/files/current-authorized-open' });
+    assert.deepEqual(seen[0], { model: 'Chat.Conversation', recordId: 'conversation-one', field: 'messages',
+      ref: file.id, path: [2, 'attachments', 0] });
+    assert.equal(await page.presentFile({ ...file }), null);
+    assert.equal(await other.presentFile(file), null);
+    assert.equal(seen.length, 1);
+    assert.throws(() => page.bind(file, occurrence), /rebound/);
+    assert.throws(() => page.bind(makeFileValue('different'), occurrence), /reference/);
+  });
+
+  it('refuses malformed own-data bindings before effects and withholds mutated File identities', async () => {
+    let calls = 0, getterCalls = 0;
+    const page = createPageFilePresentation(async () => { calls++; return { href: '/authorized' }; });
+    const file: FileValue = { kind: 'file', id: 'file-one' };
+    const occurrence: PageFileOccurrence = { model: 'Chat.Message', recordId: 'message-one',
+      field: 'attachments', ref: file.id, path: ['attachments', 0] };
+    const accessor = { ...occurrence, get ref() { getterCalls++; return file.id; } };
+    const pathAccessor = [0];
+    Object.defineProperty(pathAccessor, '0', { enumerable: true, get() { getterCalls++; return 0; } });
+    for (const malformed of [accessor, Object.create(occurrence), { ...occurrence, extra: true },
+      { ...occurrence, path: new Array(1) }, { ...occurrence, path: pathAccessor },
+      { ...occurrence, path: [-1] }, { ...occurrence, path: [1.5] }, { ...occurrence, path: [null] }]) {
+      assert.throws(() => page.bind(file, malformed as PageFileOccurrence), TypeError);
+    }
+    const badFile = { get kind() { getterCalls++; return 'file'; }, id: file.id };
+    assert.throws(() => page.bind(badFile as FileValue, occurrence), TypeError);
+    assert.equal(getterCalls, 0); assert.equal(calls, 0);
+    page.bind(file, occurrence);
+    Object.defineProperty(file, 'id', { value: 'changed', enumerable: true, configurable: true });
+    assert.equal(await page.presentFile(file), null); assert.equal(calls, 0);
+    Object.defineProperty(file, 'id', { enumerable: true, configurable: true, get() { getterCalls++; return 'file-one'; } });
+    assert.equal(await page.presentFile(file), null); assert.equal(getterCalls, 0);
+  });
+
+  it('closes terminally and withholds pending results while preserving resolver errors', async () => {
+    const file = makeFileValue('file-one');
+    const occurrence = { model: 'Chat.Message', recordId: 'message-one', field: 'attachments', ref: file.id, path: [0] };
+    let complete!: (value: Awaited<ReturnType<PageFilePresenter>>) => void;
+    let calls = 0;
+    const page = createPageFilePresentation(async () => { calls++; return new Promise(resolve => { complete = resolve; }); });
+    page.bind(file, occurrence);
+    const pending = page.presentFile(file);
+    assert.equal(calls, 1);
+    page.close(); page.close(); complete({ href: '/late-authorized-open' });
+    assert.equal(await pending, null);
+    assert.equal(await page.presentFile(file), null); assert.equal(calls, 1);
+    assert.throws(() => page.bind(file, occurrence), /closed/);
+    const failure = new Error('current host resolver failed');
+    const failing = createPageFilePresentation(async () => { throw failure; });
+    failing.bind(file, occurrence);
+    await assert.rejects(failing.presentFile(file), error => error === failure);
+  });
+});
 
 describe('bridge v1', () => {
   it('rejects unauthenticated intent creation before any intent exists', () => {

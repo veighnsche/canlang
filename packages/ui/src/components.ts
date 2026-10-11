@@ -13,6 +13,8 @@
 import type {
   CardProps,
   ContentProps,
+  FileValue,
+  FileLinkView,
   MessageDescriptor,
   MessageParamValue,
   MessageValue,
@@ -24,7 +26,7 @@ import type {
   TextValue,
   TitleProps,
 } from "@canlang/contracts";
-import { escapeAttr, escapeHtml, isolate } from "./escape.js";
+import { escapeAttr, escapeHtml, isolate, safeHref } from "./escape.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
@@ -33,6 +35,7 @@ import {
   formatScalar,
   resolveCaption,
   resolvedText,
+  message,
 } from "./messages.js";
 
 /** Page locale: first valid viewer preference, else the app default. */
@@ -158,9 +161,83 @@ export async function title(props: TitleProps): Promise<string> {
   return `<h${String(level)} class="${TITLE_CLASSES[level]}">${text}</h${String(level)}>`;
 }
 
-/** One paragraph of space-joined text values. */
+const NO_FILES = message("No files", { nl: "Geen bestanden" });
+const FILE_UNAVAILABLE = message("File unavailable", { nl: "Bestand niet beschikbaar" });
+const OPEN_FILE = message("Open file", { nl: "Bestand openen" });
+
+function checkedTextFile(value: unknown): FileValue {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError("text File entries must be File values");
+  }
+  const kind = Object.getOwnPropertyDescriptor(value, "kind");
+  const id = Object.getOwnPropertyDescriptor(value, "id");
+  if (kind === undefined || !("value" in kind) || kind.value !== "file" ||
+      id === undefined || !("value" in id) || typeof id.value !== "string" || id.value === "") {
+    throw new TypeError("text File entries must be File values");
+  }
+  return value as FileValue;
+}
+
+function textFileLink(view: FileLinkView | null, context: PresentationContext): string {
+  if (view === null) return isolate(escapeHtml(resolveCaption(FILE_UNAVAILABLE, context)));
+  if (typeof view !== "object" || Array.isArray(view)) {
+    throw new TypeError("text File presenter returned an invalid authorized link");
+  }
+  const properties = Object.getOwnPropertyDescriptors(view);
+  for (const key of ["href", "name", "caption", "status"]) {
+    if (properties[key] !== undefined && !("value" in properties[key]!)) {
+      throw new TypeError("text File presenter returned an invalid authorized link");
+    }
+  }
+  const href: unknown = properties.href?.value;
+  const name: unknown = properties.name?.value;
+  const suppliedCaption = properties.caption?.value as FileLinkView["caption"];
+  const suppliedStatus: unknown = properties.status?.value;
+  if (typeof href !== "string" || safeHref(href, "") === "" ||
+      (name !== undefined && typeof name !== "string") ||
+      (suppliedStatus !== undefined && (typeof suppliedStatus !== "string" ||
+        !["pending", "succeeded", "failed", "unknown", "skipped"].includes(suppliedStatus)))) {
+    throw new TypeError("text File presenter returned an invalid authorized link");
+  }
+  const caption = suppliedCaption === undefined ? name ?? resolveCaption(OPEN_FILE, context) :
+    resolveCaption(suppliedCaption, context);
+  const status = suppliedStatus === undefined ? "" : ` <span role="status">${escapeHtml(suppliedStatus)}</span>`;
+  return `<a class="link" href="${escapeAttr(href)}">${isolate(escapeHtml(caption))}</a>${status}`;
+}
+
+/** One paragraph of space-joined text and source-bound authorized File links. */
 export async function text(props: TextProps): Promise<string> {
-  const parts = props.values.map((value) => renderTextValue(value, props.context));
+  // Complete validation and sequence snapshots precede every presenter await.
+  // Retain original File objects: copied identities cannot acquire source scope.
+  const values = [...props.values].map<{ files: FileValue[] } | { html: string }>(value => {
+    if (Array.isArray(value)) {
+      const files: FileValue[] = [];
+      for (let index = 0; index < value.length; index++) {
+        if (!Object.hasOwn(value, index)) throw new TypeError("text File arrays cannot be sparse");
+        files.push(checkedTextFile(value[index]));
+      }
+      return { files };
+    }
+    if (typeof value === "object" && value !== null &&
+        Object.getOwnPropertyDescriptor(value, "kind")?.value === "file") {
+      return { files: [checkedTextFile(value)] };
+    }
+    return { html: renderTextValue(value as TextValue, props.context) };
+  });
+  const present = props.context.presentFile;
+  if (values.some(value => "files" in value && value.files.length > 0) && typeof present !== "function") {
+    throw new Error("text File presentation requires a source-bound presenter");
+  }
+  const parts: string[] = [];
+  for (const value of values) {
+    if ("html" in value) parts.push(value.html);
+    else if (value.files.length === 0) parts.push(isolate(escapeHtml(resolveCaption(NO_FILES, props.context))));
+    else {
+      const links: string[] = [];
+      for (const file of value.files) links.push(textFileLink(await present!(file), props.context));
+      parts.push(links.join(" "));
+    }
+  }
   return `<p>${parts.join(" ")}</p>`;
 }
 

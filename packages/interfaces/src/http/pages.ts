@@ -443,6 +443,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       query,
       ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
       ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
+      ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
       ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
       ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
         observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
@@ -510,6 +511,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     query,
     ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
     ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
+    ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
     ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
     ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
       observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,

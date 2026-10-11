@@ -22,6 +22,9 @@
 import type {
   FileTransferMeta,
   UploadIntentRequest,
+  FileValue,
+  FileLinkView,
+  PageFilePresenter,
 } from '@canlang/contracts';
 import type { UploadIntentId } from '@canlang/contracts';
 import type { PrincipalResolverPort } from './ports.js';
@@ -46,6 +49,101 @@ import {
   completeUploadContent,
   createUploadIntent,
 } from './upload/index.js';
+
+/** Original projected File position, captured by the host that owns the page. */
+export interface PageFileOccurrence {
+  readonly model: string;
+  readonly recordId: string;
+  readonly field: string;
+  readonly ref: string;
+  /** Relative to the checked field value: [] for a File, [index] for File[]. */
+  readonly path: readonly (string | number)[];
+}
+
+function occurrenceData(value: unknown, keys: readonly string[]): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+    throw new TypeError('Page File binding requires own plain data.');
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (Reflect.ownKeys(value).length !== keys.length || keys.some(key =>
+      descriptors[key] === undefined || !('value' in descriptors[key]!) || descriptors[key]!.enumerable !== true)) {
+    throw new TypeError('Page File binding requires exact own data fields.');
+  }
+  const captured: Record<string, unknown> = Object.create(null);
+  for (const key of keys) captured[key] = descriptors[key]!.value;
+  return captured;
+}
+
+function pageFileIdentity(file: unknown): string {
+  const data = occurrenceData(file, ['kind', 'id']);
+  if (data.kind !== 'file' || typeof data.id !== 'string' || data.id === '') {
+    throw new TypeError('Page File binding requires a File identity.');
+  }
+  return data.id;
+}
+
+function capturePageFileOccurrence(value: PageFileOccurrence): PageFileOccurrence {
+  const data = occurrenceData(value, ['model', 'recordId', 'field', 'ref', 'path']);
+  for (const key of ['model', 'recordId', 'field', 'ref']) {
+    if (typeof data[key] !== 'string' || data[key] === '') throw new TypeError('Page File locator requires nonempty identities.');
+  }
+  if (!Array.isArray(data.path)) throw new TypeError('Page File path requires a dense data array.');
+  const descriptors = Object.getOwnPropertyDescriptors(data.path);
+  const length = Object.getOwnPropertyDescriptor(data.path, 'length')!.value as number;
+  if (Reflect.ownKeys(data.path).length !== length + 1) throw new TypeError('Page File path requires a dense data array.');
+  const path: (string | number)[] = [];
+  for (let index = 0; index < length; index++) {
+    const descriptor = descriptors[String(index)];
+    if (descriptor === undefined || !('value' in descriptor) || descriptor.enumerable !== true ||
+        !(typeof descriptor.value === 'string' || typeof descriptor.value === 'number' &&
+          Number.isSafeInteger(descriptor.value) && descriptor.value >= 0)) {
+      throw new TypeError('Page File path requires own string or nonnegative integer steps.');
+    }
+    path.push(descriptor.value);
+  }
+  return Object.freeze({ model: data.model as string, recordId: data.recordId as string,
+    field: data.field as string, ref: data.ref as string, path: Object.freeze(path) });
+}
+
+/** Host-only occurrence binding, created once for the admitted page scope.
+ * Keep bind/close private to its host; expose only presentFile to rendering.
+ * The host closes this association when that scope ends. Its resolver retains
+ * the selected owner, identity, source and observation checkpoint and supplies
+ * current whole-field/attachment/physical authority plus a per-open authorized
+ * URL. Binding an identity alone grants no access and proves no attachment. */
+export function createPageFilePresentation(
+  resolve: (occurrence: PageFileOccurrence) => Promise<FileLinkView | null>,
+): Readonly<{ bind(file: FileValue, occurrence: PageFileOccurrence): void; presentFile: PageFilePresenter; close(): void }> {
+  if (typeof resolve !== 'function') throw new TypeError('Page File presentation requires a host resolver.');
+  let closed = false;
+  let bindings = new WeakMap<FileValue, PageFileOccurrence>();
+  return Object.freeze({
+    bind(file: FileValue, occurrence: PageFileOccurrence): void {
+      if (closed) throw new Error('Page File presentation is closed.');
+      const ref = pageFileIdentity(file);
+      const captured = capturePageFileOccurrence(occurrence);
+      if (ref !== captured.ref) throw new TypeError('Page File binding disagrees with its original reference.');
+      const previous = bindings.get(file);
+      if (previous !== undefined && (['model', 'recordId', 'field', 'ref'] as const).some(key => previous[key] !== captured[key]) ||
+          previous !== undefined && (previous.path.length !== captured.path.length || previous.path.some((step, index) => step !== captured.path[index]))) {
+        throw new Error('Page File identity cannot be rebound to another occurrence.');
+      }
+      if (previous === undefined) bindings.set(file, captured);
+    },
+    async presentFile(file: FileValue): Promise<FileLinkView | null> {
+      if (closed || typeof file !== 'object' || file === null) return null;
+      const captured = bindings.get(file);
+      if (captured === undefined) return null;
+      try { if (pageFileIdentity(file) !== captured.ref) return null; } catch { return null; }
+      const view = await resolve(captured);
+      if (closed) return null;
+      try { if (pageFileIdentity(file) !== captured.ref) return null; } catch { return null; }
+      return view;
+    },
+    close(): void { closed = true; bindings = new WeakMap(); },
+  });
+}
 
 /**
  * MCP `_meta` key for the file-transfer advertisement (DESIGN §8).
