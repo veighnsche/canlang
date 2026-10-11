@@ -53,9 +53,60 @@ import {
   input as renderInput,
   checkbox,
   toggle,
+  calendar,
   NATIVE_BOOLEAN_PRESENCE_PREFIX,
   projectGeneratedInputs,
 } from '@canlang/ui';
+
+test('checked canonical date strings reach prepared calendar fields and preserve bound record identity', async () => {
+  // Declaration-metadata component control; no original Compiler/native
+  // application qualification is asserted by this authored descriptor.
+  const create: ArtifactOperation = { name: 'Store.Booking.create', kind: 'create', description: '', inputs: { fields: [
+    { name: 'from', field: { kind: 'string' }, valueType: 'date', required: false,
+      default: { kind: 'literal', value: '2026-10-12' } },
+    { name: 'note', field: { kind: 'string' }, required: false },
+    { name: 'until', field: { kind: 'string' }, valueType: 'date?', nullable: true, required: false },
+  ] } };
+  const update: ArtifactOperation = { name: 'Store.Booking.update', kind: 'update', description: '', inputs: { fields: [
+    { name: 'record', field: { kind: 'ref', model: 'Store.Booking', requireVersion: true }, required: true },
+    ...create.inputs.fields.map(({ default: _default, ...field }) => field),
+  ] } };
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [create, update] });
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const csrf = await deriveCsrfToken(identity.sessionToken);
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(91), 'date-form-component');
+  const context = buildPresentationContext({ request: testRequest('/forms', { cookie: identity.cookie }),
+    pathname: '/forms', isPartial: false, appDefaultLocale: 'en', csrfToken: csrf, principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock,
+    formBindings, appId: deps.app.appId, sessionToken: identity.sessionToken });
+  const fresh = await context.prepareForm!({ operation: create.name, authoredFields: ['from'] });
+  assert.equal(fresh.status, 'ready');
+  if (fresh.status !== 'ready') throw new Error('expected checked date create form');
+  assert.deepEqual(fresh.derived, deriveOperationInputs(create));
+  assert.deepEqual(fresh.props.fields!.map(field => field.path), ['from', 'note', 'until', 'until__null']);
+  assert.equal(fresh.field('note').field.type, 'text');
+  assert.equal(fresh.field('from').field.type, 'date'); assert.equal(fresh.field('until').field.type, 'date');
+  assert.equal(fresh.field('from').field.value, '2026-10-12');
+  const html = await calendar({ kind: 'field', ...fresh.field('from') });
+  assert.match(html, /type="date"/); assert.match(html, /name="inputs\[from\]"/);
+  assert.match(html, /value="2026-10-12"/);
+  const record = { id: 'booking-1', version: 7n, from: '2026-10-14', until: null, note: 'Existing', secret: 'withheld' };
+  const edited = await context.prepareForm!({ operation: update.name, arguments: { record }, authoredFields: ['from'] });
+  assert.equal(edited.status, 'ready');
+  if (edited.status !== 'ready') throw new Error('expected checked protected date update');
+  assert.deepEqual(edited.props.record, { id: 'booking-1', version: '7' });
+  assert.equal(edited.field('from').field.value, '2026-10-14');
+  assert.deepEqual(edited.props.fields!.map(field => field.path), ['from', 'note', 'until', 'until__null']);
+  const projected = projectGeneratedInputs(edited.derived, 'update', { 'inputs[changes][from]': '2026-10-15' }, ['from']);
+  assert.deepEqual(projected, { from: '2026-10-15' });
+  assert.equal(typeof projected['from'], 'string');
+  assert.deepEqual(record, { id: 'booking-1', version: 7n, from: '2026-10-14', until: null, note: 'Existing', secret: 'withheld' });
+  assert.throws(() => deriveOperationInputs({ ...create, inputs: { fields: [
+    { name: 'from', field: { kind: 'string' }, valueType: 'unknown-date', required: false },
+  ] } }), /valueType|Unknown|unsupported|Invalid/);
+});
 
 /* Verbatim emission: Shop.review (scenario). */
 const REVIEW_OP: ArtifactOperation = {
