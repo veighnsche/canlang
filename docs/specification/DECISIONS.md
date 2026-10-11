@@ -8630,3 +8630,34 @@ Local original-ancestry integrationa619fec0: finite exact IncomingEmail literal/
 The original file-launched --cohort passes/exit0 against sourceba4a6f00, artifact8769869e, sourceRevisionb9aa804f and current epoch2c07f932 after genuine locked CLI rebuild0 (1m49s). Preserve all original assertions/timeouts: browser25 checks/business36 operations/examples2/2 twice, actual valid comment-edit promotion and retained failure, restored source, failed examples and distinct isolated reruns before/after restoration, all three complete serving-resource no-effect snapshots and awaited owner/preview/descriptor cleanup. The prior timeout stays a failed historical outcome; the changed run does not prove its cause. Existing source-current G1, public/private Email and lifecycle results are reused. T04/T11, G2/G3 and exact external/publication/recipient holds remain unfinished. Compiler inspection establishes no eligible authored ambiguity: existing multi-candidate branches differ materially in authority/effects/execution, FieldLabel is deterministic and the six drafts fail structure first. The defining design/evaluation source owner must release an accepted diagnostic span with complete equivalent-permission/effect candidates and actual distinguishing source evidence before Compiler/Dev implement that branch; no flags or offline gold are fabricated. No narrow result closes those gates. Raw File capture is prepared at the verified entry appDefinition before normalization, but its real opaque installation/lifetime/persistence consumer now has reviewed runtime33/a117, checked delivery/nullable4b and six-case scalar correctionbbb outputs, plus the exact preceding declared-profile producerb430; Dev is completing that separate native capture/receiving join. No unused carrier or normalized reconstruction substitutes for that producer.
 
 Local selective qualification integrationad72f561/9fe6f4ef: the reviewed8fd check/cancellation code and original public/private consumer trees already match main exactly. Reuse the actual complete original Office PASS tuple and all original source/assertion/time bounds; no duplicate run. This records the meaningful workflow qualification, preserves the historical timeout and does not establish its cause, current-whole-main acceptance, G2/T04/T11/G3 completion or any held release. Older foreign branch source/history is excluded.
+
+### 2026-10-11 — resolve the original Stock scalar ordering defect
+
+Accepted assigned C02 source correction: derive `Threshold.location_name:text`
+from the owning published `rent_catalog.Location.name`, then use that direct
+scalar as the existing threshold table's order key. A model reference has no
+declared scalar ordering, and presentation selectors do not descend references.
+The published location name preserves the authored location-based display order
+without inventing reference sorting or changing stored data, columns, filters,
+defaults, forms, permissions, guards, examples or effect order.
+
+The actual current all25 original-source CLI/catalog differential removes only
+Stock E3006:33→32, complete=true/omitted0, every other diagnostic and all24 other
+source hashes unchanged. The current baseline already contains CRM's File button
+E3001; the older frozen32 output omitted it and does not qualify the current head.
+The isolated Stock corpus row intentionally cannot resolve imported Location,
+so its new derived scalar adds an opaque-import finding39→40; only that pin is
+updated. This closes the assigned source criterion, not native Stock ordering,
+the original composition/application or a whole-plan reference. Remaining
+CRM1/Rent18/Shift9/Volunteer2/Employees2 retain their owners and exact next
+assignment prerequisites. All recipient-specific holds remain.
+
+The assigned CRM353 investigation identifies a defining C10 prerequisite,
+not a demonstrated producer regression: unchanged `Revision.pdf:file?` may
+remain null in the original queued-document examples. Destination checking
+introduced at56521753 admits nonnullable Text/Url/File; the existing UI target
+contract is string-only and treats null as an absent binding. UI/Interfaces/
+Files must release the exact current-authorized finalized File-to-safeURL and
+nullable/no-file behavior before checked lowering and Dev's saved-source
+consumer can join. Skip this blocked issue; keep CRM source and File emission
+unchanged.
