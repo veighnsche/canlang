@@ -8623,3 +8623,24 @@ replay. Pure File identity is not File authority; standard ingress E6008 and
 all human/recipient-specific holds remain. No whole-plan acceptance or publication.
 
 Local original-ancestry integrationa619fec0: finite exact IncomingEmail literal/default/native correspondence review CLEAR. Only exact sealed StdNominal literals append omitted nullable null/array empty defaults after authored fields; ordinary objects and missing required/schema refusals remain unchanged. Reuse owning actual CLI/native5/5 .52s, affected454 and changed strictalltargets0 7.10s/actual own CF22 graph0. The finite Compiler nominal identity/equality producer criterion is satisfied and stops. Dev authenticated standard issuer/closed original payload/trusted-null receiving/current authority/retained commit replay, original File native workflow and all precise holds remain separate.
+
+### 2026-10-11 — resolve the original Stock scalar ordering defect
+
+Accepted assigned C02 source correction: derive `Threshold.location_name:text`
+from the owning published `rent_catalog.Location.name`, then use that direct
+scalar as the existing threshold table's order key. A model reference has no
+declared scalar ordering, and presentation selectors do not descend references.
+The published location name preserves the authored location-based display order
+without inventing reference sorting or changing stored data, columns, filters,
+defaults, forms, permissions, guards, examples or effect order.
+
+The actual current all25 original-source CLI/catalog differential removes only
+Stock E3006:33→32, complete=true/omitted0, every other diagnostic and all24 other
+source hashes unchanged. The current baseline already contains CRM's File button
+E3001; the older frozen32 output omitted it and does not qualify the current head.
+The isolated Stock corpus row intentionally cannot resolve imported Location,
+so its new derived scalar adds an opaque-import finding39→40; only that pin is
+updated. This closes the assigned source criterion, not native Stock ordering,
+the original composition/application or a whole-plan reference. Remaining
+CRM1/Rent18/Shift9/Volunteer2/Employees2 retain their owners and exact next
+assignment prerequisites. All recipient-specific holds remain.

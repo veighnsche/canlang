@@ -1098,7 +1098,10 @@ fn draft_outcome_table() {
         ("draft/CanReport.can", 16),
         ("draft/CanShift.can", 100),
         ("draft/CanStats.can", 28),
-        ("draft/CanStock.can", 39),
+        // The location-name sort derives from an imported Location. This
+        // isolated row keeps that import opaque; the full source closure
+        // resolves the derive and removes the original order-key finding.
+        ("draft/CanStock.can", 40),
         ("draft/CanSuccess.can", 43),
         ("draft/CanSync.can", 12),
         ("draft/CanTable.can", 31),
