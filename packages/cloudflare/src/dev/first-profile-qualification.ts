@@ -102,9 +102,9 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     assert.equal(bootstrap.status, 303);
     const bridgeCookie = bootstrap.headers.getSetCookie().find(value => value.startsWith('can_dev_preview='))?.split(';',1)[0];
     assert.ok(bridgeCookie); const origin = new URL(bootstrap.url).origin;
-    const request = async (actor: Actor | null, path: string, body?: unknown, token?: string) => {
+    const request = async (actor: Actor | null, path: string, body?: unknown, token?: string, additionalCookie?: string) => {
       check(); return fetch(new URL(path, origin), { method: body === undefined ? 'GET' : 'POST', redirect: 'manual', ...(signal===undefined?{}:{signal}),
-        headers: { cookie: [bridgeCookie, actor?.cookie].filter(Boolean).join('; '), origin,
+        headers: { cookie: [bridgeCookie, actor?.cookie, additionalCookie].filter(Boolean).join('; '), origin,
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
           ...(actor ? { 'x-csrf-token': actor.csrf } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}),
           ...(path === '/mcp' ? { accept: 'application/json, text/event-stream' } : {}) },
@@ -115,9 +115,16 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
       const seed = actors.find(actor => actor.label === label); assert.ok(seed);
       const form = await request(null, '/auth/login'); assert.equal(form.status,200);
       const pre = object(await form.json());
-      const response = await request(null, '/auth/login', { email: seed.email, password: seed.password, _presession: pre.preSessionToken });
+      const preSessionToken = string(pre.preSessionToken); assert.ok(preSessionToken);
+      const preSessionCookies = form.headers.getSetCookie().filter(value => value.startsWith('can_presession='));
+      assert.equal(preSessionCookies.length,1);
+      const preSessionCookie = preSessionCookies[0]!.split(';',1)[0];
+      assert.ok(preSessionCookie && preSessionCookie !== 'can_presession=');
+      const response = await request(null, '/auth/login', { email: seed.email, password: seed.password, _presession: preSessionToken }, undefined, preSessionCookie);
       assert.equal(response.status,200);
-      const cookie = response.headers.getSetCookie().find(value => value.startsWith('can_session='))?.split(';',1)[0]; assert.ok(cookie);
+      const sessionCookies = response.headers.getSetCookie().filter(value => value.startsWith('can_session='));
+      assert.equal(sessionCookies.length,1);
+      const cookie = sessionCookies[0]!.split(';',1)[0]; assert.ok(cookie && cookie !== 'can_session=');
       const principal = await identities!.prepare('SELECT user_id FROM identity_users WHERE email_lc=?').bind(seed.email.toLowerCase()).first<{user_id:string}>(); assert.ok(principal);
       const actor: Actor = { cookie, csrf: await deriveCsrfToken(decodeURIComponent(cookie.slice('can_session='.length))), owner: null, principal: principal.user_id };
       const listing = await request(actor, '/auth/teams'); assert.equal(listing.status,200);

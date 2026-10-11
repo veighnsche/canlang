@@ -65,7 +65,9 @@ try{
   const ava=preview.issueLocalActors().find(a=>a.label==='Ava');
   if(!ava)throw new Error('seeded member unavailable');
   const loginGet=await fetch(`${origin}/auth/login`,{headers:{cookie:bridgeCookie}}),loginForm=await loginGet.json();
-  const login=await fetch(`${origin}/auth/login`,{method:'POST',headers:{cookie:bridgeCookie,origin,'content-type':'application/json'},body:JSON.stringify({email:ava.email,password:ava.password,_presession:loginForm.preSessionToken})});
+  const preSessionCookie=loginGet.headers.getSetCookie().find(value=>value.startsWith('can_presession='))?.split(';',1)[0];
+  if(!preSessionCookie)throw new Error('ordinary pre-session cookie unavailable');
+  const login=await fetch(`${origin}/auth/login`,{method:'POST',headers:{cookie:`${bridgeCookie}; ${preSessionCookie}`,origin,'content-type':'application/json'},body:JSON.stringify({email:ava.email,password:ava.password,_presession:loginForm.preSessionToken})});
   const appCookie=login.headers.getSetCookie().find(x=>x.startsWith('can_session='))?.split(';',1)[0];
   if(login.status!==200||!appCookie)throw new Error(`ordinary member login failed HTTP ${login.status}`);
   const teams=await fetch(`${origin}/auth/teams`,{headers:{cookie:`${bridgeCookie}; ${appCookie}`}}),teamList=await teams.json(),team=teamList.teams?.[0]?.team_id;

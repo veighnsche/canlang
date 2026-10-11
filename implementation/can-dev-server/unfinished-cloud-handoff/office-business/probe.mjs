@@ -127,7 +127,9 @@ function summary(row) {
 async function login(actor) {
   const descriptor = await fetch(`${origin}/auth/login`, { headers:{cookie:bridgeCookie} });
   const form = await descriptor.json();
-  const response = await fetch(`${origin}/auth/login`, { method:'POST', headers:{cookie:bridgeCookie,origin,'content-type':'application/json'}, body:JSON.stringify({email:actor.email,password:actor.password,_presession:form.preSessionToken}) });
+  const preSessionCookie = descriptor.headers.getSetCookie().find(value=>value.startsWith('can_presession='))?.split(';',1)[0];
+  if (!preSessionCookie) throw new Error(`${actor.label} ordinary pre-session cookie unavailable`);
+  const response = await fetch(`${origin}/auth/login`, { method:'POST', headers:{cookie:`${bridgeCookie}; ${preSessionCookie}`,origin,'content-type':'application/json'}, body:JSON.stringify({email:actor.email,password:actor.password,_presession:form.preSessionToken}) });
   const appCookie = response.headers.getSetCookie().find(value=>value.startsWith('can_session='))?.split(';',1)[0];
   if (response.status!==200 || !appCookie) throw new Error(`${actor.label} ordinary login failed HTTP ${response.status}`);
   const csrf = await deriveCsrfToken(appCookie.split('=',2)[1]);
