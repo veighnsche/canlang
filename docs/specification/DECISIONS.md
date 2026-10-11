@@ -10513,3 +10513,16 @@ review is CLEAR; earlier unchanged File/page/browser checks are reused. Actual n
 scope binding/current authorization remain Dev-owned; all precise holds remain.
 
 Coordinator independent source review CLEAR and LOCAL main integration after deadline. Scope cleanup runs once with the actual host receiver after awaited rendering or acquired-scope failure; close is hidden from source/rendering, and cleanup failure cannot leak prepared success. Owning3 lifecycle/public1 checks reused, current normal dependency closure/root0. Dev attaches real native private File association.close; original application/native acceptance and all precise holds remain unfinished. Complete filetree checkpoint unchanged.
+
+## 2026-10-11 — Public declared File census (implemented; native consumer unfinished)
+
+Forward the existing State bindFileReferenceProfile/fileReferenceOccurrences and
+three associated types through root/ports, and expose the exact original module
+at ports/file-reference-profile. No wrapper, copied profile implementation or new
+census is introduced. All entry points share its private owning-profile map.
+State emission and the actual public identity/profile/copy-refusal control pass;
+unchanged feature checks are reused. These metadata facts confer no origin, row
+or File authority. Dev/Capability own original native consumption; existing
+all-writer deletion, authenticated ingress, provider-void and precise holds remain.
+
+Coordinator direct defining review CLEAR; Packages owns the common export repair, integrated after deadline without replacing newer State exports. Root/ports/subpath use the same original private-profile implementation; no copied census, wrapper or authority is added. Reuse owning emission/public1 and qualify changed normal State/root0. Capability0d1d identical two-barrel unit is a consumer checkpoint for this one shared outcome. Actual native consumers/deletion/ingress and precise holds remain unfinished; complete checkpoint unchanged.

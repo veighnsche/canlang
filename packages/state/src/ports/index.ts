@@ -16,6 +16,13 @@ export {
   type CommittedFileReferences, type FileReferenceConsumer, type FileReferenceConsumerInput,
 } from './file-references.js';
 export {
+  bindFileReferenceProfile,
+  fileReferenceOccurrences,
+  type FileReferenceProfile,
+  type FileReferenceProfileBound,
+  type FileReferenceOccurrence,
+} from './file-reference-profile.js';
+export {
   createInvoker,
   createTransactionPort,
   type BoundInvoker,

@@ -3129,6 +3129,14 @@
           "missing_output_and_owner": "If genuine original provider void is required, Contracts/Compiler must release exact original canonical/artifact provider-void descriptor correspondence; Capability/State must release matching delivery-owned historical profile/admission. Until then this exact provider-void leaf is unsupported/blocked, not a blocker for nominal consumers and not permission to fabricate a schema.",
           "verification": "Read actual Contracts state/artifact descriptor types and State void/provider-result admission plus delivery origin/no-result resolver. No behavioral source changed; reuse f715 Contracts/State emissions and existing resolver checks. No unchanged rerun, native acceptance or hold change."
         }
+      },
+      "declared_census_public_exports": {
+        "status": "implemented_tested_reviewed_common_export_component_in_LOCAL_main; original_native_consumers_unfinished",
+        "producer": "Existing genuine State declared profile module b430380a86b576998ba1acd183cfdbab350583ee; no feature implementation copied or modified.",
+        "api": "bindFileReferenceProfile/fileReferenceOccurrences and existing FileReferenceProfile/FileReferenceProfileBound/FileReferenceOccurrence types resolve through @canlang/state and @canlang/state/ports; exact @canlang/state/ports/file-reference-profile targets that same emitted original module.",
+        "verified": "State owning emission0. Actual public root/ports/subpath function identity and private-profile acceptance/copy-refusal control1/1 pass. Two ephemeral fixture assumptions (WireFile uses id; missing artifact refusal precedes exact field check) corrected; no production edit/re-emission or unchanged producer checks repeated.",
+        "limits": "Declared census follows genuine owning metadata/complete wire; it creates no origin, row or File authority. Dev/Capability consume same original profile identity; original native/image/ruled source-policy qualification, deletion all-writer and authenticated ingress gates remain their owners; provider-void skipped, holds unchanged.",
+        "coordinator_review": "Direct defining source review CLEAR: root/ports forward authentic existing functions/types and exact subpath resolves the same owning module, preserving newer State exports. State emit0 and public identity/private-profile acceptance/copy-refusal1 reused; changed normal State/root0. Capability0d1d identical root/ports delta is a shared outcome consumer checkpoint, not a second implementation/intake. Dev/Capability native acceptance remains unfinished."
       }
     },
     "TECH-SV01": {
