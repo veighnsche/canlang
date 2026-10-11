@@ -43,6 +43,7 @@
  */
 
 import { getDataPath } from '../internal/own-data.js';
+import { canonicalUniqueFieldValue } from '../internal/unique-value.js';
 import type {
   MigrationProgress,
   ModelName,
@@ -54,7 +55,7 @@ import type {
   StoragePort,
   StoredRow,
 } from '@canlang/contracts';
-import type { InterimLock, InterimModelDef, ModelTable } from '../mutation/models.js';
+import type { InterimFieldDef, InterimLock, InterimModelDef, ModelTable } from '../mutation/models.js';
 import { collectPredicateFields, evalPredicateForRow } from '../policy/grants.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { validateMappedRow } from './mapper.js';
@@ -127,25 +128,11 @@ async function scanAllLive(store: StoragePort, model: string): Promise<StoredRow
 }
 
 /**
- * Unique-key canonicalization, mirroring the mutation pipeline exactly:
- * strings as-is; numbers/booleans/bigints via `String()`; null/undefined
- * claim nothing; anything else is a caller error, never a silent skip.
+ * The same owning field-directed key used by mutation and final claims.
+ * Omitting a field keeps the legacy scalar-only checker contract.
  */
-export function canonicalUniqueValue(value: unknown, key: string, model: string): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-    return String(value);
-  }
-  throw new StateError(
-    'validation',
-    `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(model)} ` +
-      `must be a scalar value.`,
-  );
+export function canonicalUniqueValue(value: unknown, key: string, model: string, field?: InterimFieldDef): string | null {
+  return canonicalUniqueFieldValue(value, key, model, field);
 }
 
 /** Row-metadata head segments, which lock mapping leaves untouched. */
@@ -795,6 +782,7 @@ function checkUniqueSet(
           : undefined,
         key,
         model,
+        def.fields[key],
       );
       if (value === null) {
         continue;
