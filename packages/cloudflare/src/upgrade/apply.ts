@@ -179,7 +179,7 @@ function defaultWranglerSpawn(
  * dry-run of a live ask, never a spawn). A nonzero exit returns
  * `applied: false` with captured output (the caller reports it loud);
  * a spawn-level failure (missing binary, timeout) throws loud because
- * no deploy outcome can be reported at all.
+ * the remote outcome is unconfirmed and must be inspected before retry.
  */
 export function runWranglerDeploy(options: WranglerDeployOptions): WranglerDeployResult {
   const manual = manualApplyCommand(options.configPath);
@@ -205,8 +205,8 @@ export function runWranglerDeploy(options: WranglerDeployOptions): WranglerDeplo
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `deploy apply: wrangler spawn failed (${detail}); no deploy was performed — ` +
-        `apply by hand: ${manual}`,
+      `deploy apply: wrangler spawn failed (${detail}); remote outcome unconfirmed. ` +
+        `Inspect the deployment before any manual retry: ${manual}`,
     );
   }
   return {

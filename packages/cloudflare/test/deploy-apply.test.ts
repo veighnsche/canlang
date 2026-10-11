@@ -61,21 +61,28 @@ describe("wrangler deploy backend (P-B)", () => {
     expect(result.applied).toBe(false);
     expect(result.status).toBe(1);
     expect(result.stderr).toBe("auth failed");
+    expect(spawn).toHaveBeenCalledTimes(1);
     expect(result.manualApply).toContain("wrangler deploy --config");
   });
 
-  it("spawn failure (missing binary) throws loud naming the manual apply", () => {
-    const spawn: WranglerSpawner = vi.fn(() => {
-      throw Object.assign(new Error("spawn wrangler ENOENT"), { code: "ENOENT" });
+  it.each(["ENOENT", "ETIMEDOUT"])("spawn failure %s reports an unconfirmed outcome without retry", (code) => {
+    const spawn = vi.fn<WranglerSpawner>(() => {
+      throw Object.assign(new Error(`spawn wrangler ${code}`), { code });
     });
-    expect(() => runWranglerDeploy({ yes: true, configPath: "/tmp/x.wrangler.toml", spawn })).toThrow(
-      /wrangler deploy --config/,
-    );
+    let failure: unknown;
     try {
       runWranglerDeploy({ yes: true, configPath: "/tmp/x.wrangler.toml", spawn });
     } catch (error) {
-      expect((error as Error).message).toContain("no deploy was performed");
+      failure = error;
     }
+    expect(failure).toBeInstanceOf(Error);
+    const message = (failure as Error).message;
+    expect(message).toContain(code);
+    expect(message).toContain("remote outcome unconfirmed");
+    expect(message).toContain("Inspect the deployment before any manual retry");
+    expect(message).toContain('wrangler deploy --config "/tmp/x.wrangler.toml"');
+    expect(message).not.toContain("no deploy was performed");
+    expect(spawn).toHaveBeenCalledTimes(1);
   });
 
   it("manualApplyCommand names the exact by-hand equivalent", () => {

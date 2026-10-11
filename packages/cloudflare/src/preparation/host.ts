@@ -444,7 +444,7 @@ export async function runPreparedDeploy(
     } else {
       process.stderr.write(
         `deploy apply FAILED (wrangler exited ${String(result.status)}); ` +
-          `nothing was applied — apply by hand: ${manual}\n${applyDetail}\n`,
+          `remote outcome unconfirmed; inspect the deployment before any manual retry: ${manual}\n${applyDetail}\n`,
       );
     }
   } catch (error) {

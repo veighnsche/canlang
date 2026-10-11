@@ -54,7 +54,7 @@
  * writes nothing, bare deploy refuses. No path spawns wrangler without
  * `--yes`.
  */
-import { access, mkdtemp, readFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -221,18 +221,25 @@ async function runArtifact(path: string): Promise<void> {
   // dist JS): stdlib is referenced as its COMPILED sibling, exactly how
   // this CLI file is executed after `tsc -p`.
   const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
-  const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
-  const artifact = loaded.artifact;
-  process.stderr.write(
-    `artifact: ${artifact.modules.length} modules, ` +
-      `${artifact.callables.length} callables, ${artifact.pages.length} pages\n`,
-  );
-  emit({
-    ok: true,
-    entry: asm.entryUrl,
-    callables: artifact.callables.map((callable) => callable.id),
-    pages: artifact.pages.map((page) => page.path),
-  });
+  try {
+    const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
+    const artifact = loaded.artifact;
+    process.stderr.write(
+      `artifact: ${artifact.modules.length} modules, ` +
+        `${artifact.callables.length} callables, ${artifact.pages.length} pages\n`,
+    );
+    emit({
+      ok: true,
+      entry: asm.entryUrl,
+      callables: artifact.callables.map((callable) => callable.id),
+      pages: artifact.pages.map((page) => page.path),
+    });
+    // The returned file URL must remain usable after this process exits.
+    // Its caller owns successful staging; failures own no returned resource.
+  } catch (error) {
+    try { await rm(workDir, { recursive: true, force: true }); } catch { /* Preserve the operative failure. */ }
+    throw error;
+  }
 }
 
 /* ------------------------------------------------------------------ */

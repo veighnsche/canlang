@@ -82,6 +82,21 @@ carries `{ok:true,...}`; exit 2 carries `{ok:false,command,code,detail}`
 with `code` one of `usage`, `missing-artifact`, `missing-producer`
 (names `producer` + `contract`), and exit 1 `internal`.
 
+`can-platform run` assembles modules and returns a local `file:` entry URL.
+The successful staging directory remains after CLI exit; the caller owns its
+removal when finished. This command does not start a Worker listener or promise
+a retention period against caller/system temporary-file cleanup. Failed assembly
+or reporting attempts scratch removal while preserving the original failure.
+`startLocalDev` instead owns one Miniflare instance until its caller awaits
+`dispose`; protected preview URLs expire when their preview owner disposes them.
+
+Normal `run`/`test`/`build`/`deploy` commands currently have no whole-command
+deadline, and the three Bun bundling children have no explicit timeout. The
+compiler check and control-request budgets belong to those separate callers;
+Wrangler has a configured 180-second child timeout, without a process-tree or
+remote rollback guarantee. After an attempted apply fails, the remote outcome
+is unconfirmed: inspect it before manual retry. There is no automatic retry.
+
 To execute compiled example rows with `can test` or `can-platform test`, the
 invoking application explicitly installs both `@canlang/cloudflare` and
 `@canlang/testkit`. Run the command from that application's root. Testkit
