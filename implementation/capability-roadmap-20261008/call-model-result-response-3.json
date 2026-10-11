@@ -1,0 +1,70 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "required_outcome": "C04/SEQ039 original static CALLs: chat.regenerate calls chat.ask; creative.from_turn calls creative.generate. Each child creates a stored Run and returns that same Run to its parent; the parent immediately returns it unchanged. Connect authentic Compiler once-evaluated return, Dev private row/view binding, and State shared transaction and receipt. Preserve authority and rollback.",
+      "verified_original_sites": [
+        {
+          "file": "CanChat.can",
+          "child": "ask(branch:Branch,prompt:TextMessage.content,attachments:file[]=[]) by=members -> Run",
+          "child_steps": "create Run; create Turn; reserve allowance; guarded LLM.generate; set Run.request; return run (line 88)",
+          "parent": "regenerate(turn:Turn,title:text) by=members -> Run; call ask {branch,prompt=turn.content,attachments=turn.attachments} as run (114); return run (115)",
+          "policy": "Run has ordered field grants: can_use(actor,row.parent.parent); members and row.account==actor. Branch/Conversation containment grants remain independently necessary. Request and accounting data are not made public."
+        },
+        {
+          "file": "CanCreative.can",
+          "child": "generate(template:Template,prompt:ImageRequest.prompt,negative,width,height,conversation:Conversation?=null) by=members -> Run",
+          "child_steps": "create Run; reserve budget; guarded Images.submit; set Run.request; return run (109)",
+          "parent": "from_turn(template:Template,turn:Turn,negative,width,height) by=members -> Run; call generate {template,prompt=turn.content,negative,width,height,conversation=turn.parent.parent} as run (126); return run (127)",
+          "policy": "can_view(person,run) requires nonnull active member, run.author equality, and current can_use when run.conversation is present. Exact original field grants and referenced/ancestor authority must be retained."
+        }
+      ],
+      "existing_mechanism": [
+        "ArtifactOperation.result.type and checked CALL resultType already name exact qualified model. State loaded artifact plus canonical model inventories distinguish real models from nominal contract/structural lookalikes.",
+        "invokeScenarioReceiptCall admits exact static target/interface/input using the actual parent owner session. Child and parent share owner stage, guard ledger, original physical revision, once/order, one commit and rollback. Current session.read row objects are privately branded with owner session/model/stage.",
+        "Return selection currently selects only a return ID. It does not bind the actual evaluated returned row. Scalar/query result validation rejects a singular model result. Values canonical model-reference wire is {id} or {id,version}, conveying identity and no read grant.",
+        "Outer retained receipt already stores each final net changed row once with model, creation tuple, containment, original field/secrecy inventory and committed version. Child CALL retains target/interface/result/checked return association and currently omits its own changed rows.",
+        "Saved child validation currently uses an empty changed inventory. Current saved receipt projection checks current operation and child authority, lifetime and current field grants for rows/dependencies, but needs an explicit model-result witness and current returned-row authority check.",
+        "Native loader/encoder currently admits scalar scenario or read-query array children; model child result, root receipt-aware model encoding, and parent owner-view promotion require Dev changes. Compiler must expose actual once-evaluated return value, not reread or forge a row locator.",
+        "Ordinary installed source read policies and same-observation ancestor navigation exist. Their actual owner-stage/native binding still must preserve the original conditional grants for these Run results; canonical public grants or a raw native object are not acceptable replacements."
+      ],
+      "common_required_checks": "Actual current owner-issued evaluated Run before promotion; no copies, stale/foreign/closed/caught/concurrent misuse; exact returned wire; original current grant plus creation/containment lifetime; child effects once in actual shared session; later parent rejection rolls all effects back; one outer receipt; replay returns saved authorized identity without rerunning child; current revocation/secrets/schema drift masks saved disclosure.",
+      "scope_and_tradeoff": "Only newly-created Run rows surviving final net effects are demonstrated at these two original CALL sites. Parent later-update/removal semantics, unchanged existing-row returns, nullable/array/composite results and dynamic target expansion are not required for this finite leaf. Refuse unsupported shapes explicitly; do not claim whole apps accepted. Native artifact preparation and activation/publication holds persist; advisory calls do not release them.",
+      "alternatives": {
+        "A": "Use existing qualified result.type plus a private actual-row return binding; persist canonical {id} and resolve its unique outer final changed-row witness. Require newly-created, same creation/containment lifetime, unarchived and surviving final effects. Allow later data updates in same lifetime; refuse removal/recreation and unsupported existing/intermediate-only rows. Recheck genuine current source grant before promotion, commit and retained disclosure. No new common persisted ABI for this finite original profile. Costs: explicitly bounded profile; broad future model returns require another demonstrated requirement.",
+        "B": "Add explicit selected-row model/snapshot metadata through common Contracts owner, still with private actual-row binding and full source authority. Supports unchanged existing-row or selected intermediate snapshot results independently of final net changes; requires defined historical-versus-final semantics for parent update/removal/recreation and additional persisted validation. Costs: shared ABI and owners plus semantics currently unused at the original two sites. Benefit: more general model returns without requiring final changed witness.",
+        "C": "Neither representation is currently justified: identify that the verified required outcome or current source-authority producer lacks enough information to choose. Keep this exact leaf blocked with defining owner rather than weakening authority. Do not treat unrelated owner plan completion as a prerequisite."
+      }
+    },
+    "questions": {
+      "model_return_profile": {
+        "type": "choice",
+        "instructions": "Select the smallest complete defensible return representation for the declared original ask/regenerate and generate/from_turn CALL leaf: A using qualified model identity plus privately bound row and existing committed change witness, B using an additional selected snapshot with its necessary semantics, or C when neither follows from verified inputs. Balance limitations, current source permissions, producer/consumer work and failure/replay behavior.",
+        "criteria": {
+          "A": "Use existing qualified result.type plus a private actual-row return binding; persist canonical {id} and resolve its unique outer final changed-row witness. Require newly-created, same creation/containment lifetime, unarchived and surviving final effects. Allow later data updates in same lifetime; refuse removal/recreation and unsupported existing/intermediate-only rows. Recheck genuine current source grant before promotion, commit and retained disclosure. No new common persisted ABI for this finite original profile. Costs: explicitly bounded profile; broad future model returns require another demonstrated requirement.",
+          "B": "Add explicit selected-row model/snapshot metadata through common Contracts owner, still with private actual-row binding and full source authority. Supports unchanged existing-row or selected intermediate snapshot results independently of final net changes; requires defined historical-versus-final semantics for parent update/removal/recreation and additional persisted validation. Costs: shared ABI and owners plus semantics currently unused at the original two sites. Benefit: more general model returns without requiring final changed witness.",
+          "C": "Neither representation is currently justified: identify that the verified required outcome or current source-authority producer lacks enough information to choose. Keep this exact leaf blocked with defining owner rather than weakening authority. Do not treat unrelated owner plan completion as a prerequisite."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "model_return_profile": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 1.0,
+        "probabilities": {
+          "A": 1.0,
+          "B": 0.0,
+          "C": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1966,
+      "output_tokens": 40
+    }
+  }
+}
