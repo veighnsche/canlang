@@ -63,6 +63,8 @@ import type {
 import type { CanonicalEffectsScope, HandlerContext } from './context.js';
 import { app_url as appUrlProducer, equalValue as equalValueProducer, ValueError } from '@canlang/values';
 import { sameNativeReference } from './native-records.js';
+import { hasRole as stateCallerRole, type HandlerRoleContext } from '@canlang/state/effects/guards';
+import { nativeReadSubjectRole } from './native-membership.js';
 
 // Private generated markers resolve only framework-bound scenario lifetimes.
 export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn, invokeScenarioReceiptCall,
@@ -75,6 +77,7 @@ export {
   date, add_days, compareDate, encodeValue,
 } from '@canlang/values';
 export const same = sameNativeReference;
+export { active_member } from './native-membership.js';
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Whole historical callback observation through the installed current viewer scope. */
@@ -367,7 +370,12 @@ export function check(c: HandlerContext, ..._args: unknown[]): never {
 }
 
 // Compatibility bindings share the state-owned synchronous handler guards.
-export { require, hasRole } from '@canlang/state/effects/guards';
+export { require } from '@canlang/state/effects/guards';
+export function hasRole(c: HandlerRoleContext, role: string): boolean;
+export function hasRole(c: HandlerContext, role: string, subject: unknown): Promise<boolean>;
+export function hasRole(c: HandlerRoleContext | HandlerContext, role: string, subject?: unknown): boolean | Promise<boolean> {
+  return arguments.length < 3 ? stateCallerRole(c, role) : nativeReadSubjectRole(c as HandlerContext, role, subject);
+}
 
 /**
  * Supplied-array count, mirroring the lane-02 `count(domain:C<T>)->int`
