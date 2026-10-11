@@ -90,6 +90,65 @@ test('current source projection unions each ordered true grant, omits typed secr
   assert.ok(Object.isFrozen(result.record.data));
 });
 
+test('independent source transforms distinguish original present fields from partial grants and absent fields', async () => {
+  for (const mode of ['complete', 'partial'] as const) {
+    const s = await setup();
+    s.current.fields.push('absent');
+    s.current.grants = [
+      { fields: ['title', 'info', 'absent'], read: s.native.read },
+      { fields: ['author'], read: async () => mode === 'complete' },
+    ];
+    const original = s.store.cohortLoad.bind(s.store);
+    let targetLoads = 0, transforms = 0;
+    s.store.cohortLoad = async request => {
+      if (request.model === MODEL && request.id === ID) targetLoads++;
+      return original(request);
+    };
+    const output = await projectCurrentRecordForViewerSourcePolicies(s.input, async (result, allowed, sourcePresence) => {
+      transforms++;
+      assert.ok(result.record); assert.ok(sourcePresence);
+      assert.deepEqual(allowed, [true, mode === 'complete']);
+      assert.deepEqual(Object.keys(sourcePresence), ['fields']);
+      assert.deepEqual(sourcePresence.fields, ['title', 'author', 'info']);
+      assert.ok(Object.isFrozen(sourcePresence)); assert.ok(Object.isFrozen(sourcePresence.fields));
+      assert.throws(() => Object.assign(sourcePresence, { fields: ['absent'] }), TypeError);
+      assert.throws(() => (sourcePresence.fields as string[]).push('absent'), TypeError);
+      assert.equal(sourcePresence.fields.includes('title'), true, 'granted and originally present');
+      assert.equal(sourcePresence.fields.includes('author'), true, 'original presence survives denied projection');
+      assert.equal(Object.hasOwn(result.record.data, 'author'), mode === 'complete');
+      assert.equal(sourcePresence.fields.includes('absent'), false, 'a granted but absent field stays absent');
+      assert.equal(Object.hasOwn(result.record.data, 'absent'), false);
+      assert.deepEqual(result.record.data.info, { public: 'Visible' });
+      assert.deepEqual(Object.keys(result), ['record', 'revision']);
+      await Promise.resolve();
+      return result;
+    });
+    assert.equal(transforms, 1); assert.equal(targetLoads, 1, 'presence comes from the same original load');
+    assert.deepEqual(Object.keys(output), ['record', 'revision']);
+  }
+});
+
+test('independent transforms receive no source presence for missing or denied records and public results omit it', async () => {
+  for (const mode of ['missing', 'denied'] as const) {
+    const s = await setup();
+    if (mode === 'missing') s.input.id = asId('missing');
+    else s.current.grants[0]!.read = async () => false;
+    let transforms = 0;
+    const result = await projectCurrentRecordForViewerSourcePolicies(s.input, (projection, _allowed, sourcePresence) => {
+      transforms++; assert.equal(projection.record, null); assert.equal(sourcePresence, null);
+      assert.deepEqual(Object.keys(projection), ['record', 'revision']);
+      return projection;
+    });
+    assert.equal(transforms, 1);
+    assert.deepEqual(result, { record: null, revision: await s.store.readRevision() });
+  }
+  const s = await setup();
+  const result = await projectCurrentRecordForViewerSourcePolicies(s.input);
+  assert.ok(result.record);
+  assert.deepEqual(Object.keys(result), ['record', 'revision']);
+  assert.equal(Object.hasOwn(result, 'sourcePresence'), false);
+});
+
 test('missing, archived, denied, undeclared and foreign containment or account cannot disclose a source row', async () => {
   for (const mode of ['missing', 'archived', 'denied', 'undeclared', 'foreign', 'account', 'caller-revoked', 'subject-revoked'] as const) {
     const s = await setup();
@@ -132,8 +191,9 @@ test('source reads require strict Bool and preserve original State R through rea
     if (mode === 'boolean') s.current.grants[0]!.read = async () => 'true' as unknown as boolean;
     if (mode === 'read-state') s.current.grants[0]!.read = async () => { await move(); return true; };
     const input = mode === 'stale-fence' ? { ...s.input, fence: openFenceScope(asRevision(0), TEAM) } : s.input;
-    await assert.rejects(projectCurrentRecordForViewerSourcePolicies(input, async result => {
-      transforms++; assert.ok(result.record);
+    await assert.rejects(projectCurrentRecordForViewerSourcePolicies(input, async (result, _allowed, sourcePresence) => {
+      transforms++; assert.ok(result.record); assert.ok(sourcePresence);
+      assert.deepEqual(sourcePresence.fields, ['title', 'author', 'info']);
       if (mode === 'transform-state') await move();
       if (mode === 'transform-caller') await s.memberships.removeMembership(s.caller.membership_id);
       if (mode === 'transform-subject') await s.memberships.removeMembership(s.author.membership_id);

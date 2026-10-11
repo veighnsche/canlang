@@ -7,7 +7,8 @@ import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTable } from '../../src/mutation/models.js';
 import { buildPolicyTable } from '../../src/policy/grants.js';
-import { projectCurrentRecordForViewerSourcePolicies, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
+import { projectCurrentRecordForViewerSourcePolicies, type ViewerSourceReadPolicy,
+  type CurrentRecordSourcePolicyResult, type ViewerGenerationCallbackReadObservation } from '../../src/query/source-policy.js';
 import { invoke, type ExecutionEffects } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
@@ -23,7 +24,7 @@ const CREATED = asId('created-run'), cause = { cause: 'scenario' } as const, bou
 const PARENT_ID = asId('created-parent');
 const source = { path: 'model-result.can', sha256: 'c'.repeat(64), module: 'model-result.mjs' };
 let sequence = 93_000;
-function artifact(type = MODEL as CanTypeId, contained = false): ArtifactDescriptorSlice {
+function artifact(type = MODEL as CanTypeId, contained = false, presence = false): ArtifactDescriptorSlice {
   return { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="ModelResult.start";', map: {
       version: 3, file: source.module, sources: [source.path], sourcesContent: [null], names: [], mappings: '',
@@ -33,26 +34,33 @@ function artifact(type = MODEL as CanTypeId, contained = false): ArtifactDescrip
     models: [MODEL, FOREIGN].map(name => ({ name, ...(contained && name === MODEL ? { parent: FOREIGN } : {}), deleteMode: 'remove' as const, fields: [
       { name: 'title', field: { kind: 'string' as const }, required: true, serverOnly: false },
       { name: 'author', field: { kind: 'string' as const }, required: true, serverOnly: false },
+      ...(presence && name === FOREIGN ? [{ name: 'note', field: { kind: 'string' as const }, required: false, serverOnly: false }] : []),
     ] })), operations: [ROOT, CHILD].map(name => ({ name, kind: 'scenario' as const, description: '', inputs: { fields: [] },
       result: { type, disclosure: { version: 1 as const, source, returns: [{ id: name === ROOT ? 'root-return' : 'child-return',
         source, influences: [], dependencies: [] }] } } })),
   };
 }
-async function world(type = MODEL as CanTypeId, contained = false) {
+async function world(type = MODEL as CanTypeId, contained = false, presence = false) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const author = await memberships.createMembership({ team_id: TEAM, user_id: 'author', is_owner: false, roles: [] });
   const parentOwner = await memberships.createMembership({ team_id: TEAM, user_id: 'parent-owner', is_owner: false, roles: [] });
-  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(artifact(type, contained), { by: 'members' });
+  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(artifact(type, contained, presence), { by: 'members' });
   const root = loaded.registry.get(ROOT), child = loaded.registry.get(CHILD);
   assert.ok(root && isGeneratedOperationDef(root)); assert.ok(child && isGeneratedOperationDef(child));
   const table = buildModelTable([MODEL, FOREIGN].map(name => ({ ...modelDef(name, { deleteMode: 'remove', fields: {
     title: field({ required: true }), author: field({ required: true }),
+    ...(presence && name === FOREIGN ? { note: field() } : {}),
   } }), ...(contained && name === MODEL ? { containment: { parent: FOREIGN } } : {}) })));
   const seed = makeRow({ id: 'existing-run', data: { title: 'Existing', author: 'author' } });
   await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: MODEL, row: seed }] }));
   const old = await store.load(MODEL, seed.id); assert.ok(old);
   const access = { allowed: true, parentAllowed: true, navigations: 0 };
+  const navigation: { inspect?: (result: Readonly<CurrentRecordSourcePolicyResult>,
+    sourcePresence: Readonly<{ fields: readonly string[] }> | null,
+    observation: Readonly<ViewerGenerationCallbackReadObservation>, allowed: readonly boolean[]) => Promise<void>;
+    after?: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => Promise<void>;
+    advance?: () => Promise<void> } = {};
   const policy = buildPolicyTable([MODEL, FOREIGN].map(model => ({ model, secretFields: [],
     grants: [{ by: 'members' as const, fields: ['title', 'author'] }] })));
   const readPolicies = new Map<ModelName, ViewerSourceReadPolicy>();
@@ -64,18 +72,22 @@ async function world(type = MODEL as CanTypeId, contained = false) {
       if (contained) {
         assert.ok(row.parent);
         const parent = await projectCurrentRecordForViewerSourcePolicies({ model: FOREIGN, id: row.parent.id,
-          readPolicies, policy, store, memberships: context.memberships, context, observation });
+          readPolicies, policy, store, memberships: context.memberships, context, observation }, async (result, _allowed, sourcePresence) => {
+            await navigation.inspect?.(result, sourcePresence, observation, _allowed); return result;
+          });
+        await navigation.after?.(observation);
         access.navigations++;
         parentAllowed = parent.record?.data.title === 'Parent';
       }
       return access.allowed && parentAllowed && fact?.status === 'active' && context.membership?.status === 'active';
     } }] });
-  if (contained) readPolicies.set(FOREIGN, { fields: ['title', 'author'], secretFields: [], grants: [{ fields: ['id', 'title', 'author'],
+  const parentFields = ['title', 'author', ...(presence ? ['note'] : [])];
+  if (contained) readPolicies.set(FOREIGN, { fields: parentFields, secretFields: [], grants: [{ fields: ['id', ...parentFields],
     read: async ({ context, row }) => access.parentAllowed &&
       (await context.memberships.findMembership(TEAM, row.data.author as string))?.status === 'active',
   }] });
   for (const def of [root, child]) bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies });
-  return { store, memberships, caller, author, parentOwner, contained, root, child, table, policy, access, old,
+  return { store, memberships, caller, author, parentOwner, contained, root, child, table, policy, access, navigation, readPolicies, old,
     registry: loaded.registry, app: APP, source: 'component', clock: { nowMs: () => FIXED_NOW },
     identity: makeIdentity({ membership: caller }), envelope: makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), {}) };
 }
@@ -90,6 +102,8 @@ function bindChild(w: World) {
       executions++; closedCall = frame.call;
       if (w.contained) await frame.session.stage({ op: 'create', model: FOREIGN, id: PARENT_ID,
         data: { title: 'Parent', author: 'parent-owner' } }, cause);
+      w.navigation.advance = async () => frame.session.stage({ op: 'update', model: FOREIGN, id: PARENT_ID,
+        data: { title: 'Concurrent owner stage' } }, cause);
       await frame.session.stage({ op: 'create', model: MODEL, id: CREATED, data: { title: 'Child', author: 'author' },
         ...(w.contained ? { parent: { model: FOREIGN, id: PARENT_ID } } : {}) }, cause);
       if (w.contained) assert.equal(await w.store.load(FOREIGN, PARENT_ID), null);
@@ -281,5 +295,82 @@ test('nullable, array and nominal contract result lookalikes cannot acquire the 
         return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
       } });
     });
+  }
+});
+
+test('borrowed source presence describes created and updated owner parent fields while committed parent is absent', async () => {
+  const w = await world(MODEL as CanTypeId, true, true); bindChild(w);
+  const seen: Array<{ fields: readonly string[]; note: unknown }> = [];
+  let absent = 0;
+  w.navigation.inspect = async (result, presence) => {
+    assert.ok(result.record); assert.ok(presence);
+    assert.deepEqual(Object.keys(presence), ['fields']);
+    assert.ok(Object.isFrozen(presence)); assert.ok(Object.isFrozen(presence.fields));
+    assert.throws(() => (presence.fields as string[]).push('forged'), TypeError);
+    assert.deepEqual([...presence.fields].sort(), Object.keys(result.record.data).sort());
+    assert.equal(Object.hasOwn(presence, 'data'), false);
+    seen.push({ fields: [...presence.fields], note: result.record.data.note });
+  };
+  w.navigation.after = async observation => {
+    await projectCurrentRecordForViewerSourcePolicies({ model: FOREIGN, id: asId('actually-absent'),
+      readPolicies: w.readPolicies, policy: w.policy, store: w.store,
+      context: observation.context, memberships: observation.context.memberships, observation }, (result, allowed, presence) => {
+      assert.equal(result.record, null); assert.deepEqual(allowed, []); assert.equal(presence, null); absent++;
+    });
+  };
+  await invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    await child(call, w);
+    assert.ok(seen.some(value => !value.fields.includes('note') && value.note === undefined));
+    await session.stage({ op: 'update', model: FOREIGN, id: PARENT_ID, data: { note: 'Staged note' } }, cause);
+    assert.equal(await w.store.load(FOREIGN, PARENT_ID), null);
+    const row = await session.read(MODEL, CREATED); assert.ok(row);
+    const wire = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row });
+    assert.ok(seen.some(value => value.fields.includes('note') && value.note === 'Staged note'));
+    return finish(call, w, session, wire);
+  } });
+  assert.ok(absent > 0); assert.equal((await w.store.load(FOREIGN, PARENT_ID))?.data.note, 'Staged note');
+});
+
+test('borrowed source presence withholds denied owner parent fields without treating that row as absent', async () => {
+  const w = await world(MODEL as CanTypeId, true, true); bindChild(w); w.access.parentAllowed = false;
+  let denials = 0;
+  w.navigation.inspect = async (result, presence, _observation, allowed) => {
+    assert.equal(result.record, null); assert.equal(presence, null); assert.deepEqual(allowed, [false]); denials++;
+  };
+  await assert.rejects(invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    await child(call, w);
+    const row = await session.read(MODEL, CREATED); assert.ok(row);
+    return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
+  } }), error => error instanceof StateError && error.code === 'forbidden');
+  assert.ok(denials > 0); await unchanged(w);
+  assert.equal(await w.store.load(FOREIGN, PARENT_ID), null);
+});
+
+test('borrowed owner parent presence refuses awaited authority loss, concurrent owner stage and closed observation navigation', async () => {
+  for (const mode of ['authority', 'stage', 'closed'] as const) {
+    const w = await world(MODEL as CanTypeId, true, true); bindChild(w);
+    let entered = false, captured: Readonly<ViewerGenerationCallbackReadObservation> | undefined;
+    w.navigation.inspect = async (_result, presence, observation) => {
+      assert.ok(presence); captured ??= observation;
+      if (entered) return; entered = true;
+      if (mode === 'authority') await w.memberships.removeMembership(w.parentOwner.membership_id);
+      if (mode === 'stage') { assert.ok(w.navigation.advance); await w.navigation.advance(); }
+    };
+    await assert.rejects(invoke({ ...w, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      await child(call, w);
+      if (mode === 'closed') {
+        assert.ok(captured);
+        await assert.rejects(projectCurrentRecordForViewerSourcePolicies({ model: FOREIGN, id: PARENT_ID,
+          readPolicies: w.readPolicies, policy: w.policy, store: w.store, context: captured.context,
+          memberships: captured.context.memberships, observation: captured }), refuses);
+        throw new StateError('forbidden', 'Closed child observation cannot authorize parent navigation.');
+      }
+      const row = await session.read(MODEL, CREATED); assert.ok(row);
+      return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
+    } }), refuses);
+    assert.ok(entered); await unchanged(w); assert.equal(await w.store.load(FOREIGN, PARENT_ID), null);
   }
 });

@@ -222,11 +222,16 @@ export interface CurrentRecordSourcePolicyResult {
 
 export function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput): Promise<CurrentRecordSourcePolicyResult>;
 export function projectCurrentRecordForViewerSourcePolicies<Result>(input: CurrentRecordSourcePolicyInput,
-  transform: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[]) => Result | Promise<Result>): Promise<Result>;
+  transform: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
+    sourcePresence: Readonly<{ fields: readonly string[] }> | null) => Result | Promise<Result>): Promise<Result>;
 /** Reader-owned current load and final checks. Installed source navigation can
- * borrow its actual live observation; independent reads open their own authority. */
+ * borrow its actual live observation; independent reads open their own authority.
+ * The trusted transform alone receives immutable field presence from that same
+ * loaded row, so a staged parent needs no second committed load. Names grant no
+ * field values or row authority; denied projections receive no presence. */
 export async function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput,
-  transform?: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[]) => unknown | Promise<unknown>): Promise<unknown> {
+  transform?: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
+    sourcePresence: Readonly<{ fields: readonly string[] }> | null) => unknown | Promise<unknown>): Promise<unknown> {
   if (input.observation !== undefined) {
     const observation = input.observation;
     return withinInstalledReadObservation(observation, { store: input.store, model: input.model, id: input.id }, async (checkpoint, loadRow, ownerRows) => {
@@ -242,6 +247,7 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
       const row = await loadRow(model, id);
       await checkpoint();
       if (row !== null && row.id !== id) invalid();
+      const sourcePresence = row === null ? null : deepFreeze({ fields: Object.keys(row.data) });
       fence?.enroll({ kind: 'query', model, authority: 'viewer' });
       const rows = new Map<string, StoredRow>();
       if (row !== null) rows.set(`${model}\0${id}`, row);
@@ -251,7 +257,8 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
       });
       await checkpoint();
       const result = deepFreeze({ record: projected.record, revision });
-      const output = transform === undefined ? result : await transform(result, projected.allowed);
+      const output = transform === undefined ? result : await transform(result, projected.allowed,
+        result.record === null ? null : sourcePresence);
       await checkpoint();
       return output;
     });
@@ -266,6 +273,7 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
   if (fence !== undefined && fence.revision !== revision) throw new FenceConflictError(fence.revision, revision);
   const row = await store.cohortLoad({ model, id, expectedRevision: revision });
   if (row !== null && row.id !== id) invalid();
+  const sourcePresence = row === null ? null : deepFreeze({ fields: Object.keys(row.data) });
   const membership = context.actorUserId === null || context.teamId === null ? null :
     checkedMembershipFact(await memberships.findMembership(context.teamId, context.actorUserId), context.teamId, context.actorUserId);
   if (context.actorUserId !== null && context.teamId !== null) fence?.enroll({ kind: 'membership', teamId: context.teamId, userId: context.actorUserId });
@@ -277,7 +285,8 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
       model, row, readPolicies: reads, policy, context: coherent, revision, fence, store, rows,
     }));
   const result = deepFreeze({ record: authority.value.record, revision });
-  const output = transform === undefined ? result : await transform(result, authority.value.allowed);
+  const output = transform === undefined ? result : await transform(result, authority.value.allowed,
+    result.record === null ? null : sourcePresence);
   await authority.revalidate();
   const actual = await store.readRevision();
   if (actual !== revision) throw new FenceConflictError(revision, actual);
