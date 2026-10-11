@@ -8834,3 +8834,21 @@ Coordinator finite independent source review CLEAR for original c833/004 hero an
 ### 2026-10-11 — selected admission original-host acceptance
 
 Reviewed sourcec41/812 is consumed unchanged by Devc9 original public Email/State/Work/Identity/two-owner D1 receiving1/1 in56.38s,0fail/cancel/skip. Original source/census, early/late effects, write-before-guard rollback, frozen coverage, current authority, canonical hash/replay and awaited cleanup remain asserted. Missing local fixture failed before runtime; the three unchanged released Compiler inputs resolved only that prerequisite. Reuse35State/87Work and independent critical source/security review. Close only TECH-S04-admission at its selected three-site acceptance; query/cohort/direct-stage/metadata, full plans and precise holds remain separate. No duplicate source intake or unchanged qualification is required.
+
+
+## 2026-10-11 — derive bare row edit fields from the checked update
+
+Implemented/tested: a bare bound `edit` with no authored header/body uses the
+existing enabled update operation's writable defaults in model declaration
+order and the existing protected operation form. The owning CRUD allowlist
+and server omission determine its controls; the original row supplies identity
+and version. This connects original CanBook's four bare edits without a new
+consumer API or duplicated field declaration. Explicit field selectors keep
+their existing checks and unsupported edit bodies remain E6008.
+
+The actual CLI/installed Interfaces/UI consumer proves complete allowed
+controls, stable nested occurrences and absent version/protection suppression.
+Original source IR retains its four own update selections. The shared authored
+control plus eligible remainder requirement for Calendar's checkbox body and
+original browser/persistence/dispatch qualification remain with their owners;
+this finite result does not accept the whole application.
