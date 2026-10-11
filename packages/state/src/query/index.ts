@@ -21,6 +21,9 @@ export {
   type ViewerPageRecordsResult,
 } from './engine.js';
 export { queryRecordHistoryForViewer, type ViewerHistoryInput, type ViewerHistoryResult } from './history.js';
+export { projectCurrentRecordForViewerSourcePolicies,
+  type CurrentRecordSourcePolicyInput, type CurrentRecordSourcePolicyResult,
+  type ViewerSourceReadPolicy } from './source-policy.js';
 export type {
   ByContext,
   InterimGrant,

@@ -8,6 +8,10 @@ export { StateError, isStateError, ruleFailed } from './errors.js';
 export {
   queryRecords,
   queryAggregate,
+  projectCurrentRecordForViewerSourcePolicies,
+  type CurrentRecordSourcePolicyInput,
+  type CurrentRecordSourcePolicyResult,
+  type ViewerSourceReadPolicy,
   type AggregateQueryResult,
   type BaseQueryInput,
   type OwnerRecordsInput,

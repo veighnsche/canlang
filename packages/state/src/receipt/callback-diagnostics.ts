@@ -6,31 +6,15 @@ import { deepFreeze } from '../internal/own-data.js';
 import { FenceConflictError } from '../storage/port.js';
 import { checkedMembershipFact, observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { evaluateBy } from '../policy/roles.js';
-import { evalPredicateForRow, isEqualOrUnder, isMetadataPath, withPolicyRow,
+import { evalPredicateForRow, isEqualOrUnder, withPolicyRow,
   type ByContext, type InterimModelPolicy } from '../policy/grants.js';
 import { projectCurrentRecordForViewerPolicy, type BaseQueryInput, type ViewerPageParentPolicy } from '../query/engine.js';
 import { assertDeliveryField, type DeliveryFieldSchema } from './grants.js';
 import { associationRowId, readAssociationRow, RECEIPT_ASSOCIATION_MODEL } from './tables.js';
 import { evaluateInstalledReadPolicy } from './read-policy-membership.js';
-
-export interface ViewerGenerationCallbackReadObservation {
-  readonly context: ByContext;
-  readonly row: StoredRow;
-  readonly revision: Revision;
-  readonly fence: BaseQueryInput['fence'];
-}
-/** Reader-local adaptation of verified original ordinary read declarations.
- * Every callable evaluates its exact source rule, including where, in ordinal order.
- * Omitted selectors are expanded by the verified loader, never inferred here. */
-export interface ViewerGenerationCallbackSourceReadPolicy {
-  readonly parent?: ModelName;
-  readonly fields: readonly string[];
-  readonly secretFields: readonly string[];
-  readonly grants: readonly {
-    readonly fields: readonly string[];
-    readonly read: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => Promise<boolean>;
-  }[];
-}
+import { captureSourceReadPolicy, type ViewerGenerationCallbackReadObservation,
+  type ViewerGenerationCallbackSourceReadPolicy } from '../query/source-policy.js';
+export type { ViewerGenerationCallbackReadObservation, ViewerGenerationCallbackSourceReadPolicy } from '../query/source-policy.js';
 
 export interface ViewerGenerationCallbackDiagnosticInput extends Pick<BaseQueryInput,
   'policy' | 'context' | 'memberships' | 'store' | 'fence'> {
@@ -81,31 +65,6 @@ function array(value: unknown, maximum: number): readonly unknown[] {
   if (typeof length !== 'number' || length > maximum || Reflect.ownKeys(value).length !== length + 1) invalid();
   for (let index = 0; index < length; index++) own(value, String(index));
   return value;
-}
-function captureSourceReadPolicy(value: ViewerGenerationCallbackSourceReadPolicy): ViewerGenerationCallbackSourceReadPolicy {
-  record(value);
-  const names = Object.freeze(array(own(value, 'fields'), 1000).map(name => text(name)));
-  if (new Set(names).size !== names.length || names.some(name => name.includes('.') || /[\[\]]/.test(name))) invalid();
-  const path = (value: unknown) => {
-    const result = text(value), head = result.split('.')[0]!;
-    if (result.split('.').some(part => part === '') || /[\[\]]/.test(result) ||
-        !names.includes(head) && !isMetadataPath(result) && head !== 'parent' ||
-        result.split('.').includes('callback_diagnostics')) invalid();
-    return result;
-  };
-  const secrets = Object.freeze(array(own(value, 'secretFields'), 1000).map(path));
-  const grants = Object.freeze(array(own(value, 'grants'), 1000).map(value => {
-    record(value);
-    if (Reflect.ownKeys(value).length !== 2) invalid();
-    const fields = Object.freeze(array(own(value, 'fields'), 1000).map(path));
-    const read = own(value, 'read');
-    if (fields.length === 0 || new Set(fields).size !== fields.length || typeof read !== 'function' ||
-        fields.some(field => secrets.some(secret => isEqualOrUnder(field, secret)))) invalid();
-    return Object.freeze({ fields, read }) as ViewerGenerationCallbackSourceReadPolicy['grants'][number];
-  }));
-  const parent = Object.hasOwn(value, 'parent') ? text(own(value, 'parent')) as ModelName : undefined;
-  if (Reflect.ownKeys(value).length !== (parent === undefined ? 3 : 4)) invalid();
-  return Object.freeze({ fields: names, secretFields: secrets, grants, ...(parent === undefined ? {} : { parent }) });
 }
 function captureOrigin(value: GenerationCallbackOrigin): GenerationCallbackOrigin {
   record(value); const source = own(value, 'source'), event = text(own(value, 'event'));
