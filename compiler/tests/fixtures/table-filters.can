@@ -1,0 +1,23 @@
+app TableFilters
+Given
+ Calendar {title:text}
+ Window in Calendar {from:datetime,until:datetime,state:enum(open,closed) label={text="Window state",values={open="Open <window>"@{nl="Open venster"},closed="Closed window"@{nl="Gesloten venster"}}},available:bool,rank:int}
+ Other {state:enum(open,closed)}
+ policy Calendar read=public
+ policy Window read=public
+ policy Other read=public
+When
+ crud Window by=public fields=available,rank
+Then
+ preferences {window_state:Window.state?,foreign_state:Other.state?}
+ page /table-filters title="Filtered windows"
+  list Calendar
+   text row.title
+   table row.Window columns=from,until,state,available,rank order=from filter=state defaults={state=preferences.window_state} display=split
+    pagination
+    text row.from,row.until
+    edit fields=available
+     checkbox available
+    edit fields=rank
+   table row.Window columns=from,until,state order=-from filter=state defaults={state=preferences.window_state}
+    pagination

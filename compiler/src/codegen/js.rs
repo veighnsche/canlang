@@ -1838,6 +1838,8 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "empty"
                 | "columns"
                 | "order"
+                | "filter"
+                | "defaults"
                 | "display"
                 | "page"
         ),
@@ -2011,9 +2013,9 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
     }
 }
 
-/// Validate the finite agenda carrier against current lowered declarations;
+/// Validate the finite collection carrier against current lowered declarations;
 /// raw or edited UI metadata cannot acquire an enum filter by shape alone.
-fn calendar_agenda_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
+fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
     if node
         .props
         .iter()
@@ -2042,7 +2044,12 @@ fn calendar_agenda_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     && matches!(item.kind, IrItemKind::Field { owner, .. } if owner == model.id)
             })
     };
-    for endpoint in ["startField", "endField"] {
+    let endpoints: &[&str] = if node.factory == "calendar" {
+        &["startField", "endField"]
+    } else {
+        &[]
+    };
+    for endpoint in endpoints {
         let Some(name) = form_prop_text(node, endpoint) else {
             return false;
         };
@@ -2058,11 +2065,12 @@ fn calendar_agenda_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             return false;
         }
     }
-    if node
-        .props
-        .iter()
-        .any(|(key, _)| key == "parent" || key == "field")
-        || node.row_scope.is_none()
+    if node.factory == "calendar"
+        && (node
+            .props
+            .iter()
+            .any(|(key, _)| key == "parent" || key == "field")
+            || node.row_scope.is_none())
     {
         return false;
     }
@@ -6518,7 +6526,7 @@ impl<'a> Emitter<'a> {
         }
         if node.factory == "calendar"
             && form_prop_text(node, "kind").as_deref() == Some("agenda")
-            && !calendar_agenda_props_are_valid(self.ir, node)
+            && !collection_filter_props_are_valid(self.ir, node)
         {
             self.unsupported(
                 "calendar agenda",
@@ -6526,6 +6534,20 @@ impl<'a> Emitter<'a> {
                 node.span,
             );
             return self.throw_expr("unsupported calendar agenda profile");
+        }
+        if node.factory == "table"
+            && node
+                .props
+                .iter()
+                .any(|(key, _)| matches!(key.as_str(), "filter" | "defaults"))
+            && !collection_filter_props_are_valid(self.ir, node)
+        {
+            self.unsupported(
+                "table filters",
+                "enum fields and defaults need matching owned declarations and data-only where",
+                node.span,
+            );
+            return self.throw_expr("unsupported table filter profile");
         }
         for (key, value) in &node.props {
             if !ui_prop_is_admitted(&node.factory, key) {
@@ -6756,6 +6778,7 @@ impl<'a> Emitter<'a> {
         if (node.factory == "calendar" && form_prop_text(node, "kind").as_deref() == Some("agenda"))
             || (matches!(node.factory.as_str(), "list" | "table")
                 && (form_prop_text(node, "display").as_deref() == Some("split")
+                    || node.props.iter().any(|(key, _)| key == "filter")
                     || node.props.iter().any(|(key, value)| {
                         key == "page" && matches!(value.expr, IrExpr::Bool(true))
                     })))

@@ -13148,13 +13148,14 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// The agenda filter is an enum-field declaration, not a query parser
+    /// The collection filter is an enum-field declaration, not a query parser
     /// or an authorization grant. Its receiving preference remains page-owned.
-    fn decode_calendar_filters(
+    fn decode_collection_filters(
         &mut self,
         scope: &Scope,
         node: &SyntaxNode,
         model: SymbolId,
+        word: &str,
     ) -> Option<Vec<(String, TypedExpr)>> {
         let attrs = ui_attributes(self.db, node);
         let filter = attrs
@@ -13171,8 +13172,9 @@ impl<'a> Cx<'a> {
         let fail = |this: &mut Self, span: Span| {
             this.diags.push(Diagnostic::error(
                 "E6008",
-                "calendar filters need distinct checked owned enum fields and matching defaults"
-                    .to_string(),
+                format!(
+                    "{word} filters need distinct checked owned enum fields and matching defaults"
+                ),
                 span,
             ));
         };
@@ -13190,6 +13192,9 @@ impl<'a> Cx<'a> {
         let mut selected = HashMap::new();
         let mut columns = Vec::new();
         for path in kids(filter) {
+            if path.kind == SyntaxKind::Punct && slice(self.db, path.span) == "," {
+                continue;
+            }
             let names = selector_strings(self.db, path);
             let Some(name) = names
                 .first()
@@ -13466,7 +13471,8 @@ impl<'a> Cx<'a> {
             ]
         } else if word == "table" {
             &[
-                "parent", "empty", "limit", "cursor", "columns", "order", "display",
+                "parent", "empty", "limit", "cursor", "columns", "order", "display", "filter",
+                "defaults",
             ]
         } else {
             &[
@@ -13541,7 +13547,27 @@ impl<'a> Cx<'a> {
             ));
             props.push(("startField".to_string(), start));
             props.push(("endField".to_string(), end));
-            props.extend(self.decode_calendar_filters(scope, node, id)?);
+        }
+        if matches!(word, "calendar" | "table") {
+            if let Some(filters) = self.decode_collection_filters(scope, node, id, word) {
+                props.extend(filters);
+            } else if word == "table" {
+                // Retain the original authored table/body in raw IR while
+                // making the unsupported filter impossible to publish.
+                props.push((
+                    "filter".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Unsupported {
+                            what: "table filters".to_string(),
+                            why: "no matching owned enum/default profile".to_string(),
+                        },
+                        ResolvedType::Unknown,
+                        node.span,
+                    ),
+                ));
+            } else {
+                return None;
+            }
         }
         if let Some(head) = head {
             props.push((
@@ -13602,7 +13628,7 @@ impl<'a> Cx<'a> {
                 continue;
             }
             match name.as_str() {
-                "filter" | "defaults" if word == "calendar" => {}
+                "filter" | "defaults" if matches!(word, "calendar" | "table") => {}
                 "order" | "search" | "filter" | "columns" => {
                     if name == "order" && value.kind != SyntaxKind::Selectors {
                         self.diags.push(Diagnostic::error(
