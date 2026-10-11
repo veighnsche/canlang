@@ -1,4 +1,4 @@
-import { watch, type FSWatcher } from "node:fs";
+import { statSync, watch, type FSWatcher } from "node:fs";
 import { stat } from "node:fs/promises";
 
 /** Immutable identities for one check. The producer hashes the actual inputs. */
@@ -159,6 +159,11 @@ export class DevSessionCore<T, P extends DevPreview> {
     const entry = this.watchers.get(directory);
     if (entry === undefined || entry.watcher !== null || this.stopped) return;
     try {
+      // Pin the directory before attachment: the first poll must distinguish
+      // a replacement from the inode still held by this native watcher.
+      const identity = statSync(directory);
+      if (!identity.isDirectory()) throw new Error("watch target is not a directory");
+      entry.identity = `${identity.dev}:${identity.ino}`;
       const watcher = watch(directory, () => this.markDirty());
       entry.watcher = watcher;
       watcher.on("error", () => {
@@ -224,9 +229,12 @@ export class DevSessionCore<T, P extends DevPreview> {
   }
 
   /** Capture after every explicit check and uncertain watcher event. */
-  refresh(): Promise<DevInputs> {
+  refresh(signal?: AbortSignal): Promise<DevInputs> {
     const work = this.captureQueue.then(async () => {
       if (this.stopped) throw new Error("session stopped");
+      // A request may be canceled while its capture waits behind another one.
+      // Refuse outside the capture try/finally: no identities or audit clock move.
+      signal?.throwIfAborted();
       let captured: DevInputs;
       try {
         captured = await this.hooks.capture();
@@ -261,17 +269,21 @@ export class DevSessionCore<T, P extends DevPreview> {
     return work;
   }
 
-  check(expectedRevision?: string): Promise<CheckPublication<T>> {
-    const work = this.checkQueue.then(() => this.checkOne(expectedRevision));
+  check(expectedRevision?: string, requestSignal?: AbortSignal): Promise<CheckPublication<T>> {
+    const signal = requestSignal === undefined ? this.stopChecks.signal
+      : AbortSignal.any([this.stopChecks.signal, requestSignal]);
+    const work = this.checkQueue.then(() => this.checkOne(expectedRevision, signal));
     this.checkQueue = work.then(() => undefined, () => undefined);
     return work;
   }
 
-  private async checkOne(expectedRevision?: string): Promise<CheckPublication<T>> {
+  private async checkOne(expectedRevision: string | undefined, signal: AbortSignal): Promise<CheckPublication<T>> {
+    if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
     let inputs: DevInputs;
     try {
-      inputs = await this.refresh();
+      inputs = await this.refresh(signal);
     } catch (error) {
+      if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "capture_incomplete", revision: this.revision() ?? "r0", error: errorText(error) };
     }
     const revision = this.revision() as string;
@@ -279,18 +291,22 @@ export class DevSessionCore<T, P extends DevPreview> {
     if (expectedRevision !== undefined && revision !== expectedRevision) {
       throw new DevRevisionConflictError();
     }
+    signal.throwIfAborted();
     const startedSerial = this.changeSerial;
     let check: DevCheck<T>;
-    try { check = await this.hooks.check(inputs, this.stopChecks.signal); }
+    try { check = await this.hooks.check(inputs, signal); }
     catch (error) {
       if (this.stopChecks.signal.aborted && error === this.stopChecks.signal.reason) {
         return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
       }
       throw error;
     }
-    if (!(await this.stillCurrent(inputs, revision, startedSerial))) {
+    if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
+    if (!(await this.stillCurrent(inputs, revision, startedSerial, signal))) {
+      if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     }
+    signal.throwIfAborted();
     const captured: DevCheck<T> = structuredClone(check);
     this.checkRevision = revision;
     this.history.set(revision, {
@@ -315,10 +331,13 @@ export class DevSessionCore<T, P extends DevPreview> {
     try {
       prepared = await this.hooks.preparePreview(inputs, check);
     } catch (error) {
+      signal.throwIfAborted();
       return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
     }
-    if (!(await this.stillCurrent(inputs, revision, startedSerial))) {
+    const current = !signal.aborted && await this.stillCurrent(inputs, revision, startedSerial, signal);
+    if (!current || signal.aborted) {
       await prepared.dispose();
+      if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     }
     const old = this.serving;
@@ -337,10 +356,10 @@ export class DevSessionCore<T, P extends DevPreview> {
       ...(cleanupError === undefined ? {} : { cleanupError }) };
   }
 
-  private async stillCurrent(inputs: DevInputs, revision: string, serial: number): Promise<boolean> {
+  private async stillCurrent(inputs: DevInputs, revision: string, serial: number, signal?: AbortSignal): Promise<boolean> {
     if (this.stopped || this.changeSerial !== serial) return false;
     try {
-      const latest = await this.refresh();
+      const latest = await this.refresh(signal);
       return !this.stopped && this.changeSerial === serial && this.revision() === revision &&
         latest.inputDigest === inputs.inputDigest && latest.sourceRevision === inputs.sourceRevision;
     } catch {

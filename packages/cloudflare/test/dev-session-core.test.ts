@@ -17,6 +17,106 @@ async function until(predicate: () => boolean): Promise<void> {
 }
 
 describe("development session revision lifecycle", () => {
+  it("refuses request capture canceled behind an ongoing manual capture without changing its identity", async () => {
+    let captures = 0, checks = 0, previews = 0, entered!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => {
+        captures++; entered(); await gate;
+        return { sourceRevision: captures === 1 ? "original" : "unexpected", inputDigest: captures === 1 ? "original" : "unexpected" };
+      },
+      check: async () => { checks++; return { complete: true, passed: true, detail: null }; },
+      preparePreview: async () => { previews++; return preview("unexpected", []); },
+    });
+    try {
+      const manual = session.refresh(); await started;
+      const controller = new AbortController(), reason = new Error("capture caller disconnected");
+      const check = session.check(undefined, controller.signal), rejection = expect(check).rejects.toBe(reason);
+      // checkOne has synchronously enqueued its refresh before yielding to this
+      // continuation; the original manual capture still owns the queue.
+      await Promise.resolve(); controller.abort(reason); release();
+      expect(await manual).toEqual({ sourceRevision: "original", inputDigest: "original" });
+      await rejection;
+      expect(captures).toBe(1); expect(checks).toBe(0); expect(previews).toBe(0);
+      expect(session.status()).toMatchObject({ revision: "r1", sourceRevision: "original", captureError: null, servingBuild: null });
+    } finally { release(); await session.stop(); }
+  });
+
+  it("refuses a canceled queued check before capture or compiler work", async () => {
+    let captures = 0, checks = 0;
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => { captures++; return { sourceRevision: "a", inputDigest: "a" }; },
+      check: async () => { checks++; entered(); await gate; return { complete: true, passed: false, detail: null }; },
+      preparePreview: async () => { throw new Error("invalid check cannot build"); },
+    });
+    try {
+      const first = session.check(); await started;
+      const controller = new AbortController(), reason = new Error("queued caller disconnected");
+      const queued = session.check(undefined, controller.signal);
+      const rejection = expect(queued).rejects.toBe(reason);
+      controller.abort(reason); release(); await first;
+      const capturedByFirst = captures;
+      await rejection; expect(captures).toBe(capturedByFirst); expect(checks).toBe(1);
+    } finally { release(); await session.stop(); }
+  });
+
+  it("aborts an in-flight compiler with the request and keeps the check queue usable", async () => {
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    let first = true, compilerSignal: AbortSignal | undefined;
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: "a", inputDigest: "a" }),
+      check: async (_inputs, signal) => {
+        if (first) { first = false; compilerSignal = signal; entered();
+          await new Promise<void>((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })); }
+        return { complete: true, passed: false, detail: null };
+      },
+      preparePreview: async () => { throw new Error("invalid check cannot build"); },
+    });
+    try {
+      const controller = new AbortController(), reason = new Error("compiler caller timed out");
+      const check = session.check(undefined, controller.signal), rejection = expect(check).rejects.toBe(reason);
+      await started; controller.abort(reason); await rejection;
+      expect(compilerSignal?.aborted).toBe(true);
+      expect(session.detail("r1")).toEqual({ error: "revision_unavailable" });
+      expect(await session.check()).toMatchObject({ kind: "checked", preview: "unavailable" });
+    } finally { await session.stop(); }
+  });
+
+  it("awaits canceled prepared preview disposal without replacing the old serving build", async () => {
+    let source = "old", prepared!: () => void, release!: () => void, disposing!: () => void, finishDisposal!: () => void;
+    const preparation = new Promise<void>(resolve => { prepared = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const disposal = new Promise<void>(resolve => { disposing = resolve; });
+    const disposeGate = new Promise<void>(resolve => { finishDisposal = resolve; });
+    const disposed: string[] = [];
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: source, inputDigest: source }),
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async inputs => {
+        if (inputs.sourceRevision === "old") return preview("old", disposed);
+        prepared(); await gate;
+        return { id: "new", dispose: async () => { disposing(); await disposeGate; disposed.push("new"); } };
+      },
+    });
+    try {
+      await session.check(); source = "new";
+      const controller = new AbortController(), reason = new Error("preview caller disconnected");
+      let settled = false;
+      const check = session.check(undefined, controller.signal);
+      const rejection = expect(check).rejects.toBe(reason);
+      void check.then(() => { settled = true; }, () => { settled = true; });
+      await preparation; controller.abort(reason); release(); await disposal;
+      expect(settled).toBe(false); expect(session.status().servingBuild).toBe("old");
+      expect(disposed).toEqual([]); finishDisposal(); await rejection;
+      expect(disposed).toEqual(["new"]); expect(session.status().servingBuild).toBe("old");
+    } finally { release(); finishDisposal(); await session.stop(); }
+  });
+
   it("admits expected revisions against recaptured inputs before publishing", async () => {
     let source = "first";
     const session = new DevSessionCore({

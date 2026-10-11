@@ -13,6 +13,12 @@ Lane-07 Cloudflare delivery. Two sides with a hard boundary:
 land when compiler artifacts and producer inventory contracts exist; the
 directories are created with their first real module, not before.
 
+Local development checks are serialized and share the requesting connection's
+cancellation lifetime with service shutdown. Canceled queued checks do not start
+capture or compilation; a canceled prepared preview is disposed before the check
+settles and leaves the prior serving build in place. Directory watchers pin their
+attachment identity so replacement is reconciled before the slower fallback audit.
+
 ## Installed Worker bundling
 
 Import `buildDeployBundle` from `@canlang/cloudflare/deploy/bundle` and pass
