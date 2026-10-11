@@ -23,6 +23,7 @@ import type {
 import type { RetryPolicy } from '@canlang/contracts';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
 import { StateError } from '@canlang/state/errors';
+import { FenceConflictError } from '@canlang/state/storage/port';
 import type { OperationRegistry } from '@canlang/state/invocation/registry';
 import type { MembershipReader } from '@canlang/state/policy/roles';
 import {
@@ -308,6 +309,140 @@ describe('t34-f5 lifecycle: classification table', () => {
       classifyFanoutChildLifecycle({ store, model: MODEL, recordId: '' }),
       StateError,
     );
+  });
+});
+
+describe('t34-f5 lifecycle: selected fenced route', () => {
+  it('preserves original lifecycle verdicts through bounded reads without legacy row or history access', async () => {
+    const { store } = await setup();
+    await seedParent(store, 'opp-1');
+    await seedParent(store, 'opp-2');
+    await seedChild(store, 'live', 'opp-1');
+    const archived = await seedChild(store, 'archived', 'opp-1');
+    const gone = await seedChild(store, 'gone', 'opp-1');
+    const moved = await seedChild(store, 'moved', 'opp-1');
+    await seedChild(store, 'unparented', null);
+    const stale = await store.readRevision();
+    await store.commit(makeBatch(stale as number, {
+      writes: [
+        { kind: 'update', model: asModel(MODEL), id: archived.id, expectedVersion: archived.version,
+          row: { ...archived, version: (archived.version + 1) as never, archivedAt: FIXED_NOW } },
+        { kind: 'update', model: asModel(MODEL), id: moved.id, expectedVersion: moved.version,
+          row: { ...moved, version: (moved.version + 1) as never,
+            parent: { model: asModel(PARENT_MODEL), id: asId('opp-2') } } },
+        { kind: 'remove', model: asModel(MODEL), id: gone.id, expectedVersion: gone.version },
+      ], history: [{ model: asModel(MODEL), recordId: gone.id, version: gone.version,
+        operation: asOperation('Acme.remove'), operationId: 'fenced-disposal' as never, actor: ACTOR,
+        at: FIXED_NOW, change: 'remove', before: {}, after: null }],
+    }));
+    let legacyTouches = 0;
+    const bounded: StoragePort = { ...store,
+      load: async () => { legacyTouches += 1; throw new Error('selected lifecycle must use cohortLoad'); },
+      historyFor: async () => { legacyTouches += 1; throw new Error('selected lifecycle must use cohortAnchorFact'); },
+    };
+    const expectedRevision = await store.readRevision();
+    for (const [recordId, status] of [['live', 'present'], ['archived', 'deleted'], ['gone', 'deleted'],
+      ['moved', 'moved'], ['unparented', 'moved']] as const) {
+      assert.deepEqual(await classifyFanoutChildLifecycle({ store: bounded, model: MODEL, recordId,
+        anchor: { model: PARENT_MODEL, id: 'opp-1' }, expectedRevision }), { status });
+    }
+    assert.deepEqual(await classifyFanoutChildLifecycle({ store: bounded, model: MODEL,
+      recordId: 'moved', expectedRevision }), { status: 'present' });
+    assert.deepEqual(await classifyFanoutChildLifecycle({ store: bounded, model: MODEL,
+      recordId: 'missing', expectedRevision }), { status: 'unknown', reason: 'missing-record' });
+    await assert.rejects(classifyFanoutChildLifecycle({ store: bounded, model: MODEL,
+      recordId: 'moved', anchor: { model: PARENT_MODEL, id: 'opp-1' }, expectedRevision: stale }), FenceConflictError);
+    assert.equal(legacyTouches, 0);
+  });
+
+  it('maps only generic bounded-read failures to infrastructure unknown and propagates typed failures unchanged', async () => {
+    const { store } = await setup();
+    const expectedRevision = await store.readRevision();
+    for (const method of ['cohortLoad', 'cohortAnchorFact'] as const) {
+      for (const failure of [new Error('offline'), new StateError('limit', 'bounded resource refusal', null, { retryable: false }),
+        new StateError('validation', 'invalid bounded representation'), new FenceConflictError(expectedRevision, null)]) {
+        const failing: StoragePort = { ...store, [method]: async () => { throw failure; },
+          load: async () => { throw new Error('no legacy fallback'); },
+          historyFor: async () => { throw new Error('no full-history fallback'); } };
+        const call = classifyFanoutChildLifecycle({ store: failing, model: MODEL, recordId: 'missing', expectedRevision });
+        if (failure instanceof StateError || failure instanceof FenceConflictError) {
+          await assert.rejects(call, error => error === failure);
+        } else assert.deepEqual(await call, { status: 'unknown', reason: 'infra-read-failure' });
+      }
+    }
+    let loads = 0, facts = 0;
+    const impossible: StoragePort = { ...store,
+      cohortLoad: async input => { loads += 1; return store.cohortLoad(input); },
+      cohortAnchorFact: async () => { facts += 1; return 'present'; },
+      load: async () => { throw new Error('impossible fact must not refresh the full row'); },
+      historyFor: async () => { throw new Error('impossible fact must not fall back to history'); },
+    };
+    await assert.rejects(classifyFanoutChildLifecycle({ store: impossible, model: MODEL,
+      recordId: 'missing', expectedRevision }), error => error instanceof StateError && error.code === 'validation');
+    assert.equal(loads, 1);
+    assert.equal(facts, 1);
+  });
+
+  it('accepts 200-character components and rejects excess or invalid identities before producer touches', async () => {
+    const { store } = await setup();
+    const model = 'M'.repeat(200), recordId = 'r'.repeat(200), anchor = { model: 'P'.repeat(200), id: 'p'.repeat(200) };
+    await store.commit(makeBatch((await store.readRevision()) as number, { writes: [
+      { kind: 'insert', model: asModel(anchor.model), row: makeRow({ id: anchor.id }) },
+      { kind: 'insert', model: asModel(model), row: { ...makeRow({ id: recordId }),
+        parent: { model: asModel(anchor.model), id: asId(anchor.id) } } },
+    ] }));
+    const expectedRevision = await store.readRevision();
+    assert.deepEqual(await classifyFanoutChildLifecycle({ store, model, recordId, anchor, expectedRevision }), { status: 'present' });
+    for (const field of ['model', 'recordId', 'anchorModel', 'anchorId']) for (const invalid of ['x'.repeat(201), 'bad\u0000id', '\ud800']) {
+      let touches = 0;
+      const noReads: StoragePort = { ...store,
+        readRevision: async () => { touches += 1; return store.readRevision(); },
+        cohortLoad: async () => { touches += 1; return null; },
+        cohortAnchorFact: async () => { touches += 1; return 'unknown'; },
+        load: async () => { touches += 1; return null; },
+        historyFor: async () => { touches += 1; return []; },
+      };
+      const selected = { store: noReads, model: field === 'model' ? invalid : model,
+        recordId: field === 'recordId' ? invalid : recordId,
+        anchor: { model: field === 'anchorModel' ? invalid : anchor.model,
+          id: field === 'anchorId' ? invalid : anchor.id }, expectedRevision };
+      await assert.rejects(classifyFanoutChildLifecycle(selected), error => error instanceof StateError &&
+        error.code === (invalid.length === 201 ? 'limit' : 'validation'));
+      assert.equal(touches, 0);
+    }
+  });
+
+  it('refuses an actual oversized archived row before classifying its tombstone as deleted', async () => {
+    const { store } = await setup();
+    const row = await seedChild(store, 'oversized', null, { payload: 'x'.repeat(2_000_001) });
+    await store.commit(makeBatch((await store.readRevision()) as number, { writes: [{ kind: 'update',
+      model: asModel(MODEL), id: row.id, expectedVersion: row.version,
+      row: { ...row, version: (row.version + 1) as never, archivedAt: FIXED_NOW } }] }));
+    await assert.rejects(classifyFanoutChildLifecycle({ store, model: MODEL, recordId: 'oversized',
+      expectedRevision: await store.readRevision() }), error => error instanceof StateError && error.code === 'limit');
+  });
+
+  it('keeps a real null-load to insertion race loud at the original disposal-fact fence', async () => {
+    const { store } = await setup();
+    const expectedRevision = await store.readRevision();
+    let loads = 0, facts = 0;
+    const racing: StoragePort = { ...store,
+      cohortLoad: async input => {
+        loads += 1;
+        const row = await store.cohortLoad(input);
+        assert.equal(row, null);
+        await seedChild(store, 'raced', null);
+        return row;
+      },
+      cohortAnchorFact: async input => { facts += 1; return store.cohortAnchorFact(input); },
+      load: async () => { throw new Error('race must not renew into a full-row load'); },
+      historyFor: async () => { throw new Error('race must not drain disposal history'); },
+    };
+    await assert.rejects(classifyFanoutChildLifecycle({ store: racing, model: MODEL,
+      recordId: 'raced', expectedRevision }), FenceConflictError);
+    assert.equal(loads, 1);
+    assert.equal(facts, 1);
+    assert.ok(await store.load(asModel(MODEL), asId('raced')));
   });
 });
 

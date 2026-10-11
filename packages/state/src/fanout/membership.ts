@@ -55,6 +55,9 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
   withFanoutRowData,
+  type FanoutCheckpointData,
+  type FanoutChildData,
+  type FanoutIntentData,
   type FanoutRowMeta,
 } from './tables.js';
 import {
@@ -64,6 +67,159 @@ import {
   type FanoutCohortSpec,
   type FanoutCutoffSpec,
 } from './cohort.js';
+
+/** Selected private consumer profile; persisted formats and public codecs stay unchanged. */
+export const PRIVATE_FANOUT_LIMITS = Object.freeze({
+  members: 1000, page: 100, identity: 200, compound: 6000,
+});
+
+function privateFanoutLimit(message: string): never {
+  throw new StateError('limit', message, null, { retryable: false });
+}
+
+export function checkPrivateFanoutIdentity(value: unknown, compound = false): string {
+  if (typeof value !== 'string' || value === '') {
+    throw new StateError('validation', 'Fanout identity must be a non-empty string.');
+  }
+  if (value.length > (compound ? PRIVATE_FANOUT_LIMITS.compound : PRIVATE_FANOUT_LIMITS.identity)) {
+    privateFanoutLimit('Fanout identity exceeds the private identity bound.');
+  }
+  if (/[\u0000-\u001f\u007f]/.test(value)) {
+    throw new StateError('validation', 'Fanout identity contains a control character.');
+  }
+  try { encodeURIComponent(value); } catch {
+    throw new StateError('validation', 'Fanout identity has invalid URI encoding.');
+  }
+  return value;
+}
+
+export function checkPrivateFanoutIdOrder(value: unknown): 'utf16' | 'utf8-binary' {
+  if (value !== 'utf16' && value !== 'utf8-binary') {
+    throw new StateError('validation', 'Fanout storage must declare its original cohort id order.');
+  }
+  return value;
+}
+
+/** SQLite BINARY compares well-formed Unicode by code point; Memory uses UTF16. */
+export function comparePrivateFanoutIds(a: string, b: string, order: 'utf16' | 'utf8-binary'): number {
+  if (order === 'utf16') return a < b ? -1 : a > b ? 1 : 0;
+  let left = 0, right = 0;
+  while (left < a.length && right < b.length) {
+    const x = a.codePointAt(left)!;
+    const y = b.codePointAt(right)!;
+    if (x !== y) return x < y ? -1 : 1;
+    left += x > 0xffff ? 2 : 1;
+    right += y > 0xffff ? 2 : 1;
+  }
+  return left < a.length ? 1 : right < b.length ? -1 : 0;
+}
+
+/** Inspect consumed fields without invoking a captured row's accessors. */
+function ownField(record: unknown, field: string): unknown {
+  if (typeof record !== 'object' || record === null || Array.isArray(record) ||
+      (Object.getPrototypeOf(record) !== Object.prototype && Object.getPrototypeOf(record) !== null)) {
+    throw new StateError('validation', 'Fanout retained data must be an own-data object.');
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(record, field);
+  if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+    throw new StateError('validation', 'Fanout retained field must be an enumerable own-data value.');
+  }
+  return descriptor.value;
+}
+
+/** Bound before the existing codec allocates its canonical Set and sorted copy. */
+function checkPrivateIdentityArray(value: unknown): void {
+  if (!Array.isArray(value)) {
+    throw new StateError('validation', 'Fanout retained identities must be an array.');
+  }
+  if (value.length > PRIVATE_FANOUT_LIMITS.members) {
+    privateFanoutLimit('Fanout retained membership exceeds the private member bound.');
+  }
+  if (Object.getPrototypeOf(value) !== Array.prototype ||
+      Object.getOwnPropertyDescriptor(value, Symbol.iterator) !== undefined) {
+    throw new StateError('validation', 'Fanout retained identities require an ordinary dense array.');
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+      throw new StateError('validation', 'Fanout retained identities require own-data array entries.');
+    }
+    checkPrivateFanoutIdentity(descriptor.value);
+  }
+}
+
+export function readPrivateFanoutIntentRow(row: StoredRow): FanoutIntentData {
+  checkPrivateFanoutIdentity(ownField(row, 'id'), true);
+  const data = ownField(row, 'data');
+  checkPrivateFanoutIdentity(ownField(data, 'fanoutId'), true);
+  checkPrivateFanoutIdentity(ownField(data, 'sourceOccurrence'));
+  checkPrivateFanoutIdentity(ownField(data, 'handler'));
+  const cohort = ownField(data, 'cohort');
+  if (cohort !== 'model' && cohort !== 'anchored-collection') {
+    throw new StateError('validation', 'Fanout retained cohort must use an adopted spelling.');
+  }
+  ownField(data, 'memberCount');
+  checkPrivateIdentityArray(ownField(data, 'members'));
+  return readFanoutIntentRow(row);
+}
+
+export function readPrivateFanoutCheckpointRow(row: StoredRow): FanoutCheckpointData {
+  checkPrivateFanoutIdentity(ownField(row, 'id'), true);
+  const data = ownField(row, 'data');
+  checkPrivateFanoutIdentity(ownField(data, 'fanoutId'), true);
+  checkPrivateIdentityArray(ownField(data, 'completed'));
+  const cursor = ownField(data, 'cursor');
+  if (cursor !== null) checkPrivateFanoutIdentity(cursor, true);
+  return readFanoutCheckpointRow(row);
+}
+
+export function readPrivateFanoutChildRow(row: StoredRow): FanoutChildData {
+  checkPrivateFanoutIdentity(ownField(row, 'id'), true);
+  const data = ownField(row, 'data');
+  for (const field of ['fanoutId', 'childId']) checkPrivateFanoutIdentity(ownField(data, field), true);
+  for (const field of ['parentOccurrence', 'handler', 'recordId']) checkPrivateFanoutIdentity(ownField(data, field));
+  const state = ownField(data, 'state');
+  const causeKind = ownField(data, 'causeKind');
+  const causeReason = ownField(data, 'causeReason');
+  if (!['pending', 'running', 'completed', 'skipped', 'failed'].includes(state as string) ||
+      (causeKind !== null && !['completed', 'skipped', 'failed'].includes(causeKind as string)) ||
+      (causeReason !== null && !['deleted', 'non-applicable', 'business-rejection', 'terminal', 'exhausted',
+        'missing-record', 'inaccessible-record', 'infra-read-failure'].includes(causeReason as string))) {
+    throw new StateError('validation', 'Fanout retained child state or cause is outside its closed contract.');
+  }
+  ownField(data, 'attempts');
+  return readFanoutChildRow(row);
+}
+
+function checkCheckpointMembership(checkpoint: FanoutCheckpointData, intent: FanoutIntentData): void {
+  const members = new Set(intent.members);
+  if (checkpoint.fanoutId !== intent.fanoutId || checkpoint.completed.some(id => !members.has(id))) {
+    throw new StateError('validation', 'Fanout checkpoint disagrees with the frozen membership.');
+  }
+}
+
+interface RetainedIntentCapture {
+  readonly version: StoredRow['version'];
+  readonly data: FanoutIntentData;
+}
+
+function captureRetainedIntent(row: StoredRow): RetainedIntentCapture {
+  const data = readPrivateFanoutIntentRow(row);
+  liveAdmissionRow(row);
+  return { version: row.version, data };
+}
+
+function sameRetainedIntent(row: StoredRow, data: FanoutIntentData, captured: RetainedIntentCapture): boolean {
+  return row.version === captured.version && data.fanoutId === captured.data.fanoutId &&
+    data.sourceOccurrence === captured.data.sourceOccurrence && data.handler === captured.data.handler &&
+    data.cohort === captured.data.cohort && data.members.length === captured.data.members.length &&
+    data.members.every((member, index) => member === captured.data.members[index]);
+}
+
+function changedRetainedIntent(): FreezeMembershipOutcome {
+  return { ok: false, diagnosis: diagnoseCohort('membership-unavailable',
+    'Fanout retained intent changed during admission; refusing to replace frozen membership.') };
+}
 
 /**
  * Explicit freeze bounds (no defaults, no quota field): page transport
@@ -77,16 +233,25 @@ export interface FanoutFreezeBounds {
   readonly maxAttempts: number;
 }
 
-function checkBounds(bounds: FanoutFreezeBounds): void {
+function checkBounds(bounds: FanoutFreezeBounds): FanoutFreezeBounds {
   if (typeof bounds !== 'object' || bounds === null || Array.isArray(bounds)) {
     throw new StateError('validation', 'Fanout freeze bounds must be an object.');
   }
+  const captured = { pageLimit: ownField(bounds, 'pageLimit'),
+    chunkSize: ownField(bounds, 'chunkSize'), maxAttempts: ownField(bounds, 'maxAttempts') };
   for (const field of ['pageLimit', 'chunkSize', 'maxAttempts'] as const) {
-    const value = bounds[field];
-    if (!Number.isInteger(value) || value < 1) {
+    const value = captured[field];
+    if (typeof value !== 'number') {
       throw new StateError('validation', `Fanout freeze ${field} must be an integer >= 1.`);
     }
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new StateError('validation', `Fanout freeze ${field} must be an integer >= 1.`);
+    }
+    if (field !== 'maxAttempts' && value > PRIVATE_FANOUT_LIMITS.page) {
+      privateFanoutLimit('Fanout freeze page or chunk exceeds the private page bound.');
+    }
   }
+  return captured as FanoutFreezeBounds;
 }
 
 /** One membership freeze request against the owning store. */
@@ -106,6 +271,42 @@ export interface FreezeMembershipInput {
    * absent the guard is skipped (documented at the call site).
    */
   readonly hasModel?: (model: string) => boolean;
+}
+
+/** Native source staging captures the same complete identities before its owning commit. */
+export interface CapturePrivateFanoutIdentitiesInput {
+  readonly store: StoragePort;
+  readonly cohort: FanoutCohortSpec;
+  readonly pageLimit: number;
+  readonly expectedRevision: Revision;
+}
+
+function capturePrivateCohortSpec(spec: FanoutCohortSpec): FanoutCohortSpec {
+  const kind = ownField(spec, 'kind');
+  const owner = checkPrivateFanoutIdentity(ownField(spec, 'owner'));
+  const model = checkPrivateFanoutIdentity(ownField(spec, 'model'));
+  if (kind === 'model') return { kind, owner, model };
+  if (kind === 'anchored-collection') {
+    const parent = ownField(spec, 'parent');
+    return { kind, owner, model, parent: {
+      model: checkPrivateFanoutIdentity(ownField(parent, 'model')),
+      id: checkPrivateFanoutIdentity(ownField(parent, 'id')),
+    } };
+  }
+  throw new StateError('validation', 'Fanout cohort must use an adopted spelling.');
+}
+
+/** No commit/anchor authority: callers retain their original source fence and final canonical sort. */
+export async function capturePrivateFanoutIdentities(
+  input: CapturePrivateFanoutIdentitiesInput,
+): Promise<ReadonlyArray<string>> {
+  const cohort = capturePrivateCohortSpec(input.cohort);
+  const pageLimit = ownField(input, 'pageLimit');
+  if (typeof pageLimit !== 'number' || !Number.isSafeInteger(pageLimit) || pageLimit < 1) {
+    throw new StateError('validation', 'Fanout identity pageLimit must be an integer >= 1.');
+  }
+  if (pageLimit > PRIVATE_FANOUT_LIMITS.page) privateFanoutLimit('Fanout identity page exceeds the private page bound.');
+  return drainCohortIdentities(input.store, cohort, pageLimit, input.expectedRevision);
 }
 
 /** Frozen membership: the committed intent identity plus its frozen set. */
@@ -183,13 +384,18 @@ function liveAdmissionRow(row: StoredRow): void {
 export async function admitRetainedFanoutChunk(
   input: AdmitRetainedFanoutChunkInput,
 ): Promise<AdmitRetainedFanoutChunkOutcome> {
-  if (!Number.isSafeInteger(input.chunkSize) || input.chunkSize < 1) {
+  const chunkSize = ownField(input, 'chunkSize');
+  if (typeof chunkSize !== 'number' || !Number.isSafeInteger(chunkSize) || chunkSize < 1) {
     throw new StateError('validation', 'Fanout retained admission chunkSize must be an integer >= 1.');
   }
+  if (chunkSize > PRIVATE_FANOUT_LIMITS.page) {
+    privateFanoutLimit('Fanout retained admission chunk exceeds the private page bound.');
+  }
+  const capturedIntent = readPrivateFanoutIntentRow(input.intentRow);
+  const capturedCheckpoint = readPrivateFanoutCheckpointRow(input.checkpointRow);
+  checkCheckpointMembership(capturedCheckpoint, capturedIntent);
   liveAdmissionRow(input.intentRow);
   liveAdmissionRow(input.checkpointRow);
-  const capturedIntent = readFanoutIntentRow(input.intentRow);
-  const capturedCheckpoint = readFanoutCheckpointRow(input.checkpointRow);
   const unavailable = (message: string): AdmitRetainedFanoutChunkOutcome => ({
     ok: false, diagnosis: diagnoseCohort('membership-unavailable', message),
   });
@@ -197,15 +403,18 @@ export async function admitRetainedFanoutChunk(
     return unavailable('Fanout captured checkpoint disagrees with the retained intent.');
   }
   try {
-    const intentRow = await input.store.load(FANOUT_INTENT_MODEL as ModelName, input.intentRow.id);
-    const checkpointRow = await input.store.load(FANOUT_CHECKPOINT_MODEL as ModelName, input.checkpointRow.id);
+    const intentRow = await input.store.cohortLoad({ model: FANOUT_INTENT_MODEL as ModelName,
+      id: input.intentRow.id, expectedRevision: input.expectedRevision });
+    const checkpointRow = await input.store.cohortLoad({ model: FANOUT_CHECKPOINT_MODEL as ModelName,
+      id: input.checkpointRow.id, expectedRevision: input.expectedRevision });
     if (intentRow === null || checkpointRow === null) {
       return unavailable('Fanout retained intent or checkpoint is missing during admission.');
     }
     liveAdmissionRow(intentRow);
     liveAdmissionRow(checkpointRow);
-    const intent = readFanoutIntentRow(intentRow);
-    const checkpoint = readFanoutCheckpointRow(checkpointRow);
+    const intent = readPrivateFanoutIntentRow(intentRow);
+    const checkpoint = readPrivateFanoutCheckpointRow(checkpointRow);
+    checkCheckpointMembership(checkpoint, intent);
     if (intentRow.version !== input.intentRow.version || checkpointRow.version !== input.checkpointRow.version ||
       intent.fanoutId !== capturedIntent.fanoutId || intent.sourceOccurrence !== capturedIntent.sourceOccurrence ||
       intent.handler !== capturedIntent.handler || intent.cohort !== capturedIntent.cohort ||
@@ -222,17 +431,18 @@ export async function admitRetainedFanoutChunk(
       if (!(error instanceof StateError)) throw error;
       return unavailable(error.message);
     }
-    const chunk = intent.members.slice(offset, offset + input.chunkSize);
+    const chunk = intent.members.slice(offset, offset + chunkSize);
     const missing: StoredRow[] = [];
     for (const recordId of chunk) {
-      const childRow = await input.store.load(FANOUT_CHILD_MODEL as ModelName,
-        fanoutChildRowId(intent.sourceOccurrence, intent.handler, recordId) as RecordId);
+      const childRow = await input.store.cohortLoad({ model: FANOUT_CHILD_MODEL as ModelName,
+        id: fanoutChildRowId(intent.sourceOccurrence, intent.handler, recordId) as RecordId,
+        expectedRevision: input.expectedRevision });
       if (childRow === null) {
         missing.push(newFanoutChildRow({ fanoutId: intent.fanoutId,
           parentOccurrence: intent.sourceOccurrence, handler: intent.handler, recordId }, input.meta));
       } else {
         liveAdmissionRow(childRow);
-        const child = readFanoutChildRow(childRow);
+        const child = readPrivateFanoutChildRow(childRow);
         if (child.fanoutId !== intent.fanoutId || child.parentOccurrence !== intent.sourceOccurrence ||
           child.handler !== intent.handler || child.recordId !== recordId) {
           return unavailable('Fanout retained admission child disagrees with frozen membership.');
@@ -280,18 +490,14 @@ interface AnchorVerdict {
 async function classifyAnchor(
   store: StoragePort,
   parent: { readonly model: string; readonly id: string },
+  expectedRevision: Revision,
 ): Promise<AnchorVerdict> {
-  const row = await store.load(parent.model as ModelName, parent.id as RecordId);
-  if (row !== null) {
-    return { known: true };
+  const fact = await store.cohortAnchorFact({ model: parent.model as ModelName,
+    id: parent.id as RecordId, expectedRevision });
+  if (fact !== 'present' && fact !== 'disposed' && fact !== 'unknown') {
+    throw new StateError('validation', 'Fanout anchor returned an unknown existence fact.');
   }
-  const history = await store.historyFor(parent.model as ModelName, parent.id as RecordId);
-  for (const entry of history) {
-    if (entry.change === 'remove' || entry.change === 'archive') {
-      return { known: true };
-    }
-  }
-  return { known: false };
+  return { known: fact !== 'unknown' };
 }
 
 /**
@@ -305,11 +511,15 @@ async function drainCohortIdentities(
   store: StoragePort,
   cohort: FanoutCohortSpec,
   pageLimit: number,
+  expectedRevision: Revision,
 ): Promise<string[]> {
+  const order = checkPrivateFanoutIdOrder(store.cohortIdOrder);
   const members: string[] = [];
   let cursor: string | null = null;
   for (;;) {
-    const rows = await store.query({
+    const limit = members.length === PRIVATE_FANOUT_LIMITS.members ? 1
+      : Math.min(pageLimit, PRIVATE_FANOUT_LIMITS.members - members.length);
+    const ids = await store.cohortIdentityPage({
       model: cohort.model as ModelName,
       ...(cohort.kind === 'anchored-collection'
         ? {
@@ -319,76 +529,82 @@ async function drainCohortIdentities(
             },
           }
         : {}),
-      ...(cursor === null
-        ? {}
-        : { where: { op: 'gt', field: 'id', value: cursor } as const }),
-      order: [{ field: 'id', direction: 'asc' }],
-      limit: pageLimit,
-      archived: 'include',
-      authority: 'owner',
+      after: cursor as RecordId | null,
+      limit,
+      expectedRevision,
     });
-    if (rows.length > pageLimit) {
+    if (ids.length > limit) {
       throw new StateError(
         'validation',
-        `Fanout enumeration returned ${rows.length} rows past limit ${pageLimit}.`,
+        `Fanout enumeration returned ${ids.length} identities past limit ${limit}.`,
       );
     }
-    for (const row of rows) {
-      members.push(row.id as string);
+    for (const rawId of ids) {
+      if (members.length === PRIVATE_FANOUT_LIMITS.members) {
+        privateFanoutLimit('Fanout membership exceeds the private member bound.');
+      }
+      const id = checkPrivateFanoutIdentity(rawId);
+      if (cursor !== null && comparePrivateFanoutIds(id, cursor, order) <= 0) {
+        throw new StateError('validation', 'Fanout membership pages must advance in ascending id order.');
+      }
+      members.push(id);
+      cursor = id;
     }
-    if (rows.length < pageLimit) {
+    if (ids.length < limit) {
       return members;
     }
-    const last = rows[rows.length - 1];
-    if (last === undefined) {
-      throw new StateError('validation', 'Fanout enumeration hit an unreachable empty full page.');
-    }
-    cursor = last.id as string;
   }
 }
 
 /** Drain admitted child record ids for one fanout in bounded pages. */
 async function drainAdmittedRecordIds(
   store: StoragePort,
-  fanoutId: FanoutId,
+  intent: FanoutIntentData,
   pageLimit: number,
+  expectedRevision: Revision,
 ): Promise<Set<string>> {
+  const order = checkPrivateFanoutIdOrder(store.cohortIdOrder);
   const admitted = new Set<string>();
+  const members = new Set(intent.members);
+  const fanoutId = intent.fanoutId;
   let cursor: string | null = null;
+  let observed = 0;
   for (;;) {
-    const rows = await store.query({
+    const limit = observed === PRIVATE_FANOUT_LIMITS.members ? 1
+      : Math.min(pageLimit, PRIVATE_FANOUT_LIMITS.members - observed);
+    const rows = await store.cohortRowPage({
       model: FANOUT_CHILD_MODEL as ModelName,
-      where:
-        cursor === null
-          ? { op: 'eq', field: 'fanoutId', value: fanoutId }
-          : {
-              op: 'and',
-              args: [
-                { op: 'eq', field: 'fanoutId', value: fanoutId },
-                { op: 'gt', field: 'id', value: cursor },
-              ],
-            },
-      order: [{ field: 'id', direction: 'asc' }],
-      limit: pageLimit,
-      authority: 'owner',
+      fanoutId,
+      after: cursor as RecordId | null,
+      limit,
+      expectedRevision,
     });
-    if (rows.length > pageLimit) {
+    if (rows.length > limit) {
       throw new StateError(
         'validation',
-        `Fanout child drain returned ${rows.length} rows past limit ${pageLimit}.`,
+        `Fanout child drain returned ${rows.length} rows past limit ${limit}.`,
       );
     }
     for (const row of rows) {
-      admitted.add(readFanoutChildRow(row).recordId);
+      if (observed === PRIVATE_FANOUT_LIMITS.members) {
+        privateFanoutLimit('Fanout admission exceeds the private child row bound.');
+      }
+      observed += 1;
+      const id = checkPrivateFanoutIdentity(ownField(row, 'id'), true);
+      if (cursor !== null && comparePrivateFanoutIds(id, cursor, order) <= 0) {
+        throw new StateError('validation', 'Fanout admission child pages must advance in ascending id order.');
+      }
+      cursor = id;
+      const child = readPrivateFanoutChildRow(row);
+      if (child.fanoutId !== fanoutId || child.parentOccurrence !== intent.sourceOccurrence ||
+          child.handler !== intent.handler || !members.has(child.recordId) || admitted.has(child.recordId)) {
+        throw new StateError('validation', 'Fanout admitted child disagrees with the frozen membership.');
+      }
+      admitted.add(child.recordId);
     }
-    if (rows.length < pageLimit) {
+    if (rows.length < limit) {
       return admitted;
     }
-    const last = rows[rows.length - 1];
-    if (last === undefined) {
-      throw new StateError('validation', 'Fanout child drain hit an unreachable empty full page.');
-    }
-    cursor = last.id as string;
   }
 }
 
@@ -400,8 +616,8 @@ function chunkOf<T>(items: ReadonlyArray<T>, size: number): T[][] {
   return chunks;
 }
 
-async function commitBatch(store: StoragePort, batch: CommitBatch): Promise<void> {
-  await store.commit(batch);
+async function commitBatch(store: StoragePort, batch: CommitBatch): Promise<Revision> {
+  return (await store.commit(batch)).revision;
 }
 
 /**
@@ -415,12 +631,17 @@ async function commitBatch(store: StoragePort, batch: CommitBatch): Promise<void
 export async function freezeFanoutMembership(
   input: FreezeMembershipInput,
 ): Promise<FreezeMembershipOutcome> {
-  checkCutoffSpec(input.cutoff);
-  const cohortKind = checkCohortSpec(input.cohort);
-  checkBounds(input.bounds);
-  if (typeof input.owner !== 'string' || input.owner === '') {
-    throw new StateError('validation', 'Fanout freeze needs a non-empty operating owner.');
-  }
+  const cutoff: FanoutCutoffSpec = {
+    sourceOccurrence: checkPrivateFanoutIdentity(ownField(input.cutoff, 'sourceOccurrence')),
+    handler: checkPrivateFanoutIdentity(ownField(input.cutoff, 'handler')),
+  };
+  const owner = checkPrivateFanoutIdentity(input.owner);
+  const cohort = capturePrivateCohortSpec(input.cohort);
+  checkCutoffSpec(cutoff);
+  const cohortKind = checkCohortSpec(cohort);
+  const bounds = checkBounds(input.bounds);
+  input = { store: input.store, cutoff, cohort, owner, bounds, meta: input.meta,
+    ...(input.hasModel === undefined ? {} : { hasModel: input.hasModel }) };
   if (input.cohort.owner !== input.owner) {
     return {
       ok: false,
@@ -445,12 +666,17 @@ export async function freezeFanoutMembership(
     input.cutoff.handler,
     cohortKind,
   );
+  checkPrivateFanoutIdentity(fanoutId, true);
 
   for (let attempt = 1; attempt <= input.bounds.maxAttempts; attempt += 1) {
     let retainedIntent: StoredRow | null;
+    let revision: Revision;
     try {
-      retainedIntent = await input.store.load(FANOUT_INTENT_MODEL as ModelName, fanoutId as RecordId);
+      revision = await input.store.readRevision();
+      retainedIntent = await input.store.cohortLoad({ model: FANOUT_INTENT_MODEL as ModelName,
+        id: fanoutId as RecordId, expectedRevision: revision });
     } catch (error) {
+      if (error instanceof FenceConflictError) continue;
       if (error instanceof StateError) {
         throw error;
       }
@@ -463,15 +689,13 @@ export async function freezeFanoutMembership(
       };
     }
     if (retainedIntent !== null) {
-      return replayFreeze(input, fanoutId);
+      return replayFreeze(input, fanoutId, captureRetainedIntent(retainedIntent));
     }
-    let revision: Revision;
     let enumerated: string[];
     try {
-      revision = await input.store.readRevision();
-      enumerated = await drainCohortIdentities(input.store, input.cohort, input.bounds.pageLimit);
+      enumerated = await drainCohortIdentities(input.store, input.cohort, input.bounds.pageLimit, revision);
       if (input.cohort.kind === 'anchored-collection') {
-        const anchor = await classifyAnchor(input.store, input.cohort.parent);
+        const anchor = await classifyAnchor(input.store, input.cohort.parent, revision);
         if (!anchor.known) {
           return {
             ok: false,
@@ -485,6 +709,7 @@ export async function freezeFanoutMembership(
         }
       }
     } catch (error) {
+      if (error instanceof FenceConflictError) continue;
       if (error instanceof StateError) {
         throw error;
       }
@@ -530,8 +755,10 @@ export async function freezeFanoutMembership(
       },
       input.meta,
     );
+    let admissionRevision: Revision;
+    const captured = captureRetainedIntent(intentRow);
     try {
-      await commitBatch(input.store, {
+      admissionRevision = await commitBatch(input.store, {
         expectedRevision: revision,
         writes: [
           { kind: 'insert', model: FANOUT_INTENT_MODEL as ModelName, row: intentRow },
@@ -542,8 +769,8 @@ export async function freezeFanoutMembership(
             row: newFanoutChildRow(
               {
                 fanoutId,
-                parentOccurrence: input.cutoff.sourceOccurrence,
-                handler: input.cutoff.handler,
+                parentOccurrence: captured.data.sourceOccurrence,
+                handler: captured.data.handler,
                 recordId,
               },
               input.meta,
@@ -584,10 +811,11 @@ export async function freezeFanoutMembership(
         continue;
       }
       const last = index === chunks.length - 1;
-      const admitted = await admitChunk(input, fanoutId, chunk, last);
+      const admitted = await admitChunk(input, captured, chunk, last, admissionRevision);
       if (!admitted.ok) {
         return admitted;
       }
+      admissionRevision = admitted.frozen.cutoffRevision;
     }
     return {
       ok: true,
@@ -605,45 +833,62 @@ export async function freezeFanoutMembership(
 }
 
 /**
- * Admit one admission chunk (fresh fence per chunk: only the frozen set
- * materializes here, so later revisions are safe). On a constraint
- * collision (crash-retry overlap), re-reads the admitted set and inserts
- * only the missing rows. The final chunk nulls the cursor atomically
- * with its inserts.
+ * Carry the prior successful owner commit's fence into the next chunk.
+ * External writes require a new coherent retained-intent/coverage read,
+ * never a fresh revision that blesses stale membership. Constraint
+ * collisions re-read the admitted set and insert only missing rows.
+ * The final fresh chunk nulls the cursor atomically with its inserts.
  */
 async function admitChunk(
   input: FreezeMembershipInput,
-  fanoutId: FanoutId,
+  captured: RetainedIntentCapture,
   chunk: ReadonlyArray<string>,
   last: boolean,
+  expectedRevision: Revision,
 ): Promise<FreezeMembershipOutcome> {
-  const checkpointRow = last
-    ? await input.store.load(FANOUT_CHECKPOINT_MODEL as ModelName, fanoutId as RecordId)
-    : null;
-  const checkpointData = checkpointRow === null ? null : readFanoutCheckpointRow(checkpointRow);
-  const insertRows = (ids: ReadonlyArray<string>): StoredRow[] =>
-    ids.map((recordId) =>
-      newFanoutChildRow(
-        {
-          fanoutId,
-          parentOccurrence: input.cutoff.sourceOccurrence,
-          handler: input.cutoff.handler,
-          recordId,
-        },
-        input.meta,
-      ),
-    );
-  const checkpointUpdate =
-    last && checkpointRow !== null && checkpointData !== null
-      ? withFanoutRowData(
-          checkpointRow,
-          { ...checkpointData, cursor: null },
-          input.meta,
-        )
-      : null;
+  const { fanoutId, members } = captured.data;
   try {
-    await commitBatch(input.store, {
-      expectedRevision: await input.store.readRevision(),
+    const currentIntent = await input.store.cohortLoad({ model: FANOUT_INTENT_MODEL as ModelName,
+      id: fanoutId as RecordId, expectedRevision });
+    if (currentIntent === null) return changedRetainedIntent();
+    const current = captureRetainedIntent(currentIntent);
+    if (!sameRetainedIntent(currentIntent, current.data, captured)) return changedRetainedIntent();
+    const checkpointRow = last
+      ? await input.store.cohortLoad({ model: FANOUT_CHECKPOINT_MODEL as ModelName,
+        id: fanoutId as RecordId, expectedRevision })
+      : null;
+    const checkpointData = checkpointRow === null ? null : readPrivateFanoutCheckpointRow(checkpointRow);
+    if (checkpointData !== null && checkpointData.fanoutId !== fanoutId) {
+      throw new StateError('validation', 'Fanout admission loaded a different checkpoint.');
+    }
+    if (checkpointData !== null) {
+      const frozen = new Set(members);
+      if (checkpointData.completed.some(id => !frozen.has(id))) {
+        throw new StateError('validation', 'Fanout checkpoint disagrees with the frozen membership.');
+      }
+    }
+    const insertRows = (ids: ReadonlyArray<string>): StoredRow[] =>
+      ids.map((recordId) =>
+        newFanoutChildRow(
+          {
+            fanoutId,
+            parentOccurrence: captured.data.sourceOccurrence,
+            handler: captured.data.handler,
+            recordId,
+          },
+          input.meta,
+        ),
+      );
+    const checkpointUpdate =
+      last && checkpointRow !== null && checkpointData !== null
+        ? withFanoutRowData(
+            checkpointRow,
+            { ...checkpointData, cursor: null },
+            input.meta,
+          )
+        : null;
+    const committedRevision = await commitBatch(input.store, {
+      expectedRevision,
       writes: [
         ...insertRows(chunk).map((row) => ({
           kind: 'insert' as const,
@@ -674,17 +919,17 @@ async function admitChunk(
       frozen: {
         fanoutId,
         members: [],
-        cutoffRevision: (await input.store.readRevision()) as Revision,
+        cutoffRevision: committedRevision,
         replayed: true,
       },
     };
   } catch (error) {
     if (error instanceof FenceConflictError) {
       // Chunk chunks are idempotent: re-read and insert only missing.
-      return admitMissing(input, fanoutId, last);
+      return admitMissing(input, fanoutId, last, 1, captured);
     }
     if (error instanceof StorageConstraintError) {
-      return admitMissing(input, fanoutId, last);
+      return admitMissing(input, fanoutId, last, 1, captured);
     }
     if (error instanceof StateError) {
       throw error;
@@ -708,55 +953,74 @@ async function admitMissing(
   input: FreezeMembershipInput,
   fanoutId: FanoutId,
   finishCursor: boolean,
+  attempt = 1,
+  captured?: RetainedIntentCapture,
 ): Promise<FreezeMembershipOutcome> {
   let intentRow: StoredRow | null;
+  let revision: Revision;
+  let intent: FanoutIntentData;
+  let admitted: Set<string>;
   try {
-    intentRow = await input.store.load(FANOUT_INTENT_MODEL as ModelName, fanoutId as RecordId);
+    revision = await input.store.readRevision();
+    intentRow = await input.store.cohortLoad({ model: FANOUT_INTENT_MODEL as ModelName,
+      id: fanoutId as RecordId, expectedRevision: revision });
+    if (intentRow === null) {
+      return {
+        ok: false,
+        diagnosis: diagnoseCohort(
+          'membership-unavailable',
+          'Fanout intent is missing during admission; refusing to invent membership.',
+        ),
+      };
+    }
+    const current = captureRetainedIntent(intentRow);
+    intent = current.data;
+    if (captured !== undefined && !sameRetainedIntent(intentRow, intent, captured)) return changedRetainedIntent();
+    captured ??= current;
+    if (
+      intent.sourceOccurrence !== input.cutoff.sourceOccurrence ||
+      intent.handler !== input.cutoff.handler || intent.fanoutId !== fanoutId ||
+      intent.cohort !== input.cohort.kind
+    ) {
+      return {
+        ok: false,
+        diagnosis: diagnoseCohort(
+          'membership-unavailable',
+          'Fanout intent disagrees with the cutoff; refusing to invent membership.',
+        ),
+      };
+    }
+    const checkpointRow = await input.store.cohortLoad({ model: FANOUT_CHECKPOINT_MODEL as ModelName,
+      id: fanoutId as RecordId, expectedRevision: revision });
+    if (checkpointRow === null) {
+      return { ok: false, diagnosis: diagnoseCohort('membership-unavailable',
+        'Fanout checkpoint is missing during admission; refusing to invent completion.') };
+    }
+    liveAdmissionRow(checkpointRow);
+    checkCheckpointMembership(readPrivateFanoutCheckpointRow(checkpointRow), intent);
+    admitted = await drainAdmittedRecordIds(input.store, intent, input.bounds.pageLimit, revision);
   } catch (error) {
-    return {
-      ok: false,
-      diagnosis: diagnoseCohort(
-        'membership-unavailable',
-        `Fanout admission re-read failed: ${error instanceof Error ? error.message : String(error)}.`,
-      ),
-    };
+    if (error instanceof FenceConflictError) {
+      if (attempt >= input.bounds.maxAttempts) return retryExhausted(input);
+      return admitMissing(input, fanoutId, finishCursor, attempt + 1, captured);
+    }
+    if (error instanceof StateError) throw error;
+    return { ok: false, diagnosis: diagnoseCohort('membership-unavailable',
+      `Fanout admission re-read failed: ${error instanceof Error ? error.message : String(error)}.`) };
   }
-  if (intentRow === null) {
-    return {
-      ok: false,
-      diagnosis: diagnoseCohort(
-        'membership-unavailable',
-        'Fanout intent is missing during admission; refusing to invent membership.',
-      ),
-    };
-  }
-  const intent = readFanoutIntentRow(intentRow);
-  if (
-    intent.sourceOccurrence !== input.cutoff.sourceOccurrence ||
-    intent.handler !== input.cutoff.handler
-  ) {
-    return {
-      ok: false,
-      diagnosis: diagnoseCohort(
-        'membership-unavailable',
-        'Fanout intent disagrees with the cutoff; refusing to invent membership.',
-      ),
-    };
-  }
-  const admitted = await drainAdmittedRecordIds(input.store, fanoutId, input.bounds.pageLimit);
   const missing = intent.members.filter((recordId) => !admitted.has(recordId));
   for (const chunk of chunkOf(missing, input.bounds.chunkSize)) {
     try {
-      await commitBatch(input.store, {
-        expectedRevision: await input.store.readRevision(),
+      revision = await commitBatch(input.store, {
+        expectedRevision: revision,
         writes: chunk.map((recordId) => ({
           kind: 'insert' as const,
           model: FANOUT_CHILD_MODEL as ModelName,
           row: newFanoutChildRow(
             {
               fanoutId,
-              parentOccurrence: input.cutoff.sourceOccurrence,
-              handler: input.cutoff.handler,
+              parentOccurrence: intent.sourceOccurrence,
+              handler: intent.handler,
               recordId,
             },
             input.meta,
@@ -772,7 +1036,8 @@ async function admitMissing(
     } catch (error) {
       if (error instanceof FenceConflictError || error instanceof StorageConstraintError) {
         // A rival admitter won the race; re-drain and continue.
-        return admitMissing(input, fanoutId, finishCursor);
+        if (attempt >= input.bounds.maxAttempts) return retryExhausted(input);
+        return admitMissing(input, fanoutId, finishCursor, attempt + 1, captured);
       }
       if (error instanceof StateError) {
         throw error;
@@ -790,15 +1055,15 @@ async function admitMissing(
     }
   }
   if (finishCursor) {
-    const finish = await finishEnumerationCursor(input, fanoutId, intent.members, admitted);
+    const finish = await finishEnumerationCursor(input, captured, admitted, revision, attempt);
     if (!finish.ok) {
       return finish;
     }
+    revision = finish.frozen.cutoffRevision;
   }
-  const cutoffRevision = await input.store.readRevision();
   return {
     ok: true,
-    frozen: { fanoutId, members: intent.members, cutoffRevision, replayed: true },
+    frozen: { fanoutId, members: intent.members, cutoffRevision: revision, replayed: true },
   };
 }
 
@@ -809,10 +1074,13 @@ async function admitMissing(
  */
 async function finishEnumerationCursor(
   input: FreezeMembershipInput,
-  fanoutId: FanoutId,
-  members: ReadonlyArray<string>,
+  captured: RetainedIntentCapture,
   admitted: ReadonlySet<string>,
+  expectedRevision: Revision,
+  attempt = 1,
 ): Promise<FreezeMembershipOutcome> {
+  const intent = captured.data;
+  const { fanoutId, members } = intent;
   for (const recordId of members) {
     if (!admitted.has(recordId)) {
       return {
@@ -824,27 +1092,26 @@ async function finishEnumerationCursor(
       };
     }
   }
-  const checkpointRow = await input.store.load(
-    FANOUT_CHECKPOINT_MODEL as ModelName,
-    fanoutId as RecordId,
-  );
-  if (checkpointRow === null) {
-    return {
-      ok: false,
-      diagnosis: diagnoseCohort(
-        'membership-unavailable',
-        'Fanout checkpoint is missing; refusing to invent completion.',
-      ),
-    };
-  }
-  const checkpoint = readFanoutCheckpointRow(checkpointRow);
-  if (checkpoint.cursor === null) {
-    const cutoffRevision = await input.store.readRevision();
-    return { ok: true, frozen: { fanoutId, members, cutoffRevision, replayed: true } };
-  }
+  let committedRevision: Revision;
   try {
-    await commitBatch(input.store, {
-      expectedRevision: await input.store.readRevision(),
+    const checkpointRow = await input.store.cohortLoad({ model: FANOUT_CHECKPOINT_MODEL as ModelName,
+      id: fanoutId as RecordId, expectedRevision });
+    if (checkpointRow === null) {
+      return {
+        ok: false,
+        diagnosis: diagnoseCohort(
+          'membership-unavailable',
+          'Fanout checkpoint is missing; refusing to invent completion.',
+        ),
+      };
+    }
+    const checkpoint = readPrivateFanoutCheckpointRow(checkpointRow);
+    checkCheckpointMembership(checkpoint, intent);
+    if (checkpoint.cursor === null) {
+      return { ok: true, frozen: { fanoutId, members, cutoffRevision: expectedRevision, replayed: true } };
+    }
+    committedRevision = await commitBatch(input.store, {
+      expectedRevision,
       writes: [
         {
           kind: 'update',
@@ -863,8 +1130,8 @@ async function finishEnumerationCursor(
     });
   } catch (error) {
     if (error instanceof FenceConflictError || error instanceof StorageConstraintError) {
-      const redrain = await drainAdmittedRecordIds(input.store, fanoutId, input.bounds.pageLimit);
-      return finishEnumerationCursor(input, fanoutId, members, redrain);
+      if (attempt >= input.bounds.maxAttempts) return retryExhausted(input);
+      return admitMissing(input, fanoutId, true, attempt + 1, captured);
     }
     if (error instanceof StateError) {
       throw error;
@@ -877,8 +1144,12 @@ async function finishEnumerationCursor(
       ),
     };
   }
-  const cutoffRevision = await input.store.readRevision();
-  return { ok: true, frozen: { fanoutId, members, cutoffRevision, replayed: true } };
+  return { ok: true, frozen: { fanoutId, members, cutoffRevision: committedRevision, replayed: true } };
+}
+
+function retryExhausted(input: FreezeMembershipInput): FreezeMembershipOutcome {
+  return { ok: false, diagnosis: diagnoseCohort('membership-unavailable',
+    `Fanout retained admission lost the fence ${input.bounds.maxAttempts} time(s); the cursor remains resumable.`) };
 }
 
 /**
@@ -890,6 +1161,7 @@ async function finishEnumerationCursor(
 async function replayFreeze(
   input: FreezeMembershipInput,
   fanoutId: FanoutId,
+  captured?: RetainedIntentCapture,
 ): Promise<FreezeMembershipOutcome> {
-  return admitMissing(input, fanoutId, true);
+  return admitMissing(input, fanoutId, true, 1, captured);
 }

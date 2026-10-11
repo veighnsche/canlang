@@ -23,10 +23,13 @@
 import type {
   ModelName,
   RecordId,
+  Revision,
   StoragePort,
 } from '@canlang/contracts';
 import type { FanoutFailedReason } from '@canlang/contracts';
 import { StateError } from '../errors.js';
+import { FenceConflictError } from '../storage/port.js';
+import { checkPrivateFanoutIdentity } from './membership.js';
 
 /**
  * Current lifecycle lookup for one admitted child (structural mirror of
@@ -49,6 +52,8 @@ export interface ClassifyFanoutChildInput {
   readonly store: StoragePort;
   readonly model: string;
   readonly recordId: string;
+  /** Selected private caller: bound reads at its genuine current owner fence. */
+  readonly expectedRevision?: Revision;
   /**
    * Pinned anchor for anchored-collection cohorts. When present, a live
    * record whose current parent linkage left the anchor classifies as
@@ -72,22 +77,42 @@ export async function classifyFanoutChildLifecycle(
   if (typeof input.recordId !== 'string' || input.recordId === '') {
     throw new StateError('validation', 'Fanout lifecycle needs a non-empty record id.');
   }
+  const expectedRevision = input.expectedRevision;
+  const selected = expectedRevision !== undefined;
+  const model = selected ? checkPrivateFanoutIdentity(input.model) : input.model;
+  const recordId = selected ? checkPrivateFanoutIdentity(input.recordId) : input.recordId;
+  const anchor = selected && input.anchor !== undefined ? {
+    model: checkPrivateFanoutIdentity(input.anchor.model),
+    id: checkPrivateFanoutIdentity(input.anchor.id),
+  } : input.anchor;
+  const store = input.store;
+  const readFailure = (error: unknown): FanoutChildLifecycle => {
+    if (selected && (error instanceof StateError || error instanceof FenceConflictError)) throw error;
+    return { status: 'unknown', reason: 'infra-read-failure' };
+  };
   let row: Awaited<ReturnType<StoragePort['load']>>;
   try {
-    row = await input.store.load(
-      input.model as ModelName,
-      input.recordId as RecordId,
-    );
-  } catch {
-    return { status: 'unknown', reason: 'infra-read-failure' };
+    row = expectedRevision === undefined
+      ? await store.load(model as ModelName, recordId as RecordId)
+      : await store.cohortLoad({ model: model as ModelName, id: recordId as RecordId, expectedRevision });
+  } catch (error) {
+    return readFailure(error);
   }
   if (row === null) {
+    if (expectedRevision !== undefined) {
+      try {
+        const fact = await store.cohortAnchorFact({ model: model as ModelName,
+          id: recordId as RecordId, expectedRevision });
+        if (fact === 'disposed') return { status: 'deleted' };
+        if (fact === 'unknown') return { status: 'unknown', reason: 'missing-record' };
+        throw new StateError('validation', 'Fanout lifecycle row and existence fact disagree.');
+      } catch (error) {
+        return readFailure(error);
+      }
+    }
     let history: Awaited<ReturnType<StoragePort['historyFor']>>;
     try {
-      history = await input.store.historyFor(
-        input.model as ModelName,
-        input.recordId as RecordId,
-      );
+      history = await store.historyFor(model as ModelName, recordId as RecordId);
     } catch {
       return { status: 'unknown', reason: 'infra-read-failure' };
     }
@@ -101,12 +126,12 @@ export async function classifyFanoutChildLifecycle(
   if (row.archivedAt !== null) {
     return { status: 'deleted' };
   }
-  if (input.anchor !== undefined) {
+  if (anchor !== undefined) {
     const parent = row.parent ?? null;
     if (
       parent === null ||
-      (parent.model as string) !== input.anchor.model ||
-      (parent.id as string) !== input.anchor.id
+      (parent.model as string) !== anchor.model ||
+      (parent.id as string) !== anchor.id
     ) {
       return { status: 'moved' };
     }

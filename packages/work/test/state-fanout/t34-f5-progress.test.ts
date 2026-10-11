@@ -27,6 +27,7 @@ import {
   FANOUT_CHILD_MODEL,
   FANOUT_INTENT_MODEL,
   fanoutChildRowId,
+  newFanoutChildRow,
   readFanoutCheckpointRow,
   readFanoutChildRow,
   withFanoutRowData,
@@ -211,6 +212,94 @@ async function drainChildRows(store: StoragePort, fanoutId: string): Promise<Sto
 }
 
 describe('t34-f5 progress: counts, terminality, attention', () => {
+  it('private progress bounds refuse before storage and retained member traversal', async () => {
+    const { store, owner } = await setup();
+    const fanoutId = await frozenCohort(store, owner, ['p-bound']);
+    let touches = 0;
+    const untouched: StoragePort = { ...store,
+      readRevision: async () => { touches += 1; return store.readRevision(); },
+      cohortLoad: async input => { touches += 1; return store.cohortLoad(input); },
+      cohortRowPage: async input => { touches += 1; return store.cohortRowPage(input); },
+    };
+    const limit = (error: unknown) => error instanceof StateError && error.code === 'limit' && error.retryable === false;
+    await assert.rejects(readFanoutProgress({ store: untouched, fanoutId, pageLimit: 101 }), limit);
+    await assert.rejects(readFanoutProgress({ store: untouched, fanoutId: 'x'.repeat(6001), pageLimit: 100 }), limit);
+    let boundAccesses = 0;
+    await assert.rejects(readFanoutProgress({ store: untouched, fanoutId,
+      get pageLimit() { boundAccesses += 1; return 100; } }),
+      (error: unknown) => error instanceof StateError && error.code === 'validation');
+    assert.equal(boundAccesses, 0);
+    assert.equal(touches, 0);
+    const retained = await store.load(FANOUT_INTENT_MODEL as ModelName, fanoutId as RecordId);
+    assert.ok(retained);
+    let reads = 0;
+    const members = new Array(1001);
+    Object.defineProperty(members, '0', { enumerable: true, get: () => { reads += 1; return 'p-bound'; } });
+    const oversized: StoragePort = { ...store,
+      cohortLoad: async () => ({ ...retained, data: { ...retained.data, members, memberCount: 1001 } }),
+      cohortRowPage: async () => { touches += 1; return []; },
+    };
+    await assert.rejects(readFanoutProgress({ store: oversized, fanoutId, pageLimit: 100 }), limit);
+    assert.equal(reads, 0);
+    assert.equal(touches, 0);
+  });
+
+  it('private progress counts unmatched raw rows and refuses the overflow before decoding', async () => {
+    const { store, owner } = await setup();
+    const fanoutId = await frozenCohort(store, owner, ['p-raw']);
+    const foreign = Array.from({ length: 1000 }, (_, index) => newFanoutChildRow({
+      fanoutId: 'fanout/v1/other/handler/model', parentOccurrence: 'other', handler: HANDLER,
+      recordId: `raw-${String(index).padStart(4, '0')}`,
+    }, META));
+    for (const overflow of [false, true]) {
+      let calls = 0;
+      let decodedOverflow = 0;
+      const extra = { ...foreign[999]!, id: 'z-overflow' as RecordId };
+      Object.defineProperty(extra, 'data', { enumerable: true, get: () => { decodedOverflow += 1; throw new Error('overflow decoded'); } });
+      const rows = overflow ? [...foreign, extra] : foreign;
+      const bounded: StoragePort = { ...store, cohortRowPage: async input => {
+        calls += 1;
+        assert.equal(input.expectedRevision, await store.readRevision());
+        assert.equal(input.limit, calls <= 10 ? 100 : 1);
+        return rows.filter(row => input.after === null || row.id > input.after).slice(0, input.limit);
+      } };
+      if (overflow) {
+        await assert.rejects(readFanoutProgress({ store: bounded, fanoutId, pageLimit: 100 }),
+          (error: unknown) => error instanceof StateError && error.code === 'limit' && error.retryable === false);
+      } else {
+        const progress = await readFanoutProgress({ store: bounded, fanoutId, pageLimit: 100 });
+        assert.equal(progress.pending, 1);
+        assert.equal(progress.terminal, false);
+      }
+      assert.equal(calls, 11);
+      assert.equal(decodedOverflow, 0);
+    }
+  });
+
+  it('private progress rejects over-return, nonadvancing pages and foreign frozen children', async () => {
+    const { store, owner } = await setup();
+    const fanoutId = await frozenCohort(store, owner, ['p-shape']);
+    const row = await store.load(FANOUT_CHILD_MODEL as ModelName,
+      fanoutChildRowId(SOURCE, HANDLER, 'p-shape') as RecordId);
+    assert.ok(row);
+    for (const fault of ['over-return', 'nonadvancing', 'wrong-member'] as const) {
+      let calls = 0;
+      const faulty: StoragePort = { ...store, cohortRowPage: async () => {
+        calls += 1;
+        if (fault === 'over-return') return [row, row];
+        if (fault === 'nonadvancing') return [row];
+        return [newFanoutChildRow({ fanoutId, parentOccurrence: SOURCE, handler: HANDLER,
+          recordId: 'outside-membership' }, META)];
+      } };
+      await assert.rejects(readFanoutProgress({ store: faulty, fanoutId, pageLimit: 1 }),
+        (error: unknown) => error instanceof StateError && error.code === 'validation');
+      assert.equal(calls, fault === 'nonadvancing' ? 2 : 1);
+    }
+    const good = await readFanoutProgress({ store, fanoutId, pageLimit: 1 });
+    assert.equal(good.pending, 1);
+    assert.equal(good.terminal, false);
+  });
+
   it('mixed states fold to exact counts (non-terminal)', async () => {
     const { store, owner } = await setup();
     const fanoutId = await frozenCohort(store, owner, ['p-0', 'p-1', 'p-2', 'p-3', 'p-4', 'p-5']);

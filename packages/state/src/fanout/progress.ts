@@ -21,9 +21,16 @@ import { StateError } from '../errors.js';
 import {
   FANOUT_CHILD_MODEL,
   FANOUT_INTENT_MODEL,
-  readFanoutChildRow,
-  readFanoutIntentRow,
+  fanoutChildRowId,
 } from './tables.js';
+import {
+  PRIVATE_FANOUT_LIMITS,
+  checkPrivateFanoutIdentity,
+  checkPrivateFanoutIdOrder,
+  comparePrivateFanoutIds,
+  readPrivateFanoutChildRow,
+  readPrivateFanoutIntentRow,
+} from './membership.js';
 
 /** One progress read over the owning store. */
 export interface ReadFanoutProgressInput {
@@ -41,54 +48,77 @@ export interface ReadFanoutProgressInput {
  * recovery `admit` posture, never silently complete).
  */
 export async function readFanoutProgress(input: ReadFanoutProgressInput): Promise<FanoutProgress> {
-  if (typeof input.fanoutId !== 'string' || input.fanoutId === '') {
-    throw new StateError('validation', 'Fanout progress needs a non-empty fanout id.');
+  const fanoutId = checkPrivateFanoutIdentity(input.fanoutId, true);
+  const configured = Object.getOwnPropertyDescriptor(input, 'pageLimit');
+  if (configured === undefined || !configured.enumerable || !('value' in configured)) {
+    throw new StateError('validation', 'Fanout progress pageLimit must be an own-data value.');
   }
-  if (!Number.isInteger(input.pageLimit) || input.pageLimit < 1) {
+  const configuredLimit: unknown = configured.value;
+  if (typeof configuredLimit !== 'number' || !Number.isInteger(configuredLimit) || configuredLimit < 1) {
     throw new StateError('validation', 'Fanout progress pageLimit must be an integer >= 1.');
   }
-  const intentRow = await input.store.load(
-    FANOUT_INTENT_MODEL as ModelName,
-    input.fanoutId as RecordId,
-  );
+  if (configuredLimit > PRIVATE_FANOUT_LIMITS.page) {
+    throw new StateError('limit', 'Fanout progress pageLimit exceeds the private page bound.', null,
+      { retryable: false });
+  }
+  const order = checkPrivateFanoutIdOrder(input.store.cohortIdOrder);
+  const expectedRevision = await input.store.readRevision();
+  const intentRow = await input.store.cohortLoad({
+    model: FANOUT_INTENT_MODEL as ModelName,
+    id: fanoutId as RecordId,
+    expectedRevision,
+  });
   if (intentRow === null) {
     throw new StateError('not_found', 'Fanout intent not found.');
   }
-  const intent = readFanoutIntentRow(intentRow);
+  const intent = readPrivateFanoutIntentRow(intentRow);
+  if (intent.fanoutId !== fanoutId) {
+    throw new StateError('validation', 'Fanout progress loaded a different intent.');
+  }
+  const members = new Set(intent.members);
   let pending = 0;
   let running = 0;
   let completed = 0;
   let skipped = 0;
   let failed = 0;
   const seen = new Set<string>();
-  let cursor: string | null = null;
+  let cursor: RecordId | null = null;
+  let observed = 0;
   for (;;) {
-    const rows = await input.store.query({
+    const pageLimit = observed === PRIVATE_FANOUT_LIMITS.members ? 1
+      : Math.min(configuredLimit, PRIVATE_FANOUT_LIMITS.members - observed);
+    const rows = await input.store.cohortRowPage({
       model: FANOUT_CHILD_MODEL as ModelName,
-      where:
-        cursor === null
-          ? { op: 'eq', field: 'fanoutId', value: input.fanoutId }
-          : {
-              op: 'and',
-              args: [
-                { op: 'eq', field: 'fanoutId', value: input.fanoutId },
-                { op: 'gt', field: 'id', value: cursor },
-              ],
-            },
-      order: [{ field: 'id', direction: 'asc' }],
-      limit: input.pageLimit,
-      authority: 'owner',
+      fanoutId,
+      after: cursor,
+      limit: pageLimit,
+      expectedRevision,
     });
-    if (rows.length > input.pageLimit) {
+    if (rows.length > pageLimit) {
       throw new StateError(
         'validation',
-        `Fanout progress returned ${rows.length} rows past limit ${input.pageLimit}.`,
+        `Fanout progress returned ${rows.length} rows past limit ${pageLimit}.`,
       );
     }
     for (const row of rows) {
-      const child = readFanoutChildRow(row);
-      if (child.fanoutId !== input.fanoutId) {
+      if (observed === PRIVATE_FANOUT_LIMITS.members) {
+        throw new StateError('limit', 'Fanout progress exceeds the private child row bound.', null,
+          { retryable: false });
+      }
+      observed += 1;
+      const rowId = checkPrivateFanoutIdentity(row.id, true);
+      if (cursor !== null && comparePrivateFanoutIds(rowId, cursor, order) <= 0) {
+        throw new StateError('validation', 'Fanout progress child pages must advance in ascending id order.');
+      }
+      cursor = row.id;
+      const child = readPrivateFanoutChildRow(row);
+      if (child.fanoutId !== fanoutId) {
         continue;
+      }
+      if (child.parentOccurrence !== intent.sourceOccurrence || child.handler !== intent.handler ||
+          !members.has(child.recordId) ||
+          child.childId !== fanoutChildRowId(intent.sourceOccurrence, intent.handler, child.recordId)) {
+        throw new StateError('validation', 'Fanout progress child does not belong to the frozen intent.');
       }
       if (seen.has(child.recordId)) {
         throw new StateError(
@@ -115,14 +145,9 @@ export async function readFanoutProgress(input: ReadFanoutProgressInput): Promis
           break;
       }
     }
-    if (rows.length < input.pageLimit) {
+    if (rows.length < pageLimit) {
       break;
     }
-    const last = rows[rows.length - 1];
-    if (last === undefined) {
-      throw new StateError('validation', 'Fanout progress hit an unreachable empty full page.');
-    }
-    cursor = last.id as string;
   }
   // Members with no child row are admission outstanding: pending, never
   // silently complete.
@@ -134,7 +159,7 @@ export async function readFanoutProgress(input: ReadFanoutProgressInput): Promis
   const terminal =
     pending === 0 && running === 0 && completed + skipped + failed === intent.members.length;
   return {
-    fanoutId: input.fanoutId,
+    fanoutId,
     pending,
     running,
     completed,
