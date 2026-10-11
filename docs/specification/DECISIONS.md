@@ -11201,3 +11201,17 @@ Coordinator finite defining source review CLEAR against actual main and integrat
 Use the accepted existing verifier profile and paired original SELECT-only occurrence reader. Bind original host, keys, immutable app/team/namespace/physical receiver/source and current lifetime privately; preserve exact original envelope identity with raw SHA-256 captured only after verifier awaits. Signed JSON cannot supply row/event authority or execute the issuer command. Existing durable raw-digest/original occurrence/complete route correspondence, actor=null current receiving authority and final State fence remain; accepted internal handler replay does not depend on later ingress key rotation. Failed registration restores only its own still-current pointer.
 
 Exact Dev6721 focused runtime and9727 public-Interfaces native test are independently reviewed CLEAR and integrated after deadline, preserving main's newer query/model/guarded SEND/Images closure. Actual PRIMARYf1c native1/1 PASS43641ms (43.99s Vitest,44.28s process), zero skips, real CLI/verified assembly/Identity/D1/SQLite, exact original nine-field cause/delivery:null, genuine signed/raw-digest/cold replay/mismatch then retry/current host-key-source/competing fence/complete business-history-receipt/resources/currency/awaited cleanup; no provider. Normal CF/root0. Worker49221ms and initial setup failures remain at their original scope. This finite original signed-ingress criterion is accepted; endpoint/default activation/recipient selection/publication/preparation/all-writer/full application and full plans remain unfinished. Incremental living filetree coverage is reconciled without advancing the complete checkpoint.
+
+2026-10-11 — original decision transport and bare contained-member correspondence
+(implemented/tested source producer; native workflows unfinished).
+Serialize only the released exact TextMessage identity as TextMessage[] through
+existing decision arguments. For the original bare parent.Child lowering,
+require the original private checked Member/Array type, actual child/parent
+Model identities and source operands with no query clauses, then compare the
+complete actual/fresh semantic closure. Do not fabricate a Query receipt or
+accept arbitrary missing query sources. Whole byte-exact Chat and mutation
+refusals pass; original native containment/current-row/SEND/held scopes remain
+separate.337 affected and strict0 pass; the stale required-Ref negative is
+corrected to the still-unsupported nullable-Ref profile.
+
+Coordinator defining source review CLEAR and local finite source intake after deadline. Meaningful exact-original and source/type/contained mutation controls plus owning337/strict0 reused; actual primary locked/offline CLI build at final source passes. No native query receipt/grant/application acceptance. Exact State first-query and Dev authentic mutable-row consumers are active finite joins; accepted components/precise holds are preserved and complete filetree checkpoint unadvanced.

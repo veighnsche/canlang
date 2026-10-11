@@ -1378,3 +1378,340 @@ console.log('actual compiler v1 decision sites accepted by installed State; lowe
         );
     }
 }
+
+#[test]
+fn original_chat_transcript_decision_serializes_only_the_sealed_text_message_array() {
+    use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
+    use canlang_compiler::analysis::{NodeKey, ResolvedType, Scalar};
+    use canlang_compiler::codegen::{
+        ir::{self, IrExpr, IrItemKind, IrStmt, IrType},
+        scenario_decisions::{collect_decision_sources, serialize_decision_sources},
+    };
+
+    const CHAT: &str = include_str!("fixtures/original-a850/CanChat.can");
+    const CHAT_HASH: &str = "8eb79dd397aa801d97692aa195e24ad9ee29977b4e102e7cbc35e21c9fdd0ad3";
+    assert_eq!(
+        canlang_compiler::source::sha256_hex(CHAT.as_bytes()),
+        CHAT_HASH
+    );
+    let mut db = SourceDb::new();
+    let file = db.add("CanChat.can".into(), CHAT.into());
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(
+        diagnostics.is_empty(),
+        "original Chat analysis: {diagnostics:?}"
+    );
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "original Chat IR: {diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "chat.ask")
+        .unwrap();
+    let transcript = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "chat.transcript")
+        .unwrap();
+    let branch = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "chat.Branch")
+        .unwrap();
+    // Decision correspondence is independently useful while the original
+    // query/SEND workflow still lacks complete disclosure and native acceptance.
+    assert!(matches!(
+        lowered.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Declined(_)
+    ));
+    let text = |node: NodeKey| {
+        let input = db.get(node.file).unwrap();
+        input.text[node.start as usize..node.end as usize]
+            .trim()
+            .to_owned()
+    };
+    let sites = collect_decision_sources(&program, &lowered, owner, &db, catalog.as_ref())
+        .expect("unchanged original decision sources remain independently checked");
+    let selected_index = sites
+        .iter()
+        .position(|site| site.position == vec![CheckedDecisionPosition::Guard(1)])
+        .unwrap();
+    let selected = &sites[selected_index];
+    assert_eq!(text(selected.node), "count(transcript(branch))<120");
+    assert_eq!(selected.stage, CheckedDecisionStage::LeadingRequire);
+    assert_eq!(selected.position, vec![CheckedDecisionPosition::Guard(1)]);
+    assert_eq!(
+        text(selected.statement),
+        "require count(transcript(branch))<120"
+    );
+    assert_eq!(selected.source.path, "CanChat.can");
+    assert_eq!(selected.source.sha256, CHAT_HASH);
+    assert_eq!(selected.source.module, "chat");
+    assert_eq!(selected.calls.len(), 2);
+    let [transcript_call, count] = selected.calls.as_slice() else {
+        panic!("exact original child-first transcript/count call inventory")
+    };
+    assert!(matches!(transcript_call.target,
+        CheckedDecisionCallTarget::DeriveFn(id) if id == transcript.id));
+    assert!(matches!(&count.target,
+        CheckedDecisionCallTarget::Builtin { id, .. } if id == "count"));
+    assert_eq!(text(transcript_call.node), "transcript(branch)");
+    assert_eq!(text(count.node), "count(transcript(branch))");
+    assert_eq!(transcript_call.slots, vec![Some(0)]);
+    assert_eq!(count.slots, vec![Some(0)]);
+    for call in &selected.calls {
+        assert_eq!(call.source, selected.source);
+        assert!(call.defaults.is_empty());
+        assert!(call.chain.is_empty());
+        assert_eq!(call.arguments.len(), 1);
+    }
+    assert_eq!(text(transcript_call.arguments[0].0), "branch");
+    assert_eq!(
+        transcript_call.arguments[0].1,
+        ResolvedType::Record {
+            symbol: branch.id,
+            stored: true
+        }
+    );
+    assert_eq!(text(count.arguments[0].0), "transcript(branch)");
+    let original_array = &count.arguments[0].1;
+    let ResolvedType::Array {
+        element,
+        ordered,
+        nonempty,
+    } = original_array
+    else {
+        panic!("count consumes the original ordered transcript array")
+    };
+    assert!(*ordered);
+    assert!(!*nonempty);
+    assert_eq!(
+        element.as_ref(),
+        &ResolvedType::StdNominal {
+            name: "TextMessage",
+            fields: vec![
+                (
+                    "role".into(),
+                    ResolvedType::Enum {
+                        cases: vec!["system".into(), "user".into(), "assistant".into()],
+                        owner: None,
+                    }
+                ),
+                ("content".into(), ResolvedType::Scalar(Scalar::Text)),
+                (
+                    "attachments".into(),
+                    ResolvedType::Array {
+                        element: Box::new(ResolvedType::Scalar(Scalar::File)),
+                        ordered: true,
+                        nonempty: false,
+                    }
+                ),
+            ],
+        }
+    );
+    let json = serde_json::to_value(
+        serialize_decision_sources(&program, &lowered, owner, &db, catalog.as_ref())
+            .expect("sealed TextMessage[] is a decision transport type"),
+    )
+    .unwrap();
+    let serial = &json[selected_index];
+    assert_eq!(serial["owner"], "chat.ask");
+    assert_eq!(
+        serial["source"],
+        serde_json::json!({
+            "path": "CanChat.can", "sha256": CHAT_HASH, "module": "chat",
+        })
+    );
+    assert_eq!(serial["stage"], "leading-require");
+    assert_eq!(
+        serial["position"],
+        serde_json::json!([{ "kind": "guard", "index": 1 }])
+    );
+    assert_eq!(
+        serial["calls"][0]["target"],
+        serde_json::json!({ "kind": "derive", "name": "chat.transcript" })
+    );
+    assert_eq!(serial["calls"][0]["arguments"][0]["type"], "chat.Branch");
+    assert_eq!(serial["calls"][1]["target"]["id"], "count");
+    assert_eq!(serial["calls"][1]["arguments"][0]["type"], "TextMessage[]");
+    assert_eq!(
+        serial["calls"][1]["arguments"][0]["node"],
+        serde_json::json!({ "start": count.arguments[0].0.start, "end": count.arguments[0].0.end })
+    );
+
+    // Keep the original source spans while corrupting the selected IR type.
+    // A copied object shape or spelling alone never acquires std identity.
+    for corruption in 0..5 {
+        let mut changed = lowered.clone();
+        let IrItemKind::Scenario { guards, .. } = &mut changed.items[owner.id.0 as usize].kind
+        else {
+            panic!("original scenario")
+        };
+        let IrStmt::Require { cond, .. } = &mut guards[1] else {
+            panic!("original second leading require")
+        };
+        let IrExpr::Binary { left, .. } = &mut cond.expr else {
+            panic!("original count limit comparison")
+        };
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut left.expr else {
+            panic!("original count call")
+        };
+        let ResolvedType::Array { element, .. } = &mut args[0].ty else {
+            panic!("original transcript result")
+        };
+        let ResolvedType::StdNominal { name, fields } = element.as_mut() else {
+            panic!("original TextMessage element")
+        };
+        match corruption {
+            0 => *name = "ForeignTextMessage",
+            1 => {
+                fields.pop().unwrap();
+            }
+            2 => fields.swap(0, 1),
+            3 => fields[1].1 = ResolvedType::Scalar(Scalar::Int),
+            _ => **element = ResolvedType::Object(fields.clone()),
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "selected nominal type corruption {corruption}"
+        );
+    }
+    // The bare contained collection in the original Turn constructor has no
+    // authored Query node. Its exact Member/child/parent join is nongrant
+    // correspondence, not permission to add an arbitrary unannotated query.
+    for corruption in 0..6 {
+        let mut changed = lowered.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.id.0 as usize].kind
+        else {
+            panic!("original scenario")
+        };
+        let input = effects
+            .iter_mut()
+            .find_map(|effect| match effect {
+                IrStmt::Create { model, input, .. } if model == "chat.Turn" => Some(input),
+                _ => None,
+            })
+            .unwrap();
+        let IrExpr::Object(fields) = &mut input.expr else {
+            panic!("original Turn input")
+        };
+        let position = &mut fields
+            .iter_mut()
+            .find(|(key, _)| key == "position")
+            .unwrap()
+            .1;
+        let IrExpr::Binary { left, .. } = &mut position.expr else {
+            panic!("original position addition")
+        };
+        let IrExpr::Call { args, .. } = &mut left.expr else {
+            panic!("original count")
+        };
+        let collection_span = args[0].span;
+        let IrExpr::Query(query) = &mut args[0].expr else {
+            panic!("original contained collection")
+        };
+        assert!(query.source.is_none());
+        match corruption {
+            0 => query.domain = ir::IrQueryDomain::Model("chat.Run".into()),
+            1 => query.parent = None,
+            2 => query.parent.as_mut().unwrap().expr = IrExpr::Name("run".into()),
+            3 => {
+                query.limit = Some(Box::new(ir::TypedExpr::new(
+                    IrExpr::Int(1),
+                    ResolvedType::Scalar(Scalar::Int),
+                    collection_span,
+                )))
+            }
+            4 => query.where_async = true,
+            _ => query.order.push(ir::IrOrder {
+                field: "position".into(),
+                descending: true,
+            }),
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "original contained query corruption {corruption}"
+        );
+    }
+    for corruption in 0..4 {
+        let mut changed = lowered.clone();
+        if corruption == 3 {
+            let IrItemKind::DeriveFn { result, .. } =
+                &mut changed.items[transcript.id.0 as usize].kind
+            else {
+                panic!("original transcript declaration")
+            };
+            *result = IrType::Known(ResolvedType::Array {
+                element: Box::new(ResolvedType::Scalar(Scalar::Text)),
+                ordered: true,
+                nonempty: false,
+            });
+        } else {
+            let facts = match changed.scenario_disclosures.get_mut(&owner.id).unwrap() {
+                ScenarioDisclosure::Complete(value) => value.source_facts.as_mut().unwrap(),
+                ScenarioDisclosure::Declined(value) => value.source_facts.as_mut().unwrap(),
+            };
+            let site = &mut facts.decision_sites.as_mut().unwrap()[selected_index];
+            match corruption {
+                0 => site.source.sha256 = "0".repeat(64),
+                1 => site.source.module = "foreign".into(),
+                _ => site.calls[1].arguments[0].1 = ResolvedType::Unknown,
+            }
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "original source/type/declaration corruption {corruption}"
+        );
+    }
+    for (path, source) in [
+        ("foreign.can", CHAT.to_owned()),
+        (
+            "CanChat.can",
+            CHAT.replacen(
+                "count(transcript(branch))<120",
+                "count(transcript(branch))<121",
+                1,
+            ),
+        ),
+    ] {
+        let mut stale = SourceDb::new();
+        stale.add(path.into(), source);
+        assert!(
+            serialize_decision_sources(&program, &lowered, owner, &stale, catalog.as_ref())
+                .is_none(),
+            "original checked source identity must survive through serialization"
+        );
+    }
+}

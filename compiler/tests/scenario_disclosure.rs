@@ -916,12 +916,12 @@ fn static_call_preparation_resolves_children_independently_of_source_order() {
 }
 
 #[test]
-fn static_call_preparation_declines_bound_read_crud_and_reference_profiles() {
+fn static_call_preparation_declines_bound_read_crud_and_nullable_reference_profiles() {
     for source in [
         "app Calls\nGiven\nWhen\n scenario child(value:int) -> int by=members\n  do return value\n scenario parent(value:int) by=members\n  do call child {value} as result\nThen\n",
         "app Calls\nGiven\nWhen\n scenario child(value:int) read=true -> int by=members\n  do return value\n scenario parent(value:int) by=members\n  do call child {value}\nThen\n",
         "app Calls\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n crud Item by=members fields=value\n scenario parent(value:int) by=members\n  do call Item.create {value}\nThen\n",
-        "app Calls\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario child(item:Item) -> int by=members\n  do return item.value\n scenario parent(item:Item) by=members\n  do call child {item}\nThen\n",
+        "app Calls\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario child(item:Item?) -> int by=members\n  do return 0\n scenario parent(item:Item?) by=members\n  do call child {item}\nThen\n",
     ] {
         let (_, program) = checked(&[("calls.can", source)]);
         assert!(
