@@ -1,0 +1,8 @@
+app FileCollectionDownload
+Given
+ Entry { label:text="Uploaded", attachments:file[]!, ordinary:file[], nullable:file[]? }
+ policy Entry read=owner where=row.label!="" fields=label,attachments,ordinary,nullable
+ policy Entry read=members fields=label
+When
+ crud Entry by=owner fields=label,attachments,ordinary,nullable
+Then

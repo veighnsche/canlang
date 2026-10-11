@@ -25,8 +25,9 @@ import { sha256Hex, stagingKeyForIntent } from '@canlang/files/upload';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
 
 const root = resolve('.'), APP = 'FileCollectionDownload', MODEL = asModel(`${APP}.Entry`);
-const fixture = join(root, 'packages/cloudflare/test/fixtures/file-collection-download.can');
 const A_BYTES = new TextEncoder().encode('%PDF-1.4\nCollection A actual bytes\ntrailer\n');
+const PNG_BYTES = new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR2kAAAAASUVORK5CYII=', 'base64'));
+const JPEG_BYTES = new Uint8Array(Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCfAAX/2Q==', 'base64'));
 const B_BYTES = new TextEncoder().encode('%PDF-1.4\nCollection B actual bytes\ntrailer\n');
 const nodeImport = compileFunction('return import(url)', ['url'], {
   importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
@@ -61,7 +62,13 @@ function committedHistorySequence(before: Awaited<ReturnType<typeof tables>>, af
   assert.deepEqual(after.sqlite_sequence, expected, 'only the actual one-history AUTOINCREMENT sequence advances');
 }
 
-test('captured native required File collections download only current authorized field members', async () => {
+for (const sourcePolicy of [false, true]) test(`captured native File collections ${sourcePolicy ? 'source' : 'ordinary'} downloads and previews require current whole-field authority`, async () => {
+  const fixture = join(root, 'packages/cloudflare/test/fixtures', sourcePolicy
+    ? 'file-collection-source-preview.can' : 'file-collection-download.can');
+  // Source-only File grants currently participate in independent canonical
+  // reads, not mutation-result disclosure. The stored wire remains complete;
+  // the source fixture's mutation result must expose its ordinary label only.
+  const mutationProjection = (data: ProjectedRecord['data']) => sourcePolicy ? { label: data.label } : data;
   // The installed Node loader preserves genuine own-data producer metadata.
   const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
   const { prepareLocalPreviewCapture } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
@@ -76,7 +83,15 @@ test('captured native required File collections download only current authorized
   const hashes = await Promise.all(paths.map(async path => digest(await readFile(path))));
   const dir = await mkdtemp(join(tmpdir(), 'can-file-collection-'));
   let worker: Miniflare | undefined, physical: SqliteFileStore | undefined, sequence = 0;
-  const clock = { nowMs: () => FIXED_NOW };
+  let now = FIXED_NOW;
+  const clock = { nowMs: () => now };
+  let gate: { started: Promise<void>; begin(): void; released: Promise<void>; release(): void } | undefined;
+  const hold = () => {
+    let begin!: () => void, release!: () => void;
+    const started = new Promise<void>(done => { begin = done; });
+    const released = new Promise<void>(done => { release = done; });
+    return { started, begin, released, release };
+  };
   const nextId = () => asOperationId(uuidv7(FIXED_NOW, ++sequence));
   try {
     const capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root, appPath: fixture,
@@ -124,8 +139,8 @@ test('captured native required File collections download only current authorized
     const teamA = await identities.createTeam({ timezone: 'UTC' }), teamB = await identities.createTeam({ timezone: 'UTC' });
     const actors = await Promise.all(['uploader', 'reader', 'label', 'foreign'].map(name => identities.createUser({
       email: `${name}@file-collection.example.test`, password_hash: 'unused', email_verified: true })));
-    for (const [index, actor] of actors.entries()) await identities.createMembership({ user_id: actor.user_id,
-      team_id: index === 3 ? teamB.team_id : teamA.team_id, is_owner: index !== 2, roles: [] });
+    const members = await Promise.all(actors.map((actor, index) => identities.createMembership({ user_id: actor.user_id,
+      team_id: index === 3 ? teamB.team_id : teamA.team_id, is_owner: index !== 2, roles: [] })));
     const grants = await Promise.all(actors.map((actor, index) => issueMcpGrant(identities, { user_id: actor.user_id,
       team_id: index === 3 ? teamB.team_id : teamA.team_id, client_id: 'file-collection' }, { clock })));
     const identitiesFor = await Promise.all(grants.map(grant => resolveIdentity(identities, { mcp_grant_token: grant.token }, { clock })));
@@ -142,7 +157,9 @@ test('captured native required File collections download only current authorized
     const byteReads: { ref: string; owner: string; principal: string }[] = [];
     const kernel = { ...genuineKernel, async readCurrentSnapshot(...args: Parameters<typeof genuineKernel.readCurrentSnapshot>) {
       byteReads.push({ ref: args[0], owner: args[1].owner, principal: args[1].principal });
-      return genuineKernel.readCurrentSnapshot(...args);
+      const snapshot = await genuineKernel.readCurrentSnapshot(...args);
+      if (gate !== undefined) { const held = gate; held.begin(); await held.released; }
+      return snapshot;
     } };
     const upload: UploadDeps & { kernel: typeof kernel } = { app: { appId: APP, brand: APP, appDefaultLocale: 'en', ownerLabels: new Map() },
       files: { usesFiles: () => true }, kernel, clock, logger: { log: () => {} }, identity: { store: identities, clock,
@@ -159,10 +176,10 @@ test('captured native required File collections download only current authorized
           ...(method === 'PUT' ? { 'upload-offset': '0' } : {}),
           'content-type': body instanceof Uint8Array ? 'application/octet-stream' : 'application/json' },
         ...(body === undefined ? {} : { body }) });
-    const uploadFile = async (uploadId: string, bytes: Uint8Array) => {
+    const uploadFile = async (uploadId: string, bytes: Uint8Array, claimedType = 'application/pdf') => {
       const response = await handler(request('/files/intents', 'POST', JSON.stringify({ upload_id: uploadId,
         operation: `${MODEL}.create`, field: '/attachments', arguments: {}, name: `${uploadId}.pdf`,
-        type: 'application/pdf', size: String(bytes.length) }), grants[0]!.token));
+        type: claimedType, size: String(bytes.length) }), grants[0]!.token));
       assert.equal(response.status, 200, await response.clone().text());
       const intent = await response.json() as { content: string; finalize: string };
       const appended = await handler(request(intent.content, 'PUT', bytes, grants[0]!.token));
@@ -193,7 +210,7 @@ test('captured native required File collections download only current authorized
     assert.equal(row.version, 1); assert.equal(row.data.label, 'Uploaded'); assert.deepEqual(row.data.attachments, ordered);
     assert.deepEqual(row.data.ordinary, []); assert.equal(row.data.nullable, null);
     const projected = created.result.records as readonly ProjectedRecord[];
-    assert.equal(projected.length, 1); assert.deepEqual(projected[0]!.data.attachments, ordered);
+    assert.equal(projected.length, 1); assert.deepEqual(projected[0]!.data, mutationProjection(row.data));
     assert.equal(await store.readRevision(), revision + 1);
     const receipt = await store.readReceipt(receiptIdentity(create)); assert.ok(receipt);
     assert.equal(receipt.inputHash, await hashInputs(submitted.inputs)); assert.equal(receipt.committedRevision, revision + 1);
@@ -243,6 +260,7 @@ test('captured native required File collections download only current authorized
       assert.equal(response.status, 200, await response.clone().text());
       assert.equal(response.headers.get('cache-control'), 'private, no-store');
       assert.equal(response.headers.get('content-type'), 'application/pdf');
+      assert.equal(response.headers.get('content-disposition'), 'attachment');
       assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
       assert.equal(byteReads.length, count + 1);
       assert.deepEqual(byteReads.at(-1), { ref, owner: teamA.team_id, principal: actors[0]!.user_id },
@@ -315,7 +333,7 @@ test('captured native required File collections download only current authorized
     assert.deepEqual(emptyEnvelope, emptySubmitted);
     const removed = await store.load(MODEL, row.id); assert.ok(removed);
     assert.equal(removed.version, 3); assert.deepEqual(removed.data.attachments, []);
-    assert.deepEqual((empty.result.records as readonly ProjectedRecord[])[0]!.data.attachments, []);
+    assert.deepEqual((empty.result.records as readonly ProjectedRecord[])[0]!.data, mutationProjection(removed.data));
     assert.equal(await store.readRevision(), revision + 3);
     const removedHistory = await store.historyFor(MODEL, row.id);
     assert.equal(removedHistory.length, 3); assert.equal(removedHistory[2]!.change, 'update');
@@ -358,7 +376,7 @@ test('captured native required File collections download only current authorized
       assert.equal(byteReads.length, count); assert.deepEqual(await all(), before);
       assert.equal(await store.readReceipt(receiptIdentity(invalid)), null);
     }
-    const updateCollections = async (patch: MutationEnvelope['inputs'], attachmentField: 'ordinary' | 'nullable' | null) => {
+    const updateCollections = async (patch: MutationEnvelope['inputs'], attachmentField: 'attachments' | 'ordinary' | 'nullable' | null) => {
       const prior = await store.load(MODEL, row.id); assert.ok(prior);
       const before = await all(), priorHistory = await store.historyFor(MODEL, row.id), priorRevision = await store.readRevision();
       const update = envelope('update', { record: { id: row.id, version: String(prior.version) }, ...patch });
@@ -368,7 +386,7 @@ test('captured native required File collections download only current authorized
       assert.deepEqual(update, submitted); assert.equal(byteReads.length, reads);
       const current = await store.load(MODEL, row.id); assert.ok(current);
       assert.equal(current.version, prior.version + 1); assert.deepEqual(current.data, { ...prior.data, ...patch });
-      assert.deepEqual((outcome.result.records as readonly ProjectedRecord[])[0]!.data, current.data);
+      assert.deepEqual((outcome.result.records as readonly ProjectedRecord[])[0]!.data, mutationProjection(current.data));
       assert.equal(await store.readRevision(), priorRevision + 1);
       const currentHistory = await store.historyFor(MODEL, row.id);
       assert.deepEqual(currentHistory.slice(0, -1), priorHistory); assert.equal(currentHistory.length, priorHistory.length + 1);
@@ -391,10 +409,14 @@ test('captured native required File collections download only current authorized
       assert.equal(after.ownerA.records!.length, before.ownerA.records!.length);
       assert.equal(after.ownerA.receipts!.length, before.ownerA.receipts!.length + 1);
       assert.equal(after.ownerA.history!.length, before.ownerA.history!.length + 1);
-      // Genuine legacy retain may update the same receiver's locator; bytes,
-      // first attachment time and every other physical fact remain exact.
-      assert.deepEqual(after.files, attachmentField === null ? before.files : before.files.map(file => ({ ...file,
-        attachedRecord: `${MODEL}/${row.id}/${attachmentField}` })));
+      // Only genuine current members of this field acquire its locator. A
+      // newly finalized file gets its first attachment time; removed references
+      // and every byte/provenance fact retain their exact prior physical state.
+      const currentRefs = new Set(attachmentField === null ? [] :
+        ((current.data[attachmentField] ?? []) as readonly { readonly id: string }[]).map(file => file.id));
+      assert.deepEqual(after.files, before.files.map(file => currentRefs.has(file.file.id) ? { ...file,
+        state: 'attached', attachedAtMs: file.attachedAtMs ?? FIXED_NOW,
+        attachedRecord: `${MODEL}/${row.id}/${attachmentField}` } : file));
       for (const key of ['intents', 'bytes', 'staging'] as const) assert.deepEqual(after[key], before[key]);
       return { update, submitted, current };
     };
@@ -444,7 +466,95 @@ test('captured native required File collections download only current authorized
       }
       await replayOriginalAfterReplacement((await store.load(MODEL, row.id))!.version, []);
     }
+    // Extend the same original captured consumer, rather than substituting a
+    // hand-written artifact or a permissive File policy for the image route.
+    const png = await uploadFile('preview-png', PNG_BYTES, 'application/pdf'); // claimed MIME is not authority
+    const jpeg = await uploadFile('preview-jpeg', JPEG_BYTES, 'image/jpeg');
+    await updateCollections({ ordinary: [{ id: png }, { id: jpeg }] }, 'ordinary');
+    const previewPath = (ref: string) => `/files/preview/${MODEL}/${row.id}/ordinary/${encodeURIComponent(ref)}`;
+    const preview = async (ref: string, expected: Uint8Array, mime: string) => {
+      const before = await all(), count = byteReads.length;
+      const response = await handler(request(previewPath(ref), 'GET', undefined, grants[1]!.token));
+      assert.equal(response.status, 200, await response.clone().text());
+      assert.equal(response.headers.get('content-type'), mime);
+      assert.equal(response.headers.get('content-disposition'), 'inline');
+      assert.equal(response.headers.get('content-length'), String(expected.byteLength));
+      assert.equal(response.headers.get('cache-control'), 'private, no-store');
+      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+      assert.deepEqual(new Uint8Array(await response.arrayBuffer()), expected);
+      assert.equal(byteReads.length, count + 1, 'each request observes the original physical bytes afresh');
+      assert.deepEqual(byteReads.at(-1), { ref, owner: teamA.team_id, principal: actors[0]!.user_id });
+      assert.deepEqual(await all(), before);
+    };
+    const noPreview = async (req: Request, physicalRead = false) => {
+      const before = await all(), count = byteReads.length;
+      const response = await handler(req);
+      assert.ok(response.status >= 400 && response.status < 500, String(response.status));
+      const body = new Uint8Array(await response.arrayBuffer());
+      assert.notDeepEqual(body, PNG_BYTES); assert.notDeepEqual(body, JPEG_BYTES);
+      assert.equal(byteReads.length, count + Number(physicalRead));
+      assert.deepEqual(await all(), before);
+    };
+    await preview(png, PNG_BYTES, 'image/png'); await preview(png, PNG_BYTES, 'image/png');
+    await preview(jpeg, JPEG_BYTES, 'image/jpeg');
+    const downloadImage = await handler(request(previewPath(png).replace('/preview/', '/read/'), 'GET', undefined, grants[1]!.token));
+    assert.equal(downloadImage.status, 200); assert.equal(downloadImage.headers.get('content-disposition'), 'attachment');
+    assert.deepEqual(new Uint8Array(await downloadImage.arrayBuffer()), PNG_BYTES);
+    await noPreview(request(`/files/preview/${MODEL}/${row.id}/ordinary`, 'GET', undefined, grants[1]!.token));
+    await noPreview(request(previewPath(png), 'POST', undefined, grants[1]!.token));
+    for (const token of [undefined, grants[2]!.token, grants[3]!.token])
+      await noPreview(request(previewPath(png), 'GET', undefined, token));
+    await noPreview(request(previewPath(refA), 'GET', undefined, grants[1]!.token));
+    await noPreview(request(previewPath(png).replace('/ordinary/', '/nullable/'), 'GET', undefined, grants[1]!.token));
+    await updateCollections({ attachments: [{ id: refA }] }, 'attachments');
+    await noPreview(request(`/files/preview/${MODEL}/${row.id}/attachments/${refA}`, 'GET', undefined, grants[1]!.token), true);
+    const pngRecord = physical.files.get(png); assert.ok(pngRecord);
+    physical.files.put({ ...pngRecord, file: { ...pngRecord.file, contentType: 'image/jpeg' } });
+    await noPreview(request(previewPath(png), 'GET', undefined, grants[1]!.token), true);
+    physical.files.put(pngRecord);
+    const pngBlob = physical.blobs.read(blobKeyForFile(png)); assert.ok(pngBlob);
+    physical.blobs.write(blobKeyForFile(png), new Uint8Array(pngBlob.length).fill(120));
+    await noPreview(request(previewPath(png), 'GET', undefined, grants[1]!.token), true);
+    physical.blobs.write(blobKeyForFile(png), pngBlob);
+    now = FIXED_NOW + retention.retentionMs + 1;
+    await noPreview(request(previewPath(png), 'GET', undefined, grants[1]!.token), true);
+    now = FIXED_NOW;
+    await identities.removeMembership(members[1]!.membership_id);
+    await noPreview(request(previewPath(png), 'GET', undefined, grants[1]!.token));
+    await identities.reactivateMembership(members[1]!.membership_id, { is_owner: true, roles: [] });
+    await preview(png, PNG_BYTES, 'image/png');
+    const heldPreview = async (change: () => Promise<unknown>) => {
+      gate = hold();
+      const pending = handler(request(previewPath(png), 'GET', undefined, grants[1]!.token));
+      await Promise.race([gate.started, pending.then(response => {
+        throw new Error(`Expected held original snapshot; received HTTP ${response.status}`);
+      })]);
+      await change(); const after = await all();
+      const held = gate; gate = undefined; held.release();
+      const response = await pending;
+      assert.ok(response.status >= 400 && response.status < 500, String(response.status));
+      assert.notDeepEqual(new Uint8Array(await response.arrayBuffer()), PNG_BYTES);
+      assert.deepEqual(await all(), after);
+    };
+    await heldPreview(() => identities.removeMembership(members[1]!.membership_id));
+    await identities.reactivateMembership(members[1]!.membership_id, { is_owner: true, roles: [] });
+    await heldPreview(() => updateCollections({ ordinary: [{ id: jpeg }] }, 'ordinary'));
+    await noPreview(request(previewPath(png), 'GET', undefined, grants[1]!.token));
+    await preview(jpeg, JPEG_BYTES, 'image/jpeg');
+    if (sourcePolicy) {
+      const visibility = async (label: string) => {
+        const current = await store.load(MODEL, row.id); assert.ok(current);
+        const outcome = await invoker.invokeMutation(envelope('update', {
+          record: { id: row.id, version: String(current.version) }, label }), identity);
+        assert.ok('result' in outcome, JSON.stringify(outcome)); assert.equal(outcome.result.status, 'committed');
+        assert.equal((await store.load(MODEL, row.id))?.data.label, label);
+      };
+      await visibility('');
+      await noPreview(request(previewPath(jpeg), 'GET', undefined, grants[1]!.token));
+      await visibility('Visible again');
+      await preview(jpeg, JPEG_BYTES, 'image/jpeg');
+    }
     assert.equal(await captureIsCurrent(capture), true);
     assert.deepEqual(await Promise.all(paths.map(async path => digest(await readFile(path)))), hashes);
-  } finally { physical?.close(); await worker?.dispose(); await rm(dir, { recursive: true, force: true }); }
-}, 120000);
+  } finally { gate?.release(); physical?.close(); await worker?.dispose(); await rm(dir, { recursive: true, force: true }); }
+}, 240000);
