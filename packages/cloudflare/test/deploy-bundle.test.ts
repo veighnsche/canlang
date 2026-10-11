@@ -142,8 +142,10 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["vendor/values/schema.js"]).toContain("normalizeSchema");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("validateOperationInput");
     expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/work/"))).toEqual([
+      "vendor/work/dispatch/index.js",
       "vendor/work/intent/staging.js",
       "vendor/work/kernel/arguments.js",
+      "vendor/work/kernel/callback-diagnostics.js",
       "vendor/work/kernel/committed-model-source.js",
       "vendor/work/kernel/dispatch-staging.js",
       "vendor/work/kernel/file-reference-inventory.js",
@@ -165,6 +167,14 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["vendor/work/kernel/occurrence-staging.js"]).toContain("workOccurrencePutReceiptCommand");
     expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
     expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(bundle.modules["runtime/native-membership.js"]).toContain("../vendor/work/dispatch/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/dispatch/index.js");
+    expect(bundle.modules["vendor/work/dispatch/index.js"]).toContain("../../state/index.js");
+    const missingDispatch = { ...bundle.modules };
+    delete missingDispatch["vendor/work/dispatch/index.js"];
+    expect(() => assertLinksResolve(missingDispatch)).toThrow(/(?:invoke|native-membership)\.js.*dispatch\/index\.js.*no such staged module/);
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/files/bridge.js");
+    expect(bundle.modules["vendor/files/bridge.js"]).toBe(readFileSync(resolveProducerFile("@canlang/files/bridge", "bun run --filter @canlang/files build"), "utf8"));
     const missingJudgmentHash = { ...bundle.modules };
     delete missingJudgmentHash["vendor/noble-hashes/_u64.js"];
     expect(() => assertLinksResolve(missingJudgmentHash)).toThrow("no such staged module");
@@ -1178,6 +1188,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     try {
       const bundle = buildDeployBundle(testArtifact(), { repoRoot, runtimeDistDir: fixture, verdict: ACTIVE_VERDICT });
       const owners = [
+        ["@canlang/files/bridge", "vendor/files/bridge.js"],
         ["@canlang/files/finalize", "vendor/files/finalize/index.js"],
         ["@canlang/files/ports", "vendor/files/ports.js"],
         ["@canlang/files/provenance", "vendor/files/provenance/index.js"],
@@ -1196,8 +1207,8 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       expect(invoke).toContain('from "../vendor/files/finalize/index.js"');
       expect(invoke).toContain('const FILES_FINALIZER_MAP_FIXTURE = "../vendor/files/finalize/index.js"');
       expect(invoke).not.toContain("@canlang/files/finalize");
-      expect(bundle.modules[owners[0][1]]).toContain("export function readFinalizedFileObservation(");
-      expect(scanModuleImports(bundle.modules[owners[0][1]]!, owners[0][1]).map(record => record.specifier))
+      expect(bundle.modules["vendor/files/finalize/index.js"]).toContain("export function readFinalizedFileObservation(");
+      expect(scanModuleImports(bundle.modules["vendor/files/finalize/index.js"]!, "vendor/files/finalize/index.js").map(record => record.specifier))
         .toEqual(["../ports.js", "../provenance/index.js", "../upload/index.js"]);
       expect(Object.keys(bundle.modules).filter(key => key.startsWith("vendor/noble-hashes/"))).toEqual([
         "vendor/noble-hashes/_md.js", "vendor/noble-hashes/_u64.js",
@@ -1226,6 +1237,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     try {
       const bundle = buildDeployBundle(testArtifact(), { repoRoot, runtimeDistDir: fixture, verdict: ACTIVE_VERDICT });
       for (const key of [
+        "vendor/files/bridge.js",
         "vendor/files/finalize/index.js", "vendor/files/upload/index.js",
         "vendor/files/provenance/index.js", "vendor/files/ports.js",
       ]) {

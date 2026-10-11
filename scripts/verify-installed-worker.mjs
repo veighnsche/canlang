@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -139,8 +139,10 @@ async function verifyConsumer(checkout) {
   const { REQUIRED_ABI_VERSION, wasmBackend } = await import(ownerModule('@canlang/values/bindings/backend'));
   assert.equal(glue.abi_version(), REQUIRED_ABI_VERSION);
   assert.equal(wasmBackend(glue).call('add-int', [1n, 2n]), 3n);
-  const receipt = await import(ownerModule('@canlang/state/receipt'));
-  await assert.rejects(receipt.loadReceiptObserver(), error => error.code === 'ERR_MODULE_NOT_FOUND' && error.message.includes(fileURLToPath(receipt.receiptObserverModuleUrl)));
+  const receiptEntry = ownerModule('@canlang/state/receipt');
+  const receipt = await import(receiptEntry);
+  const absentObserver = new URL(receipt.receiptObserverModuleUrl, receiptEntry);
+  await assert.rejects(receipt.loadReceiptObserver(), error => error.code === 'ERR_MODULE_NOT_FOUND' && error.message.includes(fileURLToPath(absentObserver)));
 
   // The public Work producer and its real relative cycle must survive packing.
   // Optional State observer absence remains distinct from this present producer.
@@ -162,10 +164,23 @@ async function verifyConsumer(checkout) {
   assert.ok(!first.modules['runtime/invoke.js'].includes('@canlang/work/receipt'));
   api.assertLinksResolve(first.modules); api.assertWorkerdLoadable(first.modules);
 
+  // Native membership and dispatch must share the defining private guard state.
+  const dispatchEntry = ownerModule('@canlang/work/dispatch');
+  const dispatchKey = 'vendor/work/dispatch/index.js';
+  assert.deepEqual(Object.keys(first.modules).filter(key => key.endsWith('/dispatch/index.js')), [dispatchKey]);
+  const dispatchProducer = await import(dispatchEntry);
+  assert.equal(typeof dispatchProducer.readDispatchGuardExecution, 'function');
+  assert.equal(typeof dispatchProducer.registerDispatchGuardRevalidation, 'function');
+  assert.match(first.modules['runtime/native-membership.js'], /from ['"]\.\.\/vendor\/work\/dispatch\/index\.js['"]/);
+  assert.ok(first.modules['runtime/invoke.js'].includes('../vendor/work/dispatch/index.js'));
+  assert.ok(first.modules[dispatchKey].includes('../../state/index.js'));
+  const missingDispatch = { ...first.modules }; delete missingDispatch[dispatchKey];
+  assert.throws(() => api.assertLinksResolve(missingDispatch), /(?:invoke|native-membership)\.js.*dispatch\/index\.js.*no such staged module/);
+
   const committedKey = 'vendor/work/kernel/committed-model-source.js';
   const invokeEntry = ownerModule('@canlang/cloudflare/runtime/invoke');
   const actualInvoke = readFileSync(invokeEntry, 'utf8');
-  assert.match(actualInvoke, /^\s*import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*['"]@canlang\/work['"]/m,
+  assert.match(actualInvoke, /^\s*import\s*\{\s*createCommittedModelSourceStager\s*,\s*createStandardCompletionSourceCommand\s*\}\s*from\s*['"]@canlang\/work['"]/m,
     'the actual installed runtime must consume the genuine public named stager');
   assert.match(first.modules['runtime/invoke.js'], /^\s*import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*['"]\.\.\/vendor\/work\/kernel\/committed-model-source\.js['"]/m,
     'the actual runtime named factory must resolve to the genuine defining Work module');
@@ -192,8 +207,11 @@ async function verifyConsumer(checkout) {
     assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }), /committed-model-source\.js/, 'corrupt genuine stager must fail the existing loadability guard');
   } finally { writeFileSync(committedFile, savedCommitted); }
 
-  const filesClosure = ['vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
+  const filesClosure = ['vendor/files/bridge.js', 'vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/files/')).sort(), [...filesClosure].sort());
+  const filesBridgeEntry = ownerModule('@canlang/files/bridge');
+  assert.equal(first.modules['vendor/files/bridge.js'], readFileSync(filesBridgeEntry, 'utf8'));
+  assert.match(first.modules['runtime/invoke.js'], /from ['"]\.\.\/vendor\/files\/bridge\.js['"]/);
   const stateFiles = first.modules['vendor/state/invocation/scenario-file-assignment.js'];
   assert.ok(stateFiles.includes('../../files/finalize/index.js'));
   assert.ok(stateFiles.includes('../../files/ports.js'));
@@ -279,6 +297,8 @@ async function verifyConsumer(checkout) {
     .map(specifier => [specifier, fileURLToPath(ownerModule(specifier))]);
   producerFiles.push(['acorn ESM', acornFile]);
   producerFiles.push(['Work committed-model source', committedFile]);
+  producerFiles.push(['Work dispatch execution', fileURLToPath(dispatchEntry)]);
+  producerFiles.push(['Files page bridge', fileURLToPath(filesBridgeEntry)]);
   for (const [specifier, file] of producerFiles) {
     const saved = readFileSync(file);
     try {
@@ -286,7 +306,8 @@ async function verifyConsumer(checkout) {
       assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }),
         error => {
           const absent = error.code === 'ENOENT' ? error : error.cause;
-          return absent?.code === 'ENOENT' && absent.path === file && /not built|ENOENT/.test(error.message);
+          return absent?.code === 'ENOENT' && typeof absent.path === 'string' &&
+            join(realpathSync(dirname(absent.path)), basename(absent.path)) === file && /not built|ENOENT/.test(error.message);
         }, `missing real ${specifier}`);
     } finally { writeFileSync(file, saved); }
   }
@@ -408,8 +429,9 @@ async function verifyConsumer(checkout) {
       writeFileSync(file, saved);
     }
   }
-  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 4, stateImports: 'actual scenario-file-assignment finalizer and ports edges', portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' }, acorn: { key: acornKey, publicEntry: acornManifest.module, missingProducers: 1, portableWorkerd: wasmWorkerResult.acorn, authority: 'Parser staging and execution only; Dev owns source verification and current G1' } };
+  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 5, stateImports: 'actual scenario-file-assignment finalizer and ports edges', portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' }, acorn: { key: acornKey, publicEntry: acornManifest.module, missingProducers: 1, portableWorkerd: wasmWorkerResult.acorn, authority: 'Parser staging and execution only; Dev owns source verification and current G1' } };
   evidence.committedSource = { key: committedKey, actualConsumer: 'runtime/invoke.js named factory import/call and canonical State lifetime loader', canonicalState: 'vendor/state/mutation/source-finalization.js', missingProducers: 1, corruptProducer: 'contextual syntax guard refused malformed genuine bytes', workerd: wasmWorkerResult.committedSource, authority: 'Actual portable consumer edge, defining producer and private State identity only; Dev owns complete checked/native workflow acceptance' };
+  evidence.dispatch = { key: dispatchKey, consumers: ['runtime/native-membership.js', 'runtime/invoke.js'], canonicalState: 'vendor/state/index.js', missingProducers: 1, authority: 'Genuine producer staging and private identity correspondence only; original guarded dispatch qualification remains with its owners' };
   writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 }

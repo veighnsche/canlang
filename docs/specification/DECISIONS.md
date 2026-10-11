@@ -11568,3 +11568,22 @@ association needs Packages’ defining query fact and Capability actual recovery
 Native order/authority/rollback/replay and full original applications remain Dev-owned.
 
 Coordinator independent defining source review CLEAR, integrated five coherent Compiler source/test paths and related records after deadline. Owning365/strict/fmt and actual CLI/verified factory/installed State positive+guarded2/.85s reused; changed main locked offline CLI0. Exact adjacent two-Create schemas/same required parent/second original-first reference/count+1/SAME first Run Return and wholeIR/evaluation order remain. Original copied-row proof withdrawal retains E6008/noartifact. This finite source producer is closed; actual original native order/identity/current authority/rollback/replay and combined full Chat are unfinished, precise holds and complete checkpoint unchanged.
+
+2026-10-11 — Minimum-engine runtime producer repair (implemented/tested;
+broader release qualification unfinished). Consume the exact reviewed descendant
+5ac46bde8 by ff-only intake and emit only its changed producer closure. The genuine
+runtime exposed missing portable Work dispatch and Files page bridge entries.
+Stage their public defining modules with the existing deduplicated relative
+walks. Runtime, vendor and constant imports use one dispatch module, preserving
+its private guard state and canonical State identity; no Node Work barrel.
+Require exact producer bytes, inventory and missing physical/staged refusals.
+Resolve State's absent observer specifier against its installed owning entry,
+require both actual named Work factories, and compare an erased producer through
+its canonical Bun directory. These correct source/gate correspondence without
+relaxing behavior. Actual Node22.0.0 isolated runtime passes253 modules, genuine
+Work serving, production workerd401, Wasm ABI/add-int, assets and all refusals.
+Affected direct3/3 and changed Cloudflare/root types pass; prior declaration177/13
+and unchanged Node24/owner/native outcomes stay credited. Local macOS ARM scope
+only; Linux/other hosts, original authored/native consumers and all holds remain.
+
+Coordinator independent defining staging/installed-consumer review CLEAR and exact three-source/test/gate intake in LOCAL main after deadline. One portable dispatch producer/canonical State identity and deduplicated Files bridge keep all exact producer/missing/refusal assertions. Owning actual Node22.0.0 and additionally changed defaultNode24.19.0 isolated runtime both PASS253modules, checkout denial, genuine Work serving1, productionworkerd401, Wasm/assets and meaningful corruption/missing controls at their consumed closures. Owning direct3/declaration177of13owners/797 external diagnostics reused. Actual changed main CF/root0; source outputs from different closures are not relabelled as MAIN-native. Close only local Mac ARM minimum-engine/finite common producer criterion; other hosts/original authored/native/fullDEL-R01 and precise holds remain open. Complete checkpoint unchanged.
