@@ -1,0 +1,19 @@
+## Test-authored bounded original authorization closure; no full-app or native-authority claim.
+app AuthorizationCanUse
+Given
+ Conversation {title:text trim max=200,account:user server=actor,active:bool=true}
+ Branch in Conversation {title:text trim max=200}
+ Run in Branch {unfinished:bool=true}
+ export derive can_use(person:user?,conversation:Conversation):bool = person!=null and active_member(person,team) and conversation.account==person and conversation.active
+ policy Conversation read=members and row.account==actor
+ policy Branch read=can_use(actor,row.parent)
+ ## Recovery exposes only the owning member's live containment link.
+ policy Branch read=members and row.parent.account==actor fields=parent
+ policy Run read=members
+When
+ scenario ask(branch:Branch) by=members -> Run
+  require can_use(actor,branch.parent)
+  do
+   create Run {parent=branch,unfinished=true} as run
+   return run
+Then
