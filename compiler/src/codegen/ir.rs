@@ -15679,7 +15679,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !matches!(word, "list" | "table" | "calendar") {
+        if !matches!(word, "list" | "table" | "calendar" | "gallery") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -15692,6 +15692,10 @@ impl<'a> Cx<'a> {
         let admitted: &[&str] = if word == "calendar" {
             &[
                 "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults", "order",
+            ]
+        } else if word == "gallery" {
+            &[
+                "parent", "empty", "image", "order", "search", "filter", "defaults",
             ]
         } else if word == "table" {
             &[
@@ -15758,6 +15762,46 @@ impl<'a> Cx<'a> {
             ));
             return None;
         };
+        if word == "gallery" {
+            let images: Vec<_> = ui_attributes(self.db, node)
+                .into_iter()
+                .filter(|(name, _)| name == "image")
+                .collect();
+            let image = images.first().and_then(|(_, value)| *value);
+            let paths = image.map(|value| selector_strings(self.db, value));
+            let field = paths
+                .as_ref()
+                .and_then(|paths| (paths.len() == 1).then(|| paths[0].clone()));
+            let valid = images.len() == 1 && field.as_ref().is_some_and(|name| {
+                self.fields.get(&(id, name.clone())).is_some_and(|field| {
+                    self.program.types.symbol_types.get(field)
+                        == Some(&ResolvedType::Scalar(Scalar::File))
+                        && self.program.symbols.get(id.0 as usize).is_some_and(|model| {
+                            matches!(&model.kind, SymbolKind::Model { fields, .. } if fields.contains(field))
+                                && self.program.symbols.get(field.0 as usize).is_some_and(|symbol| {
+                                    symbol.module == model.module && symbol.name == *name
+                                        && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == id)
+                                })
+                        })
+                })
+            });
+            if !valid {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower gallery image: one owning nonnullable singular File field is required".to_string(),
+                    image.map_or(node.span, |value| value.span),
+                ));
+                return None;
+            }
+            props.push((
+                "image".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(field?),
+                    ResolvedType::Scalar(Scalar::Text),
+                    image?.span,
+                ),
+            ));
+        }
         if word == "calendar" {
             let start = self.decode_calendar_endpoint(scope, node, id, "start")?;
             let end = self.decode_calendar_endpoint(scope, node, id, "end")?;
@@ -15772,7 +15816,7 @@ impl<'a> Cx<'a> {
             props.push(("startField".to_string(), start));
             props.push(("endField".to_string(), end));
         }
-        if matches!(word, "calendar" | "table") {
+        if matches!(word, "calendar" | "table" | "gallery") {
             if let Some(filters) = self.decode_collection_filters(scope, node, id, word) {
                 props.extend(filters);
             } else if word == "table" {
@@ -15857,7 +15901,7 @@ impl<'a> Cx<'a> {
                 continue;
             }
             match name.as_str() {
-                "filter" | "defaults" if matches!(word, "calendar" | "table") => {}
+                "filter" | "defaults" if matches!(word, "calendar" | "table" | "gallery") => {}
                 "order" | "search" | "filter" | "columns" => {
                     if name == "order" && value.kind != SyntaxKind::Selectors {
                         self.diags.push(Diagnostic::error(
@@ -15955,24 +15999,7 @@ impl<'a> Cx<'a> {
                 "parent" | "limit" | "cursor" => {
                     props.push((name, self.decode_expr(scope, value)));
                 }
-                "image" => {
-                    if let Some(field) = name_text(self.db, value).or_else(|| {
-                        if value.kind == SyntaxKind::Path {
-                            Some(path_text(self.db, value))
-                        } else {
-                            None
-                        }
-                    }) {
-                        props.push((
-                            "image".to_string(),
-                            TypedExpr::new(
-                                IrExpr::Text(field),
-                                ResolvedType::Scalar(Scalar::Text),
-                                value.span,
-                            ),
-                        ));
-                    }
-                }
+                "image" if word == "gallery" => {}
                 _ => {}
             }
         }
@@ -16006,10 +16033,10 @@ impl<'a> Cx<'a> {
                     "cannot lower count: one list-level count with a static label and no body is supported".to_string(),
                     count.span,
                 ));
-            } else if word != "list" {
+            } else if !matches!(word, "list" | "gallery") {
                 self.diags.push(Diagnostic::error(
                     "E6008",
-                    "cannot lower count: count belongs to a list".to_string(),
+                    "cannot lower count: count belongs to a list or gallery".to_string(),
                     count.span,
                 ));
             } else if let Some(label) = label {
@@ -16130,7 +16157,7 @@ impl<'a> Cx<'a> {
             .collect();
         let gate = self.decode_gate(scope, node);
         let row_scope = (matches!(word, "list" | "calendar")
-            || ((word == "table" || split) && !children.is_empty()))
+            || ((matches!(word, "table" | "gallery") || split) && !children.is_empty()))
         .then_some((row_name, "rowView".to_string()));
         Some(IrUi {
             view: None,

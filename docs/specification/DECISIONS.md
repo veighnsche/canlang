@@ -10786,3 +10786,32 @@ Coordinator independent defining source review CLEAR and local integration after
 2026-10-11 — genuine native membership frame/export source (implemented/tested/reviewed; native guarded consumers unfinished).
 
 Integrate exact Dev114da8f+0dad runtime/context/stdlib and owning controls with the corrective existing sendDeferred fourth-argument refusal. Fresh source and dispatch frames preserve original execution/current Team, complete checked occurrence/captured arguments, once sequential awaits and failure poisoning. Independent defining review CLEAR; when supplied, guard metadata refuses before any staging until the genuine guard consumer joins. Preserve main explicit subject-role API and existing unguarded send behavior. Reuse owning scoped meaningful controls and installed public export identity, changed Cloudflare/root0; no actual guarded application acceptance. Packages chosen explicit native catalog artifact remains its next finite output, generic Values external and original Compiler refusals remain until qualified availability. No whole-plan completion, hold release or complete checkpoint advance.
+
+2026-10-11 — connect original protected gallery source to released UI
+(implemented/tested producer; native/application joins unfinished).
+
+Admit the checked owning nonnullable singular File selector and existing collection
+query/parent/filter/order/search/count/row callback with stable source occurrence.
+Reuse exact released cursor, image resolver, browser credentials and page lifetime
+contracts. Forward original RowView/context and settle children sequentially before
+later siblings. Trusted resolver URLs grant no authority; Dev checks genuine media
+and current File access. Owning3 and related142 pass; original18→9 retains no
+modules and the named SEND/CALL/active_member/C14 dependencies. A malformed first
+fixture was corrected without rewriting original app declarations or gallery.
+
+2026-10-11 — carry sealed standard Text schema identity through disclosure
+(implemented/tested; original/native joins unfinished). Match checked TextRequest/
+TextMessage identity to its carried defining schema at constructor/member/object/
+array sites. Preserve anonymous Objects without inferring identity from shape;
+foreign imports, shape mutations and unselected nominals refuse. The existing
+original generation check now passes. Exact released model-SEND nullable reference
+regression remains defining Capability work; retain required presence/nullability
+and the actual installed supplier failure without independently repairing State.
+
+2026-10-11 — keep every gallery row field lazy (implemented/tested; native/
+application joins unfinished). Use descriptor-preserving exposure for explicit
+and default aliases before sequential authored children. An unused field getter
+is not an authored read; earlier child failures suppress later reads. Existing
+full/partial installed gallery3/3 and changed strict0 qualify the correction.
+
+Coordinator defining corrected gallery review CLEAR following the actual eager-getter defect; every gallery row exposure preserves descriptors and authored child/failure order. Sealed original TextRequest/TextMessage traversal review CLEAR with exact owning nominal/schema identity and foreign/type/shape refusals. Integrated only exact Compiler source/tests and related records after deadline; preserve newer shared runtime/Contracts/State/Pkg APIs. Reuse affected gallery3/3, nominal1/nativefailed-only1/nominal3 and related142/strict0/fmt0; no unchanged native rerun. Original9 diagnostics/no modules, actual current-authority/Files/model applications, unavailable active_member catalog and precise held criteria remain unfinished; no full-plan completion or complete checkpoint advance.

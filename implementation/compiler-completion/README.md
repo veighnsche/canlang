@@ -4403,3 +4403,58 @@ fmt/diff0; the separate gallery fixture retry remains unqualified.58/67/nine
 and precise holds remain unchanged.
 
 Coordinator independent defining direct-model CALL source review CLEAR, integrated locally after deadline. Source/receipt/operation/staticCALL provenance, owning model and once-evaluated result retain authored argument order. Six actualCLI/verifiedassembly/public installed-registry/refusal controls and related32/4/strict0/fmt0 reused; exact compiler source preimages match. Retain newer already-reviewed State f95/0a/receipt/guard/census APIs rather than reimporting the worker older prerequisite copies. Original richer/populated/contained source and actual Dev owner-row binding are separate unfinished criteria; the prior nominal consumer failure remains a Compiler next leaf. Complete checkpoint and exact holds unchanged.
+
+**Local continuation — original protected gallery producer, 2026-10-11
+(unfinished native/application joins).** Consume exact reviewed d50/97 gallery,
+c12 occurrence cursor, a2 page-scope close and released7b credential prerequisites;
+normal Contracts/UI/Interfaces emits0. Preserve source selection, owning singular
+nonnull File field, original queried RowView/context, parent/filter/order/search/
+count, stable occurrence and sequential awaited row body through released UI.gallery.
+Actual CLI/verified assembly/genuine full/partial dispatcher3/3 1.05s pass original
+Creative declarations/gallery, trusted original-scope resolver/close, current/null
+images, nested aliases/gates/order/first failure, genuine next-GET continuation and
+16 source/7 IR controls. The first fixture lacked legal section boundaries and
+used unsupported numeric search; its negative pass did not qualify. Correct legal
+boundaries preserve original declarations/gallery; separate original Template.name
+search checks the accepted selector without changing Output. Related142 pass;
+strictalltargets0 7.74s, fmt/diff0. Exact a850 original nativecompile exits10,
+complete=true omitted0 modules0, diagnostics18→9. Retained residuals are external
+active_member availability1, original SEND correspondence2, rich protected CALL2
+and held C14 observation/equality4. Supplier tests grant no native PNG/JPEG/current
+File or every-open authority; Dev original application remains external.58/67/nine
+and all precise holds remain. Next ready Compiler leaf reconnects sealed selected
+TextRequest/TextMessage to disclosure traversal; released model SEND intake follows.
+
+**Local continuation — sealed TextRequest/TextMessage disclosure consumers,
+2026-10-11 (unfinished original/native joins).** Preserve the checked defining
+nominal identity through constructor, carried member, object and array traversal;
+reuse its exact original schema rather than requiring anonymous Object. Foreign
+imports, unreleased identities and edited shapes refuse; anonymous Objects retain
+their previous behavior. Owning original generation failed-only1/1 .56s, exact
+library source/control1/1 .06s and installed standard nominal3/3 .77s pass.
+Changed strictalltargets0 8.53s; unchanged native sibling4/disclosure32/editor/
+completion/corpus results are reused. Exact frozen a850 nativecompile remains9
+diagnostics, complete=true omitted0 modules0 exit10; original SEND correspondence
+is a separate closure and no whole application is accepted.
+
+Exact released ad7 model-SEND source intake emits State/Work0 but the retained
+actual CLI/installed send-guard supplier1 fails: nullable SendInputs.Item? reaches
+nonnullable bindModelLexicalSnapshotProfile. Capability owns the exact defining
+repair preserving existing nullable canonical references and required slots; no
+shared fix or weakened supplier case is made here. Rich original C04 still needs
+query/create/input producers plus exact State child SEND/query influence and
+Cloudflare native target/preparation/Dev current-row result joins. Continue ready
+source leaves; active_member availability, C14/C23 holds and58/67 remain unchanged.
+
+**Local correction — lazy gallery fields, 2026-10-11 (unfinished native/
+application joins).** Coordinator's finite review found eager gallery row.fields
+spread before authored children. Every gallery row scope now preserves field
+descriptors, including explicit and default aliases. Owning installed full/partial
+gallery3/3 1.54s pass unused enumerable getter0, earlier text rejection preventing
+field reads, and field failure after earlier text preventing later children/rows.
+Original resolver RowView/context, File/occurrence/cursor and close remain tested.
+Changed strictalltargets0 8.50s, fmt/diff0; unchanged142 and original9 findings
+are reused. This corrects f213 supplier order; native/application authority and
+all remaining owner joins/holds are unchanged.
+
+Coordinator defining corrected gallery and sealed nominal source reviews CLEAR, integrated LOCAL main after deadline. Preserve descriptor getters and authored first-failure order; sealed owning TextRequest/TextMessage identity and schema remain required across four source consumers. Reuse corrected gallery3/3 and nominal1/nativefailed-only1/nominal3 plus retained142/strict0/fmt0; exact compiler source preimages match. Copied already-accepted Packages/State prerequisites are not imported or counted again. Original9 diagnostics/no modules and genuine nullable supplier/native/model/application/external/held criteria remain unfinished. Complete checkpoint unchanged.

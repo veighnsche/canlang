@@ -11,7 +11,7 @@ use super::resolve::{
 };
 use super::types::{
     CheckedQueryClauseKind, CheckedQueryProjectionField, CheckedQueryProjectionMapping,
-    SelectedCallTarget,
+    SelectedCallTarget, checked_standard_nominal_name,
 };
 use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable};
 use crate::source::{SourceDb, SourceId, sha256_hex};
@@ -3327,9 +3327,8 @@ impl<'a> Closure<'a> {
                 }
                 let schema = nominal_schema(name)
                     .ok_or_else(|| self.fail(key, "missing defining std schema"))?;
-                let ResolvedType::Object(fields) = ty else {
-                    return Err(self.fail(key, "missing checked schema object type"));
-                };
+                let fields = checked_text_schema_fields(ty, Some(name.as_str()))
+                    .ok_or_else(|| self.fail(key, "missing checked schema object type"))?;
                 if fields.len() != schema.fields.len()
                     || fields
                         .iter()
@@ -3476,14 +3475,13 @@ impl<'a> Closure<'a> {
                 continue;
             }
             if let Some(members) = &value.members {
-                let ResolvedType::Object(fields) = self
+                let receiver = self
                     .types
                     .node_types
                     .get(&base_key)
-                    .ok_or_else(|| self.fail(key, "missing composite receiver type"))?
-                else {
-                    return Err(self.fail(key, "unestablished composite receiver"));
-                };
+                    .ok_or_else(|| self.fail(key, "missing composite receiver type"))?;
+                let fields = checked_text_schema_fields(receiver, value.schema.as_deref())
+                    .ok_or_else(|| self.fail(key, "unestablished composite receiver"))?;
                 if !fields
                     .iter()
                     .any(|(name, field_ty)| name == field_name && field_ty == ty)
@@ -3765,7 +3763,8 @@ impl<'a> Closure<'a> {
         let ResolvedType::Array { element, .. } = base else {
             return Err(self.fail(key, "unsupported array expression type"));
         };
-        let composite = matches!(element.as_ref(), ResolvedType::Object(_));
+        let composite = matches!(element.as_ref(), ResolvedType::Object(_))
+            || checked_standard_nominal_name(element) == Some("TextMessage");
         let empty_files =
             children.is_empty() && matches!(element.as_ref(), ResolvedType::Scalar(Scalar::File));
         if !primitive_type(element) && !composite && !empty_files {
@@ -3778,7 +3777,10 @@ impl<'a> Closure<'a> {
                 .node_types
                 .get(&NodeKey::of(child))
                 .ok_or_else(|| self.fail(key, "missing checked array element type"))?;
-            if !primitive_type(element_ty) && !matches!(element_ty, ResolvedType::Object(_)) {
+            if !primitive_type(element_ty)
+                && !matches!(element_ty, ResolvedType::Object(_))
+                && checked_standard_nominal_name(element_ty) != Some("TextMessage")
+            {
                 return Err(self.fail(key, "unsupported array element type"));
             }
             let element = self.expr(NodeKey::of(child), module, env, calls)?;
@@ -4373,9 +4375,8 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
         schema: Option<String>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
-        let ResolvedType::Object(fields) = ty else {
-            return Err(self.fail(key, "unsupported object type"));
-        };
+        let fields = checked_text_schema_fields(ty, schema.as_deref())
+            .ok_or_else(|| self.fail(key, "unsupported object type"))?;
         if fields.len() > 200 {
             return Err(self.fail(key, "object field bound"));
         }
@@ -6459,6 +6460,26 @@ fn result_type(ty: &ResolvedType) -> bool {
         || matches!(base, ResolvedType::Array { element, .. } if primitive_type(element))
 }
 
+/// The owning imported constructor supplies the carried schema identity.
+/// Retain anonymous objects without deriving a nominal identity from shape.
+fn checked_text_schema_fields<'a>(
+    ty: &'a ResolvedType,
+    schema: Option<&str>,
+) -> Option<&'a [(String, ResolvedType)]> {
+    match ty {
+        ResolvedType::Object(fields) => Some(fields),
+        ResolvedType::StdNominal { fields, .. }
+            if schema.is_some_and(|name| {
+                matches!(name, "TextRequest" | "TextMessage")
+                    && checked_standard_nominal_name(ty) == Some(name)
+            }) =>
+        {
+            Some(fields)
+        }
+        _ => None,
+    }
+}
+
 fn stored_result_model(ty: &ResolvedType, resolve: &ResolveTables) -> Option<SymbolId> {
     let ResolvedType::Record {
         symbol,
@@ -7101,6 +7122,89 @@ mod tests {
             generate.returns[0].intrinsics[3].role,
             DependencyRole::Control
         );
+    }
+
+    #[test]
+    fn sealed_standard_text_source_traversal_refuses_foreign_owner_and_type_mutants() {
+        let source = include_str!(
+            "../../../packages/cloudflare/test/fixtures/typed-generation-progress.can"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("typed-generation-progress.can".into(), source.into());
+        let (tree, mut diagnostics) = crate::syntax::parse(&db, file);
+        let trees = vec![(file, tree)];
+        let resolve =
+            super::super::resolve::try_resolve_program(&db, &trees, None, &mut diagnostics)
+                .unwrap();
+        let types = super::super::types::check_types(&db, &trees, None, &resolve, &mut diagnostics);
+        let effects = super::super::effects::check_effects(
+            &db,
+            &trees,
+            &resolve,
+            &types,
+            None,
+            &mut diagnostics,
+        );
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = resolve
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == "TypedGenerationProgress.generate")
+            .unwrap();
+        let plans = analyze_scenario_disclosure(&db, &trees, &resolve, &types, &effects);
+        let ScenarioDisclosure::Complete(plan) = &plans[&owner.id] else {
+            panic!("original sealed generation producer");
+        };
+        assert_eq!(plan.returns[0].intrinsics.len(), 4);
+        for position in [
+            "request-construct",
+            "message-construct",
+            "message-array",
+            "request-member",
+        ] {
+            let key = *types.node_types.iter().find(|(key, ty)| match position {
+                "request-construct" => key.kind == SyntaxKind::Construct as u8 && checked_standard_nominal_name(ty) == Some("TextRequest"),
+                "message-construct" => key.kind == SyntaxKind::Construct as u8 && checked_standard_nominal_name(ty) == Some("TextMessage"),
+                "message-array" => key.kind == SyntaxKind::Array as u8 && matches!(ty, ResolvedType::Array {element, ..} if checked_standard_nominal_name(element) == Some("TextMessage")),
+                "request-member" => key.kind == SyntaxKind::NameRef as u8 && checked_standard_nominal_name(ty) == Some("TextRequest")
+                    && source.get(key.start as usize..key.end as usize) == Some("value"),
+                _ => unreachable!(),
+            }).unwrap().0;
+            for mutation in ["shape", "identity"] {
+                let mut changed = types.clone();
+                let mut ty = changed.node_types.get_mut(&key).unwrap();
+                if let ResolvedType::Array { element, .. } = ty {
+                    ty = element;
+                }
+                let ResolvedType::StdNominal { name, fields } = ty else {
+                    panic!("original nominal leaf");
+                };
+                if mutation == "shape" {
+                    fields[0].1 = ResolvedType::Scalar(Scalar::File);
+                } else {
+                    *name = "UnreleasedTextSchema";
+                }
+                let plans = analyze_scenario_disclosure(&db, &trees, &resolve, &changed, &effects);
+                assert!(
+                    matches!(plans[&owner.id], ScenarioDisclosure::Declined(_)),
+                    "{position}/{mutation}"
+                );
+            }
+        }
+        let mut foreign = resolve.clone();
+        foreign.module_scopes[owner.module.0 as usize].prod.insert(
+            "TextRequest".into(),
+            ScopedName::External {
+                provider: "foreign".into(),
+                name: "TextRequest".into(),
+            },
+        );
+        let plans = analyze_scenario_disclosure(&db, &trees, &foreign, &types, &effects);
+        assert!(matches!(plans[&owner.id], ScenarioDisclosure::Declined(_)));
+        let anonymous =
+            ResolvedType::Object(vec![("source".into(), ResolvedType::Scalar(Scalar::Text))]);
+        assert!(checked_text_schema_fields(&anonymous, None).is_some());
+        assert!(checked_standard_nominal_name(&anonymous).is_none());
     }
 
     #[test]
