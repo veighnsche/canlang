@@ -8,6 +8,7 @@ const [root, artifactPath, scratch, profile] = process.argv.slice(2);
 const dateControl = profile === 'calendar';
 const editBody = profile === 'edit-body';
 const listColumns = profile === 'list-columns';
+const scenarioCheckbox = profile === 'scenario-checkbox';
 const unboundOperation = dateControl ? 'ViewReuse.Holiday.create' : 'ViewReuse.save';
 const unboundMode = dateControl ? 'create' : 'scenario';
 registerHooks({resolve(specifier, context, next) {
@@ -224,6 +225,7 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     assert.equal(new Set(editControlIds[operation]).size, expectedCount * fields.length);
   }
   const boundIdentities = {};
+  const scenarioControlIds = [];
   for (const [operation, expectedCount, caption] of [
     ['ViewReuse.bind_card', 2, 'Bind card'],
     ['ViewReuse.recover_detail', hasDetails ? 2 : 0, 'Recover detail'],
@@ -245,13 +247,32 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
       assert.deepEqual(claims.bound, operation === 'ViewReuse.bind_card'
         ? {visit:{id:card.id, version:card.version}}
         : {attempt:{id:detail.id, version:detail.version}}, 'native sealed binding retains the correct outer or nested row');
-      assert.ok(form.includes(caption), 'bound action keeps its declaration label');
+      if (scenarioCheckbox && operation === 'ViewReuse.bind_card') {
+        assert.deepEqual(metadata.renderedInputs, ['attend', 'note'], 'authored scenario checkbox precedes the complete unbound remainder');
+        const checkbox = inputs.filter(input=>input.name === ui.fieldInputName('scenario', 'attend'));
+        const note = inputs.filter(input=>input.name === ui.fieldInputName('scenario', 'note'));
+        assert.equal(checkbox.length, 1, 'selected signature-owned bool renders once');
+        assert.equal(checkbox[0].type, 'checkbox');
+        assert.equal(note.length, 1, 'unplaced eligible scenario input remains available');
+        assert.equal(note[0].value, 'Kept', 'ordinary parameter default is retained by the generated remainder');
+        scenarioControlIds.push(checkbox[0].id, note[0].id);
+        assert.ok(form.includes('Attendance'), 'checked parameter label reaches the actual control');
+        assert.ok(form.includes(`for="${checkbox[0].id}"`), 'scenario declaration label targets its own checkbox');
+        assert.ok(form.indexOf(`id="${checkbox[0].id}"`) < form.indexOf(`id="${note[0].id}"`));
+        assert.ok(!inputs.some(input=>input.name === ui.fieldInputName('scenario', 'visit')), 'bound own row never becomes editable');
+      }
+      if (scenarioCheckbox && operation === 'ViewReuse.bind_card') {
+        assert.match(form, /<button\b[^>]*\btype="submit"/, 'explicit scenario form keeps its implicit canonical submit control');
+      } else {
+        assert.ok(form.includes(caption), 'bound action keeps its declaration label');
+      }
       return {binding:metadata.bindingIdentity, draft:metadata.draftIdentity};
     });
     assert.equal(new Set(boundIdentities[operation].map(item => item.binding)).size, expectedCount);
     assert.equal(new Set(boundIdentities[operation].map(item => item.draft)).size, expectedCount);
   }
-  return {context, radios, panels, queries, html, inputIds, boundIdentities, editIdentities, editControlIds};
+  if (scenarioCheckbox) assert.equal(new Set(scenarioControlIds).size, 4, 'two scenario forms retain distinct checkbox and remainder control identities');
+  return {context, radios, panels, queries, html, inputIds, boundIdentities, editIdentities, editControlIds, scenarioControlIds};
 }
 const unselected = await render('es');
 assert.equal(unselected.context.collectionSelections.size, 0);
@@ -273,6 +294,7 @@ assert.deepEqual(dutch.radios.map(item => item.id), source.radios.map(item => it
 assert.deepEqual(dutch.panels.map(item => item.id), source.panels.map(item => item.id));
 assert.deepEqual(dutch.inputIds, source.inputIds, 'locale rerender preserves each show/row form control prefix');
 assert.deepEqual(dutch.boundIdentities, source.boundIdentities, 'locale rerender preserves owning signed binding/draft comparisons');
+assert.deepEqual(dutch.scenarioControlIds, source.scenarioControlIds, 'locale rerender preserves selected scenario control identities');
 assert.deepEqual(dutch.editIdentities, source.editIdentities);
 assert.deepEqual(dutch.editControlIds, source.editControlIds, 'locale rerender preserves row edit control identities');
 const empty=await render('es', {url:selectedUrl.href, selected:true, hasDetails:false});
@@ -312,4 +334,5 @@ console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assemb
   nativeProjectedRowEdits:true, distinctStableEditControls:true, identityOnlyEditSeals:true,
   ...(editBody ? {nativeAuthoredCheckboxFirst:true, completeWritableRemainder:true} : {}),
   ...(listColumns ? {nativeOrderedAuthorizedListColumns:true, missingColumnsAndProjectionRefuse:true} : {}),
+  ...(scenarioCheckbox ? {nativeSelectedScenarioCheckbox:true, protectedBoundRow:true, completeScenarioRemainder:true} : {}),
   queriesPerRender:source.queries.map(item => item.model)}));

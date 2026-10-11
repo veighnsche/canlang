@@ -352,6 +352,124 @@ fn original_ordered_list_columns_reach_the_authorized_installed_consumer() {
 }
 
 #[test]
+fn checked_scenario_checkbox_reaches_the_complete_protected_native_form() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/view-reuse.can")
+        .replace(
+            "scenario bind_card(visit:Card,note:text=\"Kept\") by=public label=\"Bind card\"\n  do let supplied=note",
+            "scenario bind_card(visit:Card,attend:bool label=\"Attendance\",note:text=\"Kept\") by=public label=\"Bind card\"\n  do set visit {flag=attend,title=note}",
+        )
+        .replace("actions bind_card", "form bind_card arguments={visit=row}\n   checkbox attend");
+    let input = scratch.path().join("scenario-checkbox.can");
+    let compile = |source: &str| {
+        std::fs::write(&input, source).unwrap();
+        Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap()
+    };
+    let compiled = compile(&source);
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    let consumer = Command::new("node")
+        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root)
+        .arg(&artifact)
+        .arg(scratch.path().join("staged"))
+        .arg("scenario-checkbox")
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        consumer.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumer.stdout),
+        String::from_utf8_lossy(&consumer.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumer.stdout));
+    for (name, refused) in [
+        (
+            "duplicate",
+            source.replace("checkbox attend", "checkbox attend\n   checkbox attend"),
+        ),
+        (
+            "not-selected",
+            source.replace(
+                "form bind_card arguments={visit=row}",
+                "form bind_card fields=visit,note arguments={visit=row}",
+            ),
+        ),
+        (
+            "bound-input",
+            source.replace("arguments={visit=row}", "arguments={visit=row,attend=true}"),
+        ),
+        (
+            "foreign-input",
+            source.replace("checkbox attend", "checkbox flag"),
+        ),
+        (
+            "nullable",
+            source
+                .replace("attend:bool label=", "attend:bool? label=")
+                .replace("flag=attend", "flag=attend ?? false"),
+        ),
+        (
+            "wrong-type",
+            source
+                .replace("attend:bool label=", "attend:text label=")
+                .replace("flag=attend", "flag=attend==\"yes\""),
+        ),
+        (
+            "no-owner",
+            source.replace(
+                "form bind_card arguments={visit=row}\n   checkbox attend",
+                "checkbox attend",
+            ),
+        ),
+        (
+            "scope-boundary",
+            source.replace("checkbox attend", "list row.Detail\n    checkbox attend"),
+        ),
+        (
+            "body",
+            source.replace("checkbox attend", "checkbox attend\n    text \"invalid\""),
+        ),
+        (
+            "option",
+            source.replace("checkbox attend", "checkbox attend bogus=true"),
+        ),
+    ] {
+        let output = compile(&refused);
+        assert_eq!(
+            output.status.code(),
+            Some(10),
+            "{name}: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            !artifact["diagnostics"].as_array().unwrap().is_empty(),
+            "{name}"
+        );
+        assert!(
+            artifact.get("modules").is_none(),
+            "{name}: refused source cannot publish"
+        );
+    }
+}
+
+#[test]
 fn authored_row_checkbox_keeps_the_complete_protected_native_edit() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();

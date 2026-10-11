@@ -4347,6 +4347,8 @@ struct Scope {
     /// Exact operation and selected input names of the enclosing prepared form.
     field_operation: Option<SymbolId>,
     form_fields: Option<Vec<String>>,
+    /// Exact authored argument names; unknown argument shape grants no placement.
+    form_bound_fields: Option<HashSet<String>>,
     /// Whether decoding sits inside a pre-commit hook body (T31 Rule A).
     /// Contextual values lower only in the private native candidate pass,
     /// which is returned after the complete owner-policy profile qualifies.
@@ -4366,6 +4368,7 @@ impl Scope {
             in_field_owner: false,
             field_operation: None,
             form_fields: None,
+            form_bound_fields: None,
             in_hook: false,
         }
     }
@@ -11128,7 +11131,24 @@ impl<'a> Cx<'a> {
         };
         let owned_bool = selector.as_ref().is_some_and(|selector| {
             if !scope.in_field_owner || !scope.form_fields.as_ref().is_some_and(|fields| fields.contains(selector)) { return false; }
+            if !scope.form_bound_fields.as_ref().is_some_and(|bound| !bound.contains(selector)) { return false; }
             let Some(op) = scope.field_operation else { return false; };
+            if let Some(symbol) = self.program.symbols.get(op.0 as usize)
+                && let SymbolKind::Scenario { params, trusted: false, .. } = &symbol.kind
+            {
+                let Some(data) = self.program.effects.scenarios.get(&op) else { return false; };
+                if symbol.id != op || data.scenario != op || data.module != symbol.module
+                    || data.on.is_some() || data.read || data.expose_none
+                    || !params.iter().copied().eq(data.params.iter().map(|param| param.param)) { return false; }
+                return data.params.iter().enumerate().any(|(index, param)| {
+                    self.program.symbols.get(param.param.0 as usize).is_some_and(|input| {
+                        input.id == param.param && input.module == symbol.module && input.name == *selector
+                            && matches!(&input.kind, SymbolKind::Param { owner, index: position, type_node }
+                                if *owner == op && *position == index && *type_node == param.type_node)
+                            && self.program.types.symbol_types.get(&input.id) == Some(&ResolvedType::Scalar(Scalar::Bool))
+                    })
+                });
+            }
             let Some(data) = self.program.effects.crud_ops.get(&op) else { return false; };
             if data.op != op || !matches!(data.operation, CrudOp::Create | CrudOp::Update)
                 || !self.program.effects.cruds.get(&data.crud_decl).is_some_and(|crud| {
@@ -12395,6 +12415,7 @@ impl<'a> Cx<'a> {
         owned.in_field_owner = true;
         owned.field_operation = Some(operation.op);
         owned.form_fields = Some(fields.clone());
+        owned.form_bound_fields = Some(HashSet::from(["record".to_string()]));
         let children = self.decode_ui_children(&owned, node, Some((model, row.clone())));
         let mut placed = HashSet::new();
         let mut pending: Vec<_> = children.iter().collect();
@@ -12561,6 +12582,16 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
+        let bound_fields: Option<HashSet<String>> =
+            match props.iter().find(|(name, _)| name == "arguments") {
+                None => Some(HashSet::new()),
+                Some((_, arguments)) => match &arguments.expr {
+                    IrExpr::Object(fields) => {
+                        Some(fields.iter().map(|(name, _)| name.clone()).collect())
+                    }
+                    _ => None,
+                },
+            };
         // Absent `fields=` defaults from the resolved target op (explicit
         // wins; unresolvable targets keep no prop and stay loud in ui).
         let has_fields = props.iter().any(|(name, _)| name == "fields");
@@ -12576,6 +12607,11 @@ impl<'a> Cx<'a> {
                     IrExpr::Array(
                         defaults
                             .iter()
+                            .filter(|field| {
+                                !bound_fields
+                                    .as_ref()
+                                    .is_some_and(|bound| bound.contains(*field))
+                            })
                             .map(|f| {
                                 TypedExpr::new(
                                     IrExpr::Text(f.clone()),
@@ -12594,6 +12630,7 @@ impl<'a> Cx<'a> {
         let mut owned = scope.clone();
         owned.in_field_owner = true;
         owned.field_operation = operation_target;
+        owned.form_bound_fields = bound_fields;
         owned.form_fields =
             props
                 .iter()
@@ -13199,6 +13236,7 @@ impl<'a> Cx<'a> {
         unowned.in_field_owner = false;
         unowned.field_operation = None;
         unowned.form_fields = None;
+        unowned.form_bound_fields = None;
         if let Some(model) = model_id {
             // The collection's checked element owns this lexical row slot;
             // a surrounding view's host type must not leak into its children.
