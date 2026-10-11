@@ -10039,51 +10039,7 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 })
             }
-            SyntaxKind::Details => {
-                self.check_ui_attributes(node, "details", &["open", "id"]);
-                let mut props = Vec::new();
-                if let Some(caption) = self.decode_single_ui_caption(scope, node, "details") {
-                    props.push(("caption".to_string(), caption));
-                }
-                for (name, value) in ui_attributes(self.db, node) {
-                    if matches!(name.as_str(), "open" | "id")
-                        && let Some(value) = value
-                    {
-                        props.push((
-                            name.clone(),
-                            if name == "id" {
-                                match opens_spelling(self.db, value) {
-                                    Some(id) => TypedExpr::new(
-                                        IrExpr::Text(id),
-                                        ResolvedType::Scalar(Scalar::Text),
-                                        value.span,
-                                    ),
-                                    None => self.decode_expr(scope, value),
-                                }
-                            } else {
-                                self.decode_expr(scope, value)
-                            },
-                        ));
-                    }
-                }
-                let children = self.decode_ui_children(scope, node, row_ctx);
-                if children.is_empty() {
-                    self.diags.push(Diagnostic::error(
-                        "E6008",
-                        "cannot lower details: collapse needs a nonempty content suite".to_string(),
-                        node.span,
-                    ));
-                }
-                Some(IrUi {
-                    view: None,
-                    factory: "collapse".to_string(),
-                    props,
-                    children,
-                    row_scope: None,
-                    gate: self.decode_gate(scope, node),
-                    span: node.span,
-                })
-            }
+            SyntaxKind::Details => self.decode_disclosure(scope, node, "details", row_ctx),
             SyntaxKind::Form => self.decode_form(scope, node, row_ctx),
             SyntaxKind::Collection => self.decode_collection(scope, node, &word),
             SyntaxKind::Tabs => {
@@ -10856,6 +10812,70 @@ impl<'a> Cx<'a> {
         gate
     }
 
+    /// Both authored disclosure spellings share the existing Details contract.
+    fn decode_disclosure(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, word, &["open", "id"]);
+        if kids(node)
+            .into_iter()
+            .any(|child| child.kind == SyntaxKind::Slot)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: disclosure content does not admit authored slots"),
+                node.span,
+            ));
+            return None;
+        }
+        let mut props = Vec::new();
+        if let Some(caption) = self.decode_single_ui_caption(scope, node, word) {
+            props.push(("caption".to_string(), caption));
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if matches!(name.as_str(), "open" | "id")
+                && let Some(value) = value
+            {
+                props.push((
+                    name.clone(),
+                    if name == "id" {
+                        match opens_spelling(self.db, value) {
+                            Some(id) => TypedExpr::new(
+                                IrExpr::Text(id),
+                                ResolvedType::Scalar(Scalar::Text),
+                                value.span,
+                            ),
+                            None => self.decode_expr(scope, value),
+                        }
+                    } else {
+                        self.decode_expr(scope, value)
+                    },
+                ));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: collapse needs a nonempty content suite"),
+                node.span,
+            ));
+        }
+        Some(IrUi {
+            view: None,
+            factory: "collapse".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
     /// Decode a catalog component by factory word: profile-shaped
     /// props per the approved component catalog (selectors stay selector
     /// strings, captions stay messages, slots stay named suites).
@@ -10872,6 +10892,7 @@ impl<'a> Cx<'a> {
             "input" | "textarea" | "radio" | "select" => {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
+            "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "hero" => self.decode_compact_hero(scope, node, row_ctx),
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
             "fab" => Some(self.decode_fab(scope, node, row_ctx)),

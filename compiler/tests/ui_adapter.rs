@@ -611,6 +611,7 @@ When
   do
    let chosen = "ready"
 Then
+ preferences { expanded:bool=true }
  page / title="Home"
   card "Card <&>" layout=columns
    text "Card body"
@@ -625,6 +626,13 @@ Then
    text "Hidden hero body"
   details "Collapse <&>" open=true
    text "Collapse body"
+  collapse "Appointment coordination"@{nl="Afspraakafstemming"} id=coordination open=preferences.expanded
+   text "Original disclosure body"
+  collapse caption() open=true
+   text "Dynamic disclosure body"
+  collapse "Hidden disclosure"
+   require false
+   text actor
   title "Heading <&>"
   stat "Metric value"
   card "Empty card"
@@ -678,6 +686,11 @@ Then
    form renderFormProbe fields=note submit=row.note
     require row.show
     text actor
+ page /disclosures title="Scoped disclosures"
+  list Probe
+   collapse row.note open=row.show
+    require row.show
+    text row.note
 "#,
     )
     .unwrap();
@@ -713,15 +726,24 @@ const generated=await import(pathToFileURL(path));
 const page=generated.appDefinition.pages[0];
 assert.equal(page.title.source,'Home');
 const bindings=await page.admit({});
-const html=await page.render({appDefaultLocale:'en',preferredLocales:['nl']},bindings);
+const context={appDefaultLocale:'en',preferredLocales:['nl']};
+Object.defineProperty(context,'actor',{get(){throw new Error('gated disclosure evaluated its child');}});
+const html=await page.render(context,bindings);
 assert.ok(html.includes('Card &lt;&amp;&gt;'),'literal card title reaches real escaping sink');
 assert.ok(html.includes('sm:grid-cols-2'),'card layout reaches the owning factory');
 assert.ok(html.includes('Collapse &lt;&amp;&gt;'),'details maps to the real collapse caption sink');
 assert.ok(/<details[^>]* open/.test(html),'collapse open option reaches the owning factory');
+assert.ok(html.includes('<summary class="collapse-title">Afspraakafstemming</summary>'),
+ 'original collapse caption reaches the real localized disclosure sink');
+assert.ok(html.includes('id="coordination"'),'authored disclosure ID reaches its existing sink');
+assert.ok(/<details[^>]*\bopen[^>]*\bid="coordination"/.test(html),
+ 'checked owning boolean preference reaches the disclosure open property');
+assert.ok(html.includes('<summary class="collapse-title">Dynamic</summary>'));
+assert.ok(!html.includes('Hidden disclosure'),'false disclosure gate omits caption and children');
 assert.ok(html.includes('Heading &lt;&amp;&gt;'),'title uses the actual text prop');
 assert.ok(html.includes('Metric value'),'stat uses the singular value prop');
 assert.ok(html.includes('Empty card'),'empty Card receives its owning children array');
-for(const sentinel of ['Card body','Dynamic card body','Bare hero body','Captioned hero body','Collapse body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
+for(const sentinel of ['Card body','Dynamic card body','Bare hero body','Captioned hero body','Collapse body','Original disclosure body','Dynamic disclosure body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
  assert.equal(html.split(sentinel).length-1,1,`${sentinel} renders once`);
 }
 assert.ok(!html.includes('Hidden panel'),'panel gate omits the entire item');
@@ -786,6 +808,12 @@ assert.equal(asyncHtml.split('Unavailable Page submit').length-1,1);
 assert.equal(asyncHtml.split('Unavailable Row submit').length-1,1);
 assert.ok(!asyncHtml.includes('Gated page submit')&&!asyncHtml.includes('Gated row submit'));
 assert.ok(!asyncHtml.includes('<form'),'unavailable forms expose no controls or submit');
+const disclosurePage=generated.appDefinition.pages[2];
+const scopedHtml=await disclosurePage.render(formContext,await disclosurePage.admit({}));
+assert.ok(!scopedHtml.includes('Gated row submit'),'false row gate omits its disclosure');
+assert.equal(scopedHtml.split('Row submit').length-1,2,'own row value reaches its caption and child exactly once');
+assert.equal(scopedHtml.split('<details ').length-1,1,'only the admitted row renders');
+assert.ok(/<details[^>]* open/.test(scopedHtml),'open reads the same admitted row scope');
 console.log('actual UI adapter and controlled async unavailable-form producer passed');
 "#).unwrap();
     let consumed = Command::new("node")
@@ -832,6 +860,24 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         ("  alert \"Notice\" tone=neutral\n", "alert"),
         ("  badge \"Value\" unknown=true\n", "badge"),
         ("  details \"Caption\"\n   require false\n", "details"),
+        ("  collapse\n   text \"Body\"\n", "collapse"),
+        (
+            "  collapse \"Caption\" open=1\n   text \"Body\"\n",
+            "collapse",
+        ),
+        ("  collapse \"Caption\"\n   require false\n", "collapse"),
+        (
+            "  collapse \"Caption\"\n   slot content\n    text \"Body\"\n",
+            "collapse",
+        ),
+        (
+            "  details \"Caption\"\n   slot content\n    text \"Body\"\n",
+            "details",
+        ),
+        (
+            "  collapse \"Caption\" open=absent\n   text \"Body\"\n",
+            "absent",
+        ),
         ("  fieldset \"Caption\"\n   require false\n", "fieldset"),
         ("  join\n   require false\n", "join"),
         ("  hero\n   require false\n", "hero"),
@@ -858,6 +904,8 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         let expected_code = if profile == "bound tab panels" {
             "E3001"
+        } else if profile == "absent" {
+            "E2001"
         } else {
             "E6008"
         };

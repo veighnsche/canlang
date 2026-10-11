@@ -781,7 +781,11 @@ fn golden_teamtasks_structure() {
         5,
         "unsupported count: {diags:?}"
     );
-    for (word, n) in [("tooltip", 1), ("collapse", 1)] {
+    assert!(
+        entry.contains("open:preferences.show_content"),
+        "collapse carries the owning checked boolean preference without coercion"
+    );
+    for (word, n) in [("tooltip", 1), ("collapse", 0), ("content", 1)] {
         assert_eq!(
             diags
                 .iter()
