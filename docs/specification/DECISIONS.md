@@ -8547,3 +8547,13 @@ Owning State emission exits0 and nine affected maintained controls pass9/9 (324.
 The captured Office diagnostic used node --input-type=module, reproducing an inherited Miniflare eval-helper stall. The identical actual gateway/app+D1 topology from a file completes authenticated proxy bodies, query and disposal in411ms. That diagnosis does not establish the original Office edited-check cause or acceptance: Dev must supply its actual failure-stage/launch evidence before a common runtime repair is justified. No generic dependency rewrite or timeout increase follows.
 
 Local selected integration4b81e0cd: independent finite loader/own-data/security/correspondence review CLEAR; unchanged owner results reused (9/9, final mandatory-own-claim6/6, genuine original three-delivery artifact/direct consumer157ms). Both loaders preserve complete detached checked delivery identity/result metadata and explicit own nullable without synthetic valueType. This releases the common metadata prerequisite, not Capability six original opaque workflow/native authority or full File acceptance. Existing held scopes remain precise.
+
+
+
+### 2026-10-11 — expose the existing choose producer (finite implementation)
+
+Reexport Values' existing strict `choose` through the installed Cloudflare runtime/stdlib facade required by genuine Compiler C06 output. Preserve its selected input identity, null support and non-boolean refusal; the catalog and producer need no change.
+
+Cloudflare emission and strict maintained consumer noEmit exit0. The actual installed native ESM named-import consumer passes1/1 (26ms), including exact producer/ValueError identity, both frozen input selections, null and eight invalid conditions. A test-only shared readonly annotation resolves literal inference; unchanged runtime and producer results are reused. Coordinator reviews/releases the finite local unit; Compiler owns genuine C06 source/native acceptance. All precise holds remain.
+
+Local selected integrationffd73f13: finite direct export/actual installed import consumer review CLEAR. The facade exposes the identical existing strict Values producer without wrappers or changed codegen selection semantics. Owner1/1 installed ESM identity/selection/refusal and emit/strict test noEmit0 reused. Release only this exact missing export; Compiler original C06 native source and Dev authenticated ingress remain their distinct criteria.
