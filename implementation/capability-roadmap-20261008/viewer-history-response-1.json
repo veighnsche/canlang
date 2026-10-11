@@ -1,0 +1,45 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "requirement": "Original CanBook bare history renders currently authorized bounded audit entries at canonical model/row. Same readable leaf paths; denied leaves absent; live authority and revision; no owner fallback, synthetic history or reopened SEQ012. Coordinator permits explicit unsupported ambiguous legacy/lifetime/schema boundary but requires useful safely supported real current-original history.",
+      "verified_facts": [
+        "HistoryEntry stores model/id/version/operation/id/actor/at/change/full business before/after. Actual Memory internal seq and SQLite history.seq preserve versionASC/insertion sequence ties. No original secret inventory or lifetime association exists in HistoryEntry.",
+        "Actual mutation recordHistory writes full before/after business data. evalServerInit random_secret stores plain hex; isSecretValue removes only object kind:secret. Current policy alone cannot prove old secret→text data safe.",
+        "Canonical generated CRUD already receives owning secretFields map; checked scenario bound plan retains actual original model secrets. Both can copy that existing declaration-derived inventory into actual staged history, atomically committed with each write. Proposed metadata has not been implemented or qualified yet.",
+        "Current row metadata has actual immutable created/createdBy, version/update attribution and current business data. A single complete real create-through-current ordered chain without another create or remove, exact before=previous after, version sequence and final live row equality provides existing supported lifetime evidence. Missing/create-less/migrated/discontinuous/recreated history must explicitly refuse; timestamp-only identity is insufficient.",
+        "Proposed finite method reads at most100 complete entries plus overflow peek before payload decode/copy; complete own JSON20k visits/depth32/2mUTF16 and derived12.64m raw byte cap, all returned columns. No truncation/paging or historyFor fallback. Current grant projection shared across all images and fresh authority/State revision rechecked.",
+        "Row-subject Identity coherent observation and existing grant/secret leaf projection already exist. Original Appointment conditional can_work source/parent-decision facts remain Compiler/Dev prerequisite; actor-only tests are not complete CanBook acceptance.",
+        "Human authorizes local continuation/JEV advice; all publication/cloud/native preparation and recipient-specific holds persist. Choose finite implementation only, not authority to activate or whole-app acceptance."
+      ]
+    },
+    "questions": {
+      "history_boundary": {
+        "type": "choice",
+        "instructions": "Choose A or B as the smallest complete useful implementation for the declared finite current-original history reader. Compare permission/secrecy/lifetime/revision/bounds equally; do not treat proposed metadata or advice as implementation evidence.",
+        "criteria": {
+          "A": "Use the conservative existing complete-chain lifetime boundary and add only genuine writer-associated optional history metadata containing actual row created/createdBy and original declared secret paths. Reader requires metadata on EVERY entry, validates one complete create-through-current chain, strips the union of every original secret path plus current secrets, projects at current authority and revision. Unsupported legacy/missing/ambiguous/recreated/discontinuous history refuses, never backfilled or guessed. Connect actual canonical CRUD and checked scenario producers, existing Memory/D1/DO persistence and bounded reader. Most economical useful output; narrower supported historical domain, no new durable authority handle or general history framework.",
+          "B": "Introduce a new unique nonreused persistent lifetime identity on records AND history, with original secret/schema evidence bound at every genuine writer and migration. Bounded reader selects only that exact lifetime and original/current secret paths under current authority/revision. Can support repeated model/id recreation and partial lifetime retrieval when genuine associations exist; legacy remains unsupported without truthful provenance. Requires new persistent identity/row columns and all writer/migration/backend propagation, a broader representation and qualification change. Better eventual lifetime coverage but greater cost than the conservative complete-chain scope."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "history_boundary": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 1.0,
+        "probabilities": {
+          "A": 1.0,
+          "B": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1093,
+      "output_tokens": 32
+    }
+  }
+}

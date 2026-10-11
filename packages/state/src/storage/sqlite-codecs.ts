@@ -579,10 +579,11 @@ export type HistoryRow = {
   readonly change: string;
   readonly before: string | null;
   readonly after: string | null;
+  readonly audit_projection: string | null;
 };
 
 export const HISTORY_COLUMNS =
-  'model, record_id, version, operation, operation_id, actor, at, change, "before", "after"';
+  'model, record_id, version, operation, operation_id, actor, at, change, "before", "after", audit_projection';
 
 export function toHistoryEntry(row: HistoryRow): HistoryEntry {
   return {
@@ -596,7 +597,141 @@ export function toHistoryEntry(row: HistoryRow): HistoryEntry {
     change: row.change as HistoryEntry['change'],
     before: row.before === null ? null : (JSON.parse(row.before) as Record<string, unknown>),
     after: row.after === null ? null : (JSON.parse(row.after) as Record<string, unknown>),
+    ...(row.audit_projection === null ? {} : {
+      auditProjection: JSON.parse(row.audit_projection) as NonNullable<HistoryEntry['auditProjection']>,
+    }),
   };
+}
+
+/** Selected complete-history read; ordinary history codecs remain unchanged. */
+export interface BoundedHistoryRequest {
+  readonly model: ModelName;
+  readonly recordId: RecordId;
+  readonly expectedRevision: Revision;
+  readonly limit: number;
+}
+export function captureHistoryRequest(original: BoundedHistoryRequest): BoundedHistoryRequest {
+  if (typeof original !== 'object' || original === null || Array.isArray(original)) historyInvalid();
+  const value = (key: keyof BoundedHistoryRequest): unknown => {
+    const descriptor = Object.getOwnPropertyDescriptor(original, key);
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) historyInvalid();
+    return descriptor.value;
+  };
+  const model = value('model'); const recordId = value('recordId');
+  const expectedRevision = value('expectedRevision'); const limit = value('limit');
+  if (typeof model !== 'string' || model === '' || typeof recordId !== 'string' || recordId === '' ||
+      typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+      typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > 100) historyInvalid();
+  if (model.length + recordId.length > COHORT_TEXT) historyResource();
+  return { model: model as ModelName, recordId: recordId as RecordId,
+    expectedRevision: expectedRevision as Revision, limit };
+}
+function historyInvalid(): never { throw new StateError('validation', 'Invalid bounded history input.'); }
+function historyResource(): never {
+  throw new StateError('limit', 'History representation exceeds its resource limit.', null, { retryable: false });
+}
+export function checkHistoryCount(count: number, limit: number): void {
+  if (count > limit) throw new StateError('validation', 'History exceeds the selected entry limit.');
+}
+export type BoundedHistoryRow = HistoryRow & { readonly history_refusal: number };
+
+/** Bound count and every raw column before the driver materializes payloads. */
+export function compileBoundedHistory(input: BoundedHistoryRequest): { sql: string; bindings: unknown[] } {
+  const columns = ['model', 'record_id', 'version', 'operation', 'operation_id', 'actor', 'at', 'change', '"before"', '"after"', 'audit_projection'];
+  const bytes = columns.map(column => `COALESCE(length(CAST(h.${column} AS BLOB)), 0)`).join(' + ');
+  const selected = 'SELECT seq FROM history WHERE model = ? AND record_id = ? ORDER BY version, seq LIMIT ?';
+  const facts = `SELECT COUNT(*) AS entries, COALESCE(SUM(${bytes}), 0) AS bytes FROM history h JOIN selected s ON h.seq = s.seq`;
+  const refusal = `CASE WHEN f.entries > ? THEN 1 WHEN f.bytes > ${COHORT_BYTES} THEN 2 ELSE 0 END`;
+  const gated = columns.map(column => `CASE WHEN f.entries <= ? AND f.bytes <= ${COHORT_BYTES} THEN h.${column} ELSE NULL END AS ${column}`).join(', ');
+  return { sql: `WITH selected AS (${selected}), facts AS (${facts}) SELECT ${refusal} AS history_refusal, ${gated} FROM history h JOIN selected s ON h.seq = s.seq CROSS JOIN facts f ORDER BY h.version, h.seq`,
+    bindings: [input.model, input.recordId, input.limit + 1, input.limit, ...columns.map(() => input.limit)] };
+}
+
+/** Inspect an own-JSON envelope without copying any retained subtree. */
+function inspectHistory(value: unknown, budget: CohortBudget, depth: number, active: Set<object>): void {
+  budget.visit(depth);
+  if (value === null || typeof value === 'boolean') return;
+  if (typeof value === 'string') { budget.addText(value.length); return; }
+  if (typeof value === 'number' && Number.isFinite(value)) return;
+  if (typeof value !== 'object' || value === null || active.has(value)) historyInvalid();
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) historyInvalid();
+  if (array && value.length > COHORT_NODES - budget.nodes) historyResource();
+  const keys = Reflect.ownKeys(value);
+  if (keys.length > COHORT_NODES - budget.nodes + (array ? 1 : 0)) historyResource();
+  if (array && keys.length !== value.length + 1) historyInvalid();
+  active.add(value);
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string' || (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length))) historyInvalid();
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) historyInvalid();
+    budget.addText(key.length);
+    inspectHistory(descriptor.value, budget, depth + 1, active);
+  }
+  active.delete(value);
+}
+function historyProbe(probe: () => void): void {
+  try { probe(); } catch (error) {
+    if (error instanceof StateError && error.code === 'limit') historyResource();
+    if (error instanceof StateError && error.code === 'validation') historyInvalid();
+    if (error instanceof SyntaxError) historyInvalid();
+    throw error;
+  }
+}
+export function copyBoundedHistory(entries: readonly HistoryEntry[], limit: number): readonly HistoryEntry[] {
+  checkHistoryCount(entries.length, limit);
+  historyProbe(() => inspectHistory(entries, new CohortBudget(), 0, new Set()));
+  // The conservative encoded byte bound follows from the complete envelope's
+  // text/node profile. Copy only after that complete envelope has passed.
+  return structuredClone(entries);
+}
+export function toBoundedHistory(rows: readonly BoundedHistoryRow[], limit: number): readonly HistoryEntry[] {
+  checkHistoryCount(rows.length, limit);
+  if (rows.some(row => row.history_refusal === 1)) checkHistoryCount(limit + 1, limit);
+  if (rows.some(row => row.history_refusal === 2)) historyResource();
+  if (rows.some(row => row.history_refusal !== 0)) historyInvalid();
+  let rawBytes = 0;
+  for (const row of rows) {
+    for (const key of ['model', 'record_id', 'operation', 'operation_id', 'actor', 'change', 'before', 'after', 'audit_projection'] as const) {
+      const raw = row[key];
+      if (raw === null && (key === 'before' || key === 'after' || key === 'audit_projection')) continue;
+      if (typeof raw !== 'string') historyInvalid();
+      if (raw.length > COHORT_BYTES - rawBytes) historyResource();
+      for (let index = 0; index < raw.length; index++) {
+        const code = raw.charCodeAt(index);
+        if (code < 0x80) rawBytes++;
+        else if (code < 0x800) rawBytes += 2;
+        else if (code >= 0xd800 && code <= 0xdbff && raw.charCodeAt(index + 1) >= 0xdc00 && raw.charCodeAt(index + 1) <= 0xdfff) {
+          rawBytes += 4; index++;
+        } else rawBytes += 3;
+        if (rawBytes > COHORT_BYTES) historyResource();
+      }
+    }
+  }
+  const budget = new CohortBudget();
+  historyProbe(() => {
+    budget.visit(0);
+    for (const [index, row] of rows.entries()) {
+      budget.addText(String(index).length);
+      const metadata = { model: row.model, recordId: row.record_id, version: row.version,
+        operation: row.operation, operationId: row.operation_id, actor: row.actor, at: row.at, change: row.change };
+      inspectHistory(metadata, budget, 1, new Set());
+      for (const key of ['before', 'after'] as const) {
+        budget.addText(key.length);
+        if (row[key] === null) budget.visit(2);
+        else if (typeof row[key] !== 'string') historyInvalid();
+        else checkCohortJson(row[key], budget, 2);
+      }
+      if (row.audit_projection !== null) {
+        if (typeof row.audit_projection !== 'string') historyInvalid();
+        budget.addText('auditProjection'.length);
+        checkCohortJson(row.audit_projection, budget, 2);
+      }
+    }
+  });
+  return rows.map(toHistoryEntry);
 }
 
 /** S7: raw `snapshots` row as D1 returns it (snake_case columns). */

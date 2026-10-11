@@ -48,6 +48,8 @@ import { pipelineContext } from '../../test/mutation/fixtures.js';
 import { createD1Storage, ensureSchema } from './d1.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
 import { StateError } from '../errors.js';
+import { exerciseBoundedHistory } from './history-bounded-fixtures.js';
+import { queryRecordHistoryForViewer } from '../query/history.js';
 import { createInvoker, createReadInvoker } from '../ports/transact.js';
 import { buildPolicyTable, type PolicyTable } from '../policy/grants.js';
 import {
@@ -168,6 +170,8 @@ interface WorkerErrorJson {
   readonly detail?: string;
   readonly expected?: number;
   readonly actual?: number | null;
+  readonly code?: StateError['code'];
+  readonly retryable?: boolean;
 }
 
 async function doPost(path: string, body: unknown): Promise<Record<string, unknown>> {
@@ -183,6 +187,10 @@ async function doPost(path: string, body: unknown): Promise<Record<string, unkno
 }
 
 function rehydrate(error: WorkerErrorJson): Error {
+  if (error.name === 'StateError' && error.code !== undefined) {
+    return new StateError(error.code, error.message, null,
+      error.retryable === undefined ? undefined : { retryable: error.retryable });
+  }
   if (error.name === 'FenceConflictError') {
     return new FenceConflictError(
       error.expected as unknown as Revision,
@@ -225,6 +233,7 @@ function doProxy(): StoragePort {
     scheduleGet: (key) => doCall('scheduleGet', key),
     schedulesDue: (now, limit) => doCall('schedulesDue', now, limit),
     historyFor: (model, recordId) => doCall('historyFor', model, recordId),
+    historyReadBounded: input => doCall('historyReadBounded', input),
     readInstalledSnapshot: (owner) => doCall('readInstalledSnapshot', owner),
     readMigrationProgress: (migrationId) => doCall('readMigrationProgress', migrationId),
     readStagedRows: (migrationId, cursor, limit) =>
@@ -298,6 +307,7 @@ async function setupDurablePlane(
   store: StoragePort,
   secondHandle: () => StoragePort,
   when?: LoadDescriptorSetOptions['when'],
+  auditProjection?: true,
 ): Promise<DurablePlane> {
   const memberships = createMemoryIdentityStore();
   const alice = await seedMember(memberships, { isOwner: false });
@@ -313,7 +323,9 @@ async function setupDurablePlane(
       grants: [{ by: 'members', fields: ['title', 'code', 'stock'] }],
     },
   ]);
-  const execute = generatedCrudExecute({ table, store });
+  const execute = generatedCrudExecute({ table, store, ...(auditProjection === true ? {
+    secretFields: new Map([...loaded.secretFields].map(([model, fields]) => [model, [...fields]])),
+  } : {}) });
   const invoker = createInvoker({
     registry: loaded.registry,
     store,
@@ -403,6 +415,61 @@ function durableSuite(
   handles: () => Promise<{ store: StoragePort; secondHandle: () => StoragePort; reset: () => Promise<void> }>,
 ): void {
   describe(`T17a durable data plane (${name})`, () => {
+    it('reads bounded complete history with equal-version insertion order and revision fencing', async () => {
+      const { store, secondHandle, reset } = await handles();
+      await reset();
+      await exerciseBoundedHistory(store, secondHandle);
+    });
+
+    it('projects genuine canonical CRUD history through a reopened native adapter', async () => {
+      const { store, secondHandle, reset } = await handles();
+      await reset();
+      const plane = await setupDurablePlane(store, secondHandle, undefined, true);
+      const created = await plane.mutate(`${GADGET}.create`, { title: 'First', code: 'audit' }, uuidv7(FIXED_NOW, 920));
+      assert.equal(created.status, 'committed');
+      const row = created.result as StoredRow;
+      const updated = await plane.mutate(`${GADGET}.update`, {
+        record: { id: row.id, version: String(row.version) }, title: 'Second',
+      }, uuidv7(FIXED_NOW, 921));
+      assert.equal(updated.status, 'committed');
+      const model = asModel(GADGET);
+      const input = { store: secondHandle(), model, recordId: row.id, memberships: plane.memberships,
+        context: { actorUserId: plane.alice.user.user_id, teamId: plane.alice.team.team_id },
+        readPolicies: new Map([[model, { by: 'members' as const }]]),
+        policy: buildPolicyTable([{ model, secretFields: [], grants: [{ by: 'members', fields: ['title'] }] }]) };
+      const result = await queryRecordHistoryForViewer(input);
+      assert.deepEqual(result.entries.map(entry => [entry.version, entry.after]), [
+        [1, { title: 'First' }], [2, { title: 'Second' }],
+      ]);
+      assert.equal(Object.hasOwn(result.entries[0]!, 'auditProjection'), false);
+      assert.equal(result.revision, await store.readRevision());
+      await plane.memberships.removeMembership(plane.alice.membership.membership_id);
+      await assert.rejects(queryRecordHistoryForViewer(input), error => error instanceof StateError && error.code === 'not_found');
+    });
+    it('adds nullable audit projection to legacy history without backfilling entries', async () => {
+      const { secondHandle, reset } = await handles();
+      await reset();
+      const drop = 'ALTER TABLE history DROP COLUMN audit_projection';
+      const insert = "INSERT INTO history(model, record_id, version, operation, operation_id, actor, at, change, \"before\", \"after\") VALUES ('History.Legacy', 'legacy', 1, 'op', 'id', 'actor', 1, 'create', NULL, '{}')";
+      if (name === 'd1') {
+        await d1db.exec(drop);
+        await d1db.exec(insert);
+        await ensureSchema(d1db);
+        await ensureSchema(d1db);
+      } else {
+        assert.equal((await doPost('/exec', { sql: drop })).ok, true);
+        assert.equal((await doPost('/exec', { sql: insert })).ok, true);
+        assert.equal((await doPost('/reopen', {})).ok, true);
+        assert.equal((await doPost('/reopen', {})).ok, true);
+      }
+      const reopened = secondHandle();
+      assert.ok(reopened.historyReadBounded);
+      const entries = await reopened.historyReadBounded({ model: asModel('History.Legacy'), recordId: asId('legacy'),
+        expectedRevision: await reopened.readRevision(), limit: 100 });
+      assert.equal(entries.length, 1);
+      assert.equal(Object.hasOwn(entries[0]!, 'auditProjection'), false);
+      assert.deepEqual(await reopened.historyFor(asModel('History.Legacy'), asId('legacy')), entries);
+    });
     it('owner session commits final net effects and reference co-removal with checked reverse dependencies', async () => {
       const { store, secondHandle, reset } = await handles();
       await reset();

@@ -74,6 +74,8 @@ export interface MutationWritesInput {
   readonly writes: ReadonlyArray<MutationWrite>;
   readonly context: InvocationContext;
   readonly store: StoragePort;
+  /** Original defining-model secret paths; absence leaves legacy history unsupported. */
+  readonly secretFields?: ReadonlyMap<ModelName, readonly string[]>;
   /**
    * Optional language-to-wire conversion supplied by the runtime/Values
    * owner. Only present fields with a checked valueType use this checkpoint,
@@ -177,6 +179,7 @@ export interface OwnerMutationSession {
 
 /** A single owner-local execution; its caller still owns admission and commit. */
 export async function beginOwnerMutation(input: OwnerMutationInput): Promise<OwnerMutationSession> {
+  const secretFields = captureHistorySecretFields(input.secretFields);
   const source = Object.getOwnPropertyDescriptor(input, 'stageSources');
   if (Object.hasOwn(input, 'stageSources') && (source === undefined || !('value' in source) || !source.enumerable || typeof source.value !== 'function') ||
       !Object.hasOwn(input, 'stageSources') && 'stageSources' in input) {
@@ -189,15 +192,39 @@ export async function beginOwnerMutation(input: OwnerMutationInput): Promise<Own
   }
   if (input.policies !== undefined) assertCheckedOwnerModelPolicies(input.policies);
   const frozen = { ...input, context: deepFreeze(structuredClone(input.context)),
-    bounds: Object.freeze({ ...input.bounds }) };
+    bounds: Object.freeze({ ...input.bounds }), ...(secretFields === undefined ? {} : { secretFields }) };
   return createMutationPipeline(frozen, frozen, await input.store.readRevision());
 }
 
 /** Legacy batch behavior stays on the same machinery with its original checks. */
 export async function runMutationWrites(input: MutationWritesInput): Promise<MutationWritesResult> {
-  const pipeline = createMutationPipeline(input);
+  const secretFields = captureHistorySecretFields(input.secretFields);
+  const pipeline = createMutationPipeline({ ...input, ...(secretFields === undefined ? {} : { secretFields }) });
   await pipeline.stage(input.writes, { cause: 'crud' });
   return pipeline.finalize();
+}
+
+/** Detach the entire inventory before any storage or hook can yield. */
+function captureHistorySecretFields(input: MutationWritesInput['secretFields']): MutationWritesInput['secretFields'] {
+  if (input === undefined) return undefined;
+  if (!(input instanceof Map)) throw new StateError('validation', 'History secret inventory requires a model map.');
+  const captured = new Map<ModelName, readonly string[]>();
+  for (const [model, fields] of input) {
+    if (typeof model !== 'string' || model.length === 0 || !Array.isArray(fields)) {
+      throw new StateError('validation', 'History secret inventory requires model names and field paths.');
+    }
+    const paths: string[] = [];
+    for (let index = 0; index < fields.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(fields, String(index));
+      if (descriptor === undefined || !('value' in descriptor) || typeof descriptor.value !== 'string' ||
+          descriptor.value.split('.').some((part: string) => part.length === 0) || paths.includes(descriptor.value)) {
+        throw new StateError('validation', 'History secret inventory requires unique own field paths.');
+      }
+      paths.push(descriptor.value);
+    }
+    captured.set(model as ModelName, Object.freeze(paths));
+  }
+  return captured;
 }
 
 /** Provisional entry: a staged row, or a removal masking the store. */
@@ -1178,6 +1205,12 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     readonly before: StoredRow | null;
     readonly after: Readonly<Record<string, unknown>> | null;
   }, attribution: InvocationContext = stageContext): void => {
+    const secretFields = input.secretFields?.get(entry.model);
+    const current = provisional.get(keyOf(entry.model, entry.recordId));
+    const original = entry.before ?? (current?.status === 'row' ? current.row : null);
+    if (secretFields !== undefined && original === null) {
+      throw new StateError('validation', 'History projection requires its actual creation row.');
+    }
     outHistory.push({
       model: entry.model,
       recordId: entry.recordId,
@@ -1189,6 +1222,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       change: entry.change,
       before: entry.before === null ? null : structuredClone(entry.before.data),
       after: entry.after === null ? null : structuredClone(entry.after),
+      ...(secretFields === undefined ? {} : { auditProjection: Object.freeze({
+        created: original!.created, createdBy: original!.createdBy, secretFields,
+      }) }),
     });
   };
 

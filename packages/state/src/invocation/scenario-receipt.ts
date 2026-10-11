@@ -1327,7 +1327,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.intrinsics.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
     if (typeof input !== 'object' || input === null || Array.isArray(input) ||
         ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
-        Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField', 'stageSources'].includes(key) ||
+        Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField', 'stageSources', 'secretFields'].includes(key) ||
           !('value' in Object.getOwnPropertyDescriptor(input, key)!))) return invalid('owner session accepts only its defining mutation options.');
     if (typeof input.bounds !== 'object' || input.bounds === null || Array.isArray(input.bounds)) return invalid('owner session requires finite bounds.');
     const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
@@ -1344,6 +1344,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     ownerSessions.set(call, owner);
     ownerContexts.set(call.context, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
+      secretFields: new Map([...state.bound.models].map(([model, inventory]) => [model, inventory.secrets])),
       trigger: { revision: call.revision, owner: call.checkpoint?.owner ?? call.context.team?.teamId ?? call.context.app },
       gateArchivedTargets: true }));
     owner.consumeWork = session.views.consumeWork;

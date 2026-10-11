@@ -376,6 +376,18 @@ export interface HistoryEntry {
   readonly change: 'create' | 'update' | 'archive' | 'remove';
   readonly before: Readonly<Record<string, unknown>> | null;
   readonly after: Readonly<Record<string, unknown>> | null;
+  /**
+   * Genuine writer capture for finite viewer-history projection. Legacy
+   * entries remain absent; readers must never guess or backfill it. The
+   * creation metadata binds the complete create-through-current chain;
+   * original secrets remain hidden even after later schema/policy changes.
+   * This is audit metadata, not an independent authority capability.
+   */
+  readonly auditProjection?: {
+    readonly created: number;
+    readonly createdBy: string;
+    readonly secretFields: ReadonlyArray<string>;
+  };
 }
 
 /** Outbox delivery intent staged atomically with its originating state. */
@@ -639,10 +651,24 @@ export interface StoragePort {
   schedulesDue(now: number, limit: number): Promise<ReadonlyArray<ScheduleEntry>>;
   /**
    * S6: history for one record, ordered by version ascending with insertion
-   * sequence as the tiebreak (duplicate versions are reachable only via
-   * direct unstaged commits; fenced writes carry unique versions).
+   * sequence as the tiebreak. Actual owner-session stages can share one
+   * reserved version; their insertion/source order remains significant.
    */
   historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>>;
+  /**
+   * Finite audit retrieval for a viewer reader. Returns the complete ordered
+   * (version, insertion sequence) set or refuses overflow before decoding;
+   * never falls back to historyFor. The reader still owns current grants,
+   * original secrets and lifetime admission. Adapters fence both ends of the
+   * read at expectedRevision. limit must be an integer in 1..100.
+   * Legacy/custom stores without this capability remain unsupported.
+   */
+  historyReadBounded?(input: {
+    readonly model: ModelName;
+    readonly recordId: RecordId;
+    readonly expectedRevision: Revision;
+    readonly limit: number;
+  }): Promise<ReadonlyArray<HistoryEntry>>;
   /**
    * S7: installed owner snapshot, or null when the owner was never installed
    * (fresh installs take a separate path and never apply transitions).

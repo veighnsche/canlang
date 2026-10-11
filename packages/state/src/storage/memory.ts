@@ -47,7 +47,8 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import { INITIAL_REVISION } from './schema.js';
-import { captureCohortRequest, checkCohortIdentityRows, captureCohortRow, captureCohortRows } from './sqlite-codecs.js';
+import { captureCohortRequest, checkCohortIdentityRows, captureCohortRow, captureCohortRows,
+  captureHistoryRequest, checkHistoryCount, copyBoundedHistory } from './sqlite-codecs.js';
 import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
   guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow } from './file-retirement.js';
@@ -836,10 +837,26 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
       return due.slice(0, limit);
     },
 
+    async historyReadBounded(request): Promise<ReadonlyArray<HistoryEntry>> {
+      const input = captureHistoryRequest(request);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const selected: Array<{ readonly seq: number; readonly entry: HistoryEntry }> = [];
+      for (const row of state.history) {
+        const entry = row.entry as HistoryEntry;
+        if (entry.model !== input.model || entry.recordId !== input.recordId) continue;
+        checkHistoryCount(selected.length + 1, input.limit);
+        selected.push({ seq: row.seq, entry });
+      }
+      selected.sort((a, b) => a.entry.version - b.entry.version || a.seq - b.seq);
+      const entries = copyBoundedHistory(selected.map(row => row.entry), input.limit);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      return entries;
+    },
+
     async historyFor(model: ModelName, recordId: RecordId): Promise<ReadonlyArray<HistoryEntry>> {
       // S6: (version, seq) ascending, matching the SQL `ORDER BY version,
-      // seq` — the seq tiebreak orders duplicate versions by insertion
-      // (reachable only via direct unstaged commits). Never assume order.
+      // seq` — the seq tiebreak preserves source-ordered owner stages at
+      // one reserved version, as well as direct commits. Never assume order.
       const matched = state.history.filter(
         (row) =>
           ((row.entry as HistoryEntry).model as string) === (model as string) &&
