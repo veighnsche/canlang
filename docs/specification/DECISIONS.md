@@ -8457,3 +8457,31 @@ Select only Packages4a9dac4c two exact State/Work retirement test-to-owning Imag
 ### 2026-10-11 — close the finite original File union witness
 
 Original complete FileProfile declaration witness at Capability7fbfae4a passes1/1 672.48ms after exact reviewed bb owning producer. Remove only its obsolete E6008 skip; source, union transport and every original nested/nullable/constraint/malformed/copy/duplicate/skew assertion remain. This finite typed-traversal criterion is satisfied; reuse it without another intake-only run. Opaque raw-default admission, historical census/current native authority and actual original Images runtime remain separate owner joins; all precise holds and complete checkpoint persist.
+
+
+## 2026-10-11 — Complete original opaque contract input
+
+Require `originalContracts: Readonly<Record<string, WireValue>>` on the existing
+FrameworkOpaqueDeclarationSet. Capability's admission binds supplied defaults
+against normalized valueTypes, which cannot detect an omitted or changed
+well-typed original literal. Dev already reads the genuine native contract map
+before normalization. Reuse the existing JSON wire carrier for that complete
+detached original map under the set's verified source/snapshot; no new DTO,
+issuer, table, Values dependency or CanonicalNominalLeaf change.
+
+State must compare complete contract/field/type/constraint correspondence and
+independently derive all own defaults, requiring exact one-to-one raw equality
+with valueDefaults. Preserve unused/File-free fields and explicit null/empty
+literals through reopen/migration; missing, extra, duplicate or changed defaults
+refuse. Empty inputs prove absence only after genuine complete capture and
+comparison; copied metadata and current schemas establish no original evidence.
+
+Contracts emission and strict maintained public assembly noEmit pass0. Positive
+raw maps and five new negative input controls compile as intended; prior
+controls remain. Unchanged runtime/public identity/producer/native checks are
+reused. Finite independent carrier assessment confirms the demonstrated input
+gap. Coordinator reviews the exact local unit; Dev owns original capture and
+Capability owns independent admission and persisted correspondence. This ABI
+input alone qualifies no runtime workflow and releases no precise human hold.
+
+Local integration0a396db7: exact existing Contracts originalContracts input, public assembly controls and README manually reviewed CLEAR. Reuse owning Node24 emit0 and strict public NodeNext noEmit0; no runtime changes or additional product qualification. Complete raw original appDefinition.contracts includes unused fields/constraints/defaults before normalization under the same verified source/snapshot. Capability independently compares complete inventory and literal default equality; Dev captures genuine original data. Runtime33 remains unreleased until that correction and original receiving cases. All precise holds remain.

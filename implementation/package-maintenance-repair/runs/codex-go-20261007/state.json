@@ -1845,7 +1845,16 @@
               "Capability": "Validate complete unique historical default capture and physically retained schema/projection equality inside original census/guard fence; independent typed File traversal and reopen/migration conservation.",
               "Compiler": "Keep actual original declaration/source production correspondence; no inferred runtime acceptance."
             },
-            "holds": "All recipient-specific native/security/timezone/payload/ingress holds preserved; no publication."
+            "holds": "All recipient-specific native/security/timezone/payload/ingress holds preserved; no publication.",
+            "original_contracts_input": {
+              "status": "Reviewed exact Contracts original input locally integrated from0a396db7; genuine Dev capture and Capability runtime admission/comparison remain separate.",
+              "demonstrated_gap": "Coordinator review of Capability33ba12cd State storage/opaque-file-declarations.ts290–300 shows normalized valueTypes plus supplied valueDefaults cannot detect an omitted or changed well-typed original literal. Exact original native contract map is available in Dev invoke.ts6552–6626 at reviewed5a0a609b, before schema normalization.",
+              "contract": "Required FrameworkOpaqueDeclarationSet.originalContracts:Readonly<Record<string,WireValue>> reuses the existing JSON wire carrier, retaining the complete descriptor-checked detached original appDefinition.contracts map from the same verified native source/snapshot. Every contract/own field/type/constraint/default remains, including unused/File-free members. State compares the complete owning schema inventory with valueTypes and independently derives every own literal default, requiring exact one-to-one raw equality with valueDefaults. Missing/extra/duplicate/changed entries refuse; {} and[] establish absence only after genuine complete capture/comparison. Preserve original input through reopen/migration; copied metadata authenticates nothing and no current schema reconstructs it.",
+              "scope": "Only existing Contracts state.ts declaration set, maintained public assembly compile controls, README and direct TECH-F02/DEC records. No new DTO/table/issuer, Values dependency or CanonicalNominalLeaf semantic change. Existing input/model declarations continue to own their defaults.",
+              "validation": "Node24 Contracts owning TypeScript emission0 and strict maintained public assembly NodeNext noEmit0. New positive complete map includes unused contract, no-default field, original constraints and null/empty/false/empty-string literal defaults. Five new negative controls cover omitted/null/array map, decoded bigint and executable metadata; all prior default/origin/identity controls retained. No changed runtime code: unchanged public identity/runtime, producer, full/native outcomes reused. Diff whitespace0; finite independent carrier assessment confirms no existing normalized/raw public input suffices.",
+              "remaining_owners": "Dev genuine same-source native raw capture before normalization; Capability complete contract/field/type/constraint/default admission comparison and persisted reopen/migration correspondence. Metadata/type checking confers no File authority.",
+              "holds": "Every precise native/security/timezone/payload/ingress/publication hold remains unchanged; local coherent commit only/no push."
+            }
           }
         }
       }
