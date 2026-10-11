@@ -14,6 +14,7 @@ import { JSON_BODY_MAX_BYTES } from '../src/http/limits.js';
 import { mintOperationId } from '../src/http/context.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 
 const OP: ArtifactOperation = { name: 'CsvResource.Item.create', kind: 'create', description: '',
   inputs: { fields: [{ name: 'title', field: { kind: 'string' }, required: true }] } };
@@ -26,7 +27,7 @@ async function mounted() {
   const derivedFor = catalog.derivedFor;
   assert.ok(derivedFor);
   let catalogReads = 0;
-  const deps = { ...t.deps, catalog: { ...catalog,
+  const deps = { ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1'), catalog: { ...catalog,
     get shapeFor() { catalogReads++; return catalog.shapeFor; },
     get derivedFor() { catalogReads++; return derivedFor; },
   } };

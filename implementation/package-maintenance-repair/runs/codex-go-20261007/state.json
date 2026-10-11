@@ -3642,7 +3642,7 @@
     },
     "DEL-C02": {
       "planning_status": "blocked",
-      "state": "Partial: existing CRUD and bounded plain-scenario replay-age delegation implemented/tested; frozen review context/integrity/per-row authority and complete parent qualification remain blocked.",
+      "state": "Partial: complete signed full-table/context review binding and fresh per-row admission implemented/component-tested; original installed/native/browser workflow qualification remains open. Accepted source order/replay/signed recovery scopes reused.",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/confirm.ts",
@@ -3650,8 +3650,168 @@
       ],
       "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open",
       "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD/plain scenario HTTP/CSV aged replay and direct compiled checked CRUD signed-form recovery are available. Bounded coherent Identity/State multi-member source is released. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed review integrity and per-row authority are still defining review contracts; expired signed SCENARIO restoration remains separate and age-refused. Preserve original source-row order and per-row refusal witnesses; no all-review machinery barrier to unrelated ready repairs.",
-        "owner": "Interfaces/UI/Identity review contract owners; Capability/State broader scenario source/lifetime; Dev actual installed/native workflow owners"
+        "prerequisite": "Defining review integrity/per-row adapter is implemented and component-tested; Dev original mounted installed/native/browser producer+consumer must use genuine host-key provider and transport required review_token, qualifying full source-row/context/tamper/expiry/revocation outcomes at its existing scope. Capability/State final mutation authority/fence and broader original source workflow remain owner gates. Reuse accepted source order, checked CRUD/plain scenario replay and signed recovery; no additional all-review barrier.",
+        "owner": "Dev actual installed/native/browser CSV host consumer; Capability/State canonical mutation authority/fence"
+      },
+      "review_integrity_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct human public Canlang design/source-derived JEV authorization, key Authorization only; no private data; other holds preserved.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "DEL-C02 finite frozen CSV review integrity",
+              "verified_facts": [
+                "DEL-C02 requires the existing mounted CSV review/commit to bind frozen source row index/status/input and app/user/team/session/issued-time/expiry, reject changed/expired/tampered/foreign context before effects, and retain source-row order, invalid/duplicate/unselected/partial/unknown outcomes. Existing source order, checked CRUD/plain scenario age-replay and signed recovery criteria are accepted; do not reopen them or infer full workflow acceptance. No release of activation/preparation/publication holds.",
+                "Current Interfaces handleCsvRequest resolves Identity/session before body await, requires CSRF, re-derives review from echoed CSV. Consent is unsigned public operation/principal/candidates_digest/count and deterministic rev-prefix. Its digest covers ONLY valid input list, omitting source indexes, invalid/duplicate table and all app/team/session/time/expiry. Public digest recomputation cannot prove historical review issuance/context. UI preserves all rows, echoes the five consent fields, and submits selected source index and caller replay key.",
+                "Identity resolveRequestIdentity/resolveIdentity provide current private session bearer, actor/team/credential binding and trusted admission time, reading expiry/revocation/user/membership. assertCredentialLive and assertAuthorityLive reread current facts. Separate Identity reads are not a coherent multi-member State mutation fence. CSV currently rereads team once before all rows, passing one earlier identity. Fresh per-row admission can preserve frozen actor/team/session and return forbidden for the remaining row after a committed prefix; canonical invoker owns original permission and final State authority fence. A review integrity token is never a mutation grant.",
+                "Interfaces createSourceFormBindings is genuine stable 32-byte host-private HMAC SHA256 plus source revision producer, already assembled by Cloudflare host using CAN_FORM_BINDING_KEY and preview key. Current SourceFormBindings seal/restore ONLY normalized protected singular versioned refs and disjoint editable fields; do not fake these to seal CSV. Current claims already bind app/hashed session/actor/team/operation/schema/revision/nonce/issued/exact15-minute expiry, with canonical bounded base64url and verify-before-parse. Identity has hash/base64 helpers, no generic signing API.",
+                "A complete signed-review design can hash the entire immutable recomputed review table (all source indexes/statuses/inputs/duplicate pointers/errors/counts), checked operation/derived inputs/allowed shape, and reviewing principal. A small domain-separated token binds that digest, trusted app, hashed session bearer, actor/team, source revision, trusted issued time and exact15-minute expiry matching existing form lifetime. No full row data or bearer in token; UI carries one opaque token. Commit recomputes the exact table under current checked source and compares authenticated digest before any row invocation. Expired reviews need renewed review while caller operation IDs remain unchanged for canonical receipt replay; do not restore an expired review as authority.",
+                "Two signed variants have equal claims, denial, row-digest, key ownership, bounded token and per-row admission semantics: a separate CSV binding factory/HttpDeps port configured by host, or a dedicated csvReview sub-port returned by the existing host-key SourceFormBindings provider. The sub-port adds only purpose-specific CSV seal/verify and preserves specialized form seal/restore unchanged; absent sub-port refuses CSV rather than unsigned fallback. It needs no new host setting because current verified source-form provider already owns a stable private key/revision. Neither variant is implemented or qualified yet.",
+                "A private snapshot alternative creates bounded durable per-review frozen table and context under a random opaque ID, expiring after15minutes; commits restore that exact table and require current identical app/actor/team/session plus per-row authority. It can meet the same requirements, but current CSV has no private review store, persisted table schema, host binding, atomic lookup, cleanup or distributed lifetime mechanism. Those are actual additional producer/consumer obligations, not forbidden solely because new. No indefinite in-memory singleton, per-user data disclosure, review-level batch atomicity, or extra global quota is assumed."
+              ]
+            },
+            "questions": {
+              "csv_review_integrity": {
+                "type": "choice",
+                "instructions": "Select the smallest complete DEL-C02 frozen CSV review integrity architecture from verified existing producers. Compare all alternatives against identical historical row/context/expiry binding, current per-row authority, failure/replay/partial outcomes, total source/host changes and finite qualification. Advice is not validation.",
+                "criteria": {
+                  "dedicated_existing_provider": "Extend the genuine existing host-key SourceFormBindings producer with a purpose-specific optional csvReview seal/verify sub-port. Domain-separated bounded HMAC claims authenticate full review/source digest and app/hashed-session/actor/team/revision/issued/exact15min expiry. Same stable trusted key configuration; no ref-profile abuse or generic signer. UI echoes opaque proof, CSV refuses absent provider, re-derives full table and rechecks current scope per invoked row; canonical State fence remains. Qualify actual mounted changed adapter/UI and release exact host consumer prerequisite.",
+                  "separate_signed_provider": "Implement a separate purpose-specific CsvReviewBindings factory and HttpDeps port with identical bounded signed claims, complete review digest, source/context/lifetime/per-row refusals and final State fence. Trusted host explicitly configures stable private key/revision and mounts producer. Keep current form API untouched; accept additional assembly/settings/missing-port work only if it makes ownership or completeness better.",
+                  "private_snapshot": "Use a bounded durable owning review snapshot store with random opaque IDs, exact frozen full rows/source/context/issued/15minexpiry and cleanup. Restore matching selected original rows, require current identical context and per-row admission, retain canonical State fence. Specify actual storage/transaction/host/cleanup producer before accepting; no volatile singleton or unsigned current recomputation as historical evidence.",
+                  "defer_exact": "Name a concrete missing semantic/producer fact that prevents this finite engineering decision. Do not treat later native/full-parent qualification as needed to select a defined integrity mechanism, weaken original authority/refusal outcomes, or invent a human gate."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "DEL-C02 finite frozen CSV review integrity",
+              "verified_facts": [
+                "DEL-C02 requires the existing mounted CSV review/commit to bind frozen source row index/status/input and app/user/team/session/issued-time/expiry, reject changed/expired/tampered/foreign context before effects, and retain source-row order, invalid/duplicate/unselected/partial/unknown outcomes. Existing source order, checked CRUD/plain scenario age-replay and signed recovery criteria are accepted; do not reopen them or infer full workflow acceptance. No release of activation/preparation/publication holds.",
+                "Current Interfaces handleCsvRequest resolves Identity/session before body await, requires CSRF, re-derives review from echoed CSV. Consent is unsigned public operation/principal/candidates_digest/count and deterministic rev-prefix. Its digest covers ONLY valid input list, omitting source indexes, invalid/duplicate table and all app/team/session/time/expiry. Public digest recomputation cannot prove historical review issuance/context. UI preserves all rows, echoes the five consent fields, and submits selected source index and caller replay key.",
+                "Identity resolveRequestIdentity/resolveIdentity provide current private session bearer, actor/team/credential binding and trusted admission time, reading expiry/revocation/user/membership. assertCredentialLive and assertAuthorityLive reread current facts. Separate Identity reads are not a coherent multi-member State mutation fence. CSV currently rereads team once before all rows, passing one earlier identity. Fresh per-row admission can preserve frozen actor/team/session and return forbidden for the remaining row after a committed prefix; canonical invoker owns original permission and final State authority fence. A review integrity token is never a mutation grant.",
+                "Interfaces createSourceFormBindings is genuine stable 32-byte host-private HMAC SHA256 plus source revision producer, already assembled by Cloudflare host using CAN_FORM_BINDING_KEY and preview key. Current SourceFormBindings seal/restore ONLY normalized protected singular versioned refs and disjoint editable fields; do not fake these to seal CSV. Current claims already bind app/hashed session/actor/team/operation/schema/revision/nonce/issued/exact15-minute expiry, with canonical bounded base64url and verify-before-parse. Identity has hash/base64 helpers, no generic signing API.",
+                "A complete signed-review design can hash the entire immutable recomputed review table (all source indexes/statuses/inputs/duplicate pointers/errors/counts), checked operation/derived inputs/allowed shape, and reviewing principal. A small domain-separated token binds that digest, trusted app, hashed session bearer, actor/team, source revision, trusted issued time and exact15-minute expiry matching existing form lifetime. No full row data or bearer in token; UI carries one opaque token. Commit recomputes the exact table under current checked source and compares authenticated digest before any row invocation. Expired reviews need renewed review while caller operation IDs remain unchanged for canonical receipt replay; do not restore an expired review as authority.",
+                "Two signed variants have equal claims, denial, row-digest, key ownership, bounded token and per-row admission semantics: a separate CSV binding factory/HttpDeps port configured by host, or a dedicated csvReview sub-port returned by the existing host-key SourceFormBindings provider. The sub-port adds only purpose-specific CSV seal/verify and preserves specialized form seal/restore unchanged; absent sub-port refuses CSV rather than unsigned fallback. It needs no new host setting because current verified source-form provider already owns a stable private key/revision. Neither variant is implemented or qualified yet.",
+                "A private snapshot alternative creates bounded durable per-review frozen table and context under a random opaque ID, expiring after15minutes; commits restore that exact table and require current identical app/actor/team/session plus per-row authority. It can meet the same requirements, but current CSV has no private review store, persisted table schema, host binding, atomic lookup, cleanup or distributed lifetime mechanism. Those are actual additional producer/consumer obligations, not forbidden solely because new. No indefinite in-memory singleton, per-user data disclosure, review-level batch atomicity, or extra global quota is assumed."
+              ]
+            },
+            "questions": {
+              "csv_review_integrity": {
+                "type": "choice",
+                "instructions": "Which finite mechanism should authenticate the original CSV review table and app/session/team lifetime while preserving current canonical permissions and row-by-row partial failure? Evaluate existing-provider signed sub-port, separately assembled signed provider and private durable snapshot fairly for the same outcomes and actual producer availability; defer only for a concrete missing decision.",
+                "criteria": {
+                  "dedicated_existing_provider": "Extend the genuine existing host-key SourceFormBindings producer with a purpose-specific optional csvReview seal/verify sub-port. Domain-separated bounded HMAC claims authenticate full review/source digest and app/hashed-session/actor/team/revision/issued/exact15min expiry. Same stable trusted key configuration; no ref-profile abuse or generic signer. UI echoes opaque proof, CSV refuses absent provider, re-derives full table and rechecks current scope per invoked row; canonical State fence remains. Qualify actual mounted changed adapter/UI and release exact host consumer prerequisite.",
+                  "separate_signed_provider": "Implement a separate purpose-specific CsvReviewBindings factory and HttpDeps port with identical bounded signed claims, complete review digest, source/context/lifetime/per-row refusals and final State fence. Trusted host explicitly configures stable private key/revision and mounts producer. Keep current form API untouched; accept additional assembly/settings/missing-port work only if it makes ownership or completeness better.",
+                  "private_snapshot": "Use a bounded durable owning review snapshot store with random opaque IDs, exact frozen full rows/source/context/issued/15minexpiry and cleanup. Restore matching selected original rows, require current identical context and per-row admission, retain canonical State fence. Specify actual storage/transaction/host/cleanup producer before accepting; no volatile singleton or unsigned current recomputation as historical evidence.",
+                  "defer_exact": "Name a concrete missing semantic/producer fact that prevents this finite engineering decision. Do not treat later native/full-parent qualification as needed to select a defined integrity mechanism, weaken original authority/refusal outcomes, or invent a human gate."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "DEL-C02 finite frozen CSV review integrity",
+              "verified_facts": [
+                "DEL-C02 requires the existing mounted CSV review/commit to bind frozen source row index/status/input and app/user/team/session/issued-time/expiry, reject changed/expired/tampered/foreign context before effects, and retain source-row order, invalid/duplicate/unselected/partial/unknown outcomes. Existing source order, checked CRUD/plain scenario age-replay and signed recovery criteria are accepted; do not reopen them or infer full workflow acceptance. No release of activation/preparation/publication holds.",
+                "Current Interfaces handleCsvRequest resolves Identity/session before body await, requires CSRF, re-derives review from echoed CSV. Consent is unsigned public operation/principal/candidates_digest/count and deterministic rev-prefix. Its digest covers ONLY valid input list, omitting source indexes, invalid/duplicate table and all app/team/session/time/expiry. Public digest recomputation cannot prove historical review issuance/context. UI preserves all rows, echoes the five consent fields, and submits selected source index and caller replay key.",
+                "Identity resolveRequestIdentity/resolveIdentity provide current private session bearer, actor/team/credential binding and trusted admission time, reading expiry/revocation/user/membership. assertCredentialLive and assertAuthorityLive reread current facts. Separate Identity reads are not a coherent multi-member State mutation fence. CSV currently rereads team once before all rows, passing one earlier identity. Fresh per-row admission can preserve frozen actor/team/session and return forbidden for the remaining row after a committed prefix; canonical invoker owns original permission and final State authority fence. A review integrity token is never a mutation grant.",
+                "Interfaces createSourceFormBindings is genuine stable 32-byte host-private HMAC SHA256 plus source revision producer, already assembled by Cloudflare host using CAN_FORM_BINDING_KEY and preview key. Current SourceFormBindings seal/restore ONLY normalized protected singular versioned refs and disjoint editable fields; do not fake these to seal CSV. Current claims already bind app/hashed session/actor/team/operation/schema/revision/nonce/issued/exact15-minute expiry, with canonical bounded base64url and verify-before-parse. Identity has hash/base64 helpers, no generic signing API.",
+                "A complete signed-review design can hash the entire immutable recomputed review table (all source indexes/statuses/inputs/duplicate pointers/errors/counts), checked operation/derived inputs/allowed shape, and reviewing principal. A small domain-separated token binds that digest, trusted app, hashed session bearer, actor/team, source revision, trusted issued time and exact15-minute expiry matching existing form lifetime. No full row data or bearer in token; UI carries one opaque token. Commit recomputes the exact table under current checked source and compares authenticated digest before any row invocation. Expired reviews need renewed review while caller operation IDs remain unchanged for canonical receipt replay; do not restore an expired review as authority.",
+                "Two signed variants have equal claims, denial, row-digest, key ownership, bounded token and per-row admission semantics: a separate CSV binding factory/HttpDeps port configured by host, or a dedicated csvReview sub-port returned by the existing host-key SourceFormBindings provider. The sub-port adds only purpose-specific CSV seal/verify and preserves specialized form seal/restore unchanged; absent sub-port refuses CSV rather than unsigned fallback. It needs no new host setting because current verified source-form provider already owns a stable private key/revision. Neither variant is implemented or qualified yet.",
+                "A private snapshot alternative creates bounded durable per-review frozen table and context under a random opaque ID, expiring after15minutes; commits restore that exact table and require current identical app/actor/team/session plus per-row authority. It can meet the same requirements, but current CSV has no private review store, persisted table schema, host binding, atomic lookup, cleanup or distributed lifetime mechanism. Those are actual additional producer/consumer obligations, not forbidden solely because new. No indefinite in-memory singleton, per-user data disclosure, review-level batch atomicity, or extra global quota is assumed."
+              ]
+            },
+            "questions": {
+              "csv_review_integrity": {
+                "type": "choice",
+                "instructions": "Choose the defining engineering contract for the demonstrated unsigned review gap. Minimize total implementation and owner dependencies while requiring exact historical source-row selection/context, tamper and expiry refusal, live per-row checks and the original State final fence. Treat each proposal as unimplemented, with equal security/complete workflow obligations; no acceptance or hold release follows.",
+                "criteria": {
+                  "dedicated_existing_provider": "Extend the genuine existing host-key SourceFormBindings producer with a purpose-specific optional csvReview seal/verify sub-port. Domain-separated bounded HMAC claims authenticate full review/source digest and app/hashed-session/actor/team/revision/issued/exact15min expiry. Same stable trusted key configuration; no ref-profile abuse or generic signer. UI echoes opaque proof, CSV refuses absent provider, re-derives full table and rechecks current scope per invoked row; canonical State fence remains. Qualify actual mounted changed adapter/UI and release exact host consumer prerequisite.",
+                  "separate_signed_provider": "Implement a separate purpose-specific CsvReviewBindings factory and HttpDeps port with identical bounded signed claims, complete review digest, source/context/lifetime/per-row refusals and final State fence. Trusted host explicitly configures stable private key/revision and mounts producer. Keep current form API untouched; accept additional assembly/settings/missing-port work only if it makes ownership or completeness better.",
+                  "private_snapshot": "Use a bounded durable owning review snapshot store with random opaque IDs, exact frozen full rows/source/context/issued/15minexpiry and cleanup. Restore matching selected original rows, require current identical context and per-row admission, retain canonical State fence. Specify actual storage/transaction/host/cleanup producer before accepting; no volatile singleton or unsigned current recomputation as historical evidence.",
+                  "defer_exact": "Name a concrete missing semantic/producer fact that prevents this finite engineering decision. Do not treat later native/full-parent qualification as needed to select a defined integrity mechanism, weaken original authority/refusal outcomes, or invent a human gate."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "csv_review_integrity": {
+                "type": "choice",
+                "choice": "dedicated_existing_provider",
+                "confidence": 0.87,
+                "probabilities": {
+                  "dedicated_existing_provider": 0.9,
+                  "separate_signed_provider": 0.01,
+                  "private_snapshot": 0.01,
+                  "defer_exact": 0.08
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1633,
+              "output_tokens": 62
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "csv_review_integrity": {
+                "type": "choice",
+                "choice": "dedicated_existing_provider",
+                "confidence": 0.69,
+                "probabilities": {
+                  "dedicated_existing_provider": 0.77,
+                  "separate_signed_provider": 0.01,
+                  "private_snapshot": 0.01,
+                  "defer_exact": 0.21
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1635,
+              "output_tokens": 62
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "csv_review_integrity": {
+                "type": "choice",
+                "choice": "dedicated_existing_provider",
+                "confidence": 0.99,
+                "probabilities": {
+                  "dedicated_existing_provider": 0.99,
+                  "separate_signed_provider": 0.0,
+                  "private_snapshot": 0.0,
+                  "defer_exact": 0.01
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1643,
+              "output_tokens": 62
+            }
+          }
+        ],
+        "stage": "JEV3 advice selected dedicated_existing_provider with probabilities .90/.77/.99 and confidence .87/.69/.99; no rationale. Moderate second uncertainty investigated against actual Identity semantics: matching actor/team/session can retain membership:null, so explicit live membership check remains per row. Advice is not validation."
+      },
+      "review_integrity_binding": {
+        "choice": "Purpose-specific csvReview seal/verify sub-port of genuine createSourceFormBindings, using existing stable host-private 32-byte key/source revision; no new key setting or specialized reference-profile abuse. Private durable snapshot needs new actual storage/lifetime/cleanup producer; separate signer duplicates current assembly.",
+        "implementation": "Bounded canonical base64url domain-separated HMAC-SHA256 token binds checked operation/shape/derived plus complete rederived table of original row indexes/statuses/wire inputs/errors/duplicate pointers/counts, app, hashed private session, actor/team, source revision and issued/exclusive15min expiry. No bearer/full rows in proof. CsvCandidateReview remains unsealed; mounted CsvReview consent requires review_token. UI guards/escapes/preserves it through preview and submit.",
+        "admission": "After body acquisition reread genuine Identity. Before any invocation authenticate proof and matching table/context; missing producer/proof refuses, no unsigned fallback. Before each selected valid row re-resolve session/current selected scope, explicitly assert live team membership (same scope can have membership:null), pass fresh identity to original canonical invoker and check authenticated expiry. A revoked/expired suffix yields failed rows and preserves prior committed outcomes; no batch atomicity or review authority grant. Renewed review preserves original caller operation IDs for accepted canonical receipt replay; expired proof is not restored.",
+        "verification": "Node24 owning UI and Interfaces emissions PASS; genuine UI browser build PASS. All eight affected maintained source-form-binding/CSV HTTP/UI test files qualify: full row-reassociation with unchanged candidate digest, missing/forged/signature/source/key/app/session/team/time/domain refusals, exact expiry/renewal, real key reconstruction and token markup/submit join, mid-batch membership/session/expiry refusal with preserved prefix, existing order/invalid/duplicate/partial/replay/resource/own-key behavior. One new test expected422 although existing validation envelope is400; correct expectation only, repeat exactly failed case1/1 PASS122.29ms and reuse other results.",
+        "review": "Finite independent production closure review CLEAR; no final State fence/native/full parent acceptance follows.",
+        "consumer_handoff": "Dev actual installed/native CSV host must consume this exact source/UI proof contract, provide existing genuine configured createSourceFormBindings key/revision (csvReview returned automatically), preserve review_token through real form collection/commit and qualify affected context/tamper/expired/revoked-prefix controls. Capability/State remains final mutation permission/fence owner.",
+        "stage": "Implemented and component-tested; exact local unit released for coordinator manual review/integration. Parent remains unfinished; counts/holds unchanged.",
+        "coordinator_review": "Finite defining producer independently CLEAR and integrated LOCAL main after deadline. Reuse eight affected maintained binding/CSV/UI files and owning emissions/browser build; original installed/native/browser full-context/transport/current-row consumer remains Dev-owned unfinished. Precise holds/accepted components unchanged."
       }
     },
     "DEL-C02-order": {

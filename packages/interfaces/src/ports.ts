@@ -100,7 +100,25 @@ export interface SourceFormBindingProof {
   readonly draftIdentity: string;
 }
 
+/** Trusted review facts; the digest covers the checked source and full review. */
+export interface CsvReviewBindingContext {
+  readonly appId: string;
+  readonly sessionToken: string;
+  readonly identity: ResolvedIdentity;
+  readonly operation: string;
+  readonly reviewDigest: string;
+  readonly nowMs: number;
+}
+
+/** Review integrity only; current row admission still decides authority. */
+export interface CsvReviewBindings {
+  seal(context: CsvReviewBindingContext): Promise<string>;
+  /** Authenticated exclusive expiry, integrity-only; current authority remains separate. */
+  verify(context: CsvReviewBindingContext, token: string): Promise<number | null>;
+}
+
 export interface SourceFormBindings {
+  readonly csvReview?: CsvReviewBindings;
   seal(context: SourceFormBindingContext, bound: ClosedInputs, editable: readonly string[]): Promise<SourceFormBindingProof>;
   restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
   /** Expired checked mutation proof; recovered inputs require receipt-only invocation. */

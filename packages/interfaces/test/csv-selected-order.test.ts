@@ -5,6 +5,7 @@ import { ARTIFACT_VERSION } from '@canlang/contracts';
 import { catalogFromArtifactOperations } from '../src/http/operations.js';
 import { mintOperationId } from '../src/http/context.js';
 import { handleCsvRequest } from '../src/http/csv.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 import type { CsvCommitOutcome, CsvReview } from '../src/http/csv.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
@@ -24,7 +25,7 @@ const slice = {
 async function fixture(overrides: Parameters<typeof createTestDeps>[0] = {}) {
   const t = await createTestDeps(overrides);
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(slice) };
+  const deps = { ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1'), catalog: catalogFromArtifactOperations(slice) };
   const unused = async () => new Response('unexpected route', { status: 500 });
   const http = createHttpHandler(deps, {
     operations: unused, auth: unused, uploads: unused, ingress: unused, oauth: unused,

@@ -3520,10 +3520,10 @@
       },
       "current_execution": {
         "disposition": "open-selected-packet",
-        "next_work": "ready-owner-contract",
-        "owner": "Interfaces/UI/Identity review contract; Capability scenario and Dev workflow consumer",
-        "accepted_scope": "Partial: existing CRUD and bounded plain-scenario replay-age delegation implemented/tested; frozen review context/integrity/per-row authority and complete parent qualification remain blocked.",
-        "next_action": "Resolve frozen app/user/team/session/time/expiry and selected private/signed review integrity and per-row authority. Consume existing CRUD/plain-scenario replay and signed CRUD recovery; signed scenario restoration remains a distinct IP07 join.",
+        "next_work": "ready-original-installed-native-consumer",
+        "owner": "Dev actual installed/native/browser CSV host; Capability/State canonical mutation authority/fence",
+        "accepted_scope": "Retain accepted source order, checked CRUD/plain scenario replay and signed recovery. Defining full-table/app/session/team/source/issued15min review proof plus fresh per-row authority adapter/UI transport implemented/component-tested and finite independent source review CLEAR; independent coordinator source review and LOCAL main integration complete; original native workflow remains open.",
+        "next_action": "Consume genuine SourceFormBindings.csvReview returned by existing host-key factory and required consent.review_token through actual preview/form/commit; qualify original mounted context/tamper/expiry/revoked-prefix controls with canonical State final fence. No unsigned fallback or expired-proof authority restoration; unchanged checks and accepted components reused.",
         "done_when": "Actual mounted review commits exactly frozen selected inputs and context, rejects tamper/foreign/expired review before effects and preserves invalid/duplicate/unselected/partial/unknown outcomes and original row order.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02"
       }

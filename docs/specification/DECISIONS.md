@@ -9946,8 +9946,49 @@ row element without replacing the outer authorized stored-row scope.
 Thirteen distinct affected source/nominal checks and strict lint/format pass.
 The unchanged original Chat/Creative check clears its field-array diagnostic
 and retains only the separate nullable validation assignment. This supplies no
-current read authority or copied-list pagination implementation. The required
-three JEV pagination design requests are blocked by automatic approval review
-despite verified direct human open-source design preauthorization. Compiler has that exact authorization evidence for a justified retry; no transmission denial is bypassed and source/runtime refusal remains precise.
+current read authority or copied-list pagination implementation. The required three JEV pagination design requests initially hit automatic approval review. A justified retry using read-only verified original human authorization succeeded for all three. Advice preferred bounded presentation pages twice (.80/.94), retained refusal once (.71); uncertainty was investigated against the actual complete authorized snapshot requirement. Compiler owns the finite presentation producer in progress; no copied-list native/application acceptance or waived authority follows. Source/runtime refusal remains until that actual output.
 
 Coordinator independent finite nested typing source review CLEAR; integrated LOCAL main after deadline. Original nullable validation source correction and protected native copied-list pagination remain separately unfinished. Direct human design transmission authorization verified from local01a12824 turn01a12ac7; automatic review is respected, with a justified evidence-based retry owned by Compiler. Retained filetree coverage reconciled; complete checkpoint unchanged.
+
+## 2026-10-11 — Frozen CSV review integrity (implemented; original host qualification unfinished)
+
+DEL-C02 now authenticates the complete original row table and checked operation
+shape/derived inputs, including indexes, invalid/duplicate verdicts, wire inputs,
+errors and counts. The old candidate-only public digest could not prove row
+selection or historical context. The genuine existing source-form provider adds
+only a purpose-specific csvReview sub-port: domain-separated bounded HMAC binds
+the table/source digest, app, hashed session, actor/team, source revision and
+trusted issuance with an exclusive 15-minute review expiry. Existing specialized
+versioned-reference form methods and host-key configuration stay intact. The
+mounted consent requires review_token; UI parses, escapes and echoes that opaque
+proof. The pure candidate review remains explicitly unsealed. Missing producer
+or proof refuses; no unsigned fallback or expired-proof restoration.
+
+JEV3 favored this existing-provider design (.90/.77/.99, confidence
+.87/.69/.99); no rationale was returned. The moderate uncertainty was checked
+against actual authority APIs: fresh resolution may retain actor/team/session
+with membership:null. Keep explicit current membership validation before each
+valid row, refresh credentials after body acquisition and for each invocation,
+and pass that fresh identity to the canonical invoker. Check authenticated expiry
+before every row effect. Revocation or expiry between rows returns a refused
+suffix while preserving committed outcomes. This is no batch transaction or
+mutation grant; the original State permission/final fence remains authoritative.
+Renewed review preserves caller operation IDs for accepted canonical receipt
+replay. A private snapshot would require a new real store/lifetime/cleanup
+producer; a separate signer duplicates the existing trusted assembly.
+
+Owning UI/Interfaces emissions, UI browser build and eight affected maintained
+binding/CSV HTTP/UI files qualify this component. Controls include unchanged
+candidate digest with changed row association, forged/missing/foreign/expired
+proof, genuine key reconstruction, exact UI transport, renewal and mid-batch
+membership/session/expiry refusal. One test-only 422 expectation was corrected
+to the existing 400 validation mapping; repeat only that failed case, which
+passes, and reuse the rest. Finite independent source review is CLEAR.
+
+Dev owns original installed/native/browser host intake: use the existing genuine
+configured key/revision factory, preserve required review_token through actual
+form collection and qualify the affected canonical workflow. Capability/State
+owns the final mutation fence. These original consumer/parent gates remain open;
+accepted order/replay/recovery evidence, counts and precise holds remain unchanged.
+
+Coordinator finite defining source review CLEAR; signed review producer/UI transport and related checks integrated LOCAL main after deadline. Dev has exact released factory/token input for original installed/native/browser qualification; prior frozen prebuilt CSV result remains scoped to its captured producer. No unchanged reruns or parent completion; retained coverage reconciled, complete checkpoint unchanged.

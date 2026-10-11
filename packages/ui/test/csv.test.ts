@@ -56,12 +56,15 @@ function stubResponse(status: number, body: string): SubmitFetchResponse {
   };
 }
 
+const REVIEW_TOKEN = 'opaque.review-token:<"&> untouched';
+
 function reviewFixture(): CsvReviewModel {
   return {
     operation: "create-task",
     review_id: "rev-0123456789abcdef",
     consent: {
       review_id: "rev-0123456789abcdef",
+      review_token: REVIEW_TOKEN,
       operation: "create-task",
       principal: "user-1",
       candidates_digest: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -263,6 +266,7 @@ describe("csv review payload guard", () => {
   it("accepts the server review shape", () => {
     const model = parseReviewPayload(JSON.parse(JSON.stringify(reviewFixture())));
     assert.equal(model.review_id, "rev-0123456789abcdef");
+    assert.equal(model.consent.review_token, REVIEW_TOKEN);
     assert.equal(model.rows.length, 3);
     assert.deepEqual(model.counts, { total: 3, valid: 1, invalid: 1, duplicate: 1 });
   });
@@ -271,6 +275,10 @@ describe("csv review payload guard", () => {
     assert.throws(() => parseReviewPayload(null), /body/);
     assert.throws(() => parseReviewPayload({ ...reviewFixture(), operation: "" }), /operation/);
     assert.throws(() => parseReviewPayload({ ...reviewFixture(), consent: {} }), /consent/);
+    for (const review_token of [undefined, null, "", 123]) {
+      assert.throws(() => parseReviewPayload({ ...reviewFixture(),
+        consent: { ...reviewFixture().consent, review_token } }), /consent\.review_token/);
+    }
     assert.throws(() => parseReviewPayload({ ...reviewFixture(), rows: [{ index: 0 }] }), /status/);
     assert.throws(
       () => parseReviewPayload({ ...reviewFixture(), rows: [{ index: -1, status: "valid", inputs: {} }] }),
@@ -288,7 +296,7 @@ describe("csv preview section", () => {
   it("echoes counts, consent, and every preserved row", async () => {
     const html = await csvPreviewSection({
       context: makeContext(),
-      review: reviewFixture(),
+      review: parseReviewPayload(JSON.parse(JSON.stringify(reviewFixture()))),
       commitPath: "/api/csv/commit",
       csvText: "title\nwrite docs\n",
       regionId: "csv-preview",
@@ -315,6 +323,7 @@ describe("csv preview section", () => {
       const form = section?.querySelector('form[data-csv-commit-form="csv-preview"]');
       assert.equal(form?.getAttribute("action"), "/api/csv/commit");
       assert.equal(form?.querySelector('input[name="consent.candidate_count"]')?.getAttribute("value"), "1");
+      assert.equal(form?.querySelector('input[name="consent.review_token"]')?.getAttribute("value"), REVIEW_TOKEN);
       assert.equal(form?.querySelector('input[name="csv"]')?.getAttribute("value"), "title\nwrite docs\n");
     } finally {
       await page.close();
@@ -626,7 +635,7 @@ describe("csv confirm section", () => {
 describe("csv commit transport", () => {
   it("posts the commit envelope and guards the outcome", async () => {
     const seen: Array<{ url: string; init: { method: string; headers: Record<string, string>; body?: string | Uint8Array } }> = [];
-    const consent = reviewFixture().consent;
+    const consent = parseReviewPayload(JSON.parse(JSON.stringify(reviewFixture()))).consent;
     const result = await submitCsvCommit({
       fetchImpl: (async (url: string, init) => {
         seen.push({ url, init });
@@ -641,6 +650,7 @@ describe("csv commit transport", () => {
     });
     assert.equal(seen.length, 1);
     assert.equal(seen[0]?.init.headers["x-csrf-token"], "csrf-123");
+    assert.equal(JSON.parse(String(seen[0]?.init.body)).consent.review_token, REVIEW_TOKEN);
     assert.deepEqual(JSON.parse(String(seen[0]?.init.body)), {
       operation: "create-task",
       csv: "title\nwrite docs\n",

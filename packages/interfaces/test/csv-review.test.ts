@@ -27,7 +27,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveCsrfToken, revokeSessionByToken } from '@canlang/identity';
+import { buildSessionCookie, clearTeamSelection, deriveCsrfToken, loginWithPassword, revokeSessionByToken, selectTeam } from '@canlang/identity';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
 import { mapCsvCells } from '@canlang/ui';
 import { parseCsvGrammar } from '@canlang/ui/csv/grammar';
@@ -35,6 +35,7 @@ import type { ArtifactOperation } from '@canlang/contracts';
 import { catalogFromArtifactOperations } from '../src/http/operations.js';
 import { mintOperationId } from '../src/http/context.js';
 import { handleCsvRequest } from '../src/http/csv.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 import type { CsvCommitOutcome, CsvConsent, CsvReview } from '../src/http/csv.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
 
@@ -58,7 +59,8 @@ const OPERATION = 'Billing.Invoice.issue';
 async function csvDeps(overrides: Parameters<typeof createTestDeps>[0] = {}) {
   const t = await createTestDeps(overrides);
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  return { ...t, deps: { ...t.deps, catalog: catalogFromArtifactOperations(SLICE) }, csrf };
+  return { ...t, deps: { ...t.deps, catalog: catalogFromArtifactOperations(SLICE),
+    formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1') }, csrf };
 }
 
 function postCsv(path: string, cookie: string, csrf: string, body: unknown): Request {
@@ -398,7 +400,8 @@ test('FP.CSV: checked date profiles refuse invalid cells while preserving raw co
     result: { status: 'committed', operation_id: envelope.operation_id },
   }) } });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog };
+  const deps = { ...t.deps, catalog,
+    formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1') };
   const post = (path: string, body: unknown) => handleCsvRequest(deps,
     postCsv(path, t.identity.cookie, csrf, body));
   const csv = [
@@ -437,4 +440,104 @@ test('FP.CSV: checked date profiles refuse invalid cells while preserving raw co
   assert.deepEqual(outcome.rows.map(row => row.status), ['committed', 'invalid', 'invalid', 'invalid', 'duplicate']);
   assert.equal(t.invoker.mutations.length, 1);
   assert.deepEqual(t.invoker.mutations[0]!.envelope.inputs, raw);
+});
+
+
+test('FP.CSV: signed review preserves the complete source row association, not only valid candidates', async () => {
+  const t = await csvDeps({ mutations: { [OPERATION]: envelope => ({ result: { status: 'committed', operation_id: envelope.operation_id } }) } });
+  const original = 'customer\nc-1\nc-2';
+  const altered = 'customer\nc-1\nc-1\nc-2';
+  const review = await reviewOk(t, original), changed = await reviewOk(t, altered);
+  assert.equal(changed.consent.candidates_digest, review.consent.candidates_digest);
+  const res = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf,
+    commitRows(review.consent, altered, [1])));
+  assert.equal(res.status, 409); assert.equal(t.invoker.mutations.length, 0);
+  const forged = { ...changed.consent, review_token: review.consent.review_token };
+  const forgery = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf,
+    commitRows(forged, altered, [2])));
+  assert.equal(forgery.status, 409); assert.equal(t.invoker.mutations.length, 0);
+  const actual = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf,
+    commitRows(changed.consent, altered, [2])));
+  assert.equal(actual.status, 200); assert.deepEqual(t.invoker.mutations[0]!.envelope.inputs, { customer: 'c-2' });
+});
+
+test('FP.CSV: missing signed producer or proof refuses without unsigned fallback', async () => {
+  const t = await csvDeps(); const csv = 'customer\nc-1'; const review = await reviewOk(t, csv);
+  const { formBindings: _unused, ...unprotected } = t.deps;
+  const unavailable = await handleCsvRequest(unprotected, postCsv('/api/csv/review', t.identity.cookie, t.csrf, { operation: OPERATION, csv }));
+  assert.equal(unavailable.status, 400);
+  const { review_token: _token, ...unsigned } = review.consent;
+  const res = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf,
+    { ...commitRows(review.consent, csv, [0]), consent: unsigned }));
+  assert.equal(res.status, 400); assert.equal(t.invoker.mutations.length, 0);
+  const tampered = { ...review.consent, review_token: review.consent.review_token.slice(0, -2) + 'xx' };
+  const refused = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf, commitRows(tampered, csv, [0])));
+  assert.equal(refused.status, 409); assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('FP.CSV: signed review cannot cross app, session, selected team or checked source', async () => {
+  const t = await csvDeps(); const csv = 'customer\nc-1';
+  await selectTeam(t.identity.store, { session_token: t.identity.sessionToken, team_id: t.identity.teamId });
+  const review = await reviewOk(t, csv);
+  const body = commitRows(review.consent, csv, [0]);
+  const app = await handleCsvRequest({ ...t.deps, app: { ...t.deps.app, appId: 'other-app' } }, postCsv('/api/csv/commit', t.identity.cookie, t.csrf, body));
+  assert.equal(app.status, 409);
+  const revision = await handleCsvRequest({ ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'replaced-source') }, postCsv('/api/csv/commit', t.identity.cookie, t.csrf, body));
+  assert.equal(revision.status, 409);
+  const other = await loginWithPassword(t.identity.store, { email: t.identity.email, password: 's3cure-password' });
+  await selectTeam(t.identity.store, { session_token: other.token, team_id: t.identity.teamId });
+  const session = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', buildSessionCookie(other.token, { maxAgeSeconds: 3600, secure: false }), await deriveCsrfToken(other.token), body));
+  assert.equal(session.status, 409);
+  await clearTeamSelection(t.identity.store, { session_token: t.identity.sessionToken });
+  const team = await handleCsvRequest(t.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf, body));
+  assert.equal(team.status, 409); assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('FP.CSV: review expiry requires renewal without changing the original replay key', async () => {
+  const t = await csvDeps({ mutations: { [OPERATION]: envelope => ({ result: { status: 'committed', operation_id: envelope.operation_id } }) } });
+  let now = Date.now(); const timed = { ...t, deps: { ...t.deps, clock: { nowMs: () => now } } };
+  const csv = 'customer\nc-1', review = await reviewOk(timed, csv), body = commitRows(review.consent, csv, [0]);
+  now += 15 * 60 * 1000;
+  const expired = await handleCsvRequest(timed.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf, body));
+  assert.equal(expired.status, 409); assert.equal(t.invoker.mutations.length, 0);
+  const fresh = await reviewOk(timed, csv);
+  const renewed = await handleCsvRequest(timed.deps, postCsv('/api/csv/commit', t.identity.cookie, t.csrf, { ...body, consent: fresh.consent }));
+  assert.equal(renewed.status, 200); assert.equal(t.invoker.mutations[0]!.envelope.operation_id, body.rows[0]!.operation_id);
+});
+
+test('FP.CSV: current membership is reread per row and a revoked suffix preserves its committed prefix', async () => {
+  let fixture: Awaited<ReturnType<typeof csvDeps>>;
+  fixture = await csvDeps({ mutations: { [OPERATION]: async envelope => {
+    if (envelope.inputs['customer'] === 'c-1') {
+      const member = await fixture.identity.store.findMembership(fixture.identity.teamId, fixture.identity.userId);
+      assert.ok(member); await fixture.identity.store.removeMembership(member.membership_id);
+    }
+    return { result: { status: 'committed', operation_id: envelope.operation_id } };
+  } } });
+  await selectTeam(fixture.identity.store, { session_token: fixture.identity.sessionToken, team_id: fixture.identity.teamId });
+  const csv = 'customer\nc-1\nc-2', review = await reviewOk(fixture, csv);
+  const res = await handleCsvRequest(fixture.deps, postCsv('/api/csv/commit', fixture.identity.cookie, fixture.csrf, commitRows(review.consent, csv, [0, 1])));
+  assert.equal(res.status, 200); const outcome = await res.json() as CsvCommitOutcome;
+  assert.deepEqual(outcome.rows.map(row => row.status), ['committed', 'failed']);
+  assert.equal(outcome.rows[1]!.error!.code, 'forbidden'); assert.equal(fixture.invoker.mutations.length, 1);
+});
+
+test('FP.CSV: session revocation or review expiry between rows never invokes the suffix', async () => {
+  for (const reason of ['session', 'expiry'] as const) {
+    let fixture: Awaited<ReturnType<typeof csvDeps>>, now = Date.now();
+    fixture = await csvDeps({ mutations: { [OPERATION]: async envelope => {
+      if (envelope.inputs['customer'] === 'c-1') {
+        if (reason === 'session') await revokeSessionByToken(fixture.identity.store, { token: fixture.identity.sessionToken });
+        else now += 15 * 60 * 1000;
+      }
+      return { result: { status: 'committed', operation_id: envelope.operation_id } };
+    } } });
+    const timed = { ...fixture, deps: { ...fixture.deps, clock: { nowMs: () => now } } };
+    const csv = 'customer\nc-1\nc-2', review = await reviewOk(timed, csv);
+    const res = await handleCsvRequest(timed.deps, postCsv('/api/csv/commit', fixture.identity.cookie, fixture.csrf, commitRows(review.consent, csv, [0, 1])));
+    assert.equal(res.status, 200); const outcome = await res.json() as CsvCommitOutcome;
+    assert.deepEqual(outcome.rows.map(row => row.status), ['committed', 'failed']);
+    assert.equal(outcome.rows[1]!.error!.code, reason === 'session' ? 'forbidden' : 'conflict');
+    assert.equal(fixture.invoker.mutations.length, 1);
+  }
 });
