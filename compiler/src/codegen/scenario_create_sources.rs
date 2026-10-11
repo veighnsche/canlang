@@ -924,7 +924,7 @@ impl SourceExpressions<'_> {
                 let IrExpr::Query(scan) = &domain.expr else {
                     return None;
                 };
-                self.expression(scan.where_pred.as_ref()?, query.predicate, depth + 1)?;
+                self.expression(scan.where_pred.as_ref()?, query.predicate?, depth + 1)?;
                 true
             }
             (

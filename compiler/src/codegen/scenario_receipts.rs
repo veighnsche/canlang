@@ -1196,6 +1196,15 @@ fn checked_native_first_query_plan<'a>(
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     let queries = facts.queries.as_deref().unwrap_or_default();
+    // Count and bare contained scans are source inventory only until their
+    // exact native query consumer is released. Existing projected/first scans
+    // retain their original explicit alias and predicate requirements.
+    if queries
+        .iter()
+        .any(|query| query.count.is_some() || query.alias.is_none() || query.predicate.is_none())
+    {
+        return None;
+    }
     if queries.iter().all(|query| query.first.is_none()) {
         return supplied.is_none().then_some(None);
     }
@@ -1460,6 +1469,8 @@ pub(super) fn checked_first_query_ir<'a>(
         return None;
     };
     let first = query.first.as_ref()?;
+    let source_alias = query.alias?;
+    let source_predicate = query.predicate?;
     let IrExpr::Call {
         target: IrCallTarget::Builtin { id, awaited: false },
         args,
@@ -1496,6 +1507,7 @@ pub(super) fn checked_first_query_ir<'a>(
         || actual.ty != ResolvedType::Nullable(Box::new(record))
         || domain.ty != array
         || query.source != original.source
+        || query.count.is_some()
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
         || query.limit.is_some()
@@ -1510,15 +1522,15 @@ pub(super) fn checked_first_query_ir<'a>(
         || collection.builtin != "first"
         || collection.overload != first.overload
         || collection.query != query.node
-        || collection.alias != query.alias
+        || collection.alias != source_alias
         || collection.model != query.model
         || collection.predicate.is_some()
-        || alias.node != query.alias
+        || alias.node != source_alias
         || !matches!(&alias.kind,
             crate::analysis::types::CheckedQueryClauseKind::As {name} if name == "row")
         || !alias.expressions.is_empty()
         || predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
-        || predicate.expressions.as_slice() != [query.predicate]
+        || predicate.expressions.as_slice() != [source_predicate]
         || order.kind != crate::analysis::types::CheckedQueryClauseKind::Order
         || order.expressions.as_slice() != [metadata_order.node]
         || metadata_order.field.is_some()
@@ -1536,7 +1548,7 @@ pub(super) fn checked_first_query_ir<'a>(
         || scan.order[0].field != "id"
         || scan.order[0].descending
         || scan.where_pred.as_ref().is_none_or(|predicate| {
-            predicate.span != node_span(query.predicate)
+            predicate.span != node_span(source_predicate)
                 || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
         })
     {

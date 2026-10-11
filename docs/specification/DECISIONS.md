@@ -11454,3 +11454,18 @@ Independent defining source/test review CLEAR for exact cce4469ba consumer of ac
 ## 2026-10-11 — Remaining Packages dispatch replaces stale umbrella dependencies
 
 Human-requested e3b6b816 replaces only the existing authoritative queue current execution view. Independent defining planning review CLEAR: all26 remaining canonical IDs exactly once, one independent local-ready minimum Node22 installed-engine criterion,23 exact-owner outputs, two precise held leaves. Existing22 accepted packets/22-of-48 accounting, original recipes/canonical scope and exact source/preparation/default/activation/publication holds unchanged. Node22 actual installed declarations/runtime consumers preserve the distinct Node24 filesystem-permission/security profile and meaningful producer/consumer/negative assertions. Exact finite owner outputs release affected consumers without waiting whole plans; accepted source components stay closed. No implementation, engine acceptance, product tests, scope expansion or whole-plan completion follows planning. Existing incremental coverage reconciled; complete checkpoint unchanged.
+
+2026-10-11 — original contained and ancestor count source inventory
+(implemented/tested source; native count join unfinished).
+Retain the three original count calls with selected slots, exact Int result,
+statement and checked model/parent declarations. Bare required parent.Child
+Members carry their real parent parameter, without fabricated query clauses.
+The original Run two-hop predicate remains an unscoped candidate scan; parent
+metadata is ownership correspondence, not a declared business field. Keep
+actual declared reference-array fields as supplied pure values. Reuse released
+State589 count binder and Contractsb553 optional parent ABI; these shapes grant
+no runtime authority.370 affected and strict0 pass. Native producer joins are
+ready; actual contained-domain/current-parent/recovery enforcement stays with
+Capability/Dev and original full applications remain unfinished.
+
+Coordinator independent defining source review CLEAR and finite original count inventory checkpoint in LOCAL main. Owning370/strict/fmt reused; actual changed main locked offline CLI build0. Seven defining Compiler paths only; already accepted Contracts b553/State589 excluded. Native COUNT lowering still refuses this unfinished profile; original contained domain/current-saved authority/execution and full applications remain unfinished. Complete checkpoint unchanged and exact holds preserved.
