@@ -1,12 +1,15 @@
 import { IdentityError } from '@canlang/identity';
 import { parseJsonBody } from '../http/limits.js';
 
-export async function parseObjectBody(request: Request): Promise<Record<string, unknown>> {
+export async function parseObjectBody(
+  request: Request,
+  limits?: { readonly maxDepth?: number },
+): Promise<Record<string, unknown>> {
   const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
   if (mediaType !== 'application/json') {
     throw new IdentityError('validation', 'Unsupported content type.');
   }
-  const body = await parseJsonBody(request);
+  const body = await parseJsonBody(request, undefined, limits?.maxDepth);
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new IdentityError('validation', 'Invalid request body.');
   }

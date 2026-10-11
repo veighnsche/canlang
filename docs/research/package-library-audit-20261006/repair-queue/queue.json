@@ -3379,10 +3379,10 @@
       },
       "current_execution": {
         "disposition": "partial-selected-packet",
-        "next_work": "ready-owner-contract",
-        "owner": "Interfaces CSV resource/current-context owner; Dev installed/browser/durable consumer",
-        "accepted_scope": "Partial: scalar mapping/decoded duplicates, checked date and genuine bounded-alias CSV admission implemented/tested; resource/installed/durable joins open",
-        "next_action": "Select the existing SR02 preallocation row/cell/raw-byte/depth profile and finish the original current-context consumer. Reuse scalar/date/bounded NAME-alias admission; no new equal-normalized witness is demonstrated for those aliases.",
+        "next_work": "ready-consumer-join",
+        "owner": "Dev original installed/generated browser/durable CSV consumer",
+        "accepted_scope": "Accepted scalar/date/alias reused; named source-derived CSV preallocation grammar/mounted receiver profile implemented, owning-tested and independently reviewed in LOCAL main. Original host max-work/peak-memory and full parent remain unfinished.",
+        "next_action": "Dev consumes the same checked source profile and qualifies original installed/browser/durable maximum work and peak-memory refusals. Advisory without checked metadata cannot certify this bound. No global quota or unchanged reruns.",
         "done_when": "Selected mounted/installed CSV caller retains existing blank/default/int64/duplicate semantics and refuses hostile headers/protected paths and resource excess before parser allocation under the released profile.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C01"
       }

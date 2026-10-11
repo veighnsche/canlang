@@ -65,3 +65,11 @@ that occurrence's token; its next link preserves team, filters, sibling cursors
 and selected rows. Duplicate/empty own selectors refuse, explicit authored
 `cursor` remains supported, and applying or clearing an own filter resets that
 cursor. UI transport grants no access and does not authenticate the token.
+
+CSV grammar preflights Unicode, quoting, records and cells without retaining
+records, then uses the existing parser to materialize accepted raw cells.
+Malformed syntax retains priority over the fixed 1,000-data-row ceiling.
+`parseCsvText(text, limits)` and the exported grammar accept optional trusted
+byte/cell ceilings; they introduce no default byte/cell quota. An explicit byte
+cap can stop before later content is examined. Advisory output grants no
+authority, and the server always applies its checked operation profile.
