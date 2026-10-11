@@ -665,7 +665,7 @@ fn checked_source_type(ty: &ResolvedType) -> bool {
             ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
                 pending.push((inner, depth + 1));
             }
-            ResolvedType::Object(fields) => {
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
                 if fields.len() > 4096 {
                     return false;
                 }

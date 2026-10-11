@@ -724,6 +724,7 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
         }
         ResolvedType::Operation(id) => name(*id),
         ResolvedType::Opaque(_) => "{opaque}".to_string(),
+        ResolvedType::StdNominal { name, .. } => (*name).to_string(),
     }
 }
 
