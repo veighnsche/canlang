@@ -5,6 +5,8 @@ import {
   type RankOccurrence,
 } from "../src/dev/jev-ranker.js";
 import type { ConstructHelpIndex } from "../src/dev/construct-help.js";
+import { createHash } from 'node:crypto';
+import { captureConstructEvidence, OFFICE_COLUMN_INTENT, validAuthorIntent } from '../src/dev/construct-evidence.js';
 
 const cards = [
   { id: "can.v1.then.metric", section: "Then", signature: "metric <name>", meaning: "Show a count", availability: "working" as const },
@@ -28,6 +30,120 @@ function answer(request: JevChoiceRequest, choice: string, probabilities: Record
 }
 
 describe("bounded construct ranking", () => {
+  it('joins only captured Office evidence and explicit column intent, retaining cache identity', async () => {
+    const source = 'app PrivateOffice\nGiven\n SecretSupply {name:text,quantity:int?,available:bool=true}\nThen\n page / title="private secret title"\n  stock_rows SecretSupply empty="private secret empty" ## private commentary\n   text row.name,row.quantity,row.available\n';
+    const hash = createHash('sha256').update(source).digest('hex');
+    const start = Buffer.byteLength(source.slice(0,source.indexOf('stock_rows')));
+    const span = {start,end:start+10};
+    const capture = (text=source,intent:string|undefined=OFFICE_COLUMN_INTENT) =>
+      captureConstructEvidence(text,hash,span,'stock_rows',intent)!;
+    const evidence = capture();
+    expect(evidence.sourceWindow.logicalLines).toBeLessThanOrEqual(5);
+    expect(evidence.sourceWindow.bytesBeforeRedaction).toBeLessThanOrEqual(1024);
+    for (const secret of ['PrivateOffice','SecretSupply','private secret','private commentary']) {
+      expect(JSON.stringify(evidence)).not.toContain(secret);
+    }
+    expect(captureConstructEvidence(`${source}edit`,hash,span,'stock_rows',OFFICE_COLUMN_INTENT)).toBeNull();
+    expect(captureConstructEvidence(source,hash,{start:start+1,end:start+11},'stock_rows')).toBeNull();
+    const officeCards = cards.map((card,index)=>({...card,id:index===0?'can.v1.ui.list':'can.v1.ui.table'}));
+    const office = {...occurrence,sourceHash:hash,span,messageKind:'unknown_collection_presentation',
+      slot:'then.collection-presentation',guess:'stock_rows',materialIntentChoice:true,evidenceSufficient:false,
+      cards:officeCards,evidence};
+    let calls = 0;
+    const requests:JevChoiceRequest[]=[];
+    const ranker = new ConstructRanker({choose:async request=>{
+      calls++;requests.push(request);
+      expect(request.state.author_intent).toEqual({label:'author_intent_data',text:OFFICE_COLUMN_INTENT});
+      return answer(request,officeCards[1]!.id,{[officeCards[0]!.id]:0.1,[officeCards[1]!.id]:0.8,none:0.05,unclear:0.05});
+    }},{allowExternal:()=>true,isCurrent:()=>true});
+    expect(await ranker.rank({...office,evidence:captureConstructEvidence(source,hash,span,'stock_rows')!})).toMatchObject({state:'intent_required'});
+    expect(await ranker.rank({...office,evidence:capture(source,'Show supplies.')})).toMatchObject({state:'intent_required'});
+    expect(await ranker.rank({...office,messageKind:'unsafe_when'})).toMatchObject({state:'intent_required'});
+    expect(await ranker.rank({...office,section:null})).toMatchObject({state:'structural'});
+    expect(await ranker.rank({...office,candidateCoverage:'unknown'})).toMatchObject({state:'candidate_coverage_unknown'});
+    expect(await ranker.rank({...office,cards:officeCards.map(card=>({...card,availability:'unavailable' as const}))}))
+      .toMatchObject({state:'candidate_coverage_unknown'});
+    expect(await ranker.rank({...office,evidence:{...evidence,sourceSha256:'b'.repeat(64)}})).toMatchObject({state:'ineligible'});
+    expect(calls).toBe(0);
+    expect(await ranker.rank(office)).toMatchObject({state:'likely',card:officeCards[1]});
+    expect(requests[0]!.state.source_window).toEqual(evidence.sourceWindow);
+    expect(await ranker.rank(office)).toMatchObject({state:'likely'});
+    expect(calls).toBe(1);
+    expect(await ranker.rank({...office,evidence:{...evidence,sourceWindow:{...evidence.sourceWindow,truncated:true}}}))
+      .toMatchObject({state:'intent_required'});
+    // A changed bounded packet gets a different request/cache even within one revision.
+    expect(await ranker.rank({...office,evidence:{...evidence,sourceWindow:{...evidence.sourceWindow,text:`${evidence.sourceWindow.text} `}}}))
+      .toMatchObject({state:'likely'});
+    expect(calls).toBe(2);
+    expect(requests[1]!.state.source_window).not.toEqual(requests[0]!.state.source_window);
+    const disallowed = new ConstructRanker(undefined,{allowExternal:()=>false,isCurrent:()=>true});
+    expect(await disallowed.rank(office)).toMatchObject({state:'ranking_disallowed'});
+    const noProvider = new ConstructRanker(undefined,{allowExternal:()=>true,isCurrent:()=>true});
+    expect(await noProvider.rank(office)).toMatchObject({state:'ranking_unavailable',reason:'no_provider'});
+    const stale = new ConstructRanker(undefined,{allowExternal:()=>true,isCurrent:()=>false});
+    expect(await stale.rank(office)).toMatchObject({state:'stale'});
+  });
+
+  it('bounds pre-redaction bytes, source lines and optional author text', () => {
+    const source = `page / title="${'x'.repeat(1010)}"\n stock_rows Supply\n  text row.name,row.quantity,row.available\n`;
+    const hash = createHash('sha256').update(source).digest('hex'), start = source.indexOf('stock_rows');
+    expect(captureConstructEvidence(source,hash,{start,end:start+10},'stock_rows',OFFICE_COLUMN_INTENT)).toBeNull();
+    for(const text of ['',' ', 'x'.repeat(241), 'columns\nsecret', 'columns\u0000secret']) expect(validAuthorIntent(text)).toBe(false);
+    expect(validAuthorIntent('x'.repeat(240))).toBe(true);
+    const longSuite='page /\n stock_rows Supply\n  text row.name,row.quantity,row.available\n  text row.name\n  text row.quantity\n  text row.available\n';
+    const beginning=longSuite.indexOf('stock_rows');
+    const evidence=captureConstructEvidence(longSuite,createHash('sha256').update(longSuite).digest('hex'),
+      {start:beginning,end:beginning+10},'stock_rows',OFFICE_COLUMN_INTENT)!;
+    expect(evidence.sourceWindow.logicalLines).toBe(5);expect(evidence.sourceWindow.truncated).toBe(true);
+  });
+  it('withholds ranking when blank lines hide an omitted collection child', async () => {
+    const visible = 'page /\n stock_rows Supply\n  text row.name,row.quantity,row.available\n  text row.name\n  text row.quantity';
+    const source = `${visible}\n\n   \n  text "omitted private child"\n`;
+    const hash = createHash('sha256').update(source).digest('hex'), start = source.indexOf('stock_rows');
+    const evidence = captureConstructEvidence(source, hash, { start, end: start + 10 }, 'stock_rows', OFFICE_COLUMN_INTENT)!;
+    expect(evidence.sourceWindow.logicalLines).toBe(5);
+    expect(evidence.sourceWindow.truncated).toBe(true);
+    expect(evidence.sourceWindow.text).not.toContain('omitted');
+    expect(evidence.sourceWindow.bytesBeforeRedaction).toBe(Buffer.byteLength(visible));
+    let calls = 0;
+    const ranker = new ConstructRanker({ choose: async () => { calls++; throw new Error('incomplete statement reached provider'); } },
+      { allowExternal: () => true, isCurrent: () => true });
+    expect(await ranker.rank({ ...occurrence, sourceHash: hash, span: { start, end: start + 10 },
+      messageKind: 'unknown_collection_presentation', slot: 'then.collection-presentation', guess: 'stock_rows',
+      materialIntentChoice: true, evidenceSufficient: false, evidence,
+      cards: cards.map((card, index) => ({ ...card, id: index === 0 ? 'can.v1.ui.list' : 'can.v1.ui.table' })) }))
+      .toMatchObject({ state: 'intent_required' });
+    expect(calls).toBe(0);
+    const ended = `${visible}\n\n page /next\n`;
+    const complete = captureConstructEvidence(ended, createHash('sha256').update(ended).digest('hex'),
+      { start, end: start + 10 }, 'stock_rows', OFFICE_COLUMN_INTENT)!;
+    expect(complete.sourceWindow.truncated).toBe(false);
+  });
+
+  it('withholds ranking when comment-only lines hide an omitted collection child', async () => {
+    const visible = 'page /\n stock_rows Supply\n  text row.name,row.quantity,row.available\n  text row.name\n  text row.quantity';
+    const source = `${visible}\n ## omitted private comment\n\n  text "omitted private child"\n`;
+    const hash = createHash('sha256').update(source).digest('hex'), start = source.indexOf('stock_rows');
+    const evidence = captureConstructEvidence(source, hash, { start, end: start + 10 }, 'stock_rows', OFFICE_COLUMN_INTENT)!;
+    expect(evidence.sourceWindow.truncated).toBe(true);
+    expect(evidence.sourceWindow.text).not.toContain('omitted');
+    expect(evidence.sourceWindow.bytesBeforeRedaction).toBe(Buffer.byteLength(visible));
+    let calls = 0;
+    const ranker = new ConstructRanker({ choose: async () => { calls++; throw new Error('incomplete statement reached provider'); } },
+      { allowExternal: () => true, isCurrent: () => true });
+    expect(await ranker.rank({ ...occurrence, sourceHash: hash, span: { start, end: start + 10 },
+      messageKind: 'unknown_collection_presentation', slot: 'then.collection-presentation', guess: 'stock_rows',
+      materialIntentChoice: true, evidenceSufficient: false, evidence,
+      cards: cards.map((card, index) => ({ ...card, id: index === 0 ? 'can.v1.ui.list' : 'can.v1.ui.table' })) }))
+      .toMatchObject({ state: 'intent_required' });
+    expect(calls).toBe(0);
+    for (const next of [' page /next', ' text "## literal"', ' text row.name ## inline comment']) {
+      const ended = `${visible}\n ## private comment\n${next}\n`;
+      expect(captureConstructEvidence(ended, createHash('sha256').update(ended).digest('hex'),
+        { start, end: start + 10 }, 'stock_rows', OFFICE_COLUMN_INTENT)!.sourceWindow.truncated).toBe(false);
+    }
+  });
+
   it("takes candidate coverage and availability from the captured help index", async () => {
     let calls = 0;
     const index = {

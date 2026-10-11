@@ -14,6 +14,7 @@ import { loadInstalledExampleTestkit, runCompiledExamples, type CompiledExampleI
 import { ExampleRerunCoordinator, type ExampleRerunResult, type CompletedExampleRerunAttempt } from "./example-rerun.js";
 import { projectBusinessRefusal, projectCompilerFailure, projectExampleFailure, type FailureProjection } from "./failure-occurrence.js";
 import { ConstructRanker, type ConstructRankerOptions, type JevChoiceTransport, type RankResult } from "./jev-ranker.js";
+import { captureConstructEvidence, validAuthorIntent } from './construct-evidence.js';
 import { installedLocalPreviewInputInventory } from "./preview-inputs.js";
 import { DevRevisionConflictError, DevSessionCore, type DevCheck, type DevPreview } from "./session-core.js";
 import {
@@ -47,7 +48,7 @@ const COMMAND_HELP = [
   { name: "diagnostics", required: [{ name: "revision", type: "revision" }], optional: [{ name: "after", type: "integer>=-1" }, { name: "limit", type: "integer:1..25" }], output: "can.dev.diagnostics.v1", availability: "captured_revision" },
   { name: "diagnostic.detail", required: [{ name: "revision", type: "revision" }, { name: "index", type: "integer>=0" }], optional: [], output: "can.dev.diagnostic.v1", availability: "captured_revision" },
   { name: "construct.help", required: [{ name: "revision", type: "revision" }, { name: "id", type: "construct_id" }], optional: [], output: "can.dev.construct-help.v1", availability: "captured_revision" },
-  { name: "construct.rank", required: [{ name: "revision", type: "revision" }, { name: "index", type: "integer>=0" }], optional: [], output: "can.dev.construct-rank.v1", availability: "current_captured_diagnostic" },
+  { name: "construct.rank", required: [{ name: "revision", type: "revision" }, { name: "index", type: "integer>=0" }], optional: [{ name: "authorIntent", type: "sentence:1..240" }], output: "can.dev.construct-rank.v1", availability: "current_captured_diagnostic" },
   { name: "rank.lookup", required: [{ name: "revision", type: "revision" }, { name: "ref", type: "rank_ref" }], optional: [], output: "can.dev.construct-rank.v1", availability: "current_pending_rank" },
   { name: "failure.lookup", required: [{ name: "ref", type: "failure_ref" }], optional: [], output: "can.dev.failure.v1", availability: "captured_revision" },
   { name: "failure.detail", required: [{ name: "ref", type: "failure_ref" }], optional: [], output: "can.dev.failure-detail.v1", availability: "captured_revision" },
@@ -801,7 +802,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     return null;
   };
 
-  const rankDiagnostic = async (revision: string, diagnosticIndex: number, requestSignal: AbortSignal): Promise<RankResult> => {
+  const rankDiagnostic = async (revision: string, diagnosticIndex: number, requestSignal: AbortSignal, authorIntent?: string): Promise<RankResult> => {
     const found = detail(revision);
     const diagnostic = found.check.detail.diagnostics[diagnosticIndex];
     if (diagnostic === undefined) throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
@@ -842,6 +843,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       return { state: "candidate_coverage_unknown", reason: "host profile or diagnostic branch qualification is unavailable" };
     }
     const selected = joinCompilerConstructCandidates(index, routing, FIRST_PROFILE, bundle.proofs);
+    const evidence = context.messageKind === 'unknown_collection_presentation'
+      ? captureConstructEvidence(capture.sourceText,capture.sourceSha256,span,context.guess,authorIntent) : null;
     return ranker.rank({ ref: diagnosticRef(socket!.identity.sessionId, revision, diagnosticIndex),
       revision, helpRevision: index.revision, diagnosticCode: diagnostic.code, sourceHash: capture.sourceSha256,
       span: { start: span.start, end: span.end }, messageKind: context.messageKind, section: context.section,
@@ -849,6 +852,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       omitted: found.check.detail.compilerOmitted + found.check.detail.serviceOmitted, exactSourceSpan,
       structuralRecovery: context.structuralRecovery, candidateCoverage: selected.candidateCoverage,
       unsupportedBehaviorProven: context.unsupportedBehaviorProven, materialIntentChoice: context.materialIntentChoice,
+      ...(evidence === null ? {} : {evidence}),
       evidenceSufficient: context.evidenceSufficient, cards: selected.cards.map(card => ({ id: card.id,
         section: card.section, signature: card.signature, meaning: card.meaning, availability: card.status })) });
   };
@@ -961,7 +965,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     }
     if (command.command === "construct.rank" || command.command === "rank.lookup") {
       const revision = payload?.revision;
-      const allowed = command.command === "construct.rank" ? ["revision", "index"] : ["revision", "ref"];
+      const allowed = command.command === "construct.rank" ? ["revision", "index", "authorIntent"] : ["revision", "ref"];
       if (typeof revision !== "string" || !/^r[1-9][0-9]*$/.test(revision) || payload === null ||
           Object.keys(payload).some(key => !allowed.includes(key))) {
         throw new SessionSocketError("INVALID_REQUEST", "ranking needs only a captured revision and diagnostic index or pending ref");
@@ -970,7 +974,10 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       let result: RankResult;
       if (command.command === "construct.rank") {
         if (!integer(payload.index)) throw new SessionSocketError("INVALID_REQUEST", "ranking needs a diagnostic index");
-        result = await rankDiagnostic(revision, payload.index, requestSignal);
+        if (payload.authorIntent !== undefined && !validAuthorIntent(payload.authorIntent)) {
+          throw new SessionSocketError('INVALID_REQUEST','author intent needs one sentence of at most 240 characters');
+        }
+        result = await rankDiagnostic(revision, payload.index, requestSignal, payload.authorIntent as string | undefined);
       } else {
         if (typeof payload.ref !== "string" || !/^[0-9a-f]{64}$/.test(payload.ref)) {
           throw new SessionSocketError("INVALID_REQUEST", "rank lookup needs a pending ref");

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { prepareLocalPreviewCapture } from "./preview-inputs.js";
 import { discoverDevDaemon, startDevDaemon, stopDevDaemon } from "./session-daemon.js";
 import type { SingleFileCaptureRequest } from "./source-capture.js";
+import { validAuthorIntent } from './construct-evidence.js';
 import {
   discoverSessionSocket,
   SessionSocketError,
@@ -19,10 +20,10 @@ const COMMANDS = [
 type Command = typeof COMMANDS[number];
 type Flag = "--root" | "--session" | "--app" | "--profile" | "--revision" |
   "--expected-revision" | "--index" | "--after" | "--limit" | "--ref" | "--capture" |
-  "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row";
+  "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row" | "--author-intent";
 const FLAGS: ReadonlySet<string> = new Set<Flag>([
   "--root", "--session", "--app", "--profile", "--revision", "--expected-revision",
-  "--index", "--after", "--limit", "--ref", "--capture", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row",
+  "--index", "--after", "--limit", "--ref", "--capture", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row", "--author-intent",
 ]);
 
 export type DevControlEnvelope =
@@ -63,7 +64,7 @@ function help(): DevControlEnvelope {
         diagnostics: ["--revision", "--after", "--limit"],
         "diagnostic.detail": ["--revision", "--index"],
         "construct.help": ["--revision", "--id"],
-        "construct.rank": ["--revision", "--index"], "rank.lookup": ["--revision", "--ref"],
+        "construct.rank": ["--revision", "--index", "--author-intent"], "rank.lookup": ["--revision", "--ref"],
         "failure.lookup": ["--ref"],
         "failure.detail": ["--ref"],
         failures: ["--revision", "--after", "--limit"],
@@ -149,6 +150,7 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
   if (selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") allowed.add("--revision");
   if (selected === "diagnostics" || selected === "failures") { allowed.add("--after"); allowed.add("--limit"); }
   if (selected === "diagnostic.detail" || selected === "construct.rank") allowed.add("--index");
+  if (selected === 'construct.rank') allowed.add('--author-intent');
   if (selected === "rank.lookup") allowed.add("--ref");
   if (selected === "construct.help") allowed.add("--id");
   if (selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") allowed.add("--ref");
@@ -156,6 +158,10 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     return fail(command, "INVALID_ARGUMENTS", "flag does not apply to this command");
   }
   const revision = values.get("--revision");
+  const authorIntent = values.get('--author-intent');
+  if (authorIntent !== undefined && !validAuthorIntent(authorIntent)) {
+    return fail(command,'INVALID_ARGUMENTS','author intent needs one sentence of at most 240 characters');
+  }
   const expectedRevision = values.get("--expected-revision");
   if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
     return fail(command, "REVISION_REQUIRED", "revisioned lookup needs --revision rN");
@@ -246,7 +252,8 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
       : selected === "check" && expectedRevision !== undefined
       ? { expectedRevision }
       : selected === "diagnostics" || selected === "failures" ? { revision, ...(after === null ? {} : { after }), ...(limit === null ? {} : { limit }) }
-      : selected === "diagnostic.detail" || selected === "construct.rank" ? { revision, index }
+      : selected === "construct.rank" ? { revision, index, ...(authorIntent === undefined ? {} : {authorIntent}) }
+      : selected === "diagnostic.detail" ? { revision, index }
       : selected === "rank.lookup" ? { revision, ref }
       : selected === "construct.help" ? { revision, id: constructId }
       : selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun" ? { ref }
