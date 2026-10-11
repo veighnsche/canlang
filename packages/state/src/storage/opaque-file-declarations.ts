@@ -3,7 +3,7 @@
 import type {
   ArtifactOperationInput, CanTypeId, CanonicalInputDef, CanonicalNominalLeaf, ModelName, WireValue,
   FrameworkFilePayloadOrigin, FrameworkOpaqueCallable, FrameworkOpaqueDeclaration,
-  FrameworkOpaqueDeclarationSet, FrameworkOpaqueDeliveryContext, FrameworkOpaqueEventDeclaration,
+  FrameworkOpaqueDeclarationSet, FrameworkOpaqueDeliveryContext, FrameworkOpaqueDeliveryProfile, FrameworkOpaqueEventDeclaration,
   FrameworkOpaqueEventInputOrigin, FrameworkOpaquePayloadOrigin, FrameworkOpaqueSourceRoute,
   FrameworkOpaqueSendGuardDeclaration,
   FrameworkOpaqueValueDefault, FrameworkOpaqueValueProjection, ScenarioReceiptSourceOrigin,
@@ -247,11 +247,11 @@ function nominalResult(values: FileReferenceProfileBound, canonical: unknown, ar
   same(result, saved);
   return bindDeclaredFileReferenceProfile(values, name);
 }
-function deliveryContext(bound: BoundOpaqueDeclarations, context: FrameworkOpaqueDeliveryContext): void {
+function deliveryContext(bound: BoundOpaqueDeclarations, context: FrameworkOpaqueDeliveryProfile, installed = false): void {
   const kind = context.kind;
   record(context, kind === 'generation' ? ['kind', 'canonical', 'artifact', 'request'] : kind === 'judgment' ?
     ['kind', 'canonical', 'artifact', 'specification', 'order', 'valueTypes'] : ['kind', 'canonical', 'artifact']);
-  if (!['capability', 'generation', 'judgment'].includes(kind)) return refuse('actual delivery context required.');
+  if (!['capability', 'generation', 'judgment', ...(installed ? ['generation-profile'] : [])].includes(kind)) return refuse('actual delivery context required.');
   same(context.canonical, context.artifact);
   const original = record(context.canonical, kind === 'judgment' ? ['kind', 'judgment', 'capability', 'operation', 'version', 'result'] :
     ['kind', 'capability', 'operation', 'version', 'result']);
@@ -283,6 +283,51 @@ function deliveryContext(bound: BoundOpaqueDeclarations, context: FrameworkOpaqu
       if (context.request.revision.startsWith('-')) return refuse('nonnegative generation request revision required.');
     }
   }
+}
+
+/** Internal correspondence only; authentic installed producer/origin and scope
+ * checks remain mandatory. Runtime origins never contain the static profile. */
+export function assertOpaqueDeliveryProfileMatch(profile: FrameworkOpaqueDeliveryProfile,
+  instance: FrameworkOpaqueDeliveryContext): void {
+  if (profile.kind === 'generation-profile') {
+    record(profile, ['kind', 'canonical', 'artifact']);
+    if (instance.kind !== 'generation') return refuse('static Generation profile requires its original runtime generation instance.');
+    record(instance, ['kind', 'canonical', 'artifact', 'request']);
+    record(instance.request, ['source', 'revision']);
+    string(instance.request.source); string(instance.request.revision);
+    const revision = decodeValue('int', instance.request.revision);
+    same(encodeValue('int', revision), instance.request.revision);
+    if (typeof revision !== 'bigint' || revision < 0n) return refuse('original nonnegative generation request revision required.');
+    same(profile.canonical, instance.canonical); same(profile.artifact, instance.artifact);
+  } else same(profile, instance);
+}
+
+/** Select from the complete original header, never from an extra request tuple.
+ * The same origin validator checks IDs, source, intent/association and event
+ * correlation before even a no-result projection can consume the profile. */
+function originalDeliveryInstance(bound: BoundOpaqueDeclarations, selected: FrameworkOpaqueDeclaration,
+  binding: FrameworkFilePayloadOrigin | undefined): FrameworkOpaqueDeliveryContext {
+  if (binding === undefined || selected.source.kind !== 'delivery') return refuse('original runtime origin required for static Generation projection.');
+  const captured = closedJSON(binding) as FrameworkFilePayloadOrigin;
+  validateOpaqueFileOrigin(bound, captured);
+  const original = captured.origin;
+  let context: FrameworkOpaqueDeliveryContext, source: ScenarioReceiptSourceOrigin, ids: readonly string[];
+  if (original.kind === 'delivery-result' || original.kind === 'delivery-skipped') {
+    context = original.declaration; source = original.caller.source; ids = [original.resultDeclarationId];
+  } else {
+    const event = original.kind === 'standard-completion' ? original.declaration
+      : original.kind === 'event-input' ? original.declaration
+      : original.kind === 'handler-result' ? original.event.declaration
+      : original.kind === 'source-routing' && original.recipe.kind !== 'committed-model'
+        ? original.recipe.event.declaration : undefined;
+    if (event?.kind !== 'standard-completion') return refuse('original delivery instance is absent from this payload origin.');
+    context = event.delivery; source = event.source;
+    ids = [event.resultDeclarationId, event.sourceInputsDeclarationId];
+  }
+  if (!ids.includes(selected.id)) return refuse('static Generation projection differs from its original declaration ID.');
+  same(selected.source.source, source);
+  assertOpaqueDeliveryProfileMatch(selected.source.context, context);
+  return context;
 }
 
 /** Root supplies complete model/artifact correspondence from its actual loader. */
@@ -334,10 +379,7 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
         if (from.callable.module !== from.source.module) return refuse('original source/callable module correspondence required.');
       } else if (from.kind === 'event') string(from.event);
       else if (from.kind === 'delivery') {
-        // Keep the shared ABI extension fail-closed until the owning original
-        // request/profile matcher is released. Never invent a static request.
-        if (from.context.kind === 'generation-profile') return refuse('original Generation profile matching is not configured.');
-        deliveryContext(bound, from.context);
+        deliveryContext(bound, from.context, true);
       }
       else if (from.kind === 'send-guard') sendGuard(set, from, true);
       else return refuse('checked source kind required.');
@@ -385,7 +427,7 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
 
 /** The value argument is the actual value selected at projection.path by root. */
 export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, projection: FrameworkOpaqueValueProjection,
-  value: unknown): readonly { readonly path: readonly (string | number)[]; readonly ref: string }[] {
+  value: unknown, binding?: FrameworkFilePayloadOrigin): readonly { readonly path: readonly (string | number)[]; readonly ref: string }[] {
   const picked = closedJSON(projection) as FrameworkOpaqueValueProjection;
   const wire = closedJSON(value);
   record(picked, picked.kind === 'default' ? ['path', 'kind', 'owner'] : picked.kind === 'result' ?
@@ -393,6 +435,9 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
   if (array(picked.path).some(part => typeof part === 'string' ? part === '' : typeof part !== 'number' || !Number.isSafeInteger(part) || part < 0)) return refuse('exact projection path required.');
   if (picked.kind === 'inputs') {
     const selected = declaration(bound, picked.declarationId, 'inputs');
+    if (selected.declaration.source.kind === 'delivery' && selected.declaration.source.context.kind === 'generation-profile') {
+      originalDeliveryInstance(bound, selected.declaration, binding);
+    }
     if (selected.declaration.source.kind === 'send-guard') same(picked.path, ['inputs']);
     const inputs = selected.inputs!;
     const data = record(wire, [], [...inputs.keys()]);
@@ -416,14 +461,15 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
   if (picked.kind === 'result') {
     const selected = declaration(bound, picked.declarationId);
     if (!['result', 'provider-result', 'void'].includes(selected.declaration.profile.kind)) return refuse('actual result declaration required.');
+    const from = selected.declaration.source;
+    const context = from.kind !== 'delivery' ? undefined : from.context.kind === 'generation-profile'
+      ? originalDeliveryInstance(bound, selected.declaration, binding) : from.context;
     if (picked.presence === 'no-result') {
       if (wire !== null) return refuse('no-result projection requires actual null.');
       return Object.freeze([]);
     }
     if (picked.presence !== 'value' || selected.result === undefined) return refuse('explicit void cannot contain a value.');
-    const found = fileReferenceOccurrences(selected.result, wire);
-    if (selected.declaration.source.kind === 'delivery') {
-      const context = selected.declaration.source.context;
+    if (context !== undefined) {
       if (context.kind === 'generation') {
         const result = record(wire, ['source', 'revision'], context.canonical.result.fields.map(field => field.name));
         same(result.source, context.request.source); same(result.revision, context.request.revision);
@@ -434,7 +480,7 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
         if (readJudgmentResult(wire, actual) === null) return refuse('result violates original Judgment specification.');
       }
     }
-    return found;
+    return fileReferenceOccurrences(selected.result, wire);
   }
   if (picked.kind !== 'default') return refuse('typed projection kind required.');
   const owning = picked.owner, values = owner(bound).values;
@@ -618,10 +664,15 @@ function eventDeclaration(bound: BoundOpaqueDeclarations, value: FrameworkOpaque
     const input = declaration(bound, value.inputsDeclarationId, 'inputs').declaration;
     same(input.source, { kind: 'event', source: value.source, event: value.event });
     const original = declaration(bound, value.sourceInputsDeclarationId, 'inputs').declaration;
-    if (original.source.kind === 'delivery') same(original.source.context, value.delivery);
+    if (original.source.kind === 'delivery') {
+      same(original.source.source, value.source);
+      assertOpaqueDeliveryProfileMatch(original.source.context, value.delivery);
+    }
     else if (original.source.kind !== 'callable' || original.source.callable.id !== value.providerSource) return refuse('actual original provider input declaration required.');
     const result = declaration(bound, value.resultDeclarationId, 'provider-result').declaration;
-    same(result.source, { kind: 'delivery', source: value.source, context: value.delivery });
+    if (result.source.kind !== 'delivery') return refuse('actual original provider result source required.');
+    same(result.source.source, value.source);
+    assertOpaqueDeliveryProfileMatch(result.source.context, value.delivery);
   } else return refuse('actual event declaration required.');
 }
 function eventOrigin(bound: BoundOpaqueDeclarations, value: FrameworkOpaqueEventInputOrigin): void {
@@ -720,7 +771,7 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
     same(field.delivery, value.declaration.canonical);
     const result = declaration(bound, value.resultDeclarationId).declaration;
     if (!['provider-result', 'void'].includes(result.profile.kind) || result.source.kind !== 'delivery') return refuse('original skipped provider result source required.');
-    same(result.source.context, value.declaration); same(result.source.source, value.caller.source);
+    assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
   } else if (value.kind === 'delivery-result') {
     record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
     callable(bound, value.caller); deliveryContext(bound, value.declaration);
@@ -736,7 +787,7 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
     same(field.delivery, value.declaration.canonical);
     const result = declaration(bound, value.resultDeclarationId, 'provider-result').declaration;
     if (result.source.kind !== 'delivery') return refuse('original delivery result source required.');
-    same(result.source.context, value.declaration); same(result.source.source, value.caller.source);
+    assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
   } else if (value.kind === 'event-input') eventOrigin(bound, value);
   else if (value.kind === 'handler-result') {
     record(value, ['kind', 'occurrenceId', 'operationId', 'handler', 'event']);

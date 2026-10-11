@@ -1,7 +1,7 @@
 /** Defining State/Work component fixture. No original-source/native acceptance claim. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { BoundCapabilityRequest, CanTypeId, DeliveryRef, FileReferenceInventory, FrameworkOpaqueDeliveryContext, FrameworkOpaquePayloadOrigin, FrameworkFilePayloadOrigin, Revision, StoredRow } from '@canlang/contracts';
+import type { BoundCapabilityRequest, CanTypeId, DeliveryRef, FileReferenceInventory, FrameworkOpaqueDeliveryContext, FrameworkOpaqueDeliveryProfile, FrameworkOpaquePayloadOrigin, FrameworkFilePayloadOrigin, Revision, StoredRow } from '@canlang/contracts';
 import { encodeValue, makeUserRef, makeDeliveryRef, SchemaError } from '@canlang/values';
 import { createFrozenClock, createMemoryIdentityStore as createOwningMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
@@ -16,7 +16,7 @@ import { beginScenarioReceiptMutation, bindScenarioReceiptFrameworkProducer, inv
   bindScenarioReceiptReferenceProducer,
   type AdmittedCall, type ExecutionEffects } from '@canlang/state/invocation';
 import { StateError } from '@canlang/state/errors';
-import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow } from '@canlang/state/receipt/tables';
+import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow, withAssociationRowData, withReceiptRowData } from '@canlang/state/receipt/tables';
 import { asId, asModel, FIXED_NOW, createMemoryIdentityStore, makeIdentity, makeEnvelope, seedMember, uuidv7, makeBatch, asOperation } from '@canlang/state/testing/invocation/fixtures';
 import { stageCanonicalSend, readCanonicalSendStaging } from '../src/kernel/dispatch-staging.js';
 import { WORK_DISPATCH_MODEL, readDispatchRow, readDispatchSourceGuard } from '../src/kernel/tables.js';
@@ -60,7 +60,7 @@ function artifact(modelSnapshot = false): ArtifactDescriptorSlice {
 function request(): BoundCapabilityRequest {
   return { binding: BINDING, from: FROM, arguments: { value: { source: 'run-request', revision: '7', prompt: 'Generate' } } };
 }
-async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict = true, initiallyActive = true, receiptMode: 'ordinary' | 'wrong-association' | 'advance-revision' = 'ordinary') {
+async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict = true, initiallyActive = true, receiptMode: 'ordinary' | 'wrong-association' | 'advance-revision' = 'ordinary', profileMode: 'exact' | 'generation-profile' = 'exact') {
   const { memberships, actor, subject, member } = await (async () => {
     if (mode === 'model') {
       const memberships = createOwningMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
@@ -94,10 +94,13 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
   const deliveryField = owningModel.fields.find(field => field.name === 'request')!;
   assert.equal(deliveryField.field.kind, 'delivery');
   if (deliveryField.field.kind !== 'delivery' || 'judgment' in deliveryField.field) throw new Error('Actual generation delivery declaration required.');
+  const originalDelivery = deliveryField.field;
   const canonicalDelivery = loaded.models.find(model => model.name === MODEL)!.fields.request!.delivery;
   assert.ok(canonicalDelivery && !('judgment' in canonicalDelivery));
   const declaration: FrameworkOpaqueDeliveryContext = { kind: 'generation', canonical: canonicalDelivery,
-    artifact: deliveryField.field, request: { source: 'run-request', revision: '7' } };
+    artifact: originalDelivery, request: { source: 'run-request', revision: '7' } };
+  const installedDelivery: FrameworkOpaqueDeliveryProfile = profileMode === 'exact' ? declaration :
+    { kind: 'generation-profile', canonical: canonicalDelivery, artifact: originalDelivery };
   assert.equal(def.descriptor.result?.type, 'void'); assert.equal(authored.result?.type, 'void');
   const callerResult = 'guarded/caller/void', providerResult = 'guarded/provider/result', guardInputs = 'guarded/send/inputs';
   const caller = { source, callable, canonical: def.descriptor, artifact: authored, resultDeclarationId: callerResult };
@@ -112,8 +115,8 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
           profile: { kind: 'inputs', canonical: def.descriptor.inputs, artifact: authored.inputs.fields } },
         { id: callerResult, source: callerSource,
           profile: { kind: 'void', canonical: { ...def.descriptor.result!, type: 'void' }, artifact: { ...authored.result!, type: 'void' } } },
-        { id: providerResult, source: { kind: 'delivery', source, context: declaration },
-          profile: { kind: 'provider-result', canonical: canonicalDelivery.result, artifact: deliveryField.field.result } },
+        { id: providerResult, source: { kind: 'delivery', source, context: installedDelivery },
+          profile: { kind: 'provider-result', canonical: canonicalDelivery.result, artifact: originalDelivery.result } },
         { id: guardInputs, source: { kind: 'send-guard', ...selectedGuard }, profile: { kind: 'inputs', canonical: [
           ...(mode === 'model' ? [{ name: 'run', kind: 'ref' as const, model: MODEL, versioned: true, required: true }] :
             [{ name: 'subject', kind: 'user' as const, valueType: 'user', required: true }]),
@@ -130,6 +133,8 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
   let receiptPreparations = 0;
   const externalSchedule = 'guarded/external-receipt-origin';
   const scope = { app: APP, owner: actor.team.team_id, ownerPackage: identity.owner };
+  let receiptOriginMutation: ((origin: FrameworkOpaquePayloadOrigin) => FrameworkOpaquePayloadOrigin) | undefined;
+  let receiptScope: typeof scope | undefined;
   const pairs = new WeakMap<AdmittedCall, { person: ReturnType<typeof makeUserRef>; team: NonNullable<AdmittedCall['context']['team']> }>();
   let handles: ReturnType<typeof bindScenarioReceiptSendMembershipProducer>, calls = 0, stages = 0, captures = 0;
   let duringGuard: (() => Promise<void>) | undefined;
@@ -167,7 +172,18 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
     prepareReceiptOrigin: async ({ call, row, record, field, value, revision, send }) => {
       receiptPreparations++;
       const association = { model: MODEL, recordId: receiptMode === 'wrong-association' ? asId('different-run') : record.id, field };
-      const common = { deliveryId: value.id, caller, association, declaration, resultDeclarationId: providerResult };
+      let runtimeDeclaration = declaration;
+      if (profileMode === 'generation-profile') {
+        const args = 'intentId' in send ? send.arguments.arguments : send.request?.arguments;
+        assert.ok(args && typeof args === 'object');
+        const value = (args as Record<string, unknown>).value;
+        assert.ok(value && typeof value === 'object');
+        const correlation = value as Record<string, unknown>;
+        assert.equal(typeof correlation.source, 'string'); assert.equal(typeof correlation.revision, 'string');
+        runtimeDeclaration = { kind: 'generation', canonical: canonicalDelivery, artifact: originalDelivery,
+          request: { source: correlation.source as string, revision: correlation.revision as string } };
+      }
+      const common = { deliveryId: value.id, caller, association, declaration: runtimeDeclaration, resultDeclarationId: providerResult };
       let origin: FrameworkOpaquePayloadOrigin;
       if ('intentId' in send) {
         assert.ok(typeof send.arguments.binding === 'string' && typeof send.arguments.from === 'string');
@@ -181,8 +197,9 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
           send: { operation: send.operation, operationId: call.context.operationId, target: send.target,
             occurrenceIndex: send.occurrenceIndex }, guard: send.guard };
       }
+      origin = receiptOriginMutation?.(origin) ?? origin;
       const header = await prepareFrameworkFilePayloadOrigin(store, { expectedRevision: revision as Revision, inventoryOwner: identity.owner,
-        declarationSetId: 'guarded/original', model: asModel(RECEIPT_MODEL), row, field: 'result', scope, origin, files: [] });
+        declarationSetId: 'guarded/original', model: asModel(RECEIPT_MODEL), row, field: 'result', scope: receiptScope ?? scope, origin, files: [] });
       preparedOrigins.push(header);
       if (receiptMode === 'advance-revision') {
         // This independent durable writer survives; the abandoned invocation has no effects.
@@ -214,6 +231,8 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
     } });
   return { store, probe, memberships, actor, subject, member, table, pairs, preparedOrigins, externalSchedule, modelAccess, guardSnapshots,
     get receiptPreparations() { return receiptPreparations; },
+    set receiptOriginMutation(value: ((origin: FrameworkOpaquePayloadOrigin) => FrameworkOpaquePayloadOrigin) | undefined) { receiptOriginMutation = value; },
+    set receiptScope(value: typeof scope | undefined) { receiptScope = value; },
     get calls() { return calls; }, get stages() { return stages; }, get captures() { return captures; },
     get handles() { return handles; }, set foreignSite(value: ReturnType<typeof bindScenarioReceiptSendMembershipProducer>[number]) { foreignSite = value; }, set duringGuard(value: (() => Promise<void>) | undefined) { duringGuard = value; },
     registry: loaded.registry, app: APP, source: 'guard component fixture', clock: { nowMs: () => FIXED_NOW },
@@ -252,9 +271,10 @@ test('guarded SEND refuses an owner stage advanced during its final revision awa
   assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
 });
 async function run(w: World, options: { enabled?: boolean; lateRequire?: boolean; reportRule?: string; carrier?: BoundCapabilityRequest;
-  lexical?: Record<string, unknown>; repeatDelivery?: boolean } = {}) {
+  lexical?: Record<string, unknown>; repeatDelivery?: boolean; recordId?: string; envelope?: ReturnType<typeof makeEnvelope> } = {}) {
   let delivery: DeliveryRef | undefined, active: AdmittedCall | undefined;
-  const outcome = await invoke({ ...w, execute: async call => {
+  const recordId = asId(options.recordId ?? ID);
+  const outcome = await invoke({ ...w, envelope: options.envelope ?? w.envelope, execute: async call => {
     active = call;
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
     delivery = await stageScenarioReceiptSend(call, w.store, { source: TARGET, request: options.carrier ?? request(),
@@ -262,9 +282,9 @@ async function run(w: World, options: { enabled?: boolean; lateRequire?: boolean
         subject: encodeValue('user', makeUserRef(w.subject.user_id)), enabled: options.enabled ?? true,
       } } });
     assert.ok(delivery);
-    await session.stage({ op: 'create', model: MODEL, id: ID, data: { title: 'Run',
+    await session.stage({ op: 'create', model: MODEL, id: recordId, data: { title: 'Run',
       request: encodeValue(`delivery(${TARGET})`, delivery) } }, { cause: 'scenario' });
-    const row = await session.views.final.get(MODEL, ID); assert.ok(row);
+    const row = await session.views.final.get(MODEL, recordId); assert.ok(row);
     await stageScenarioReceiptDelivery(call, w.store, { model: MODEL, row, field: 'request' });
     if (options.repeatDelivery) await stageScenarioReceiptDelivery(call, w.store, { model: MODEL, row, field: 'request' });
     if (options.lateRequire) throw new StateError('forbidden', 'Late authored requirement refused.');
@@ -502,4 +522,87 @@ test('later parent rejection rolls back model creation, frozen SEND snapshot and
     await assert.rejects(runModel(w, { updateAfter: true, lateRequire: true }), error => error instanceof StateError && error.code === 'forbidden');
     assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
   }
+});
+
+function correlatedRequest(source: string, revision: string): BoundCapabilityRequest {
+  return { ...request(), arguments: { value: { source, revision, prompt: 'Generate' } } };
+}
+
+test('one installed generation profile binds distinct actual request identities for pending/null and skipped receipts', async () => {
+  for (const verdict of [true, false]) {
+    const w = await world('plain', verdict, true, 'ordinary', 'generation-profile');
+    const pairs = [{ source: 'profile-first', revision: '11' }, { source: 'profile-second', revision: '29' }];
+    for (const [index, correlation] of pairs.entries()) {
+      const result = await run(w, { recordId: `profile-run-${index}`, carrier: correlatedRequest(correlation.source, correlation.revision),
+        envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), {}) });
+      assert.equal(result.outcome.status, 'committed'); assert.ok(result.delivery);
+      const row = await w.store.load(asModel(RECEIPT_MODEL), asId(result.delivery.id)); assert.ok(row);
+      const retained = readReceiptRow(row);
+      assert.equal(retained.receipt.status, verdict ? 'pending' : 'skipped'); assert.equal(retained.receipt.result, null);
+      const origin = retained.filePayloadOrigin?.origin; assert.ok(origin);
+      assert.equal(origin.kind, verdict ? 'delivery-result' : 'delivery-skipped');
+      if (origin.kind !== 'delivery-result' && origin.kind !== 'delivery-skipped') assert.fail('Genuine delivery origin required.');
+      assert.equal(origin.declaration.kind, 'generation');
+      if (origin.declaration.kind !== 'generation') assert.fail('Runtime exact generation context required.');
+      assert.deepEqual(origin.declaration.request, correlation); assert.deepEqual(origin.request, { binding: BINDING, from: FROM });
+      assert.equal(origin.resultDeclarationId, 'guarded/provider/result');
+      assert.deepEqual(origin.association, { model: MODEL, recordId: `profile-run-${index}`, field: 'request' });
+    }
+    const saved = await effects(w); assert.equal(saved.rows.length, 2); assert.equal(saved.receipts.length, 2);
+    assert.equal(saved.dispatch.length, verdict ? 2 : 0); assert.equal(saved.outbox.length, verdict ? 2 : 0);
+    if (!verdict) assert.equal(w.stages, 0);
+  }
+});
+
+test('static generation profile refuses mismatched runtime request, source, revision, ID, binding, from, scope and declaration before null acceptance', async () => {
+  for (const verdict of [true, false]) for (const mismatch of ['request', 'source', 'revision', 'id', 'binding', 'from', 'scope', 'declaration'] as const) {
+    const w = await world('plain', verdict, true, 'ordinary', 'generation-profile');
+    if (mismatch === 'scope') w.receiptScope = { app: APP, owner: 'foreign-team', ownerPackage: 'Guarded' };
+    else w.receiptOriginMutation = origin => {
+      assert.ok(origin.kind === 'delivery-result' || origin.kind === 'delivery-skipped');
+      if (origin.kind !== 'delivery-result' && origin.kind !== 'delivery-skipped') assert.fail('Actual delivery origin required.');
+      assert.equal(origin.declaration.kind, 'generation');
+      if (origin.declaration.kind !== 'generation') assert.fail('Actual generation context required.');
+      if (mismatch === 'id') return { ...origin, deliveryId: 'foreign-delivery' };
+      if (mismatch === 'binding') return { ...origin, request: { ...origin.request, binding: 'foreign-binding' } };
+      if (mismatch === 'from') return { ...origin, request: { ...origin.request, from: 'foreign-install' } };
+      if (mismatch === 'declaration') return { ...origin, resultDeclarationId: 'guarded/missing/result' };
+      return { ...origin, declaration: { ...origin.declaration, request: mismatch === 'request'
+        ? { source: '', revision: '' } : { source: mismatch === 'source' ? 'foreign-source' : origin.declaration.request.source,
+          revision: mismatch === 'revision' ? '99' : origin.declaration.request.revision } } };
+    };
+    await assert.rejects(run(w, { carrier: correlatedRequest('profile-real', '17') }));
+    assert.equal(w.receiptPreparations, 1, `${mismatch} must reach actual receipt origin preparation`);
+    assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
+  }
+});
+
+test('generation profile retained receipt progress preserves the original header and rich result request correspondence', async () => {
+  const w = await world('plain', true, true, 'ordinary', 'generation-profile');
+  const correlation = { source: 'profile-rich', revision: '41' };
+  const result = await run(w, { carrier: correlatedRequest(correlation.source, correlation.revision) }); assert.ok(result.delivery);
+  const saved = await effects(w), row = saved.receipts[0]!, association = saved.associations[0]!;
+  const retained = readReceiptRow(row), header = retained.filePayloadOrigin; assert.ok(header);
+  assert.equal(header.origin.kind, 'delivery-result');
+  if (header.origin.kind !== 'delivery-result' || header.origin.declaration.kind !== 'generation') assert.fail('Original generation result origin required.');
+  const context = { source: TARGET, declaredResult: header.origin.declaration.canonical.result, request: correlation };
+  const revision = await w.store.readRevision(), meta = { nowMs: FIXED_NOW, actor: w.actor.user.user_id };
+  const rich = { ...correlation, sequence: '1', state: 'succeeded', content: 'Generated', used_tokens: null, detail: null };
+  const data = { ...retained.receipt, revision: revision + 1, status: 'succeeded' as const,
+    result: rich, contentRef: null, resultExpiresAtMs: null };
+  for (const wrong of [{ ...rich, source: 'foreign-source' }, { ...rich, revision: '99' }]) {
+    assert.throws(() => withReceiptRowData(row, { ...data, result: wrong }, meta, context), /inconsistent/);
+  }
+  const next = withReceiptRowData(row, data, meta, context);
+  assert.deepEqual(readReceiptRow(next, context).filePayloadOrigin, header);
+  const link = readAssociationRow(association);
+  const nextAssociation = withAssociationRowData(association, { recordModel: MODEL, recordId: ID, field: 'request',
+    deliveryId: link.deliveryId!, source: link.source, revision: revision + 1 }, meta);
+  await w.store.commit(makeBatch(revision, { writes: [
+    { kind: 'update', model: asModel(RECEIPT_MODEL), id: row.id, expectedVersion: row.version, row: next },
+    { kind: 'update', model: asModel(RECEIPT_ASSOCIATION_MODEL), id: association.id, expectedVersion: association.version, row: nextAssociation },
+  ] }));
+  const current = await w.store.load(asModel(RECEIPT_MODEL), row.id); assert.ok(current);
+  assert.deepEqual(readReceiptRow(current, context).receipt.result, rich);
+  assert.deepEqual(readReceiptRow(current, context).filePayloadOrigin, header);
 });

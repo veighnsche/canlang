@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import type { FrameworkFilePayloadOrigin, FrameworkOpaqueCallable, FrameworkOpaqueDeclaration, FrameworkOpaqueDeclarationSet,
   FrameworkOpaqueEventInputOrigin, FrameworkOpaqueSourceRoute,
   InstalledFileReferenceInventory, ModelName, OperationId, OperationName, RecordId, RecordVersion, Revision, StoredRow } from '@canlang/contracts';
-import { createSystemRegistry, systemCommandStageRevision, type SystemCommandDef } from '@canlang/state';
-import { createMemoryStorage } from '@canlang/state/storage/memory';
-import { newReceiptRow, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
+import { createSystemRegistry, readSystemCommandRetainedOutbox, systemCommandStageRevision, type SystemCommandDef } from '@canlang/state';
+import { createMemoryStorage, createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { DELIVERY_RESULT_LEAVES, type CanTypeId, type FileReferenceInventory, type FrameworkOpaqueDeliveryContext, type FrameworkOpaqueDeliveryProfile } from '@canlang/contracts';
+import { STATE_FILE_REFERENCE_PRODUCER, prepareFrameworkFilePayloadOrigin } from '@canlang/state/storage';
+import { newReceiptRow, newAssociationRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { WORK_FILE_REFERENCE_PRODUCER as producer } from '../src/kernel/file-reference-inventory.js';
 import {
   WORK_DISPATCH_MODEL, WORK_OCCURRENCE_MODEL, WORK_SCHEDULE_MODEL, WORK_EVERY_SLOT_MODEL,
@@ -16,6 +18,8 @@ import {
 } from '../src/kernel/tables.js';
 import { WORK_HANDLER_OCCURRENCE_MODEL, stageHandlerOccurrence } from '../src/kernel/handler-occurrence.js';
 import { createStandardCompletionSourceCommand } from '../src/kernel/standard-completion-source.js';
+import { loadArtifactDescriptors, type ArtifactDescriptorSlice, type GeneratedOperationDef } from '@canlang/state/invocation/registry';
+import { encodeValue, makeDeliveryRef } from '@canlang/values';
 import { stageCanonicalSend } from '../src/kernel/dispatch-staging.js';
 
 const meta = { nowMs: 100, actor: 'owner-host' };
@@ -389,4 +393,174 @@ it('resolves the actual standard completion writer, including retained provider 
     get() { reads++; throw new Error('must not execute'); } });
   assert.throws(() => producer.resolveOpaqueField!(WORK_OCCURRENCE_MODEL, { ...candidate, data: { ...candidate.data, result: getter } }, 'result', context));
   assert.equal(reads, 0);
+});
+
+
+it('resolves genuine Generation standard completions against one installed static profile before rich and no-result traversal', async () => {
+  const provider = 'std.TextGenerationV1.cancel', completion = 'demo.Writer.cancel.completed';
+  const source = { path: 'demo.can', sha256: 'c'.repeat(64), module: 'demo' };
+  const scope = { app: 'app', owner: 'team', ownerPackage: 'demo' };
+  const request = { binding: 'demo.Writer', from: 'host.writer', arguments: { source: 'demo.job', revision: '7' } };
+  const correlation = { requestSource: request.arguments.source, requestRevision: request.arguments.revision,
+    requestBinding: request.binding, requestFrom: request.from, requestApp: scope.app, requestOwner: scope.owner };
+  const result = { name: 'TextRun', fields: [...DELIVERY_RESULT_LEAVES['TextRun']!] };
+  const errorType = { name: 'DeliveryError', fields: [{ name: 'code', type: 'text' as CanTypeId }, { name: 'message', type: 'text' as CanTypeId }] };
+  const descriptor = { kind: 'delivery' as const, capability: 'std.TextGenerationV1', operation: 'cancel', version: 1, result };
+  const originalArtifact: ArtifactDescriptorSlice = { artifact_version: 1, models: [{ name: 'demo.Run', deleteMode: 'archive',
+    fields: [{ name: 'request', field: descriptor, required: true, serverOnly: false }] }],
+    valueTypes: { contracts: [result, errorType] }, sources: [{ path: source.path, sha256: source.sha256 }],
+    modules: [{ path: source.module, js: 'export const canApp={request(){}};', map: {
+      version: 3, file: source.module, sources: [source.path], sourcesContent: [null], names: [], mappings: '' } }],
+    callables: [{ id: 'demo.request', kind: 'operation', module: source.module, export: 'canApp', member: ['request'] }],
+    operations: [{ name: 'demo.request', kind: 'scenario', description: '', inputs: { fields: [] }, result: { type: 'void' } }] };
+  const loaded = loadArtifactDescriptors(originalArtifact, { by: 'members' });
+  const operation = loaded.registry.get('demo.request')! as GeneratedOperationDef;
+  const caller = { source, callable: originalArtifact.callables![0]!, canonical: operation.descriptor,
+    artifact: originalArtifact.operations![0]!, resultDeclarationId: 'caller-result' };
+  const callerSource = { kind: 'callable' as const, source, callable: caller.callable };
+  const profile: FrameworkOpaqueDeliveryProfile = { kind: 'generation-profile', canonical: descriptor, artifact: descriptor };
+  const delivery: FrameworkOpaqueDeliveryContext = { kind: 'generation', canonical: descriptor, artifact: descriptor,
+    request: { source: correlation.requestSource, revision: correlation.requestRevision } };
+  const providerInputs = [{ name: 'source', field: { kind: 'string' }, valueType: 'text', required: true },
+    { name: 'revision', field: { kind: 'integer' }, valueType: 'int', required: true }];
+  const eventInputs = [{ name: 'delivery_id', field: { kind: 'string' }, valueType: 'text', required: true },
+    { name: 'status', field: { kind: 'enum', values: ['succeeded', 'failed', 'unknown', 'skipped'] }, valueType: 'enum(succeeded,failed,unknown,skipped)', required: true },
+    { name: 'result', field: { kind: 'nominal', name: 'TextRun' }, valueType: 'TextRun?', nullable: true, required: false },
+    { name: 'error', field: { kind: 'nominal', name: 'DeliveryError' }, valueType: 'DeliveryError?', nullable: true, required: false }];
+  const canonicalInputs = (fields: typeof eventInputs) => fields.map(({ field, ...rest }) => ({ ...rest, kind: field.kind,
+    ...(field.kind === 'enum' ? { enumValues: field.values } : {}) }));
+  const declarations = [
+    { id: 'caller-inputs', source: callerSource, profile: { kind: 'inputs', canonical: operation.descriptor.inputs, artifact: caller.artifact.inputs.fields } },
+    { id: 'caller-result', source: callerSource, profile: { kind: 'void', canonical: operation.descriptor.result, artifact: caller.artifact.result } },
+    { id: 'generation-inputs', source: { kind: 'delivery', source, context: profile },
+      profile: { kind: 'inputs', canonical: canonicalInputs(providerInputs), artifact: providerInputs } },
+    { id: 'completion-inputs', source: { kind: 'event', source, event: completion },
+      profile: { kind: 'inputs', canonical: canonicalInputs(eventInputs), artifact: eventInputs } },
+    { id: 'generation-result', source: { kind: 'delivery', source, context: profile },
+      profile: { kind: 'provider-result', canonical: result, artifact: result } },
+  ] as unknown as FrameworkOpaqueDeclaration[];
+  const schema = { contracts: {
+    TextRun: { fields: Object.fromEntries(result.fields.map(field => [field.name, { type: field.type }])) },
+    DeliveryError: { fields: { code: { type: 'text' }, message: { type: 'text' } } },
+  }, operations: {
+    [provider]: { inputs: { source: { type: 'text' }, revision: { type: 'int' } } },
+    [completion]: { inputs: { delivery_id: { type: 'text' }, status: { type: 'enum(succeeded,failed,unknown,skipped)' },
+      result: { type: 'TextRun?' }, error: { type: 'DeliveryError?' } } },
+  } };
+  const identity = { owner: 'demo', snapshotId: 'generation-original', digest: 'generation-digest' };
+  const snapshot = { ...identity, installedRevision: 1 as Revision, installedAt: 0 };
+  const producers = [STATE_FILE_REFERENCE_PRODUCER, producer];
+  const authority = { app: scope.app, stateOwner: identity.owner, stateStoreId: 'generation-state', fileStoreId: 'generation-files',
+    receiver: { app: scope.app, team: scope.owner, owner: scope.owner } };
+  const store = createTestMemoryStorage(authority, producers).store;
+  const inventory: FileReferenceInventory = { ...identity, canonicalModels: loaded.models, artifactModels: originalArtifact.models!,
+    valueTypes: loaded.valueTypes!, frameworkModels: producers.flatMap(item => item.models),
+    opaqueDeclarationSets: [{ id: 'generation/original', inventory: identity, snapshot, sources: [{ path: source.path, sha256: source.sha256 }],
+      canonicalModels: loaded.models, artifactModels: originalArtifact.models!, valueTypes: loaded.valueTypes!,
+      originalContracts: schema.contracts, valueDefaults: [], declarations }] };
+  await store.installFileReferenceInventory({ expectedRevision: await store.readRevision(), authority, snapshot, inventory });
+  const bounds = { maxSources: 1, maxHandlers: 1, maxMembers: 1, chunkSize: 1 };
+  const issuer = createStandardCompletionSourceCommand({ scope, schema, modelNames: loaded.models.map(model => model.name),
+    declarations: [{ source: provider, event: completion, binding: request.binding, from: request.from, resultType: 'TextRun', handlers: [] }], bounds });
+  const send: SystemCommandDef = { name: 'fixture.generation.send', stage: async (args, ctx) => {
+    const staged = await stageCanonicalSend({ operationId: String(args.operationId), source: provider, occurrenceIndex: 0,
+      request, correlation, originOccurrence: null }, ctx);
+    return { ...staged.effects, result: { deliveryId: staged.delivery.id } };
+  } };
+  const rich = { source: request.arguments.source, revision: request.arguments.revision, sequence: '2', state: 'cancelled',
+    content: '', used_tokens: null, detail: null };
+  const settle: SystemCommandDef = { name: 'fixture.generation.settle', stage: async (args, ctx) => {
+    const deliveryId = String(args.deliveryId), revision = systemCommandStageRevision(ctx);
+    const retained = await readSystemCommandRetainedOutbox(ctx, deliveryId); assert.ok(retained?.originalCommit);
+    const dispatch = await ctx.load(WORK_DISPATCH_MODEL, deliveryId as RecordId); assert.ok(dispatch);
+    for (const [field, value] of Object.entries(correlation)) assert.equal(dispatch.data[field], value);
+    assert.equal(retained.intent.arguments.binding, request.binding); assert.equal(retained.intent.arguments.from, request.from);
+    assert.deepEqual(retained.intent.arguments.arguments, request.arguments);
+    const association = { model: 'demo.Run' as ModelName, recordId: `run-${args.status}` as RecordId, field: 'request' };
+    const row = newReceiptRow({ deliveryId, revision, status: args.status === 'skipped' ? 'skipped' : 'succeeded',
+      result: args.status === 'skipped' ? null : rich, error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: ctx.now, actor: ctx.actor });
+    const origin: FrameworkFilePayloadOrigin['origin'] = { kind: 'delivery-result', deliveryId, caller, association, declaration: delivery,
+      resultDeclarationId: 'generation-result', request: { binding: retained.intent.arguments.binding as string, from: retained.intent.arguments.from as string },
+      intent: { intentId: retained.intent.intentId, operation: retained.intent.operation, operationId: retained.intent.operationId,
+        target: retained.intent.target, occurrenceIndex: retained.intent.occurrenceIndex } };
+    const prepared = await prepareFrameworkFilePayloadOrigin(store, { expectedRevision: revision, inventoryOwner: identity.owner,
+      declarationSetId: 'generation/original', model: RECEIPT_MODEL as ModelName, row, field: 'result', scope, origin, files: [] });
+    const modelRow: StoredRow = { id: association.recordId as RecordId, version: 1 as RecordVersion, created: ctx.now, updated: ctx.now,
+      createdBy: ctx.actor, updatedBy: ctx.actor, archivedAt: null, parent: null,
+      data: { request: encodeValue(`delivery(${provider})`, makeDeliveryRef(deliveryId, provider)) } };
+    return { writes: [{ kind: 'insert', model: RECEIPT_MODEL as ModelName, row: bound(row, prepared) },
+      { kind: 'insert', model: association.model as ModelName, row: modelRow },
+      { kind: 'insert', model: RECEIPT_ASSOCIATION_MODEL as ModelName, row: newAssociationRow({ recordModel: association.model,
+        recordId: association.recordId, field: association.field, deliveryId, source: provider, revision }, { nowMs: ctx.now, actor: ctx.actor }) }] };
+  } };
+  const sourceOrigin = (row: StoredRow): FrameworkFilePayloadOrigin['origin'] => {
+    const physical = row.data['result'] as Record<string, any>, original = physical.origin;
+    return { kind: 'standard-completion', occurrenceId: row.id,
+      declaration: { kind: 'standard-completion', source, event: completion, providerSource: provider,
+        binding: request.binding, from: request.from, sourceInputsDeclarationId: 'generation-inputs', inputsDeclarationId: 'completion-inputs',
+        resultDeclarationId: 'generation-result', delivery },
+      originalIntent: { intentId: original.intent.intentId, operation: original.intent.operation, operationId: original.intent.operationId,
+        target: original.intent.target, occurrenceIndex: original.intent.occurrenceIndex }, originalCommit: original.originalCommit,
+      dispatch: { kind: 'generation', ...original.dispatch }, terminal: { revision: physical.terminal.revision, status: physical.terminal.status, error: physical.terminal.error },
+      revision: physical.revision, bounds, routes: [] } as FrameworkFilePayloadOrigin['origin'];
+  };
+  // Component host joins the actual issuer's effects before its original fenced commit.
+  const installedIssuer: SystemCommandDef = { name: issuer.name, stage: async (args, ctx) => {
+    const staged = await issuer.stage(args, ctx), writes = [];
+    for (const write of staged.writes ?? []) {
+      assert.ok(write.kind === 'insert' && write.model === WORK_OCCURRENCE_MODEL);
+      const prepared = await prepareFrameworkFilePayloadOrigin(store, { expectedRevision: systemCommandStageRevision(ctx),
+        inventoryOwner: identity.owner, declarationSetId: 'generation/original', model: write.model, row: write.row,
+        field: 'result', scope, origin: sourceOrigin(write.row), files: [] });
+      writes.push({ ...write, row: bound(write.row, prepared) });
+    }
+    return { ...staged, writes };
+  } };
+  const registry = createSystemRegistry([send, settle, installedIssuer]);
+  const run = (name: string, args: Record<string, unknown>, operationId: string) => registry.run(name, args,
+    { actor: 'owner-host', now: Date.now(), operation: 'demo.request', operationId }, { store });
+  const installed = await store.readFileReferenceInventory(identity.owner); assert.ok(installed);
+  for (const status of ['succeeded', 'skipped'] as const) {
+    const sent = await run(send.name, { operationId: `generation-${status}` }, `generation-${status}`);
+    const deliveryId = (sent.result as { deliveryId: string }).deliveryId;
+    const retained = await store.outboxGet(deliveryId); assert.ok(retained?.originalCommit);
+    const dispatch = await store.load(WORK_DISPATCH_MODEL, deliveryId as RecordId); assert.ok(dispatch);
+    for (const [field, value] of Object.entries(correlation)) assert.equal(dispatch.data[field], value);
+    await run(settle.name, { deliveryId, status }, `settle-${status}`);
+    await run(issuer.name, { deliveryId }, `source-${status}`);
+    const row = await store.load(WORK_OCCURRENCE_MODEL, `standard-completion/v1/${encodeURIComponent(deliveryId)}` as RecordId); assert.ok(row);
+    const binding = row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin; assert.ok(binding);
+    const preparedRevision = await store.readRevision();
+    const prepare = (candidate: StoredRow, selected: FrameworkFilePayloadOrigin) => prepareFrameworkFilePayloadOrigin(store, {
+      expectedRevision: preparedRevision, inventoryOwner: identity.owner, declarationSetId: selected.declarationSetId,
+      model: WORK_OCCURRENCE_MODEL, row: candidate, field: 'result', scope: selected.scope, origin: selected.origin, files: [],
+    });
+    const prepared = await prepare(row, binding);
+    assert.deepEqual(prepared, binding);
+    const candidate = bound(row, prepared), context = { installed, binding: prepared };
+    const resolved = producer.resolveOpaqueField!(WORK_OCCURRENCE_MODEL, candidate, 'result', context);
+    assert.deepEqual(resolved.values.map(value => value.path), [['origin', 'intent', 'arguments', 'arguments'], ['terminal', 'result'], ['payload']]);
+    const terminalProjection = resolved.values.find(value => value.path[0] === 'terminal');
+    assert.ok(terminalProjection?.kind === 'result');
+    assert.equal(terminalProjection.presence, status === 'skipped' ? 'no-result' : 'value');
+    for (const mutate of [
+      (origin: Record<string, any>) => { origin.declaration.delivery.request.source = 'foreign-job'; },
+      (origin: Record<string, any>) => { origin.declaration.delivery.request.revision = '8'; },
+      (origin: Record<string, any>) => { origin.declaration.resultDeclarationId = 'generation-inputs'; },
+      (origin: Record<string, any>) => { origin.declaration.source.sha256 = 'foreign-source'; },
+      (origin: Record<string, any>) => { origin.declaration.delivery.canonical.operation = 'generate'; },
+      ...Object.keys(correlation).map(field => (origin: Record<string, any>) => { origin.dispatch.correlation[field] = 'foreign'; }),
+    ]) {
+      const changed = structuredClone(candidate), changedBinding = changed.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin;
+      mutate(changedBinding.origin);
+      await assert.rejects(() => prepare(changed, changedBinding));
+    }
+    if (status === 'succeeded') for (const field of ['source', 'revision']) {
+      const changed = structuredClone(candidate), value = changed.data['result'] as Record<string, any>;
+      value.terminal.result[field] = field === 'source' ? 'foreign-job' : '8';
+      value.payload.result[field] = value.terminal.result[field];
+      await assert.rejects(() => prepare(changed, prepared));
+    }
+  }
+  assert.deepEqual(await store.readFileReferenceInventory(identity.owner), installed);
 });

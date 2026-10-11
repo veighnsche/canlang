@@ -404,7 +404,7 @@ function opaqueOccurrences(state: FileGuardState, model: string, row: StoredRow,
         path.length <= prior.length && path.every((part, index) => part === prior[index]))) return refuse('duplicate or overlapping typed projections');
     paths.push(path);
     let references: readonly OpaqueOccurrence[];
-    try { references = resolveOpaqueFileProjection(historical, projection, projectionValue(row.data[field], path)); }
+    try { references = resolveOpaqueFileProjection(historical, projection, projectionValue(row.data[field], path), binding); }
     catch { return refuse('actual opaque value violates complete original declarations'); }
     for (const reference of references) found.push({ ref: reference.ref, path: [...path, ...checkedPath(reference.path)] });
   }
