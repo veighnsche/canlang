@@ -82,25 +82,29 @@ export function createOperationFormPreparer(
       ...(recordValues === undefined ? {} : { values }),
     });
     const generated = new Map(fields.map(field => [field.path, field]));
-    const authored = request.authoredFields;
+    const authored = request.authoredFields === undefined ? undefined : [...request.authoredFields];
     if (authored !== undefined && (new Set(authored).size !== authored.length || authored.some(name => !selectedNames.has(name)))) {
       throw new Error('Authored form controls must be unique selected writable inputs.');
     }
-    // Authored controls may omit the optional explicit-null checkbox: a blank
-    // optional scalar then submits omission. Other generated companions
-    // (version/currency/fold) are required to make their base control usable.
-    if (authored !== undefined && fields.some(field => !selectedNames.has(field.path) &&
+    // An authored scalar may omit its optional explicit-null checkbox.
+    // Other companions must accompany their base. Unplaced generated inputs
+    // retain their complete existing companion set in the automatic remainder.
+    const authoredNames = new Set(authored);
+    const authoredCompanion = (path: string) => authored?.some(name =>
+      path === `${name}__null` || path === `${name}__version` ||
+      path === `${name}__currency` || path === `${name}__fold`) === true;
+    if (fields.some(field => authoredCompanion(field.path) &&
         !writable.some(input => input.nullable === true && field.path === `${input.name}__null`))) {
       return unavailable("This form's field types are not supported yet.");
     }
-    const renderedNames = authored === undefined ? selectedNames : new Set(authored);
-    if (writable.some(input => selectedNames.has(input.name) && !renderedNames.has(input.name) && input.required && input.default === undefined)) {
-      return unavailable('Authored form omits a required control.');
-    }
+    const renderedNames = selectedNames;
     const idPrefix = request.occurrence === undefined ? `operation-form-${++occurrence}` :
       `operation-form-source-${Array.from(new TextEncoder().encode(request.occurrence), byte => byte.toString(16).padStart(2, '0')).join('')}`;
     const timeZone = context.team?.timezone ?? 'UTC';
-    const renderedFields = authored === undefined ? fields : authored.map(name => generated.get(name)!);
+    const renderedFields = authored === undefined ? fields : [
+      ...authored.map(name => generated.get(name)!),
+      ...fields.filter(field => !authoredNames.has(field.path) && !authoredCompanion(field.path)),
+    ];
     const prepared = {
       status: 'ready',
       derived,
@@ -108,6 +112,7 @@ export function createOperationFormPreparer(
         context, action: `${OPERATIONS_PREFIX}${encodeURIComponent(derived.operation)}`,
         operation: derived.operation, operationId: mintOperationId(clock.nowMs()), mode, derived,
         timeZone, fields: renderedFields, submit: request.submit ?? SUBMIT,
+        ...(authored === undefined ? {} : { authoredFields: authored }),
         display: request.display ?? 'drawer', idPrefix,
         ...(mode === 'update' ? { record: bound['record'] as MutationRef } : {}),
       },

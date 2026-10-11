@@ -386,10 +386,33 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   assert.throws(() => first.field('other'), /outside/);
   assert.throws(() => prepare({ operation: STORE_CREATE_OP.name, fields: ['title', 'title'] }), /unique/);
   assert.throws(() => prepare({ operation: STORE_CREATE_OP.name, authoredFields: ['title', 'title'] }), /unique/);
+  const remainder = await prepare({ operation: GADGET_CREATE_OP.name, authoredFields: ['code', 'title'] });
+  assert.equal(remainder.status, 'ready');
+  if (remainder.status !== 'ready') throw new Error('expected complete generated remainder');
+  assert.deepEqual(remainder.props.authoredFields, ['code', 'title']);
+  assert.deepEqual(remainder.props.fields.map(field => field.path),
+    ['code', 'title', 'stock', 'price', 'state', 'owner', 'owner__version', 'owner__null', 'tags', 'ids']);
+  const html = await form({ ...remainder.props,
+    children: () => [renderInput(remainder.field('code')), renderInput(remainder.field('title'))] });
+  const paths = remainder.props.fields.map(field => field.path);
+  let previous = -1;
+  for (const path of paths) {
+    const name = `name="inputs[${path}]"`;
+    assert.equal(html.split(name).length - 1, 1, `one complete control for ${path}`);
+    const position = html.indexOf(name); assert.ok(position > previous); previous = position;
+  }
+  assert.deepEqual(projectGeneratedInputs(remainder.derived, 'create', {
+    'inputs[title]': 'Ordered', 'inputs[code]': 'ABCD', 'inputs[price]': '2.5',
+    'inputs[stock]': '3', 'inputs[ids]': '["id1"]',
+  }, paths), { title: 'Ordered', code: 'ABCD', price: '2.5', stock: '3', ids: ['id1'] });
+  const allAutomatic = await prepare({ operation: STORE_CREATE_OP.name, authoredFields: [] });
+  assert.equal(allAutomatic.status, 'ready');
+  if (allAutomatic.status !== 'ready') throw new Error('expected unplaced required automatic control');
+  assert.deepEqual(allAutomatic.props.fields.map(field => field.path), ['title']);
+  assert.match(await form({ ...allAutomatic.props, children: [] }), /name="inputs\[title\]"/);
   for (const request of [
     { operation: STORE_CREATE_OP.name, arguments: { title: 'protected' } },
     { operation: STORE_UPDATE_OP.name },
-    { operation: STORE_CREATE_OP.name, authoredFields: [] },
     { operation: STORE_CREATE_OP.name, fields: [] },
     { operation: GADGET_CREATE_OP.name, authoredFields: ['title', 'stock', 'price', 'state', 'owner', 'tags', 'ids', 'code'] },
     { operation: 'Missing.create' },
@@ -579,6 +602,23 @@ test('native boolean presence distinguishes checked, unchecked and unrendered pr
   assert.equal(nullParams.get(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][note__null]'), 'true');
   assert.equal((await submit(nullParams)).status, 200);
   assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } }, 'unchecked nullable companion does not manufacture null');
+  const mixed = await context.prepareForm!({ operation, fields: ['enabled', 'note'], authoredFields: ['enabled'],
+    arguments: { record: { id: 'g1', version: 7n, enabled: false, note: 'Generated remainder' } } });
+  assert.equal(mixed.status, 'ready'); if (mixed.status !== 'ready') throw new Error('expected protected authored/remainder form');
+  assert.deepEqual(mixed.props.fields.map(field => field.path), ['enabled', 'note', 'note__null']);
+  const mixedHtml = await form({ ...mixed.props, children: () => [checkbox(mixed.field('enabled'))] });
+  assert.equal((mixedHtml.match(/name="inputs\[changes\]\[enabled\]"/g) ?? []).length, 1);
+  assert.ok(mixedHtml.indexOf('name="inputs[changes][note]"') > mixedHtml.indexOf('name="inputs[changes][enabled]"'));
+  assert.doesNotMatch(mixedHtml, /enabled__null/);
+  const mixedParams = successfulControls(mixedHtml);
+  const outsideRemainder = new URLSearchParams(mixedParams);
+  outsideRemainder.set('inputs[changes][unrendered]', 'true');
+  const beforeMixed = calls.length;
+  assert.equal((await submit(outsideRemainder)).status, 403);
+  assert.equal(calls.length, beforeMixed);
+  assert.equal((await submit(mixedParams)).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)),
+    { enabled: false, note: 'Generated remainder', record: { id: 'g1', version: '7' } });
 });
 
 test('native projection refusals retain valid text and ref drafts in rendered HTML', async () => {
