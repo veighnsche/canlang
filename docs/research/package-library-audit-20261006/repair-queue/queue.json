@@ -5469,14 +5469,14 @@
     {
       "family": "STATE / WORK",
       "kind": "resource-correctness",
-      "readiness": "finite-admission-implemented-tested-reviewed-awaiting-original-host-qualification",
+      "readiness": "selected-admission-implemented-tested-reviewed-original-host-qualified",
       "audit_finding_ids": [
         "SSW02",
         "SQ04"
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Selected defining caller profile and exact three-site source implemented, tested and reviewed at81274889. Dev actual original mounted/native host qualification remains; query/cohort policies and all precise holds are separate."
+        "Selected three-site admission implementation and critical source/security review complete at81274889/mainc41; original Dev public receiving host qualifierc9 passes1/1 in56.38s with unchanged source/census/authority/replay/rollback/cleanup. Separate query/cohort and precise holds remain."
       ],
       "intended_deleted_mechanisms": [],
       "expected_production_reduction": {
@@ -5583,7 +5583,7 @@
         "packages/state/src/ports/system.ts"
       ],
       "new_files_proposal_only": [],
-      "status": "implementing",
+      "status": "completed",
       "depends_on_packets": [],
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
@@ -5626,12 +5626,12 @@
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
       "current_execution": {
-        "disposition": "finite-shared-source-implemented-tested-reviewed-local-main-original-host-pending",
-        "next_work": "Dev actual original host consumer qualification; Packages continue independent ready packets.",
+        "disposition": "selected-packet-accepted-in-local-main",
+        "next_work": "Stop this satisfied selected admission packet; continue independent ready cohort/query and other packets at their own declared scopes.",
         "owner": "Packages exact pre-hash/preclone implementation; Capability defining contract; coordinator review/integration; Dev actual original host consumers",
-        "accepted_scope": "Exact State single-pass bounded raw hash and13 Work first-clone own-JSON boundaries implemented,35State/87Work affected cases tested and independently reviewed, including reviewed captured-index correction. Original host/native and parent acceptance remain unfinished.",
-        "next_action": "Consume this exact reviewed local main source for the changed original host consumer; reuse unchanged owning checks and source/security review. No query/cohort, whole-plan or held activation inference.",
-        "done_when": "Original bounded inputs preserve raw identity/evaluation/order/current authority and hostile inputs refuse at released boundaries; finite implementation/review complete, original host qualification remains.",
+        "accepted_scope": "Exact bounded State raw hash and13 Work first-clone own-JSON boundaries,35State/87Work direct controls and critical source/security review; genuine unchanged public Email/State/Work/Identity/two-owner D1 journey1/1 in56380.71ms,0fail/cancel/skip. Current authority, early/late effects/rollback, canonical hash/replay and cleanup retained. Canonical parent duties, query/cohort/direct-stage/metadata and holds are unchanged.",
+        "next_action": "Reuse accepted source/checks/host qualification; no unchanged rerun or intake-only consumer commit. Release only this exact accepted boundary output to its consumers.",
+        "done_when": "Satisfied: bounded valid input preserves identity/evaluation/order/authority; hostile inputs refuse before hash/first clone; direct, installed original host and critical security review complete at this selected scope.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-admission/finite_shared_implementation"
       },
       "owner_contract": {
@@ -8100,7 +8100,7 @@
     "source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state and #completion_snapshot, plus later accepted prerequisite notes already in this queue at the pinned base",
     "authorization": "Latest human go releases economical repair-queue implementation; preserves explicit native preparation HOLD and foreign compiler ownership.",
     "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
-    "accounting": "Existing reported snapshot is 20 finished selected packets, 15 partial, 12 open/blocked, 1 human-held = 48. It is separate from historical planning readiness and all 333 canonical identities; no new product acceptance counter or original parent closure.",
+    "accounting": "Existing current snapshot is21 finished selected packets,15 partial,11 open/blocked,1 human-held=48 after selected TECH-S04-admission host qualification. Separate from historical planning readiness,333 canonical identities and wider parent closure.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Make one finite existing requirement or observed failure concrete, emit its exact owner output and proportionate validation once, then hand it to the affected consumer. Reuse unchanged accepted checks; no proof trees, repeated queue scans or record-only intake cycles. No whole-plan completion barrier for a released component.",
     "dispatch": "ready-owner-contract and ready-consumer-join identify bounded next owner work, not evidence of a live lease or blanket Packages ownership. Packages current state demonstrates no additional independent ready source leaf beyond released cross-owner prerequisites. Preserve all human payload/security/native/publication holds.",
