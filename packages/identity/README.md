@@ -62,6 +62,15 @@ Key exports from `@canlang/identity` (via `src/index.ts`): `ports.ts`
 (`createMemoryIdentityStore`, `createTestMailOutbox`,
 `createFrozenClock`) and is never re-exported from the index.
 
+For cold removal recovery, use optional `store.readMemberRemovalOccurrence`
+with the original `team_id`, `member_user_id`, `removed_by`, `namespace` and
+`operationId`. It returns only the immutable saved outcome or `null` for absence,
+and refuses same-key argument skew. It performs no command retry, removal,
+cascade, event minting or current-authority admission, even after re-admission or
+remover revocation. D1 supports this read without transactional batch capability.
+Trusted source/ingress binding remains necessary. Use `removeMemberWithOccurrence`
+only for the separately authorized command and its existing exact retry semantics.
+
 ## Scripts
 
 From the repository root, after `bun install --frozen-lockfile`:

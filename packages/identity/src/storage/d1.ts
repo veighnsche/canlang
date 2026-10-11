@@ -453,14 +453,20 @@ export function createD1IdentityStore(
   const clock = opts.clock ?? systemClock;
   const random = opts.random ?? webRandom;
   const now = () => toInstant(clock.nowMs());
+  const readRemoval = (input: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) =>
+    db.prepare('SELECT namespace, operation_id, request_digest, event_id, team_id, membership_id, user_id, removed_by, occurred_at FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
+      .bind(input.namespace, input.operationId).first<RemovalRow>();
 
   return {
+    async readMemberRemovalOccurrence(raw) {
+      const { input, digest } = await captureRemoval(raw);
+      const prior = await readRemoval(input);
+      return prior === null ? null : removalEnvelope(prior, input, digest);
+    },
     ...(typeof db.batch !== 'function' ? {} : {
       async removeMemberWithOccurrence(raw: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) {
         const { input, digest } = await captureRemoval(raw);
-        const read = () => db.prepare('SELECT namespace, operation_id, request_digest, event_id, team_id, membership_id, user_id, removed_by, occurred_at FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
-          .bind(input.namespace, input.operationId).first<RemovalRow>();
-        const prior = await read();
+        const prior = await readRemoval(input);
         if (prior !== null) return removalEnvelope(prior, input, digest);
         const at = now(), eventId = random.randomUUID(), winner = random.randomUUID();
         const insert = db.prepare(`INSERT INTO identity_member_removals (event_id, namespace, operation_id, request_digest, team_id, membership_id, user_id, removed_by, occurred_at, winner_token)
@@ -483,7 +489,7 @@ export function createD1IdentityStore(
           db.prepare(`UPDATE identity_invitations SET revoked_at = ? WHERE team_id = ? AND email_lc = (SELECT email_lc FROM identity_users WHERE user_id = ?) AND accepted_at IS NULL AND revoked_at IS NULL AND ${eligible}`)
             .bind(at, input.team_id, input.member_user_id, ...key),
         ]);
-        const saved = await read();
+        const saved = await readRemoval(input);
         if (saved === null) throw new IdentityError('forbidden', 'Current owner and removable active membership are required.');
         return removalEnvelope(saved, input, digest);
       },

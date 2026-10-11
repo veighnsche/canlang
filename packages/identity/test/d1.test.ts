@@ -823,3 +823,110 @@ test('delayed losing removal batch preserves re-admitted resources and retained 
     assert.deepEqual(snapshot(), withoutAuthority, 'a saved outcome cannot authorize a fresh event or removal');
   } finally { second.close(); first.close(); rmSync(directory, { recursive: true, force: true }); }
 });
+
+test('cold removal occurrence lookup reopens original SQL facts without command authority or new effects', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'identity-removal-read-'));
+  const path = join(directory, 'identity.sqlite');
+  let db = new DatabaseSync(path);
+  try {
+    const d1 = wrapSqlite(db);
+    await ensureIdentitySchema(d1);
+    const store = createD1IdentityStore(d1, { clock: createFrozenClock(NOW) });
+    const { user: owner, team, membership: ownerMembership } = await setupUserTeam(store);
+    const subject = await store.createUser({ email: 'cold-subject@example.test', password_hash: 'opaque', email_verified: true });
+    const member = await store.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] });
+    const input = { team_id: team.team_id, member_user_id: subject.user_id, removed_by: owner.user_id,
+      namespace: 'app:Office', operationId: 'cold-original' };
+    const original = await store.removeMemberWithOccurrence!(input);
+    await store.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    const grant = await store.createMcpGrant({ user_id: subject.user_id, team_id: team.team_id,
+      client_id: 'client', token_sha256: 'cold-fresh-grant', expires_at: new Date(NOW + 100_000).toISOString() });
+    const invitation = await store.createInvitation({ team_id: team.team_id, email: subject.email,
+      grants_owner: false, grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 100_000).toISOString() });
+    await store.removeMembership(ownerMembership.membership_id);
+    db.close(); db = new DatabaseSync(path);
+    const reopened = wrapSqlite(db);
+    const selects: string[] = [];
+    let writes = 0, clocks = 0, randoms = 0;
+    const readonlyDb: IdentityD1Database = {
+      prepare(sql) {
+        selects.push(sql); assert.match(sql, /^SELECT\b/);
+        assert.match(sql, /FROM identity_member_removals WHERE namespace = \? AND operation_id = \?$/);
+        return { bind(...values) {
+          const bound = reopened.prepare(sql).bind(...values);
+          return { first: <T>() => bound.first<T>(), all: <T>() => bound.all<T>(),
+            async run() { writes++; throw new Error('read-only lookup attempted a write'); } };
+        } };
+      },
+      async exec() { writes++; throw new Error('read-only lookup attempted exec'); },
+      // Deliberately no batch: lookup cannot acquire the command implementation.
+    };
+    const reader = createD1IdentityStore(readonlyDb, {
+      clock: { nowMs() { clocks++; throw new Error('lookup read current time'); } },
+      random: { randomUUID() { randoms++; throw new Error('lookup minted an ID'); },
+        randomBytes() { randoms++; throw new Error('lookup requested random bytes'); } },
+    });
+    assert.equal(reader.removeMemberWithOccurrence, undefined);
+    assert.equal(typeof reader.readMemberRemovalOccurrence, 'function');
+    const snapshot = () => ['identity_member_removals', 'identity_memberships', 'identity_mcp_grants', 'identity_invitations']
+      .map(table => db.prepare(`SELECT * FROM ${table} ORDER BY 1`).all());
+    const before = snapshot();
+    const retained = await reader.readMemberRemovalOccurrence!(input);
+    assert.deepEqual(retained, original);
+    assert.notEqual(retained, original);
+    assert.ok(retained);
+    for (const fact of [retained, retained.membershipRemoval, retained.membershipRemoval.user, retained.removedBy]) {
+      assert.equal(Object.isFrozen(fact), true);
+    }
+    for (const changed of [{ ...input, namespace: 'app:Elsewhere' }, { ...input, operationId: 'absent' }]) {
+      assert.equal(await reader.readMemberRemovalOccurrence!(changed), null);
+    }
+    for (const changed of [{ ...input, member_user_id: owner.user_id }, { ...input, removed_by: subject.user_id },
+      { ...input, team_id: 'foreign-team' }]) {
+      await assert.rejects(reader.readMemberRemovalOccurrence!(changed),
+        (error: unknown) => error instanceof IdentityError && error.code === 'conflict');
+    }
+    assert.deepEqual(snapshot(), before);
+    assert.equal(selects.length, 6);
+    db.prepare('UPDATE identity_member_removals SET occurred_at = ? WHERE namespace = ? AND operation_id = ?')
+      .run('corrupt-time', input.namespace, input.operationId);
+    const corrupted = snapshot();
+    await assert.rejects(reader.readMemberRemovalOccurrence!(input), /Invalid stored membership removal occurrence/);
+    assert.deepEqual(snapshot(), corrupted);
+    db.prepare('DELETE FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
+      .run(input.namespace, input.operationId);
+    const absent = snapshot();
+    assert.equal(await reader.readMemberRemovalOccurrence!(input), null);
+    assert.deepEqual(snapshot(), absent, 'missing journal must not remove the readmitted member or recreate the event');
+    assert.equal(db.prepare('SELECT status FROM identity_memberships WHERE membership_id = ?').get(member.membership_id)!['status'], 'active');
+    assert.equal(db.prepare('SELECT revoked_at FROM identity_mcp_grants WHERE grant_id = ?').get(grant.grant_id)!['revoked_at'], null);
+    assert.equal(db.prepare('SELECT revoked_at FROM identity_invitations WHERE invitation_id = ?').get(invitation.invitation_id)!['revoked_at'], null);
+    assert.equal(selects.length, 8); assert.equal(writes, 0); assert.equal(clocks, 0); assert.equal(randoms, 0);
+  } finally { db.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('cold removal lookup rejects malformed own-data arguments before SQL or accessor evaluation', async () => {
+  const { db, d1 } = await setup();
+  let queries = 0, getters = 0;
+  try {
+    const reader = createD1IdentityStore({
+      prepare(sql) { queries++; return d1.prepare(sql); },
+      async exec() { throw new Error('lookup cannot execute SQL mutation'); },
+    });
+    const input = { team_id: 'team', member_user_id: 'subject', removed_by: 'owner', namespace: 'app:Office', operationId: 'absent' };
+    const accessors = (Object.keys(input) as Array<keyof typeof input>).map(name => {
+      const accessor = { ...input };
+      Object.defineProperty(accessor, name, { enumerable: true, get() { getters++; return input[name]; } });
+      return accessor;
+    });
+    const inherited = Object.assign(Object.create({ namespace: input.namespace }), input);
+    const hidden = { ...input };
+    Object.defineProperty(hidden, 'operationId', { enumerable: false, value: 'absent' });
+    for (const malformed of [null, {}, { ...input, namespace: '' }, { ...input, operationId: 1 },
+      { ...input, extra: true }, { ...input, [Symbol('extra')]: true }, ...accessors, inherited, hidden]) {
+      await assert.rejects(reader.readMemberRemovalOccurrence!(malformed as unknown as typeof input),
+        (error: unknown) => error instanceof IdentityError && error.code === 'validation');
+    }
+    assert.equal(queries, 0); assert.equal(getters, 0);
+  } finally { db.close(); }
+});

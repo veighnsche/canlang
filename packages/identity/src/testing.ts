@@ -67,6 +67,11 @@ export function createMemoryIdentityStore(opts?: {
   };
 
   return {
+    async readMemberRemovalOccurrence(raw) {
+      const { input, digest } = await captureRemoval(raw);
+      const prior = removals.get(JSON.stringify([input.namespace, input.operationId]));
+      return prior === undefined ? null : removalEnvelope(prior, input, digest);
+    },
     async removeMemberWithOccurrence(raw) {
       const { input, digest } = await captureRemoval(raw);
       const key = JSON.stringify([input.namespace, input.operationId]);
