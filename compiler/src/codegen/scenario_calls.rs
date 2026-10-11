@@ -5,7 +5,9 @@ use super::ir::{
 };
 use super::js::{JsMcpField, JsOperation, JsOperationField, JsOperationKind};
 use crate::analysis::resolve::SymbolId;
-use crate::analysis::scenario_disclosure::{DisclosureEffectKind, ScenarioDisclosure};
+use crate::analysis::scenario_disclosure::{
+    DependencyRole, DisclosureEffectKind, ScenarioDisclosure,
+};
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::{SyntaxKind, decode_json_string};
@@ -30,6 +32,12 @@ pub struct CallInput {
     pub source: Span,
     pub ty: ResolvedType,
 }
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaticScenarioCallFileInput {
+    pub name: String,
+    pub dependency_id: String,
+}
 #[derive(Debug, Clone)]
 pub struct StaticScenarioCall {
     pub id: String,
@@ -43,6 +51,8 @@ pub struct StaticScenarioCall {
     pub result: CallResultFact,
     pub binding: Option<String>,
     pub inputs: Vec<CallInput>,
+    /// Original stored File occurrences are supplied by this parent dependency.
+    pub file_inputs: Vec<StaticScenarioCallFileInput>,
 }
 
 /// Checked authored call/source correspondence, including reads, references,
@@ -449,6 +459,529 @@ fn source_scalar_literal(value: &TypedExpr, db: &SourceDb) -> bool {
         IrExpr::Bool(actual) => source == if *actual { "true" } else { "false" },
         _ => false,
     }
+}
+
+fn ordinary_file_array(ty: &ResolvedType) -> bool {
+    matches!(ty, ResolvedType::Array {element, ordered: true, nonempty: false}
+        if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
+}
+
+/// Rich inputs retain the original operand, including scalar siblings of a
+/// Ref/File slot. Span/type equality alone cannot seal a renamed member.
+fn checked_rich_call_operands(
+    ir: &IrProgram,
+    owner: &IrItem,
+    entries: &[(String, TypedExpr)],
+    at: Span,
+    db: &SourceDb,
+) -> Option<()> {
+    let source = checked_source(ir, owner, db)?;
+    let census = source.expression_types.as_deref()?;
+    let text = &db.get(source.node.file)?.text;
+    let (tree, diagnostics) = crate::syntax::parse_source(source.node.file, text);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut pending = vec![&tree];
+    let mut authored = None;
+    let mut steps = 0;
+    while let Some(node) = pending.pop() {
+        steps += 1;
+        if steps > 200000 {
+            return None;
+        }
+        if node.kind == SyntaxKind::Call && node.span == at && authored.replace(node).is_some() {
+            return None;
+        }
+        pending.extend(node.children.iter());
+    }
+    let authored = authored?;
+    let mut objects = authored
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Object);
+    let object = objects.next()?;
+    if objects.next().is_some() {
+        return None;
+    }
+    let originals: Vec<_> = object
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::ObjectEntry)
+        .collect();
+    if originals.len() != entries.len() {
+        return None;
+    }
+    for ((name, value), entry) in entries.iter().zip(originals) {
+        let key = entry
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Name)?;
+        let original = entry
+            .children
+            .iter()
+            .find(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::NameRef
+                        | SyntaxKind::Literal
+                        | SyntaxKind::Group
+                        | SyntaxKind::Member
+                        | SyntaxKind::Binary
+                        | SyntaxKind::Unary
+                        | SyntaxKind::Array
+                        | SyntaxKind::Call
+                )
+            })
+            .unwrap_or(key);
+        if key.token()?.text(text) != name {
+            return None;
+        }
+        checked_rich_operand(value, original, census, text, 0)?;
+    }
+    Some(())
+}
+
+fn checked_rich_operand(
+    actual: &TypedExpr,
+    original: &crate::syntax::SyntaxNode,
+    census: &[(crate::analysis::NodeKey, ResolvedType)],
+    text: &str,
+    depth: usize,
+) -> Option<()> {
+    use crate::analysis::NodeKey;
+    if depth > 64
+        || actual.span != original.span
+        || census
+            .iter()
+            .find(|(node, _)| *node == NodeKey::of(original))
+            .is_none_or(|(_, ty)| ty != &actual.ty)
+    {
+        return None;
+    }
+    let mut original = original;
+    while original.kind == SyntaxKind::Group {
+        let children = rich_operand_children(original);
+        let [child] = children.as_slice() else {
+            return None;
+        };
+        if census
+            .iter()
+            .find(|(node, _)| *node == NodeKey::of(child))
+            .is_none_or(|(_, ty)| ty != &actual.ty)
+        {
+            return None;
+        }
+        original = child;
+    }
+    let token = |kind| {
+        original
+            .children
+            .iter()
+            .find(|node| node.kind == kind)
+            .and_then(|node| node.token())
+            .map(|token| token.text(text))
+    };
+    let word = || {
+        if original.kind == SyntaxKind::Name {
+            return original.token().map(|token| token.text(text));
+        }
+        let children: Vec<_> = original
+            .children
+            .iter()
+            .filter(|node| !matches!(node.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
+            .collect();
+        let [name] = children.as_slice() else {
+            return None;
+        };
+        (name.kind == SyntaxKind::Name)
+            .then(|| name.token().map(|token| token.text(text)))
+            .flatten()
+    };
+    let matched = match (&actual.expr, original.kind) {
+        (IrExpr::Name(name), SyntaxKind::NameRef | SyntaxKind::Name) => word()? == name,
+        (IrExpr::Member { base, field }, SyntaxKind::NameRef | SyntaxKind::Name) => {
+            matches!(word()?, "actor" | "now" | "team" | "operation")
+                && word()? == field
+                && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                && base.ty == ResolvedType::Unknown
+                && base.span == actual.span
+        }
+        (IrExpr::Member { base, field }, SyntaxKind::Member) => {
+            let children = rich_operand_children(original);
+            let [receiver] = children.as_slice() else {
+                return None;
+            };
+            let member = original
+                .children
+                .iter()
+                .rev()
+                .find(|node| node.kind == SyntaxKind::Name)?;
+            if member.token()?.text(text) != field {
+                return None;
+            }
+            checked_rich_operand(base, receiver, census, text, depth + 1)?;
+            true
+        }
+        (IrExpr::Int(value), SyntaxKind::Literal) => {
+            token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value
+        }
+        (IrExpr::Decimal(value), SyntaxKind::Literal) => token(SyntaxKind::Decimal)? == value,
+        (IrExpr::Text(value), SyntaxKind::Literal) => {
+            original
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::String)?
+                .token()?
+                .string_value
+                .as_ref()?
+                == value
+        }
+        (IrExpr::Bool(value), SyntaxKind::Literal) => {
+            token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
+        }
+        (IrExpr::Null, SyntaxKind::Literal) => token(SyntaxKind::Name)? == "null",
+        (IrExpr::DurationMs(value), SyntaxKind::Literal) => {
+            let spelling = token(SyntaxKind::Duration)?;
+            let mut duration = None;
+            for (unit, factor) in [
+                ("ms", 1i128),
+                ("s", 1000),
+                ("m", 60000),
+                ("h", 3600000),
+                ("d", 86400000),
+            ] {
+                if let Some(digits) = spelling.strip_suffix(unit).filter(|digits| {
+                    !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+                }) {
+                    duration = digits.parse::<i128>().ok()?.checked_mul(factor);
+                    break;
+                }
+            }
+            duration == Some(*value)
+        }
+        (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
+            let children = rich_operand_children(original);
+            let [source_left, source_right] = children.as_slice() else {
+                return None;
+            };
+            let operator = original
+                .children
+                .iter()
+                .find(|node| matches!(node.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
+            use super::ir::IrBinOp;
+            let spelling = match op {
+                IrBinOp::Add => "+",
+                IrBinOp::Sub => "-",
+                IrBinOp::Mul => "*",
+                IrBinOp::Div => "/",
+                IrBinOp::Mod => "%",
+                IrBinOp::Eq => "==",
+                IrBinOp::Ne => "!=",
+                IrBinOp::Lt => "<",
+                IrBinOp::Le => "<=",
+                IrBinOp::Gt => ">",
+                IrBinOp::Ge => ">=",
+                IrBinOp::And => "and",
+                IrBinOp::Or => "or",
+                IrBinOp::Coalesce => "??",
+                IrBinOp::In => "in",
+            };
+            if operator.token()?.text(text) != spelling {
+                return None;
+            }
+            checked_rich_operand(left, source_left, census, text, depth + 1)?;
+            checked_rich_operand(right, source_right, census, text, depth + 1)?;
+            true
+        }
+        _ => false,
+    };
+    matched.then_some(())
+}
+
+fn rich_operand_children(node: &crate::syntax::SyntaxNode) -> Vec<&crate::syntax::SyntaxNode> {
+    node.children
+        .iter()
+        .filter(|child| {
+            matches!(
+                child.kind,
+                SyntaxKind::NameRef
+                    | SyntaxKind::Literal
+                    | SyntaxKind::Group
+                    | SyntaxKind::Member
+                    | SyntaxKind::Binary
+                    | SyntaxKind::Unary
+                    | SyntaxKind::Array
+                    | SyntaxKind::Call
+            )
+        })
+        .collect()
+}
+
+/// Fully supplied child inputs retain their original literal-empty default.
+/// Only the parent recipe's original whole stored File array supplies them;
+/// this carrier does not create observations or admit arbitrary File values.
+fn explicit_stored_file_input(
+    ir: &IrProgram,
+    declarations: (&IrItem, &IrItem, &IrItem),
+    value: &TypedExpr,
+    input: &JsOperationField,
+    operations: &[JsOperation],
+    entry: &str,
+    db: &SourceDb,
+) -> Option<String> {
+    let (owner, child, parameter) = declarations;
+    explicit_file_array_declaration(ir, child, parameter, input, db)?;
+    let original = super::scenario_receipts::stored_file_array_operand(ir, owner, value, db)?;
+    if !ordinary_file_array(&value.ty)
+        || value.ty != original.ty
+        || original.required_array
+        || original.reuse.is_some()
+        || original.min.is_some()
+        || original.max.as_ref()?.1 != 8
+    {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
+    if field != &original.name {
+        return None;
+    }
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    let mut parents = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|parameter| parameter.name == *name);
+    let parent = parents.next()?;
+    let parent_descriptor = operations
+        .iter()
+        .find(|operation| operation.name == owner.canonical)?;
+    if parent_descriptor.kind != JsOperationKind::Scenario {
+        return None;
+    }
+    let mut descriptors = parent_descriptor
+        .inputs
+        .iter()
+        .filter(|input| input.name == *name);
+    let parent_input = descriptors.next()?;
+    let (model, nullable) = explicit_reference_declaration(ir, owner, parent, parent_input, db)?;
+    if parents.next().is_some()
+        || descriptors.next().is_some()
+        || nullable
+        || model != original.owner
+    {
+        return None;
+    }
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let source = checked_source(ir, owner, db)?;
+    let published = parent_descriptor.disclosure.as_ref()?;
+    if published["version"] != 1
+        || published["source"]["path"] != source.source.path
+        || published["source"]["sha256"] != source.source.sha256
+        || published["source"]["module"] != entry
+    {
+        return None;
+    }
+    let returns = published["returns"].as_array()?;
+    if returns.len() != checked.returns.len() {
+        return None;
+    }
+    let mut dependency_id = None;
+    for returned in &checked.returns {
+        let mut dependencies = returned.dependencies.iter().filter(|read| {
+            read.node.file == value.span.file
+                && read.node.start == value.span.start
+                && read.node.end == value.span.end
+                && read.calls.is_empty()
+        });
+        let Some(read) = dependencies.next() else {
+            continue;
+        };
+        let declaration = ir.items.get(original.owner.0 as usize)?;
+        if dependencies.next().is_some()
+            || read.id.is_empty()
+            || read.source != source.source
+            || read.node.kind != SyntaxKind::Member as u8
+            || read.role != DependencyRole::Data
+            || read.model != original.owner
+            || read.model_name != declaration.canonical
+            || read.field != original.id
+            || read.field_name != original.name
+            || read.ty != value.ty
+            || read.type_id != "file[]"
+            || dependency_id.as_ref().is_some_and(|id| id != &read.id)
+        {
+            return None;
+        }
+        let mut published_returns = returns.iter().filter(|actual| actual["id"] == returned.id);
+        let actual = published_returns.next()?;
+        if published_returns.next().is_some() {
+            return None;
+        }
+        let mut published_dependencies = actual["dependencies"]
+            .as_array()?
+            .iter()
+            .filter(|dependency| dependency["id"] == read.id);
+        let actual = published_dependencies.next()?;
+        let expected = serde_json::json!({"id":read.id,"source":{
+            "path":read.source.path,"sha256":read.source.sha256,"module":entry},
+            "role":"data","model":read.model_name,"field":read.field_name,"type":"file[]"});
+        if published_dependencies.next().is_some() || actual != &expected {
+            return None;
+        }
+        dependency_id = Some(read.id.clone());
+    }
+    dependency_id
+}
+
+fn explicit_file_array_declaration(
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<()> {
+    use crate::analysis::NodeKey;
+    let source = checked_source(ir, owner, db)?;
+    let (position, fact) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let IrItemKind::Param {
+        owner: parent,
+        index,
+        ty: IrType::Known(ty),
+        array_bounds: None,
+        default: Some(IrDefault::Literal(value)),
+        default_node: Some(node),
+        default_copy_source: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    if *parent != owner.id
+        || *index != position
+        || parameter.id != fact.parameter
+        || parameter.module != owner.module
+        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+        || !ordinary_file_array(ty)
+        || value.ty != *ty
+        || !matches!(&value.expr, IrExpr::Array(values) if values.is_empty())
+        || node.kind != SyntaxKind::Array as u8
+        || value.span != Span::new(node.file, node.start, node.end)
+        || fact.constraints.is_some()
+        || ir.value_constraints.contains_key(&parameter.id)
+        || source
+            .expression_types
+            .as_deref()?
+            .iter()
+            .find(|(at, _)| at == node)
+            .is_none_or(|(_, ty)| ty != &value.ty)
+        || input.name != parameter.name
+        || input.required
+        || input.nullable
+        || input.array_required != Some(false)
+        || !matches!(input.field, JsMcpField::File)
+        || input.value_type.as_deref() != Some("file[]")
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || input.default.as_ref()?.to_json()
+            != super::js::js_field_default(
+                match &parameter.kind {
+                    IrItemKind::Param { default, .. } => default.as_ref(),
+                    _ => None,
+                },
+                None,
+            )?
+            .to_json()
+    {
+        return None;
+    }
+    let text = &db.get(source.node.file)?.text;
+    let (tree, diagnostics) = crate::syntax::parse_source(source.node.file, text);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut pending = vec![&tree];
+    let mut declaration = None;
+    let mut default = None;
+    let mut steps = 0;
+    while let Some(part) = pending.pop() {
+        steps += 1;
+        if steps > 200000 {
+            return None;
+        }
+        if NodeKey::of(part) == fact.node {
+            declaration = Some(part);
+        }
+        if NodeKey::of(part) == *node {
+            default = Some(part);
+        }
+        pending.extend(part.children.iter());
+    }
+    let declaration = declaration?;
+    let name = declaration
+        .children
+        .iter()
+        .find(|part| part.kind == SyntaxKind::Name)?;
+    let array_type = declaration
+        .children
+        .iter()
+        .find(|part| part.kind == SyntaxKind::ArrayType)?;
+    let named_type = array_type
+        .children
+        .iter()
+        .find(|part| part.kind == SyntaxKind::NamedType)?;
+    let path = named_type
+        .children
+        .iter()
+        .find(|part| part.kind == SyntaxKind::Path)?;
+    let parts: Vec<_> = path
+        .children
+        .iter()
+        .filter(|part| part.kind != SyntaxKind::Trivia)
+        .collect();
+    let [scalar] = parts.as_slice() else {
+        return None;
+    };
+    let default = default?;
+    let parts: Vec<_> = default
+        .children
+        .iter()
+        .filter(|part| part.kind != SyntaxKind::Trivia)
+        .collect();
+    let [open, close] = parts.as_slice() else {
+        return None;
+    };
+    if declaration.kind != SyntaxKind::Parameter
+        || name.span != parameter.span
+        || name.token()?.text(text) != parameter.name
+        || NodeKey::of(array_type) != fact.type_node
+        || scalar.kind != SyntaxKind::Name
+        || scalar.token()?.text(text) != "file"
+        || open.token()?.text(text) != "["
+        || close.token()?.text(text) != "]"
+    {
+        return None;
+    }
+    Some(())
 }
 
 /// Singular mutation inputs retain their owning Ref declaration. The supplied
@@ -973,8 +1506,19 @@ fn collect_owner(
                 }) {
                     return None;
                 }
+                if query.is_none() && params.iter().any(|id| {
+                    let Some(IrItem { kind: IrItemKind::Param { ty: IrType::Known(ty), .. }, .. }) = ir.items.get(id.0 as usize) else {
+                        return false;
+                    };
+                    matches!(ty, ResolvedType::Record { stored: true, .. })
+                        || matches!(ty, ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))
+                        || ordinary_file_array(ty)
+                }) {
+                    checked_rich_call_operands(ir, owner, entries, *span, db)?;
+                }
                 let mut keys = HashSet::new();
                 let mut authored = Vec::new();
+                let mut file_inputs = Vec::new();
                 for ((name, value), fact) in entries.iter().zip(&source_call.inputs) {
                     if !keys.insert(name)
                         || fact.name != *name
@@ -1013,6 +1557,20 @@ fn collect_owner(
                             return None;
                         }
                         explicit_scalar_input(ir, child, param, input, db)?;
+                    } else if ordinary_file_array(ty) {
+                        let dependency_id = explicit_stored_file_input(
+                            ir,
+                            (owner, child, param),
+                            value,
+                            input,
+                            operations,
+                            entry,
+                            db,
+                        )?;
+                        file_inputs.push(StaticScenarioCallFileInput {
+                            name: name.clone(),
+                            dependency_id,
+                        });
                     } else if let Some(created) = explicit_reference_input(
                         ir,
                         (owner, child, param),
@@ -1051,6 +1609,7 @@ fn collect_owner(
                     result: result_fact,
                     binding: binding.clone(),
                     inputs: authored,
+                    file_inputs,
                 });
             }
             IrStmt::Call { .. } => return None,

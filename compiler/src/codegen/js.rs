@@ -9614,7 +9614,7 @@ impl<'a> Emitter<'a> {
                         let sites: Vec<_> = sites
                             .iter()
                             .map(|site| {
-                                serde_json::json!({
+                                let mut descriptor = serde_json::json!({
                                     "id": site.id,
                                     "source": {
                                         "path": site.source.path,
@@ -9624,7 +9624,11 @@ impl<'a> Emitter<'a> {
                                     "kind": "operation",
                                     "targets": [site.target],
                                     "resultType": site.interface.result,
-                                })
+                                });
+                                if !site.file_inputs.is_empty() {
+                                    descriptor["fileInputs"] = serde_json::json!(site.file_inputs);
+                                }
+                                descriptor
                             })
                             .collect();
                         members.push(format!("callSites:{}", descriptor_json(&sites)));
