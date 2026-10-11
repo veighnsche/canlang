@@ -3811,3 +3811,31 @@ Original appointment_state:Appointment.state? has no explicit default. Compiler 
 This is a related source prerequisite, not complete agenda acceptance. Exact next shared output belongs to Packages/Interfaces: occurrence-scoped current enum filter presence/clear/default preparation feeding existing QueryPredicate.where, plus the original nullable enum default/persistence carrier. Existing global filter[field] and f[n] paths neither match nor serve this authored source. Compiler supplies checked original selector/cases/admitted default and source/row occurrence; no independent URL parser or new query authority. Packages continues exact agenda row/body/page. Original source480+ has no parent header; direct pagination and complete badge/status/text/attendance/actions/history body must remain.23 original findings,58/67/nine and all precise holds unchanged.
 
 Coordinator independent source review CLEAR for exact nullable owned-enum implicit-null admission;3 affected/strict/fmt reused. This source-admission criterion is accepted and stopped; shared nullable persistence/filter and complete original agenda body/application remain separate.
+
+
+**Unfinished original agenda — checked endpoints and complete raw body, 2026-10-11.**
+
+Private source facts now retain and rejoin the exact original collection/value/path,
+module/model/field and resolved Date/Datetime endpoint. Agenda IR reuses existing
+model/parent/query/row scope, direct pagination and authored child order; checked
+filter selectors and typed admitted preference defaults stay intact. No language
+suitability rule is added. Unsupported finite endpoints retain E6008; the original
+bare history retains its exact refusal, preventing shipment of an incomplete body.
+
+171 distinct affected PASS: analysis37/full52 corpus1.83s, codegen121 (120 initial
+.28s reused; stale ExpenseFlow bound-row editable-default golden alone corrected
+and rechecked1/1 .16s), installed UI adapter11/11 .52s, original CanBook rawIR1/1
+.14s and own Date/Datetime plus foreign/unknown/multiple/nontemporal/nullable
+endpoint/CLI no-artifact controls1/1 .34s. Strict Clippy0 6.33s,fmt/diff0; independent
+finite source review CLEAR. No unresolved failure, ignored case or bodySKIP.
+
+Reviewed Packages81fd13ac agenda rows/page is consumed through safe local FF47d.
+Next ready work connects its actual renderRow/source occurrence and exact shared
+filter/nullable preference implementation. The coordinator assigned bare history's
+bounded current-viewer/row/revision/readable-leaf reader to Capability/State and its
+presentation binding/empty behavior to Packages. Skip that exact blocked leaf;
+preserve original source and E6008 until release. This is an unfinished related
+agenda unit, not full native/application acceptance.23 findings,58/67/nine and
+precise recipient holds remain; unchanged accepted components are reused.
+
+Coordinator finite integration review accepts the checked endpoint/raw-body component; retained171 affected/strict/fmt results are reused. Executable agenda/filter/history and whole-plan acceptance remain unfinished.
