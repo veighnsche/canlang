@@ -8764,13 +8764,17 @@ impl<'a> Emitter<'a> {
         }
         let claimed_ids: std::collections::HashSet<_> =
             facts.handlers.iter().map(|fact| fact.id).collect();
-        let valid = db.is_some_and(|db| {
-            !facts.sources.is_empty()
-                && facts.sources.iter().all(|(id, path, hash)| {
-                    db.get(*id)
-                        .is_some_and(|source| source.path == *path && source.sha256 == *hash)
-                })
-        }) && current.len() == facts.handlers.len()
+        let public_source_valid = !facts.has_public_standard_completion_fact()
+            || db.is_some_and(|db| facts.valid_public_standard_completions(self.ir, db));
+        let valid = public_source_valid
+            && db.is_some_and(|db| {
+                !facts.sources.is_empty()
+                    && facts.sources.iter().all(|(id, path, hash)| {
+                        db.get(*id)
+                            .is_some_and(|source| source.path == *path && source.sha256 == *hash)
+                    })
+            })
+            && current.len() == facts.handlers.len()
             && claimed_ids.len() == facts.handlers.len()
             && current.iter().all(|item| claimed_ids.contains(&item.id))
             && facts.handlers.iter().all(|fact| {
@@ -8869,7 +8873,7 @@ impl<'a> Emitter<'a> {
                 .or_else(|| current.first().map(|item| item.span))
                 .unwrap_or(Span::new(crate::source::SourceId(0), 0, 0));
             self.diags.push(Diagnostic::error("E6008",
-                "cannot publish standardCompletions: checked source, complete handler inventory, import route or private schema does not match".to_string(), span));
+                "cannot publish standardCompletions: checked source, complete handler inventory, admitted body, import route or private schema does not match".to_string(), span));
             return None;
         }
         let mut completions: Vec<JsStandardCompletion> = Vec::new();
