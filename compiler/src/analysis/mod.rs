@@ -236,12 +236,13 @@ pub fn check_program(
     {
         std::collections::HashMap::new()
     } else {
-        scenario_disclosure::analyze_scenario_disclosure(
+        scenario_disclosure::analyze_scenario_disclosure_with_catalog(
             db,
             &trees,
             &resolve_tables,
             &types,
             &effects,
+            catalog,
         )
     };
     let committed_handlers = if diagnostics

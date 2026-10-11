@@ -112,6 +112,7 @@ pub(super) fn checked_created_schema(
         nodes: &nodes,
         text,
         operands: false,
+        membership_call: None,
     };
     for (data, original_field) in declaration.fields.iter().zip(&definition.fields) {
         let field = ir.items.get(data.field.0 as usize)?;
@@ -588,6 +589,7 @@ pub(super) fn checked_create_expression(
         nodes: &nodes,
         text,
         operands: true,
+        membership_call: None,
     }
     .expression(actual, node, 0)
 }
@@ -621,6 +623,9 @@ struct SourceExpressions<'a> {
     nodes: &'a HashMap<NodeKey, &'a SyntaxNode>,
     text: &'a str,
     operands: bool,
+    /// Borrow the existing exact transitive membership proof only while
+    /// matching the admitted can_use body; ordinary StateRead stays refused.
+    membership_call: Option<&'a crate::analysis::scenario_disclosure::CheckedDecisionCall>,
 }
 
 impl SourceExpressions<'_> {
@@ -637,6 +642,356 @@ impl SourceExpressions<'_> {
             (Some(actual), Some(original)) => self.expression(actual, original, 0),
             _ => None,
         }
+    }
+
+    fn can_use(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
+        use crate::analysis::scenario_disclosure::{
+            CheckedDecisionCallTarget, CheckedDecisionStage,
+        };
+        if self.membership_call.is_some() {
+            return None;
+        }
+        let (target, args, slots) = match &actual.expr {
+            IrExpr::Call {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+            } => (target, args.as_slice(), None),
+            IrExpr::BoundCall {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+                slots,
+            } => (target, args.as_slice(), Some(slots.as_slice())),
+            _ => return None,
+        };
+        let [actor, parent] = args else {
+            return None;
+        };
+        let mut owners = self.ir.items.iter().filter(|owner| {
+            self.ir
+                .scenario_disclosures
+                .get(&owner.id)
+                .and_then(|value| value.source_facts())
+                .is_some_and(|facts| {
+                    facts.source == self.original.source
+                        && facts.creates.as_deref().is_some_and(|creates| {
+                            creates
+                                .iter()
+                                .any(|created| created.node == self.original.node)
+                        })
+                })
+        });
+        let owner = owners.next()?;
+        if owners.next().is_some() {
+            return None;
+        }
+        let facts = super::scenario_calls::checked_source(self.ir, owner, self.db)?;
+        let mut sites = facts.decision_sites.as_deref()?.iter().filter(|site| {
+            site.owner == owner.id
+                && site.stage == CheckedDecisionStage::LeadingRequire
+                && site.source == self.original.source
+                && site
+                    .calls
+                    .iter()
+                    .any(|call| call.node == key && call.chain.is_empty())
+        });
+        let site = sites.next()?;
+        let mut outer_calls = site
+            .calls
+            .iter()
+            .filter(|call| call.node == key && call.chain.is_empty());
+        let outer = outer_calls.next()?;
+        let CheckedDecisionCallTarget::DeriveFn(derive) = &outer.target else {
+            return None;
+        };
+        let derive = *derive;
+        let item = self.ir.items.get(derive.0 as usize)?;
+        let IrItemKind::DeriveFn {
+            params,
+            result: IrType::Known(result),
+            expr: Some(body),
+        } = &item.kind
+        else {
+            return None;
+        };
+        let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+            return None;
+        };
+        if sites.next().is_some() || outer_calls.next().is_some()
+            || !guards.iter().any(|statement|
+                matches!(statement, super::ir::IrStmt::Require {span:at, ..} if *at == span(site.statement)))
+            || item.id != derive || item.canonical != *target || item.name != "can_use"
+            || item.module != owner.module || outer.module != owner.module
+            || outer.source != self.original.source || !outer.defaults.is_empty()
+            || outer.slots.as_slice() != [Some(0),Some(1)]
+            || slots.is_some_and(|slots| slots != outer.slots.as_slice())
+            || outer.arguments.len() != 2 || params.len() != 2
+            || *result != ResolvedType::Scalar(Scalar::Bool)
+            || actual.ty != *result || body.ty != *result
+        { return None; }
+        let call_node = self.nodes.get(&key)?;
+        let call_head = expressions(call_node).first().copied()?;
+        if source_path(call_head, self.text)? != "can_use"
+            || source_path(self.nodes.get(&outer.arguments[0].0)?, self.text)? != "actor"
+        {
+            return None;
+        }
+        let (branch, conversation) =
+            super::scenario_receipts::checked_parent_reference(self.ir, owner, parent, self.db)?;
+        // Require prunes scalar authorization reads from the result recipe;
+        // the helper still consumes these exact original field declarations.
+        for (name, ty) in [("account", Scalar::User), ("active", Scalar::Bool)] {
+            let mut fields = conversation
+                .fields
+                .iter()
+                .filter(|field| field.name == name);
+            let field = fields.next()?;
+            if fields.next().is_some()
+                || field.owner != conversation.id
+                || field.ty != ResolvedType::Scalar(ty)
+                || field.source != self.original.source
+                || !conversation.field_order.contains(&field.id)
+            {
+                return None;
+            }
+            super::scenario_receipts::match_stored_contract_field(self.ir, field, self.db)?;
+        }
+        let IrExpr::Member { base, field } = &parent.expr else {
+            return None;
+        };
+        if field != "parent"
+            || !matches!(base.expr, IrExpr::Name(_))
+            || branch.parent != Some(conversation.id)
+            || !matches!(&actor.expr,IrExpr::Member {base,field}
+                if field == "actor" && matches!(&base.expr,IrExpr::Name(name) if name == "c"))
+        {
+            return None;
+        }
+        let declarations: Vec<_> = self
+            .nodes
+            .values()
+            .filter(|node| {
+                node.kind == SyntaxKind::Derive
+                    && node.span.file == item.span.file
+                    && node.span.start <= item.span.start
+                    && node.span.end >= item.span.end
+            })
+            .collect();
+        let [declaration] = declarations.as_slice() else {
+            return None;
+        };
+        let declaration_path = declaration
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)?;
+        let names: Vec<_> = declaration_path
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::Name)
+            .collect();
+        let [name] = names.as_slice() else {
+            return None;
+        };
+        // Resolver owns the complete Path span, including its attached trivia;
+        // the single Name token independently retains the declared spelling.
+        if declaration_path.span != item.span
+            || single_name(declaration_path, self.text)? != item.name
+            || name.token()?.text(self.text) != item.name
+        {
+            return None;
+        }
+        let authored_params: Vec<_> = declaration
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::Parameter)
+            .collect();
+        if authored_params.len() != 2 {
+            return None;
+        }
+        for (index, (parameter, authored)) in params.iter().zip(&authored_params).enumerate() {
+            let parameter = self.ir.items.get(parameter.0 as usize)?;
+            let IrItemKind::Param {
+                owner: parameter_owner,
+                index: position,
+                ty: IrType::Known(ty),
+                default: None,
+                default_node: None,
+                array_bounds: None,
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            let name = authored
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Name)?;
+            let type_node = authored.children.iter().find(|node| {
+                matches!(node.kind, SyntaxKind::NamedType | SyntaxKind::NullableType)
+            })?;
+            let expected = if index == 0 {
+                ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::User)))
+            } else {
+                ResolvedType::Record {
+                    symbol: conversation.id,
+                    stored: true,
+                }
+            };
+            let spelling = if index == 0 { "person" } else { "conversation" };
+            let type_spelling = if index == 0 {
+                "user?"
+            } else {
+                self.ir.items.get(conversation.id.0 as usize)?.name.as_str()
+            };
+            if *parameter_owner != derive
+                || *position != index
+                || parameter.module != item.module
+                || parameter.canonical != format!("{}.{}", item.canonical, spelling)
+                || parameter.name != spelling
+                || parameter.span != name.span
+                || ty != &expected
+                || name.token()?.text(self.text) != spelling
+                || self
+                    .text
+                    .get(type_node.span.start as usize..type_node.span.end as usize)?
+                    != type_spelling
+            {
+                return None;
+            }
+        }
+        let mut membership_calls = site.calls.iter().filter(|call|
+            matches!(&call.target,CheckedDecisionCallTarget::Builtin {id,overload:0} if id == "active_member")
+                && matches!(call.chain.as_slice(),[frame] if frame.node == key && frame.derive == derive));
+        let membership = membership_calls.next()?;
+        let [frame] = membership.chain.as_slice() else {
+            return None;
+        };
+        if membership_calls.next().is_some()
+            || frame.module != owner.module
+            || frame.source != self.original.source
+            || membership.module != item.module
+            || membership.source != self.original.source
+        {
+            return None;
+        }
+        // Only the original ordered nullable-person authorization body owns
+        // this transitive State membership call and Conversation formal reads.
+        let IrExpr::Binary {
+            op: IrBinOp::And,
+            left: three,
+            right: active,
+        } = &body.expr
+        else {
+            return None;
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::And,
+            left: two,
+            right: account,
+        } = &three.expr
+        else {
+            return None;
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::And,
+            left: nonnull,
+            right: member,
+        } = &two.expr
+        else {
+            return None;
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::Ne,
+            left: person,
+            right: null,
+        } = &nonnull.expr
+        else {
+            return None;
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            left: account_member,
+            right: account_person,
+        } = &account.expr
+        else {
+            return None;
+        };
+        let formal_member = |value: &TypedExpr, expected: &str| {
+            matches!(&value.expr,
+            IrExpr::Member {base,field} if field == expected
+                && matches!(&base.expr,IrExpr::Name(name) if name == "conversation")
+                && base.ty == (ResolvedType::Record {symbol:conversation.id,stored:true}))
+        };
+        if !matches!(&person.expr,IrExpr::Name(name) if name == "person")
+            || !matches!(null.expr, IrExpr::Null)
+            || member.span != span(membership.node)
+            || !formal_member(account_member, "account")
+            || !matches!(&account_person.expr,IrExpr::Name(name) if name == "person")
+            || !formal_member(active, "active")
+        {
+            return None;
+        }
+        for (arg, (original, ty)) in args.iter().zip(&outer.arguments) {
+            if arg.ty != *ty {
+                return None;
+            }
+            self.expression(arg, *original, depth + 1)?;
+        }
+        SourceExpressions {
+            ir: self.ir,
+            db: self.db,
+            original: self.original,
+            nodes: self.nodes,
+            text: self.text,
+            operands: true,
+            membership_call: Some(membership),
+        }
+        .expression(
+            body,
+            NodeKey::of(
+                self.nodes
+                    .values()
+                    .find(|node| node.span == body.span && node.kind == SyntaxKind::Binary)?,
+            ),
+            depth + 1,
+        )
+    }
+
+    fn membership(
+        &self,
+        actual: &TypedExpr,
+        node: &SyntaxNode,
+        args: &[TypedExpr],
+        slots: Option<&[Option<usize>]>,
+        depth: usize,
+    ) -> Option<()> {
+        use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
+        let original = self.membership_call?;
+        if original.node != NodeKey::of(node)
+            || !original.defaults.is_empty()
+            || original.slots.as_slice() != [Some(0), Some(1)]
+            || slots.is_some_and(|slots| slots != original.slots.as_slice())
+            || !matches!(&original.target,CheckedDecisionCallTarget::Builtin {id,overload:0} if id == "active_member")
+            || original.arguments.len() != 2
+            || args.len() != 2
+            || original.arguments[0].1 != ResolvedType::Scalar(Scalar::User)
+            || original.arguments[1].1 != ResolvedType::Team
+            || actual.ty != ResolvedType::Scalar(Scalar::Bool)
+            || !matches!(&args[0].expr,IrExpr::Name(name) if name == "person")
+            || !matches!(&args[1].expr,IrExpr::Member {base,field}
+                if field == "team" && matches!(&base.expr,IrExpr::Name(name) if name == "c"))
+            || source_path(self.nodes.get(&original.arguments[0].0)?, self.text)? != "person"
+            || source_path(self.nodes.get(&original.arguments[1].0)?, self.text)? != "team"
+            || source_path(expressions(node).first()?, self.text)? != "active_member"
+        {
+            return None;
+        }
+        for (actual, (key, ty)) in args.iter().zip(&original.arguments) {
+            if actual.ty != *ty {
+                return None;
+            }
+            self.expression(actual, *key, depth + 1)?;
+        }
+        Some(())
     }
 
     fn expression(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
@@ -926,6 +1281,41 @@ impl SourceExpressions<'_> {
                     return None;
                 };
                 self.expression(scan.where_pred.as_ref()?, query.predicate?, depth + 1)?;
+                true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::DeriveFn(_),
+                    ..
+                }
+                | IrExpr::BoundCall {
+                    target: IrCallTarget::DeriveFn(_),
+                    ..
+                },
+                SyntaxKind::Call,
+            ) if self.operands && primitive(Scalar::Bool) => {
+                self.can_use(actual, NodeKey::of(node), depth)?;
+                true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: true },
+                    args,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "active_member" && primitive(Scalar::Bool) => {
+                self.membership(actual, node, args, None, depth)?;
+                true
+            }
+            (
+                IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: true },
+                    args,
+                    slots,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "active_member" && primitive(Scalar::Bool) => {
+                self.membership(actual, node, args, Some(slots), depth)?;
                 true
             }
             (

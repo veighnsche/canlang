@@ -4287,7 +4287,7 @@ fn match_stored_contract_schema(
     match_stored_contract_source(ir, &schema.source, item.span, db)
 }
 
-fn match_stored_contract_field(
+pub(super) fn match_stored_contract_field(
     ir: &IrProgram,
     original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
     db: &SourceDb,

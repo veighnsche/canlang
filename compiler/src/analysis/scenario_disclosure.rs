@@ -4,7 +4,7 @@
 //! A failed closure declines the whole scenario, including earlier returns.
 use std::collections::{HashMap, HashSet};
 
-use super::catalog::{nominal_schema, std_capability, std_operation};
+use super::catalog::{Catalog, Effects, SigType, nominal_schema, std_capability, std_operation};
 use super::effects::{DeleteMode, Effect, EffectTables, EffectTarget, EffectVerb, HandlerSource};
 use super::resolve::{
     Binding, ContextVar, ModelOwner, ResolveTables, ScopedName, SymbolKind, TypeRef,
@@ -535,6 +535,17 @@ pub fn analyze_scenario_disclosure(
     types: &TypeTable,
     effects: &EffectTables,
 ) -> HashMap<SymbolId, ScenarioDisclosure> {
+    analyze_scenario_disclosure_with_catalog(db, trees, resolve, types, effects, None)
+}
+
+pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
+    db: &'a SourceDb,
+    trees: &'a [(SourceId, SyntaxNode)],
+    resolve: &'a ResolveTables,
+    types: &'a TypeTable,
+    effects: &'a EffectTables,
+    catalog: Option<&'a Catalog>,
+) -> HashMap<SymbolId, ScenarioDisclosure> {
     let mut nodes = HashMap::new();
     let mut pending: Vec<_> = trees.iter().map(|(_, tree)| tree).collect();
     while let Some(node) = pending.pop() {
@@ -542,6 +553,7 @@ pub fn analyze_scenario_disclosure(
         pending.extend(node.children.iter());
     }
     let mut cx = Closure {
+        catalog,
         db,
         resolve,
         types,
@@ -875,6 +887,7 @@ pub fn checked_read_decision_sites(
         return None;
     }
     let cx = Closure {
+        catalog: None,
         db,
         resolve,
         types,
@@ -1003,6 +1016,7 @@ pub fn checked_read_predicate_site(
         return None;
     }
     let cx = Closure {
+        catalog: None,
         db,
         resolve,
         types,
@@ -1230,6 +1244,7 @@ struct Closure<'a> {
     complete_children: HashSet<SymbolId>,
     complete_model_children: HashMap<SymbolId, SymbolId>,
     result_model: Option<SymbolId>,
+    catalog: Option<&'a Catalog>,
     db: &'a SourceDb,
     resolve: &'a ResolveTables,
     types: &'a TypeTable,
@@ -1997,6 +2012,22 @@ impl<'a> Closure<'a> {
         if owners.next().is_some() || !self.nodes.contains_key(&owner.node) {
             return None;
         }
+        let mut anchors = vec![owner.node];
+        for site in self.checked_decision_sites(owner).unwrap_or_default() {
+            if site.stage != CheckedDecisionStage::LeadingRequire {
+                continue;
+            }
+            for call in site.calls {
+                if let Some((derive, _, _, _)) =
+                    self.checked_authorization_derive(call.node, owner.module)
+                {
+                    let anchor = self.effects.derives.get(&derive)?.node;
+                    if !anchors.contains(&anchor) {
+                        anchors.push(anchor);
+                    }
+                }
+            }
+        }
         // Include shorthand Name nodes as well as expressions: their checked
         // binding type belongs to the authored key occurrence. Unknown/error
         // entries are retained faithfully and cannot become an admitted value.
@@ -2005,10 +2036,9 @@ impl<'a> Closure<'a> {
             .node_types
             .iter()
             .filter(|(node, _)| {
-                node.file == owner.node.file
-                    && owner.node.start <= node.start
-                    && node.end <= owner.node.end
-                    && self.nodes.contains_key(node)
+                anchors.iter().any(|anchor| {
+                    node.file == anchor.file && anchor.start <= node.start && node.end <= anchor.end
+                }) && self.nodes.contains_key(node)
             })
             .map(|(node, ty)| (*node, ty.clone()))
             .collect();
@@ -5793,6 +5823,286 @@ impl<'a> Closure<'a> {
         Ok(out)
     }
 
+    fn checked_membership_signature(&self, key: NodeKey, module: ModuleId) -> Option<()> {
+        let catalog = self.catalog?;
+        let selected = self.types.selected_calls.get(&key)?;
+        let signature = catalog.overloads("active_member")?.first()?;
+        if !matches!(&selected.target,
+            SelectedCallTarget::Builtin {id,overload:0} if id == "active_member")
+            || catalog.effects("active_member") != Some(Effects::StateRead)
+            || selected.arguments.len() != 2
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || signature.params.len() != 2
+            || signature.result != SigType::Named("bool".into())
+            || self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        for (parameter, (name, declared, ty)) in signature.params.iter().zip([
+            ("person", "user", ResolvedType::Scalar(Scalar::User)),
+            ("team", "Team", ResolvedType::Team),
+        ]) {
+            if parameter.name != name
+                || parameter.ty != SigType::Named(declared.into())
+                || parameter.alias.is_some()
+                || parameter.in_scope.is_some()
+            {
+                return None;
+            }
+            let index = usize::from(name == "team");
+            if self.types.node_types.get(&selected.arguments[index]) != Some(&ty) {
+                return None;
+            }
+        }
+        let node = self.nodes.get(&key)?;
+        let arguments: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument)
+            .map(|argument| {
+                let mut values = argument
+                    .children
+                    .iter()
+                    .filter(|child| expression(child.kind));
+                let value = NodeKey::of(values.next()?);
+                values.next().is_none().then_some(value)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let head = node.children.iter().find(|child| expression(child.kind))?;
+        (node.kind == SyntaxKind::Call
+            && arguments == selected.arguments
+            && matches!(self.query_binding(NodeKey::of(head)),
+                Some(Binding::Builtin {id}) if id == "active_member")
+            && self.source(module, key).is_ok())
+        .then_some(())
+    }
+
+    /// Only the original leading authorization helper consumes this parent.
+    /// The checked formal observes the same row; it is never a new admitted input.
+    fn checked_authorization_derive(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, NodeKey, NodeKey)> {
+        let selected = self.types.selected_calls.get(&key)?;
+        let SelectedCallTarget::DeriveFn(id) = &selected.target else {
+            return None;
+        };
+        let id = *id;
+        let data = self.effects.derives.get(&id)?;
+        let declaration = self.resolve.symbols.get(id.0 as usize)?;
+        let SymbolKind::DeriveFn {
+            params,
+            result_node,
+        } = &declaration.kind
+        else {
+            return None;
+        };
+        let body = data.expr?;
+        let result = data.result?;
+        let text = &self.db.get(data.node.file)?.text;
+        let formal = data.params.get(1)?;
+        let person = data.params.first()?;
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.symbol_types.get(&formal.param)?
+        else {
+            return None;
+        };
+        let model = *model;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        if declaration.id != id
+            || declaration.module != module
+            || declaration.name != "can_use"
+            || declaration.canonical
+                != format!(
+                    "{}.can_use",
+                    self.resolve.modules.get(module.0 as usize)?.name
+                )
+            || data.derive != id
+            || data.module != module
+            || data.model.is_some()
+            // Resolver retains this declaration sentinel; effects owns the
+            // actual authored result type child, checked independently below.
+            || *result_node != data.node
+            || !self.nodes.get(&data.node)?.children.iter().any(|child| NodeKey::of(child) == result)
+            || self.types.symbol_results.get(&id) != Some(&Some(ResolvedType::Scalar(Scalar::Bool)))
+            || data.params.len() != 2
+            || !params
+                .iter()
+                .copied()
+                .eq(data.params.iter().map(|parameter| parameter.param))
+            || data
+                .params
+                .iter()
+                .any(|parameter| parameter.default.is_some())
+            || selected.arguments.len() != 2
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.types.node_types.get(&body) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.types.symbol_types.get(&person.param)
+                != Some(&ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+                    Scalar::User,
+                ))))
+            || text
+                .get(person.type_node.start as usize..person.type_node.end as usize)?
+                .trim()
+                != "user?"
+            || text
+                .get(formal.type_node.start as usize..formal.type_node.end as usize)?
+                .trim()
+                != owner.name
+            || text
+                .get(result.start as usize..result.end as usize)?
+                .trim()
+                != "bool"
+            || owner.module != module
+            || self.checked_created_model(model, module).is_none()
+        {
+            return None;
+        }
+        for (index, parameter) in data.params.iter().enumerate() {
+            let symbol = self.resolve.symbols.get(parameter.param.0 as usize)?;
+            if !matches!(symbol.kind,SymbolKind::Param {owner,index:actual,type_node} if owner == id && actual == index && type_node == parameter.type_node)
+                || symbol.module != module
+                || symbol.id != parameter.param
+                || symbol.name != if index == 0 { "person" } else { "conversation" }
+            {
+                return None;
+            }
+        }
+        let call = self.nodes.get(&key)?;
+        let head = call.children.iter().find(|child| expression(child.kind))?;
+        let arguments: Vec<_> = call
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument)
+            .map(|argument| {
+                let mut values = argument
+                    .children
+                    .iter()
+                    .filter(|child| expression(child.kind));
+                let value = NodeKey::of(values.next()?);
+                values.next().is_none().then_some(value)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let actor = selected.arguments[0];
+        let parent = selected.arguments[1];
+        if call.kind != SyntaxKind::Call || arguments != selected.arguments
+            || !matches!(self.query_binding(NodeKey::of(head)),Some(Binding::Symbol(actual)) if *actual == id)
+            || self.nodes.get(&actor)?.kind != SyntaxKind::NameRef
+            || self.word(self.nodes.get(&actor)?)? != "actor"
+            || !matches!(self.query_binding(actor),Some(Binding::Context(ContextVar::Actor(_))))
+            || !matches!(self.types.node_types.get(&actor),
+                Some(ResolvedType::Scalar(Scalar::User)) | Some(ResolvedType::Nullable(_)))
+            || self.types.node_types.get(&actor).is_some_and(|ty| {
+                matches!(ty,ResolvedType::Nullable(inner) if inner.as_ref() != &ResolvedType::Scalar(Scalar::User))
+            })
+            || self.types.node_types.get(&parent) != self.types.symbol_types.get(&formal.param)
+        { return None; }
+        let (receiver, field) = self.count_member(parent)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
+            return None;
+        };
+        if field != "parent"
+            || self.checked_call_parent_path(parent, *parameter, 0) != Some((model, 1))
+        {
+            return None;
+        }
+        let (first_three, active) = self.query_binary(body, "and")?;
+        let (first_two, equality) = self.query_binary(first_three, "and")?;
+        let (null_guard, membership) = self.query_binary(first_two, "and")?;
+        let (subject, absent) = self.query_binary(null_guard, "!=")?;
+        let (account, compared) = self.query_binary(equality, "==")?;
+        let formal_name = |node, parameter, ty: &ResolvedType| {
+            self.nodes
+                .get(&node)
+                .is_some_and(|node| node.kind == SyntaxKind::NameRef)
+                && matches!(self.query_binding(node),Some(Binding::Symbol(actual)) if *actual == parameter)
+                && self.types.node_types.get(&node) == Some(ty)
+        };
+        let formal_member = |node, name, ty: &ResolvedType| {
+            self.count_member(node).is_some_and(|(base, field)| {
+                field == name && formal_name(base,formal.param,&ResolvedType::Record {symbol:model,stored:true})
+                    && self.types.node_types.get(&node) == Some(ty)
+                    && matches!(&owner.kind,SymbolKind::Model {fields,..} if fields.iter().any(|field| {
+                        self.resolve.symbols.get(field.0 as usize).is_some_and(|field| field.name == name
+                            && matches!(field.kind,SymbolKind::Field {owner,..} if owner == model)
+                            && self.types.symbol_types.get(&field.id) == Some(ty))
+                    }))
+            })
+        };
+        self.checked_membership_signature(membership, module)?;
+        let membership_call = self.types.selected_calls.get(&membership)?;
+        if !formal_name(
+            subject,
+            person.param,
+            self.types.symbol_types.get(&person.param)?,
+        ) || self.nodes.get(&absent)?.kind != SyntaxKind::Literal
+            || self.types.node_types.get(&absent) != Some(&ResolvedType::Null)
+            || !formal_name(compared, person.param, &ResolvedType::Scalar(Scalar::User))
+            || !formal_member(account, "account", &ResolvedType::Scalar(Scalar::User))
+            || !formal_member(active, "active", &ResolvedType::Scalar(Scalar::Bool))
+            || !formal_name(
+                membership_call.arguments[0],
+                person.param,
+                &ResolvedType::Scalar(Scalar::User),
+            )
+            || self.nodes.get(&membership_call.arguments[1])?.kind != SyntaxKind::NameRef
+            || self.word(self.nodes.get(&membership_call.arguments[1])?)? != "team"
+            || !matches!(
+                self.query_binding(membership_call.arguments[1]),
+                Some(Binding::Context(ContextVar::Team))
+            )
+        {
+            return None;
+        }
+        let mut sites = self
+            .effects
+            .scenarios
+            .values()
+            .filter(|scenario| scenario.module == module)
+            .filter_map(|scenario| self.checked_decision_sites(scenario))
+            .flatten()
+            .filter(|site| {
+                site.stage == CheckedDecisionStage::LeadingRequire
+                    && site.calls.iter().any(|call| {
+                        call.node == key
+                            && call.chain.is_empty()
+                            && call.target == CheckedDecisionCallTarget::DeriveFn(id)
+                            && call
+                                .arguments
+                                .iter()
+                                .map(|(node, _)| *node)
+                                .eq(selected.arguments.iter().copied())
+                            && call.slots == selected.slots
+                            && call.defaults.is_empty()
+                    })
+            });
+        let site = sites.next()?;
+        let original_source = self.source(module, key).ok()?;
+        if sites.next().is_some()
+            || !site.calls.iter().any(|call| {
+                call.node == membership
+                    && call.target
+                        == CheckedDecisionCallTarget::Builtin {
+                            id: "active_member".into(),
+                            overload: 0,
+                        }
+                    && call.defaults.is_empty()
+                    && call.chain.len() == 1
+                    && call.chain[0].node == key
+                    && call.chain[0].derive == id
+                    && call.chain[0].module == module
+                    && call.chain[0].source == original_source
+            })
+        {
+            return None;
+        }
+        Some((id, model, parent, membership))
+    }
+
     fn call(
         &mut self,
         key: NodeKey,
@@ -5806,6 +6116,19 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing checked call selection"))?
             .clone();
+        if self.authorization
+            && calls.len() == 1
+            && self
+                .checked_authorization_derive(calls[0], module)
+                .is_some_and(|(_, _, _, membership)| membership == key)
+        {
+            self.checked_membership_signature(key, module)
+                .ok_or_else(|| self.fail(key, "original StateRead membership evidence required"))?;
+            return Ok(vec![ValuePath {
+                observed: vec![(key, calls.to_vec())],
+                ..ValuePath::default()
+            }]);
+        }
         if calls.is_empty()
             && self.statement_depth == 1
             && matches!(&selected.target, SelectedCallTarget::Builtin {id,..} if id == "first")
@@ -6036,9 +6359,56 @@ impl<'a> Closure<'a> {
         {
             return Ok(vec![value]);
         }
+        let authorization = (self.authorization && calls.is_empty() && self.loop_node.is_none())
+            .then(|| self.checked_authorization_derive(key, module))
+            .flatten();
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
-            let alternatives = self.expr(*argument, module, env, calls)?;
+            let mut alternatives =
+                if authorization.is_some() && selected.arguments.first() == Some(argument) {
+                    // Only this original authorization call passes Actor into its
+                    // checked nullable User formal. It is not ordinary context data.
+                    vec![ValuePath::default()]
+                } else {
+                    self.expr(*argument, module, env, calls)?
+                };
+            if let Some((_, model, parent, _)) = authorization
+                && *argument == parent
+            {
+                for value in &mut alternatives {
+                    let Some(ReferenceOrigin::Parent {
+                        parameter,
+                        model: actual,
+                        depth: 1,
+                    }) = value.reference_origin
+                    else {
+                        return Err(self.fail(
+                            parent,
+                            "authorization needs its original required parent reference",
+                        ));
+                    };
+                    let [read] = value.reads.as_slice() else {
+                        return Err(self.fail(parent, "authorization parent observation mismatch"));
+                    };
+                    if actual != model || value.record != Some(model)
+                        || self.checked_call_parent_path(parent,parameter,0) != Some((model,1))
+                        || !env.get(&Local::Symbol(parameter)).is_some_and(|input| {
+                            matches!(input.reference_origin,Some(ReferenceOrigin::Parameter(original)) if original == parameter)
+                        })
+                        || read.node != parent || read.field != read.model || read.field_name != "parent"
+                        || read.ty != (ResolvedType::Record {symbol:model,stored:true})
+                        || read.role != DependencyRole::Data || !read.calls.is_empty() || read.query_id.is_some()
+                        || read.source != self.source(module,parent)?
+                        || !value.intrinsics.is_empty() || !value.decisions.is_empty()
+                    {
+                        return Err(self.fail(parent,"authorization parent observation mismatch"));
+                    }
+                    // Consumption into this exact formal retains the source
+                    // parent read. It neither admits a new parameter nor leaves
+                    // a general parent/field operand permission in the callee.
+                    value.reference_origin = None;
+                }
+            }
             if alternatives.iter().any(|value| {
                 value.contract_value.is_some()
                     || matches!(
@@ -6145,7 +6515,26 @@ impl<'a> Closure<'a> {
                                 if !compatible(&evaluated.decisions, &value.decisions) {
                                     continue;
                                 }
-                                // Argument reads matter only when the derive's
+                                if let Some((_, _, parent, _)) = authorization {
+                                    // This checked authorization call eagerly
+                                    // read its required parent before the lazy
+                                    // derive body. Every resulting alternative
+                                    // retains that same reference authority.
+                                    value.join(&ValuePath {
+                                        reads: evaluated
+                                            .reads
+                                            .iter()
+                                            .filter(|read| {
+                                                read.node == parent
+                                                    && read.field_name == "parent"
+                                                    && read.calls.is_empty()
+                                            })
+                                            .cloned()
+                                            .collect(),
+                                        ..ValuePath::default()
+                                    });
+                                }
+                                // Other argument reads matter only when the derive's
                                 // returned value consumes them. Decisions are
                                 // retained solely to identify actual evaluation.
                                 let mut decisions = evaluated.decisions.clone();
