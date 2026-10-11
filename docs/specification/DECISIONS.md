@@ -9098,3 +9098,43 @@ Coordinator finite fixture source review CLEAR: exact staged snapshots and compl
 Verified [JEV3 requests/responses](../../implementation/capability-roadmap-20261008/viewer-history-request-1.json) unanimously prefer this conservative boundary over a new persistent lifetime identity (A1/1/1,confidence1/1/1); advice is not acceptance. Genuine producer/storage5/5, viewer8/8 and ALL6new actualD1/SQLiteDO retrieval/current-reader/reopen/legacyNULL controls pass. Actual aggregate raw-byte refusal additionally passesMemory andD1/DO with seven individually native-valid1.9mbyte rows; the earlier single13mbyte insertion was refused bySQLite itself and supplies no reader evidence. RootnoEmit remains blocked on preexisting CF cohort/nativeFile API releases, ownedPackages/Dev. Wider native suite18/20 exposes two unchanged obsolete one-entry expectations for two actual source stages; Packages owns the precise common gate correction. Finite permission/lifetime source reviewCLEAR; Contracts/State/DO emits and package boundaries pass. Original Appointment can_work/host_manager source and conditional parent facts remain Compiler/Dev-owned; original history presentation remains Packages-owned. This does not establish File/opaque history, current mounted CanBook or whole-app acceptance, reopenSEQ012 or release any human hold. See existing SEQ005.worker_update.viewer_history_contract for the single current result.
 
 Coordinator finite integration reviews CLEAR at the recorded ordinary-field profile: current caller/row/parent grant observations and State fence, complete original creation-through-current chain, union original/current secret withholding and internal proof exclusion. Genuine writer inventory is detached before awaits, scenario uses checked declaration inventory and storage persists optional provenance with legacy NULL. Indexed count/all-column aggregate-byte refusal precedes payload materialization, complete bounded results preserve source order and both revision checks; no raw fallback. Existing owning producer/viewer/native/storage results retained; common ordered-stage fixture is released in maind028e632 and its exact assertions are preserved. Source conditional CanBook/Compiler/Interfaces/UI/mounted-native and whole-plan acceptance remain unfinished; all holds and complete checkpoint remain.
+
+### 2026-10-11 — event-aware complete empty Values inventory (native join unfinished)
+
+Extend only the existing absence inventory to original checked Event declarations.
+Rejoin exact source/CST/module/owner/ordered fields/type and private checked field
+metadata/description before sealing; capture actual IR schema facts for later
+source-aware emission revalidation. Edited, partial or stale evidence refuses
+E6008 instead of borrowing an empty-contract claim. The genuine original CLI
+and installed inventory consumer pass alongside metadata mutation controls
+(seven distinct assertions); original full event inputs/inputFields and void
+operations remain. This supplies no event/ingress/File authority. Coordinator
+finite acceptance and Dev's genuine scheduled lifetime consumer remain due;
+all holds and full original application dependencies are preserved.
+
+
+### 2026-10-11 — finite agenda installed consumer retry (original history unfinished)
+
+The exact shared omitted-empty repair is consumed and built before native
+capture. Only the failed owning actual CLI/installed agenda case is retried and
+passes1/1 .89s, preserving nullable/saved/selected/cleared occurrence filters,
+protected row/version forms, complete supported authored body/order and refusal
+behavior. Reuse141 unchanged affected results;142 finite assertions pass.
+Keep original bare history E6008 until the reviewed bounded current-authorized
+State reader and Packages presentation bind the actual source row/revision and
+current policy. Full original CanBook/application/browser/D1/current dispatch
+remains separately owned; no actor-only policy or hold release is accepted.
+
+
+### 2026-10-11 — original resolved event field type correspondence
+
+Coordinator review found that comparing lowered types against the same editable
+checked type table could seal a prebuild File-to-Text edit. Pin original resolved
+event field types privately at the defining check and compare current lowering
+inputs before the complete empty inventory seal. The concrete mutation refuses
+and both original installed inventory consumers still pass (affected6/6);
+unchanged declaration refusal is reused. This corrects correspondence only,
+retaining original aliases/constraints/defaults and every authority boundary.
+Exact coordinator release and native deferred lifetime acceptance remain due.
+
+Coordinator finite corrected Event-census source review CLEAR: original resolved ordered field types are cloned privately at the defining check, preventing public prebuild File-to-Text edits from changing both comparison sides. Original CST/module/owner/complete field/description/constraint/default correspondence and source/IR census remain. Owning affected6/6, unchanged seventh refusal and strict/fmt results retained. The genuine original valueTypes:{contracts:[]} producer is released to Dev; deferred File lifetime/current-authority/native completion remains due. Separately the already reviewed agenda source passes its one failed installed native retry1/1 with prior141 results retained; only that finite criterion is accepted, with original history/conditional-policy/full-app still open.

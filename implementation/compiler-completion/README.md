@@ -36,7 +36,7 @@ Use the shared finite-execution rules in [AGENTS.md](../../AGENTS.md) and the ex
 | C08 — original Text / progress delivery workflows | External: SAME original Text Send/generate/cancel/reconcile end-to-end; remaining Task21/25 progress/page consumer outcomes where their original plan requires them. Compiler Send/Set/intrinsic and progress producers are qualified. | Dev/Work retained dispatch/provider/receipt consumer and Capability owning source; precise C23 remains held. | Use original generated source to prove assignment/send order, failure, receipt/replay/cancellation and selected-child authorization. Reuse compiler output checks; no duplicate synthetic generation witness. |
 | C09 — File original and opaque lifetime joins | Original bb/7fb FileProfile union, raw originalContracts0a/a117 admission, real State/Work runtime33 and common checked delivery/nullable4b are reviewed/integrated. All six original a4 Images DO/MemoryD1 backend consumers pass at1b625f8b; reuse them. | Dev's genuine before-await raw capture/same-store install/historical persistence criterion is implemented, reviewed and qualified by the complete original native71db case1/1 in31.49s, using existing Compiler bb inventory/State1c/Packages4a. Retire this finite join; opaque payload origin/current grant and original app requirements retain their separate owners. Original declared event-owned inputs/inputFields pair is reviewed and qualified at the finite compiler/installed descriptor scope (123 affected/strict0 reused); Dev owns the named NativeFileDeferred.Retained scheduled File origin consumer. | Consume the released finite producer outputs without owner-wide waits. Preserve complete raw contract/field/type/default/constraint census through reopen, genuine original receiver/current reader, replay/no-restoration and atomic retirement. Metadata/backend qualification alone grants no native authority or full workflow acceptance. |
 | C10 — finalized File destinations | Blocked exact saved-source requirement: unchanged CRM353 targets owning Revision.pdf:file?; current E3001 is not a demonstrated producer regression. String/Url destination/caption behavior is qualified. | UI/Interfaces/Files release the exact current-authorized finalized File-to-safeURL binding and nullable/no-file behavior; Compiler lowering follows that defining output, then Dev's actual saved-source consumer. Current ButtonProps.target is string-only, null counts as absent, and JS emission admits only Text/Url. | Actual destination uses owning finalized reference/current authority and preserves gated nonevaluation/order. Preserve CRM source/guards/examples and unsupported File emission; skip this blocked unit without widening admission or releasing holds. |
-| C11 — selected UI/application profiles | Original ordinary-scenario attendance checkbox/protected form, Calendar authored checkbox/protected edit and Date control producers/native rendering are qualified and independently reviewed in local main, alongside existing bare edits/disclosure/view/split/bare-pagination components. Original52/CanBook filter/order/default/time/by/require and actual application profiles remain their exact gates. | Reviewed ordered list-columns consumera58/main9a326 is consumed; Compiler original386/390 producer/installed consumer137 affected/strict0 is independently reviewed and qualified. Packages agenda authored row/page consumer81fd is reviewed and qualified; exact occurrence filter/default and nullable enum persistence remain Packages-owned, with original bare history retaining its defining audit reader prerequisite. Dev owns original selected-row/browser/State-D1/current-grant/version and complete preference lifecycle joins. Preserve original11/other-recipient holds. | Use original source, own labels/order/occurrence/protected row/version; refuse unsupported/missing selection. Reuse finite results; no full application/browser/persistence/current dispatch acceptance. |
+| C11 — selected UI/application profiles | Original ordinary-scenario attendance checkbox/protected form, Calendar authored checkbox/protected edit and Date control producers/native rendering are qualified and independently reviewed in local main, alongside existing bare edits/disclosure/view/split/bare-pagination components. Original52/CanBook filter/order/default/time/by/require and actual application profiles remain their exact gates. | Reviewed ordered list-columns consumera58/main9a326 is consumed; Compiler original386/390 producer/installed consumer137 affected/strict0 is independently reviewed and qualified. Packages row/page, occurrence filter/default and nullable preference consumers are reviewed and released; the checked Compiler producer and finite installed agenda join now pass142 distinct assertions. Original bare history retains its defining bounded current-authorized reader and presentation prerequisite. Dev owns original selected-row/browser/State-D1/current-grant/version and complete preference lifecycle joins. Preserve original11/other-recipient holds. | Use original source, own labels/order/occurrence/protected row/version; refuse unsupported/missing selection. Reuse finite results; no full application/browser/persistence/current dispatch acceptance. |
 | C12 — configured URL host serving | Original CLI/page-only configured-root URL native consumer a31 qualifies1/1 40911.67ms; reviewed main514 includes the affected host loader2/2. Current Dev boundary scan42 is0. Explicit required operation/nonroot mount profiles remain separate duties. | Dev owns a named remaining route/action/static/poll/auth/Files profile only where its deployment contract requires it. | Reuse the original root workflow and configuration refusals; no request/auth-origin fallback. Select an existing required mount/consumer before implementation. The passing root criterion does not establish all hosts or hold Office completion behind unrelated File work. |
 | C13 — T04/T11 help | Decision/external: eligible genuine source-grounded residual ambiguity and exact current provider/example execution. Office41 compiler/card/browser scope is qualified; it supplies no safe Choice evidence. | Compiler/design accepted complete equivalent-permission/effect candidate context; Dev exact diagnostic branch/runtime/provider. | Keep evidenceSufficient=false/material-intent and unknown candidateCoverage until the named branch warrants them. No flag/ID fabrication or live ranking based on a passing card count. If no eligible authored branch/contract exists, name the exact needed decision and leave A5/T11 open; absence does not satisfy their required live case. |
 | C14 — BDD3 consumer-policy | **Held**: returned/result/payload/as, live/context/disclosure and input-slot policy; consultation approval remains recipient-specific. | Human/policy owner; Testkit/canonical invocation defining accepted policy. | No implementation or new consultation across the hold. Once explicitly released, one agreed generated example covers its actual payload/disclosure/current-input semantics; no identity recertification. |
@@ -3868,3 +3868,62 @@ application gates retain their named owners. This related checkpoint is unfinish
 23 findings,58/67/nine and precise recipient holds remain, with no publication.
 
 Coordinator accepts this finite checked agenda source component after CLEAR source review;141 affected and strict/fmt results are retained. Main46075436 releases the exact omitted-empty UI correction. The affected original native retry and current-policy/history/full-application outcomes remain unfinished; all holds and the complete checkpoint remain.
+
+
+**Unfinished native File join — original Event/no-contract inventory, 2026-10-11.**
+
+The unchanged original NativeFileDeferred source now publishes the complete
+`valueTypes:{contracts:[]}` required by the real installed inventory consumer.
+Match original event/CST/module/owner/ordered fields/types and private checked
+field metadata/descriptions before sealing; retain actual event schema facts
+for later IR revalidation. Imports/contracts/unsupported declarations and raw,
+stale, partial or edited evidence retain refusal. Original complete event inputs,
+flat inputFields and arm/cancel_pending void metadata are unchanged. No event
+execution, File origin or current grant is supplied by this absence inventory.
+
+Seven distinct owning assertions pass: six initial successes (.71s), then only
+the failed prebuild mutation assertion passes (.02s) after explicit E6008 is
+added for edited checked metadata. Eight metadata mutations and postbuild
+owner/order/type/constraint/omission plus stale source refuse. The actual CLI,
+public loader, verified emitted module and installed checkedFileInventory consume
+original emitted bytes without a fallback. Frozen coordinator-released consumer
+build22/22 uncached12.705s; strict all-target Clippy0 6.39s,fmt/diff0. Coordinator acceptance
+and Dev's genuine scheduled File rollback/replay/reopen/cancellation lifetime
+consumer remain unfinished;58/67, nine dependencies and precise holds persist.
+
+
+**Finite agenda native retry qualified; original history/application unfinished, 2026-10-11.**
+
+Consume exact reviewed omitted-empty UI46075436 through safe local mainbef53114
+and finish its consumer graph22/22 uncached12.705s before capture. Only the
+failed owning calendar_agenda target is retried:1/1 PASS .89s, zero skips.
+Actual CLI/public verified modules and installed UI/Interfaces exercise selected,
+saved, nullable and explicit-clear filters across two occurrences, protected
+row/version attendance forms/actions, complete authored body, evaluation order,
+first failure, refusal controls and the original no-row default. The earlier141
+affected/strict outcomes are reused; this finite join now has142 distinct passing
+assertions. No original bare-history body is shipped or silently dropped.
+
+Capability/State's bounded current-authorized reader and Packages presentation
+binding remain the exact next output. Original CanBook host_manager/can_work
+and source parent facts require their real current-policy observer; no actor-only
+approximation. Dev retains browser/D1/current-grant/dispatch/persistence/full
+original application qualification. Coordinator finite native acceptance is
+pending;58/67, nine owner dependencies and every precise hold remain.
+
+
+**File inventory review correction — original checked types, 2026-10-11.**
+
+Coordinator review withheld9e55 release: initial type comparison read both sides
+from the same editable checked type table. Privately retain original resolved
+event field types at the defining effects check and compare them before sealing.
+The actual original Retained.attachment File-to-Text prebuild mutation now refuses
+E6008/no inventory. Six affected original-scope assertions pass .68s, including
+both genuine CLI/installed consumers; unchanged seventh declaration refusal is
+reused. True original types, aliases, constraints/defaults and source are retained.
+Changed strict all-target Clippy0 6.16s,fmt/diff0; coordinator exact correction acceptance is pending;
+Dev's native scheduled lifetime workflow remains unfinished.
+
+Coordinator finite corrected Event-census source review CLEAR: original resolved ordered field types are cloned privately at the defining check, preventing public prebuild File-to-Text edits from changing both comparison sides. Original CST/module/owner/complete field/description/constraint/default correspondence and source/IR census remain. Owning affected6/6, unchanged seventh refusal and strict/fmt results retained. The genuine original valueTypes:{contracts:[]} producer is released to Dev; deferred File lifetime/current-authority/native completion remains due. Separately the already reviewed agenda source passes its one failed installed native retry1/1 with prior141 results retained; only that finite criterion is accepted, with original history/conditional-policy/full-app still open.
+
+The bounded history reader is released in local main2dd5e37d; Packages owns the pending original history callback/presentation source and Dev owns current host composition. Preserve bare history refusal until defining source and checked full policy/containment inputs are available.
