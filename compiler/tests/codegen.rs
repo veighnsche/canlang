@@ -1371,8 +1371,8 @@ fn golden_expenseflow_structure() {
         "sequence request override with exact error"
     );
     assert!(
-        approve.contains("{observations:async(c,s,b)=>([(b.submitted_claim ?? null)?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
-        "checked sequence assertion metadata"
+        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
+        "checked sequence assertion keeps the original preceding non-null assertion: {approve}"
     );
     assert!(
         approve.contains("types:[\"expenses.Expense.status\",\"user?\"]"),

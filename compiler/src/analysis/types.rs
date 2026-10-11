@@ -13747,6 +13747,10 @@ impl<'a> Typer<'a> {
             return narrowed;
         }
         if let Some(narrowed) = self.narrowed_chain(cx, receiver) {
+            // This shortcut already uses the checked continuation fact. Keep
+            // its original receiver occurrence for lowering/source consumers,
+            // just as ordinary expression checking records its receiver.
+            self.record(receiver, narrowed.clone());
             return self.member_on(cx, node, name_node, name, &narrowed, safe);
         }
         // Model/capability symbol receivers (operations, not fields).

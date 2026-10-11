@@ -106,6 +106,8 @@ pub(super) fn checked_created_schema(
         reference_name(ir, model, parent, parent_name, db)?;
     }
     let matcher = SourceExpressions {
+        ir,
+        db,
         original,
         nodes: &nodes,
         text,
@@ -579,6 +581,8 @@ pub(super) fn checked_create_expression(
         pending.extend(node.children.iter());
     }
     SourceExpressions {
+        ir,
+        db,
         original,
         nodes: &nodes,
         text,
@@ -610,6 +614,8 @@ fn source(ir: &IrProgram, original: &DisclosureSource, at: Span, db: &SourceDb) 
 }
 
 struct SourceExpressions<'a> {
+    ir: &'a IrProgram,
+    db: &'a SourceDb,
     original: &'a CheckedScenarioCreate,
     nodes: &'a HashMap<NodeKey, &'a SyntaxNode>,
     text: &'a str,
@@ -711,7 +717,7 @@ impl SourceExpressions<'_> {
             (IrExpr::DurationMs(value), SyntaxKind::Literal) => {
                 primitive(Scalar::Duration) && duration(token(SyntaxKind::Duration)?)? == *value
             }
-            (IrExpr::Name(name), SyntaxKind::NameRef) if name == "row" => {
+            (IrExpr::Name(name), SyntaxKind::NameRef) if name == "row" && !self.operands => {
                 single_name(node, self.text)? == name
                     && (actual.ty == ResolvedType::Unknown
                         || actual.ty
@@ -852,6 +858,77 @@ impl SourceExpressions<'_> {
             }
             (
                 IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "first" => {
+                let query = super::scenario_receipts::checked_first_query_ir(
+                    self.ir,
+                    self.original,
+                    actual,
+                    key,
+                    self.db,
+                )?;
+                if source_path(children.first()?, self.text)? != "first" {
+                    return None;
+                }
+                let arguments: Vec<_> = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Argument)
+                    .collect();
+                let [argument] = arguments.as_slice() else {
+                    return None;
+                };
+                let values = expressions(argument);
+                let [source_argument] = values.as_slice() else {
+                    return None;
+                };
+                let [domain] = args.as_slice() else {
+                    return None;
+                };
+                if domain.span != source_argument.span {
+                    return None;
+                }
+                let mut source_argument = *source_argument;
+                for _ in depth..=64 {
+                    if self
+                        .original
+                        .expression_types
+                        .iter()
+                        .find(|(node, _)| *node == NodeKey::of(source_argument))
+                        .is_none_or(|(_, ty)| ty != &domain.ty)
+                    {
+                        return None;
+                    }
+                    if source_argument.kind != SyntaxKind::Group {
+                        break;
+                    }
+                    let grouped = expressions(source_argument);
+                    let [inner] = grouped.as_slice() else {
+                        return None;
+                    };
+                    source_argument = inner;
+                }
+                if NodeKey::of(source_argument) != query.node
+                    || source_path(self.nodes.get(&query.domain)?, self.text)?
+                        != self.ir.items.get(query.model.0 as usize)?.name
+                    || source_path(self.nodes.get(&query.first.as_ref()?.actor)?, self.text)?
+                        != "actor"
+                    || source_path(self.nodes.get(&query.order.first()?.node)?, self.text)?
+                        != "row.id"
+                {
+                    return None;
+                }
+                let IrExpr::Query(scan) = &domain.expr else {
+                    return None;
+                };
+                self.expression(scan.where_pred.as_ref()?, query.predicate, depth + 1)?;
+                true
+            }
+            (
+                IrExpr::Call {
                     target: IrCallTarget::Builtin { id, .. },
                     args,
                 },
@@ -896,6 +973,7 @@ fn expressions(node: &SyntaxNode) -> Vec<&SyntaxNode> {
                     | SyntaxKind::Unary
                     | SyntaxKind::Binary
                     | SyntaxKind::Call
+                    | SyntaxKind::Query
             )
         })
         .collect()
