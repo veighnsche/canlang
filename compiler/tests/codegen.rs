@@ -1182,7 +1182,7 @@ fn golden_expenseflow_structure() {
         "join with opener buttons"
     );
     let approve_occurrence = entry
-        .split_once("$can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],occurrence:")
+        .split_once("$can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"note\"],occurrence:")
         .expect("protected row-bound approve preparation")
         .1.split_once(",labels:").unwrap().0;
     let approve_start: usize = approve_occurrence
@@ -1205,7 +1205,7 @@ fn golden_expenseflow_structure() {
         )
     );
     assert!(
-        entry.contains(&"$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\",content:[await ((($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]})))]})".replace(",labels:", &format!(",occurrence:{approve_occurrence},labels:"))),
+        entry.contains(&"$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\",content:[await ((($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]})))]})".replace(",labels:", &format!(",occurrence:{approve_occurrence},labels:"))),
         "approve modal with content slot"
     );
     assert!(

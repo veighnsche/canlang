@@ -603,6 +603,20 @@ pub struct CheckedStdCapabilityEvent {
     pub payload: ResolvedType,
 }
 
+/// Exact original agenda endpoint correspondence, without expanding the
+/// source language's endpoint suitability rules. Native profiles qualify `ty`.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedCalendarEndpoint {
+    pub collection: NodeKey,
+    pub value: NodeKey,
+    pub path: NodeKey,
+    pub module: ModuleId,
+    pub model: SymbolId,
+    pub field: SymbolId,
+    pub relative_path: String,
+    pub ty: ResolvedType,
+}
+
 /// Original checked selector and direct panel correspondence. This fact is
 /// private to source analysis; editable type tables cannot manufacture it.
 #[derive(Debug, Clone)]
@@ -699,6 +713,7 @@ impl CheckedBoundTabs {
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
     bound_tabs: HashMap<NodeKey, CheckedBoundTabs>,
+    calendar_endpoints: HashMap<NodeKey, CheckedCalendarEndpoint>,
     /// Selected query-domain collection calls; separate from authored Where clauses.
     pub checked_collection_calls: HashMap<NodeKey, CheckedCollectionCall>,
     /// Checked contract-array any/all; distinct from stored-model proofs.
@@ -785,6 +800,10 @@ pub struct TypeTable {
 }
 
 impl TypeTable {
+    pub(crate) fn calendar_endpoint(&self, node: &NodeKey) -> Option<&CheckedCalendarEndpoint> {
+        self.calendar_endpoints.get(node)
+    }
+
     pub(crate) fn bound_tabs(&self, node: &NodeKey) -> Option<&CheckedBoundTabs> {
         self.bound_tabs.get(node)
     }
@@ -8992,7 +9011,30 @@ impl<'a> Typer<'a> {
             return;
         }
         if let Some(model) = model {
-            self.check_selectors(cx, node, model, endpoint, key, true);
+            let selected = self.check_selectors(cx, node, model, endpoint, key, true);
+            let segments = path_segments(paths[0], cx.text);
+            if let [name] = segments.as_slice()
+                && selected.len() == 1
+                && selected[0] == *name
+                && let Some(field) = self.model_field_named(model, name)
+                && matches!(self.tables.symbols.get(field.0 as usize).map(|symbol| &symbol.kind),
+                    Some(SymbolKind::Field { owner, .. }) if *owner == model)
+            {
+                let fact = CheckedCalendarEndpoint {
+                    collection: NodeKey::of(node),
+                    value: NodeKey::of(endpoint),
+                    path: NodeKey::of(paths[0]),
+                    module: cx.module,
+                    model,
+                    field,
+                    relative_path: (*name).to_string(),
+                    ty: self.decl_type(field),
+                };
+                self.types
+                    .calendar_endpoints
+                    .insert(fact.value, fact.clone());
+                self.types.calendar_endpoints.insert(fact.path, fact);
+            }
         }
     }
 
