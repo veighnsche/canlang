@@ -48,6 +48,7 @@ pub mod model_policies;
 pub mod model_policy_profile;
 mod read_predicates;
 pub mod scenario_calls;
+mod scenario_create_sources;
 pub mod scenario_queries;
 mod scenario_receipts;
 mod send_guards;

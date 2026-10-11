@@ -10959,3 +10959,33 @@ and Files observations; Compiler supplies exact original CALL-site dependency
 correspondence. Runtime/native acceptance and all precise holds remain separate.
 
 Coordinator defining source review CLEAR and integrated in LOCAL main after deadline; exact owning Contracts emission/root0 reused. This finite type prerequisite is closed and available to State; no runtime/native authority, absence proof, duplicate inventory or hold release follows. Existing coverage reconciled; complete checkpoint unchanged.
+
+2026-10-11 — preserve original Create schema and explicitly supplied CALL defaults
+(implemented/tested producer/installed metadata; original/native joins unfinished).
+Use checked owning stored constructor declarations for populated/contained creates,
+including implicit parent, server/default fields and model rules; public CRUD is
+not a source prerequisite. Separate owned derives from stored input slots. Match
+original header, parameters, prefix, operands and return to IR before publishing
+created-result disclosure; sealed source still requires E6008 after a changed
+return/binding/result-header/owner ID. Retain existing operation input descriptors for every
+explicit scalar slot, its literal default and exact alias/field constraints; do
+not infer omitted inputs. Source/IR refusals and actual CLI/installed descriptors
+pass. Native current-row/query/child SEND/File[] authority and the defining native
+Model/default/alias target profile remain external; original8 has no artifact.
+
+2026-10-11 — retain bounded rich CALL work while prioritizing native SEND
+(partial implementation; rich admission unfinished). Original required input
+parent traversal records at most two real containment occurrences. Source schema
+may retain File[] facts while its defining dependency/child admission is absent.
+Keep source inventory distinct from the still-declined rich whole CALL; the
+original guarded Email framework producer and reported prefix-type seal are the
+next critical joins. No authority, default omission or runtime carrier added.
+
+2026-10-11 — seal Create prefix arithmetic to original types (implemented/tested).
+Source spelling and same-span IR type agreement are insufficient: every matched
+subtree now compares the original private checked NodeKey/type census, including
+local references, Groups and Member bases. Coordinated helper-selection mutations
+refuse before native disclosure; owning7 and changed strict0 pass. Original
+application authority and saved unfinished rich CALL eligibility remain separate.
+
+Coordinator defining reviews CLEAR after sealing every original prefix NodeKey/type; original/ref/nullable CALL inventory is preserved as explicitly unfinished, not native eligibility. Scoped meaningful owning results and final changed strict0 reused; no unchanged suite restart or whole-plan credit. Actual producer source release is available to Dev/Capability, and source/current-authority/File/SEND/application and exact holds remain separate. Complete filetree checkpoint unchanged.

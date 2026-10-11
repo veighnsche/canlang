@@ -1,10 +1,14 @@
 //! Internal source-bound static call facts. No artifact or execution transport.
-use super::ir::{IrEffectCallTarget, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt, IrType};
+use super::ir::{
+    IrDefault, IrEffectCallTarget, IrExpr, IrItem, IrItemKind, IrJudgmentGenerated, IrProgram,
+    IrStmt, IrType, TypedExpr,
+};
 use super::js::{JsMcpField, JsOperation, JsOperationField, JsOperationKind};
 use crate::analysis::resolve::SymbolId;
 use crate::analysis::scenario_disclosure::{DisclosureEffectKind, ScenarioDisclosure};
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
+use crate::syntax::{SyntaxKind, decode_json_string};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -241,6 +245,7 @@ pub(crate) fn checked_source<'a>(
             || *parent != owner.id
             || ty != &fact.ty
             || *default_node != fact.default
+            || ir.value_constraints.get(&parameter.id) != fact.constraints.as_ref()
         {
             return None;
         }
@@ -318,6 +323,429 @@ fn scalar_id(ty: &ResolvedType) -> Option<&'static str> {
         _ => None,
     }
 }
+
+/// An explicit argument cuts default execution, but cannot alter the child's
+/// declaration. Keep the literal default and checked scalar alias on the same
+/// owning interface rather than synthesizing required/default-free inputs.
+fn explicit_scalar_input(
+    ir: &IrProgram,
+    child: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<()> {
+    let source = checked_source(ir, child, db)?;
+    let (position, fact) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let IrItemKind::Param {
+        owner,
+        index,
+        ty: IrType::Known(ty),
+        array_bounds: None,
+        default,
+        default_node,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let scalar = scalar_id(ty)?;
+    if *owner != child.id
+        || *index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required != default.is_none()
+        || input.nullable
+        || input.array_required.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || db
+            .get(parameter.span.file)?
+            .text
+            .get(parameter.span.start as usize..parameter.span.end as usize)?
+            != parameter.name
+    {
+        return None;
+    }
+    match (default, default_node, &input.default) {
+        (None, None, None) => {}
+        (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
+            if node.kind != SyntaxKind::Literal as u8
+                || value.ty != *ty
+                || value.span != Span::new(node.file, node.start, node.end)
+                || !source_scalar_literal(value, db)
+                || actual.to_json()
+                    != super::js::js_field_default(default.as_ref(), None)?.to_json()
+            {
+                return None;
+            }
+        }
+        _ => return None,
+    }
+    if let Some(alias) = fact.constraints.as_ref().and_then(|value| value.alias) {
+        let declared = ir.items.get(alias.0 as usize)?;
+        let alias_ty = match &declared.kind {
+            IrItemKind::Field {
+                ty: IrType::Known(ty),
+                required_array: false,
+                ..
+            }
+            | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
+                ty: IrType::Known(ty),
+                required_array: false,
+                ..
+            }) => ty,
+            _ => return None,
+        };
+        if declared.id != alias
+            || alias_ty != ty
+            || ir.value_constraints.get(&alias)?.alias != Some(alias)
+            || input.value_type.as_deref() != Some(declared.canonical.as_str())
+            || !matches!(&input.field, JsMcpField::Nominal { name } if name == &declared.canonical)
+        {
+            return None;
+        }
+    } else if input.value_type.as_deref() != Some(scalar)
+        || !matches!(
+            (&input.field, ty),
+            (JsMcpField::Integer, ResolvedType::Scalar(Scalar::Int))
+                | (
+                    JsMcpField::String,
+                    ResolvedType::Scalar(Scalar::Text | Scalar::Date)
+                )
+                | (JsMcpField::Boolean, ResolvedType::Scalar(Scalar::Bool))
+                | (JsMcpField::Decimal, ResolvedType::Scalar(Scalar::Decimal))
+                | (JsMcpField::Money, ResolvedType::Scalar(Scalar::Money))
+                | (JsMcpField::Datetime, ResolvedType::Scalar(Scalar::Datetime))
+                | (JsMcpField::Duration, ResolvedType::Scalar(Scalar::Duration))
+                | (JsMcpField::User, ResolvedType::Scalar(Scalar::User))
+        )
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn source_scalar_literal(value: &TypedExpr, db: &SourceDb) -> bool {
+    let Some(source) = db.get(value.span.file).and_then(|file| {
+        file.text
+            .get(value.span.start as usize..value.span.end as usize)
+    }) else {
+        return false;
+    };
+    match &value.expr {
+        IrExpr::Int(actual) => source.parse::<i128>().ok().as_ref() == Some(actual),
+        IrExpr::Text(actual) => {
+            decode_json_string(source, value.span.start, value.span.file)
+                .ok()
+                .as_ref()
+                == Some(actual)
+        }
+        IrExpr::Bool(actual) => source == if *actual { "true" } else { "false" },
+        _ => false,
+    }
+}
+
+/// Singular mutation inputs retain their owning Ref declaration. The supplied
+/// value is still the original checked parameter, Create binding or parent
+/// operand; this join never manufactures a reference wire or a default value.
+fn explicit_reference_input(
+    ir: &IrProgram,
+    declarations: (&IrItem, &IrItem, &IrItem),
+    value: &TypedExpr,
+    input: &JsOperationField,
+    operations: &[JsOperation],
+    call: Span,
+    db: &SourceDb,
+) -> Option<Option<Span>> {
+    let (owner, child, parameter) = declarations;
+    let (model, nullable) = explicit_reference_declaration(ir, child, parameter, input, db)?;
+    if value.ty
+        != (ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        })
+    {
+        return None;
+    }
+    if matches!(value.expr, IrExpr::Member { .. }) {
+        // The nullable declaration consumes the exact original checked parent
+        // chain. Its literal null default stays metadata and is never visited.
+        if !nullable {
+            return None;
+        }
+        let (_, parent) = super::scenario_receipts::checked_parent_reference(ir, owner, value, db)?;
+        return (parent.id == model).then_some(None);
+    }
+    if nullable {
+        return None;
+    }
+    let IrExpr::Name(name) = &value.expr else {
+        return None;
+    };
+    if db
+        .get(value.span.file)?
+        .text
+        .get(value.span.start as usize..value.span.end as usize)?
+        != name
+    {
+        return None;
+    }
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    let mut parents = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|parent| parent.name == *name);
+    if let Some(parent) = parents.next() {
+        if parents.next().is_some() {
+            return None;
+        }
+        let descriptor = operations.iter().find(|op| op.name == owner.canonical)?;
+        if descriptor.kind != JsOperationKind::Scenario {
+            return None;
+        }
+        let original = descriptor.inputs.iter().find(|field| field.name == *name)?;
+        let (parent_model, parent_nullable) =
+            explicit_reference_declaration(ir, owner, parent, original, db)?;
+        return (parent_model == model && !parent_nullable).then_some(None);
+    }
+    preceding_created_reference(ir, owner, model, name, call, db).map(Some)
+}
+
+fn explicit_reference_declaration(
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<(SymbolId, bool)> {
+    let source = checked_source(ir, owner, db)?;
+    let (position, fact) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let IrItemKind::Param {
+        owner: parent,
+        index,
+        ty: IrType::Known(ty),
+        default,
+        default_node,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let (base, nullable) = match ty {
+        ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+        ty => (ty, false),
+    };
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = base
+    else {
+        return None;
+    };
+    let model = ir.items.get(symbol.0 as usize)?;
+    let module = ir.modules.get(model.module.0 as usize)?;
+    if *parent != owner.id
+        || *index != position
+        || parameter.id != fact.parameter
+        || parameter.module != owner.module
+        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+        || model.id != *symbol
+        || !matches!(model.kind, IrItemKind::Model { .. })
+        || model.canonical != format!("{}.{}", module.name, model.name)
+        || fact.constraints.is_some()
+        || ir.value_constraints.contains_key(&parameter.id)
+        || input.name != parameter.name
+        || input.nullable != nullable
+        || input.required == nullable
+        || input.array_required.is_some()
+        || input.value_type.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || !matches!(&input.field, JsMcpField::Ref {model: name, require_version: true}
+            if name == &model.canonical)
+        || db
+            .get(parameter.span.file)?
+            .text
+            .get(parameter.span.start as usize..parameter.span.end as usize)?
+            != parameter.name
+        || db
+            .get(model.span.file)?
+            .text
+            .get(model.span.start as usize..model.span.end as usize)?
+            != model.name
+    {
+        return None;
+    }
+    let declared = db
+        .get(fact.type_node.file)?
+        .text
+        .get(fact.type_node.start as usize..fact.type_node.end as usize)?;
+    let spelling = if nullable {
+        declared.strip_suffix('?')?
+    } else {
+        declared
+    };
+    if model.module == owner.module {
+        if spelling != model.name {
+            return None;
+        }
+    } else {
+        let owner_module = ir.modules.get(owner.module.0 as usize)?;
+        let mut imports = owner_module
+            .imports
+            .iter()
+            .filter(|import| {
+                import.provider == module.name
+                    && import.from.is_none()
+                    && db.get(import.provider_span.file).and_then(|file| {
+                        file.text.get(
+                            import.provider_span.start as usize..import.provider_span.end as usize,
+                        )
+                    }) == Some(module.name.as_str())
+            })
+            .flat_map(|import| import.members.iter())
+            .filter(|(name, alias, _)| name == &model.name && alias == name && alias == spelling);
+        let (_, _, at) = imports.next()?;
+        if imports.next().is_some()
+            || db
+                .get(at.file)?
+                .text
+                .get(at.start as usize..at.end as usize)?
+                != spelling
+        {
+            return None;
+        }
+    }
+    match (nullable, default, default_node, &input.default) {
+        (false, None, None, None) => {}
+        (true, Some(IrDefault::Literal(value)), Some(node), Some(actual))
+            if matches!(value.expr, IrExpr::Null)
+                && value.ty == ResolvedType::Null
+                && node.kind == SyntaxKind::Literal as u8
+                && value.span == Span::new(node.file, node.start, node.end)
+                && db
+                    .get(node.file)?
+                    .text
+                    .get(node.start as usize..node.end as usize)?
+                    == "null"
+                && actual.to_json()
+                    == super::js::js_field_default(default.as_ref(), None)?.to_json() => {}
+        _ => return None,
+    }
+    Some((*symbol, nullable))
+}
+
+/// The finite original caller uses the Create immediately before CALL. Seal
+/// that actual statement and every input instead of admitting copied names or
+/// a row-shaped value merely because its checked type names the same model.
+fn preceding_created_reference(
+    ir: &IrProgram,
+    owner: &IrItem,
+    model: SymbolId,
+    name: &str,
+    call: Span,
+    db: &SourceDb,
+) -> Option<Span> {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let mut calls = effects
+        .iter()
+        .enumerate()
+        .filter(|(_, statement)| matches!(statement, IrStmt::Call {span, ..} if *span == call));
+    let (position, _) = calls.next()?;
+    if calls.next().is_some() {
+        return None;
+    }
+    let IrStmt::Create {
+        model: target,
+        input,
+        when: None,
+        binding: Some(binding),
+        span,
+    } = effects.get(position.checked_sub(1)?)?
+    else {
+        return None;
+    };
+    let source = checked_source(ir, owner, db)?;
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let mut originals = source.creates.as_deref()?.iter().filter(|original| {
+        original.node.file == span.file
+            && original.node.start == span.start
+            && original.node.end == span.end
+    });
+    let original = originals.next()?;
+    let declaration = ir.items.get(model.0 as usize)?;
+    if originals.next().is_some()
+        || binding != name
+        || original.binding != name
+        || original.model != model
+        || declaration.id != model
+        || target != &declaration.canonical
+        || original.definition.canonical != *target
+        || original.source != source.source
+        || original.node.end > call.start
+        || original.node.file != call.file
+    {
+        return None;
+    }
+    let mut proofs = checked
+        .effects
+        .iter()
+        .filter(|proof| proof.node == original.node);
+    let proof = proofs.next()?;
+    if proofs.next().is_some()
+        || proof.source != checked.source
+        || !matches!(&proof.kind, DisclosureEffectKind::Create {model: actual, binding, inputs, ..}
+            if *actual == model && binding == name && inputs == &original.inputs)
+    {
+        return None;
+    }
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    if entries.len() != original.inputs.len() {
+        return None;
+    }
+    for ((name, value), fact) in entries.iter().zip(&original.inputs) {
+        if name != &fact.name
+            || value.ty != fact.ty
+            || value.span
+                != Span::new(
+                    fact.value_node.file,
+                    fact.value_node.start,
+                    fact.value_node.end,
+                )
+        {
+            return None;
+        }
+        super::scenario_create_sources::checked_create_operand(
+            ir,
+            original,
+            value,
+            fact.value_node,
+            db,
+        )?;
+    }
+    Some(*span)
+}
+
 fn collect_owner(
     ir: &IrProgram,
     owner: &IrItem,
@@ -376,6 +804,8 @@ fn collect_owner(
     pending.reverse();
     let mut sites = Vec::new();
     let mut matched_calls = HashSet::new();
+    let mut intermediate_creates = HashSet::new();
+    let mut supplied_creates = HashSet::new();
     let source_calls = collect_scenario_source_calls(ir, owner, db)?;
     let mut steps = 0;
     while let Some((stmt, depth)) = pending.pop() {
@@ -547,7 +977,6 @@ fn collect_owner(
                 let mut authored = Vec::new();
                 for ((name, value), fact) in entries.iter().zip(&source_call.inputs) {
                     if !keys.insert(name)
-                        || (query.is_none() && !simple_value(value))
                         || fact.name != *name
                         || fact.source != value.span
                         || fact.ty != value.ty
@@ -565,26 +994,35 @@ fn collect_owner(
                     let IrItemKind::Param {
                         owner: param_owner,
                         ty: IrType::Known(ty),
-                        default: None,
                         ..
                     } = &param.kind
                     else {
                         return None;
                     };
-                    if *param_owner != child.id || ty != &value.ty {
+                    if *param_owner != child.id {
                         return None;
                     }
                     let input = descriptor.inputs.iter().find(|input| input.name == *name)?;
                     if query.is_some() {
+                        if ty != &value.ty {
+                            return None;
+                        }
                         protected_query_input(ir, owner, param, value, input, operations, db)?;
-                    } else if !input.required
-                        || input.nullable
-                        || input.array_required.is_some()
-                        || input.default.is_some()
-                        || input.computed_default
-                        || input.value_type.as_deref() != Some(scalar_id(ty)?)
-                    {
-                        return None;
+                    } else if scalar_id(ty).is_some() {
+                        if ty != &value.ty || !simple_value(value) {
+                            return None;
+                        }
+                        explicit_scalar_input(ir, child, param, input, db)?;
+                    } else if let Some(created) = explicit_reference_input(
+                        ir,
+                        (owner, child, param),
+                        value,
+                        input,
+                        operations,
+                        *span,
+                        db,
+                    )? {
+                        supplied_creates.insert(created);
                     }
                     authored.push(CallInput {
                         name: name.clone(),
@@ -637,6 +1075,9 @@ fn collect_owner(
             IrStmt::Send { .. } if is_child => return None,
             IrStmt::Create { .. }
                 if super::scenario_receipts::checked_created_model_result(ir, owner).is_some() => {}
+            IrStmt::Create { span, .. } if depth == 0 => {
+                intermediate_creates.insert(*span);
+            }
             IrStmt::Let { .. }
             | IrStmt::Require { .. }
             | IrStmt::Return { .. }
@@ -646,15 +1087,17 @@ fn collect_owner(
             _ => return None,
         }
     }
-    if checked.effects.iter().any(|proof| {
-        matches!(proof.kind, DisclosureEffectKind::Call { .. })
-            && !matched_calls.contains(&proof.node)
-    }) || checked
-        .effects
-        .iter()
-        .filter(|proof| matches!(proof.kind, DisclosureEffectKind::Call { .. }))
-        .count()
-        != sites.len()
+    if !intermediate_creates.is_subset(&supplied_creates)
+        || checked.effects.iter().any(|proof| {
+            matches!(proof.kind, DisclosureEffectKind::Call { .. })
+                && !matched_calls.contains(&proof.node)
+        })
+        || checked
+            .effects
+            .iter()
+            .filter(|proof| matches!(proof.kind, DisclosureEffectKind::Call { .. }))
+            .count()
+            != sites.len()
     {
         return None;
     }
