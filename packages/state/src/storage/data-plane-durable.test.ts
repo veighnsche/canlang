@@ -27,6 +27,7 @@ import type {
   CanonicalOwnerModelPolicies,
 } from '@canlang/contracts';
 import type {
+  HistoryEntry,
   ModelName,
   RecordId,
   Revision,
@@ -414,6 +415,17 @@ function durableSuite(
       const entry = await store.load(model, id);
       assert.ok(entry);
       const operationId = uuidv7(FIXED_NOW, 9501);
+      const partial = { title: 'final', code: 'entry', stock: '0' };
+      const final = { title: 'final', code: 'final', stock: '1' };
+      const attribution = { model, recordId: id, operation: asOperation('Shop.change'),
+        operationId, actor: plane.receiptIdentity(operationId).principal, at: FIXED_NOW };
+      const expectedHistory = [
+        { ...attribution, change: 'update', version: 2, before: entry.data, after: partial },
+        { ...attribution, change: 'update', version: 2, before: partial, after: final },
+      ];
+      const historyFacts = (entries: readonly HistoryEntry[]) => entries.map(({
+        model, recordId, version, operation, operationId, actor, at, change, before, after,
+      }) => ({ model, recordId, version, operation, operationId, actor, at, change, before, after }));
       const committed = await plane.run(operationId, async call => {
         const session = await beginOwnerMutation({ table: plane.table, store, context: call.context,
           policies: plane.policies, bounds: { maxRows: 4, maxWork: 300 } });
@@ -430,8 +442,12 @@ function durableSuite(
         const result = await session.read(model, id);
         const effects = await session.finalize();
         assert.equal(effects.writes.length, 2);
-        assert.equal(effects.history.filter(row => row.model === model).length, 1);
-        assert.equal(effects.history.find(row => row.model === model)?.version, 2);
+        // Existing-row stages retain ordered snapshots at one reserved version,
+        // independently of the final net write and interleaved new-row entry.
+        assert.deepEqual(historyFacts(effects.history.filter(row => row.model === model)), expectedHistory);
+        assert.deepEqual(effects.history.map(row => [row.model, row.recordId, row.change, row.version]), [
+          [model, id, 'update', 2], [LINK, 'link', 'create', 1], [model, id, 'update', 2],
+        ]);
         assert.deepEqual(effects.uniqueReleases, [{ model, keyName: 'code', keyValue: 'entry' }]);
         assert.deepEqual(effects.uniqueClaims, [{ model, recordId: id, keyName: 'code', keyValue: 'final' }]);
         assert.deepEqual(await store.load(model, id), entry);
@@ -441,12 +457,10 @@ function durableSuite(
       assert.deepEqual(plane.evaluated, [id]);
       assert.deepEqual(plane.dependencies, [[null, id]]);
       const other = secondHandle();
-      assert.deepEqual((await other.load(model, id))?.data, { title: 'final', code: 'final', stock: '1' });
+      assert.deepEqual((await other.load(model, id))?.data, final);
       assert.equal((await other.load(model, id))?.version, 2);
       const history = await other.historyFor(model, id);
-      assert.equal(history.length, 1);
-      assert.deepEqual(history[0]?.before, entry.data);
-      assert.equal(history[0]?.operationId, operationId);
+      assert.deepEqual(historyFacts(history), expectedHistory);
       assert.equal((await other.readReceipt(plane.receiptIdentity(operationId)))?.outcome.status, 'committed');
       const removedId = uuidv7(FIXED_NOW, 9502);
       await plane.run(removedId, async call => {
@@ -462,7 +476,10 @@ function durableSuite(
       assert.deepEqual(plane.dependencies, [[null, id], [id, null]]);
       assert.equal(await other.load(model, id), null);
       assert.equal(await other.load(LINK, asId('link')), null);
-      assert.deepEqual((await other.historyFor(model, id)).map(row => [row.change, row.version]), [['update', 2], ['remove', 3]]);
+      assert.deepEqual(historyFacts(await other.historyFor(model, id)), [
+        ...expectedHistory,
+        { ...attribution, operationId: removedId, change: 'remove', version: 3, before: final, after: null },
+      ]);
       assert.equal((await other.readReceipt(plane.receiptIdentity(removedId)))?.outcome.status, 'committed');
     });
 
