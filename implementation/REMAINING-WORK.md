@@ -3,7 +3,7 @@
 ## Current four-plan execution view — 2026-10-11
 
 This view reconciles the four requested plans at local main
-`0c6931e6b1835854aa1887a4bb4f1f0a5643cc92` with the defining cohort reconciliation `f0192cf2`. Their task entries remain authoritative
+`f3c2db112f952797d0b281cc08c1b55ced989bc1` plus the exact original diagnostic source checkpoint recorded in SEQ-025, retaining the defining cohort reconciliation `f0192cf2`. Their task entries remain authoritative
 for detailed actions and evidence; this index supplies ownership and execution
 order, not a second task ledger. Active/unmerged worker changes are not accepted
 by this snapshot. Apply [finite execution](../AGENTS.md#finite-execution).
@@ -70,10 +70,15 @@ Every remaining entry must name a finite deliverable, accountable owner,
 concrete prerequisite and observable exit. If its original requirement does not
 yet select the source/profile/outcome, the next deliverable is that decision and
 its release condition. The full program cannot honestly be declared complete
-while human BDD3/Task22/native preparation, excluded source edits, exact external
-packet disclosure, provider/data/installed-host or other recipient-specific
-gates remain unresolved. This planning refresh preserves them; it neither
-requests their release nor authorizes product implementation or publication.
+while the actual recipient/action Task22/native-preparation holds, exact external
+packet disclosure and provider/data/installed-host gates remain unresolved.
+BDD3 consultation and ordinary engineering design/source choices use the human’s
+JEV authorization; no inferred generic human architecture/source-approval gate
+blocks ready work. Original diagnostic policies/presentation are authored and
+reviewed at that stage; Compiler checked types/grants/typed arrays and Dev genuine
+original current-authority consumption remain implementation prerequisites.
+Retain each precise operational activation/publication hold with its owner; this
+index neither expands scope nor advances full-plan acceptance.
 
 ## Historical consolidated inventory — 2026-10-06
 
