@@ -1047,6 +1047,11 @@ fn draft_outcome_table() {
     // source and two opaque-payload findings but exposes whole IncomingEmail
     // comparison and its opaque DatetimeValue assignment seam (net -1).
     // Keep both new semantic refusals, all52 rows and50 unchanged snapshots.
+    // Reviewed original membership source admission11a removes eight E3010
+    // findings only in owning derives/SEND predicates (Chat1/Creative2/
+    // Decide1/Gallery1/Shift1/Employees2). Nested inspection source typingedfd
+    // also clears Creative's one fields-empty-fallback E3004. All52 rows and
+    // the other46 diagnostic counts remain; these are source criteria only.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
@@ -1054,14 +1059,14 @@ fn draft_outcome_table() {
         ("draft/CanBook.can", 154),
         ("draft/CanCRM.can", 146),
         ("draft/CanCatch.can", 53),
-        ("draft/CanChat.can", 1),
+        ("draft/CanChat.can", 0),
         ("draft/CanCheck.can", 38),
         ("draft/CanContract.can", 22),
-        ("draft/CanCreative.can", 24),
+        ("draft/CanCreative.can", 21),
         // Nine committed create/update/delete handlers now receive typed
         // event.id text; the unchanged source still has 49 other findings.
         ("draft/CanCustomer.can", 49),
-        ("draft/CanDecide.can", 4),
+        ("draft/CanDecide.can", 3),
         ("draft/CanDesk.can", 72),
         ("draft/CanDiscover.can", 60),
         ("draft/CanDo.can", 38),
@@ -1070,7 +1075,7 @@ fn draft_outcome_table() {
         ("draft/CanExpense.can", 92),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 121),
-        ("draft/CanGallery.can", 22),
+        ("draft/CanGallery.can", 21),
         ("draft/CanGrant.can", 47),
         ("draft/CanHire.can", 120),
         // Exact IncomingEmail identity clears only the replay guard E3002;
@@ -1102,7 +1107,7 @@ fn draft_outcome_table() {
         ("draft/CanReport.can", 16),
         // Stored commitments reuse their owning request kind, clearing only
         // the five distinct enum-owner comparisons and assignments.
-        ("draft/CanShift.can", 95),
+        ("draft/CanShift.can", 94),
         ("draft/CanStats.can", 28),
         // The location-name sort derives from an imported Location. This
         // isolated row keeps that import opaque; the full source closure
@@ -1119,7 +1124,7 @@ fn draft_outcome_table() {
         // The checked read-only context call retains proposal.call != null;
         // invocation_references pins its mutation-call invalidation control.
         ("draft/CanWorkbench.can", 73),
-        ("draft/shared/Employees.can", 8),
+        ("draft/shared/Employees.can", 6),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),
     ];

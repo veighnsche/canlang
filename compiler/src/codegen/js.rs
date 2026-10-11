@@ -4205,7 +4205,18 @@ impl<'a> Emitter<'a> {
                     );
                 }
                 self.stdlib.insert("delivery".to_string());
-                let record_text = self.lower_expr(record);
+                let original = match record.ty.nullable_inner().unwrap_or(&record.ty) {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => self
+                        .ir
+                        .items
+                        .get(symbol.0 as usize)
+                        .and_then(|item| self.original_ui_row(record, &item.canonical)),
+                    _ => None,
+                };
+                let record_text = original.unwrap_or_else(|| self.lower_expr(record));
                 // Error is one authorized receipt leaf. Its closed payload
                 // members are projected locally, never new receipt selectors.
                 let error_projection =
@@ -6599,7 +6610,10 @@ impl<'a> Emitter<'a> {
                 "await (async()=>{{{guard}const children=[];{children}return '<section class=\"card bg-base-100 shadow\"><div class=\"card-body\">'+children.filter(value=>value!=null).join('')+'</div></section>';}})()"
             );
         }
-        if node.factory == "callbackValueList" {
+        if matches!(
+            node.factory.as_str(),
+            "callbackValueList" | "inspectionValueList"
+        ) {
             if !self.ir.callback_grants.matches_value_list(self.ir, node) {
                 self.unsupported(
                     "callback value list",
@@ -6641,6 +6655,32 @@ impl<'a> Emitter<'a> {
             let guard = gate
                 .map(|gate| format!("if(!({gate}))return '';"))
                 .unwrap_or_default();
+            if node.factory == "inspectionValueList"
+                && node
+                    .props
+                    .iter()
+                    .any(|(name, value)| name == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            {
+                for helper in ["message", "resolveCaption", "escapeHtml"] {
+                    self.ui.insert(helper.to_string());
+                }
+                let group = format!("can-inspection-f{}-s{}-", node.span.file.0, node.span.start);
+                let occurrence = format!(
+                    "JSON.stringify([{ctx}.path,{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')",
+                    occurrences.join(",")
+                );
+                let message = binding_ident("u", "message");
+                let caption = binding_ident("u", "resolveCaption");
+                let escape_html = binding_ident("u", "escapeHtml");
+                // Paging changes visibility of this complete authorized snapshot.
+                // It performs no query and preserves each child's once/order/failure.
+                // A nonexistent form owner prevents these presentation radios from
+                // adding inputs to any enclosing business form.
+                return format!(
+                    r#"await (async()=>{{{guard}const values={source};{empty}const rows=[];let {index}=0;for(const {row} of values){{const children=[];{children}rows.push('<li class="list-row">'+children.filter(value=>value!=null).join('')+'</li>');{index}++;}}if(rows.length<=25)return '<ul class="list">'+rows.join('')+'</ul>';const id={group}+{occurrence};const pages=Math.ceil(rows.length/25);let controls='',panels='',css='#'+id+'>[data-can-inspection-page]{{display:none}}';for(let page=0;page<pages;page++){{const input=id+'-page-'+page;const label={caption}({message}("Page {{number}}",{{nl:"Pagina {{number}}"}},{{number:{{type:"int",value:BigInt(page+1)}}}}),{ctx});controls+='<input type="radio" class="radio" id="'+input+'" name="'+id+'" form="'+id+'-presentation" aria-controls="'+id+'-panel-'+page+'"'+(page===0?' checked':'')+'><label class="btn btn-sm" for="'+input+'">'+{escape_html}(label)+'</label>';panels+='<ul class="list" id="'+id+'-panel-'+page+'" data-can-inspection-page="'+page+'">'+rows.slice(page*25,(page+1)*25).join('')+'</ul>';css+='#'+input+':checked~[data-can-inspection-page="'+page+'"]{{display:block}}';}}const legend={caption}({message}("Pages",{{nl:"Pagina’s"}}),{ctx});return '<fieldset id="'+id+'"><legend>'+{escape_html}(legend)+'</legend><style>'+css+'</style>'+controls+panels+'</fieldset>';}})()"#,
+                    group = js_string(&group)
+                );
+            }
             // Only constant wrappers are authored here; all business values
             // remain escaped by their existing presentation factories.
             return format!(
@@ -7569,7 +7609,7 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
         || matches!(
             node.factory.as_str(),
-            "callbackValueList" | "callbackValueCard"
+            "callbackValueList" | "callbackValueCard" | "inspectionValueList"
         )
         || node.factory == "form"
         || node.factory == "history"
@@ -7585,7 +7625,7 @@ fn ui_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
         || matches!(
             node.factory.as_str(),
-            "callbackValueList" | "callbackValueCard"
+            "callbackValueList" | "callbackValueCard" | "inspectionValueList"
         )
         || node.factory == "form"
         || node.factory == "history"
@@ -7646,7 +7686,7 @@ fn ui_uses_original_row(node: &IrUi) -> bool {
         }
         false
     }
-    node.factory == "history"
+    matches!(node.factory.as_str(), "history" | "inspectionValueList")
         || node.props.iter().any(|(_, value)| protected(value))
         || node.gate.as_ref().is_some_and(protected)
         || node

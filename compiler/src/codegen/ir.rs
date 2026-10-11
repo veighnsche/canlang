@@ -433,6 +433,10 @@ impl CheckedCallbackGrants {
                 .props
                 .iter()
                 .all(|(name, _)| matches!(name.as_str(), "values" | "empty")),
+            "inspectionValueList" => node
+                .props
+                .iter()
+                .all(|(name, _)| matches!(name.as_str(), "values" | "empty" | "page")),
             "callbackValueCard" => node.props.is_empty() && node.row_scope.is_none(),
             _ => false,
         };
@@ -14371,14 +14375,91 @@ impl<'a> Cx<'a> {
         })
     }
 
-    /// The bounded copied diagnostic list keeps authored alias, gates and children.
+    /// Only a stored owning standard receipt supplies a copied inspection list.
+    /// Shape-compatible parameters and constructed arrays confer no such fact.
+    fn inspection_value_source(&mut self, scope: &Scope, head: &SyntaxNode) -> Option<TypedExpr> {
+        let values = self.decode_expr(scope, head);
+        let read = match &values.expr {
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left,
+                right,
+            } if matches!(&right.expr, IrExpr::Array(items) if items.is_empty())
+                && matches!(&right.ty, ResolvedType::Array { .. })
+                && left.ty.nullable_inner() == Some(&right.ty)
+                && values.ty == right.ty =>
+            {
+                left.as_ref()
+            }
+            IrExpr::DeliveryRead { .. } => &values,
+            _ => return None,
+        };
+        let IrExpr::DeliveryRead {
+            record,
+            field,
+            props,
+            callback: None,
+        } = &read.expr
+        else {
+            return None;
+        };
+        if props != &["result", "fields"] {
+            return None;
+        }
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = &record.ty
+        else {
+            return None;
+        };
+        let IrExpr::Name(alias) = &record.expr else {
+            return None;
+        };
+        if scope.name_types.get(alias) != Some(&record.ty)
+            || scope.row_rewrite.get(alias) != Some(alias)
+            || scope.in_field_owner
+        {
+            return None;
+        }
+        let field_id = self.fields.get(&(*model, field.clone()))?;
+        let owning = self.program.symbols.get(field_id.0 as usize)?;
+        if !matches!(owning.kind, SymbolKind::Field { owner, .. } if owner == *model)
+            || !matches!(
+                self.program.symbols.get(model.0 as usize)?.kind,
+                SymbolKind::Model { .. }
+            )
+        {
+            return None;
+        }
+        let field_type = self.program.types.symbol_types.get(field_id)?;
+        let ResolvedType::StdDelivery { capability, op } =
+            field_type.nullable_inner().unwrap_or(field_type)
+        else {
+            return None;
+        };
+        if op.result != "WorkflowInspection"
+            || !std::ptr::eq(
+                crate::analysis::catalog::std_operation(capability, op.name)?,
+                *op,
+            )
+            || !matches!(&values.ty, ResolvedType::Array { .. })
+        {
+            return None;
+        }
+        Some(values)
+    }
+
+    /// Bounded copied lists keep authored alias, gates and readonly children.
     fn decode_callback_value_list(
         &mut self,
         scope: &Scope,
         node: &SyntaxNode,
         head: &SyntaxNode,
         query: Option<&SyntaxNode>,
+        inspection_values: Option<TypedExpr>,
     ) -> Option<IrUi> {
+        let inspection = inspection_values.is_some();
         self.check_ui_attributes(node, "diagnostic list", &["empty"]);
         if ui_attributes(self.db, node)
             .iter()
@@ -14396,7 +14477,9 @@ impl<'a> Cx<'a> {
         let ResolvedType::Array { element, .. } = &ty else {
             return None;
         };
-        let source_owned = if head.kind == SyntaxKind::Array {
+        let source_owned = if inspection {
+            true
+        } else if head.kind == SyntaxKind::Array {
             let values = kids(head)
                 .into_iter()
                 .filter(|child| is_expression(child.kind))
@@ -14470,10 +14553,44 @@ impl<'a> Cx<'a> {
                     .find_map(|part| name_text(self.db, part))?;
             }
         }
+        let pagination = kids(node)
+            .into_iter()
+            .filter(|child| is_ui_node(child.kind) && ui_word(self.db, child) == "pagination")
+            .collect::<Vec<_>>();
+        if inspection
+            && (pagination.len() > 1
+                || pagination.iter().any(|marker| {
+                    !ui_attributes(self.db, marker).is_empty()
+                        || kids(marker)
+                            .into_iter()
+                            .any(|child| is_expression(child.kind) || is_ui_node(child.kind))
+                }))
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "inspection list requires at most one bare direct pagination marker".to_string(),
+                node.span,
+            ));
+            return None;
+        }
         let mut pending = kids(node);
         while let Some(child) = pending.pop() {
+            if inspection && pagination.iter().any(|marker| marker.span == child.span) {
+                continue;
+            }
+            if inspection
+                && is_ui_node(child.kind)
+                && !is_gate_leaf(self.db, child)
+                && !matches!(
+                    ui_word(self.db, child).as_str(),
+                    "text" | "title" | "content" | "alert" | "card"
+                )
+            {
+                self.diags.push(Diagnostic::error("E6008", "inspection value list children require an owning readonly presentation profile".to_string(), child.span));
+                return None;
+            }
             if is_ui_node(child.kind)
-                && matches!(
+                && (matches!(
                     ui_word(self.db, child).as_str(),
                     "form"
                         | "edit"
@@ -14484,7 +14601,11 @@ impl<'a> Cx<'a> {
                         | "gallery"
                         | "pagination"
                         | "count"
-                )
+                ) || inspection
+                    && matches!(
+                        ui_word(self.db, child).as_str(),
+                        "action" | "button" | "board" | "list"
+                    ))
             {
                 self.diags.push(Diagnostic::error(
                     "E6008",
@@ -14513,19 +14634,21 @@ impl<'a> Cx<'a> {
         ) {
             inner.callback_values.insert(alias.clone());
         }
-        let values = self.decode_expr(scope, head);
+        let values = inspection_values.unwrap_or_else(|| self.decode_expr(scope, head));
         let mut props = vec![("values".to_string(), values)];
         if let Some((_, empty)) = ui_attributes(self.db, node)
             .into_iter()
             .find(|(name, _)| name == "empty")
         {
-            if !matches!(
-                element.nullable_inner().unwrap_or(element),
-                ResolvedType::StdNominal {
-                    name: "GenerationCallbackFailure",
-                    ..
-                }
-            ) {
+            if !inspection
+                && !matches!(
+                    element.nullable_inner().unwrap_or(element),
+                    ResolvedType::StdNominal {
+                        name: "GenerationCallbackFailure",
+                        ..
+                    }
+                )
+            {
                 self.diags.push(Diagnostic::error(
                     "E6008",
                     "only the copied failure list owns an empty caption".to_string(),
@@ -14552,11 +14675,33 @@ impl<'a> Cx<'a> {
                 ),
             ));
         }
-        let children = self.decode_ui_children(&inner, node, None);
+        if let Some(marker) = pagination.first().filter(|_| inspection) {
+            props.push((
+                "page".to_string(),
+                TypedExpr::new(
+                    IrExpr::Bool(true),
+                    ResolvedType::Scalar(Scalar::Bool),
+                    marker.span,
+                ),
+            ));
+        }
+        let children = kids(node)
+            .into_iter()
+            .filter(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
+            .filter(|child| {
+                !inspection || !pagination.iter().any(|marker| marker.span == child.span)
+            })
+            .filter_map(|child| self.decode_ui(&inner, child, None))
+            .collect();
         let gate = self.decode_gate(scope, node);
         let ui = IrUi {
             view: None,
-            factory: "callbackValueList".to_string(),
+            factory: if inspection {
+                "inspectionValueList"
+            } else {
+                "callbackValueList"
+            }
+            .to_string(),
             props,
             children,
             row_scope: Some((alias, "view".to_string())),
@@ -14589,7 +14734,12 @@ impl<'a> Cx<'a> {
             if let Some(head) = head {
                 let ty = self.node_type(head);
                 if callback_value_array(&ty) {
-                    return self.decode_callback_value_list(scope, node, head, query);
+                    return self.decode_callback_value_list(scope, node, head, query, None);
+                }
+                if matches!(ty, ResolvedType::Array { .. })
+                    && let Some(values) = self.inspection_value_source(scope, head)
+                {
+                    return self.decode_callback_value_list(scope, node, head, query, Some(values));
                 }
             }
         }
