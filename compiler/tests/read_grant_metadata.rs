@@ -157,8 +157,8 @@ fn checked_read_grants_preserve_unrepresentable_rules() {
     );
     assert!(
         emitted.contains(concat!(
-            "(($roleSubject)=>$roleSubject==null?false:hasRole(c,",
-            "\"TypedAuthorizedReads.auditor\",$roleSubject))((row.person ?? null))",
+            "(await (async($roleSubject)=>$roleSubject==null?false:await hasRole(c,",
+            "\"TypedAuthorizedReads.auditor\",$roleSubject))((row.person ?? null)))",
         )),
         "{emitted}"
     );

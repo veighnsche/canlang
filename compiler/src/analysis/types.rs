@@ -983,6 +983,7 @@ pub fn check_types(
     typer.phase1(trees);
     typer.collect_callback_diagnostic_sources(trees);
     typer.phase2(trees);
+    typer.check_strict_membership_closures();
     typer.check_input_choice_cycles();
     typer.check_cycles();
     typer.types.symbol_types = std::mem::take(&mut typer.decl);
@@ -1616,6 +1617,7 @@ impl<'a> Typer<'a> {
             }
             let cx = Self::body_cx(module, file, text, &narrow);
             let actual = self.expr(&cx, default, Some(expected.clone()));
+            self.check_field_membership_default(default, text, &name);
             if !actual.is_error() && !self.types_compatible(&actual, &expected) {
                 self.diags.push(Diagnostic::error(
                     "E3011",
@@ -1644,6 +1646,7 @@ impl<'a> Typer<'a> {
                 server_default: true,
             };
             let actual = self.expr(&cx, server, Some(expected.clone()));
+            self.check_field_membership_default(server, text, &name);
             if !actual.is_error() && !self.types_compatible(&actual, &expected) {
                 self.diags.push(Diagnostic::error(
                     "E3011",
@@ -3412,7 +3415,7 @@ impl<'a> Typer<'a> {
         if let Some(when) = bare_keyword_value(node, "when", cx.text) {
             let ty = self.expr(cx, when, None);
             self.expect_bool(cx, tight_span(cx.text, when), &ty, "`when`");
-            self.check_when_pure(cx, when);
+            self.check_dispatch_when(cx, when);
         }
     }
 
@@ -7302,10 +7305,170 @@ impl<'a> Typer<'a> {
     /// Effectful builtin calls under `node`: (name, span) for every
     /// call whose catalog effects are not pure. Without a catalog,
     /// nothing is known effectful.
-    fn effectful_calls(&self, node: &SyntaxNode, text: &str) -> Vec<(String, Span)> {
+    fn effectful_calls(&mut self, node: &SyntaxNode, text: &str) -> Vec<(String, Span)> {
         let mut found = Vec::new();
         self.collect_effectful(node, text, &mut found);
+        self.strict_purity_roots.push(node.clone());
         found
+    }
+
+    /// Selected bounded membership reads retain their StateRead catalog effect.
+    /// This typing admission supplies no private runtime stage or authority.
+    fn checked_membership_call(&self, node: &SyntaxNode) -> bool {
+        let Some(selected) = self.types.selected_calls.get(&NodeKey::of(node)) else {
+            return false;
+        };
+        let SelectedCallTarget::Builtin { id, overload: 0 } = &selected.target else {
+            return false;
+        };
+        if id != "active_member"
+            || selected.arguments.len() != 2
+            || selected.slots.len() != 2
+            || self.types.node_types.get(&NodeKey::of(node))
+                != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return false;
+        }
+        let Some(catalog) = self.catalog else {
+            return false;
+        };
+        let Some(overloads) = catalog.overloads(id) else {
+            return false;
+        };
+        let Some(signature) = overloads.first() else {
+            return false;
+        };
+        if catalog.effects(id) != Some(Effects::StateRead)
+            || signature.params.len() != 2
+            || signature.result != SigType::Named("bool".to_string())
+        {
+            return false;
+        }
+        for (index, (name, declared, expected)) in [
+            ("person", "user", ResolvedType::Scalar(Scalar::User)),
+            ("team", "Team", ResolvedType::Team),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let parameter = &signature.params[index];
+            if parameter.name != name
+                || parameter.ty != SigType::Named(declared.to_string())
+                || parameter.alias.is_some()
+                || parameter.in_scope.is_some()
+            {
+                return false;
+            }
+            let Some(argument) =
+                selected.slots[index].and_then(|slot| selected.arguments.get(slot))
+            else {
+                return false;
+            };
+            if self.types.node_types.get(argument) != Some(&expected) {
+                return false;
+            }
+        }
+        selected.slots[0] != selected.slots[1]
+    }
+
+    fn check_field_membership_default(&mut self, value: &SyntaxNode, text: &str, name: &str) {
+        // A membership read needs an owning decision/read stage. Field
+        // initializers have no such stage, including server initializers.
+        self.strict_purity_roots.push(value.clone());
+        let mut pending = vec![value];
+        while let Some(node) = pending.pop() {
+            if self.checked_membership_call(node) {
+                self.diags.push(Diagnostic::error(
+                    "E3011",
+                    format!("initializer for '{name}' cannot read active membership"),
+                    tight_span(text, node),
+                ));
+            }
+            pending.extend(kids(node).into_iter().rev());
+        }
+    }
+
+    fn bounded_membership_effectful_calls(
+        &self,
+        node: &SyntaxNode,
+        text: &str,
+    ) -> Vec<(String, Span)> {
+        let mut found = Vec::new();
+        let mut pending = vec![node];
+        while let Some(current) = pending.pop() {
+            if current.kind == SyntaxKind::Call && !self.checked_membership_call(current) {
+                // Inspect this call only; its arguments retain their own checks.
+                if let Some(head) = kids(current)
+                    .into_iter()
+                    .find(|child| is_expression(child.kind))
+                    .and_then(|head| {
+                        kids(head)
+                            .into_iter()
+                            .find_map(|child| name_text(child, text))
+                    })
+                    && self
+                        .catalog
+                        .and_then(|catalog| catalog.effects(head))
+                        .is_some_and(|effects| effects != Effects::Pure)
+                {
+                    found.push((head.to_string(), tight_span(text, current)));
+                }
+            }
+            pending.extend(kids(current).into_iter().rev());
+        }
+        found
+    }
+
+    /// A checked bounded helper cannot smuggle membership into an ordinary
+    /// default, caption, retention, CRUD condition or other strict pure site.
+    fn check_strict_membership_closures(&mut self) {
+        let roots = std::mem::take(&mut self.strict_purity_roots);
+        let mut reported = HashSet::new();
+        for root in roots {
+            let mut pending = vec![&root];
+            while let Some(node) = pending.pop() {
+                if let Some(SelectedCall {
+                    target: SelectedCallTarget::DeriveFn(id),
+                    ..
+                }) = self.types.selected_calls.get(&NodeKey::of(node))
+                    && self.derive_reads_membership(*id)
+                    && reported.insert(NodeKey::of(node))
+                {
+                    let span = tight_span(self.text(node.span.file), node);
+                    let canonical = &self.tables.symbols[id.0 as usize].canonical;
+                    self.diags.push(Diagnostic::error("E3010", format!("pure value cannot call membership-reading derived function '{canonical}'"), span));
+                }
+                pending.extend(kids(node).into_iter().rev());
+            }
+        }
+    }
+
+    fn derive_reads_membership(&self, id: SymbolId) -> bool {
+        let mut functions = vec![id];
+        let mut visited = HashSet::new();
+        while let Some(id) = functions.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+            let Some(body) = self.membership_derive_bodies.get(&id) else {
+                continue;
+            };
+            let mut pending = vec![body];
+            while let Some(node) = pending.pop() {
+                if self.checked_membership_call(node) {
+                    return true;
+                }
+                if let Some(SelectedCall {
+                    target: SelectedCallTarget::DeriveFn(callee),
+                    ..
+                }) = self.types.selected_calls.get(&NodeKey::of(node))
+                {
+                    functions.push(*callee);
+                }
+                pending.extend(kids(node).into_iter().rev());
+            }
+        }
+        false
     }
 
     /// Walk helper for [`Typer::effectful_calls`].
@@ -7335,6 +7498,16 @@ impl<'a> Typer<'a> {
             self.diags.push(Diagnostic::error(
                 "E3010",
                 format!("when= must be a pure dispatch guard; '{name}' is not allowed here"),
+                span,
+            ));
+        }
+    }
+
+    fn check_dispatch_when(&mut self, cx: &Ctx<'_, '_>, when: &SyntaxNode) {
+        for (name, span) in self.bounded_membership_effectful_calls(when, cx.text) {
+            self.diags.push(Diagnostic::error(
+                "E3010",
+                format!("when= must be a bounded dispatch guard; '{name}' is not allowed here"),
                 span,
             ));
         }
@@ -7621,16 +7794,24 @@ impl<'a> Typer<'a> {
             self.check_field_label(&cx, node, &name, &expected, label);
         }
         let Some(value) = value else { return };
-        for (name, span) in self.effectful_calls(value, text) {
-            self.diags.push(Diagnostic::error(
-                "E3010",
-                format!("{what} value must be pure; '{name}' is not allowed here"),
-                span,
-            ));
-        }
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         let actual = self.expr(&cx, value, Some(expected.clone()));
+        let membership_function = matches!(
+            self.tables.symbols[id.0 as usize].kind,
+            SymbolKind::DeriveFn { .. }
+        );
+        let forbidden_calls = if membership_function {
+            self.membership_derive_bodies.insert(id, value.clone());
+            self.bounded_membership_effectful_calls(value, text)
+        } else {
+            self.effectful_calls(value, text)
+        };
+        for (name, span) in forbidden_calls {
+            self.diags.push(Diagnostic::error(
+                "E3010", format!("{what} value must be pure or a checked bounded membership read; '{name}' is not allowed here"), span,
+            ));
+        }
         if !actual.is_error() && !self.types_compatible(&actual, &expected) {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -8982,9 +9163,25 @@ impl<'a> Typer<'a> {
                 }
             }
             SyntaxKind::UiLeaf => {
+                let require_leaf =
+                    kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("require");
                 for child in kids(node) {
                     if is_expression(child.kind) {
                         let _ = self.expr(cx, child, None);
+                        // Card/tab gates are checked before their subtree and
+                        // skipped below. Standalone page/form require leaves
+                        // retain the same pure gate, including helper closures.
+                        if require_leaf {
+                            for (name, span) in self.effectful_calls(child, cx.text) {
+                                self.diags.push(Diagnostic::error(
+                                    "E3010",
+                                    format!(
+                                        "page require must be pure; '{name}' is not allowed here"
+                                    ),
+                                    span,
+                                ));
+                            }
+                        }
                     }
                 }
             }
@@ -10899,6 +11096,9 @@ struct Typer<'a> {
     /// Context-declared queue names per module (send/on= targets).
     queue_names: HashSet<(ModuleId, String)>,
     judgment_messages: HashMap<SymbolId, SyntaxNode>,
+    /// Existing strict purity sites retain their source roots for helper closure.
+    strict_purity_roots: Vec<SyntaxNode>,
+    membership_derive_bodies: HashMap<SymbolId, SyntaxNode>,
 }
 
 impl<'a> Typer<'a> {
@@ -10941,6 +11141,8 @@ impl<'a> Typer<'a> {
             read_scenarios: HashSet::new(),
             queue_names: HashSet::new(),
             judgment_messages: HashMap::new(),
+            strict_purity_roots: Vec::new(),
+            membership_derive_bodies: HashMap::new(),
         }
     }
 

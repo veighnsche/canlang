@@ -9768,3 +9768,34 @@ Coordinator finite CSV preflight/mounted receiver review CLEAR and LOCAL main in
 Finite source-query correction: first actual unbound ordinary/page execution must mark the exact predicate identity before entering source code, so later membership binding refuses. Use an internal call wrapper with no issued observation or additional execution. State emit and49 affected source/row/projection/page controls pass; accepted unbound once-only behavior is retained. This closes the demonstrated loader-lifetime gap, with original Compiler/native outputs still unfinished.
 
 Coordinator finite read-predicate review and relevant late-binding correction review CLEAR; correctedfcc9+d121 integrated LOCAL main after deadline. Existing unbound source predicates are marked before their original once-only ordinary/page invocation, so later binding refuses without issuing authority or reexecution. Reuse49 affected cases/emit plus retained59/69 source results. Actual source/native/current snapshot and guarded SEND remain unfinished; no complete-checkpoint/full-plan advancement.
+
+2026-10-11 — original current-stage membership producer (implemented; native join unfinished).
+
+Keep the exact selected active_member(user,Team) catalog effect StateRead. Admit
+that checked call in derived functions and SEND predicates; arbitrary StateRead
+and unsupported defaults, fields, CRUD and pure contexts retain refusals. Emit
+await active_member(c,person,team,{source,node}) from private original checked
+input, preserving written argument evaluation and slots. The source-only getter
+retains actual Require, body-condition, read-policy and named page-query
+read-predicate occurrences, complete transitive helper/default census and owners.
+A reused inner helper node cannot choose an execution stage or grant authority.
+
+Subject-role predicates await the genuine permission Boolean; nullable subjects
+evaluate once and null denies. In composed Chat/Creative, duplicate local model
+names need canonical rule prefixes throughout descriptor/registry references;
+unique names and written ordinals remain unchanged. This fixes the demonstrated
+permission predicate overwrite without replacing the registry design.
+
+Consume the exact reviewed State1b5 body/read-stage release. Capability owns
+current observer/stage admission; Dev owns authentic native contexts and fresh
+dispatch lexical retention. Keep E6007 while catalog availability is external
+and E6008 for unsupported asynchronous SEND dispatch. These source outputs
+and local checks do not qualify the original native application or full plan.
+
+Owning affected140distinct cases pass, including original query source/mutation
+refusals, composed registry ownership, true getter/emission and installed State
+body-condition v1 consumption. Reuse earlier b4_examples29. Actual emitted Node
+syntax and strict all-target Clippy/fmt/diff pass. Failed source/harness scopes
+were corrected and only affected scopes retried; no native acceptance inferred.
+
+Coordinator finite Compiler membership/source-census, awaited subject-role and canonical collided-owner review CLEAR; source producer integrated LOCAL main after deadline. Reuse140 owning affected/retained29 B4 and source checker/syntax/strict/fmt results. Current original native read/role/dispatch consumers, catalog availability and guarded SEND remain unfinished. Older State prerequisite paths were excluded; corrected query/authority source remains intact. Complete checkpoint and full-plan counts unchanged.

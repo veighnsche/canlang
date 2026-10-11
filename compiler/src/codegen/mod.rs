@@ -43,6 +43,7 @@ pub mod bdd;
 mod defaults;
 pub mod ir;
 pub mod js;
+mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
 pub mod scenario_calls;
@@ -187,12 +188,14 @@ pub fn emit(
             }
         }
     }
+    let membership = membership::prepare(program, &ir, sources.db, sources.catalog);
     let js_out = js::emit_program_with_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
         sources.db,
         &query_sources,
         &query_receipts,
+        membership.as_ref(),
     );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {

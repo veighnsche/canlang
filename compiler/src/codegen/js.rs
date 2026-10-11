@@ -1484,6 +1484,7 @@ pub(super) fn emit_program_with_query_sources(
         String,
         super::scenario_receipts::NativeScenarioReceipt,
     >,
+    membership: Option<&super::membership::MembershipSources>,
 ) -> JsOutput {
     emit_program_with_sources(
         ir,
@@ -1491,6 +1492,7 @@ pub(super) fn emit_program_with_query_sources(
         Some(db),
         Some(queries),
         Some(query_receipts),
+        membership,
     )
 }
 
@@ -1499,7 +1501,7 @@ fn emit_program_with_receipt_sources(
     native_receipts: bool,
     db: Option<&crate::source::SourceDb>,
 ) -> JsOutput {
-    emit_program_with_sources(ir, native_receipts, db, None, None)
+    emit_program_with_sources(ir, native_receipts, db, None, None, None)
 }
 
 fn emit_program_with_sources(
@@ -1510,8 +1512,12 @@ fn emit_program_with_sources(
     query_receipts: Option<
         &std::collections::BTreeMap<String, super::scenario_receipts::NativeScenarioReceipt>,
     >,
+    membership: Option<&super::membership::MembershipSources>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    if let Some(membership) = membership {
+        emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
+    }
     if let Some(db) = db {
         if ir.committed_sources.has_standard_value_inventory_fact() {
             emitter.value_types = emitter.collect_standard_value_inventory(db);
@@ -1619,6 +1625,14 @@ fn emit_program_with_sources(
         }
     }
     let mut body = JsWriter::new();
+    if let Some(membership) = membership.filter(|membership| !membership.sites.is_empty()) {
+        let payload = descriptor_json(&descriptor_json(&membership.sites));
+        body.push(
+            entry_span,
+            Some("canMembershipSources".into()),
+            &format!("export function canMembershipSources(){{return JSON.parse({payload});}}"),
+        );
+    }
     if let Some(queries) = queries.filter(|queries| !queries.is_empty()) {
         // Return fresh own data: readers cannot mutate another consumer's
         // checked recipe. The verified loader still owns all runtime binding.
@@ -2379,6 +2393,7 @@ pub struct Emitter<'a> {
     /// Only the immutable CheckedProgram/fresh-IR producer can populate this.
     prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
+    membership_calls: HashMap<Span, serde_json::Value>,
 }
 
 struct OriginalUiRow {
@@ -2449,6 +2464,7 @@ impl<'a> Emitter<'a> {
             native_query_sources: HashMap::new(),
             prepared_query_receipts: std::collections::HashSet::new(),
             query_capture: None,
+            membership_calls: HashMap::new(),
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -4236,18 +4252,7 @@ impl<'a> Emitter<'a> {
                 match person {
                     Some(person) => {
                         let person_text = self.lower_expr(person);
-                        if matches!(&person.ty, ResolvedType::Nullable(inner)
-                            if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User)))
-                        {
-                            // Absence is false, never the helper's omitted
-                            // subject/actor overload. Evaluate the subject once.
-                            format!(
-                                "(($roleSubject)=>$roleSubject==null?false:hasRole(c,{},$roleSubject))({person_text})",
-                                js_string(role)
-                            )
-                        } else {
-                            format!("hasRole(c,{},{person_text})", js_string(role))
-                        }
+                        self.lower_role_subject(role, person, &person_text)
                     }
                     None => format!("hasRole(c,{})", js_string(role)),
                 }
@@ -4408,6 +4413,26 @@ impl<'a> Emitter<'a> {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
                 let mut parts = parts.to_vec();
+                if id == "active_member" {
+                    let Some(source) = self.membership_calls.get(&span) else {
+                        self.unsupported(
+                            "membership observation",
+                            "active_member lacks its original checked source and selected call closure",
+                            span,
+                        );
+                        return self.throw_expr("unsupported membership source identity");
+                    };
+                    if !*awaited || parts.len() != 2 {
+                        self.unsupported(
+                            "membership observation",
+                            "active_member requires its checked user/Team overload",
+                            span,
+                        );
+                        return self.throw_expr("unsupported membership call shape");
+                    }
+                    parts.insert(0, "c".to_string());
+                    parts.push(descriptor_json(source));
+                }
                 if id == "app_url" {
                     // Only the resolved builtin receives the trusted host context.
                     // Source arguments retain their existing once-only ordering.
@@ -6267,6 +6292,19 @@ impl<'a> Emitter<'a> {
     /// Lower a guard to its boolean expression. A source `by` lowers to
     /// `check(hasRole(c, ...) || ..., 'forbidden')`; subject predicates
     /// pass the person as the third `hasRole` argument.
+    fn lower_role_subject(&self, role: &str, person: &TypedExpr, value: &str) -> String {
+        if person.ty.nullable_inner().is_some() {
+            // Absence is false. It never selects the helper's actor overload.
+            // The original subject evaluates once before the awaited lookup.
+            format!(
+                "(await (async($roleSubject)=>$roleSubject==null?false:await hasRole(c,{},$roleSubject))({value}))",
+                js_string(role),
+            )
+        } else {
+            format!("await hasRole(c,{},{value})", js_string(role))
+        }
+    }
+
     pub fn lower_guard_bool(&mut self, guard: &IrGuard) -> String {
         match guard {
             IrGuard::Role(id) => {
@@ -6276,7 +6314,7 @@ impl<'a> Emitter<'a> {
             IrGuard::Subject { role, person } => {
                 self.stdlib.insert("hasRole".to_string());
                 let person_text = self.lower_business_expr(person, "formatted guard identity");
-                format!("hasRole(c,{},{person_text})", js_string(role))
+                self.lower_role_subject(role, person, &person_text)
             }
             IrGuard::Expr(expr) => {
                 let text = self.lower_business_expr(expr, "formatted admission guard");
@@ -8595,7 +8633,10 @@ impl<'a> Emitter<'a> {
                 );
             }
             if retain.is_some() {
-                members.push(format!("retainUntil:{}", js_string(&item.name)));
+                members.push(format!(
+                    "retainUntil:{}",
+                    js_string(crate::codegen::ir::ir_model_rule_prefix(ir, item))
+                ));
             }
             // A2b: sparse `uniques` member; each entry inherits the
             // enclosing model entry scope (explicit `parent`/`app`
@@ -8616,7 +8657,11 @@ impl<'a> Emitter<'a> {
                         match unique.where_predicate {
                             Some(_) => format!(
                                 "{{fields:[{fields}],where:{}}}",
-                                js_string(&format!("{}.unique.{}", item.name, index + 1))
+                                js_string(&format!(
+                                    "{}.unique.{}",
+                                    crate::codegen::ir::ir_model_rule_prefix(ir, item),
+                                    index + 1
+                                ))
                             ),
                             None => format!("{{fields:[{fields}]}}"),
                         }
