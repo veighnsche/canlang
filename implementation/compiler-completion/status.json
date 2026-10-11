@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-11T02:06:00Z",
+  "updated_utc": "2026-10-11T02:09:00Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -104,10 +104,10 @@
     "reused_results": "Unchanged successful prefix/library/analysis/corpus and editor/client TypeScript; currentaffected producer/native repairs and allunrun targets supply actual delta, old failures superseded by meaningful current cases."
   },
   "latest_component": {
-    "base_commit": "4c5b9f12ec166a0d02677890df56c1ecc4089c3d",
-    "state": "unfinished_producer_native_blocked_exact_shared_preparer_output",
-    "record": "committed_model_event_source.original_date_field",
-    "outcome": "Owned body-free date calendar source/IR/CLI implemented; original rawIR and other3 view-reuse targets retain scoped results, but actual installed calendar fails because canonical string/valueType:date becomes prepared text. Packages owns exact date type preservation. No acceptance."
+    "base_commit": "5a85acb4",
+    "state": "producer_and_finite_native_consumer_satisfied_original_application_unfinished",
+    "record": "committed_model_event_source.original_authored_edit",
+    "outcome": "Original Calendar protected edit/checkbox connects released authored-order plus eligible-remainder API.125 distinct affected PASS; finite coordinator review pending. Separate date mapping, original application and shared CF wrapper build retain exact owners."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -842,13 +842,13 @@
       "coordinator_review": "Independent finite source review CLEAR for exact c833/004 changes; owning177/strict0 reused. Source/IR/installed UI scope accepted, whole original application/persistence/browser/gated panels remain open."
     },
     "edit_group_prerequisite": {
-      "state": "shared_prerequisite_released_compiler_producer_ready",
+      "state": "shared_prerequisite_consumed_compiler_finite_native_satisfied",
       "source": "Unchanged draft/CanBook.can450 edit with checkbox active inside Calendar row; accepted UI-COMPONENTS118 requires authored controls first and unmentioned eligible inputs afterward.",
       "owner": "Interfaces/UI or coordinator-released sole shared-repair owner, then Compiler producer.",
       "required_output": "Coordinator-reviewed exact Packages8a375fde authored order plus eligible remainder is integrated local main4c5b9f12 and consumed. Connect original protected bound edit children/checkbox through this existing API, preserving canonical allowlist, own row/version/occurrence and refusals.",
       "evidence": "packages/interfaces/src/http/forms.ts95 uses renderedNames=new Set(authored),103 uses renderedFields=authored.map(...),97 refuses selected required unplaced inputs; packages/ui/src/forms.ts906 says authored children replace automatic body. This excludes the required default remainder, so Compiler alone cannot complete original Calendar edit/checkbox behavior.",
-      "compiler_next": "Implement and qualify original Calendar edit checkbox source through existing prepared.field and protected_action_form; reuse the owning five Packages controls/emissions, then prove actual generated native authored-first complete remainder.",
-      "scope_limit": "Released shared repair consumed; Compiler producer/native integration still unfinished. No original application/current-authority dispatch acceptance or hold release."
+      "compiler_next": "Finite original Calendar edit/checkbox producer/native criterion satisfied, awaiting coordinator review; stop this unit. Original application/current authority dispatch remains Dev-owned.",
+      "scope_limit": "Source/native finite outcome is in original_authored_edit; reuse shared five owning controls. No full application acceptance or hold release."
     },
     "bare_bound_edits": {
       "base_commit": "f9ec5070a94289ae0ce3240a15725d19b33fba6a",
@@ -887,6 +887,15 @@
       "required_output": "Preserve canonical nonarray kind:string,valueType:date as prepared FormFieldDef.type:date while retaining canonical wire/default/validation/order/selected fields/identity/protection. Existing ArtifactOperationField/DerivedInputKind have no date kind; do not invent one.",
       "evidence": "Compiler js.rs Date\u2192String plus own valueType:date; Interfaces operations.ts554 preserves this claim, but UI forms.ts1317 uses GENERATED_FORM_TYPE_FOR_KIND.string=text. Installed calendarField rejects it. Exact mismatch sent to coordinator.",
       "scope_limit": "Unfinished checkpoint, native FAIL, no full original form/application qualification or current-whole acceptance. Preserve nine overlapping references, source23 and recipient holds."
+    },
+    "original_authored_edit": {
+      "state": "producer_and_finite_native_consumer_satisfied_original_application_unfinished",
+      "shared_input": "Exact reviewed8a375fde integrated4c5b9f12; owning five Packages form controls/emissions reused.",
+      "implemented": "Bound edit decodes supported presentation children in the actual checked update field-owner scope; checkbox places only selected writable nonserver nonnullable bool. Complete default/explicit fields, protected own row/version/occurrence and prepared.field bridge preserved. Compiler rejects duplicate/nonselected controls and unsupported owner/type/options/body/gated profiles; collection ends field owner and nested explicit form supplies its own.",
+      "tested": "125 distinct affected PASS: codegen121 (120 initial .21s reused, only invalid duplicate-selector profile fixture corrected and rechecked1/1 .01s); view_reuse4 distinct (new actual authored checkbox + existing bare native PASS in initial .79s, final original rawIR1/1 .14s and only obsolete-refusal native recheck1/1 .69s). Original CanBook preserves all five own update selections; Calendar retains duration,hours,instructions,cutoff,active and checkbox active child/span. Actual native proves authored bool first, complete unduplicated remainder, projected values/labels, excluded nonallowed/server fields, own row/version seal, stable distinct uses and suppression when version/protection missing. Nine new malformed source cases refuse/no modules. Strict all-target Clippy0 3.94s plus final directly related golden correction check0 .26s; fmt/diff0. No unresolved failures/ignored/bodySKIP in this affected scope; blocked date consumer remains separately explicit.",
+      "accepted": false,
+      "scope_limit": "Finite producer/native render only pending coordinator review. Date calendar remains native-blocked Packages mapping; original full application/browser/persistence/current dispatch and23 source findings remain. Whole qualification false; all precise holds unchanged.",
+      "shared_build_blocker": "Cloudflare aggregate build21/22 successful,11 StoragePort wrapper TS2739 on4c5 source; exact coordinator-reviewed0c6931e6 mandatory ports/native wrapper repair is released for safe boundary intake. Owning UI/Interfaces/State/Work builds succeeded; no duplicate common repair."
     }
   },
   "typed_file_association_prerequisite": {

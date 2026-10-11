@@ -10897,6 +10897,7 @@ impl<'a> Cx<'a> {
             "input" | "textarea" | "radio" | "select" => {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
+            "checkbox" => self.decode_bool_checkbox(scope, node, row_ctx),
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "hero" => self.decode_compact_hero(scope, node, row_ctx),
@@ -11107,6 +11108,52 @@ impl<'a> Cx<'a> {
             ),
         ));
         Some(control)
+    }
+
+    /// A checkbox places one existing writable nonnullable bool input.
+    fn decode_bool_checkbox(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "checkbox", &[]);
+        let headers: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|child| is_expression(child.kind))
+            .collect();
+        let selector = match headers.as_slice() {
+            [header] => selector_spelling(self.db, header),
+            _ => None,
+        };
+        let owned_bool = selector.as_ref().is_some_and(|selector| {
+            if !scope.in_field_owner || !scope.form_fields.as_ref().is_some_and(|fields| fields.contains(selector)) { return false; }
+            let Some(op) = scope.field_operation else { return false; };
+            let Some(data) = self.program.effects.crud_ops.get(&op) else { return false; };
+            if data.op != op || !matches!(data.operation, CrudOp::Create | CrudOp::Update)
+                || !self.program.effects.cruds.get(&data.crud_decl).is_some_and(|crud| {
+                    crud.crud == data.crud_decl && crud.model == data.model && crud.ops.contains(&op)
+                        && match data.operation { CrudOp::Create => crud.create, CrudOp::Update => crud.update, CrudOp::Delete => false }
+                })
+                || !matches!(self.program.symbols.get(op.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::CrudOp { model, op: operation }) if *model == data.model && *operation == data.operation)
+                || !self.default_form_fields(op).is_some_and(|fields| fields.contains(selector)) { return false; }
+            self.program.effects.models.get(&data.model).is_some_and(|model| model.fields.iter().any(|field| {
+                self.program.symbols.get(field.field.0 as usize).is_some_and(|symbol| {
+                    symbol.name == *selector && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == data.model)
+                        && self.program.types.symbol_types.get(&symbol.id) == Some(&ResolvedType::Scalar(Scalar::Bool))
+                })
+            }))
+        });
+        if !owned_bool
+            || !ui_attributes(self.db, node).is_empty()
+            || kids(node)
+                .into_iter()
+                .any(|child| is_ui_node(child.kind) || child.kind == SyntaxKind::MessageValue)
+        {
+            self.diags.push(Diagnostic::error("E6008", "cannot lower checkbox: only a body-free owned writable bool input with no options is supported".to_string(), node.span));
+            return None;
+        }
+        Some(self.decode_field_control(scope, node, "checkbox", row_ctx))
     }
 
     fn decode_field_control(
@@ -12255,7 +12302,7 @@ impl<'a> Cx<'a> {
     /// Bound row edits reuse the protected operation form and its native defaults.
     fn decode_bound_edit(
         &mut self,
-        _scope: &Scope,
+        scope: &Scope,
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
@@ -12268,12 +12315,12 @@ impl<'a> Cx<'a> {
             || kids(node).iter().any(|child| {
                 is_expression(child.kind)
                     || matches!(child.kind, SyntaxKind::Path | SyntaxKind::MessageValue)
-                    || is_ui_node(child.kind)
+                    || is_gate_leaf(self.db, child)
             })
         {
             self.diags.push(Diagnostic::error(
                 "E6008",
-                "cannot lower edit: only bound row edits with optional fields and no header or body are supported"
+                "cannot lower edit: only bound row edits with optional fields and no header or direct gate are supported"
                     .to_string(),
                 node.span,
             ));
@@ -12344,6 +12391,45 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
+        let mut owned = scope.clone();
+        owned.in_field_owner = true;
+        owned.field_operation = Some(operation.op);
+        owned.form_fields = Some(fields.clone());
+        let children = self.decode_ui_children(&owned, node, Some((model, row.clone())));
+        let mut placed = HashSet::new();
+        let mut pending: Vec<_> = children.iter().collect();
+        while let Some(child) = pending.pop() {
+            if child.gate.is_some() {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower edit: gated authored content has no supported field-placement profile".to_string(), child.span));
+                return None;
+            }
+            if child.factory == "form" || child.row_scope.is_some() {
+                continue;
+            }
+            if matches!(
+                child.factory.as_str(),
+                "input" | "textarea" | "radio" | "select" | "calendar" | "checkbox"
+            ) {
+                let selector = child
+                    .props
+                    .iter()
+                    .find(|(name, _)| name == "field")
+                    .and_then(|(_, value)| {
+                        if let IrExpr::Text(selector) = &value.expr {
+                            Some(selector)
+                        } else {
+                            None
+                        }
+                    });
+                if !selector.is_some_and(|selector| {
+                    fields.contains(selector) && placed.insert(selector.clone())
+                }) {
+                    self.diags.push(Diagnostic::error("E6008", "cannot lower edit: authored controls must name unique selected writable inputs".to_string(), child.span));
+                    return None;
+                }
+            }
+            pending.extend(child.children.iter());
+        }
         let record = TypedExpr::new(
             IrExpr::Name(row),
             ResolvedType::Record {
@@ -12358,6 +12444,7 @@ impl<'a> Cx<'a> {
             node.span,
         );
         let mut form = self.protected_action_form(operation.op, arguments, node.span);
+        form.children = children;
         form.props.push((
             "fields".to_string(),
             TypedExpr::new(

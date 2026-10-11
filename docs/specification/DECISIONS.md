@@ -8922,3 +8922,8 @@ Coordinator finite source review CLEAR for exact8a authored control/remainder or
 ## 2026-10-11 — owning date calendar producer (unfinished)
 
 Implement the original body-free CRUD-owned date selector through the existing prepared field control, preserving checked operation/model/field identity, writable selection and original source. Keep agenda endpoints/options/body and unsupported field profiles refused. The actual generated native check fails because the installed preparer maps canonical string/valueType:date to text, which Calendar rejects. Packages owns preserving that existing semantic claim as prepared date; Compiler must rerun the failed owning check after the exact release. Codegen121 and three other view-reuse cases pass; strict Clippy0. This checkpoint is unfinished, not native acceptance or original application qualification.
+
+
+## 2026-10-11 — preserve complete protected edits with authored controls
+
+Implemented/tested, finite review pending: original Calendar edit/checkbox uses the reviewed shared authored-first and eligible-remainder form API. The compiler keeps the checked enabled update schema/selection, own row/version and occurrence; presentation children receive that field owner, collection boundaries end it and nested forms retain their own owner. Checkbox admits only an existing selected writable bool, and duplicates/nonselected/unsupported placement profiles refuse before publication. Original five Calendar fields stay intact; actual native rendering proves checkbox first, complete unduplicated remainder and original protected seal.125 affected assertions pass. Separate date preparation, original full application/current authority dispatch and recipient holds remain with their owners.

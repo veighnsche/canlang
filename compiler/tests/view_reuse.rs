@@ -102,7 +102,11 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                 && child.span.start >= node.span.start
                 && child.span.end <= node.span.end));
         }
-        if node.factory != "form" || authored.trim() != "edit" {
+        if node.factory != "form"
+            || !authored
+                .lines()
+                .any(|line| line.trim_start().starts_with("edit"))
+        {
             continue;
         }
         let operation = node
@@ -146,7 +150,26 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
             format!("{}.update", checked.symbols[symbol.0 as usize].canonical),
             *operation
         );
-        assert!(node.children.is_empty());
+        if operation == "appointments.Calendar.update" {
+            assert_eq!(node.children.len(), 1);
+            let checkbox = &node.children[0];
+            assert_eq!(checkbox.factory, "checkbox");
+            assert_eq!(
+                original[checkbox.span.start as usize..checkbox.span.end as usize].trim(),
+                "checkbox active"
+            );
+            assert!(checkbox.props.iter().any(|(key, value)| key == "field"
+                && matches!(&value.expr, IrExpr::Text(value) if value == "active")));
+            assert!(
+                !diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.primary.start >= node.span.start
+                        && diagnostic.primary.end <= node.span.end)
+            );
+        } else {
+            assert!(node.children.is_empty());
+        }
         edits.insert(operation.as_str(), fields);
     }
     assert_eq!(
@@ -164,6 +187,10 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         edits,
         std::collections::BTreeMap::from([
             (
+                "appointments.Calendar.update",
+                vec!["duration", "hours", "instructions", "cutoff", "active"]
+            ),
+            (
                 "appointments.WeeklyHours.update",
                 vec!["weekday", "opens", "closes", "fold"]
             ),
@@ -176,14 +203,110 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         ]),
         "{diagnostics:?}"
     );
+}
+
+#[test]
+fn authored_row_checkbox_keeps_the_complete_protected_native_edit() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/view-reuse.can")
+        .replace("edit fields=title,flag", "edit\n   checkbox flag")
+        .replace(
+            "flag:bool label=\"Card flag\"}",
+            "flag:bool label=\"Card flag\",internal:text=\"Private\",at:datetime server=now}",
+        );
+    let input = scratch.path().join("authored-edit.can");
+    let compile = |source: &str| {
+        std::fs::write(&input, source).unwrap();
+        Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap()
+    };
+    let compiled = compile(&source);
     assert!(
-        diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"
-                && original[diagnostic.primary.start as usize..diagnostic.primary.end as usize]
-                    .contains("checkbox active")),
-        "Calendar edit body remains unsupported: {diagnostics:?}"
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
     );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    let consumer = Command::new("node")
+        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root)
+        .arg(&artifact)
+        .arg(scratch.path().join("staged"))
+        .arg("edit-body")
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        consumer.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumer.stdout),
+        String::from_utf8_lossy(&consumer.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumer.stdout));
+    for (name, refused) in [
+        (
+            "duplicate",
+            source.replace("checkbox flag", "checkbox flag\n   checkbox flag"),
+        ),
+        (
+            "not-selected",
+            source.replace(
+                "edit\n   checkbox flag",
+                "edit fields=title\n   checkbox flag",
+            ),
+        ),
+        (
+            "not-writable",
+            source.replace("checkbox flag", "checkbox internal"),
+        ),
+        ("server", source.replace("checkbox flag", "checkbox at")),
+        (
+            "wrong-type",
+            source.replace("checkbox flag", "checkbox title"),
+        ),
+        (
+            "no-owner",
+            source.replace("edit\n   checkbox flag", "checkbox flag"),
+        ),
+        (
+            "scope-boundary",
+            source.replace("checkbox flag", "list row.Detail\n    checkbox flag"),
+        ),
+        (
+            "body",
+            source.replace("checkbox flag", "checkbox flag\n    text \"invalid\""),
+        ),
+        (
+            "unknown-option",
+            source.replace("checkbox flag", "checkbox flag bogus=true"),
+        ),
+    ] {
+        let output = compile(&refused);
+        assert_eq!(
+            output.status.code(),
+            Some(10),
+            "{name}: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            !artifact["diagnostics"].as_array().unwrap().is_empty(),
+            "{name}"
+        );
+        assert!(
+            artifact.get("modules").is_none(),
+            "{name}: refused source cannot publish"
+        );
+    }
 }
 
 #[test]
@@ -315,8 +438,11 @@ fn bare_row_edits_use_complete_allowed_defaults_in_the_native_form() {
             ),
         ),
         (
-            "body",
-            source.replace("  edit\n  form", "  edit\n   text row.title\n  form"),
+            "field-context-ended-by-collection",
+            source.replace(
+                "  edit\n  form",
+                "  edit\n   list row.Detail\n    input title\n  form",
+            ),
         ),
         (
             "header",
@@ -587,10 +713,10 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
             ),
         ),
         (
-            "edit-body",
+            "duplicate-authored-edit-control",
             source.replace(
                 "  edit fields=title,flag",
-                "  edit fields=title,flag\n   text row.title",
+                "  edit fields=title,flag\n   input title\n   input title",
             ),
         ),
         (

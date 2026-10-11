@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 
 const [root, artifactPath, scratch, profile] = process.argv.slice(2);
 const dateControl = profile === 'calendar';
+const editBody = profile === 'edit-body';
 const unboundOperation = dateControl ? 'ViewReuse.Holiday.create' : 'ViewReuse.save';
 const unboundMode = dateControl ? 'create' : 'scenario';
 registerHooks({resolve(specifier, context, next) {
@@ -157,7 +158,7 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
   const editIdentities = {};
   const editControlIds = {};
   for (const [operation, row, expectedCount, fields] of [
-    ['ViewReuse.Card.update', card, 2, [['title', 'Card title'], ['flag', 'Card flag']]],
+    ['ViewReuse.Card.update', card, 2, editBody ? [['flag', 'Card flag'], ['title', 'Card title']] : [['title', 'Card title'], ['flag', 'Card flag']]],
     ['ViewReuse.Detail.update', detail, hasDetails ? 2 : 0, [['label', 'Detail label']]],
   ]) {
     const edits = operationForms(operation);
@@ -168,7 +169,7 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
       const metadata = JSON.parse(decodeAttribute(attrs['data-can-generated-form']));
       assert.equal(metadata.derived.operation, operation);
       assert.deepEqual(metadata.renderedInputs, fields.map(([field]) => field),
-        'automatic edit contains exactly the owning writable inputs in schema order');
+        'edit contains exactly the owning writable inputs, authored first then eligible remainder');
       const inputs = [...form.matchAll(/<input\b[^>]*>/g)].map(match => ({tag:match[0], ...attributes(match[0])}));
       assert.deepEqual(inputs.filter(input => fields.some(([field]) => input.name === ui.fieldInputName('update', field)))
         .map(input => input.name), fields.map(([field]) => ui.fieldInputName('update', field)));
@@ -280,4 +281,5 @@ console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assemb
   nativeSplitSelection:true, absentUnknownRevokedDetailSuppressed:true,
   nativePagedTableAndLists:true, stablePagedOccurrences:true,
   nativeProjectedRowEdits:true, distinctStableEditControls:true, identityOnlyEditSeals:true,
+  ...(editBody ? {nativeAuthoredCheckboxFirst:true, completeWritableRemainder:true} : {}),
   queriesPerRender:source.queries.map(item => item.model)}));
