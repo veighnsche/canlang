@@ -5183,12 +5183,43 @@ async function runScenarioExecution(
       }
     },
     createRecord: async (model, data) => {
-      const id = nextCreateId();
-      const row = await scope.stageWrite({ op: "create", model, id, data });
-      if (row === null) throw new StateError("validation", "Create staged no record.");
-      if (ownerSession === undefined) await stageDeliveryAssignments(model, row, data);
-      await ownerNavigation.prepare(model, row);
-      return recordView(model, row);
+      try {
+        let fields = data;
+        let parent: CanonicalStagedWrite['parent'];
+        const ownership = loaded.containment.get(model);
+        const parentModel = isUnknownRecord(ownership) ? ownership.parent : undefined;
+        if (typeof parentModel === 'string' && Object.hasOwn(data, 'parent')) {
+          let source: Record<string, unknown>;
+          try { source = localPolicyObject(data); }
+          catch { return refuseRecordBinding('Create requires own data fields and a bound parent.'); }
+          const candidate = localPolicyMember(source, 'parent');
+          const binding = isUnknownRecord(candidate) ? recordBindings.get(candidate) ??
+            ownerNavigation.resolveRecord(candidate) ?? viewerNavigation.resolveRecord(candidate) : undefined;
+          if (binding === undefined || binding.model !== parentModel) {
+            return refuseRecordBinding('Create requires its declared parent bound in this operation.');
+          }
+          // Bound views retain their admitted metadata after own writes. State's
+          // current staged row supplies the version for this source read.
+          const current = await overlay.load(binding.model as ModelName, binding.id as RecordId);
+          if (current === null) throw new StateError('not_found', 'Create parent record not found.');
+          if (current.id !== binding.id) return refuseRecordBinding('Create parent identity changed.');
+          const navigation = trustedOwnerReads ? ownerNavigation : viewerNavigation;
+          const authorized = await navigation.authorizeReference(
+            makeRecordRef(binding.model, binding.id, BigInt(current.version)));
+          parent = { model: authorized.model as ModelName, id: authorized.id as RecordId };
+          fields = Object.fromEntries(Object.entries(source).filter(([name]) => name !== 'parent'));
+        }
+        const id = nextCreateId();
+        const row = await scope.stageWrite({ op: "create", model, id, data: fields,
+          ...(parent === undefined ? {} : { parent }) });
+        if (row === null) throw new StateError("validation", "Create staged no record.");
+        if (ownerSession === undefined) await stageDeliveryAssignments(model, row, fields);
+        await ownerNavigation.prepare(model, row);
+        return recordView(model, row);
+      } catch (error) {
+        recordEngineFailure(error);
+        throw error;
+      }
     },
     setRecord: async (record, data) => {
       const binding = recordBindings.get(record) ??
