@@ -1135,6 +1135,23 @@
           "failed_attempt": "Source-Vitest import failed before compilation; use established native emitted-Node module loader, preserving production own-data export guards. Existing common mapper/receipt leaf already reviewed and present; no duplicate repair.",
           "review": "Finite independent downstream source review CLEAR for same-session CSRF, retained original workflow assertions, no-token/zero-mint controls and installed parser/import. Reuse exact owner results. No Origin/presession, late revocation, atomic commit, whole packet or hold acceptance."
         }
+      },
+      "atomic_presession_consume": {
+        "state": "Atomic one-use presession criterion implemented,tested,critically reviewed and integrated in local main.",
+        "source": [
+          "packages/identity/src/ports.ts",
+          "packages/identity/src/sessions/presession.ts",
+          "packages/identity/src/storage/d1.ts",
+          "packages/identity/src/testing.ts",
+          "packages/identity/test/presession.test.ts",
+          "packages/identity/test/d1.test.ts",
+          "packages/cloudflare/src/runtime/env-assembly.ts",
+          "packages/cloudflare/test/mcpd-env-assembly.test.ts"
+        ],
+        "contract": "Mandatory atomic consumePreSessionTokenByHash removes one hash and returns original expiry only to its winner. D1 single DELETE RETURNING, Memory synchronous get/delete; public consume checks original expiry after atomic consume, no lookup/delete fallback. Unknown/malformed/expired/replay remain false; exact tenminute expiry consumed false, TTL-1 live. Old lookup/delete APIs retained. CF structural Identity mirror matches.",
+        "validation": "Identity emission0; Memory presession5/5 and SQLite D1 adapter2/2. Maintained actual owning CF startLocalDev/Miniflare D1 test1/1 396ms/1.20s process: two genuine handles against same binding produce1true/1false, replay/refusal/deletion, exact expiry and TTL-1. Two direct stdin probes stalled before DB binding, ran zero assertions and were cleaned; successful maintained host control supplies actual D1 qualification. Exact released Dev mandatory cohort wrappers are already in main; no competing wrapper implementation.",
+        "remaining": "Packages original browser cookie/Origin and Dev genuine mounted/suspended-body/after-entry consumers remain. No complete TECH-I02/native/security/hold acceptance.",
+        "review": "Exactf971 critical security/source review CLEAR for single D1 DELETE RETURNING/synchronous Memory winner, original expiry and expired deletion, no lookup/delete fallback, matching CF port. Owning Memory5/adapter2/actual two-handle MiniflareD1 case1/emission0 reused."
       }
     },
     "TECH-F01": {

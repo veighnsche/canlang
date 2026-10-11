@@ -46,3 +46,14 @@ test('only the hash is stored, never the raw token', async () => {
   assert.ok(row !== null);
   assert.ok(!JSON.stringify(row).includes(token));
 });
+
+
+test('concurrent memory consumption has one winner without legacy lookup/delete', async () => {
+  const store = createMemoryIdentityStore();
+  const { token } = await mintPreSessionToken(store);
+  store.findPreSessionTokenByHash = async () => { throw new Error('non-atomic lookup used'); };
+  store.deletePreSessionToken = async () => { throw new Error('non-atomic delete used'); };
+  const results = await Promise.all([consumePreSessionToken(store, token), consumePreSessionToken(store, token)]);
+  assert.deepEqual(results.sort(), [false, true]);
+  assert.equal(await consumePreSessionToken(store, token), false);
+});
