@@ -9100,3 +9100,16 @@ and installed inventory consumer pass alongside metadata mutation controls
 operations remain. This supplies no event/ingress/File authority. Coordinator
 finite acceptance and Dev's genuine scheduled lifetime consumer remain due;
 all holds and full original application dependencies are preserved.
+
+
+### 2026-10-11 — finite agenda installed consumer retry (original history unfinished)
+
+The exact shared omitted-empty repair is consumed and built before native
+capture. Only the failed owning actual CLI/installed agenda case is retried and
+passes1/1 .89s, preserving nullable/saved/selected/cleared occurrence filters,
+protected row/version forms, complete supported authored body/order and refusal
+behavior. Reuse141 unchanged affected results;142 finite assertions pass.
+Keep original bare history E6008 until the reviewed bounded current-authorized
+State reader and Packages presentation bind the actual source row/revision and
+current policy. Full original CanBook/application/browser/D1/current dispatch
+remains separately owned; no actor-only policy or hold release is accepted.
