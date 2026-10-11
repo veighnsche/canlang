@@ -180,7 +180,8 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
   } else {
     if (!['nominal', 'enum', ...Object.keys(scalarTypes)].includes(String(input.kind))) return refuse('checked input kind required.');
     record(input, ['name', 'kind', 'required', 'valueType'], ['computedDefault', 'enumValues', 'min', 'max', 'default', 'nullable']);
-    original = type(input.valueType); same(original, authored.valueType);
+    original = type(input.valueType);
+    if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
     const ast = parseTypeId(original), base = printTypeBase(ast.base);
     const marker = authored.array === undefined ? undefined : record(authored.array, ['required']);
     if (marker !== undefined) boolean(marker.required);
@@ -201,6 +202,9 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
       } else return refuse('actual enum type required.');
     } else {
       record(tag, ['kind']);
+      if (!Object.hasOwn(authored, 'valueType') && base !== scalarTypes[String(input.kind)]) {
+        return refuse('collapsed scalar source requires its exact type claim.');
+      }
       if (Object.hasOwn(input, 'enumValues') || !(base === scalarTypes[String(input.kind)] ||
           input.kind === 'string' && ['date', 'email', 'timezone'].includes(base))) return refuse('actual scalar source type required.');
     }

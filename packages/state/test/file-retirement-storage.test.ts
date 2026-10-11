@@ -745,9 +745,11 @@ describe('actual DO source-bound opaque receipt census', () => {
     const originals = Object.entries(originalContracts).flatMap(([contract, definition]) =>
       Object.entries(definition.fields).map(([field, metadata]) => ({ contract, field, metadata })));
     const noDefault = originals.find(item => item.metadata['type'] === 'text' && !Object.hasOwn(item.metadata, 'default'));
-    const constrained = originals.find(item => typeof item.metadata['max'] === 'number' || typeof item.metadata['min'] === 'number');
+    const integerBound = (value: unknown): value is number | string =>
+      typeof value === 'number' && Number.isSafeInteger(value) || typeof value === 'string' && /^-?(0|[1-9][0-9]*)$/.test(value);
+    const constrained = originals.find(item => integerBound(item.metadata['max']) || integerBound(item.metadata['min'])) ?? noDefault;
     assert.ok(noDefault, 'the complete original source must retain a text field with no own default');
-    assert.ok(constrained, 'the complete original source must retain a numeric field constraint');
+    assert.ok(constrained, 'an actual original field must own the constraint-drift control');
     function rawMutation(change: (contracts: OriginalContracts) => void): FileReferenceInventory {
       const changed = structuredClone(w.declarations);
       change(changed.opaqueDeclarationSets![0]!.originalContracts as unknown as OriginalContracts);
@@ -763,8 +765,12 @@ describe('actual DO source-bound opaque receipt census', () => {
       rawMutation(contracts => { contracts[noDefault.contract]!.fields[noDefault.field]!['type'] = 'bool'; }),
       rawMutation(contracts => {
         const metadata = contracts[constrained.contract]!.fields[constrained.field]!;
-        const key = typeof metadata['max'] === 'number' ? 'max' : 'min';
-        metadata[key] = (metadata[key] as number) + 1;
+        const key = integerBound(metadata['max']) ? 'max' : integerBound(metadata['min']) ? 'min' : 'max';
+        const original = metadata[key];
+        // This complete Images source has no authored numeric bound in its
+        // native map: adding one is also source/constraint correspondence drift.
+        metadata[key] = typeof original === 'string' && integerBound(original) ? encodeValue('int', BigInt(original) + 1n) :
+          typeof original === 'number' && integerBound(original) ? original + 1 : encodeValue('int', 1n);
       }),
       rawMutation(contracts => { contracts[noDefault.contract]!.fields[noDefault.field]!['default'] = ''; }),
     ];
