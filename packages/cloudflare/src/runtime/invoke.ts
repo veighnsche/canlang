@@ -125,6 +125,10 @@ import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './
 import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite } from '@canlang/state/invocation';
 import { stableStringify } from '@canlang/state/invocation';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
+import { bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
+  hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
+  type NativeMembershipFrame } from './native-membership.js';
+import type { ScenarioReceiptMembershipSite } from '@canlang/state/invocation';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -2163,6 +2167,8 @@ export interface LoadedCanonicalDescriptors {
   readonly callbackReadGrants: ReadonlyMap<string, readonly CheckedCallbackReadGrant[]>;
   /** Reader-local original ordinary predicates; the legacy policy table is unchanged. */
   readonly sourceReadPolicies: ReadonlyMap<string, CheckedPageSourceReadPolicy>;
+  /** Original checked outer decisions; never executable authority from request metadata. */
+  readonly membershipSources: ReadonlyMap<string, readonly ScenarioReceiptMembershipSite[]>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   /** Defining State attachments retain reference/containment identity without field tags. */
   readonly refs: ReadonlyMap<string, readonly { readonly field: string; readonly model: string }[]>;
@@ -2193,6 +2199,7 @@ interface CheckedCallbackReadGrant {
 
 interface CheckedPageSourceReadPolicy {
   readonly app: string;
+  readonly module: string;
   readonly fields: readonly string[];
   readonly secretFields: readonly string[];
   readonly grants: readonly {
@@ -3259,7 +3266,7 @@ async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: Co
             predicate: predicate as CheckedCallbackReadGrant['predicate'] }));
         }
         if (!sameReadStrings(ids, policy.read ?? [])) throw new AssemblyCorrespondenceError('Source read declaration/policy ordinal identities disagree.');
-        reads.set(model, Object.freeze({ app, fields: Object.freeze(names), secretFields: Object.freeze([...secrets]), grants: Object.freeze(grants) }));
+        reads.set(model, Object.freeze({ app, module, fields: Object.freeze(names), secretFields: Object.freeze([...secrets]), grants: Object.freeze(grants) }));
       }
       if (rawGrants === undefined) continue;
       const grants = readMetadataArray(rawGrants, 'Callback read source', 'callbackReadGrants');
@@ -3296,6 +3303,78 @@ async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: Co
     await verifyCheckedAssembly(asm, artifact);
   }
   return { callbacks: result, reads };
+}
+
+/** The compiler's checked export is read only from original verified modules.
+ * Its source vocabulary describes decisions; State still owns every lifetime. */
+async function loadCheckedMembershipSources(asm: AssembledModules, artifact: CompileArtifact):
+  Promise<ReadonlyMap<string, readonly ScenarioReceiptMembershipSite[]>> {
+  const inventory = new Map<string, readonly ScenarioReceiptMembershipSite[]>();
+  for (const module of Object.keys(asm.moduleUrls)) {
+    let imported: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(asm.moduleUrls[module]!);
+    const own = (value: unknown, key: string): unknown => isUnknownRecord(value)
+      ? readMetadataMember(value, key, 'Membership source')?.value : undefined;
+    let exported = own(imported, 'canMembershipSources');
+    if (exported === undefined) continue;
+    if (typeof exported !== 'function') throw new AssemblyCorrespondenceError('Membership inventory requires its original emitted function.');
+    await verifyCheckedAssembly(asm, artifact);
+    imported = await importVerifiedAssemblyModule(asm, module, artifact);
+    exported = own(imported, 'canMembershipSources');
+    if (typeof exported !== 'function') throw new AssemblyCorrespondenceError('Verified membership source function changed.');
+    const raw = localPolicyObject(await exported());
+    if (Object.keys(raw).length > 200) throw new AssemblyCorrespondenceError('Membership inventory exceeds its checked owner bound.');
+    for (const owner of Object.keys(raw)) {
+      // This verified source view supplies only lookup/correspondence facts.
+      // Every actual binding goes through State's complete recipe checker.
+      const sites = nativeCallArray(own(raw, owner), 200) as unknown as readonly ScenarioReceiptMembershipSite[];
+      const origins = sites.flatMap(site => [site.source, ...site.calls.flatMap(call =>
+        [call.source, ...call.defaults.map(value => value.source), ...call.chain.map(value => value.source)])]);
+      if (sites.length === 0 || sites.some(site => site.owner !== owner) || origins.some(source =>
+          !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256))) {
+        throw new AssemblyCorrespondenceError('Membership inventory differs from its original owner/source closure.');
+      }
+      const previous = inventory.get(owner);
+      if (previous !== undefined && stableStringify(previous) !== stableStringify(sites)) {
+        throw new AssemblyCorrespondenceError('Membership owner has conflicting original source inventories.');
+      }
+      inventory.set(owner, sites);
+    }
+    await verifyCheckedAssembly(asm, artifact);
+  }
+  return inventory;
+}
+
+function sourceReadMembershipOwner(loaded: LoadedCanonicalDescriptors, app: string, rule: string): string {
+  const matches = [...loaded.membershipSources].filter(([owner, sites]) =>
+    sites.every(site => site.stage === 'read-policy') &&
+    (owner === rule || sites.every(site => owner === `${site.source.module}.${rule}`)));
+  if (matches.length > 1) throw new AssemblyCorrespondenceError('Source read rule has ambiguous original membership owners.');
+  return matches[0]?.[0] ?? `${app}.${rule}`;
+}
+
+function bindSourceReadMembership(loaded: LoadedCanonicalDescriptors,
+  read: import('@canlang/state/receipt').InstalledSourceReadPredicate, app: string, rule: string): string {
+  const owner = sourceReadMembershipOwner(loaded, app, rule), sites = loaded.membershipSources.get(owner);
+  if (sites !== undefined) bindNativeReadMembership(read, { source: sites[0]!.source, rule: owner, sites });
+  else bindNativeReadRoleContext(read, owner);
+  return owner;
+}
+
+async function originalAppForOperation(asm: AssembledModules, artifact: CompileArtifact,
+  def: GeneratedOperationDef): Promise<string> {
+  const plan = def.descriptor.result?.disclosure;
+  const callable = artifact.callables.find(value => value.kind === 'operation' && value.id === def.name && value.module === plan?.source.module);
+  if (callable === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its checked callable/source.');
+  const imported = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+  const definition = readMetadataMember(imported as object, 'appDefinition', 'Membership owner')?.value;
+  const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Membership owner')?.value : undefined;
+  const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', 'Membership owner')?.value : undefined;
+  if (typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
+      readMetadataMember(operations, def.name, 'Membership owner') === undefined) {
+    throw new AssemblyCorrespondenceError('Membership owner lacks its original app declaration.');
+  }
+  return app;
 }
 
 export async function loadCanonicalDescriptors(
@@ -3476,6 +3555,7 @@ export async function loadCanonicalDescriptors(
   const canonical: LoadedCanonicalDescriptors = {
     callbackReadGrants: sourceReadInventory.callbacks,
     sourceReadPolicies: sourceReadInventory.reads,
+    membershipSources: await loadCheckedMembershipSources(asm, artifact),
     committedChanges,
     registry: loaded.registry,
     models: loaded.models,
@@ -3503,6 +3583,15 @@ export async function loadCanonicalDescriptors(
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioQueries(asm, artifact, canonical);
   await bindNativeScenarioReferences(asm, artifact, canonical);
+  for (const [owner, sites] of canonical.membershipSources) {
+    if (sites.every(site => site.stage === 'read-policy' || site.stage === 'read-predicate' || site.stage === 'send-dispatch')) continue;
+    if (sites.some(site => site.stage === 'read-policy' || site.stage === 'read-predicate' || site.stage === 'send-dispatch')) {
+      throw new AssemblyCorrespondenceError('Membership owner mixes independent State lifetimes.');
+    }
+    const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
+    if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
+    bindNativeOwnerMembership(def, { source: sites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites });
+  }
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
@@ -5057,6 +5146,7 @@ async function runScenarioExecution(
   const ownerSession: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> | undefined = child?.session ?? rootOwnerSession;
   let ownerPolicyFrame: { close(): void } | undefined;
   let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
+  let nativeMembershipFrame: NativeMembershipFrame | undefined;
   try {
   if (ownerSession !== undefined && ownerControl !== undefined) {
     ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession,
@@ -6102,6 +6192,10 @@ async function runScenarioExecution(
       throw failure;
     }
   };
+  if (scenarioDef !== undefined && hasNativeOwnerMembership(scenarioDef)) {
+    if (!receiptAware || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
+    nativeMembershipFrame = openNativeOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
+  }
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
     observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
   // A caught unsupported join or engine refusal cannot convert prior owner
@@ -6137,6 +6231,7 @@ async function runScenarioExecution(
     throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
   }
   scenarioReceiptFrame?.assertCompleted();
+  nativeMembershipFrame?.assertCompleted();
   if (ownerSession !== undefined) {
     if (child !== undefined) {
       if (fileAssignments.size !== 0 || deferredEffects.length !== 0 || servedReadings.length !== 0) {
@@ -6206,7 +6301,7 @@ async function runScenarioExecution(
     guards: seamGuards,
     readings: servedReadings,
   } };
-  } finally { nativeScenarioExecutions.delete(call as AdmittedCall); scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
+  } finally { nativeScenarioExecutions.delete(call as AdmittedCall); nativeMembershipFrame?.close(); scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
 }
 
 async function runScenarioSeam(
@@ -9605,9 +9700,12 @@ export function createPageReadScopeCanonical(
             if (source.app !== host.app) throw new StateError('validation', 'Source read policy differs from its installed app.');
             const sourceModel = model;
             readPolicies.set(model, Object.freeze({ fields: source.fields, secretFields: source.secretFields,
-              grants: Object.freeze(source.grants.map(grant => Object.freeze({ fields: grant.fields,
-                read: async (observation: Readonly<ViewerGenerationCallbackReadObservation>) =>
-                  evaluateSourceRead(sourceModel, [grant.predicate], observation) }))),
+              grants: Object.freeze(source.grants.map(grant => {
+                const read: import('@canlang/state/receipt').InstalledSourceReadPredicate = observation =>
+                  evaluateSourceRead(sourceModel, [{ predicate: grant.predicate, owner }], observation, read);
+                const owner = bindSourceReadMembership(loaded, read, source.app, grant.rule);
+                return Object.freeze({ fields: grant.fields, read });
+              })),
               ...(parent === undefined ? {} : { parent }) }));
           } else {
             if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
@@ -9636,8 +9734,10 @@ export function createPageReadScopeCanonical(
         };
         const now = (opts.now ?? Date.now)();
         const evaluateSourceRead = async (sourceModel: string,
-          predicates: readonly CheckedCallbackReadGrant['predicate'][],
-          { context, row, revision: currentRevision, fence: currentFence }: Readonly<ViewerGenerationCallbackReadObservation>): Promise<boolean> => {
+          predicates: readonly { readonly predicate: CheckedCallbackReadGrant['predicate']; readonly owner: string }[],
+          observation: Readonly<ViewerGenerationCallbackReadObservation>,
+          installed: import('@canlang/state/receipt').InstalledSourceReadPredicate): Promise<boolean> => {
+            const { context, row, revision: currentRevision, fence: currentFence } = observation;
             await verifyCheckedAssembly(opts.asm, opts.artifact);
             const actor = opts.identity.actor, team = opts.identity.team;
             if (context.actorUserId !== (actor?.user_id ?? null) || context.teamId !== (team?.team_id ?? null) ||
@@ -9664,7 +9764,11 @@ export function createPageReadScopeCanonical(
             const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
               nativeProjectedRecord(loaded, name, source, navigation, recordView);
             await navigation.prepare(sourceModel, row);
-            const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
+            const actualReadTeam = team === null ? null : Object.freeze({ teamId: context.teamId!, timezone: team.timezone });
+            const nativeRow = recordView(sourceModel, row);
+            let allowed = false;
+            for (const { predicate, owner } of predicates) {
+              const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
               memberships: roles, store: readonlyStore, clock: () => now,
               canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
                 stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
@@ -9673,11 +9777,12 @@ export function createPageReadScopeCanonical(
               qualified: { actor: actor === null ? null : { userId: context.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
                 team: team === null ? null : { teamId: context.teamId!, timezone: team.timezone }, now, source: opts.source ?? 'worker' },
             });
-            Object.freeze(ctx.memberships); Object.freeze(ctx.caller); Object.freeze(ctx.preferences); Object.freeze(ctx);
-            const nativeRow = recordView(sourceModel, row);
-            let allowed = false;
-            for (const predicate of predicates) {
-              const verdict = await predicate(ctx, nativeRow);
+              Object.freeze(ctx.memberships); Object.freeze(ctx.caller); Object.freeze(ctx.preferences); Object.freeze(ctx);
+              const membershipFrame = openNativeReadMembershipFrame(ctx, installed, observation, owner,
+                actualReadTeam, error => { failure ??= error; });
+              let verdict: unknown;
+              try { verdict = await predicate(ctx, nativeRow); membershipFrame.assertCompleted(); }
+              finally { membershipFrame.close(); }
               if (failure !== undefined) throw failure;
               if (typeof verdict !== 'boolean') throw new StateError('validation', 'Source read predicates must return bool.');
               if (verdict) { allowed = true; break; }
@@ -9687,17 +9792,20 @@ export function createPageReadScopeCanonical(
             await verifyCheckedAssembly(opts.asm, opts.artifact);
             return allowed;
         };
+        const callbackRead: import('@canlang/state/receipt').InstalledSourceReadPredicate = async observation => {
+          if (observation.row.id !== binding.id || observation.row.version !== binding.version) {
+            throw new StateError('conflict', 'Callback observation differs from its admitted page record.');
+          }
+          return evaluateSourceRead(binding.model, callbackPredicates, observation, callbackRead);
+        };
+        const callbackPredicates = grants.map(grant => ({ predicate: grant.predicate,
+          owner: bindSourceReadMembership(loaded, callbackRead, grant.app, grant.rule) }));
         const observed = await observe({ store: opts.store, memberships: opts.memberships,
           model: binding.model as ModelName, recordId: binding.id as RecordId, field: locator.field,
           schema: loaded.deliveryFields as Parameters<typeof observe>[0]['schema'],
           policy: loaded.policy as Parameters<typeof observe>[0]['policy'], readPolicies,
           context: { actorUserId: opts.identity.actor?.user_id ?? null, teamId: opts.identity.team?.team_id ?? null }, fence,
-          callbackRead: async observation => {
-            if (observation.row.id !== binding.id || observation.row.version !== binding.version) {
-              throw new StateError('conflict', 'Callback observation differs from its admitted page record.');
-            }
-            return evaluateSourceRead(binding.model, grants.map(grant => grant.predicate), observation);
-          },
+          callbackRead,
           resolveOrigin: async (association, store) => {
             const origin = await resolveGenerationCallbackOrigin({ artifact: opts.artifact, asm: opts.asm,
               app: host.app, owner: host.owner, ownerPackage: host.ownerPackage, ...association }, store);

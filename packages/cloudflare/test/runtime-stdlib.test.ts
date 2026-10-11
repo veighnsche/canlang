@@ -661,15 +661,21 @@ describe("guards", () => {
     expect(hasRole(contextFor(fakeStore()), "members")).toBe(false);
   });
 
-  it("hasRole with a subject throws instead of widening the guard", () => {
+  it("hasRole never substitutes caller authority for a supplied subject", async () => {
+    const store = fakeStore();
     const member = createContext({
       caller: { userId: "u1", roles: ["member"] },
-      store: fakeStore().port,
+      store: store.port,
       memberships: ["members"],
     });
-    expect(() => hasRole(member, "members", { userId: "u2" })).toThrow(
-      /unsupported\(hasRole-subject\)/,
-    );
+    expect(hasRole(member, "members")).toBe(true);
+    for (const subject of [undefined, null, { userId: "u2" }]) {
+      await expect(hasRole(member, "members", subject)).rejects.toThrow(
+        /actual installed framework context required/,
+      );
+    }
+    expect(store.loads).toEqual([]); expect(store.specs).toEqual([]);
+    expect(store.batches).toEqual([]); expect(store.revisions).toBe(0);
   });
 });
 
