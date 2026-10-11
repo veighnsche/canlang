@@ -4215,3 +4215,37 @@ context, no fallback and forged/wrapped/bound/foreign/generic/raw refusals.
 It supplies no actual query or native read authority.
 
 Coordinator defining source review CLEAR for both finite producers; owning SEND3/3 with12 corruption refusals and WHERE127 plus emitted assembly/installed stdlib/UI controls are reused. Integrated LOCAL main after the deadline. Genuine native source context, dispatch, catalog and application criteria remain unfinished; no parent count or recipient hold changes.
+
+**Original copied inspection pagination — unfinished native application join, 2026-10-11.**
+
+The original stored-row `inspection?.result?.fields ?? []` list now retains its
+exact source and outer RowView. Its private copied-list/full-owner IR seal admits
+readonly children and one exact bare pagination directive, without constructing
+a model query. Native HTML radio/CSS controls show25 fields per page of the
+complete already-authorized snapshot. Source and children execute once in
+written order; gates precede observation and failure preserves the first error.
+Controls are scoped by source/path/outer occurrence and add no business-form
+inputs. Full copied data remains in HTML and selection resets on rerender; this
+provides no server continuation, privacy subset or resource bound.
+
+Three actual JEV requests are saved in inspection-pagination-jev.json. Two
+prefer this presentation snapshot (.80/.94); one prefers refusal (.71). The
+disagreement was investigated against the original source and current Contracts/
+UI: neither specifies partial observation or selected-page-only rendering.
+Choose this finite readonly presentation profile and preserve its costs and
+remaining native qualifications. Standing human open-source consultation
+authorization was verified and explicitly reaffirmed; the earlier automatic
+review rejection is resolved. Advice supplies no acceptance or authority.
+
+Current182 distinct checks pass: source/actual installed Chromium3, callback3,
+codegen121, all52 corpus1, completion engines2 and real LSP/editor wire52. The
+browser asserts0/1/25/26/51 rows, labels/keyboard, distinct outer row controls,
+form isolation, translations, alias/RowView identity, once/order/gates/escaping
+and first failure; source/IR corruption refuses. The corpus preserves its52
+rows/other46 counts while re-pinning only8 earlier bounded-membership E3010s
+and1 field-fallback E3004. Strict all-target lint0 7.73s and finite source/render
+review CLEAR. These supplier-snapshot controls are not actual native inspection
+authority or original application completion; Dev retains that consumer, other
+owners retain common/catalog/source prerequisites, and precise holds remain.
+
+Coordinator defining source/render review CLEAR; exact component integrated locally after deadline with182 affected/engine cases reused. Corrected original a850 Chat/Creative source check complete/diagnostics0/omitted0 is satisfied at its source stage; actual current e304 native compile separately refuses72 diagnostics (71E6008,1E6007), no modules. Original native workflow remains unfinished; source/render fixture acceptance does not replace it.
