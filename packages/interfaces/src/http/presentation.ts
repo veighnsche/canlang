@@ -23,6 +23,7 @@ import type {
   PageSourceContext,
   PageDeliveryObserver,
   PageRecordsReader,
+  PageHistoryReader,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -119,6 +120,7 @@ export interface BuildPresentationContextInput {
   readonly query: RowQueryRunner;
   /** Native source-expression reader from the same admitted request scope. */
   readonly readRecords?: PageRecordsReader;
+  readonly readHistory?: PageHistoryReader;
   readonly observeDelivery?: PageDeliveryObserver;
 }
 
@@ -165,9 +167,9 @@ export function buildPresentationContext(
 ): PresentationContext {
   // Source/identity facts cannot supply host configuration, including when the
   // source object carries extra fields from another context.
-  const { deploymentBase: _sourceDeploymentBase, ...source } =
+  const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
-      Pick<PresentationContext, 'deploymentBase'>;
+      Pick<PresentationContext, 'deploymentBase' | 'readHistory'>;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
   if (url.search.length <= COLLECTION_SELECTION_QUERY_MAX_CHARS + 1) {
@@ -207,6 +209,7 @@ export function buildPresentationContext(
     principal: input.principal,
     invocation: input.principal,
     query: input.query,
+    ...(input.readHistory === undefined ? {} : { readHistory: input.readHistory }),
     prepareCollectionFilters: collectionFilterPreparer(url.searchParams),
   };
   return input.catalog === undefined ? context : {
