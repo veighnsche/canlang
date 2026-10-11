@@ -115,8 +115,8 @@ fn malformed_or_unreleased_table_controls_cannot_publish() {
             Some("E6008"),
         ),
         (
-            "filters",
-            "order=from filter=state defaults={state=\"open\"}",
+            "nonenum-filter",
+            "order=from filter=available defaults={available=true}",
             Some("E6008"),
         ),
     ] {
