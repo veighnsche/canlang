@@ -86,7 +86,7 @@ export interface IdentityD1Statement {
 export interface IdentityD1Database {
   prepare(sql: string): IdentityD1Statement;
   exec(sql: string): Promise<unknown>;
-  /** Genuine transactional D1 batch; absence keeps the optional removal command unavailable. */
+  /** Genuine transactional D1 batch; absence keeps atomic removal/recovery unavailable. */
   batch?(statements: IdentityD1BoundStatement[]): Promise<unknown>;
 }
 
@@ -464,6 +464,34 @@ export function createD1IdentityStore(
       return prior === null ? null : removalEnvelope(prior, input, digest);
     },
     ...(typeof db.batch !== 'function' ? {} : {
+      async recoverAccountWithToken(input: Parameters<NonNullable<IdentityStore['recoverAccountWithToken']>>[0]) {
+        const { token_id, user_id, password_hash } = input;
+        const at = now();
+        const eligible = `EXISTS (SELECT 1 FROM identity_email_tokens proof
+          JOIN identity_users account ON account.user_id = proof.user_id
+          WHERE proof.token_id = ? AND proof.user_id = ? AND proof.purpose = 'recover_account'
+          AND proof.consumed_at IS NULL AND proof.expires_at > ?)`;
+        const key = [token_id, user_id, at];
+        // Keep the exact proof live until the last statement. Other recovery
+        // tokens cannot invalidate its guard during a multi-row update.
+        const results = await db.batch!([
+          db.prepare(`UPDATE identity_users SET password_hash = ?, updated_at = ? WHERE user_id = ? AND ${eligible}`)
+            .bind(password_hash, at, user_id, ...key),
+          db.prepare(`UPDATE identity_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND ${eligible}`)
+            .bind(at, user_id, ...key),
+          db.prepare(`UPDATE identity_mcp_grants SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND ${eligible}`)
+            .bind(at, user_id, ...key),
+          db.prepare(`UPDATE identity_email_tokens SET consumed_at = ? WHERE user_id = ? AND purpose = 'recover_account' AND token_id <> ? AND consumed_at IS NULL AND ${eligible}`)
+            .bind(at, user_id, token_id, ...key),
+          db.prepare(`UPDATE identity_email_tokens SET consumed_at = ? WHERE token_id = ? AND ${eligible}`)
+            .bind(at, token_id, ...key),
+        ]);
+        // An acknowledgement is evidence for this transaction's winner only.
+        // A lost/malformed response cannot be reconstructed from later rows.
+        const changes = Array.isArray(results) && results.length === 5 ? results[0]?.meta?.changes : undefined;
+        if (changes !== 0 && changes !== 1) throw new Error('Atomic account recovery acknowledgement is unavailable.');
+        return changes === 1 ? { user_id } : null;
+      },
       async removeMemberWithOccurrence(raw: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) {
         const { input, digest } = await captureRemoval(raw);
         const prior = await readRemoval(input);

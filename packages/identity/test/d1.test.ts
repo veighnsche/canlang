@@ -17,6 +17,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeMember } from '../src/teams/membership.js';
+import { recoverAccount } from '../src/accounts/recovery.js';
 import { IdentityError } from '../src/ports.js';
 import type { IdentityStore } from '../src/ports.js';
 import { createFrozenClock } from '../src/testing.js';
@@ -173,7 +174,7 @@ function wrapSqlite(db: DatabaseSync): IdentityD1Database {
               return { meta: { changes: Number(stmt.run(...args).changes) } };
             },
           };
-          executions.set(bound, () => stmt.run(...args));
+          executions.set(bound, () => ({ meta: { changes: Number(stmt.run(...args).changes) } }));
           return bound;
         },
       };
@@ -928,5 +929,186 @@ test('cold removal lookup rejects malformed own-data arguments before SQL or acc
         (error: unknown) => error instanceof IdentityError && error.code === 'validation');
     }
     assert.equal(queries, 0); assert.equal(getters, 0);
+  } finally { db.close(); }
+});
+
+function recoveryFacts(db: DatabaseSync): Record<string, unknown>[][] {
+  return ['identity_users', 'identity_sessions', 'identity_mcp_grants', 'identity_email_tokens']
+    .map(table => db.prepare(`SELECT * FROM ${table} ORDER BY 1`).all() as Record<string, unknown>[]);
+}
+
+async function setupRecoveryFacts(store: IdentityStore, credentials = true) {
+  const user = await store.createUser({ email: 'recover@example.test', password_hash: 'original-hash', email_verified: true });
+  const unrelated = await store.createUser({ email: 'unrelated@example.test', password_hash: 'unrelated-hash', email_verified: false });
+  const expires_at = new Date(NOW + 60_000).toISOString();
+  const raw = 'real-sql-recovery-proof', token_sha256 = await sha256HexText(raw);
+  const proof = await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256, expires_at });
+  const sibling = await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256: 'sibling-recovery', expires_at });
+  const verification = await store.createEmailToken({ user_id: user.user_id, purpose: 'verify_email', token_sha256: 'target-verification', expires_at });
+  await store.createEmailToken({ user_id: unrelated.user_id, purpose: 'recover_account', token_sha256: 'unrelated-recovery', expires_at });
+  await store.createEmailToken({ user_id: unrelated.user_id, purpose: 'verify_email', token_sha256: 'unrelated-verification', expires_at });
+  for (const subject of credentials ? [user, unrelated] : [unrelated]) {
+    await store.createSession({ user_id: subject.user_id, token_sha256: `session:${subject.user_id}`, expires_at, last_team_id: null });
+    await store.createMcpGrant({ user_id: subject.user_id, team_id: null, client_id: 'client', token_sha256: `grant:${subject.user_id}`, expires_at });
+  }
+  const input = { token_id: proof.token_id, user_id: user.user_id, password_hash: 'winner-hash' };
+  return { user, unrelated, raw, token_sha256, proof, sibling, verification, expires_at, input };
+}
+
+test('atomic recovery real SQL rolls back every mutation phase with all account facts preserved', async (t) => {
+  for (const phase of ['password', 'sessions', 'grants', 'other recovery tokens', 'exact recovery proof']) {
+    await t.test(phase, async () => {
+      const { db, store } = await setup();
+      try {
+        const { proof, input } = await setupRecoveryFacts(store);
+        const target = phase === 'password' ? 'identity_users' : phase === 'sessions' ? 'identity_sessions'
+          : phase === 'grants' ? 'identity_mcp_grants' : 'identity_email_tokens';
+        const condition = phase === 'other recovery tokens' ? `WHEN OLD.token_id <> '${proof.token_id}'`
+          : phase === 'exact recovery proof' ? `WHEN OLD.token_id = '${proof.token_id}'` : '';
+        db.exec(`CREATE TRIGGER recovery_fault BEFORE UPDATE ON ${target} ${condition}
+          BEGIN SELECT RAISE(ABORT, 'recovery phase fault'); END`);
+        const before = recoveryFacts(db);
+        await assert.rejects(store.recoverAccountWithToken!(input), /recovery phase fault/);
+        assert.deepEqual(recoveryFacts(db), before, `${phase} failure must roll back password, credentials and every email proof`);
+      } finally { db.close(); }
+    });
+  }
+});
+
+test('atomic recovery reopens its password and revocations while preserving verification and unrelated accounts', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'identity-recovery-reopen-'));
+  const path = join(directory, 'identity.sqlite');
+  let db = new DatabaseSync(path);
+  try {
+    const d1 = wrapSqlite(db), clock = createFrozenClock(NOW);
+    await ensureIdentitySchema(d1);
+    const store = createD1IdentityStore(d1, { clock });
+    const { user, input } = await setupRecoveryFacts(store);
+    const before = recoveryFacts(db), at = new Date(NOW).toISOString();
+    assert.deepEqual(await store.recoverAccountWithToken!(input), { user_id: user.user_id });
+    db.close(); db = new DatabaseSync(path);
+    const reopened = createD1IdentityStore(wrapSqlite(db), { clock });
+    const expected = before.map((rows, table) => rows.map(row => {
+      if (row['user_id'] !== user.user_id) return row;
+      if (table === 0) return Object.assign(Object.create(null), row, { password_hash: input.password_hash, updated_at: at });
+      if (table === 1 || table === 2) return Object.assign(Object.create(null), row, { revoked_at: at });
+      return row['purpose'] === 'recover_account' ? Object.assign(Object.create(null), row, { consumed_at: at }) : row;
+    }));
+    assert.deepEqual(recoveryFacts(db), expected, 'the reopened file retains the complete transaction and leaves all other facts identical');
+    assert.equal(await reopened.recoverAccountWithToken!({ ...input, password_hash: 'retry-hash' }), null);
+    assert.deepEqual(recoveryFacts(db), expected);
+  } finally { db.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('atomic recovery on two real SQL connections has one same-clock winner and a delayed loser preserves fresh credentials', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'identity-recovery-race-'));
+  const path = join(directory, 'identity.sqlite');
+  const first = new DatabaseSync(path), second = new DatabaseSync(path);
+  let release!: () => void;
+  try {
+    const d1 = wrapSqlite(first), otherD1 = wrapSqlite(second), clock = createFrozenClock(NOW);
+    await ensureIdentitySchema(d1);
+    const store = createD1IdentityStore(d1, { clock });
+    const { user, input, expires_at } = await setupRecoveryFacts(store);
+    let entered!: () => void;
+    const batchEntered = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const loser = createD1IdentityStore({ prepare: sql => otherD1.prepare(sql), exec: sql => otherD1.exec(sql),
+      async batch(statements) { entered(); await gate; return otherD1.batch!(statements); } }, { clock });
+    const pending = loser.recoverAccountWithToken!({ ...input, password_hash: 'loser-hash' });
+    await batchEntered; // Both commands capture eligibility at the same clock.
+    assert.deepEqual(await store.recoverAccountWithToken!(input), { user_id: user.user_id });
+    await store.createSession({ user_id: user.user_id, token_sha256: 'postwinner-session', expires_at, last_team_id: null });
+    await store.createMcpGrant({ user_id: user.user_id, team_id: null, client_id: 'client', token_sha256: 'postwinner-grant', expires_at });
+    await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256: 'postwinner-proof', expires_at });
+    const beforeLoser = recoveryFacts(first);
+    release();
+    assert.equal(await pending, null);
+    assert.deepEqual(recoveryFacts(first), beforeLoser);
+    assert.equal((await store.findUserById(user.user_id))!.password_hash, 'winner-hash');
+    assert.equal((await store.findSessionByTokenHash('postwinner-session'))!.revoked_at, null);
+    assert.equal((await store.findMcpGrantByTokenHash('postwinner-grant'))!.revoked_at, null);
+    assert.equal((await store.findEmailTokenByHash('postwinner-proof'))!.consumed_at, null);
+    assert.equal(clock.nowMs(), NOW);
+  } finally { release?.(); second.close(); first.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('atomic recovery rejects invalid real SQL proofs and missing batch without changing any facts', async (t) => {
+  for (const invalid of ['wrong purpose', 'expired', 'wrong user', 'orphan proof', 'spent proof']) {
+    await t.test(invalid, async () => {
+      const { db, store } = await setup();
+      try {
+        const { user, unrelated, proof, verification, input } = await setupRecoveryFacts(store);
+        let attempt = input;
+        if (invalid === 'wrong purpose') attempt = { ...input, token_id: verification.token_id };
+        if (invalid === 'expired') db.prepare('UPDATE identity_email_tokens SET expires_at = ? WHERE token_id = ?')
+          .run(new Date(NOW).toISOString(), proof.token_id);
+        if (invalid === 'wrong user') attempt = { ...input, user_id: unrelated.user_id };
+        if (invalid === 'orphan proof') db.prepare('DELETE FROM identity_users WHERE user_id = ?').run(user.user_id);
+        if (invalid === 'spent proof') await store.consumeEmailToken(proof.token_id);
+        const before = recoveryFacts(db);
+        assert.equal(await store.recoverAccountWithToken!(attempt), null);
+        assert.deepEqual(recoveryFacts(db), before);
+      } finally { db.close(); }
+    });
+  }
+  await t.test('missing batch', async () => {
+    const { db, d1, clock, store } = await setup();
+    try {
+      const { raw } = await setupRecoveryFacts(store);
+      const unsupported = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql) }, { clock });
+      assert.equal(unsupported.recoverAccountWithToken, undefined);
+      const before = recoveryFacts(db);
+      await assert.rejects(recoverAccount(unsupported, { token: raw, new_password: 'unsupported-password-1' }, { clock }),
+        /Atomic account recovery is unavailable/);
+      assert.deepEqual(recoveryFacts(db), before);
+    } finally { db.close(); }
+  });
+});
+
+test('atomic recovery treats lost or malformed committed acknowledgements as uncertain and a spent retry cannot mutate', async (t) => {
+  const faults = ['lost response', 'missing metadata', 'non-numeric changes', 'invalid winner count', 'missing batch results'];
+  for (const fault of faults) {
+    await t.test(fault, async () => {
+      const { db, d1, clock, store } = await setup();
+      try {
+        const { user, input, expires_at } = await setupRecoveryFacts(store);
+        const uncertain = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql),
+          async batch(statements) {
+            const committed = await d1.batch!(statements);
+            assert.ok(Array.isArray(committed));
+            if (fault === 'lost response') throw new Error('lost committed recovery response');
+            if (fault === 'missing batch results') return [];
+            return [fault === 'missing metadata' ? {} : { meta: { changes: fault === 'non-numeric changes' ? '1' : 2 } },
+              ...committed.slice(1)];
+          } }, { clock });
+        await assert.rejects(uncertain.recoverAccountWithToken!(input),
+          fault === 'lost response' ? /lost committed recovery response/ : /recovery acknowledgement is unavailable/);
+        assert.equal((await store.findUserById(user.user_id))!.password_hash, 'winner-hash');
+        assert.equal((await store.findEmailTokenByHash(await sha256HexText('real-sql-recovery-proof')))!.consumed_at,
+          new Date(NOW).toISOString());
+        await store.createSession({ user_id: user.user_id, token_sha256: 'ack-fresh-session', expires_at, last_team_id: null });
+        await store.createMcpGrant({ user_id: user.user_id, team_id: null, client_id: 'client', token_sha256: 'ack-fresh-grant', expires_at });
+        await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256: 'ack-fresh-proof', expires_at });
+        const beforeRetry = recoveryFacts(db);
+        assert.equal(await store.recoverAccountWithToken!({ ...input, password_hash: 'retry-hash' }), null);
+        assert.deepEqual(recoveryFacts(db), beforeRetry);
+      } finally { db.close(); }
+    });
+  }
+});
+
+test('atomic recovery winner depends on password admission even with zero session and grant revocations', async () => {
+  const { db, store } = await setup();
+  try {
+    const { user, input } = await setupRecoveryFacts(store, false);
+    const before = recoveryFacts(db);
+    assert.equal(before[1]!.filter(row => row['user_id'] === user.user_id).length, 0);
+    assert.equal(before[2]!.filter(row => row['user_id'] === user.user_id).length, 0);
+    assert.deepEqual(await store.recoverAccountWithToken!(input), { user_id: user.user_id });
+    assert.equal((await store.findUserById(user.user_id))!.password_hash, 'winner-hash');
+    assert.deepEqual(recoveryFacts(db)[1], before[1]);
+    assert.deepEqual(recoveryFacts(db)[2], before[2]);
+    assert.equal((await store.findEmailTokenByHash('sibling-recovery'))!.consumed_at, new Date(NOW).toISOString());
   } finally { db.close(); }
 });

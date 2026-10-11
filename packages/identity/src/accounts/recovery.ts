@@ -79,10 +79,16 @@ export async function recoverAccount(
   ) {
     throw new IdentityError('validation', 'Invalid or expired recovery link.');
   }
-  await store.setUserPassword(row.user_id, await hashPassword(input.new_password, random));
-  await store.consumeEmailToken(row.token_id);
-  await store.revokeUserEmailTokens(row.user_id, 'recover_account');
-  await store.revokeUserSessions(row.user_id);
-  await store.revokeUserMcpGrants(row.user_id);
-  return { user_id: row.user_id };
+  if (store.recoverAccountWithToken === undefined) {
+    throw new Error('Atomic account recovery is unavailable.');
+  }
+  const recovered = await store.recoverAccountWithToken({
+    token_id: row.token_id,
+    user_id: row.user_id,
+    password_hash: await hashPassword(input.new_password, random),
+  });
+  if (recovered === null) {
+    throw new IdentityError('validation', 'Invalid or expired recovery link.');
+  }
+  return recovered;
 }

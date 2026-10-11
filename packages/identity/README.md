@@ -5,8 +5,8 @@ verification, password login, sessions and CSRF, team membership and
 invitations, MCP grants, and OAuth public-client authorization codes.
 
 All persistence goes through the `IdentityStore` port (`src/ports.ts`);
-production binds it to lane-03 fenced D1 tables (join J2), never a side
-database. Failures surface as `IdentityError` with a wire business code.
+production binds it to global Identity D1 tables; broader cross-store fence
+join J2 remains separate. Business failures use `IdentityError` and a wire code.
 
 ## Install
 
@@ -70,6 +70,15 @@ cascade, event minting or current-authority admission, even after re-admission o
 remover revocation. D1 supports this read without transactional batch capability.
 Trusted source/ingress binding remains necessary. Use `removeMemberWithOccurrence`
 only for the separately authorized command and its existing exact retry semantics.
+
+Account recovery requires optional `store.recoverAccountWithToken`. D1 exposes
+it only with transactional `batch`: the store rechecks the exact live recovery
+token after password hashing, changes the password, revokes account sessions,
+MCP grants and other recovery tokens, then consumes the proof in one transaction.
+Only one contender succeeds; verification tokens stay unchanged. A failed
+statement rolls back all changes. A lost acknowledgement may follow a commit;
+the spent token cannot authorize another password change. Stores without this
+command refuse recovery before mutation, with no sequential fallback.
 
 ## Scripts
 

@@ -1945,6 +1945,154 @@
         "verification": "Node24 owning Identity emission0. Only three new focused controls run: real SQL original issuance/re-admission/remover revocation/physical reopen into SELECT-only no-batch reader; missing/deleted journal leaves live membership/grants/invitations untouched, original frozen return and mismatch/corruption refusals with exactly journal SELECTs and zero writes/clock/random; malformed own-data/getter inputs refuse before SQL; memory capture-before-await and no-effect original/absence/skew.3/3 PASS (67.811042ms). Finite independent source review CLEAR. Existing31 command/security controls reused; no unchanged producer or native rerun.",
         "consumer": "Dev uses readMemberRemovalOccurrence exclusively for cold original five-argument verification: absent/mismatch/error refuses retained source recovery without executing command. Preserve genuine live-issued source binding, trusted host namespace/cause/principal and authenticated durable ingress/current handler behavior. Coordinator reviews/consumes exact source/test unit; no parent/count/hold change or push.",
         "coordinator_review": "CLEAR: exact five own-data args captured before await; journal SELECT only, no batch dependency, fresh deeply frozen original or null absent, same-key skew/corruption refusal. No command/cascade/time/random/source mint on absence or readmission. Source/test preimages match; reuse owning3 PASS67.811042ms and unchanged31. Changed normal Identity/Cloudflare/root0. Dev cold original ingress consumer remains distinct; no full-plan/hold/checkpoint advance."
+      },
+      "atomic_recovery_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct human AGENTS difficult-design JEV calls preauthorized; open-source design facts only, consultation only, all holds preserved.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Open-source Canlang original account recovery, same global Identity database; design advice only.",
+              "required": "Exactly one live recovery-token contender rotates password and atomically revokes all account sessions, MCP grants and outstanding recovery tokens. Losers and invalid/expired/wrong-purpose tokens have no effects. Verification tokens unchanged. A failed SQL phase rolls back all. Lost acknowledgement must remain uncertain, no false success or unsafe fallback.",
+              "verified": "Current flow writes password before void token consumption and separate cascades. Genuine D1 batch serializes statements transactionally and returns ordered D1Result with meta.changes; any failed statement rolls back. All affected tables already share one Identity database. Token hash unique, user id primary key. Store-owned clock refreshed after password hashing; native SQL admission uses that instant. No required repeatable recovery receipt in original API.",
+              "candidate": "Four guarded updates: password first, sessions and grants next, all recovery tokens last. Each guard reads same unconsumed recover_account token hash/user with expiry greater than admitted store time and existing user. Atomic transaction keeps token live through earlier statements; final token revocation removes eligibility for all subsequent contenders, including identical-clock ones. First update changes 0/1 distinguishes loser/winner. No await between statements within transaction; zero session/grant rows do not erase guard. Batch errors propagate; malformed acknowledgement cannot claim success.",
+              "limits": "Does not prove broader native deployment, in-flight after-entry effects or team State fence. Holds preserved. No source code, actual identifiers, user/app data or credentials transmitted."
+            },
+            "questions": {
+              "design": {
+                "type": "choice",
+                "instructions": "Which smallest design meets the stated original recovery outcomes using verified primitives? Assess same-clock contention, zero cascade counts and lost acknowledgement fairly; do not assume a replay receipt requirement.",
+                "criteria": {
+                  "conditional_batch": "Use the existing same-database transaction and live-token predicates, consume recovery tokens last, check first password-update count and fail closed without a transactional batch; validate actual SQL winner/rollback/reopen.",
+                  "recovery_journal": "Add a durable recovery occurrence/winner marker and schema, guard cascades against that marker and support repeatable result lookup; more storage/complexity but explicit correspondence.",
+                  "defer": "Leave recovery unsupported until a separately named missing primitive is supplied, if the stated batch/guard cannot satisfy original atomicity/winner scope."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Open-source Canlang original account recovery, same global Identity database; design advice only.",
+              "required": "Exactly one live recovery-token contender rotates password and atomically revokes all account sessions, MCP grants and outstanding recovery tokens. Losers and invalid/expired/wrong-purpose tokens have no effects. Verification tokens unchanged. A failed SQL phase rolls back all. Lost acknowledgement must remain uncertain, no false success or unsafe fallback.",
+              "verified": "Current flow writes password before void token consumption and separate cascades. Genuine D1 batch serializes statements transactionally and returns ordered D1Result with meta.changes; any failed statement rolls back. All affected tables already share one Identity database. Token hash unique, user id primary key. Store-owned clock refreshed after password hashing; native SQL admission uses that instant. No required repeatable recovery receipt in original API.",
+              "candidate": "Four guarded updates: password first, sessions and grants next, all recovery tokens last. Each guard reads same unconsumed recover_account token hash/user with expiry greater than admitted store time and existing user. Atomic transaction keeps token live through earlier statements; final token revocation removes eligibility for all subsequent contenders, including identical-clock ones. First update changes 0/1 distinguishes loser/winner. No await between statements within transaction; zero session/grant rows do not erase guard. Batch errors propagate; malformed acknowledgement cannot claim success.",
+              "limits": "Does not prove broader native deployment, in-flight after-entry effects or team State fence. Holds preserved. No source code, actual identifiers, user/app data or credentials transmitted."
+            },
+            "questions": {
+              "design": {
+                "type": "choice",
+                "instructions": "Select the minimal complete account-recovery transaction under these verified constraints. Compare the existing conditional batch with a new durable marker and deferral, including atomic rollback and a single winner.",
+                "criteria": {
+                  "conditional_batch": "Use the existing same-database transaction and live-token predicates, consume recovery tokens last, check first password-update count and fail closed without a transactional batch; validate actual SQL winner/rollback/reopen.",
+                  "recovery_journal": "Add a durable recovery occurrence/winner marker and schema, guard cascades against that marker and support repeatable result lookup; more storage/complexity but explicit correspondence.",
+                  "defer": "Leave recovery unsupported until a separately named missing primitive is supplied, if the stated batch/guard cannot satisfy original atomicity/winner scope."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Open-source Canlang original account recovery, same global Identity database; design advice only.",
+              "required": "Exactly one live recovery-token contender rotates password and atomically revokes all account sessions, MCP grants and outstanding recovery tokens. Losers and invalid/expired/wrong-purpose tokens have no effects. Verification tokens unchanged. A failed SQL phase rolls back all. Lost acknowledgement must remain uncertain, no false success or unsafe fallback.",
+              "verified": "Current flow writes password before void token consumption and separate cascades. Genuine D1 batch serializes statements transactionally and returns ordered D1Result with meta.changes; any failed statement rolls back. All affected tables already share one Identity database. Token hash unique, user id primary key. Store-owned clock refreshed after password hashing; native SQL admission uses that instant. No required repeatable recovery receipt in original API.",
+              "candidate": "Four guarded updates: password first, sessions and grants next, all recovery tokens last. Each guard reads same unconsumed recover_account token hash/user with expiry greater than admitted store time and existing user. Atomic transaction keeps token live through earlier statements; final token revocation removes eligibility for all subsequent contenders, including identical-clock ones. First update changes 0/1 distinguishes loser/winner. No await between statements within transaction; zero session/grant rows do not erase guard. Batch errors propagate; malformed acknowledgement cannot claim success.",
+              "limits": "Does not prove broader native deployment, in-flight after-entry effects or team State fence. Holds preserved. No source code, actual identifiers, user/app data or credentials transmitted."
+            },
+            "questions": {
+              "design": {
+                "type": "choice",
+                "instructions": "For the same finite recovery contract, which option preserves permissions and effect atomicity with least justified machinery? Consider token eligibility remaining live until the final statement and uncertain response handling.",
+                "criteria": {
+                  "conditional_batch": "Use the existing same-database transaction and live-token predicates, consume recovery tokens last, check first password-update count and fail closed without a transactional batch; validate actual SQL winner/rollback/reopen.",
+                  "recovery_journal": "Add a durable recovery occurrence/winner marker and schema, guard cascades against that marker and support repeatable result lookup; more storage/complexity but explicit correspondence.",
+                  "defer": "Leave recovery unsupported until a separately named missing primitive is supplied, if the stated batch/guard cannot satisfy original atomicity/winner scope."
+                }
+              }
+            }
+          }
+        ],
+        "status": "complete; advice only",
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "design": {
+                "type": "choice",
+                "choice": "conditional_batch",
+                "confidence": 1.0,
+                "probabilities": {
+                  "conditional_batch": 1.0,
+                  "recovery_journal": 0.0,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 803,
+              "output_tokens": 46
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "design": {
+                "type": "choice",
+                "choice": "conditional_batch",
+                "confidence": 0.92,
+                "probabilities": {
+                  "conditional_batch": 0.95,
+                  "recovery_journal": 0.05,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 806,
+              "output_tokens": 46
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "design": {
+                "type": "choice",
+                "choice": "conditional_batch",
+                "confidence": 1.0,
+                "probabilities": {
+                  "conditional_batch": 1.0,
+                  "recovery_journal": 0.0,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 804,
+              "output_tokens": 46
+            }
+          }
+        ],
+        "authorization_evidence": {
+          "human_instruction": "For difficult design decisions, consult JEV with verified context and balanced alternatives. Calls are preauthorized. Use the appropriate question type and three independently worded, equivalent requests; save responses and uncertainty, investigate disagreement, and treat results as advice.",
+          "public_source": [
+            "https://github.com/veighnsche/canlang",
+            "https://raw.githubusercontent.com/veighnsche/canlang/main/packages/identity/src/accounts/recovery.ts",
+            "https://raw.githubusercontent.com/veighnsche/canlang/main/packages/identity/src/storage/d1.ts"
+          ],
+          "public_verification": "All three URLs were accessible without credentials via web on 2026-10-11; GitHub labels repository Public and MIT. No private design/app/user facts or code in the three saved requests."
+        },
+        "assessment": "All three equivalent Choice responses prefer conditional_batch with confidence1,.92,1; advice only. Use five guarded statements, revoking other recovery tokens before consuming exact proof last, avoiding within-statement proof mutation. No new journal/receipt requirement. Native host/final effect timing remains separately owned."
+      },
+      "atomic_recovery_source": {
+        "status": "implemented_tested_reviewed_CLEAR_library_component_in_LOCAL_main; original_native_host_consumer_unfinished",
+        "api": "Optional recoverAccountWithToken({token_id,user_id,password_hash}) -> {user_id}|null; store-owned command-admission time after password hashing. Unsupported store has no command and public flow refuses before mutation.",
+        "behavior": "Same-Identity atomic password/session/grant/recovery-token transaction; exact proof consumed last. First native batch password-change count selects single winner; failure rolls back, lost/malformed acknowledgement stays uncertain, replay cannot rotate. Verification tokens unchanged.",
+        "review": "Finite read-only source review CLEAR; no native host/whole-parent acceptance inferred.",
+        "remaining": "Actual selected mounted/native recovery and broader final authority/effect consumers belong to Dev/Capability; holds preserved.",
+        "validation": "Pinned Node24 Identity emit and changed root types pass. Recovery-focused accounts/D1 run:26 controls pass, one reopen expected-row fixture fails only null prototype. Preserve SQLite row prototype in expected changed facts; repeat only that group:1/1 pass14.923125ms. All27 affected controls now pass/reused, including5 rollback phases, same-clock public/two-connection loser, expiry-after-hash, reopen, wrong-purpose/user/orphan/spent, missing batch, lost/malformed acknowledgement and zero session/grant rows. First test-editing emit found exactOptionalPropertyTypes fixture omission; corrected unsupported copy to delete optional member before frozen emit. No weakened behavior/source assertion.",
+        "coordinator_review": "Independent defining source review CLEAR: genuine same-Identity transaction rechecks exact live proof/account, store admission time after hashing, exact proof last and first native meta.changes selects single winner even same clock; every phase rollback, spent/no-batch refusal and uncertain acknowledgement preserved. Reuse owning27 focused outcomes and Node24 Identity/root checks; actual changed main Identity/CF/root normal emission passes. Selected original native transactional binding/final effect timing and broadJ2 remain separate, all exact holds retained."
       }
     },
     "TECH-I02": {
@@ -8469,6 +8617,17 @@
       "change": "Ten existing owner routing direct calls use genuine buildPageSourceContext(identity). Five published native wrappers forward the SAME admitted source argument, two direct native calls use the genuine builder. Existing builder imports retained; supplied duplicate import additions omitted. All assertions, query scope/authority, source contract and owned resources remain unchanged.",
       "verified": "Defining source review CLEAR. Coordinator exact LOCAL main Contracts→State/UI→Interfaces normal emits0. First CF/root typecheck exposed only stale existing Work-kernel recovery and Work callback-diagnostic outputs; rebuild their already-present defining sources, then actual CF emission0 and root noEmit0. No meaningful assertion, required producer/engine or authority was waived; no unchanged native behavior reruns.",
       "limits": "Finite common fixture contract adaptation only; no original Office/G2, application/native, preparation/activation/publication or full-plan credit."
+    },
+    "remaining_queue_reassessment": {
+      "scope": "One human-requested reassessment of all26 remaining selected packets; current execution view corrected with existing accepted outputs, no new audit/task IDs.",
+      "independent_ready": {
+        "TECH-I01": "Atomic same-Identity recovery",
+        "TECH-SV02": "Closed safe provider explanations",
+        "DEL-B01": "Plain action existing prepared metadata association",
+        "DEL-E02": "Original TV02 actual error own-key comparison and EC04 shared independent digit-string oracle"
+      },
+      "counting": "22/48 finished selected packets retained. Independent leaf completion is separate from broader parent/host acceptance.",
+      "holds": "V04 source/adoption; native preparation/default/activation/publication; provider-void skipped. No pushes."
     }
   },
   "live_finite_packets": [],

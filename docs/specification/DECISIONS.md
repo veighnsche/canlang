@@ -11249,3 +11249,32 @@ Original Chat creates Turn.position=count(branch.Turn)+1 before returning a Run.
 The complete63-task re-evaluation preserves the original IDs and33 accepted stages. Accepted design/comparison/no-pilot stages are not a count of implemented capabilities. Continue ready behavior and requirement work after each handoff: no whole producer plan, unrelated task026 completion, another owner's value comparison or universal holiday-data gate is inferred as a prerequisite. Actual membership/loop defining closures, installed upgrade inputs, external provider profiles and recipient-specific holds remain explicit. No new audit, task registry or verification tree is created.
 
 Coordinator defining count source review CLEAR and finite local intake after deadline. Reuse owning18 (count8/first10), unchanged52 and accepted first result; actual main State/DO/CF/root emission passes. Genuine count-to-original containment/arithmetic/native app adoption remains Compiler/Dev-owned. Existing63-task execution view is reconciled without a new plan/count or broader gate; exact holds and complete checkpoint retained.
+
+## 2026-10-11 — Atomic account recovery (library implemented; native consumer unfinished)
+
+Use the existing global Identity transaction for the original recovery outcome;
+broader team State fence J2 does not block this same-database repair. Keep the
+initial password policy/link checks, then hash and call optional
+`recoverAccountWithToken`. Its store-owned admission clock rechecks the exact
+unconsumed recovery proof and account. Five guarded D1 statements change the
+password, revoke sessions/grants and other recovery tokens, then consume the
+exact proof last. The first password update count identifies one winner even
+at equal timestamps. Zero sessions/grants remain successful recovery;
+verification and unrelated accounts are unchanged. No new journal is required.
+
+Each failed SQL phase rolls back all effects. A lost or malformed acknowledgement
+remains uncertain; neither rereading later rows nor a sequential fallback can
+claim success. The spent proof cannot rotate credentials or revoke credentials
+issued after the winner. Stores without transactional batch omit the command
+and refuse public recovery before mutation. Memory mirrors the bounded command
+synchronously and supplies no native concurrency qualification.
+
+Three equivalent JEV Choice requests favor conditional batch at confidence
+1.0, 0.92 and 1.0; advice only. Pinned Node24 Identity/root types pass and all
+27 affected recovery controls pass or are reused. One reopen expectation mixed
+plain objects with SQLite null-prototype rows; preserving that fixture shape
+and rerunning only the failed group passes. Finite source review is clear.
+Coordinator intake and Dev's selected original native recovery/effect-timing
+consumer remain separate; all holds and the broader parent remain unchanged.
+
+Coordinator defining atomic recovery source review CLEAR and finite LOCAL main intake after deadline. Owning27 affected accounts/D1 controls and source owner normal checks reused; actual changed main Identity/CF/root emission passes. No source/activation/publication/preparation hold released; Dev genuine native selected recovery and final effect timing remains distinct from accepted library atomicity. Existing queue prerequisites are reconciled with released removal/ingress/capture/recovery producer scopes;22/48 packet count and complete filetree checkpoint unchanged.

@@ -379,6 +379,28 @@ export function createMemoryIdentityStore(opts?: {
     async findEmailTokenByHash(token_sha256) {
       return emailTokens.get(emailTokensByHash.get(token_sha256) ?? '') ?? null;
     },
+    async recoverAccountWithToken({ token_id, user_id, password_hash }) {
+      const at = now();
+      const proof = emailTokens.get(token_id);
+      const user = users.get(user_id);
+      if (proof === undefined || user === undefined || proof.user_id !== user_id ||
+          proof.purpose !== 'recover_account' || proof.consumed_at !== null || proof.expires_at <= at) return null;
+      // No external calls or awaits between the proof check and replacements.
+      users.set(user_id, { ...user, password_hash, updated_at: at });
+      for (const [id, row] of sessions) {
+        if (row.user_id === user_id && row.revoked_at === null) sessions.set(id, { ...row, revoked_at: at });
+      }
+      for (const [id, row] of grants) {
+        if (row.user_id === user_id && row.revoked_at === null) grants.set(id, { ...row, revoked_at: at });
+      }
+      for (const [id, row] of emailTokens) {
+        if (row.user_id === user_id && row.purpose === 'recover_account' && row.consumed_at === null) {
+          emailTokens.set(id, { ...row, consumed_at: at });
+        }
+      }
+      step();
+      return { user_id };
+    },
     async consumeEmailToken(token_id) {
       step();
       const row = emailTokens.get(token_id);

@@ -6,7 +6,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { syncBuiltinESMExports } from 'node:module';
-import { IdentityError } from '../src/ports.js';
+import { IdentityError, webRandom } from '../src/ports.js';
+import type { IdentityStore } from '../src/ports.js';
 import {
   createFrozenClock,
   createMemoryIdentityStore,
@@ -287,6 +288,111 @@ test('expired recovery links fail', async () => {
     () => recoverAccount(store, { token: raw, new_password: 'br4nd-new-password' }, { clock }),
     'validation',
   );
+});
+
+test('recovery admits both initial readers but only one same-clock password and revocation winner', async () => {
+  const { store, clock } = setup();
+  const user = await store.createUser({ email: 'race@x.co', password_hash: 'original-hash', email_verified: true });
+  const expires_at = new Date(NOW + 60_000).toISOString();
+  const raw = 'shared-recovery-proof';
+  const token_sha256 = await sha256HexText(raw);
+  await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256, expires_at });
+  await store.createSession({ user_id: user.user_id, token_sha256: 'old-session', expires_at, last_team_id: null });
+  await store.createMcpGrant({ user_id: user.user_id, team_id: null, client_id: 'client', token_sha256: 'old-grant', expires_at });
+  let readers = 0, admit!: () => void, releaseLoser!: () => void;
+  const bothReaders = new Promise<void>(resolve => { admit = resolve; });
+  const loserGate = new Promise<void>(resolve => { releaseLoser = resolve; });
+  const readProof: IdentityStore['findEmailTokenByHash'] = async hash => {
+    const row = await store.findEmailTokenByHash(hash);
+    assert.equal(row?.consumed_at, null, 'each public attempt observes the original live proof');
+    if (++readers === 2) admit();
+    await bothReaders;
+    return row;
+  };
+  const winnerStore = { ...store, findEmailTokenByHash: readProof };
+  const loserStore: IdentityStore = { ...store, findEmailTokenByHash: readProof,
+    async recoverAccountWithToken(input) {
+      await loserGate;
+      return store.recoverAccountWithToken!(input);
+    } };
+  const winner = recoverAccount(winnerStore, { token: raw, new_password: 'winner-password-1' }, { clock });
+  const loser = recoverAccount(loserStore, { token: raw, new_password: 'loser-password-2' }, { clock });
+  // Attach the rejection observer immediately; the loser resumes only after
+  // credentials issued following the winner have been captured.
+  const losingResult = assertIdentityError(() => loser, 'validation');
+  try {
+    assert.deepEqual(await winner, { user_id: user.user_id });
+    assert.equal(readers, 2);
+    assert.equal((await store.findSessionByTokenHash('old-session'))?.revoked_at, new Date(NOW).toISOString());
+    assert.equal((await store.findMcpGrantByTokenHash('old-grant'))?.revoked_at, new Date(NOW).toISOString());
+    await store.createSession({ user_id: user.user_id, token_sha256: 'fresh-session', expires_at, last_team_id: null });
+    await store.createMcpGrant({ user_id: user.user_id, team_id: null, client_id: 'client', token_sha256: 'fresh-grant', expires_at });
+    await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256: 'fresh-recovery-proof', expires_at });
+    const password = (await store.findUserById(user.user_id))!.password_hash;
+    releaseLoser();
+    await losingResult;
+    assert.equal((await store.findUserById(user.user_id))!.password_hash, password);
+    assert.equal(await verifyPassword('winner-password-1', password), true);
+    assert.equal(await verifyPassword('loser-password-2', password), false);
+    assert.equal((await store.findSessionByTokenHash('fresh-session'))?.revoked_at, null);
+    assert.equal((await store.findMcpGrantByTokenHash('fresh-grant'))?.revoked_at, null);
+    assert.equal((await store.findEmailTokenByHash('fresh-recovery-proof'))?.consumed_at, null);
+    assert.equal(clock.nowMs(), NOW);
+  } finally { releaseLoser(); }
+});
+
+test('recovery rechecks store expiry after genuine password salt generation without any effects', async () => {
+  const { store, clock } = setup();
+  const user = await store.createUser({ email: 'expiry@x.co', password_hash: 'original-hash', email_verified: true });
+  const expires_at = new Date(NOW + 1_000).toISOString();
+  const raw = 'expiring-recovery-proof';
+  const token_sha256 = await sha256HexText(raw);
+  await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256, expires_at });
+  await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256: 'sibling-proof', expires_at });
+  await store.createEmailToken({ user_id: user.user_id, purpose: 'verify_email', token_sha256: 'verification-proof', expires_at });
+  await store.createSession({ user_id: user.user_id, token_sha256: 'expiry-session', expires_at, last_team_id: null });
+  await store.createMcpGrant({ user_id: user.user_id, team_id: null, client_id: 'client', token_sha256: 'expiry-grant', expires_at });
+  const facts = async () => Promise.all([
+    store.findUserById(user.user_id), store.findEmailTokenByHash(token_sha256),
+    store.findEmailTokenByHash('sibling-proof'), store.findEmailTokenByHash('verification-proof'),
+    store.findSessionByTokenHash('expiry-session'), store.findMcpGrantByTokenHash('expiry-grant'),
+  ]);
+  const before = await facts();
+  let salts = 0;
+  await assertIdentityError(() => recoverAccount(store, { token: raw, new_password: 'expiry-password-1' }, {
+    clock,
+    random: { randomUUID: () => webRandom.randomUUID(), randomBytes(length) {
+      salts++;
+      assert.equal(clock.nowMs(), NOW, 'the initial public expiry check already admitted the proof');
+      const salt = webRandom.randomBytes(length);
+      clock.advance(1_000);
+      return salt;
+    } },
+  }), 'validation');
+  assert.equal(salts, 1);
+  assert.deepEqual(await facts(), before);
+});
+
+test('recovery with an unsupported atomic store fails before hashing or credential mutation', async () => {
+  const { store, clock } = setup();
+  const user = await store.createUser({ email: 'unsupported@x.co', password_hash: 'original-hash', email_verified: true });
+  const raw = 'unsupported-recovery-proof', token_sha256 = await sha256HexText(raw);
+  const expires_at = new Date(NOW + 60_000).toISOString();
+  await store.createEmailToken({ user_id: user.user_id, purpose: 'recover_account', token_sha256, expires_at });
+  await store.createSession({ user_id: user.user_id, token_sha256: 'unsupported-session', expires_at, last_team_id: null });
+  await store.createMcpGrant({ user_id: user.user_id, team_id: null, client_id: 'client', token_sha256: 'unsupported-grant', expires_at });
+  const facts = async () => Promise.all([store.findUserById(user.user_id), store.findEmailTokenByHash(token_sha256),
+    store.findSessionByTokenHash('unsupported-session'), store.findMcpGrantByTokenHash('unsupported-grant')]);
+  const before = await facts();
+  let salts = 0;
+  const unsupported: IdentityStore = { ...store };
+  delete unsupported.recoverAccountWithToken;
+  await assert.rejects(recoverAccount(unsupported,
+    { token: raw, new_password: 'unsupported-password-1' }, { clock,
+      random: { randomUUID: () => webRandom.randomUUID(), randomBytes(length) { salts++; return webRandom.randomBytes(length); } },
+    }), /Atomic account recovery is unavailable/);
+  assert.equal(salts, 0);
+  assert.deepEqual(await facts(), before);
 });
 
 
