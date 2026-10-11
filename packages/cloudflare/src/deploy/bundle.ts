@@ -1,3 +1,4 @@
+import { LocalCommandInterrupted, type LocalCommandLifetime } from "../cli/command-lifetime.js";
 /**
  * P-B deploy bundler: `CompileArtifact` + built dists -> portable workerd
  * module map (the deploy `main` and everything it imports).
@@ -159,6 +160,19 @@ const LOCAL_BUN_BUILD_OPTIONS = {
   stdio: "pipe", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 1_048_576,
 } as const;
 
+function bunBuildOptions(lifetime?: LocalCommandLifetime) {
+  return lifetime === undefined ? LOCAL_BUN_BUILD_OPTIONS : {
+    ...LOCAL_BUN_BUILD_OPTIONS, timeout: lifetime.remainingMs(LOCAL_BUN_BUILD_OPTIONS.timeout),
+  };
+}
+
+function bunStageFailure(error: unknown, lifetime?: LocalCommandLifetime): unknown {
+  if (error instanceof LocalCommandInterrupted) return error;
+  // Pin the operative stage outcome before cleanup can consume its budget.
+  try { lifetime?.checkpoint("deploy Bun failed"); } catch (interruption) { return interruption; }
+  return error;
+}
+
 /** Thrown error `code` when the built worker entry is missing. */
 export const WORKER_MAIN_MISSING = "worker-main-missing";
 
@@ -313,6 +327,7 @@ const SOURCEMAP_CODEC_SPECIFIER = "@jridgewell/sourcemap-codec";
 const SOURCEMAP_CODEC_VENDOR_ENTRY = "vendor/sourcemap-codec/sourcemap-codec.js";
 
 export interface BuildDeployBundleOptions {
+  commandLifetime?: LocalCommandLifetime;
   /** @deprecated Ignored. Producer files resolve through installed package exports. */
   repoRoot?: string;
   /**
@@ -889,7 +904,8 @@ export function buildDerivedInputsModule(artifact: CompileArtifact): string {
  * (same flags, same marker check, same loud errors) with a generated entry
  * using absolute dist paths so tmp paths never leak into bundle bytes.
  */
-export function buildMcpBundle(_repoRoot?: string): string {
+export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime): string {
+  lifetime?.checkpoint("deploy MCP inputs");
   const serverDist = resolveProducerFile(
     INTERFACES_MCP_SERVER_DIST,
     "bun run --filter @canlang/interfaces build",
@@ -914,11 +930,13 @@ export function buildMcpBundle(_repoRoot?: string): string {
       "utf8",
     );
     entryWritten = true;
+    lifetime?.checkpoint("deploy Bun start");
     execFileSync(
       "bun",
       ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      LOCAL_BUN_BUILD_OPTIONS,
+      bunBuildOptions(lifetime),
     );
+    lifetime?.checkpoint("deploy Bun completed");
   } catch (err) {
     if (!entryWritten) {
       try {
@@ -927,9 +945,11 @@ export function buildMcpBundle(_repoRoot?: string): string {
         throw err;
       }
     }
+    const failure = bunStageFailure(err, lifetime);
     try {
       rmSync(workDir, { force: true, recursive: true });
     } finally {
+      if (failure instanceof LocalCommandInterrupted) throw failure;
       const detail = err instanceof Error ? err.message : String(err);
       if (detail.includes("ENOENT")) {
         throw new Error(
@@ -963,6 +983,7 @@ export function buildMcpBundle(_repoRoot?: string): string {
       );
     }
   }
+  lifetime?.checkpoint("deploy producer bundle verified");
   return contents;
 }
 
@@ -975,7 +996,8 @@ export function buildMcpBundle(_repoRoot?: string): string {
  * determinism, so the main's join-contract currying lives in stable
  * main source instead (see `defaultLoadHttpOperationsFactory`).
  */
-export function buildHttpOperationsBundle(_repoRoot?: string): string {
+export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime): string {
+  lifetime?.checkpoint("deploy HTTP inputs");
   const operationsDist = resolveProducerFile(
     INTERFACES_HTTP_OPERATIONS_DIST,
     "bun run --filter @canlang/interfaces build",
@@ -1002,11 +1024,13 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
       "utf8",
     );
     entryWritten = true;
+    lifetime?.checkpoint("deploy Bun start");
     execFileSync(
       "bun",
       ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      LOCAL_BUN_BUILD_OPTIONS,
+      bunBuildOptions(lifetime),
     );
+    lifetime?.checkpoint("deploy Bun completed");
   } catch (err) {
     if (!entryWritten) {
       try {
@@ -1015,9 +1039,11 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
         throw err;
       }
     }
+    const failure = bunStageFailure(err, lifetime);
     try {
       rmSync(workDir, { force: true, recursive: true });
     } finally {
+      if (failure instanceof LocalCommandInterrupted) throw failure;
       const detail = err instanceof Error ? err.message : String(err);
       if (detail.includes("ENOENT")) {
         throw new Error(
@@ -1050,6 +1076,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
       );
     }
   }
+  lifetime?.checkpoint("deploy producer bundle verified");
   return contents;
 }
 
@@ -1167,6 +1194,7 @@ export function buildDeployBundle(
   artifact: CompileArtifact,
   options: BuildDeployBundleOptions,
 ): DeployBundle {
+  options.commandLifetime?.checkpoint("deploy bundle inputs");
   let workerDistDir = options.workerDistDir;
   if (workerDistDir === undefined) {
     try {
@@ -1196,8 +1224,8 @@ export function buildDeployBundle(
   modules[JUDGMENT_SPECIFICATION_VENDOR_ENTRY] = rewriteVendorImports(readFileSync(
     resolveProducerFile(JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER, "bun run --filter @canlang/services build"), "utf8",
   ), JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
-  modules[MCP_HANDLER_MODULE] = buildMcpBundle();
-  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle();
+  modules[MCP_HANDLER_MODULE] = buildMcpBundle(undefined, options.commandLifetime);
+  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(undefined, options.commandLifetime);
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path), stagedArtifact.sourceMaps),
@@ -1210,6 +1238,7 @@ export function buildDeployBundle(
   for (const key of Object.keys(modules).sort()) {
     sorted[key] = modules[key] as string;
   }
+  options.commandLifetime?.checkpoint("deploy bundle verified");
   return {
     mainModule: DEPLOY_MAIN_MODULE,
     modules: sorted,
@@ -1557,7 +1586,9 @@ function resourcesSha256(resources: Record<string, PackageResource>): string {
 function buildBrowserAssetsModule(
   resources: Record<string, PackageResource>,
   manifest: { version: 1; module: "./http-assets.js"; resourcesSha256: string; resources: ReturnType<typeof resourceEntries> },
+  lifetime?: LocalCommandLifetime,
 ): string {
+  lifetime?.checkpoint("deploy browser assets inputs");
   const root = fileURLToPath(interfacesDistribution.modules);
   const assets = join(root, "http", "assets.js");
   const pages = join(root, "http", "pages.js");
@@ -1590,14 +1621,18 @@ function buildBrowserAssetsModule(
     `}\n`;
   try {
     writeFileSync(entry, source, "utf8");
+    lifetime?.checkpoint("deploy browser assets Bun start");
     // Whitespace minification removes the random generated-entry path comment.
-    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], LOCAL_BUN_BUILD_OPTIONS);
+    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], bunBuildOptions(lifetime));
+    lifetime?.checkpoint("deploy browser assets Bun completed");
     const contents = readFileSync(output, "utf8");
     for (const marker of ["createHandler", "browser assets: selected page collides", "browser assets: selected resource integrity mismatch"]) {
       if (!contents.includes(marker)) throw new Error(`deploy bundle: selected browser assets bundle dropped ${marker}`);
     }
     return contents;
   } catch (error) {
+    if (error instanceof LocalCommandInterrupted) throw error;
+    lifetime?.checkpoint("deploy browser assets Bun failed");
     throw new Error(`deploy bundle: selected browser assets producer bundle failed: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     rmSync(workDir, { recursive: true, force: true });
@@ -1613,6 +1648,7 @@ export function buildDeployBundleWithAssets(
   artifact: CompileArtifact,
   options: BuildPackageDeployBundleOptions,
 ): PackageDeployBundle {
+  options.commandLifetime?.checkpoint("deploy package assets inputs");
   const assets = gatherDeploymentAssets(options.assets);
   const base = buildDeployBundle(artifact, options);
   const modules = { ...base.modules };
@@ -1624,7 +1660,7 @@ export function buildDeployBundleWithAssets(
       throw new Error("deploy bundle: selected browser resource inventory is not the finite shared producer");
     }
     const manifest = { version: 1 as const, module: "./http-assets.js" as const, resourcesSha256: resourceDigest, resources: entries };
-    modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest);
+    modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest, options.commandLifetime);
     modules[ARTIFACT_MODULE] += `export const browserAssets = ${JSON.stringify(manifest)};\n`;
   }
   for (const [key, js] of Object.entries(assets.modules)) {
@@ -1643,6 +1679,7 @@ export function buildDeployBundleWithAssets(
     sha256: bundleSha256(base.mainModule, sorted),
   }, assets.binaries);
   assertPackageOutputLayout(mixed.modules, mixed.binaries, resources);
+  options.commandLifetime?.checkpoint("deploy package bundle verified");
   return { ...mixed, resources, resourcesSha256: resourceDigest };
 }
 

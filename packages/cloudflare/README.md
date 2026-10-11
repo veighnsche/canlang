@@ -86,7 +86,8 @@ is honored in subcommand position too (`can-platform run --help`),
 because L1 thin entries pass flags through verbatim. Exit 0
 carries `{ok:true,...}`; exit 2 carries `{ok:false,command,code,detail}`
 with `code` one of `usage`, `missing-artifact`, `missing-producer`
-(names `producer` + `contract`), and exit 1 `internal`.
+(names `producer` + `contract`), and exit 1 `internal`, `command-timeout`
+or `command-cancelled`.
 
 `can-platform run` assembles modules and returns a local `file:` entry URL.
 The successful staging directory remains after CLI exit; the caller owns its
@@ -96,15 +97,19 @@ or reporting attempts scratch removal while preserving the original failure.
 `startLocalDev` instead owns one Miniflare instance until its caller awaits
 `dispose`; protected preview URLs expire when their preview owner disposes them.
 
-Normal `run`/`test`/`build`/`deploy` commands currently have no whole-command
-deadline. Each of the three Bun build stages uses a 30-second timeout with
-SIGKILL and a 1 MiB captured-output cap; generated scratch is removed on normal
-failure when cleanup succeeds. This is a stage termination trigger, not a
-whole-command, process-tree or absolute-exit guarantee. Compiler and control
-budgets belong to their separate callers;
-Wrangler has a configured 180-second child timeout, without a process-tree or
-remote rollback guarantee. After an attempted apply fails, the remote outcome
-is unconfirmed: inspect it before manual retry. There is no automatic retry.
+Normal commands share one cooperative budget from argument parsing: 60 seconds
+for `run`/`build`, 300 for `test`, 120 for deploy preview and 360 for confirmed
+deploy. SIGINT/SIGTERM cancel the same lifetime. Stage checkpoints refuse late
+success; the example runner receives its cancellation signal, and acquired
+cleanup is awaited before reporting. Cleanup may exceed the budget. Each of the
+three Bun stages uses the lesser of 30 seconds and the remaining command budget,
+with SIGKILL and a 1 MiB captured-output cap. Wrangler similarly uses the lesser
+of 180 seconds and the remaining budget. Synchronous stages observe signals at
+their next checkpoint. These controls do not guarantee an absolute process exit
+time or descendant termination. Compiler and control budgets belong to their
+separate callers. Cancellation after publication reports known written files;
+after an attempted apply, the remote outcome is unconfirmed and requires
+inspection before manual retry. There is no automatic retry or remote rollback.
 
 Native private cohorts use State's bounded physical identity, row, child-page
 and anchor ports under the original source or retained-turn revision. The

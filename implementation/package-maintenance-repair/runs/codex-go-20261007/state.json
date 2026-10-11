@@ -2888,7 +2888,7 @@
         "limits": "No whole-command budget/run returned-URL/native preparation acceptance; no reduction credit."
       },
       "remaining_prerequisite": {
-        "prerequisite": "Define normal CLI whole-command resource policy and observable cancellation/partial-effect behavior; qualify concurrent path replacement and broader interrupted sequential publication. Three existing Bun stages now have tested30s/SIGKILL/1MiB controls, not whole-command/process-tree/absolute exit bounds. Static plan/TOML containment, injected second-write partial-output/original-error behavior, run file-URL lifetime/failure cleanup and test scratch cleanup are implemented/tested; native preparation remains held.",
+        "prerequisite": "Qualify concurrent path replacement and broader physical interruption during sequential publication. Normal CLI commands now share cooperative60/300/120/360s budgets, SIGINT/SIGTERM cancellation and awaited owned cleanup; Bun30s/SIGKILL/1MiB and Wrangler180s child stages use the remaining command budget. Late success refuses, earlier operative errors survive cleanup cancellation, and partial-write/attempted-apply context remains truthful. Cooperative cleanup may exceed the budget; no absolute exit/process-tree/atomic-publication/remote-rollback promise. Static sidecar containment, original-error behavior, run URL and test scratch lifetime results are reused; native preparation remains held.",
         "owner": "Dev/Cloudflare command/resource and confirmed-writer owner; human retains native-preparation hold"
       },
       "application_testkit_loader": {
@@ -2944,6 +2944,13 @@
         "validation": "Six actual host caller containment/ordinary writer/second-write failure controls pass4.91s after fixing mock Bun output syntax. Two new nonzero/timeout actual host-envelope controls pass2.38s; six unchanged writer/eight wrapper controls reused. Current CF emit/final root noEmit/boundaries0. Bun/Wrangler mocked; existing subprocess deployment cases unselected.",
         "limits": "Static preflight is not concurrent replacement protection or atomic multi-output publication; broader interruption/resource policy/held native preparation stay open. No remote effects or whole-plan acceptance.",
         "review": "Exact b3158791 source review CLEAR: fixed-sidecar preflight uses existing canonical-root policy before all output, failed sequential publication never reaches apply and preserves its original value even if warning fails. Reuse eight affected mocked-host cases, emissions and boundary results. No TOCTOU/atomic/publication or hold release."
+      },
+      "normal_command_lifetime": {
+        "source": "6cb9e4eafce616a9d5b181079d4a9cbdec8dca98",
+        "state": "finite cooperative command lifetime implemented,tested,reviewed and integrated in local main",
+        "validation": "Owner CLI22/host15 and corrected frozen Bun5 reused; merged cleanup/auth combination passes owning22-task build plus affected5 Bun failure/cumulative/cleanup cases.",
+        "review": "Finite independent source review found cleanup error-precedence defect in3b; corrected6cb reviewed CLEAR. Main existing primary-error cleanup and later auth export retained.",
+        "limits": "Cooperative60/300/120/360s budgets, same SIGINT/SIGTERM signal, awaited owned cleanup and remaining child limits. No absolute/process-tree, atomic publication or remote rollback promise; concurrent replacement/broader physical interruption and recipient-specific holds remain."
       }
     },
     "DEL-D04": {

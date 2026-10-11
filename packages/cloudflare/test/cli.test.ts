@@ -208,12 +208,15 @@ const examples = vi.hoisted(() => ({
   failures: new Map<string, unknown>(),
   result: { ok: true, executed: 3, report: { summary: { total: 3 } } },
   emitted: undefined as ((value: unknown) => void) | undefined,
+  executeWait: undefined as ((signal: AbortSignal) => Promise<void>) | undefined,
 }));
 const runLifetime = vi.hoisted(() => ({
   active: false,
   workDirs: [] as string[],
   removals: [] as string[],
   failures: new Map<string, unknown>(),
+  assembleWait: undefined as (() => Promise<void>) | undefined,
+  cleanupWait: undefined as (() => Promise<void>) | undefined,
 }));
 function exampleStage(stage: string): void {
   examples.events.push(stage);
@@ -232,6 +235,7 @@ vi.mock("node:fs/promises", async (original) => {
       if (runLifetime.active) {
         runLifetime.removals.push(path);
         if (runLifetime.failures.has("cleanup")) throw runLifetime.failures.get("cleanup");
+        await runLifetime.cleanupWait?.();
       }
       return actual.rm(path, options);
     },
@@ -251,6 +255,7 @@ vi.mock("../src/runtime/modules.js", () => ({
     const entryPath = join(options.workDir, "partial.mjs");
     writeFileSync(entryPath, "export default {};\n");
     if (runLifetime.failures.has("assemble")) throw runLifetime.failures.get("assemble");
+    await runLifetime.assembleWait?.();
     return { entryUrl: pathToFileURL(entryPath).href };
   },
 }));
@@ -270,8 +275,9 @@ vi.mock("../src/dev/source-capture.js", () => ({
 }));
 vi.mock("../src/dev/preview-host.js", () => ({
   preflightLocalPreviewActivation: async () => { exampleStage("activate"); return { active: true }; },
-  produceInstalledPortableBundle: async () => {
+  produceInstalledPortableBundle: async (input: { commandLifetime?: { signal: AbortSignal } }) => {
     exampleStage("bundle");
+    expect(input.commandLifetime?.signal).toBeInstanceOf(AbortSignal);
     return { bundle: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaries: {} } };
   },
 }));
@@ -282,13 +288,15 @@ vi.mock("../src/dev/example-runner.js", () => ({
     exampleStage("testkit");
     return "testkit-port";
   },
-  runCompiledExamples: async (input: unknown) => {
+  runCompiledExamples: async (input: { signal: AbortSignal }) => {
     exampleStage("execute");
     expect(input).toEqual({
       artifactBytes: new Uint8Array([1, 2, 3]), artifactLabel: "/artifact.json", sourceRevision: "revision",
       worker: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaryModules: {} },
       workerName: "example-worker", compatibilityDate: "2026-10-09", d1Binding: "DB", testkit: "testkit-port",
+      signal: expect.any(AbortSignal),
     });
+    await examples.executeWait?.(input.signal);
     return examples.result;
   },
 }));
@@ -320,6 +328,8 @@ describe("run CLI acquired staging lifetime", () => {
     runLifetime.workDirs = [];
     runLifetime.removals = [];
     runLifetime.failures.clear();
+    runLifetime.assembleWait = undefined;
+    runLifetime.cleanupWait = undefined;
     examples.emitted = undefined;
   });
 
@@ -340,6 +350,71 @@ describe("run CLI acquired staging lifetime", () => {
     expect(runLifetime.removals).toEqual(runLifetime.workDirs);
     expect(existsSync(join(runLifetime.workDirs[0]!, "partial.mjs"))).toBe(true);
   });
+
+  it("cancels run without publishing late assembly success and awaits acquired staging cleanup", async () => {
+    runLifetime.active = true;
+    const beforeInt = process.listenerCount("SIGINT");
+    const beforeTerm = process.listenerCount("SIGTERM");
+    let assembled!: () => void;
+    const assemblyEntered = new Promise<void>(resolve => { assembled = resolve; });
+    let releaseAssembly!: () => void;
+    const assemblyHeld = new Promise<void>(resolve => { releaseAssembly = resolve; });
+    let cleaning!: () => void;
+    const cleanupEntered = new Promise<void>(resolve => { cleaning = resolve; });
+    let releaseCleanup!: () => void;
+    const cleanupHeld = new Promise<void>(resolve => { releaseCleanup = resolve; });
+    runLifetime.assembleWait = async () => { assembled(); await assemblyHeld; };
+    runLifetime.cleanupWait = async () => { cleaning(); await cleanupHeld; };
+    let reported = false;
+    const result = invokePlatform("run").then(value => { reported = true; return value; });
+    try {
+      await assemblyEntered;
+      process.emit("SIGINT");
+      releaseAssembly();
+      await cleanupEntered;
+      expect(reported).toBe(false);
+      expect(existsSync(join(runLifetime.workDirs[0]!, "partial.mjs"))).toBe(true);
+      releaseCleanup();
+      expect(await result).toEqual({ ok: false, command: "run", code: "command-cancelled", detail: "run command was cancelled" });
+      expect(runLifetime.removals).toEqual(runLifetime.workDirs);
+      expect(existsSync(runLifetime.workDirs[0]!)).toBe(false);
+      expect(process.listenerCount("SIGINT")).toBe(beforeInt);
+      expect(process.listenerCount("SIGTERM")).toBe(beforeTerm);
+    } finally {
+      releaseAssembly();
+      releaseCleanup();
+      await result;
+    }
+  });
+
+  it("preserves the primary assembly failure when cancelled during awaited cleanup", async () => {
+    runLifetime.active = true;
+    runLifetime.failures.set("assemble", new Error("primary assembly sentinel"));
+    const beforeInt = process.listenerCount("SIGINT");
+    const beforeTerm = process.listenerCount("SIGTERM");
+    let cleaning!: () => void;
+    const cleanupEntered = new Promise<void>(resolve => { cleaning = resolve; });
+    let releaseCleanup!: () => void;
+    const cleanupHeld = new Promise<void>(resolve => { releaseCleanup = resolve; });
+    runLifetime.cleanupWait = async () => { cleaning(); await cleanupHeld; };
+    let reported = false;
+    const result = invokePlatform("run").then(value => { reported = true; return value; });
+    try {
+      await cleanupEntered;
+      process.emit("SIGINT");
+      expect(reported).toBe(false);
+      expect(existsSync(join(runLifetime.workDirs[0]!, "partial.mjs"))).toBe(true);
+      releaseCleanup();
+      expect(await result).toEqual({ ok: false, command: null, code: "internal", detail: "primary assembly sentinel" });
+      expect(runLifetime.removals).toEqual(runLifetime.workDirs);
+      expect(existsSync(runLifetime.workDirs[0]!)).toBe(false);
+      expect(process.listenerCount("SIGINT")).toBe(beforeInt);
+      expect(process.listenerCount("SIGTERM")).toBe(beforeTerm);
+    } finally {
+      releaseCleanup();
+      await result;
+    }
+  });
 });
 
 describe("test CLI compiled example execution", () => {
@@ -350,6 +425,8 @@ describe("test CLI compiled example execution", () => {
     examples.failures.clear();
     examples.result = { ok: true, executed: 3, report: { summary: { total: 3 } } };
     examples.emitted = undefined;
+    examples.executeWait = undefined;
+    vi.useRealTimers();
   });
 
   async function invokeTest(): Promise<Record<string, unknown>> {
@@ -381,6 +458,47 @@ describe("test CLI compiled example execution", () => {
       expect(process.exitCode).toBe(1);
     } finally {
       process.exitCode = priorExitCode;
+    }
+  });
+
+  it.each(["late success", "owned AbortError"])("passes the command deadline to the example runner and waits for cleanup before refusing its %s", async mode => {
+    vi.useFakeTimers();
+    const beforeInt = process.listenerCount("SIGINT");
+    const beforeTerm = process.listenerCount("SIGTERM");
+    const beforeTimers = vi.getTimerCount();
+    let executing!: () => void;
+    const entered = new Promise<void>(resolve => { executing = resolve; });
+    let aborted!: () => void;
+    const interrupted = new Promise<void>(resolve => { aborted = resolve; });
+    let releaseCleanup!: () => void;
+    const cleanupHeld = new Promise<void>(resolve => { releaseCleanup = resolve; });
+    let signal: AbortSignal | undefined;
+    examples.executeWait = async actualSignal => {
+      signal = actualSignal;
+      actualSignal.addEventListener("abort", aborted, { once: true });
+      executing();
+      await interrupted;
+      await cleanupHeld;
+      if (mode === "owned AbortError") throw new DOMException("example runner: cancelled", "AbortError");
+    };
+    let reported = false;
+    const result = invokeTest().then(value => { reported = true; return value; });
+    try {
+      await entered;
+      await vi.advanceTimersByTimeAsync(300_000);
+      await interrupted;
+      expect(signal?.aborted).toBe(true);
+      expect(signal?.reason).toMatchObject({ command: "test", code: "command-timeout" });
+      expect(reported).toBe(false);
+      releaseCleanup();
+      expect(await result).toEqual({ ok: false, command: "test", code: "command-timeout", detail: "test command timed out" });
+      expect(examples.events).toEqual(stages);
+      expect(process.listenerCount("SIGINT")).toBe(beforeInt);
+      expect(process.listenerCount("SIGTERM")).toBe(beforeTerm);
+      expect(vi.getTimerCount()).toBe(beforeTimers);
+    } finally {
+      releaseCleanup();
+      await result;
     }
   });
 });
