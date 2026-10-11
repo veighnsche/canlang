@@ -3868,3 +3868,25 @@ application gates retain their named owners. This related checkpoint is unfinish
 23 findings,58/67/nine and precise recipient holds remain, with no publication.
 
 Coordinator accepts this finite checked agenda source component after CLEAR source review;141 affected and strict/fmt results are retained. Main46075436 releases the exact omitted-empty UI correction. The affected original native retry and current-policy/history/full-application outcomes remain unfinished; all holds and the complete checkpoint remain.
+
+
+**Unfinished native File join — original Event/no-contract inventory, 2026-10-11.**
+
+The unchanged original NativeFileDeferred source now publishes the complete
+`valueTypes:{contracts:[]}` required by the real installed inventory consumer.
+Match original event/CST/module/owner/ordered fields/types and private checked
+field metadata/descriptions before sealing; retain actual event schema facts
+for later IR revalidation. Imports/contracts/unsupported declarations and raw,
+stale, partial or edited evidence retain refusal. Original complete event inputs,
+flat inputFields and arm/cancel_pending void metadata are unchanged. No event
+execution, File origin or current grant is supplied by this absence inventory.
+
+Seven distinct owning assertions pass: six initial successes (.71s), then only
+the failed prebuild mutation assertion passes (.02s) after explicit E6008 is
+added for edited checked metadata. Eight metadata mutations and postbuild
+owner/order/type/constraint/omission plus stale source refuse. The actual CLI,
+public loader, verified emitted module and installed checkedFileInventory consume
+original emitted bytes without a fallback. Frozen coordinator-released consumer
+build22/22 uncached12.705s; strict all-target Clippy0 6.39s,fmt/diff0. Coordinator acceptance
+and Dev's genuine scheduled File rollback/replay/reopen/cancellation lifetime
+consumer remain unfinished;58/67, nine dependencies and precise holds persist.
