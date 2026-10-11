@@ -10277,8 +10277,8 @@ async function queryPageRowsInScope(
       };
     });
   }
-  if (opts.args.parent !== undefined || opts.args.cursor !== undefined) {
-    throw new StateError('validation', 'Ordinary collection reads do not accept a parent or cursor.');
+  if (opts.args.cursor !== undefined) {
+    throw new StateError('validation', 'Ordinary collection reads do not accept a cursor.');
   }
   assertCanonicalStore(opts.store, `${opts.model}.read`);
   assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
@@ -10289,8 +10289,16 @@ async function queryPageRowsInScope(
     policy: loaded.policy, store: opts.store, memberships: opts.memberships, sourceReadPolicies: sourcePolicies });
   const ordinarySelection = selection.where === undefined ? selection : { ...selection,
     where: resolvePageQueryTime(selection.where, {}, undefined, StateError) };
+  const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
+  if (opts.args.parent !== undefined && parentModel === undefined) {
+    throw new StateError('validation', 'Collection parent requires the original contained model declaration.');
+  }
   return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
-    selection: ordinarySelection, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
+    selection: { ...ordinarySelection,
+      ...(opts.args.parent === undefined ? {} : { parent: {
+        model: parentModel as ModelName, id: opts.args.parent.id as RecordId,
+      } }),
+    }, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
   }, async page => {
     if (page.continuation !== null) {
       throw new StateError('validation',

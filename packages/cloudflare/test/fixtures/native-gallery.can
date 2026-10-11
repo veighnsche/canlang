@@ -1,0 +1,17 @@
+app NativeGallery
+Given
+ Run {name:text}
+ Output in Run {position:int,image:file}
+ policy Run read=members fields=name
+ policy Output read=owner where=row.position>=0 fields=position,image
+ policy Output read=members fields=position
+When
+ crud Run by=owner fields=name
+ crud Output by=owner fields=position,image
+Then
+ page /images title="Images"
+  require members
+  list Run as run order=created empty="No runs"
+   text run.name
+   gallery row.Output image=image order=position empty="No images yet"
+    text row.position
