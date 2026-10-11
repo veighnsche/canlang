@@ -1853,6 +1853,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "fieldset"
             | "form"
             | "fileInput"
+            | "gallery"
             | "hero"
             | "history"
             | "input"
@@ -1902,6 +1903,20 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "order"
                 | "search"
                 | "count"
+        ),
+        "gallery" => matches!(
+            key,
+            "model"
+                | "parent"
+                | "where"
+                | "empty"
+                | "image"
+                | "order"
+                | "search"
+                | "count"
+                | "page"
+                | "filter"
+                | "defaults"
         ),
         "table" => matches!(
             key,
@@ -2125,6 +2140,23 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     && matches!(item.kind, IrItemKind::Field { owner, .. } if owner == model.id)
             })
     };
+    if node.factory == "gallery" {
+        let Some(image) = form_prop_text(node, "image") else {
+            return false;
+        };
+        if !field(&image).is_some_and(|item| {
+            matches!(
+                &item.kind,
+                IrItemKind::Field {
+                    ty: IrType::Known(ResolvedType::Scalar(Scalar::File)),
+                    ..
+                }
+            )
+        }) || (!node.children.is_empty() && node.row_scope.is_none())
+        {
+            return false;
+        }
+    }
     let endpoints: &[&str] = if node.factory == "calendar" {
         &["startField", "endField"]
     } else {
@@ -6669,6 +6701,7 @@ impl<'a> Emitter<'a> {
     ) -> String {
         // Settle earlier children before later siblings cross a source await.
         let sequence_children = node.children.iter().any(ui_immediate_uses_async)
+            || node.factory == "gallery"
             || (view_scope && node.factory == "chatBubble");
         if node.factory == "callbackValueCard" {
             if !self.ir.callback_grants.matches_value_list(self.ir, node) {
@@ -7110,6 +7143,14 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("unsupported table filter profile");
         }
+        if node.factory == "gallery" && !collection_filter_props_are_valid(self.ir, node) {
+            self.unsupported(
+                "gallery",
+                "one owning singular File selector and checked row/filter carriers are required",
+                node.span,
+            );
+            return self.throw_expr("unsupported gallery profile");
+        }
         for (key, value) in &node.props {
             if !ui_prop_is_admitted(&node.factory, key) {
                 self.unsupported(
@@ -7130,7 +7171,12 @@ impl<'a> Emitter<'a> {
                 "kind" if node.factory == "renderState" => {
                     matches!(&value.expr, IrExpr::Text(kind) if kind == "loading")
                 }
-                "page" if matches!(node.factory.as_str(), "list" | "table" | "calendar") => {
+                "page"
+                    if matches!(
+                        node.factory.as_str(),
+                        "list" | "table" | "calendar" | "gallery"
+                    ) =>
+                {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
                 "field" if node.factory == "checkbox" => {
@@ -7375,7 +7421,9 @@ impl<'a> Emitter<'a> {
         } else {
             None
         };
-        if (node.factory == "calendar" && form_prop_text(node, "kind").as_deref() == Some("agenda"))
+        if node.factory == "gallery"
+            || (node.factory == "calendar"
+                && form_prop_text(node, "kind").as_deref() == Some("agenda"))
             || (matches!(node.factory.as_str(), "list" | "table")
                 && (form_prop_text(node, "display").as_deref() == Some("split")
                     || node.props.iter().any(|(key, _)| key == "filter")
@@ -7540,7 +7588,8 @@ impl<'a> Emitter<'a> {
                     .collect::<Vec<_>>()
                     .join(",");
                 // `async` exactly when a row child awaits.
-                let prefix = if node.children.iter().any(ui_uses_async) {
+                let prefix = if node.factory == "gallery" || node.children.iter().any(ui_uses_async)
+                {
                     "async"
                 } else {
                     ""
@@ -7551,10 +7600,13 @@ impl<'a> Emitter<'a> {
                 } else {
                     String::new()
                 };
-                let fields = if node
-                    .children
-                    .iter()
-                    .any(|child| ui_uses_message_values(child) || ui_uses_details_drawer(child))
+                // Gallery fields are read by authored children in order;
+                // exposing the row must not evaluate unused getters first.
+                let fields = if node.factory == "gallery"
+                    || node
+                        .children
+                        .iter()
+                        .any(|child| ui_uses_message_values(child) || ui_uses_details_drawer(child))
                 {
                     format!(
                         "Object.defineProperties({{id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}},Object.getOwnPropertyDescriptors({row}.fields))"
@@ -7945,6 +7997,7 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
         )
         || node.factory == "form"
         || node.factory == "detailsDrawer"
+        || node.factory == "gallery"
         || node.factory == "history"
         || node.props.iter().any(|(_, value)| expr_uses_async(value))
         || node.gate.as_ref().is_some_and(expr_uses_async)
@@ -7965,6 +8018,7 @@ fn ui_uses_async(node: &IrUi) -> bool {
         )
         || node.factory == "form"
         || node.factory == "detailsDrawer"
+        || node.factory == "gallery"
         || node.factory == "history"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
