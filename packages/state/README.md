@@ -25,6 +25,18 @@ are imported here by relative source path until lane 07 assembles the workspace 
 `contracts` index. Engine-local descriptor/codec shims needed before lanes 01/02 land
 are marked interim and replaced at those joins — never a second catalog.
 
+Singular newly-created scenario model results can retain an original `first`
+query through the existing query influence and saved association profile.
+`selectScenarioReceiptQueryFirstRow(call, store, { query })` awaits source and
+ancestor grants, then consumes the completed query handle once at its original
+owner stage and returns the genuine first owning row or null. The native host
+must privately bind that row before ordinary field observations and mutation;
+the selected projected record is insufficient. All original matches, false
+candidates, lazy executed markers and ordering remain saved; query limits still
+refuse overflow. Current full source field and Identity authority are checked
+against actual final effects and saved disclosure without predicate replay.
+General scalar query influence and other model-result profiles remain unsupported.
+
 `createFileReferenceConsumer` is the owning current File read and retention-fact
 consumer. Bind it to the trusted app/team/owner store, the same loaded canonical
 and artifact models, loaded `valueTypes` when present, current operation registry,
