@@ -1,7 +1,7 @@
 /** Actual native source -> installed portable bundle -> workerd and owner D1. */
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -148,7 +148,7 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
     // Plain publication must bind the same real native source and verdict;
     // changing staged application code cannot retain the frozen host's authority.
     const plain = buildDeployBundle(artifact, { verdict: preflight });
-    const plainOutput = await mkdtemp(join(tmpdir(), 'can-native-plain-bundle-'));
+    const plainOutput = await realpath(await mkdtemp(join(tmpdir(), 'can-native-plain-bundle-')));
     try {
       const changedPlain = { ...plain, modules: { ...plain.modules,
         [entry]: `${plain.modules[entry]}\n// changed native application bytes` } };
@@ -165,7 +165,7 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
         assert.equal(await readFile(join(plainOutput, key), 'utf8'), text, `exact checked native graph ${key}`);
     } finally { await rm(plainOutput, { recursive: true, force: true }); }
 
-    const refusedOutput = await mkdtemp(join(tmpdir(), 'can-native-stale-bundle-'));
+    const refusedOutput = await realpath(await mkdtemp(join(tmpdir(), 'can-native-stale-bundle-')));
     try {
       const changed = { ...evidence.bundle, modules: { ...evidence.bundle.modules,
         [entry]: `${evidence.bundle.modules[entry]}\n` } };
@@ -207,9 +207,9 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
     assert.equal(bootstrap.status, 303);
     const bridgeCookie = bootstrap.headers.getSetCookie().find(item => item.startsWith('can_dev_preview='))?.split(';',1)[0];
     assert.ok(bridgeCookie);
-    const request = (actor: Actor | null, path: string, body?: unknown, token?: string) => fetch(new URL(path, origin), {
+    const request = (actor: Actor | null, path: string, body?: unknown, token?: string, additionalCookie?: string) => fetch(new URL(path, origin), {
       method: body === undefined ? 'GET' : 'POST', redirect: 'manual', headers: {
-        cookie: [bridgeCookie, actor?.cookie].filter(Boolean).join('; '), origin,
+        cookie: [bridgeCookie, actor?.cookie, additionalCookie].filter(Boolean).join('; '), origin,
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         ...(path === '/mcp' ? { accept: 'application/json, text/event-stream' } : {}),
         ...(actor?.csrf ? { 'x-csrf-token': actor.csrf } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
@@ -219,10 +219,14 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
       const descriptor = await request(null, '/auth/login'); assert.equal(descriptor.status, 200);
       const form = object(await descriptor.json());
       const preSessionToken = word(form.preSessionToken);
+      const bindings = descriptor.headers.getSetCookie().filter(item => item.startsWith('can_presession='));
+      assert.equal(bindings.length, 1);
+      const binding = bindings[0]!.split(';', 1)[0]; assert.ok(binding && binding !== 'can_presession=');
       const response = await request(null, '/auth/login', { email: seeded.email, password: seeded.password,
-        _presession: preSessionToken }); assert.equal(response.status, 200);
-      const cookie = response.headers.getSetCookie().find(item => item.startsWith('can_session='))?.split(';',1)[0];
-      assert.ok(cookie);
+        _presession: preSessionToken }, undefined, binding); assert.equal(response.status, 200);
+      const sessions = response.headers.getSetCookie().filter(item => item.startsWith('can_session='));
+      assert.equal(sessions.length, 1);
+      const cookie = sessions[0]!.split(';',1)[0]; assert.ok(cookie && cookie !== 'can_session=');
       const principal = await identityDb.prepare('SELECT user_id FROM identity_users WHERE email_lc=?')
         .bind(seeded.email.toLowerCase()).first<{ user_id: string }>(); assert.ok(principal); assert.equal(typeof principal.user_id, 'string');
       const actor: Actor = { cookie, csrf: await deriveCsrfToken(decodeURIComponent(cookie.slice('can_session='.length))),
@@ -458,9 +462,9 @@ for (const contextual of [false, true]) it(contextual
     const bootstrap = await fetch(bridge.issueOpenUrl(), { redirect: 'manual' }); assert.equal(bootstrap.status, 303);
     const bridgeCookie = bootstrap.headers.getSetCookie().find(item => item.startsWith('can_dev_preview='))?.split(';', 1)[0];
     assert.ok(bridgeCookie);
-    const request = (actor: Actor | null, path: string, body?: unknown, token?: string) => fetch(new URL(path, origin), {
+    const request = (actor: Actor | null, path: string, body?: unknown, token?: string, additionalCookie?: string) => fetch(new URL(path, origin), {
       method: body === undefined ? 'GET' : 'POST', redirect: 'manual', headers: {
-        cookie: [bridgeCookie, actor?.cookie].filter(Boolean).join('; '), origin,
+        cookie: [bridgeCookie, actor?.cookie, additionalCookie].filter(Boolean).join('; '), origin,
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         ...(path === '/mcp' ? { accept: 'application/json, text/event-stream' } : {}),
         ...(actor ? { 'x-csrf-token': actor.csrf } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
@@ -476,9 +480,14 @@ for (const contextual of [false, true]) it(contextual
       }
       assert.equal(descriptor.status, 200, bootFailure);
       const preSessionToken = word(object(await descriptor.json()).preSessionToken);
+      const bindings = descriptor.headers.getSetCookie().filter(item => item.startsWith('can_presession='));
+      assert.equal(bindings.length, 1);
+      const binding = bindings[0]!.split(';', 1)[0]; assert.ok(binding && binding !== 'can_presession=');
       const response = await request(null, '/auth/login', { email: seeded.email, password: seeded.password,
-        _presession: preSessionToken }); assert.equal(response.status, 200);
-      const cookie = response.headers.getSetCookie().find(item => item.startsWith('can_session='))?.split(';', 1)[0]; assert.ok(cookie);
+        _presession: preSessionToken }, undefined, binding); assert.equal(response.status, 200);
+      const sessions = response.headers.getSetCookie().filter(item => item.startsWith('can_session='));
+      assert.equal(sessions.length, 1);
+      const cookie = sessions[0]!.split(';', 1)[0]; assert.ok(cookie && cookie !== 'can_session=');
       const principal = await identityDb.prepare('SELECT user_id FROM identity_users WHERE email_lc=?')
         .bind(seeded.email.toLowerCase()).first<{ user_id: string }>(); assert.ok(principal);
       const actor: Actor = { cookie, csrf: await deriveCsrfToken(decodeURIComponent(cookie.slice('can_session='.length))),

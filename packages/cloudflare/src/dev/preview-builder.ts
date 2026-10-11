@@ -334,13 +334,19 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
       !((descriptor as Record<string, unknown>)["preSessionToken"] as string)) {
     fail("IDENTITY_UNAVAILABLE", "installed Identity login descriptor or D1 token is missing");
   }
+  const preSessionCookies = auth.headers.getSetCookie().filter(value => value.startsWith("can_presession="));
+  const preSessionCookie = preSessionCookies.length === 1 ? preSessionCookies[0]!.split(";", 1)[0] : undefined;
+  if (preSessionCookie === undefined || preSessionCookie === "can_presession=") {
+    fail("IDENTITY_UNAVAILABLE", "installed Identity login descriptor browser binding is missing");
+  }
   const login = await dev.dispatchUrl(`${origin}/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", cookie: preSessionCookie },
     body: JSON.stringify({ email: seed.probe.email, password: seed.probe.password,
       [PRESESSION_FIELD]: (descriptor as Record<string, unknown>)["preSessionToken"] }),
   });
-  const sessionCookie = login.headers.get("set-cookie")?.split(";", 1)[0];
+  const sessionCookies = login.headers.getSetCookie().filter(value => value.startsWith("can_session="));
+  const sessionCookie = sessionCookies.length === 1 ? sessionCookies[0]!.split(";", 1)[0] : undefined;
   const sessionToken = sessionCookie === undefined ? null : parseSessionCookie(sessionCookie);
   if (login.status !== 200 || sessionCookie === undefined || sessionToken === null) {
     fail("IDENTITY_UNAVAILABLE", `seeded member login returned HTTP ${login.status} without an app session`);

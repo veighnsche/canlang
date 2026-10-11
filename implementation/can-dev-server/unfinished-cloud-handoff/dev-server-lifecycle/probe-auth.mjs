@@ -93,8 +93,9 @@ async function openAndLogin(which) {
   const descriptorResponse = await fetch(`${origin}/auth/login`, { headers: { cookie: bridgeCookie } });
   assert.equal(descriptorResponse.status, 200);
   const descriptor = await descriptorResponse.json();
+  const preSessionCookie = cookie(descriptorResponse, 'can_presession');
   const login = await fetch(`${origin}/auth/login`, { method: 'POST',
-    headers: { cookie: bridgeCookie, origin, 'content-type': 'application/json' },
+    headers: { cookie: `${bridgeCookie}; ${preSessionCookie}`, origin, 'content-type': 'application/json' },
     body: JSON.stringify({ email: actor.email, password: actor.password, _presession: descriptor.preSessionToken }) });
   assert.equal(login.status, 200);
   const appCookie = cookie(login, 'can_session');

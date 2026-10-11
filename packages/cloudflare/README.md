@@ -70,6 +70,12 @@ field). The header takes precedence. The owning JSON parser caps the body at
 1 MiB; unsupported or malformed JSON returns 400, overflow 429 and missing or
 invalid CSRF 403. Protected preview readiness forwards its session-derived CSRF token.
 
+Login descriptors bind their token to the host-only `can_presession` cookie.
+Native clients forward that exact cookie with `_presession` and read the distinct
+`can_session` response cookie. A presented Origin must match the configured
+canonical auth origin. HTTP/MCP credentials are checked again before invoker
+entry; revocation after entry does not cancel canonical work already entered.
+
 ## `can-platform` CLI (L1 IR-03 delegation target)
 
 Thin `can run|test|build|deploy` entries exec this binary, resolved from
