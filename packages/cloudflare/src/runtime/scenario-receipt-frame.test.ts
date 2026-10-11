@@ -223,7 +223,10 @@ it('prepares the exact current protected reference while State suspends its genu
       assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
       assert.equal(w.batches.length, 1); assert.equal(w.batches[0]!.writes.length, 1); assert.equal(w.batches[0]!.history.length, 2);
       const historyBase = { model: MODEL, recordId: w.row.id, version: w.row.version + 1,
-        operationId: w.envelope.operation_id, actor: w.identity.actor!.user_id, at: FIXED_NOW, change: 'update' };
+        operationId: w.envelope.operation_id, actor: w.identity.actor!.user_id, at: FIXED_NOW, change: 'update',
+        // The checked fixture inventory declares only public `visible`; both
+        // writes retain the original row lifetime rather than the staged version.
+        auditProjection: { created: w.row.created, createdBy: w.row.createdBy, secretFields: [] } };
       assert.deepEqual(w.batches[0]!.history, [
         { ...historyBase, operation: OP, before: w.row.data, after: { visible: 'parent intermediate' } },
         { ...historyBase, operation: CHILD, before: { visible: 'parent intermediate' }, after: { visible: 'child final' } },
