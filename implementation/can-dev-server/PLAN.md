@@ -32,7 +32,7 @@ gate identities to the other plans' counts.
 | T05 | Compiler/Testkit: selected Office and G1 example emission is qualified. | Keep original emitted rows and independently authored expectations; reuse actual source-owned selector/fixture outcomes. |
 | T06 | Dev/Identity: first-slice installed bundle, auth and local resource admission are qualified. | Reuse actual Identity/D1/HTTP/MCP/assets and missing-binding/refusal checks. Nonroot mounts, mixed owners and provider activation are separate obligations. |
 | T07 | Dev/Testkit: actual Office examples execute 2/2 twice in isolated scopes; G1 executes its three rows. | Reuse actual executed counts, caller identities, fresh resources and denial effects; no zero-row or handwritten substitute. |
-| T04 | Compiler owns the diagnostic branch; the defining design/evaluation source owner must release an eligible authored witness, and Dev owns its current qualification join. Existing Root/When/export-scenario alternatives differ materially in authority/effects/execution; FieldLabel has one deterministic candidate. The six drafts fail structure first. All 41 selected card consumers are qualified, but candidate coverage stays unknown and `messageKinds` empty. | Release one accepted authored diagnostic span with complete candidates inside the existing profile, equivalent permissions/effects and sufficient distinguishing source evidence; then Compiler emits the genuine branch and Dev joins it. Preserve the six drafts and structural/no-suggestion/unsafe abstentions; extracted offline menus/gold cannot establish product eligibility. Reuse the unchanged 41-card/browser result. |
+| T04 | Dev owns the finite Office ambiguity design; Compiler owns its genuine diagnostic/complete inventory, and Dev owns the qualification join. The read-only list/table construct-card probe is selected as a proposal after three authorized JEV requests; both complete variants compile with identical model/operation/read-policy facts. Its unknown head currently produces unresolved `row` diagnostics, so eligibility is not implemented. Root/When alternatives remain unsafe; FieldLabel deterministic; six drafts structural. | Implement the exact proposed unknown collection-presentation head branch only with a proven owning model/query/read-only row suite, complete profile candidate inventory and distinguishing intent. Preserve required full headers, explicit alternative exclusions, current authority/effects and no-suggestion controls; no keyword-only repair criterion is added. Then join the genuine branch/live case. Reuse unchanged 41-card/browser results. Local design does not await a human/source-owner-release gate. |
 | T08 | Dev: native session/watch/stop/revision lifecycle has qualified selected cases; the old daemon-stop timeout is superseded by the peer-disconnect correction. | Reuse duplicate/foreign owner, invalid-edit stale serving, repaired reset, watcher, retained revision and owned cleanup outcomes. Do not reopen the old timeout without a new failure. |
 | T09 | Dev: selected native Office preview/browser/asset/auth consumer is qualified. | Reuse protected loopback, real login and browser results; retain the same artifact/build/resource join at G2. |
 | T10 | Dev: selected safe failure/list/detail/old-reference and failed-rerun occurrence joins are qualified; richer actor/trace/row evidence is not established. | Use the existing bounded redacted occurrence. Preserve explicit unavailable evidence as A6 allows; add a producer only for a specifically unmet A6 requirement. |
@@ -47,9 +47,10 @@ The request-owned initial and currency captures check their combined lifetime si
 
 ### Ordered completion and stopping conditions
 
-1. **T04 diagnostic branch, then T11.** Compiler releases the necessary actual
-   branch/candidate facts; Dev joins the existing qualified card bundle and safe
-   occurrence. Do not wait for complete Compiler, Capability or Packages plans.
+1. **T04 diagnostic branch, then T11.** Dev selects the proposed read-only
+   list/table witness in the existing ranking design. Compiler releases its
+   exact originating branch and complete candidate/profile facts; Dev joins the
+   existing qualified card bundle and safe occurrence. Do not wait for complete Compiler, Capability or Packages plans.
    Prepare the exact bounded request locally while disclosure remains held.
    An authorized request must use the original privacy/choice contract; this
    planning refresh does not authorize a rejected transmission.

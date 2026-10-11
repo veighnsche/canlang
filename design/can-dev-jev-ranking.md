@@ -76,3 +76,41 @@ If `none` wins over a proven complete candidate set, report that no eligible con
 The compiler publishes its diagnostic as soon as checking finishes. For the first evaluation trial, an agent check response waits at most **1 second** for optional Jev enrichment; after that it returns the deterministic error with a revision-pinned pending reference. The provider call has a **5-second total deadline**. A result arriving after the inline budget but before that deadline may be obtained by reference or delivered as a later session update; the transport choice remains open. These are trial latency budgets, not provider guarantees; measure actual Jev latency before accepting them. There is no second automatic call for the same occurrence. A failed request returns `ranking_unavailable` with a specific class (`ranking_disallowed`, `timeout`, `provider_rejected`, `transport_error` or `invalid_response`) and deterministic cards/alternatives. A response tied to an older source or help-index revision is `stale` and discarded, never applied to the current error. Failure, delay or invalid probabilities cannot hide diagnostics, block local checking/preview, invent a fallback rank, or reuse a previous source's answer. Explicit retry is possible only as a new request on the current evidence.
 
 The first implementation must measure source-window disclosure, input/output tokens, elapsed time, provider failure rate, abstention, top-card usefulness, wrong-intent suggestions and total agent edit/check turns on the same novice tasks. Until that comparison, the routing and numeric gates above are a proposed trial, not a claim that Jev makes Can debugging faster or cheaper.
+
+
+## Finite Office ambiguity design, 2026-10-11
+
+**Selected design proposal; genuine branch/live qualification unfinished.** Dev owns this local design choice. Neither a human architecture decision nor an undefined source-owner release is a prerequisite to preparing it. Preserve the evaluator's frozen Office source, original six drafts, A1–A7, 41 qualified cards and existing unsafe/structural/deterministic abstentions.
+
+Use one read-only collection presentation probe, with explicit author intent: “Show the supplies in separate name, quantity and available columns.” The unknown identifier below is the proposed diagnostic head, bytes197–207 in this exact source; it is not a recognized Can construct or a currently emitted eligible diagnostic.
+
+```can
+app OfficeChoice
+Given
+ Supply {name:text,quantity:int?,available:bool=true}
+ policy Supply read=members
+When
+ crud Supply by=members fields=name,quantity,available
+Then
+ page / title="Supplies"
+  stock_rows Supply empty="No supplies"
+   text row.name,row.quantity,row.available
+```
+
+The two proposed construct cards are `can.v1.ui.list` and `can.v1.ui.table`, both explicitly present in the selected help profile and the qualified HelpOffice source/browser. Their complete alternative headers are:
+
+```can
+  list Supply empty="No supplies"
+   text row.name,row.quantity,row.available
+```
+
+```can
+  table Supply columns=name,quantity,available empty="No supplies" display=split
+   text row.name,row.quantity,row.available
+```
+
+Actual current locked CLI output compiles both complete variants0, with identical models, canonical CRUD/read declarations and member read policy. The first table attempt without `display=split` refused E6008 (row children lack an owning renderRow profile); the corrected full header uses the existing qualified Table profile. There is no new source change to the frozen Office witness. These are construct-card recommendations, not automatic source edits or a promise that changing only the keyword repairs the source; A5 never required keyword-only repair. List rejects the table's column header, so each card must retain its own full signature.
+
+**Exact remaining Compiler output:** establish one originating unknown collection-presentation head diagnostic against the actual owning model/query and read-only row-dependent suite. Its exact span, known slot, recovery, complete inventory and distinguishing evidence must come from Compiler. The current unknown source reports E2001 at the three `row` references with no artifact or candidate branch, so it still routes to deterministic name guidance. All global collection alternatives (including board/gallery/calendar) must be classified from their real shape and explicit declared profile facts; do not manufacture a two-ID menu or infer exclusion from absence of a qualified card. If that classification cannot establish a complete eligible set, preserve abstention and report the concrete coverage gap. The live original Office join remains Dev's dependent qualification.
+
+Three exact human-authorized, independently worded JEV Choice requests selected pursuing this conditional design A/A/A. [Retained responses and uncertainty](jev/can-dev-ranking-20261009/assessment.md#office-witness-design-2026-10-11) are advice, not evidence that this unknown head already qualifies. Reuse the earlier residual-ambiguity routing advice; no duplicate cursor or routing consultation.
