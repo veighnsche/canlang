@@ -15,6 +15,8 @@ fn ir() -> IrProgram {
         standard_completion_sources: Default::default(),
         referenced_builtins: vec![],
         read_rules: vec![],
+        callback_read_rules: vec![],
+        callback_grants: Default::default(),
         invariants: vec![],
         locks: vec![],
         retention: vec![],

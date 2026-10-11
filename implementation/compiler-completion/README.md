@@ -4097,3 +4097,49 @@ inferred human-only gate. C03 current-member and callback/ingress/File/applicati
 joins remain separately owned.58/67 and the complete checkpoint remain.
 
 Coordinator finite source/IR/emission review CLEAR and local integration complete. Genuine native continuation qualification remains unfinished; original whole-plan counts and complete checkpoint are unchanged.
+
+**Original generation callback diagnostic producer — native join unfinished, 2026-10-11.**
+
+Consume the exact released Capability7e37a7ea contract and Work/Contracts/State
+27e2b95a source plus its owning tests unchanged. The protected nonstored
+`request.callback_diagnostics` selector is separate from ordinary receipt fields:
+only its explicit policy selector emits `callbackReadGrants`, with complete
+original read/where predicates in `canApp.callbackRead`. Callback-only policies
+never become an ordinary whole-record grant; mixed policies retain their
+ordinary fields and original ordinals. Omitted/whole/error/progress grants remain
+ordinary. Exact bound generation import/from/operation and complete original
+progress-handler census are required.
+
+Closed nullable complete/unsupported result arms narrow under original if/match
+and card require guards; unknown members, cross-arm fields and unchecked
+origins refuse. Emit one whole `generationCallbackDiagnostics(c,{record,field})`
+observation, then local typed fields. Original copied diagnostic/failure lists
+retain aliases, card guards, once/order/first failure and translated empty
+captions. Bare readonly diagnostic cards use a sealed constant wrapper because
+the current public Card requires a title; no shared UI contract changes. Preserve
+the original authorized RowView before display flattening. Private source and
+all-module seals reject altered grants, imports, operations, event/census and
+foreign-module transplantation. Intrinsic async classification keeps nested
+failure-list callbacks syntactically valid.
+
+Focused qualification and current strict lint are recorded in status.json.
+The exact native Dev helper, Packages observer forwarding, Capability coherent
+State authorization/original association, and C03 original conditional parent
+policy profile are remaining engineering prerequisites. They are separate from
+this checked producer and do not require a new human design approval. Do not
+credit full CanChat/CanCreative native journeys, snapshot attribution, whole-plan
+completion or held scope from this producer.58/67/nine and complete checkpoint
+remain. Continue the finite Office originating-diagnostic producer after this
+coherent unit; its candidate coverage remains explicitly unknown until the
+actual collection inventory/profile facts establish otherwise.
+
+Coordinator direct-placement review found that copied-list-only RowView detection
+missed a protected read directly in a card gate/prop. Expression traversal now
+retains the original row for every such protected UI occurrence; genuine CLI
+direct-card regression1/1 .44s and changed strict0 5.01s pass. Prior148 affected
+results are reused. Actual immutable998 complete Chat+Creative source closure
+still reports5 diagnostics: C03 active_member pure derives/dispatch, nullable
+validation assignment and opaque-array coalescing. These source/native joins
+remain unfinished with their defining owners, not a human approval barrier.
+
+Coordinator independent checked producer/IR/emission review CLEAR and LOCAL main integration complete.148 affected assertions and final strict/fmt outcomes reused; State976 hooks/Packages900 forwarding already qualify their component scopes. C03 and original Dev native/application join remain unfinished; full-plan counts and complete checkpoint unchanged.

@@ -821,3 +821,208 @@ fn delivery_error_reads_join_native_observer_and_nullable_set_clears_old_value()
     );
     eprint!("{}", String::from_utf8_lossy(&output.stdout));
 }
+
+const CALLBACK_DIAGNOSTIC_SOURCE: &str = r#"app CallbackDiagnostics
+use std {TextGenerationV1 as LLM} from=deployment.llm
+Given
+ Entry {request:delivery(LLM.generate)?}
+ policy Entry read=members fields=request.error,request.callback_diagnostics
+When
+ scenario inspect(entry:Entry) by=members
+  do
+   let diagnostics=entry.request?.callback_diagnostics
+   if diagnostics!=null
+    let outcome=diagnostics.outcome
+    if diagnostics.outcome=="complete"
+     let failures=diagnostics.failures
+     let snapshot=diagnostics.snapshotAttribution
+     for failure in diagnostics.failures limit=10
+      let delivery= failure.deliveryId
+      let source= failure.sourceOccurrence
+      let occurrence= failure.occurrenceId
+      let handler= failure.handler
+      let eventName= failure.event
+      let recorded= failure.recordedAtMs
+      let code= failure.code
+      let message= failure.message
+    else
+     let reason=diagnostics.reason
+ scenario receive on=LLM.generate.progressed
+  do
+   let id=event.delivery_id
+Then
+"#;
+
+#[test]
+fn generation_callback_diagnostics_have_closed_discriminated_source_types() {
+    let catalog = catalog();
+    let (checked, diagnostics) = check(CALLBACK_DIAGNOSTIC_SOURCE, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        matches!(type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "entry.request?.callback_diagnostics"),
+        ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::StdNominal {name: "GenerationCallbackDiagnosticResult", fields}
+            if fields.len() == 1 && fields[0].0 == "outcome"))
+    );
+    assert!(
+        matches!(type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "diagnostics.failures"),
+        ResolvedType::Array {element, ..} if matches!(element.as_ref(), ResolvedType::StdNominal {name: "GenerationCallbackFailure", fields} if fields.len() == 8))
+    );
+    assert!(
+        matches!(type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "diagnostics.reason"),
+        ResolvedType::Enum {cases, owner: None} if cases == &["store-profile", "bound-exceeded", "origin-correspondence", "occurrence-correspondence"])
+    );
+    assert!(matches!(
+        type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "failure.recordedAtMs"),
+        ResolvedType::Scalar(canlang_compiler::analysis::types::Scalar::Int)
+    ));
+    assert!(
+        matches!(type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "failure.code"),
+        ResolvedType::Enum {cases, owner: None} if cases == &["require-false"])
+    );
+    assert!(
+        matches!(type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "failure.message"),
+        ResolvedType::Enum {cases, owner: None} if cases == &["handler requirement rejected the occurrence"])
+    );
+    assert!(
+        matches!(type_at(&checked, CALLBACK_DIAGNOSTIC_SOURCE, "diagnostics.snapshotAttribution"),
+        ResolvedType::Enum {cases, owner: None} if cases == &["unsupported"])
+    );
+    assert_eq!(
+        checked.types.delivery_selectors.len(),
+        1,
+        "protected observations must not enter ordinary receipt selectors"
+    );
+
+    let image = CALLBACK_DIAGNOSTIC_SOURCE
+        .replace("TextGenerationV1 as LLM", "ImagesV1 as LLM")
+        .replace("LLM.generate", "LLM.submit");
+    let (_, diagnostics) = check(&image, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+
+    let matched = r#"app CallbackMatch
+use std {TextGenerationV1 as LLM} from=deployment.llm
+Given
+ Entry {request:delivery(LLM.generate)?}
+ policy Entry read=members fields=request.callback_diagnostics
+When
+ scenario inspect(entry:Entry) by=members
+  do
+   let diagnostics=entry.request?.callback_diagnostics
+   if diagnostics!=null
+    match diagnostics.outcome
+     case complete
+      let failures=diagnostics.failures
+      let snapshot=diagnostics.snapshotAttribution
+     case unsupported
+      let reason=diagnostics.reason
+Then
+"#;
+    let (_, diagnostics) = check(matched, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+}
+
+#[test]
+fn generation_callback_diagnostics_refuse_unknown_cross_arm_and_unchecked_origins() {
+    let catalog = catalog();
+    for source in [
+        CALLBACK_DIAGNOSTIC_SOURCE.replace("diagnostics.failures", "diagnostics.reason"),
+        CALLBACK_DIAGNOSTIC_SOURCE.replace("diagnostics.reason", "diagnostics.failures"),
+        CALLBACK_DIAGNOSTIC_SOURCE.replace("failure.code", "failure.providerSnapshot"),
+        CALLBACK_DIAGNOSTIC_SOURCE.replace(
+            "    let outcome=diagnostics.outcome",
+            "    let outcome=diagnostics.failures",
+        ),
+        CALLBACK_DIAGNOSTIC_SOURCE.replace(" from=deployment.llm", ""),
+        CALLBACK_DIAGNOSTIC_SOURCE
+            .replace(
+                "scenario inspect(entry:Entry)",
+                "scenario inspect(request:delivery(LLM.generate)?)",
+            )
+            .replace(
+                "entry.request?.callback_diagnostics",
+                "request?.callback_diagnostics",
+            ),
+    ] {
+        let (_, diagnostics) = check(&source, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E2013"),
+            "unchecked/unknown member should be refused: {diagnostics:?}"
+        );
+    }
+    for source in [
+        CALLBACK_DIAGNOSTIC_SOURCE
+            .replace("TextGenerationV1 as LLM", "EmailV1 as LLM")
+            .replace("LLM.generate", "LLM.send"),
+        CALLBACK_DIAGNOSTIC_SOURCE.replace("TextGenerationV1 as LLM", "EmailV1 as LLM"),
+    ] {
+        let (_, diagnostics) = check(&source, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| matches!(diagnostic.code, "E3010" | "E2013")),
+            "non-generation or forged original operation must be refused by its owning source/member check: {diagnostics:?}"
+        );
+    }
+    let unknown = CALLBACK_DIAGNOSTIC_SOURCE.replace(
+        "diagnostics.outcome==\"complete\"",
+        "diagnostics.outcome==\"future\"",
+    );
+    let (_, diagnostics) = check(&unknown, &catalog);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3002"),
+        "unknown discriminant should be refused: {diagnostics:?}"
+    );
+}
+
+#[test]
+fn generation_callback_ui_value_lists_narrow_their_checked_aliases() {
+    let catalog = catalog();
+    let source = r#"app CallbackList
+use std {TextGenerationV1 as LLM} from=deployment.llm
+Given
+ Entry {request:delivery(LLM.generate)?}
+ policy Entry read=members fields=request.callback_diagnostics
+When
+Then
+ page / title="Callback history"
+  list Entry
+   list [row.request?.callback_diagnostics] as diagnostic
+    card
+     require diagnostic!=null
+     card
+      require diagnostic.outcome==unsupported
+      alert tone=error
+       text diagnostic.reason
+     card
+      require diagnostic.outcome==complete
+      list diagnostic.failures as failure empty="No retained historical callback refusals."@{nl="Geen bewaarde historische callbackweigeringen."}
+       alert tone=error
+        text failure.code,failure.message
+"#;
+    let (checked, diagnostics) = check(source, &catalog);
+    assert!(
+        diagnostics.is_empty(),
+        "source-only UI list/narrowing: {diagnostics:?}"
+    );
+    assert!(matches!(type_at(&checked, source, "diagnostic.failures"),
+        ResolvedType::Array {element, ..} if matches!(element.as_ref(), ResolvedType::StdNominal {name: "GenerationCallbackFailure", ..})));
+    assert!(matches!(type_at(&checked, source, "failure.message"),
+        ResolvedType::Enum {cases, owner: None} if cases == &["handler requirement rejected the occurrence"]));
+    assert!(matches!(type_at(&checked, source, "diagnostic.reason"),
+        ResolvedType::Enum {cases, owner: None} if cases.len() == 4));
+    let refused = source.replace(
+        "text failure.code,failure.message",
+        "text diagnostic.reason",
+    );
+    let (_, diagnostics) = check(&refused, &catalog);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E2013"),
+        "complete-arm UI cannot access unsupported fields: {diagnostics:?}"
+    );
+}

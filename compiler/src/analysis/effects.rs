@@ -586,9 +586,13 @@ pub struct PolicyRule {
     pub read: Option<NodeKey>,
     /// `where=` row predicate.
     pub where_predicate: Option<NodeKey>,
-    /// Field grants as dotted selector paths (empty when `fields=` is
-    /// absent, which grants ordinary fields and safe metadata).
+    /// Ordinary dotted selector paths. Absence of `fields=` grants
+    /// ordinary fields and safe metadata; explicit callback-only selectors
+    /// also leave this empty, so consumers must retain `fields_node`.
     pub fields: Vec<String>,
+    /// Exact protected callback paths accepted by the types pass. These
+    /// share this policy's predicates but never grant ordinary field reads.
+    pub callback_fields: Vec<String>,
     /// `fields=` selectors node.
     pub fields_node: Option<NodeKey>,
 }
@@ -1930,16 +1934,27 @@ impl<'a> Cx<'a> {
         match node.kind {
             SyntaxKind::Policy => {
                 let (mut fields, fields_node) = selector_paths(text, node, "fields");
+                let mut callback_fields = Vec::new();
                 if let Some(selectors) = attribute_value(node, "fields", text) {
                     fields = significant_children(selectors)
                         .iter()
                         .filter(|path| path.kind == SyntaxKind::Path)
-                        .map(|path| {
-                            self.types
-                                .delivery_selectors
+                        .filter_map(|path| {
+                            if let Some(checked) = self
+                                .types
+                                .callback_diagnostic_selectors()
                                 .get(&NodeKey::of(path))
-                                .cloned()
-                                .unwrap_or_else(|| path_segments(path, text).join("."))
+                            {
+                                callback_fields.push(checked.path.clone());
+                                return None;
+                            }
+                            Some(
+                                self.types
+                                    .delivery_selectors
+                                    .get(&NodeKey::of(path))
+                                    .cloned()
+                                    .unwrap_or_else(|| path_segments(path, text).join(".")),
+                            )
                         })
                         .collect();
                 }
@@ -1960,6 +1975,7 @@ impl<'a> Cx<'a> {
                     read: attribute_value(node, "read", text).map(NodeKey::of),
                     where_predicate: attribute_value(node, "where", text).map(NodeKey::of),
                     fields,
+                    callback_fields,
                     fields_node,
                 };
                 if let Some(data) = self.out.models.get_mut(&target_id) {
