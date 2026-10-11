@@ -42,6 +42,16 @@ scenario tables `SCENARIO_TABLES`, `parseScenarioTable`,
 `startControlledMailServer`, `startControlledOllamaServer`,
 `startControlledSystemOneServer`, `startControlledComfyServer`.
 
+Media workflow graphs admit own JSON data: plain or null-prototype records,
+dense arrays, strings, booleans, null and finite numbers. Graph capture refuses
+accessors, executable `toJSON`, undefined, nonfinite numbers, cycles and other
+host objects before provider transport. The reviewed artifact digest retains
+its sorted-key JSON format. One detached snapshot supplies that digest and the
+submitted graph after the declared scalar substitutions; installation captures
+its original graph before any JSON conversion. Caller job/delivery retry
+identities remain unchanged. This boundary does not sandbox Proxy traps or
+modified host intrinsics, and does not change File byte-upload semantics.
+
 ## Scripts
 
 From the repository root, after `bun install --frozen-lockfile`:

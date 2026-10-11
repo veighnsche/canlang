@@ -56,6 +56,7 @@ import { uniqueIds } from '../ports.js';
 import type { DeliveryIds, InstalledImages, InstalledImageOptions, MediaPort } from '../ports.js';
 import {
   MappingValidationError,
+  snapshotGraph,
   stableStringify,
   substituteAndValidate,
 } from './mapping.js';
@@ -530,7 +531,7 @@ export class ComfyUINativeAdapter implements MediaPort {
         maxObservationDurationMs <= 0 || maxObservationDurationMs > 2_147_483_647) {
       throw new MappingValidationError('Installation requires a supported finite observation ceiling');
     }
-    const graph = frozenCopy(this.graph);
+    const graph = snapshotGraph(this.graph);
     const mapping = frozenCopy(this.mapping);
     // Validate the exact pinned map/digest once; this is not arbitrary graph inspection.
     substituteAndValidate(graph, mapping, { prompt: '', negative: '', width: 1, height: 1, seed: config.seed.value });

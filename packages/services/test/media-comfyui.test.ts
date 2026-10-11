@@ -132,8 +132,44 @@ function successEntry(images: Array<{ filename: string; subfolder: string; type:
   };
 }
 
+function unsupportedGraphs(): { name: string; graph: ApiGraph; calls: () => number }[] {
+  const cases: { name: string; graph: ApiGraph; calls: () => number }[] = [];
+  for (const [name, value] of [
+    ['undefined', undefined], ['NaN', NaN], ['infinity', Infinity],
+    ['bigint', 1n], ['symbol', Symbol('graph')], ['function', () => 1],
+    ['host object', new Date(0)], ['sparse array', new Array(2)],
+  ] as const) {
+    const graph = structuredClone(GRAPH);
+    graph['6']!.inputs.extra = value;
+    cases.push({ name, graph, calls: () => 0 });
+  }
+  for (const kind of ['getter', 'toJSON'] as const) {
+    const graph = structuredClone(GRAPH);
+    let calls = 0;
+    Object.defineProperty(graph['6']!.inputs, kind === 'getter' ? 'extra' : 'toJSON',
+      kind === 'getter' ? { enumerable: true, get() { calls++; return 'changed'; } }
+        : { enumerable: true, value() { calls++; return { text: 'changed' }; } });
+    cases.push({ name: kind, graph, calls: () => calls });
+  }
+  const cycle = structuredClone(GRAPH);
+  cycle['6']!.inputs.extra = cycle;
+  cases.push({ name: 'cycle', graph: cycle, calls: () => 0 });
+  const hidden = structuredClone(GRAPH);
+  Object.defineProperty(hidden['6']!.inputs, 'hidden', { value: 'omitted' });
+  cases.push({ name: 'nonenumerable', graph: hidden, calls: () => 0 });
+  const symbolic = structuredClone(GRAPH);
+  Object.defineProperty(symbolic['6']!.inputs, Symbol('hidden'), { value: 'omitted', enumerable: true });
+  cases.push({ name: 'symbol key', graph: symbolic, calls: () => 0 });
+  const extraArray = structuredClone(GRAPH);
+  const array = ['4', 1];
+  Object.assign(array, { extra: 'omitted' });
+  extraArray['6']!.inputs.extra = array;
+  cases.push({ name: 'array metadata', graph: extraArray, calls: () => 0 });
+  return cases;
+}
+
 describe('media: workflow mapping', () => {
-  it('substitutes every field and preserves edges byte-for-byte', () => {
+  it('substitutes every field and preserves other JSON edges/settings', () => {
     const before = JSON.parse(JSON.stringify(GRAPH)) as ApiGraph;
     const { graph, digest } = substituteAndValidate(
       GRAPH,
@@ -154,6 +190,37 @@ describe('media: workflow mapping', () => {
     assert.ok(Object.isFrozen(graph['3']?.inputs));
     assert.ok(Object.isFrozen(graph['3']?.inputs['model']));
     assert.ok(Object.isFrozen(graph['6']?.inputs['clip']));
+  });
+
+  it('retains the original JSON digest and admits frozen/shared/null-prototype own data', () => {
+    assert.equal(digestGraph(GRAPH), 'sha256:a81318bd0b70c46d47f1208a9d901a87cce5bcffb3a58cebef79e782b73a8fd0');
+    const graph = structuredClone(GRAPH);
+    const shared = Object.freeze({ label: 'shared', flag: true, empty: null });
+    const own = Object.create(null) as Record<string, unknown>;
+    Object.defineProperty(own, '__proto__', { value: shared, enumerable: true });
+    graph['6']!.inputs.extra = Object.freeze(own);
+    graph['7']!.inputs.extra = shared;
+    const mapping = mappingFor(graph);
+    const captured = substituteAndValidate(graph, mapping, inputFor());
+    assert.equal(captured.digest, mapping.graphDigest);
+    assert.deepEqual(JSON.parse(JSON.stringify(captured.graph)), JSON.parse(JSON.stringify({
+      ...graph,
+      '3': { ...graph['3'], inputs: { ...graph['3']!.inputs, seed: 42 } },
+      '5': { ...graph['5'], inputs: { ...graph['5']!.inputs, height: 768 } },
+      '6': { ...graph['6'], inputs: { ...graph['6']!.inputs, text: 'a poster' } },
+      '7': { ...graph['7'], inputs: { ...graph['7']!.inputs, text: 'blurry' } },
+    })));
+    assert.ok(Object.hasOwn(captured.graph['6']!.inputs.extra as object, '__proto__'));
+    assert.notEqual(captured.graph['7']!.inputs.extra, shared);
+    assert.ok(Object.isFrozen(captured.graph['7']!.inputs.extra));
+  });
+
+  it('refuses unsupported graph values without invoking getters or toJSON', () => {
+    for (const item of unsupportedGraphs()) {
+      assert.throws(() => digestGraph(item.graph), MappingValidationError, item.name);
+      assert.throws(() => substituteAndValidate(item.graph, mappingFor(), inputFor()), MappingValidationError, item.name);
+      assert.equal(item.calls(), 0, item.name);
+    }
   });
 
   it('fails visibly on drift, unknown, unmapped and link destinations', () => {
@@ -191,12 +258,14 @@ describe('media: workflow mapping', () => {
       () => substituteAndValidate(GRAPH, kindChanged, inputFor()),
       MappingValidationError,
     );
-    const badOutput = mappingFor();
-    badOutput.outputs = ['99'];
-    assert.throws(
-      () => substituteAndValidate(GRAPH, badOutput, inputFor()),
-      MappingValidationError,
-    );
+    for (const output of ['99', '__proto__']) {
+      const badOutput = mappingFor();
+      badOutput.outputs = [output];
+      assert.throws(
+        () => substituteAndValidate(GRAPH, badOutput, inputFor()),
+        MappingValidationError,
+      );
+    }
   });
 
   it('rejects malformed business inputs before touching the graph', () => {
@@ -216,6 +285,19 @@ describe('media: workflow mapping', () => {
 });
 
 describe('media: submit', () => {
+  it('refuses unsupported original graphs on direct and installed paths before transport', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      for (const item of unsupportedGraphs()) {
+        const adapter = makeAdapter(server.url, { graph: item.graph, mapping: mappingFor() });
+        await assert.rejects(adapter.submit(inputFor(), { deliveryId: 'del_1', jobId: 'job_1' }), MappingValidationError, item.name);
+        assert.throws(() => adapter.installImages(installationFor()), MappingValidationError, item.name);
+        assert.equal(item.calls(), 0, item.name);
+      }
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+
   it('queues the substituted graph with the caller job id', async () => {
     await withServer({ kind: 'accept' }, async (server) => {
       const adapter = makeAdapter(server.url);
@@ -240,6 +322,7 @@ describe('media: submit', () => {
       assert.equal(prompt['6']?.inputs['text'], 'a poster');
       assert.equal(prompt['5']?.inputs['height'], 768);
       assert.equal(prompt['3']?.inputs['seed'], 42);
+      assert.deepEqual(prompt, substituteAndValidate(GRAPH, mappingFor(), inputFor()).graph);
     });
   });
 
