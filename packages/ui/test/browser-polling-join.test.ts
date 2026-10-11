@@ -642,3 +642,84 @@ describe('browser binder marker lifecycle', () => {
     } finally { client.stop(); await window.happyDOM.close(); }
   });
 });
+
+// These direct generated-form controls contain no polling marker or request.
+describe('generated form real submitter completion', () => {
+  for (const outcome of ['committed', 'denied', 'transport error', 'abort'] as const) {
+    for (const initiallyDisabled of [false, true]) {
+      it(`preserves successful controls and original submitter state after ${outcome} (disabled=${initiallyDisabled})`, async () => {
+        let finish!: (response: SubmitFetchResponse) => void;
+        let fail!: (error: Error) => void;
+        const held = new Promise<SubmitFetchResponse>((resolve, reject) => { finish = resolve; fail = reject; });
+        const calls: SubmitFetchInit[] = [];
+        const page = await formPage(async (_url, init) => { calls.push(init); return held; });
+        try {
+          const button = page.window.document.querySelector<typeof page.window.HTMLButtonElement.prototype>('#activated')!;
+          if (initiallyDisabled) button.setAttribute('disabled', 'original');
+          button.setAttribute('aria-disabled', 'false');
+          const disabled = button.getAttribute('disabled');
+          const originalIdentity = page.window.document.querySelector('input[name="operation_id"]')!.getAttribute('value');
+          page.submit(true);
+          assert.equal(button.getAttribute('disabled'), '');
+          assert.equal(button.getAttribute('aria-disabled'), 'true');
+          assert.equal(calls.length, 1);
+          const body = JSON.parse(calls[0]!.body as string);
+          // Only an enabled control can be activated by a human. HappyDOM's
+          // manually dispatched disabled submitter does not model native
+          // successful-control exclusion; that branch checks state retention.
+          if (!initiallyDisabled) assert.equal(body.inputs.title, 'activated', 'genuine FormData precedes disabling');
+          assert.equal(body.operation_id, originalIdentity);
+          assert.equal(calls[0]!.headers['x-csrf-token'], 'csrf');
+          assert.deepEqual(body.inputs.owner, { id: 'owner-1', version: '7' });
+          page.submit(true); assert.equal(calls.length, 1, 'pending occurrence cannot start a second transport');
+          if (outcome === 'committed') finish(committed());
+          else if (outcome === 'denied') finish({ status: 422, headers: { get: () => 'application/json' },
+            text: async () => JSON.stringify({ code: 'validation', message: 'Correct the input.' }) });
+          else { const error = new Error(outcome); if (outcome === 'abort') error.name = 'AbortError'; fail(error); }
+          await settle();
+          assert.equal(button.getAttribute('disabled'), disabled);
+          assert.equal(button.getAttribute('aria-disabled'), 'false');
+          assert.equal(page.window.document.querySelector('form')!.getAttribute('data-can-submit-state'),
+            outcome === 'committed' ? 'committed' : outcome === 'denied' ? 'denied' : 'error');
+          assert.equal(page.results.length, outcome === 'committed' || outcome === 'denied' ? 1 : 0);
+          assert.equal(page.errors.length, outcome === 'transport error' || outcome === 'abort' ? 1 : 0);
+        } finally { page.client.stop(); finish(committed()); await settle(); await page.close(); }
+      });
+    }
+  }
+  it('restores on disposal before connected form reuse and withholds stale settlement from its replacement', async () => {
+    let finish!: (response: SubmitFetchResponse) => void;
+    let finishCurrent!: (response: SubmitFetchResponse) => void;
+    const held = new Promise<SubmitFetchResponse>(resolve => { finish = resolve; });
+    const current = new Promise<SubmitFetchResponse>(resolve => { finishCurrent = resolve; });
+    const page = await formPage(async () => held);
+    let replacement: ReturnType<typeof startBrowserClient> | undefined;
+    try {
+      const button = page.window.document.querySelector('#activated')!;
+      button.setAttribute('aria-disabled', 'false');
+      page.submit(true); assert.equal(button.hasAttribute('disabled'), true);
+      page.client.stop();
+      assert.equal(button.isConnected, true);
+      assert.equal(button.hasAttribute('disabled'), false);
+      assert.equal(button.getAttribute('aria-disabled'), 'false');
+      const results: GeneratedSubmitResult[] = [], errors: unknown[] = [], calls: SubmitFetchInit[] = [];
+      replacement = startBrowserClient({ window: page.window as unknown as BrowserClientOptions['window'],
+        fetchImpl: async (_url, init) => { calls.push(init); return current; },
+        onGeneratedFormResult: (_form, result) => results.push(result), onGeneratedFormError: (_form, error) => errors.push(error) });
+      page.submit(true); assert.equal(calls.length, 1);
+      const body = JSON.parse(calls[0]!.body as string);
+      assert.equal(body.inputs.title, 'activated'); assert.equal(body.operation_id, 'rendered-operation-id');
+      assert.equal(calls[0]!.headers['x-csrf-token'], 'csrf'); assert.deepEqual(body.inputs.owner, { id: 'owner-1', version: '7' });
+      page.submit(true); assert.equal(calls.length, 1);
+      finish(committed()); await settle();
+      assert.equal(button.hasAttribute('disabled'), true);
+      assert.equal(button.getAttribute('aria-disabled'), 'true');
+      assert.deepEqual(page.results, []); assert.deepEqual(page.errors, []);
+      assert.deepEqual(results, []); assert.deepEqual(errors, []);
+      assert.equal(page.window.document.querySelector('form')!.getAttribute('data-can-submit-state'), 'pending');
+      finishCurrent(committed()); await settle();
+      assert.equal(button.hasAttribute('disabled'), false); assert.equal(button.getAttribute('aria-disabled'), 'false');
+      assert.equal(results.length, 1); assert.deepEqual(errors, []);
+    } finally { replacement?.stop(); page.client.stop(); finish(committed()); finishCurrent(committed()); await settle(); await page.close(); }
+  });
+});

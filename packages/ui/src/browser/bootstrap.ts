@@ -659,6 +659,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     if (previousBusy === null) form.removeAttribute('aria-busy');
     else form.setAttribute('aria-busy', previousBusy);
   };
+  let restoreSubmitter: (() => void) | undefined;
   const onSubmit = (event: EventLike): void => {
     event.preventDefault();
     event.stopPropagation?.();
@@ -694,6 +695,22 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
         for (const [name, value] of new FormData(form, event.submitter)) {
           if (typeof value === 'string') flat[name] = value;
         }
+        // FormData must collect the activated successful control before it is
+        // disabled. The owning transport settles this exact submit occurrence.
+        const submitter = event.submitter;
+        if (submitter !== undefined && submitter !== null) {
+          const disabled = submitter.getAttribute('disabled');
+          const ariaDisabled = submitter.getAttribute('aria-disabled');
+          restoreSubmitter = () => {
+            restoreSubmitter = undefined;
+            for (const [name, value] of [['disabled', disabled], ['aria-disabled', ariaDisabled]] as const) {
+              if (value === null) submitter.removeAttribute(name);
+              else submitter.setAttribute(name, value);
+            }
+          };
+          submitter.setAttribute('disabled', '');
+          submitter.setAttribute('aria-disabled', 'true');
+        }
         const result = await submitGeneratedForm({
           derived: metadata.derived, mode: metadata.mode!, flat,
           ...(metadata.renderedInputs === undefined ? {} : { renderedInputs: metadata.renderedInputs }),
@@ -722,6 +739,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
           internals.onGeneratedFormError?.(form, error);
         }
       } finally {
+        if (alive()) restoreSubmitter?.();
         if (!stopped) releaseBusy();
         pending = false;
       }
@@ -731,6 +749,9 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   form.addEventListener('submit', onSubmit);
   return () => {
     stopped = true;
+    // Release this owner's temporary state before a replacement binds the
+    // same connected form. Its later settlement cannot restore twice.
+    restoreSubmitter?.();
     stopChoices();
     form.removeEventListener('submit', onSubmit);
     if (pending) {
