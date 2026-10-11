@@ -892,7 +892,10 @@ describe('bound opaque receipt result with compiled original source and genuine 
         Object.assign(source.origin.caller.source, { sha256: 'f'.repeat(64) });
         const renewed = structuredClone(world.terminalOrigin);
         Object.assign(renewed.files[0]!.file.retention, { retentionMs: boundRetention.retentionMs + 1 });
-        const moved = { ...terminal, created: terminal.created + 1, version: asVersion(terminal.version + 1) };
+        const movedOrigin = structuredClone(world.terminalOrigin);
+        // Updates preserve stored creation metadata; move the claimed slot too to attempt a lifetime replacement.
+        Object.assign(movedOrigin.slot, { created: terminal.created + 1 });
+        const moved = { ...replacement(movedOrigin), created: terminal.created + 1 };
         const absent = { ...terminal, version: asVersion(terminal.version + 1), data: { ...terminal.data } };
         delete absent.data.filePayloadOrigin;
         for (const row of [replacement(source), replacement(renewed), moved, absent]) {
