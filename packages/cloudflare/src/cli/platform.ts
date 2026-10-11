@@ -59,6 +59,7 @@ import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createLocalCommandLifetime, LocalCommandInterrupted, type LocalCommandLifetime } from "./command-lifetime.js";
 import type {
   CompatibilityDescriptor,
   EnvironmentSelection,
@@ -205,13 +206,14 @@ async function artifactExists(path: string): Promise<boolean> {
   }
 }
 
-async function runArtifact(path: string): Promise<void> {
+async function runArtifact(path: string, lifetime: LocalCommandLifetime): Promise<void> {
   let loaded: LoadedArtifact;
   try {
     loaded = loadArtifactFile(path);
   } catch (error) {
     fail("run", "invalid-artifact", error instanceof Error ? error.message : String(error));
   }
+  lifetime.checkpoint("artifact load");
   const workDir = await mkdtemp(join(tmpdir(), "can-platform-run-"));
   // distRoot is the repo `packages/` dir, resolved from this file's
   // compiled location (dist/cli/platform.js), mirroring how the CLI itself
@@ -222,12 +224,15 @@ async function runArtifact(path: string): Promise<void> {
   // this CLI file is executed after `tsc -p`.
   const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
   try {
+    lifetime.checkpoint("staging acquisition");
     const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
+    lifetime.checkpoint("module assembly");
     const artifact = loaded.artifact;
     process.stderr.write(
       `artifact: ${artifact.modules.length} modules, ` +
         `${artifact.callables.length} callables, ${artifact.pages.length} pages\n`,
     );
+    lifetime.checkpoint("run result");
     emit({
       ok: true,
       entry: asm.entryUrl,
@@ -336,13 +341,14 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
  * `test`: capture the exact source and installed runtime, then execute every
  * compiled row through the real D1-backed canonical invoker.
  */
-async function runTest(artifactPath: string): Promise<void> {
+async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Promise<void> {
   let loaded: LoadedArtifact;
   try {
     loaded = loadArtifactFile(artifactPath);
   } catch {
     missingEmission("test", "execute");
   }
+  lifetime.checkpoint("artifact load");
   if (loaded.artifact.tests.length === 0) {
     fail("test", "missing-producer", "compiled artifact has zero example rows; zero-row results cannot pass",
       { producer: "@canlang/testkit", contract: "compiled ArtifactTestModule rows" });
@@ -358,15 +364,21 @@ async function runTest(artifactPath: string): Promise<void> {
     catalogPath: join(checkoutRoot, "packages/values/dist/catalog.json"),
     helpIndexPath: join(checkoutRoot, "docs/specification/CONSTRUCT-HELP.md"),
   });
+  lifetime.checkpoint("capture preparation");
   const capture = await captureSingleFileSource(request);
+  lifetime.checkpoint("source capture");
   const sourceVerdict = verifyCompilerSources(capture, { complete: true, sources: loaded.artifact.sources });
+  lifetime.checkpoint("source verification");
   if (!sourceVerdict.ok) fail("test", "source-stale", `compiled artifact source ${sourceVerdict.reason}`);
   const activation = await preflightLocalPreviewActivation(loaded.artifact, capture);
+  lifetime.checkpoint("activation");
   if (!activation.active) fail("test", "activation-refused", activation.reasons.map(reason => reason.detail).join("; "));
   const evidence = await produceInstalledPortableBundle({
     artifact: loaded.artifact, capture, verdict: activation,
     assets: { browser: true, valuesWasm: true },
+    commandLifetime: lifetime,
   });
+  lifetime.checkpoint("portable bundle");
   let testkit;
   try {
     testkit = await loadInstalledExampleTestkit(checkoutRoot);
@@ -377,9 +389,13 @@ async function runTest(artifactPath: string): Promise<void> {
     }
     throw error;
   }
+  lifetime.checkpoint("testkit load");
   const defaults = resolveLocalDefaults({ artifactPath });
+  lifetime.checkpoint("local defaults");
+  const artifactBytes = await readFile(artifactPath);
+  lifetime.checkpoint("artifact bytes");
   const result = await runCompiledExamples({
-    artifactBytes: await readFile(artifactPath), artifactLabel: artifactPath,
+    artifactBytes, artifactLabel: artifactPath,
     sourceRevision: capture.sourceRevision,
     worker: {
       mainModule: evidence.bundle.mainModule,
@@ -388,15 +404,24 @@ async function runTest(artifactPath: string): Promise<void> {
     },
     workerName: defaults.workerName,
     compatibilityDate: defaults.compatibilityDate,
-    d1Binding: "DB", testkit,
+    d1Binding: "DB", testkit, signal: lifetime.signal,
+  }).catch((error: unknown) => {
+    // This is the example runner's own cancellation result after its cleanup.
+    // An unrelated operative failure must survive cancellation during cleanup.
+    if (lifetime.signal.aborted && error instanceof DOMException &&
+        error.name === "AbortError" && error.message === "example runner: cancelled") {
+      throw lifetime.signal.reason;
+    }
+    throw error;
   });
+  lifetime.checkpoint("example execution");
   emit({ ok: result.ok, command: "test", executed: result.executed, report: result.report });
   if (!result.ok) process.exitCode = 1;
 }
 
 /** `build`: prepared route; thin CLI delegation (P02.2). */
-async function runBuild(artifactPath: string): Promise<void> {
-  await runPreparedBuild(artifactPath);
+async function runBuild(artifactPath: string, lifetime: LocalCommandLifetime): Promise<void> {
+  await runPreparedBuild(artifactPath, lifetime);
 }
 
 /** `deploy`: prepared route; thin CLI delegation (P02.2). */
@@ -405,8 +430,9 @@ async function runDeploy(
   env: string | null,
   preview: boolean,
   yes: boolean,
+  lifetime: LocalCommandLifetime,
 ): Promise<void> {
-  await runPreparedDeploy(artifactPath, env, preview, yes);
+  await runPreparedDeploy(artifactPath, env, preview, yes, lifetime);
 }
 
 async function main(): Promise<void> {
@@ -416,41 +442,55 @@ async function main(): Promise<void> {
     await runDocs(args.locale);
     return;
   }
-  let artifactPath = args.artifact;
-  if (artifactPath === null) {
-    // B5-J3 zero-config: absent --artifact discovers ./dist/*.artifact.json.
-    // Discovery failures are usage errors (same envelope as the old
-    // missing --artifact path, now with the pattern + the fix).
-    try {
-      artifactPath = resolveLocalDefaults({ cwd: process.cwd() }).artifactPath;
-    } catch (error) {
-      usage(error instanceof Error ? error.message : String(error));
+  const lifetime = args.command === "activate" ? undefined : createLocalCommandLifetime(
+    args.command,
+    args.command === "test" ? 300_000 : args.command === "deploy" ? (args.yes ? 360_000 : 120_000) : 60_000,
+  );
+  try {
+    let artifactPath = args.artifact;
+    if (artifactPath === null) {
+      // B5-J3 zero-config: absent --artifact discovers ./dist/*.artifact.json.
+      // Discovery failures are usage errors (same envelope as the old
+      // missing --artifact path, now with the pattern + the fix).
+      try {
+        artifactPath = resolveLocalDefaults({ cwd: process.cwd() }).artifactPath;
+      } catch (error) {
+        usage(error instanceof Error ? error.message : String(error));
+      }
     }
+    lifetime?.checkpoint("artifact discovery");
+    const readable = await artifactExists(artifactPath);
+    lifetime?.checkpoint("artifact access");
+    if (!readable) {
+      fail(args.command, "missing-artifact", `artifact not readable: ${artifactPath}`);
+    }
+    if (args.command === "run") {
+      await runArtifact(artifactPath, lifetime!);
+      return;
+    }
+    if (args.command === "activate") {
+      await runActivate(artifactPath, args.env);
+      return;
+    }
+    if (args.command === "test") {
+      await runTest(artifactPath, lifetime!);
+      return;
+    }
+    if (args.command === "build") {
+      await runBuild(artifactPath, lifetime!);
+      return;
+    }
+    await runDeploy(artifactPath, args.env, args.preview, args.yes, lifetime!);
+  } finally {
+    lifetime?.dispose();
   }
-  if (!(await artifactExists(artifactPath))) {
-    fail(args.command, "missing-artifact", `artifact not readable: ${artifactPath}`);
-  }
-  if (args.command === "run") {
-    await runArtifact(artifactPath);
-    return;
-  }
-  if (args.command === "activate") {
-    await runActivate(artifactPath, args.env);
-    return;
-  }
-  if (args.command === "test") {
-    await runTest(artifactPath);
-    return;
-  }
-  if (args.command === "build") {
-    await runBuild(artifactPath);
-    return;
-  }
-  await runDeploy(artifactPath, args.env, args.preview, args.yes);
 }
 
 main().catch((error: unknown) => {
   const detail = error instanceof Error ? error.message : String(error);
-  emit({ ok: false, command: null, code: "internal", detail });
+  const interrupted = error instanceof LocalCommandInterrupted;
+  emit({ ...(interrupted ? error.failureContext : undefined), ok: false,
+    command: interrupted ? error.command : null,
+    code: interrupted ? error.code : "internal", detail: interrupted ? error.failureContext?.detail ?? detail : detail });
   process.exit(1);
 });

@@ -3,17 +3,26 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSyn
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createLocalCommandLifetime, LocalCommandInterrupted } from "../src/cli/command-lifetime.js";
 import { runPreparedDeploy } from "../src/preparation/host.js";
 
 
 const directDeploy = vi.hoisted(() => ({
+  elapsedMs: 0, bunAdvanceMs: [] as number[], expireAfterWrite: "", expireFailedCleanup: false, wranglerAdvanceMs: 0, wranglerOptions: null as unknown,
   bunCalls: 0, bunTimeoutAt: 0, bunStages: [] as Array<{ entry: string; output: string; options: unknown }>, wranglerCalls: 0, wranglerFailure: "", failPath: "", failure: new Error("second sidecar write sentinel"),
 }));
 vi.mock("node:fs", async original => {
   const actual = await original<typeof import("node:fs")>();
-  return { ...actual, writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
+  return { ...actual, rmSync: (...args: Parameters<typeof actual.rmSync>) => {
+    const result = actual.rmSync(...args);
+    if (directDeploy.expireFailedCleanup && directDeploy.bunCalls === directDeploy.bunTimeoutAt &&
+        directDeploy.bunStages.some(stage => dirname(stage.entry) === String(args[0]))) directDeploy.elapsedMs = 10_000;
+    return result;
+  }, writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
     if (String(args[0]) === directDeploy.failPath) throw directDeploy.failure;
-    return actual.writeFileSync(...args);
+    const result = actual.writeFileSync(...args);
+    if (String(args[0]) === directDeploy.expireAfterWrite) directDeploy.elapsedMs = 10_000;
+    return result;
   } };
 });
 vi.mock("node:child_process", async original => {
@@ -21,6 +30,8 @@ vi.mock("node:child_process", async original => {
   return { ...actual, execFileSync: (command: string, args: string[], options: unknown) => {
     if (command === "wrangler") {
       directDeploy.wranglerCalls++;
+      directDeploy.wranglerOptions = options;
+      directDeploy.elapsedMs += directDeploy.wranglerAdvanceMs;
       if (directDeploy.wranglerFailure === "nonzero") {
         throw Object.assign(new Error("Wrangler exited 1"), { status: 1, stdout: "partial diagnostic", stderr: "remote write diagnostic" });
       }
@@ -40,6 +51,7 @@ vi.mock("node:child_process", async original => {
       throw Object.assign(new Error("spawn bun ETIMEDOUT"), { code: "ETIMEDOUT" });
     }
     writeFileSync(output, "export const createMcpHandler = () => {}; export const createArtifactRegistry = () => {}; export const createArtifactCatalog = () => {}; export class IdentityError extends Error {} export const receiverFromIdentity = () => {}; export const handleOperationRequest = () => {}; export const handlePageRequest = () => {}; export const handlePagePreferencePost = () => {}; export const handleAuthRequest = () => {}; export const SESSION_EXPIRES_MS = 1; export const createSourceFormBindings = () => {}; export const parseJsonBody = async () => ({}); export const JSON_BODY_MAX_BYTES = 1048576; ");
+    directDeploy.elapsedMs += directDeploy.bunAdvanceMs[directDeploy.bunCalls - 1] ?? 0;
     return "";
   } };
 });
@@ -227,6 +239,11 @@ describe("confirmed direct deploy output ownership", () => {
   };
   afterEach(() => {
     vi.restoreAllMocks();
+    directDeploy.elapsedMs = directDeploy.wranglerAdvanceMs = 0;
+    directDeploy.bunAdvanceMs = [];
+    directDeploy.expireAfterWrite = "";
+    directDeploy.expireFailedCleanup = false;
+    directDeploy.wranglerOptions = null;
     directDeploy.failPath = "";
     directDeploy.wranglerFailure = "";
     directDeploy.bunTimeoutAt = 0;
@@ -275,6 +292,68 @@ describe("confirmed direct deploy output ownership", () => {
     });
     expect(directDeploy.wranglerCalls).toBe(1);
   });
+  it("shortens each child timeout to the remaining cumulative command budget", async () => {
+    const { artifact } = prepare();
+    const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
+    directDeploy.bunAdvanceMs = [6_000, 3_000];
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try { await runPreparedDeploy(artifact, "prod", false, true, lifetime); } finally { lifetime.dispose(); }
+    expect(directDeploy.bunStages.map(stage => stage.options)).toEqual([
+      { stdio: "pipe", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 1_048_576 },
+      { stdio: "pipe", timeout: 4_000, killSignal: "SIGKILL", maxBuffer: 1_048_576 },
+    ]);
+    expect(directDeploy.wranglerOptions).toMatchObject({ timeout: 1_000 });
+    expect(directDeploy.wranglerCalls).toBe(1);
+    expect(envelope(stdout.mock.calls.map(call => String(call[0])).join(""))).toMatchObject({ ok: true, applied: true });
+  });
+  it("refuses cumulative expiration after sequential Bun stages before publication", async () => {
+    const { dir, artifact } = prepare();
+    const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
+    directDeploy.bunAdvanceMs = [6_000, 4_000];
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try { await expect(runPreparedDeploy(artifact, "prod", false, true, lifetime)).rejects.toBeInstanceOf(LocalCommandInterrupted); } finally { lifetime.dispose(); }
+    expect(lifetime.signal.reason).toMatchObject({ code: "command-timeout" });
+    expect(stdout).not.toHaveBeenCalled();
+    expect(directDeploy.bunCalls).toBe(2);
+    for (const stage of directDeploy.bunStages) expect(existsSync(dirname(stage.entry))).toBe(false);
+    expect(existsSync(join(dir, "teamtasks.deploy"))).toBe(false);
+    for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
+    expect(directDeploy.wranglerCalls).toBe(0);
+  });
+  it.each(["teamtasks.deploy-plan.json", "teamtasks.wrangler.toml"])("retains truthful written-file context when budget expires after %s", async name => {
+    const { dir, artifact } = prepare();
+    const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
+    directDeploy.expireAfterWrite = join(dir, name);
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try { await expect(runPreparedDeploy(artifact, "prod", false, true, lifetime)).rejects.toBeInstanceOf(LocalCommandInterrupted); } finally { lifetime.dispose(); }
+    const interruption: unknown = lifetime.signal.reason;
+    expect(interruption).toBeInstanceOf(LocalCommandInterrupted);
+    if (!(interruption instanceof LocalCommandInterrupted)) throw new Error("missing genuine interruption");
+    expect(interruption.failureContext).toMatchObject({ wrote: true, applied: false, applyStatus: null });
+    expect(interruption.failureContext?.detail).toContain("no apply was attempted");
+    expect(interruption.failureContext?.files).toContain(join(dir, "teamtasks.deploy-plan.json"));
+    for (const file of interruption.failureContext?.files ?? []) expect(existsSync(file)).toBe(true);
+    expect(existsSync(join(dir, "teamtasks.wrangler.toml"))).toBe(name.endsWith(".toml"));
+    if (name.endsWith(".json")) expect(stderr.mock.calls.map(call => String(call[0])).join("")).toContain("earlier outputs may remain");
+    expect(stdout).not.toHaveBeenCalled();
+    expect(directDeploy.wranglerCalls).toBe(0);
+  });
+  it("never reports success when the command expires during an attempted apply", async () => {
+    const { artifact } = prepare();
+    const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
+    directDeploy.wranglerAdvanceMs = 10_000;
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try { await expect(runPreparedDeploy(artifact, "prod", false, true, lifetime)).rejects.toBeInstanceOf(LocalCommandInterrupted); } finally { lifetime.dispose(); }
+    const interruption: unknown = lifetime.signal.reason;
+    if (!(interruption instanceof LocalCommandInterrupted)) throw new Error("missing genuine interruption");
+    expect(interruption.failureContext).toMatchObject({ wrote: true, applied: false, applyStatus: 0, applyDetail: "uploaded" });
+    expect(interruption.failureContext?.detail).toMatch(/remote outcome unconfirmed; inspect.*before any manual retry/);
+    expect(stdout).not.toHaveBeenCalled();
+    expect(directDeploy.wranglerCalls).toBe(1);
+  });
   it.each([1, 2])("refuses Bun stage %s timeout before publication and removes generated scratch", async stage => {
     const { dir, artifact } = prepare();
     directDeploy.bunTimeoutAt = stage;
@@ -294,6 +373,26 @@ describe("confirmed direct deploy output ownership", () => {
       expect(existsSync(dirname(generated.entry))).toBe(false);
     }
     expect(existsSync(join(dir, 'teamtasks.deploy'))).toBe(false);
+    for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
+    expect(directDeploy.wranglerCalls).toBe(0);
+  });
+  it.each([1, 2])("preserves Bun stage %s failure when only its awaited scratch cleanup exhausts the budget", async stage => {
+    const { dir, artifact } = prepare();
+    const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
+    directDeploy.bunTimeoutAt = stage;
+    directDeploy.expireFailedCleanup = true;
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const exit = new Error("observed operative Bun failure");
+    vi.spyOn(process, "exit").mockImplementation(() => { throw exit; });
+    try { await expect(runPreparedDeploy(artifact, "prod", false, true, lifetime)).rejects.toBe(exit); }
+    finally { lifetime.dispose(); }
+    expect(directDeploy.elapsedMs).toBe(10_000);
+    const result = envelope(stdout.mock.calls.map(call => String(call[0])).join(""));
+    expect(result).toMatchObject({ ok: false, command: "deploy", code: "bundle-failed" });
+    expect(result["detail"]).toContain("ETIMEDOUT");
+    expect(result["detail"]).toContain(stage === 1 ? "MCP bundle build failed" : "HTTP bundle build failed");
+    for (const generated of directDeploy.bunStages) expect(existsSync(dirname(generated.entry))).toBe(false);
+    expect(existsSync(join(dir, "teamtasks.deploy"))).toBe(false);
     for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
     expect(directDeploy.wranglerCalls).toBe(0);
   });

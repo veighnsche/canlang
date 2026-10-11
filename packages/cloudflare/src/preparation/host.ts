@@ -1,3 +1,4 @@
+import { LocalCommandInterrupted, type LocalCommandLifetime } from "../cli/command-lifetime.js";
 /**
  * Prepared TS job orchestration (P02.2): the prepared route around the
  * current build/deploy helpers. Behavior-preserving move out of
@@ -244,13 +245,15 @@ export function missingEmission(command: PlatformCommand, verb: "execute" | "pac
 }
 
 /** `build`: validate the artifact + assert release lockstep over the tree. */
-export async function runPreparedBuild(artifactPath: string): Promise<void> {
+export async function runPreparedBuild(artifactPath: string, lifetime?: LocalCommandLifetime): Promise<void> {
+  lifetime?.checkpoint("load artifact");
   let loaded: LoadedArtifact;
   try {
     loaded = loadArtifactFile(artifactPath);
   } catch {
     missingEmission("build", "package");
   }
+  lifetime?.checkpoint("build release inputs");
   const repoRoot = dirname(distRootDir());
   try {
     const tree = readLockstepInputs(repoRoot);
@@ -264,11 +267,13 @@ export async function runPreparedBuild(artifactPath: string): Promise<void> {
   } catch (error) {
     fail("build", "release-drift", error instanceof Error ? error.message : String(error));
   }
+  lifetime?.checkpoint("build completed");
   const artifact = loaded.artifact;
   process.stderr.write(
     `build: ${artifact.modules.length} modules, ${artifact.callables.length} callables, ` +
       `${artifact.pages.length} pages (release ${RELEASE_VERSION})\n`,
   );
+  lifetime?.checkpoint("build success");
   emit({
     ok: true,
     command: "build",
@@ -293,13 +298,16 @@ export async function runPreparedDeploy(
   env: string | null,
   preview: boolean,
   yes: boolean,
+  lifetime?: LocalCommandLifetime,
 ): Promise<void> {
+  lifetime?.checkpoint("load artifact");
   let loaded: LoadedArtifact;
   try {
     loaded = loadArtifactFile(artifactPath);
   } catch {
     missingEmission("deploy", "deploy");
   }
+  lifetime?.checkpoint("deploy artifact loaded");
   if (env === null) {
     usage("deploy requires --env <name>");
   }
@@ -314,12 +322,14 @@ export async function runPreparedDeploy(
   } catch (error) {
     fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
   }
+  lifetime?.checkpoint("deploy configuration loaded");
   let installed;
   try {
     installed = installedFromTree({}, target);
   } catch (error) {
     fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
   }
+  lifetime?.checkpoint("deploy installed inputs loaded");
   const compat = checkCompatibility(descriptor, environment, installed);
   if (!compat.compatible) {
     fail(
@@ -349,16 +359,18 @@ export async function runPreparedDeploy(
   // serve), and preview/--yes report it loudly so the deployer sees it.
   // Until the P-A serving entry is built, fall back to the legacy main
   // with a loud warning.
+  lifetime?.checkpoint("deploy activation start");
   const verdict = await activate({
     artifact: loaded.artifact,
     descriptor,
     environment,
     installed,
   });
+  lifetime?.checkpoint("deploy activation completed");
   let bundleRef: DeployBundleRef | null = null;
   let deployBundle: PackageDeployBundle | null = null;
   try {
-    const bundle = buildDeployBundleWithAssets(loaded.artifact, { verdict, assets: { browser: (loaded.artifact.pages?.length ?? 0) > 0 } });
+    const bundle = buildDeployBundleWithAssets(loaded.artifact, { verdict, ...(lifetime === undefined ? {} : { commandLifetime: lifetime }), assets: { browser: (loaded.artifact.pages?.length ?? 0) > 0 } });
     bundleRef = {
       main: deployBundleMain(stem),
       moduleCount: bundle.moduleCount,
@@ -366,6 +378,7 @@ export async function runPreparedDeploy(
     };
     deployBundle = bundle;
   } catch (error) {
+    if (error instanceof LocalCommandInterrupted) throw error;
     if (error instanceof Error && (error as { code?: unknown }).code === WORKER_MAIN_MISSING) {
       process.stderr.write(
         `warning: deploy bundle unavailable (${error.message}); ` +
@@ -375,6 +388,7 @@ export async function runPreparedDeploy(
       fail("deploy", "bundle-failed", error instanceof Error ? error.message : String(error));
     }
   }
+  lifetime?.checkpoint("deploy bundle completed");
   let plan;
   try {
     plan = buildDeployPlan(descriptor, environment, {
@@ -394,14 +408,17 @@ export async function runPreparedDeploy(
   } catch (error) {
     fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
   }
+  lifetime?.checkpoint("deploy plan inputs loaded");
   const diff = diffPlans(previous, plan);
   const rendered = renderDeployPlan(plan);
   if (preview) {
+    lifetime?.checkpoint("deploy preview completed");
     process.stderr.write(formatPreview(plan, diff));
     process.stderr.write(`${formatVerdictLine(verdict)}\n`);
     if (!compiler.match) {
       process.stderr.write(`warning: ${compiler.detail} (--yes will refuse)\n`);
     }
+    lifetime?.checkpoint("deploy preview success");
     emit({
       ok: true,
       command: "deploy",
@@ -425,31 +442,59 @@ export async function runPreparedDeploy(
   }
   // Check both sidecars before any bundle or sidecar output. The same
   // canonical-root/entry policy already guards the bundle's own files.
+  lifetime?.checkpoint("deploy publication preflight");
   assertPackageOutputFiles(dir, [basename(planPath), basename(tomlPath)]);
+  lifetime?.checkpoint("deploy publication start");
   let bundleFiles: string[] = [];
+  const publishedSidecars: string[] = [];
   try {
     if (deployBundle !== null) {
       const written = writeDeployBundleWithAssets(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));
       bundleFiles = written.files;
+      lifetime?.checkpoint("deploy bundle published");
     }
     writeFileSync(planPath, rendered.json, "utf8");
+    publishedSidecars.push(planPath);
+    lifetime?.checkpoint("deploy plan published");
     writeFileSync(tomlPath, rendered.toml, "utf8");
+    publishedSidecars.push(tomlPath);
   } catch (error) {
     try {
       process.stderr.write("deploy publication failed; earlier outputs may remain; no apply was attempted\n");
     } catch { /* Preserve the operative write failure. */ }
+    if (error instanceof LocalCommandInterrupted) {
+      error.failureContext = Object.freeze({ wrote: true, files: Object.freeze([...publishedSidecars, ...bundleFiles]),
+        applied: false, applyStatus: null, applyDetail: "", manualApply: manualApplyCommand(resolve(tomlPath)),
+        detail: `${error.message}; earlier outputs may remain; no apply was attempted` });
+    }
     throw error;
   }
   const configPath = resolve(tomlPath);
   const manual = manualApplyCommand(configPath);
   let applied = false;
+  let applyAttempted = false;
   let applyStatus: number | null = null;
   let applyDetail = "";
+  const recordApplyInterruption = (error: LocalCommandInterrupted): void => {
+    error.failureContext = Object.freeze({ wrote: true, files: Object.freeze([planPath, tomlPath, ...bundleFiles]),
+      applied: false, applyStatus, applyDetail, manualApply: manual,
+      detail: `${error.message}; ${applyAttempted ? "remote outcome unconfirmed; inspect the deployment before any manual retry" : "written files remain; no apply was attempted"}` });
+  };
+  const checkApplyLifetime = (stage: string): void => {
+    try { lifetime?.checkpoint(stage); } catch (error) {
+      if (error instanceof LocalCommandInterrupted) recordApplyInterruption(error);
+      throw error;
+    }
+  };
   try {
-    const result = runWranglerDeploy({ yes: true, configPath, workingDir: dir });
+    checkApplyLifetime("deploy before apply");
+    const timeoutMs = lifetime?.remainingMs(180_000);
+    applyAttempted = true;
+    const result = runWranglerDeploy({ yes: true, configPath, workingDir: dir, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
     applied = result.applied;
     applyStatus = result.status;
     applyDetail = tailText(applied ? result.stdout : result.stderr, 2000);
+    checkApplyLifetime("deploy apply completed");
     if (applied) {
       process.stderr.write("deploy apply: wrangler deploy exited 0 (applied)\n");
     } else {
@@ -459,13 +504,19 @@ export async function runPreparedDeploy(
       );
     }
   } catch (error) {
+    if (error instanceof LocalCommandInterrupted) {
+      recordApplyInterruption(error);
+      throw error;
+    }
     applyDetail = error instanceof Error ? error.message : String(error);
+    checkApplyLifetime("deploy apply failed");
     process.stderr.write(`deploy apply FAILED: ${applyDetail}\n`);
   }
   process.stderr.write(
     `${formatPreview(plan, diff)}${formatVerdictLine(verdict)}\nwrote ${planPath}\nwrote ${tomlPath}\n` +
       (bundleFiles.length > 0 ? `wrote ${bundleFiles.length} bundle file(s) under ${dir}\n` : ""),
   );
+  checkApplyLifetime("deploy success");
   emit({
     ok: true,
     command: "deploy",

@@ -18,6 +18,7 @@ import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBu
 import { assertInstalledCatalog, bunExecutable, compilerSourceInputs, installedOwnedSourceInputs, installedPortableBundleInputs } from "./preview-inputs.js";
 import { captureIsCurrent, type SingleFileCapture } from "./source-capture.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
+import type { LocalCommandLifetime } from "../cli/command-lifetime.js";
 
 const BINDING_NAME = "DB";
 const PROFILE_CAPABILITIES = [...LOCAL_PREVIEW_CAPABILITIES];
@@ -182,16 +183,22 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
 }
 
 /** Build the real portable module map from the captured installed outputs. */
-export async function produceInstalledPortableBundle(request: LocalPreviewBundleRequest): Promise<PortableBundleEvidence> {
-  const { artifact, capture, verdict, assets } = request;
+export async function produceInstalledPortableBundle(request: LocalPreviewBundleRequest & {
+  readonly commandLifetime?: LocalCommandLifetime;
+}): Promise<PortableBundleEvidence> {
+  const { artifact, capture, verdict, assets, commandLifetime } = request;
+  commandLifetime?.checkpoint("installed bundle inputs");
   const consumedInputs = checkedInstalledInputs(capture);
   if (!(await captureIsCurrent(capture))) {
     throw new PreviewAdmissionError("SOURCE_CHANGED", "installed package input changed before portable bundling");
   }
-  const bundle = buildDeployBundleWithAssets(artifact, { verdict, assets });
+  commandLifetime?.checkpoint("installed bundle source check");
+  const bundle = buildDeployBundleWithAssets(artifact, { verdict, assets,
+    ...(commandLifetime === undefined ? {} : { commandLifetime }) });
   if (!(await captureIsCurrent(capture))) {
     throw new PreviewAdmissionError("SOURCE_CHANGED", "installed package input changed during portable bundling");
   }
+  commandLifetime?.checkpoint("installed bundle result");
   return {
     bundle, captureEpochMaterial: capture.epochMaterial,
     artifactJsonSha256: digest(JSON.stringify(artifact)), consumedInputs,
