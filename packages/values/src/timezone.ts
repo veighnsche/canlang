@@ -25,6 +25,7 @@ import type { DatetimeValue, DateValue } from "@canlang/contracts/values";
 import { ValueError } from "./errors.js";
 import { isDatetime, isDateValue, makeDate, makeDatetime } from "./kinds.js";
 import { assertDatetimeInRange, dateToEpochDays } from "./temporal.js";
+import { daysFromCivil } from "./internal/gregorian.js";
 
 /** Fold selector for ambiguous local times. */
 export type Fold = "earlier" | "later";
@@ -87,6 +88,7 @@ function formatter(
 
 function dateFormatter(zone: string): Intl.DateTimeFormat {
   return formatter(dateFormatters, zone, {
+    era: "short",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -95,6 +97,7 @@ function dateFormatter(zone: string): Intl.DateTimeFormat {
 
 function instantFormatter(zone: string): Intl.DateTimeFormat {
   return formatter(instantFormatters, zone, {
+    era: "short",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -118,6 +121,15 @@ function readPart(parts: ReadonlyArray<Intl.DateTimeFormatPart>, type: string): 
   throw new ValueError("invalid-construction", `missing ${type} in zone rendering`);
 }
 
+/** Intl renders a year of era; Gregorian arithmetic uses astronomical years. */
+function readYear(parts: ReadonlyArray<Intl.DateTimeFormatPart>): number {
+  const year = readPart(parts, "year");
+  const era = parts.find(part => part.type === "era")?.value;
+  if (era === "AD") return year;
+  if (era === "BC") return 1 - year;
+  throw new ValueError("invalid-construction", "missing or unknown era in zone rendering");
+}
+
 /**
  * `local_date(value:datetime, zone:timezone) -> date`: civil date of an
  * instant in the pinned IANA zone. Changes neither the instant nor any
@@ -130,7 +142,7 @@ export function local_date(value: DatetimeValue, zone: string): DateValue {
   assertTimezone(zone);
   assertDatetimeInRange(value.ms);
   const parts = dateFormatter(zone).formatToParts(new Date(Number(value.ms)));
-  const year = readPart(parts, "year");
+  const year = readYear(parts);
   const month = readPart(parts, "month");
   const day = readPart(parts, "day");
   if (year < 1 || year > 9999) {
@@ -168,7 +180,7 @@ interface ZoneWall {
 function renderWall(ms: bigint, zone: string): ZoneWall {
   const parts = instantFormatter(zone).formatToParts(new Date(Number(ms)));
   return {
-    year: readPart(parts, "year"),
+    year: readYear(parts),
     month: readPart(parts, "month"),
     day: readPart(parts, "day"),
     hour: readPart(parts, "hour"),
@@ -179,9 +191,8 @@ function renderWall(ms: bigint, zone: string): ZoneWall {
 
 /** Pure civil reconstruction of rendered parts as epoch seconds. */
 function wallToEpochSeconds(wall: ZoneWall): bigint {
-  const civil = makeDate(wall.year, wall.month, wall.day);
   return (
-    BigInt(dateToEpochDays(civil)) * 86400n +
+    BigInt(daysFromCivil(wall.year, wall.month, wall.day)) * 86400n +
     BigInt(wall.hour * 3600 + wall.minute * 60 + wall.second)
   );
 }

@@ -952,20 +952,22 @@
       },
       "current_execution": {
         "disposition": "open-selected-packet",
-        "next_work": "implement-local-ready-timezone-boundary",
+        "next_work": "consume-exact-release-host-output",
         "owner": "Dev/L7 release runtime/data qualification; Values fixed-data owner",
-        "accepted_scope": "Bounded raw-key formatter-cache producer already integrated9564cf874; reuse accepted source/checks.",
-        "next_action": "Repair actual internal timezone probe reconstruction at public year1/9999 endpoints, retaining existing Gregorian and fold/gap semantics. Release-host runtime/ICU/tzdb/CLDR qualification stays Dev/L7.",
+        "accepted_scope": "Bounded raw-key formatter-cache producer already integrated9564cf874; reuse accepted source/checks. Actual local timezone endpoint and signed-era reconstruction repaired; owning emission plus timezone23/temporal36 checks pass and source review CLEAR. Release-host/data qualification remains separate. Exact reviewed local source component integrated LOCAL main after deadline; parent release-host criterion unfinished.",
+        "next_action": "Internal timezone range-edge source criterion is implemented/tested/reviewed locally. Dev/L7 exact release runtime/data identity and original corpus qualification remain next; no repeated local math/cache checks without a relevant change.",
         "done_when": "Existing timezone/calendar/exact-display corpus qualifies at the declared actual release-host/data identity and alias-heavy raw keys satisfy the selected128 retained-reference bound without changing public values. No total-host heap/CPU guarantee is implied.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05",
         "packages_execution": {
-          "lane": "local-ready",
-          "remaining_outcome": "Finite local timezone endpoint conversion honors the already supported public year0001..9999 range while internal day probes may cross its boundary.",
-          "required_input": "Existing temporal supported range, Gregorian owner and local_instant/local_date API are sufficient. Actual timezone.ts probes adjacent days through range-restricted public makeDate and misinterprets BC year-of-era.",
-          "release_condition": "Already locally ready under human actual-code reevaluation; no V05 release-host or V04 source/adoption hold release.",
-          "finish_condition": "Both UTC public endpoints round-trip under both fold selectors; internal probe arithmetic preserves existing DST/fold/gap behavior and public out-of-range refusal. No accepted formatter cache or fixed currency behavior reopened.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
-        }
+          "lane": "owner-output",
+          "remaining_outcome": "Original timezone/calendar/display corpus at exact declared release runtime and ICU/tzdb/CLDR identity; finite local year-range boundary criterion implemented/tested.",
+          "required_input": "Dev/L7 exact release runtime artifact/build and loaded data identity with original corpus qualification. Local internal probe/era boundary source and accepted raw-key retention are implemented and remain credited.",
+          "release_condition": "Exact finite release-host/data owner output is released; no V04 source/adoption or native hold release.",
+          "finish_condition": "Existing original corpus qualifies the declared runtime/data tuple; held/unselected/native hosts stay unqualified. Local boundary result alone does not claim that tuple.",
+          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately.",
+          "implemented_scope": "Shared existing Gregorian signed-year reconstruction and Intl era decoding repair; public bounds/probe/fold/gap/cache unchanged. Values emit0, timezone23/23, temporal36/36, independent source review CLEAR."
+        },
+        "timezone_public_range_boundary": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05/timezone_public_range_boundary"
       }
     },
     {
@@ -8368,15 +8370,13 @@
     "accounting": "Current snapshot is22 finished selected packets,15 partial,10 open/blocked,1 human-held=48 after selected original bounded cohort acceptance. Separate from333 canonical identities and wider parent closure.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Manifest byte correspondence and asset-registration snapshot are reviewed accepted local components. Continue TECH-V05 genuine internal year-boundary conversion; preserve exact foreign mounted/source/release-host outputs and holds.",
+    "dispatch": "Actual-code reevaluation completed three independent library criteria: release byte-inventory correspondence, immutable asset getter capture, and timezone range-edge reconstruction. Their source/affected controls are implemented/tested; consume only next genuine ready source/consumer/shared failure, keeping foreign mounted/source/release-host outputs and precise holds separate. Accepted components stay closed.",
     "completion": "Keep22/48 complete selected-packet accounting unchanged. Closing minimum-engine or another finite component does not close its broader parent. Source acceptance, original consumer qualification and actual host/human release stay distinct.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "V03 actual descriptor/source-owner/revision association; S03 actual app/mixed owner-store binding; S04 visited-work/continuation/refusal profile; D03 actual concurrent-writer interruption scope; D04 emitted namespace/maps; F01 actual external-host serialization/power-loss contract. Each belongs to the named entry owner; no global decision barrier.",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation.",
-    "packages_dispatch_order": [
-      "TECH-V05"
-    ],
+    "packages_dispatch_order": [],
     "remaining_execution_order": [
       "DEL-R01",
       "TECH-S02",
@@ -8406,8 +8406,8 @@
       "DEL-D05"
     ],
     "lane_counts": {
-      "local_ready": 1,
-      "exact_owner_output": 23,
+      "local_ready": 0,
+      "exact_owner_output": 24,
       "human_held": 2,
       "remaining_packets": 26
     },
