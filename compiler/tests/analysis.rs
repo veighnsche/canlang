@@ -1096,7 +1096,9 @@ fn draft_outcome_table() {
         // The nonexported join_program retains its input scope without
         // redeclaring closed builtin join; only its four cascades disappear.
         ("draft/CanRefer.can", 75),
-        ("draft/CanRent.can", 538),
+        // Booking benefit_unit reuses Resource.price_unit's hour/day type;
+        // the two owning assignments resolve without any domain conversion.
+        ("draft/CanRent.can", 536),
         ("draft/CanReport.can", 16),
         // Stored commitments reuse their owning request kind, clearing only
         // the five distinct enum-owner comparisons and assignments.

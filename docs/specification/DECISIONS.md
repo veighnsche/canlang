@@ -8700,3 +8700,21 @@ prior374 affected outcomes, distinct-owner refusals and strict3.58s; fmt/diff0.
 Keep the original null comparison, opaque member-removed payload, nonactor
 recipient facts and C03 guards untouched. Remaining original25/no artifact,
 native applications and all precise holds remain open.
+
+### 2026-10-11 — reuse the owning Rent price unit
+
+Assigned C02 correction changes only `Booking.benefit_unit`'s duplicate
+`enum(hour,day)` type token to `Resource.price_unit`, retaining `=hour`, its
+complete label descriptor and every other original source byte. The two
+declared domains are identical; ordinary field reuse connects the stored
+consumer to its owning price declaration without structural enum equivalence,
+exported renaming, a cast, visit widening or a new default.
+
+Actual current original25/catalog25→23 removes only the two benefit_unit
+assignment errors.24 other source hashes stay unchanged; remaining diagnostics
+are identical modulo the sole +5byte edit. Isolated Rent538→536; full52 corpus
+assertion1/1 passes1.84s,0fail/ignored/bodySKIP,onlyRent's pin changes. Reuse
+prior374 affected/different-owner refusal and strict3.58s;fmt/diff0. Five member
+hour/day/visit mismatches still need an explicit business-domain adaptation;
+eleven captured-name findings retain the exported-name exclusion. Remaining
+original23/no artifact, native applications and all precise holds stay open.
