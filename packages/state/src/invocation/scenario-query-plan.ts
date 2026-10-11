@@ -81,8 +81,19 @@ export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[
   const ids: string[] = [];
   const dependencyIds = new Map<string, string>();
   for (const value of queries) {
-    const query = object(value, ['id', 'source', 'model', 'order', 'limit', 'archived', 'dependencies']);
+    const query = object(value, ['id', 'source', 'model', 'order', 'limit', 'archived', 'dependencies',
+      ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'parent') ? ['parent'] : [])]);
     ids.push(text(query.id)); text(query.model); source(query.source);
+    if (Object.hasOwn(query, 'parent')) {
+      const parent = object(query.parent, ['source', 'model', 'origin']);
+      source(parent.source); text(parent.model);
+      const kind = typeof parent.origin === 'object' && parent.origin !== null
+        ? (parent.origin as Record<string, unknown>).kind : undefined;
+      if (kind !== 'admitted-reference' && kind !== 'stored-reference') fail('closed parent origin required.');
+      const origin = object(parent.origin, ['kind', kind === 'admitted-reference' ? 'parameter' : 'dependencyId']);
+      if (kind === 'admitted-reference') fieldName(origin.parameter);
+      else text(origin.dependencyId);
+    }
     if (query.limit !== null && (!Number.isSafeInteger(query.limit) || (query.limit as number) < 0 || (query.limit as number) > MAX)) fail('bounded query limit required.');
     if (query.archived !== 'exclude' && query.archived !== 'include') fail('closed archive selection required.');
     const order = list(query.order);
@@ -199,6 +210,31 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   const queries = checkQueries(plan.queries ?? []);
   for (const query of queries) {
     const model = models.find(model => model.name === query.model) ?? fail('query requires its owning model inventory.');
+    if (query.parent !== undefined) {
+      const parentModel = query.parent.model;
+      if (model.fields.some(field => field.name === 'parent') || Object.hasOwn(model, 'scope') || model.parent !== parentModel ||
+          !models.some(parent => parent.name === parentModel) || schema &&
+          (Object.hasOwn(schema.contracts, parentModel) || Object.hasOwn(schema.enums, parentModel) ||
+            Object.hasOwn(schema.aliases ?? {}, parentModel))) fail('scoped query requires unshadowed declared parent containment.');
+      if (query.parent.origin.kind === 'stored-reference') {
+        const dependencyId = query.parent.origin.dependencyId;
+        const consumers = plan.returns.filter(returned => returnQueryIds(returned).includes(query.id));
+        const dependencies = consumers.map(returned => returned.dependencies.find(dependency => dependency.id === dependencyId));
+        if (consumers.length === 0 || dependencies.some(dependency => dependency === undefined)) fail('scoped stored parent requires its ordinary return dependency.');
+        for (const dependency of dependencies) {
+          if (dependency === undefined) return fail('scoped stored parent dependency is missing.');
+          source(dependency.source);
+          const owner = models.find(model => model.name === dependency.model) ?? fail('stored parent requires its owning model inventory.');
+          const field = owner?.fields.find(field => field.name === dependency.field);
+          if (owner === undefined || dependency.type !== parentModel) fail('stored parent requires its exact required singular native reference.');
+          if (dependency.field === 'parent') {
+            if (field !== undefined || Object.hasOwn(owner, 'scope') || owner.parent !== parentModel) fail('stored parent requires unshadowed declared parent metadata.');
+          } else if (field === undefined || field.field.kind !== 'ref' || field.array !== undefined || field.nullable === true ||
+              artifactType(field, models, schema) !== parentModel) fail('stored parent requires its owning required singular model reference.');
+        }
+        if (dependencies.some(dependency => !same(dependency, dependencies[0]))) fail('scoped stored parent dependency drifts across returns.');
+      }
+    }
     for (const dependency of query.dependencies) {
       const field = model.fields.find(field => field.name === dependency.field);
       if (dependency.field === 'parent') {
@@ -365,14 +401,24 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
   if (queries.length !== required.length) fail('exact selected query associations required, including empty domains.');
   const savedIds: string[] = [];
   for (const saved of queries) {
-    const observed = object(saved, ['queryId', 'revision', 'candidates', 'selectedIndices']);
+    const observed = object(saved, ['queryId', 'revision', 'candidates', 'selectedIndices',
+      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved, 'parent') ? ['parent'] : [])]);
     const query = plan.queries?.find(query => query.id === observed.queryId && required.includes(query.id)) ?? fail('saved query identity differs.');
     savedIds.push(query.id);
     if (observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
+    let parentRow: StoredRow | undefined;
+    if (query.parent !== undefined) {
+      const parent = object(observed.parent, ['model', 'row', 'secretFields']);
+      if (parent.model !== query.parent.model) fail('saved parent model differs from checked scope.');
+      parentRow = row(parent.row);
+      if (parentRow.archivedAt !== null) fail('saved scoped parent is archived.');
+      unique(list(parent.secretFields).map(text));
+    } else if (Object.hasOwn(observed, 'parent')) fail('unscoped query has a foreign parent witness.');
     const candidates = list(observed.candidates); const identities: string[] = [];
     for (const value of candidates) {
       const candidate = object(value, ['row', 'record', 'secretFields', 'matched', 'dependencies']);
       const original = row(candidate.row), projected = row(candidate.record, true);
+      if (parentRow !== undefined && (original.parent?.model !== query.parent!.model || original.parent.id !== parentRow.id)) fail('saved candidate differs from its parent scope.');
       identities.push(original.id);
       if (typeof candidate.matched !== 'boolean') fail('saved match must be boolean.');
       if (query.archived === 'exclude' && original.archivedAt !== null) fail('saved archive selection differs.');
@@ -421,6 +467,14 @@ result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: re
     if (returned.projection !== undefined) canonicalWire(bound.type, result, bound.valueSchema);
     for (const observed of association.queries!) {
       const query = bound.plan.queries!.find(query => query.id === observed.queryId)!;
+      if (observed.parent !== undefined) {
+        const parent = observed.parent;
+        const projected = await savedProjection(parent.model, parent.row, parent.secretFields, []);
+        // The parent establishes collection identity and current authority;
+        // partial business-field grants do not deny that linkage.
+        if (projected === null || !same({ ...projected, parent: projected.parent ?? null, data: null },
+          { ...parent.row, parent: parent.row.parent ?? null, data: null })) return false;
+      }
       for (const candidate of observed.candidates) {
         const projected = await savedProjection(query.model, candidate.row, candidate.secretFields, []);
         if (projected === null || projected.id !== candidate.row.id || projected.version !== candidate.row.version) return false;
