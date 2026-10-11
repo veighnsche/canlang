@@ -7,7 +7,7 @@ import { checkedMembershipFact, observeRowGrantAuthority } from '../policy/membe
 import { isEqualOrUnder, isMetadataPath, withPolicyRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, validateByPredicate } from '../policy/roles.js';
 import { FenceConflictError } from '../storage/port.js';
-import { evaluateInstalledReadPolicy } from '../receipt/read-policy-membership.js';
+import { evaluateInstalledReadPolicy, withinInstalledReadObservation } from '../receipt/read-policy-membership.js';
 import { projectCurrentRecordForViewerPolicy, projectSourceRowFields,
   type BaseQueryInput, type ViewerPageParentPolicy } from './engine.js';
 
@@ -103,13 +103,14 @@ export async function projectInstalledSourceRow(input: {
   readonly read: ViewerGenerationCallbackSourceReadPolicy;
   readonly observation: Readonly<ViewerGenerationCallbackReadObservation>;
   readonly store: StoragePort;
+  readonly owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>;
 }): Promise<InstalledSourceRowProjection> {
   const { read, observation, store } = input;
   const allowed: boolean[] = [], grants: { readonly fields: readonly string[] }[] = [];
   for (const grant of read.grants) {
     const before = await store.readRevision();
     if (before !== observation.revision) throw new FenceConflictError(observation.revision, before);
-    const verdict = await evaluateInstalledReadPolicy(grant.read, observation, store);
+    const verdict = await evaluateInstalledReadPolicy(grant.read, observation, store, input.owningObservation);
     if (typeof verdict !== 'boolean') invalid();
     const after = await store.readRevision();
     if (after !== observation.revision) throw new FenceConflictError(observation.revision, after);
@@ -141,6 +142,7 @@ export async function projectInstalledSourceRowAndAncestors(input: {
   readonly fence: BaseQueryInput['fence'];
   readonly store: StoragePort;
   readonly rows: Map<string, StoredRow>;
+  readonly owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>;
 }): Promise<InstalledSourceRowProjection & { readonly decisions: readonly InstalledSourceRowDecision[] }> {
   const { readPolicies, policy, context, revision, fence, store, rows } = input;
   const decisions: InstalledSourceRowDecision[] = [], visited = new Set<string>();
@@ -154,7 +156,8 @@ export async function projectInstalledSourceRowAndAncestors(input: {
     if (read === undefined || row.archivedAt !== null) return denied();
     const observation = Object.freeze({ context: Object.freeze({ ...context }), row, revision, fence });
     let projected: InstalledSourceRowProjection;
-    if ('grants' in read) projected = await projectInstalledSourceRow({ read, observation, store });
+    if ('grants' in read) projected = await projectInstalledSourceRow({ read, observation, store,
+      ...(input.owningObservation === undefined ? {} : { owningObservation: input.owningObservation }) });
     else {
       const rowPolicy = policy.get(model);
       if (rowPolicy === undefined || !(await evaluateBy(read.by, withPolicyRow(rowPolicy, context, row)))) return denied();
@@ -185,6 +188,9 @@ export interface CurrentRecordSourcePolicyInput extends Pick<BaseQueryInput, 'co
   readonly model: ModelName;
   readonly id: RecordId;
   readonly readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+  /** Exact live observation supplied to the installed source read/WHERE.
+   * Nested navigation joins its tracked Identity authority and original R. */
+  readonly observation?: Readonly<ViewerGenerationCallbackReadObservation>;
 }
 export interface CurrentRecordSourcePolicyResult {
   readonly record: ProjectedRecord | null;
@@ -194,9 +200,38 @@ export interface CurrentRecordSourcePolicyResult {
 export function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput): Promise<CurrentRecordSourcePolicyResult>;
 export function projectCurrentRecordForViewerSourcePolicies<Result>(input: CurrentRecordSourcePolicyInput,
   transform: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[]) => Result | Promise<Result>): Promise<Result>;
-/** Reader-owned current load and final checks; callers supply neither raw rows nor a live observation. */
+/** Reader-owned current load and final checks. Installed source navigation can
+ * borrow its actual live observation; independent reads open their own authority. */
 export async function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput,
   transform?: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[]) => unknown | Promise<unknown>): Promise<unknown> {
+  if (input.observation !== undefined) {
+    const observation = input.observation;
+    return withinInstalledReadObservation(observation, { store: input.store, model: input.model, id: input.id }, async checkpoint => {
+      // Capture the full supplied policy closure while the original lifetime is
+      // already leased, before any async checkpoint can change its inputs.
+      const store = input.store, model = text(input.model) as ModelName, id = text(input.id) as RecordId;
+      const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy);
+      const { context, revision, fence } = observation;
+      if (input.context.actorUserId !== context.actorUserId || input.context.teamId !== context.teamId ||
+          input.memberships !== context.memberships || input.fence !== undefined && input.fence !== fence ||
+          typeof store.cohortLoad !== 'function' || transform !== undefined && typeof transform !== 'function') invalid();
+      await checkpoint();
+      const row = await store.cohortLoad({ model, id, expectedRevision: revision });
+      await checkpoint();
+      if (row !== null && row.id !== id) invalid();
+      fence?.enroll({ kind: 'query', model, authority: 'viewer' });
+      const rows = new Map<string, StoredRow>();
+      if (row !== null) rows.set(`${model}\0${id}`, row);
+      const projected = row === null ? { record: null, allowed: [] } : await projectInstalledSourceRowAndAncestors({
+        model, row, readPolicies: reads, policy, context, revision, fence, store, rows, owningObservation: observation,
+      });
+      await checkpoint();
+      const result = deepFreeze({ record: projected.record, revision });
+      const output = transform === undefined ? result : await transform(result, projected.allowed);
+      await checkpoint();
+      return output;
+    });
+  }
   const { store, memberships, fence } = input;
   const model = text(input.model) as ModelName, id = text(input.id) as RecordId;
   const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy);

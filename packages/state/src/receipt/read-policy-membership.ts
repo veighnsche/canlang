@@ -1,7 +1,7 @@
 /** Membership at a genuine installed source read, never a business owner call.
  * The checked native loader binds literal source/argument/Team ports. Only the
  * owning State reader opens the coherent observation lifetime below. */
-import type { ProjectedRecord, ScenarioReceiptSourceOrigin, StoragePort, TeamScope } from '@canlang/contracts';
+import type { ModelName, ProjectedRecord, RecordId, ScenarioReceiptSourceOrigin, StoragePort, TeamScope } from '@canlang/contracts';
 import { isUserRef, type UserRef } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from '../invocation/scenario-membership-plan.js';
@@ -45,10 +45,18 @@ interface ReadLifetime {
   readonly observation: Readonly<ViewerGenerationCallbackReadObservation>;
   readonly store: StoragePort;
   readonly bound: readonly BoundRead[];
+  readonly parent: ReadLifetime | null;
+  readonly parentNavigation: ReadNavigation | null;
+  readonly navigationTargets: Set<string>;
+  navigation: ReadNavigation | null;
   pending: boolean;
   poisoned: boolean;
   closed: boolean;
   count: number;
+}
+interface ReadNavigation {
+  readonly key: string;
+  child: ReadLifetime | null;
 }
 const bindings = new WeakMap<InstalledRead, readonly BoundRead[]>();
 const invoked = new WeakSet<InstalledRead>();
@@ -72,6 +80,84 @@ function text(value: unknown): string {
 function teamSnapshot(team: TeamScope): string {
   const value = object(team, ['teamId', 'timezone']);
   return stableStringify({ teamId: text(value.teamId), timezone: text(value.timezone) });
+}
+
+/** Copies identify their issuer only for poisoning, never for authority. */
+function observationLifetime(observation: unknown): ReadLifetime | undefined {
+  if (typeof observation !== 'object' || observation === null) return undefined;
+  const exact = lifetimes.get(observation);
+  if (exact !== undefined) return exact;
+  const context = Object.getOwnPropertyDescriptor(observation, 'context');
+  return context !== undefined && 'value' in context && typeof context.value === 'object' && context.value !== null
+    ? contexts.get(context.value) : undefined;
+}
+function poison(lifetime: ReadLifetime | undefined): void {
+  for (let current = lifetime; current !== undefined; current = current.parent ?? undefined) current.poisoned = true;
+}
+function healthyLifetime(lifetime: ReadLifetime): void {
+  for (let current: ReadLifetime | null = lifetime; current !== null; current = current.parent) {
+    const observation = current.observation;
+    if (current.closed || current.poisoned || lifetimes.get(observation) !== current ||
+        contexts.get(observation.context) !== current || observation.fence !== undefined &&
+        observation.fence.revision !== observation.revision) return fail('read crossed its original active observation/checkpoint.');
+    const parent: ReadLifetime | null = current.parent;
+    if (parent !== null && (!parent.pending || parent.navigation === null ||
+        parent.navigation !== current.parentNavigation || parent.navigation.child !== current ||
+        parent.store !== current.store || parent.observation.revision !== observation.revision ||
+        parent.observation.fence !== observation.fence ||
+        parent.observation.context.actorUserId !== observation.context.actorUserId ||
+        parent.observation.context.teamId !== observation.context.teamId ||
+        parent.observation.context.membership !== observation.context.membership ||
+        parent.observation.context.memberships !== observation.context.memberships)) {
+      return fail('nested read crossed its original owning navigation.');
+    }
+  }
+}
+
+/** Internal State navigation lease; no caller can issue or replace its observation. */
+export async function withinInstalledReadObservation<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
+  input: { readonly store: StoragePort; readonly model: ModelName; readonly id: RecordId },
+  execute: (checkpoint: () => Promise<void>) => Promise<Result>): Promise<Result> {
+  const lifetime = observationLifetime(observation); let navigation: ReadNavigation | undefined;
+  try {
+    object(input, ['store', 'model', 'id']);
+    const model = text(input.model), id = text(input.id), key = `${model}\0${id}`;
+    if (model.includes('\0') || id.includes('\0') || typeof execute !== 'function' ||
+        lifetime === undefined || lifetime.observation !== observation || lifetime.store !== input.store ||
+        lifetime.pending || lifetime.navigation !== null) return fail('exact live nonconcurrent owning read required for navigation.');
+    healthyLifetime(lifetime);
+    if (lifetime.navigationTargets.has(key) || lifetime.navigationTargets.size >= 100) {
+      return fail('navigation repeats an active target or exceeds its containment depth.');
+    }
+    navigation = { key, child: null };
+    lifetime.navigationTargets.add(key); lifetime.navigation = navigation; lifetime.pending = true;
+    const lease = navigation;
+    const healthy = () => {
+      healthyLifetime(lifetime);
+      if (!lifetime.pending || lifetime.navigation !== lease || !lifetime.navigationTargets.has(key)) {
+        return fail('navigation crossed its original active lease.');
+      }
+    };
+    const checkpoint = async () => {
+      try {
+        healthy(); const revision = await lifetime.store.readRevision(); healthy();
+        if (revision !== observation.revision) throw new FenceConflictError(observation.revision, revision);
+      } catch (error) { poison(lifetime); throw error; }
+    };
+    // The owning reader captures metadata synchronously, then performs its
+    // first checkpoint before any cohort or source read can yield.
+    healthy();
+    const result = await execute(checkpoint);
+    if (lease.child !== null) return fail('navigation cannot return with an unfinished child source read.');
+    await checkpoint();
+    return result;
+  } catch (error) { poison(lifetime); throw error; }
+  finally {
+    if (navigation !== undefined) {
+      lifetime!.navigationTargets.delete(navigation.key);
+      lifetime!.navigation = null; lifetime!.pending = false;
+    }
+  }
 }
 
 /** Checked native identity for a source WHERE, including pure/role-only expressions.
@@ -147,8 +233,9 @@ export function bindReadPolicyMembershipProducer(read: InstalledRead,
  * Each coherent snapshot replay gets a fresh lifetime and native pair capture.
  * No public open/registration API can issue a read observation. */
 export async function evaluateInstalledReadPolicy(read: InstalledSourceReadPredicate,
-  input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort): Promise<boolean> {
-  return evaluateInstalledRead(read, 'read-policy', input, store, observation => read(observation));
+  input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
+  owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>): Promise<boolean> {
+  return evaluateInstalledRead(read, 'read-policy', input, store, observation => read(observation), owningObservation);
 }
 
 /** Internal viewer query join. The original projected record remains the
@@ -181,21 +268,47 @@ export function executeUnboundReadPredicate(read: InstalledSourceQueryPredicate,
 
 async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
   input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
-  execute: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>): Promise<boolean> {
-  invoked.add(read);
-  if (stage === 'read-policy' && installedPredicates.has(read as InstalledSourceQueryPredicate)) {
-    return fail('installed query predicate cannot execute as a read policy.');
-  }
-  const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
-  const lifetime: ReadLifetime = { read, stage, observation, store, bound: bindings.get(read) ?? [],
-    pending: false, poisoned: false, closed: false, count: 0 };
-  lifetimes.set(observation, lifetime); contexts.set(observation.context, lifetime);
+  execute: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>,
+  owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>): Promise<boolean> {
+  const parent = owningObservation === undefined ? undefined : observationLifetime(owningObservation);
+  let lifetime: ReadLifetime | undefined, parentNavigation: ReadNavigation | null = null;
   try {
+    if (owningObservation !== undefined) {
+      if (parent === undefined || parent.observation !== owningObservation || parent.store !== store ||
+          !parent.pending || parent.navigation === null || parent.navigation.child !== null) {
+        return fail('child source read requires its exact live owning navigation.');
+      }
+      healthyLifetime(parent); parentNavigation = parent.navigation;
+      if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||
+          input.context.actorUserId !== parent.observation.context.actorUserId ||
+          input.context.teamId !== parent.observation.context.teamId ||
+          input.context.membership !== parent.observation.context.membership ||
+          input.context.memberships !== parent.observation.context.memberships) {
+        return fail('child source read requires the unchanged tracked owning context.');
+      }
+    }
+    invoked.add(read);
+    if (stage === 'read-policy' && installedPredicates.has(read as InstalledSourceQueryPredicate)) {
+      return fail('installed query predicate cannot execute as a read policy.');
+    }
+    const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
+    lifetime = { read, stage, observation, store, bound: bindings.get(read) ?? [],
+      parent: parent ?? null, parentNavigation, navigationTargets: parent?.navigationTargets ?? new Set(),
+      navigation: null, pending: false, poisoned: false, closed: false, count: 0 };
+    lifetimes.set(observation, lifetime); contexts.set(observation.context, lifetime);
+    if (parentNavigation !== null) parentNavigation.child = lifetime;
+    healthyLifetime(lifetime);
     const value = await execute(observation);
+    healthyLifetime(lifetime);
     if (lifetime.pending || lifetime.poisoned || typeof value !== 'boolean') return fail('caught, pending or malformed source read cannot authorize.');
     return value;
-  } catch (error) { lifetime.poisoned = true; throw error; }
-  finally { lifetime.closed = true; }
+  } catch (error) { poison(lifetime ?? parent); throw error; }
+  finally {
+    if (lifetime !== undefined) {
+      lifetime.closed = true;
+      if (parentNavigation !== null && parentNavigation.child === lifetime) parentNavigation.child = null;
+    }
+  }
 }
 
 /** Only a State-issued live coherent observation and its exact checked handle
@@ -203,22 +316,15 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
  * Identity observation/revalidation, never the scenario or dispatch ledger. */
 export async function evaluateReadPolicyMembership(observation: Readonly<ViewerGenerationCallbackReadObservation>,
   input: { readonly site: ReadPolicyMembershipHandle }): Promise<boolean> {
-  let lifetime = typeof observation === 'object' && observation !== null ? lifetimes.get(observation) : undefined;
+  const lifetime = observationLifetime(observation);
   let acquired = false;
   try {
-    // A shallow copy still identifies the original context for poisoning, but
-    // never gains its observation authority.
-    if (lifetime === undefined && typeof observation === 'object' && observation !== null) {
-      const context = Object.getOwnPropertyDescriptor(observation, 'context');
-      if (context !== undefined && 'value' in context && typeof context.value === 'object' && context.value !== null) {
-        lifetime = contexts.get(context.value);
-      }
-    }
     object(input, ['site']); const issued = handles.get(input.site);
     if (lifetime === undefined || lifetime.observation !== observation || lifetime.closed || lifetime.poisoned ||
         lifetime.pending || issued === undefined || issued.bound.read !== lifetime.read ||
         issued.bound.stage !== lifetime.stage || !lifetime.bound.includes(issued.bound) ||
         lifetime.count >= 200) return fail('exact live nonconcurrent source read/occurrence required.');
+    healthyLifetime(lifetime);
     lifetime.pending = true; acquired = true; lifetime.count++;
     const team = issued.bound.team(observation);
     if (team === null) return fail('actual corresponding native Team required.');
@@ -231,13 +337,14 @@ export async function evaluateReadPolicyMembership(observation: Readonly<ViewerG
     }
     const teamId = text(team.teamId), personId = text(person.id), current = lifetime;
     const healthy = () => {
+      healthyLifetime(current);
       if (current.closed || current.poisoned || !current.pending || lifetimes.get(observation) !== current ||
           issued.bound.team(observation) !== team || teamSnapshot(team) !== snapshot ||
           observation.context.teamId !== teamId || observation.fence !== undefined &&
           observation.fence.revision !== observation.revision) return fail('membership crossed its original read/Team/checkpoint.');
     };
     const checkpoint = async () => {
-      const revision = await current.store.readRevision(); healthy();
+      healthy(); const revision = await current.store.readRevision(); healthy();
       if (revision !== observation.revision) throw new FenceConflictError(observation.revision, revision);
     };
     healthy(); await checkpoint(); healthy();
@@ -245,6 +352,6 @@ export async function evaluateReadPolicyMembership(observation: Readonly<ViewerG
     healthy(); await checkpoint(); healthy();
     observation.fence?.enroll({ kind: 'membership', teamId, userId: personId });
     return fact?.status === 'active';
-  } catch (error) { if (lifetime !== undefined) lifetime.poisoned = true; throw error; }
+  } catch (error) { poison(lifetime); throw error; }
   finally { if (acquired) lifetime!.pending = false; }
 }
