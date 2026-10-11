@@ -25,10 +25,13 @@ import { createSqliteFileBindings, createSqliteFileStore, type SqliteFileStore }
 import { blobKeyForFile } from '@canlang/files/finalize';
 import { sha256Hex, stagingKeyForIntent } from '@canlang/files/upload';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
-import { assembleModules } from '@canlang/cloudflare/runtime/modules';
+import { assembleModules, importVerifiedAssemblyModule } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, createTeamOwnerStorageBoundary } from '@canlang/cloudflare/worker/assembly';
 import { createBoundFileHandler, createCanonicalFileBinding } from '@canlang/cloudflare/runtime/bound-files';
 import { createNativeFileRetirementBinding } from '../dist/dev/file-retirement.js';
+import { invokeDueSourceRoutingCanonical, invokeRetainedHandlerOccurrenceCanonical } from '@canlang/cloudflare/runtime/invoke';
+import { WORK_SCHEDULE_MODEL, readScheduleRow, WORK_OCCURRENCE_MODEL, readOccurrenceRow } from '@canlang/work/kernel/tables';
+import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const APP = 'TypedFileJourney', MODEL = asModel(`${APP}.Entry`);
@@ -753,5 +756,189 @@ test('unchanged TypedFileJourney installs its emitted empty File inventory and r
       assert.deepEqual(retry.retirement,originalDecision);assert.deepEqual(await resources(),afterRetirement,'terminal retry has no effects');
       assert.equal(JSON.stringify(artifact),originalArtifact);
       assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
+    } finally {physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
+  });
+
+
+/** Genuine compiled deferred File path; no original application or provider qualification. */
+test('native deferred File payload survives its original schedule fence and reopen, then runs the retained source once',
+  {timeout:120000}, async () => {
+    const app='NativeFileDeferred',model=asModel(`${app}.Entry`),event=`${app}.Retained`,privateHandler=`${app}.fire`;
+    const fixture=fileURLToPath(new URL('./fixtures/native-file-deferred.can',import.meta.url));
+    const compiler=join(root,'compiler/target/debug/can'),catalog=fileURLToPath(distribution.catalog);
+    const inputs=[fixture,compiler,catalog],hash=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
+    const originalHashes=await Promise.all(inputs.map(async path=>hash(await readFile(path))));
+    const dir=await mkdtemp(join(tmpdir(),'can-native-file-deferred-')),filePath=join(dir,'files.sqlite');
+    let worker:Miniflare|undefined,physical:SqliteFileStore|undefined,now=FIXED_NOW,sequence=0;
+    const clock={nowMs:()=>now},retention={unattachedHorizonMs:120000,retentionMs:600000};
+    const nextId=()=>asOperationId(uuidv7(FIXED_NOW,++sequence));
+    const object=(value:unknown):Record<string,unknown>=>{
+      assert.ok(value!==null&&typeof value==='object'&&!Array.isArray(value));return value as Record<string,unknown>;
+    };
+    try {
+      const env={...process.env};delete env.CAN_CATALOG;
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--catalog',catalog,fixture],
+        {cwd:root,env,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact,originalArtifact=JSON.stringify(artifact);
+      assert.ok(artifact.sources.some(source=>resolve(source.path)===fixture&&source.sha256===originalHashes[0]));
+      assert.deepEqual(artifact.valueTypes,{contracts:[]});
+      for(const operation of ['arm','cancel_pending'])assert.deepEqual(artifact.operations?.find(value=>value.name===`${app}.${operation}`)?.result,{type:'void'});
+      const fire=artifact.callables.find(value=>value.id===privateHandler&&value.kind==='handler');assert.ok(fire);
+      let asm=await assembleModules({artifact,sourcePath:fixture},{workDir:join(dir,'modules'),
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      const namespace=object(await importVerifiedAssemblyModule(asm,fire.module,artifact)),definition=object(namespace.appDefinition);
+      assert.equal(definition.id,app);
+      const declaredInputs=object(object(object(definition.events)[event]).inputs);
+      assert.deepEqual(Object.keys(declaredInputs).sort(),['attachment','entry','note']);
+      assert.equal(object(declaredInputs.attachment).type,'file');assert.equal(object(declaredInputs.entry).type,model);
+      const note=object(declaredInputs.note);assert.equal(note.type,'text');
+      assert.equal(String(note.min),'1');assert.equal(String(note.max),'16');assert.equal(note.trim,true);
+      assert.equal(object(object(definition.operations)[privateHandler]).event,event);
+      worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,script:'export default {fetch(){return new Response("ok")}}',
+        d1Databases:{IDENTITY:'deferred-file-identity',A:'deferred-file-a',B:'deferred-file-b'},d1Persist:join(dir,'d1')});
+      const idDb=await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const a=await worker.getD1Database('A') as unknown as D1Database,b=await worker.getD1Database('B') as unknown as D1Database;
+      await ensureIdentitySchema(idDb);await ensureSchema(a);await ensureSchema(b);
+      const identities=createD1IdentityStore(idDb,{clock}),team=await identities.createTeam({timezone:'UTC'}),otherTeam=await identities.createTeam({timezone:'UTC'});
+      const user=await identities.createUser({email:'native-deferred-file@example.test',password_hash:'unused',email_verified:true});
+      for(const selected of [team,otherTeam])await identities.createMembership({user_id:user.user_id,team_id:selected.team_id,is_owner:true,roles:[]});
+      const grant=await issueMcpGrant(identities,{user_id:user.user_id,team_id:team.team_id,client_id:'deferred-file'},{clock});
+      const identity=await resolveIdentity(identities,{mcp_grant_token:grant.token},{clock});
+      assert.equal(identity.actor?.user_id,user.user_id);assert.equal(identity.team?.team_id,team.team_id);
+      physical=createSqliteFileStore(filePath);
+      const scope={app,ownerPackage:app,owner:team.team_id};
+      const bindingInput={artifact,asm,scope,identities,db:a,stateStoreId:'native-deferred-file-owner-a',physicalSqliteFileStore:physical,
+        initializeFresh:true as const,clock,intentTtlMs:60000,urlBase:'https://test.invalid',retention,maxRows:100,maxReferences:100};
+      let binding=await createNativeFileRetirementBinding(bindingInput);
+      const installed=await binding.store.readFileReferenceInventory(app);assert.ok(installed);
+      const declarations=installed.inventory.opaqueDeclarationSets;assert.ok(declarations);assert.equal(declarations.length,1);
+      const eventDeclaration=declarations[0]!.declarations.find(value=>value.source.kind==='event'&&value.source.event===event);assert.ok(eventDeclaration);
+      assert.equal(eventDeclaration.profile.kind,'inputs');assert.deepEqual(eventDeclaration.source.source,
+        {path:artifact.sources[0]!.path,sha256:artifact.sources[0]!.sha256,module:fire.module});
+      assert.equal(installed.inventory.frameworkModels.length,13);
+      const physicalState=()=>({fileStoreId:physical!.fileStoreId,files:physical!.files.listAll(),intents:physical!.intents.listAll(),
+        bytes:physical!.files.listAll().map(record=>physical!.blobs.read(blobKeyForFile(record.file.id))),
+        staging:physical!.intents.listAll().map(intent=>physical!.blobs.read(stagingKeyForIntent(intent.intentId)))});
+      const resources=async()=>({a:await snapshot(a),b:await snapshot(b),identity:await snapshot(idDb),files:physicalState()});
+      const query=(name:string)=>binding.store.query({model:asModel(name),authority:'owner',archived:'include',order:[{field:'id',direction:'asc'}]});
+      const setup=()=>{
+        const kernel=createFileJourneyKernel(binding.bindings),files=createCanonicalFileBinding(kernel,retention);
+        const upload:UploadDeps&{kernel:typeof kernel}={app:{appId:app,brand:app,appDefaultLocale:'en',ownerLabels:new Map()},
+          files:{usesFiles:()=>true},kernel,clock,logger:{log:()=>{}},
+          identity:{store:identities,clock,mail:{sendMail:async()=>{}},verifyBaseUrl:'',recoveryBaseUrl:'',inviteBaseUrl:'',sessionMaxAgeSeconds:3600}};
+        return {files,handler:createBoundFileHandler({artifact,asm,store:binding.store,memberships:identities,identityStore:identities,
+          clock,upload,ownerStorage:binding.ownerStorage,retention,physicalFiles:physical!.files,fileReferenceBounds:{maxRows:100,maxReferences:100}}),
+          invoker:buildInvoker(artifact,asm,binding.store,{appId:app,memberships:identities,now:clock.nowMs,files,ownerStorage:binding.ownerStorage})};
+      };
+      let host=setup();
+      const created=await host.invoker.invokeMutation({operation:`${model}.create`,operation_id:nextId(),inputs:{}},identity);
+      assert.ok('result' in created,JSON.stringify(created));assert.equal(created.result.status,'committed');
+      const records=created.result.records;assert.ok(records);assert.equal(records.length,1);
+      const entry=object(records[0]);assert.equal(typeof entry.id,'string');const entryId=asId(String(entry.id));
+      const originalRow=await binding.store.load(model,entryId);assert.ok(originalRow);assert.equal(originalRow.version,1);
+      const uploadFile=async(uploadId:string,due:number)=>{
+        const request=(path:string,method:string,body:string|Uint8Array)=>new Request(path.startsWith('https:')?path:`https://test.invalid${path}`,
+          {method,headers:{authorization:`Bearer ${grant.token}`,'content-type':body instanceof Uint8Array?'application/octet-stream':'application/json',
+            ...(method==='PUT'?{'upload-offset':'0'}:{})},body});
+        const response=await host.handler(request('/files/intents','POST',JSON.stringify({upload_id:uploadId,operation:`${app}.arm`,field:'/attachment',
+          arguments:{entry:{id:entryId,version:'1'},due:new Date(due).toISOString(),accept:true},
+          name:'deferred.pdf',type:'application/pdf',size:String(A_BYTES.length)})));
+        assert.equal(response.status,200,await response.clone().text());
+        const intent=await response.json() as {content:string;finalize:string};
+        assert.equal((await host.handler(request(intent.content,'PUT',A_BYTES))).status,200);
+        const finalized=await host.handler(request(intent.finalize,'POST',JSON.stringify({upload_id:uploadId,bytes_digest:sha256Hex(A_BYTES)})));
+        assert.equal(finalized.status,200,await finalized.clone().text());
+        const ref=(await finalized.json() as {file:string}).file;assert.equal(typeof ref,'string');return ref;
+      };
+      const dueAt=FIXED_NOW+300000,ref=await uploadFile('cancelled-original',dueAt);
+      const arm=(file:string,at:number,accept:boolean):MutationEnvelope=>({operation:`${app}.arm`,operation_id:nextId(),
+        inputs:{entry:{id:entryId,version:'1'},attachment:{id:file},due:new Date(at).toISOString(),accept}});
+      const rejectedEnvelope=arm(ref,dueAt,false),beforeRejected=await resources(),rejectedRevision=await binding.store.readRevision();
+      const rejected=await host.invoker.invokeMutation(rejectedEnvelope,identity);assert.ok('error' in rejected,JSON.stringify(rejected));
+      assert.equal(rejected.error.code,'rule_failed');
+      const afterRejected=await resources();
+      for(const table of Object.keys(beforeRejected.a))if(!['receipts','fence','fence_log'].includes(table))assert.deepEqual(afterRejected.a[table],beforeRejected.a[table],table);
+      assert.equal(afterRejected.a.receipts!.length,beforeRejected.a.receipts!.length+1);
+      assert.equal(await binding.store.readRevision(),rejectedRevision+1);
+      assert.deepEqual(afterRejected.b,beforeRejected.b);assert.deepEqual(afterRejected.identity,beforeRejected.identity);assert.deepEqual(afterRejected.files,beforeRejected.files);
+      const rejectedReplay=await resources();await host.invoker.invokeMutation(rejectedEnvelope,identity);assert.deepEqual(await resources(),rejectedReplay);
+      const envelope=arm(ref,dueAt,true),revision=await binding.store.readRevision();
+      const accepted=await host.invoker.invokeMutation(envelope,identity);assert.ok('result' in accepted,JSON.stringify(accepted));assert.equal(accepted.result.status,'committed');
+      assert.equal(await binding.store.readRevision(),revision+1);assert.deepEqual(await binding.store.load(model,entryId),originalRow);
+      let schedules=await query(WORK_SCHEDULE_MODEL);assert.equal(schedules.length,1);
+      const queued=readScheduleRow(schedules[0]!);assert.equal(queued.state,'pending');assert.equal(queued.event,event);
+      assert.equal(queued.payload.note,'Retained');assert.deepEqual(queued.payload.attachment,{id:ref});
+      assert.ok(queued.filePayloadOrigin);assert.equal(queued.filePayloadOrigin.slot.id,schedules[0]!.id);
+      assert.equal(queued.filePayloadOrigin.slot.model,WORK_SCHEDULE_MODEL);
+      assert.equal(queued.filePayloadOrigin.origin.kind,'event-input');assert.equal(queued.filePayloadOrigin.declarationSetId,declarations[0]!.id);
+      assert.equal(queued.filePayloadOrigin.files.length,1);assert.deepEqual(queued.filePayloadOrigin.files[0]!.path,['attachment']);
+      assert.equal(queued.filePayloadOrigin.files[0]!.file.ref,ref);
+      const committed=await resources();const replay=await host.invoker.invokeMutation(envelope,identity);
+      assert.ok('result' in replay);assert.equal(replay.result.status,'replayed');assert.deepEqual(await resources(),committed);
+      now=FIXED_NOW+retention.unattachedHorizonMs+1;
+      const queuedResources=await resources();await assert.rejects(()=>binding.retireAndDelete(ref,'orphaned'));assert.deepEqual(await resources(),queuedResources);
+      const fileStoreId=physical.fileStoreId;physical.close();physical=createSqliteFileStore(filePath);
+      asm=await assembleModules({artifact,sourcePath:fixture},{workDir:join(dir,'reopened-modules'),
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      binding=await createNativeFileRetirementBinding({...bindingInput,asm,physicalSqliteFileStore:physical});host=setup();
+      assert.equal(physical.fileStoreId,fileStoreId);assert.deepEqual(await binding.store.readFileReferenceInventory(app),installed);
+      assert.deepEqual(readScheduleRow((await query(WORK_SCHEDULE_MODEL))[0]!).filePayloadOrigin,queued.filePayloadOrigin);
+      assert.deepEqual(await resources(),queuedResources);
+      await assert.rejects(()=>binding.retireAndDelete(ref,'orphaned'));assert.deepEqual(await resources(),queuedResources);
+      const cancelEnvelope:MutationEnvelope={operation:`${app}.cancel_pending`,operation_id:nextId(),inputs:{entry:{id:entryId,version:'1'}}};
+      const cancelled=await host.invoker.invokeMutation(cancelEnvelope,identity);assert.ok('result' in cancelled,JSON.stringify(cancelled));assert.equal(cancelled.result.status,'committed');
+      const cancelledSchedule=readScheduleRow((await query(WORK_SCHEDULE_MODEL))[0]!);
+      assert.equal(cancelledSchedule.state,'cancelled');
+      assert.deepEqual(cancelledSchedule.payload,queued.payload);
+      assert.deepEqual(cancelledSchedule.filePayloadOrigin,queued.filePayloadOrigin);
+      const afterCancel=await resources();await host.invoker.invokeMutation(cancelEnvelope,identity);assert.deepEqual(await resources(),afterCancel);
+      await assert.rejects(()=>binding.retireAndDelete(ref,'orphaned'));
+      assert.deepEqual(await resources(),afterCancel,'cancelled retained payload remains a retirement barrier without effects');
+      assert.deepEqual(physical.blobs.read(blobKeyForFile(ref)),A_BYTES);
+      const fireAt=FIXED_NOW+200000,fireRef=await uploadFile('delivered-original',fireAt),fireEnvelope=arm(fireRef,fireAt,true);
+      const fireArm=await host.invoker.invokeMutation(fireEnvelope,identity);assert.ok('result' in fireArm,JSON.stringify(fireArm));assert.equal(fireArm.result.status,'committed');
+      schedules=await query(WORK_SCHEDULE_MODEL);const pending=schedules.map(readScheduleRow).find(value=>value.state==='pending');assert.ok(pending);
+      assert.ok(pending.filePayloadOrigin);now=fireAt;
+      // Delivery remains gated on the defining actor-null File observation join; no synthetic receiver is supplied.
+      const due={key:pending.key,scope,occurrenceId:pending.occurrenceId,event:pending.event,at:pending.at,filePayloadOrigin:pending.filePayloadOrigin};
+      const options={artifact,asm,app,handler:privateHandler,due,store:binding.store,identities,now:clock.nowMs,files:host.files};
+      const beforeRouting=await resources();
+      const trustedIdentity={...identity,actor:null};
+      assert.equal(await host.files.observe!(fireRef,trustedIdentity,app),null,'ordinary actor-null observation remains refused');
+      assert.equal(await host.files.validate(fireRef,trustedIdentity,app),false,'saved receiver does not grant normal attachment');
+      const {files:omittedFiles,...withoutFiles}=options;
+      await assert.rejects(()=>invokeDueSourceRoutingCanonical(withoutFiles),/genuine observer/);
+      assert.deepEqual(await resources(),beforeRouting);
+      await assert.rejects(()=>invokeDueSourceRoutingCanonical({...options,files:{...omittedFiles}}),/no longer available/);
+      assert.deepEqual(await resources(),beforeRouting,'copied host binding has no retained observation authority');
+      const incompatibleFiles=createCanonicalFileBinding(createFileJourneyKernel(binding.bindings),{...retention,retentionMs:retention.retentionMs+1});
+      await assert.rejects(()=>invokeDueSourceRoutingCanonical({...options,files:incompatibleFiles}),/no longer available/);
+      assert.deepEqual(await resources(),beforeRouting,'current host policy cannot recapture incompatible original File horizons');
+      assert.equal(object(await invokeDueSourceRoutingCanonical(options)).status,'completed');
+      assert.deepEqual(await binding.store.load(model,entryId),originalRow);
+      const sourceRow=await binding.store.load(WORK_OCCURRENCE_MODEL,asId(pending.occurrenceId));assert.ok(sourceRow);
+      assert.equal(readOccurrenceRow(sourceRow).status,'completed');
+      const routes=await query(WORK_HANDLER_OCCURRENCE_MODEL);assert.equal(routes.length,1);
+      const retained=readHandlerOccurrenceRow(routes[0]!);assert.equal(retained.state,'pending');
+      assert.equal(retained.handler,privateHandler);assert.equal(retained.sourceOccurrence,pending.occurrenceId);assert.equal(retained.payload.note,'Retained');
+      assert.ok(retained.filePayloadOrigin);assert.equal(retained.filePayloadOrigin.slot.id,routes[0]!.id);
+      assert.equal(retained.filePayloadOrigin.slot.model,WORK_HANDLER_OCCURRENCE_MODEL);
+      assert.notDeepEqual(retained.filePayloadOrigin.slot,pending.filePayloadOrigin.slot,'handler header is issued for its own genuine row');
+      assert.deepEqual(retained.filePayloadOrigin.files,pending.filePayloadOrigin.files);
+      const routed=await resources();assert.equal(routed.a.schedules!.length,beforeRouting.a.schedules!.length-1,'actual source routing cancels its L3 schedule');assert.equal(object(await invokeDueSourceRoutingCanonical(options)).status,'replayed');assert.deepEqual(await resources(),routed);
+      const selector={sourceOccurrence:retained.sourceOccurrence,handler:retained.handler,event:retained.event,scope,filePayloadOrigin:retained.filePayloadOrigin};
+      const handlerOptions={artifact,asm,app,selector,store:binding.store,identities,now:clock.nowMs,files:host.files};
+      const beforeHandlerRevision=await binding.store.readRevision();
+      assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical(handlerOptions)).status,'completed');
+      assert.equal(await binding.store.readRevision(),beforeHandlerRevision+1);
+      const terminal=await resources();assert.equal(readHandlerOccurrenceRow((await query(WORK_HANDLER_OCCURRENCE_MODEL))[0]!).state,'completed');
+      assert.deepEqual(await binding.store.load(model,entryId),originalRow);
+      assert.equal(terminal.a.receipts!.length,routed.a.receipts!.length+1,'one actual private handler canonical receipt');
+      assert.deepEqual(terminal.a.records!.filter(row=>row.model===model),beforeRouting.a.records!.filter(row=>row.model===model));
+      for(const table of ['history','outbox','schedules','unique_claims']){assert.ok(terminal.a[table]);assert.deepEqual(terminal.a[table],routed.a[table],table);}
+      assert.deepEqual(terminal.b,beforeRouting.b);assert.deepEqual(terminal.identity,beforeRouting.identity);assert.deepEqual(terminal.files,beforeRouting.files);
+      assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical(handlerOptions)).status,'replayed');assert.deepEqual(await resources(),terminal);
+      assert.equal(JSON.stringify(artifact),originalArtifact);
+      assert.deepEqual(await Promise.all(inputs.map(async path=>hash(await readFile(path)))),originalHashes);
     } finally {physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
   });

@@ -146,8 +146,10 @@ describe("deploy bundle (P-B)", () => {
       "vendor/work/kernel/arguments.js",
       "vendor/work/kernel/committed-model-source.js",
       "vendor/work/kernel/dispatch-staging.js",
+      "vendor/work/kernel/file-reference-inventory.js",
       "vendor/work/kernel/handler-occurrence.js",
       "vendor/work/kernel/occurrence-staging.js",
+      "vendor/work/kernel/opaque-file-resolver.js",
       "vendor/work/kernel/schedule-staging.js",
       "vendor/work/kernel/staging-support.js",
       "vendor/work/kernel/standard-completion-source.js",
@@ -896,6 +898,41 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
         spec => spec === '@canlang/state' ? '../../state/index.js' : spec.startsWith('@canlang/state/')
           ? `../../state/${spec.slice('@canlang/state/'.length)}.js` : spec === '@canlang/values' ? '../../values/index.js' : spec,
         { profile: 'trusted-producer' }).js);
+    const opaqueKey = 'runtime/opaque-file-staging.js';
+    const originalOpaque = readFileSync(join(dirname(runtimeFile), 'opaque-file-staging.js'), 'utf8');
+    const originalFileImports = scanModuleImports(originalOpaque, opaqueKey).filter(record => record.specifier === '@canlang/work');
+    expect(originalFileImports).toHaveLength(1);
+    expect(originalFileImports[0]!.kind).toBe('evaluation-static');
+    expect(originalOpaque.slice(originalFileImports[0]!.statement.start, originalFileImports[0]!.statement.end))
+      .toMatch(/^import\s*\{\s*WORK_FILE_REFERENCE_PRODUCER\s*\}\s*from/);
+    const stagedOpaque = bundle.modules[opaqueKey]!;
+    const stagedFileImports = scanModuleImports(stagedOpaque, opaqueKey)
+      .filter(record => record.specifier === '../vendor/work/kernel/file-reference-inventory.js');
+    expect(stagedFileImports).toHaveLength(1);
+    expect(stagedFileImports[0]!.kind).toBe('evaluation-static');
+    expect(stagedOpaque.slice(stagedFileImports[0]!.statement.start, stagedFileImports[0]!.statement.end))
+      .toMatch(/^import\s*\{\s*WORK_FILE_REFERENCE_PRODUCER\s*\}\s*from/);
+    const storageImports = scanModuleImports(stagedOpaque, opaqueKey);
+    expect(storageImports.filter(record => record.specifier === '../vendor/state/storage/opaque-file-declarations.js')).toHaveLength(1);
+    expect(storageImports.filter(record => record.specifier === '../vendor/state/storage/file-retirement.js')).toHaveLength(1);
+    expect(storageImports.some(record => record.specifier === '@canlang/state/storage' ||
+      record.specifier === '../vendor/state/storage.js' || record.specifier === '../vendor/state/storage/index.js')).toBe(false);
+    const stateModules = (await import('@canlang/state/distribution')).distribution.modules;
+    for (const name of ['opaque-file-declarations', 'file-retirement']) {
+      const key = `vendor/state/storage/${name}.js`;
+      expect(bundle.modules[key]).toBe(rewriteModuleImports(readFileSync(new URL(`storage/${name}.js`, stateModules), 'utf8'), key,
+        spec => spec === '@canlang/values' ? '../../values/index.js'
+          : spec === '@canlang/files/ports' ? '../../files/ports.js'
+            : spec === '@canlang/files/finalize' ? '../../files/finalize/index.js' : spec,
+        { profile: 'trusted-producer' }).js);
+    }
+    const fileDistribution = (await import('@canlang/work/distribution')).distribution.modules;
+    expect(bundle.modules['vendor/work/kernel/file-reference-inventory.js'])
+      .toBe(readFileSync(new URL('kernel/file-reference-inventory.js', fileDistribution), 'utf8'));
+    expect(bundle.modules['vendor/work/kernel/opaque-file-resolver.js'])
+      .toBe(rewriteModuleImports(readFileSync(new URL('kernel/opaque-file-resolver.js', fileDistribution), 'utf8'),
+        'vendor/work/kernel/opaque-file-resolver.js', spec => spec === '@canlang/values' ? '../../values/index.js' : spec,
+        { profile: 'trusted-producer' }).js);
     const stagedSourceStage = invoke.match(/^async function canonicalCommittedSourceStage\b[\s\S]*?^}/m)?.[0] ?? "";
     expect(stagedSourceStage).toMatch(/loadProducerModule\(["']\.\.\/vendor\/state\/mutation\/index\.js["'],\s*["']committed model source lifetime["']\)/);
     expect(stagedSourceStage).toMatch(/requireProducerFn\(state,\s*["']readOwnerMutationSourceStage["'],\s*["']committed model source lifetime["']\)/);
@@ -970,6 +1007,10 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
     for (const key of [
       "vendor/work/kernel/committed-model-source.js",
+      "vendor/work/kernel/file-reference-inventory.js",
+      "vendor/work/kernel/opaque-file-resolver.js",
+      "vendor/state/storage/opaque-file-declarations.js",
+      "vendor/state/storage/file-retirement.js",
       "vendor/work/receipt/index.js",
       "vendor/work/observation/observation.js",
       "vendor/work/observation/association.js",
@@ -1006,20 +1047,28 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
         `import { ${selected} as selectedWorkStager } from "@canlang/\\u0077ork";`,
         'import { createStandardCompletionSourceCommand as selectedWorkStager } from "@canlang/work";',
         `import { ${selected} as selectedWorkStager, createStandardCompletionSourceCommand as selectedCompletion } from "@canlang/work";`,
+        'import { WORK_FILE_REFERENCE_PRODUCER as selectedWorkStager } from "@canlang/work";',
+        'import { WORK_FILE_REFERENCE_PRODUCER as selectedWorkStager } from "@canlang/\\u0077ork";',
+        `import { ${selected} as selectedWorkStager, createStandardCompletionSourceCommand as selectedCompletion, WORK_FILE_REFERENCE_PRODUCER as selectedFiles } from "@canlang/work";`,
       ]) {
         writeFileSync(target, `${original.toString("utf8")}\n${source}\nexport const importFormControl = selectedWorkStager;\n`);
         const bundle = buildDeployBundle(testArtifact(), options);
         const specifiers = scanModuleImports(bundle.modules[key]!, key).map(record => record.specifier);
         expect(specifiers).toContain(source.includes('createCommittedModelSourceStager')
           ? kind === 'runtime' ? '../vendor/work/kernel/committed-model-source.js' : './committed-model-source.js'
-          : kind === 'runtime' ? '../vendor/work/kernel/standard-completion-source.js' : './standard-completion-source.js');
+          : source.includes('createStandardCompletionSourceCommand')
+            ? kind === 'runtime' ? '../vendor/work/kernel/standard-completion-source.js' : './standard-completion-source.js'
+            : kind === 'runtime' ? '../vendor/work/kernel/file-reference-inventory.js' : './file-reference-inventory.js');
         if (source.includes('selectedCompletion')) expect(specifiers).toContain(kind === 'runtime'
           ? '../vendor/work/kernel/standard-completion-source.js' : './standard-completion-source.js');
+        if (source.includes('selectedFiles')) expect(specifiers).toContain(kind === 'runtime'
+          ? '../vendor/work/kernel/file-reference-inventory.js' : './file-reference-inventory.js');
         expect(specifiers).not.toContain("@canlang/work");
       }
       for (const source of [
         'import { createIntent } from "@canlang/work";',
         `import { ${selected} as selectedWorkStager, createIntent } from "@canlang/work";`,
+        'import { WORK_FILE_REFERENCE_PRODUCER as selectedFiles, createIntent } from "@canlang/work";',
         'import work from "@canlang/work";',
         'import * as work from "@canlang/work";',
         'import "@canlang/work";',
@@ -1030,9 +1079,32 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
         'const specifier = "@canlang/work"; const work = import(specifier);',
         "const work = loadProducerModule('@canlang/work', 'committed model source finalizer');",
         'import { createIntent } from "@canlang/\\u0077ork";',
+        'const source = { package: "@canlang/work" };',
       ]) {
         writeFileSync(target, `${original.toString("utf8")}\n${source}\n`);
         expect(() => buildDeployBundle(testArtifact(), options), source).toThrow(/only.*named.*createCommittedModelSourceStager/);
+      }
+      const storageSource = 'import { bindOpaqueFileDeclarations as bound, prepareFrameworkFilePayloadOrigin as origin, resolveOpaqueFileProjection as projection, validateOpaqueFileOrigin as valid } from "@canlang/state/\\u0073torage";';
+      writeFileSync(target, `${original.toString('utf8')}\n${storageSource}\nexport const storageImportControl = [bound, origin, projection, valid];\n`);
+      const storageBundle = buildDeployBundle(testArtifact(), options);
+      const storageEdges = scanModuleImports(storageBundle.modules[key]!, key).map(record => record.specifier);
+      expect(storageEdges).toContain(kind === 'runtime' ? '../vendor/state/storage/opaque-file-declarations.js' : '../../state/storage/opaque-file-declarations.js');
+      expect(storageEdges).toContain(kind === 'runtime' ? '../vendor/state/storage/file-retirement.js' : '../../state/storage/file-retirement.js');
+      expect(storageEdges).not.toContain('@canlang/state/storage');
+      for (const source of [
+        'import { createD1Storage } from "@canlang/state/storage";',
+        'import { prepareFrameworkFilePayloadOrigin, createD1Storage } from "@canlang/state/storage";',
+        'import storage from "@canlang/state/storage";',
+        'import * as storage from "@canlang/state/storage";',
+        'import "@canlang/state/storage";',
+        'export { prepareFrameworkFilePayloadOrigin } from "@canlang/state/storage";',
+        'export * from "@canlang/state/storage";',
+        'const storage = import("@canlang/state/storage");',
+        'const storage = import(`@canlang/state/storage`);',
+        'const specifier = "@canlang/state/storage"; const storage = import(specifier);',
+      ]) {
+        writeFileSync(target, `${original.toString('utf8')}\n${source}\n`);
+        expect(() => buildDeployBundle(testArtifact(), options), source).toThrow(/only.*named.*bindOpaqueFileDeclarations/);
       }
       if (kind === "vendor") {
         writeFileSync(target, "export function {\n");

@@ -143,6 +143,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "input-choices.js",
   "receipt-staging.js",
   "file-staging.js",
+  "opaque-file-staging.js",
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",
@@ -306,6 +307,7 @@ const WORK_SOURCE_SPECIFIER = "@canlang/work";
 /** Selected root export; the public barrel also exposes Node-only producers. */
 const WORK_VENDOR_ENTRY = "vendor/work/kernel/committed-model-source.js";
 const WORK_COMPLETION_VENDOR_ENTRY = "vendor/work/kernel/standard-completion-source.js";
+const WORK_FILE_REFERENCE_VENDOR_ENTRY = "vendor/work/kernel/file-reference-inventory.js";
 const WORK_DISPATCH_VENDOR_ENTRY = "vendor/work/kernel/dispatch-staging.js";
 const WORK_SCHEDULE_SOURCE_SPECIFIER = "@canlang/work/kernel/schedule-staging";
 const WORK_SCHEDULE_VENDOR_ENTRY = "vendor/work/kernel/schedule-staging.js";
@@ -581,6 +583,7 @@ function rewriteArtifactImports(js: string, modulePath: string) {
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
 const STATE_SOURCE_SPECIFIER = "@canlang/state";
 const STATE_D1_SOURCE_SPECIFIER = "@canlang/state/storage/d1";
+const STATE_STORAGE_SOURCE_SPECIFIER = "@canlang/state/storage";
 const STATE_MUTATION_SOURCE_SPECIFIER = "@canlang/state/mutation";
 const STATE_MUTATION_VENDOR_ENTRY = "vendor/state/mutation/index.js";
 const STATE_INVOCATION_SOURCE_SPECIFIER = "@canlang/state/invocation";
@@ -594,8 +597,8 @@ const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 const JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER = "@canlang/services/judgments/specification";
 const JUDGMENT_SPECIFICATION_VENDOR_ENTRY = "vendor/services/judgments/specification.js";
 
-/** Split only the selected public Work factories into their genuine portable leaves. */
-function rewriteWorkRootImports(js: string, moduleKey: string): string {
+/** Split selected public named exports without loading a broad producer barrel. */
+function rewriteNamedProducerImports(js: string, moduleKey: string, source: string, leaves: ReadonlyMap<string, string>): string {
   let ast: Parameters<typeof walkJavaScript>[0];
   try {
     ast = parseJavaScript(js, { ecmaVersion: 2025, sourceType: "module", ranges: true }) as unknown as Parameters<typeof walkJavaScript>[0];
@@ -605,17 +608,13 @@ function rewriteWorkRootImports(js: string, moduleKey: string): string {
     throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} has invalid JavaScript syntax at offset ${offset}`);
   }
   const acceptedSources = new Set<object>();
-  const leaves = new Map([
-    ['createCommittedModelSourceStager', WORK_VENDOR_ENTRY],
-    ['createStandardCompletionSourceCommand', WORK_COMPLETION_VENDOR_ENTRY],
-  ]);
   const replacements: { start: number; end: number; text: string }[] = [];
   const refuse = (): never => {
-    throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} uses unsupported @canlang/work root access; only static named createCommittedModelSourceStager and createStandardCompletionSourceCommand imports are staged`);
+    throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} uses unsupported ${source} root access; only static named ${[...leaves.keys()].join(', ')} imports are staged`);
   };
   walkJavaScript(ast, {
-    enter(node) {
-      if (node.type === "ImportDeclaration" && node.source.value === WORK_SOURCE_SPECIFIER) {
+    enter(node, parent) {
+      if (node.type === "ImportDeclaration" && node.source.value === source) {
         if (node.specifiers.length === 0 || (node as unknown as { attributes?: readonly unknown[] }).attributes?.length || node.specifiers.some(specifier =>
           specifier.type !== "ImportSpecifier" ||
           !leaves.has(String(specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value)),
@@ -637,8 +636,13 @@ function rewriteWorkRootImports(js: string, moduleKey: string): string {
       }
       // Reject re-exports, dynamic imports, constant loaders and other exact
       // root values. Decoded AST values also catch escaped literals/templates.
-      if (node.type === "Literal" && node.value === WORK_SOURCE_SPECIFIER && !acceptedSources.has(node)) refuse();
-      if (node.type === "TemplateElement" && node.value.cooked === WORK_SOURCE_SPECIFIER) refuse();
+      // The genuine Work inventory's declaration provenance is inert data,
+      // preserved byte-for-byte. This exception grants no root import access.
+      const inventoryPackage = source === WORK_SOURCE_SPECIFIER && moduleKey === WORK_FILE_REFERENCE_VENDOR_ENTRY &&
+        parent?.type === 'Property' && parent.value === node && !parent.computed && !parent.method && parent.kind === 'init' &&
+        (parent.key.type === 'Identifier' ? parent.key.name === 'package' : parent.key.type === 'Literal' && parent.key.value === 'package');
+      if (node.type === "Literal" && node.value === source && !acceptedSources.has(node) && !inventoryPackage) refuse();
+      if (node.type === "TemplateElement" && node.value.cooked === source) refuse();
     },
   });
   for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
@@ -647,9 +651,23 @@ function rewriteWorkRootImports(js: string, moduleKey: string): string {
   return js;
 }
 
+function rewriteSelectedProducerImports(js: string, moduleKey: string): string {
+  js = rewriteNamedProducerImports(js, moduleKey, WORK_SOURCE_SPECIFIER, new Map([
+    ['createCommittedModelSourceStager', WORK_VENDOR_ENTRY],
+    ['createStandardCompletionSourceCommand', WORK_COMPLETION_VENDOR_ENTRY],
+    ['WORK_FILE_REFERENCE_PRODUCER', WORK_FILE_REFERENCE_VENDOR_ENTRY],
+  ]));
+  return rewriteNamedProducerImports(js, moduleKey, STATE_STORAGE_SOURCE_SPECIFIER, new Map([
+    ['bindOpaqueFileDeclarations', 'vendor/state/storage/opaque-file-declarations.js'],
+    ['prepareFrameworkFilePayloadOrigin', 'vendor/state/storage/file-retirement.js'],
+    ['resolveOpaqueFileProjection', 'vendor/state/storage/opaque-file-declarations.js'],
+    ['validateOpaqueFileOrigin', 'vendor/state/storage/opaque-file-declarations.js'],
+  ]));
+}
+
 /** Rewrite worker/runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
-  js = rewriteWorkRootImports(js, moduleKey);
+  js = rewriteSelectedProducerImports(js, moduleKey);
   const mapped = (spec: string): string => {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
@@ -721,6 +739,7 @@ function stageWorkStagingProducers(): Record<string, string> {
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
   entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "committed-model-source.js"));
   entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "standard-completion-source.js"));
+  entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "file-reference-inventory.js"));
   const base = dirname(dirname(entries[0]!));
   const modules: Record<string, string> = {};
   const visit = (file: string): void => {
@@ -770,7 +789,7 @@ function stageFilesFinalizeProducer(): Record<string, string> {
  * mappings with no occurrence are exact no-ops.
  */
 function rewriteVendorImports(js: string, moduleKey: string): string {
-  js = rewriteWorkRootImports(js, moduleKey);
+  js = rewriteSelectedProducerImports(js, moduleKey);
   const mapped = (spec: string): string => {
     if (moduleKey.startsWith("vendor/identity/")) {
       if (spec === "#identity-byte-compare") return relativeSpecifier(moduleKey, "vendor/identity/sessions/comparison-worker.js");

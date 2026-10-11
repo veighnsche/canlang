@@ -184,3 +184,12 @@ verified host assembly; retry returns the original decision and eventually
 `already-deleted` without advancing State. An existing assembly cannot replace
 its installed receiving port. Installation performs no automatic deletion and
 exposes no public maintenance route.
+
+Deferred File payloads use the installed original event and callable profiles.
+The host prepares a separate State-validated header for each actual Work row;
+a saved receiver crosses the Files kernel only after current original-source,
+slot, profile, owner and revision checks, with a fresh genuine observation and
+unchanged explicit retention policy. Normal actor-null attachment and disclosure
+remain refused. Cancelled payloads remain physical retirement barriers. The
+compiled deferred native join is unfinished pending the defining Compiler's
+complete event-aware Values census and its affected workflow validation.

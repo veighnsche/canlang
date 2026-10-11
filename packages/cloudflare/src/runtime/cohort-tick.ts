@@ -1,6 +1,7 @@
 import type { CompileArtifact, ModelName, RecordId, WorkScope } from '@canlang/contracts';
 import type { IdentityStore } from '@canlang/identity';
 import type { AssembledModules } from './modules.js';
+import type { CanonicalFileBinding } from './file-staging.js';
 import type { CohortTickBinding, TeamOwnerStorageBoundary } from '../worker/assembly.js';
 import { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readScheduleRow, readOccurrenceRow } from '@canlang/work/kernel/tables';
 import { handlerOccurrencePendingQuery, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
@@ -30,8 +31,9 @@ export async function createBoundCohortTick(input: {
   readonly scope: WorkScope;
   readonly now: () => number;
   readonly deploymentBase?: string;
+  readonly files?: CanonicalFileBinding;
 }): Promise<CohortTickBinding> {
-  const { artifact, asm, identities, ownerStorage, now: clock } = input;
+  const { artifact, asm, identities, ownerStorage, files, now: clock } = input;
   const scope = Object.freeze({ ...input.scope });
   const deploymentBase = input.deploymentBase === undefined ? undefined : validateDeploymentBase(input.deploymentBase);
   if (scope.app !== ownerStorage.app) throw new Error('Cohort tick app disagrees with its owner boundary.');
@@ -70,16 +72,20 @@ export async function createBoundCohortTick(input: {
       }
       if (handler === undefined) throw new Error('Cohort tick due event has no declared handler.');
       outputs.push(await invokeDueSourceRoutingCanonical({ artifact, asm, app: scope.app, handler,
-        due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
+        due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope,
+          ...(source.filePayloadOrigin === undefined ? {} : { filePayloadOrigin: source.filePayloadOrigin }) },
         store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+        ...(files === undefined ? {} : { files }),
         cohortBounds: { pageLimit: INSTALLED_SLICE_LIMIT, chunkSize: INSTALLED_SLICE_LIMIT } }));
     }
     const routes = await store.query(handlerOccurrencePendingQuery(scope, { cursor: null, limit: 1 }));
     for (const row of routes) {
       const route = readHandlerOccurrenceRow(row);
       outputs.push(await invokeRetainedHandlerOccurrenceCanonical({ artifact, asm, app: scope.app,
-        selector: { sourceOccurrence: route.sourceOccurrence, handler: route.handler, event: route.event, scope },
-        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }) }));
+        selector: { sourceOccurrence: route.sourceOccurrence, handler: route.handler, event: route.event, scope,
+          ...(route.filePayloadOrigin === undefined ? {} : { filePayloadOrigin: route.filePayloadOrigin }) },
+        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+        ...(files === undefined ? {} : { files }) }));
     }
     const scan = await store.load(FANOUT_OWNER_SCAN_MODEL as ModelName, fanoutOwnerScanRowId(scope.owner) as RecordId);
     const intents = await store.query(fanoutOwnerIntentQuery({ row: scan, owner: scope.owner, limit: 1 }));
@@ -98,8 +104,10 @@ export async function createBoundCohortTick(input: {
         throw new Error('Cohort tick retained source disagrees with its selected owner.');
       }
       body = await createCanonicalDueCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
-        due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
-        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
+        due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope,
+          ...(source.filePayloadOrigin === undefined ? {} : { filePayloadOrigin: source.filePayloadOrigin }) },
+        store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+        ...(files === undefined ? {} : { files }) });
     } else {
       const row = await store.load(WORK_OCCURRENCE_MODEL, intent.sourceOccurrence as RecordId);
       if (row === null) throw new Error('Cohort tick retained intent lost its authoritative source.');
@@ -110,7 +118,8 @@ export async function createBoundCohortTick(input: {
         throw new Error('Cohort tick retained intent lacks a checked source receipt.');
       }
       body = await createCanonicalCommittedCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,
-        source: { occurrenceId: intent.sourceOccurrence, event: result.event, scope }, store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
+        source: { occurrenceId: intent.sourceOccurrence, event: result.event, scope }, store, identities, now: () => now,
+        ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(files === undefined ? {} : { files }) });
     }
     const checkpoint = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, intentRow.id);
     if (checkpoint === null) throw new Error('Cohort tick retained intent lost its checkpoint.');
