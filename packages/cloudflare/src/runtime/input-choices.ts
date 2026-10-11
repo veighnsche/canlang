@@ -35,7 +35,7 @@ export async function lookupInputChoicesCanonical(opts: InputChoicesCanonicalOpt
   }
   const draftError = checkBoundArguments(derived, inputs);
   if (draftError !== null) throw new StateError('validation', draftError.message);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const declared = opts.artifact.operations?.find(operation => operation.name === binding.readOperation);
   const candidateModel = loaded.models.find(model => `${model.name}[]` === declared?.result?.type);
   const def = loaded.registry.get(binding.readOperation) as {
