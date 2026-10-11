@@ -11,6 +11,7 @@ import { observeRetainedCanonicalFile, type CanonicalFileBinding } from './file-
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import { stableStringify } from '@canlang/state/invocation';
 import type { ScenarioReceiptDeliveryOriginFrame, ScenarioReceiptSendGuard } from '@canlang/state/invocation';
+import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 
 export interface RetainedOpaqueFileSource {
   readonly model: ModelName;
@@ -171,6 +172,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     const checked = canonical.length === 1 ? canonical[0]!.fields[field]?.delivery : undefined;
     if (authored?.kind !== 'delivery' || checked === undefined || !equal(authored, checked) ||
         original.target !== `${checked.capability}.${checked.operation}`) refuse('delivery lacks its exact original model/field/target declaration');
+    const generation = dispatchGenerationTargetProfile(original.target);
     const matches = set.declarations.filter(candidate => candidate.source.kind === 'delivery' &&
       // Multiple original callables share this emitted module/source pair.
       // Keep the installed result declaration issued for THIS exact caller.
@@ -179,14 +181,41 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       equal(candidate.source.context.canonical, checked) && equal(candidate.source.context.artifact, authored) &&
       equal(candidate.profile.canonical, checked.result) && equal(candidate.profile.artifact, authored.result));
     if (matches.length !== 1 || matches[0]!.source.kind !== 'delivery') refuse('delivery lacks its complete installed original provider result declaration');
-    const declaration = matches[0]!.source.context;
-    if (original.target !== 'std.EmailV1.send' || declaration.kind !== 'capability' || 'judgment' in checked) {
-      refuse('conditional native Email requires its original ordinary capability context');
+    const profile = matches[0]!.source.context;
+    let declaration: FrameworkOpaqueDeliveryContext;
+    if (profile.kind === 'generation-profile') {
+      if (generation?.role !== 'original') refuse('static Generation profile requires its original Work target');
+      // State supplies the actual SEND/frame request. Its receipt producer
+      // verifies this instance against that original binding/target and owner.
+      const request = 'intentId' in original ? original.arguments : own(original, 'request');
+      const value = own(own(request, 'arguments'), 'value');
+      const source = own(value, 'source'), revision = own(value, 'revision');
+      if (typeof source !== 'string' || source === '' || typeof revision !== 'string' ||
+          !/^(0|[1-9][0-9]*)$/.test(revision)) refuse('actual original Generation request identity required');
+      declaration = captureData({ kind: 'generation', canonical: profile.canonical,
+        artifact: profile.artifact, request: { source, revision } });
+    } else declaration = profile;
+    if ('judgment' in checked ? declaration.kind !== 'judgment' :
+        generation !== null ? declaration.kind !== 'generation' : declaration.kind !== 'capability') {
+      refuse('delivery lacks its owning original context variant');
+    }
+    if (declaration.kind === 'generation') {
+      const request = 'intentId' in original ? original.arguments : own(original, 'request');
+      const value = own(own(request, 'arguments'), 'value');
+      if (!equal(declaration.request, { source: own(value, 'source'), revision: own(value, 'revision') })) {
+        refuse('delivery generation correlation differs from its original installed request');
+      }
+    } else if (declaration.kind === 'judgment') {
+      const request = 'intentId' in original ? original.arguments : own(original, 'request');
+      const judgment = own(request, 'judgment');
+      if (!equal(declaration.specification, own(judgment, 'specification')) || !equal(declaration.order, own(judgment, 'order'))) {
+        refuse('delivery Judgment differs from its original frozen specification');
+      }
     }
     return Object.freeze({ declaration, resultDeclarationId: matches[0]!.id });
   };
-  const occurrences = (projection: FrameworkOpaqueValueProjection, value: unknown) =>
-    resolveOpaqueFileProjection(bound, projection, value);
+  const occurrences = (projection: FrameworkOpaqueValueProjection, value: unknown, binding?: FrameworkFilePayloadOrigin) =>
+    resolveOpaqueFileProjection(bound, projection, value, binding);
   const own = (value: unknown, key: string | number): unknown => {
     if (typeof value !== 'object' || value === null) refuse('original stored own value required');
     const property = Object.getOwnPropertyDescriptor(value, String(key));
@@ -216,7 +245,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     const found = resolved.values.flatMap(projection => {
       let value = payload;
       for (const part of projection.path) value = own(value, part);
-      return occurrences(projection, value).map(item => ({ path: [...projection.path, ...item.path], ref: item.ref }));
+      return occurrences(projection, value, header).map(item => ({ path: [...projection.path, ...item.path], ref: item.ref }));
     });
     if (found.length !== header.files.length) refuse('retained source lacks complete typed File correspondence');
     const paths = new Set<string>();
@@ -259,7 +288,10 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     if (request.scope.app !== scope.app || request.scope.owner !== scope.owner || request.scope.ownerPackage !== scope.ownerPackage) {
       refuse('payload differs from the original source scope');
     }
-    const found = occurrences(request.projection, request.value);
+    // Static Generation projections borrow only the verified original source
+    // header. Fresh request/result File enrollment needs its owning producer;
+    // an absent original header continues to refuse rather than be fabricated.
+    const found = occurrences(request.projection, request.value, request.retainedSource?.binding);
     const files = request.files, observe = found.length === 0 ? undefined : files?.observe;
     if (found.length !== 0 && (files === undefined || request.retainedSource === undefined &&
         (typeof observe !== 'function' || request.identity.actor === null))) {

@@ -143,13 +143,14 @@ export function nativeCapabilityResultDeclarations(
       }
       if ('judgment' in field.field) continue;
       const generation = dispatchGenerationTargetProfile(`${field.field.capability}.${field.field.operation}`);
-      if (generation !== null) continue;
+      // Control requests retain their separately defining original-request join.
+      if (generation !== null && generation.role !== 'original') continue;
       if ('judgment' in canonical) throw new Error('File retirement original delivery variants disagree.');
       if (output.some(declaration => declaration.source.kind === 'delivery' &&
           equal(declaration.source.context.canonical, canonical))) continue;
       output.push({ id: `${caller.callable.id}:delivery:${model.name}:${field.name}:result`,
         source: { kind: 'delivery', source: caller.source,
-          context: { kind: 'capability', canonical, artifact: field.field } },
+          context: { kind: generation === null ? 'capability' : 'generation-profile', canonical, artifact: field.field } },
         profile: { kind: 'provider-result', canonical: canonical.result, artifact: field.field.result } });
     }
   }
@@ -310,7 +311,9 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
         throw new Error('File retirement original callable results disagree.');
       }
       declarations.push({ id: `${callable.id}:result`, source,
-        profile: canonical.result.type === 'void' ? { kind: 'void', canonical: { type: 'void' }, artifact: { type: 'void' } } :
+        // Explicit void still retains the Compiler's original disclosure plan.
+        profile: canonical.result.type === 'void' ? { kind: 'void',
+          canonical: { ...canonical.result, type: 'void' }, artifact: { ...operation.result, type: 'void' } } :
           { kind: 'result', canonical: canonical.result, artifact: operation.result } });
     }
   }

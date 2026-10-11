@@ -267,7 +267,7 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
       if (fields === undefined) { fields = new Map(); frame.observedFields.set(sourceView, fields); }
       fields.set(field, Object.freeze({ model, wire: field === 'parent'
         ? row.parent === null || row.parent === undefined ? null : { id: row.parent.id }
-        : row.data[field] }));
+        : field === 'id' ? row.id : row.data[field] }));
     } catch (error) { fail(frame, error); }
     finally { frame.pending -= 1; }
   })();

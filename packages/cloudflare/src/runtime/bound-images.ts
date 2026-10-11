@@ -1,13 +1,16 @@
 /** Native installed Images composition; Work and Files own durable boundaries. */
 import { STD_IMAGES_V1_VERSION, deliveryResultLeaves } from '@canlang/contracts';
 import type { GeneratedImage, ImageRequest, ImageRun, OutboxIntent, ProviderBinding,
-  ReceiptResultContext, WorkflowDefinition } from '@canlang/contracts';
+  ReceiptResultContext, WorkflowDefinition, RetainedFinalizedFile } from '@canlang/contracts';
 import type { InstalledImages, InstalledImageOptions, ResolveInstalledImages } from '@canlang/services';
+import { readFinalizedFileObservation } from '@canlang/files/finalize';
+import type { FrameworkFilePayloadOriginInput } from '@canlang/state/storage';
 import type { ProviderOutputOutcome } from '@canlang/files/finalize';
 import { deriveOutboxId } from '@canlang/work/intent';
 import type { DispatchImageCorrelation } from '@canlang/work/kernel/tables';
 import { decodeValue, encodeValue, normalizeSchema, validateOperationInput } from '@canlang/values';
 import type { SchemaDescriptor } from '@canlang/values';
+import { stableStringify } from '@canlang/state/invocation';
 import { isImageRunReceiptPayload } from '@canlang/state/receipt/tables';
 import type { DispatchProviderOutcome, DispatchReconcileEvidence } from './invoke.js';
 
@@ -25,13 +28,21 @@ export interface ImageRunWire {
   readonly detail: string | null;
 }
 
+type FinalizeOutputInput = { readonly intent: OutboxIntent; readonly output: GeneratedImage;
+  readonly resultPath: string; readonly originalScope?: { readonly app: string; readonly owner: string; readonly principal: string } };
+type OutputFiles = FrameworkFilePayloadOriginInput['files'];
+
 export interface BoundImagesOptions {
   readonly appDefinition: unknown;
   readonly binding: ProviderBinding;
   readonly resolveInstalledImages: ResolveInstalledImages;
   /** Actual owning Files finalization, inside its durable byte/metadata transaction. */
-  readonly finalizeOutput: (input: { readonly intent: OutboxIntent; readonly output: GeneratedImage;
-    readonly resultPath: string; readonly originalScope?: { readonly app: string; readonly owner: string; readonly principal: string } }) => Promise<ProviderOutputOutcome>;
+  readonly finalizeOutput: (input: FinalizeOutputInput) => Promise<ProviderOutputOutcome>;
+  /** Trusted host pair with finalizeOutput. Uses its SAME actual receiver and
+   * explicit retention; technical actor-null dispatch supplies no new grant. */
+  readonly observeOutput?: (input: FinalizeOutputInput, outcome: Extract<ProviderOutputOutcome,
+    { readonly status: 'finalized' | 'repeated' }>) => Promise<unknown | null>;
+  readonly revalidateOutput?: (saved: RetainedFinalizedFile) => Promise<boolean>;
 }
 
 export interface BoundImagesCallOptions {
@@ -39,7 +50,7 @@ export interface BoundImagesCallOptions {
   readonly stagedAtMs: number;
   /** Must durably commit this queued snapshot before provider transport. */
   readonly onQueued: (progress: ImageRunWire) => Promise<void>;
-  readonly onProgress: (progress: ImageRunWire) => Promise<void>;
+  readonly onProgress: (progress: ImageRunWire, files?: OutputFiles) => Promise<void>;
   /** Latest retained receipt sequence, supplied by the owning fenced reader on recovery. */
   readonly sequence?: string;
   readonly originalScope?: { readonly app: string; readonly owner: string; readonly principal: string };
@@ -54,6 +65,7 @@ export interface BoundImagesControlCallOptions extends BoundImagesCallOptions {
 }
 
 export interface BoundImagesAdapter {
+  revalidateOutput?(observation: unknown): Promise<boolean>;
   available(intent: OutboxIntent): boolean;
   resultContext(intent: OutboxIntent): ReceiptResultContext | null;
   callProvider(intent: OutboxIntent, options: BoundImagesCallOptions): Promise<DispatchProviderOutcome>;
@@ -87,6 +99,10 @@ interface Resolved {
 
 export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImagesAdapter {
   const expected = Object.freeze({ ...options.binding });
+  const finalizeOutput = options.finalizeOutput, observeOutput = options.observeOutput, revalidateOutput = options.revalidateOutput;
+  const issued = new WeakSet<object>();
+  const originalOutputPorts = (): boolean => options.finalizeOutput === finalizeOutput && options.observeOutput === observeOutput &&
+    options.revalidateOutput === revalidateOutput;
   const resolveControl = (intent: OutboxIntent) => {
     try {
       if (!['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target) || intent.intentId === '' ||
@@ -229,6 +245,7 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       }
     }
     const outputs: ImageRunWire['outputs'][number][] = [];
+    const files: { path: readonly (string | number)[]; observation: unknown }[] = [];
     const slots = new Set<string>();
     for (const output of run.outputs) {
       if (typeof output.node !== 'string' || output.node === '' || !Number.isSafeInteger(output.position) || output.position < 0 ||
@@ -238,8 +255,10 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       if (slots.has(slot)) return { kind: 'uncertain' };
       slots.add(slot);
       const resultPath = `outputs/${encodeURIComponent(output.node)}/${output.position}`;
-      const finalized = await options.finalizeOutput({ intent, output, resultPath,
+      const finalization = Object.freeze({ intent, output, resultPath,
         ...(call.originalScope === undefined ? {} : { originalScope: call.originalScope }) });
+      if (observeOutput !== undefined && !originalOutputPorts()) throw new Error('Images output receiving port changed.');
+      const finalized = await finalizeOutput(finalization);
       if (finalized.status !== 'finalized' && finalized.status !== 'repeated') return { kind: 'uncertain' };
       const file = finalized.file;
       if (file.id !== finalized.result.file || file.provenance.kind !== 'request' ||
@@ -248,6 +267,18 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       if (call.originalScope !== undefined && (file.provenance.app !== call.originalScope.app ||
           file.provenance.owner !== call.originalScope.owner || file.provenance.principal !== call.originalScope.principal)) {
         return { kind: 'uncertain' };
+      }
+      if (observeOutput !== undefined) {
+        if (revalidateOutput === undefined || !originalOutputPorts()) throw new Error('Images output receiving port changed.');
+        const observation = await observeOutput(finalization, finalized);
+        const saved = readFinalizedFileObservation(observation);
+        if (!originalOutputPorts() || saved === null || saved.ref !== file.id ||
+            saved.contentType !== file.contentType || saved.sizeBytes !== file.sizeBytes ||
+            saved.bytesDigest !== file.bytesDigest || stableStringify(saved.provenance) !== stableStringify(file.provenance)) {
+          throw new Error('Images output requires its genuine original Files observation.');
+        }
+        issued.add(observation as object);
+        files.push(Object.freeze({ path: Object.freeze(['outputs', outputs.length, 'image']), observation }));
       }
       outputs.push({ position: encodeValue('int', BigInt(output.position)) as string,
         image: encodeValue('file', decodeValue('file', { id: finalized.result.file })) as { id: string } });
@@ -259,10 +290,16 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       state: run.state, outputs, charged_jobs: null, detail: run.detail });
     const status = run.state === 'queued' || run.state === 'running' ? 'pending' : run.state === 'unknown' ? 'unknown' : 'succeeded';
     if (!isImageRunReceiptPayload(status, progress, null, resolved.context)) return { kind: 'uncertain' };
-    await call.onProgress(progress);
+    await call.onProgress(progress, Object.freeze(files));
     return status === 'succeeded' ? { kind: 'delivered', result: progress } : { kind: 'uncertain' };
   };
   return {
+    ...(observeOutput === undefined ? {} : { revalidateOutput: async (observation: unknown): Promise<boolean> => {
+      if (typeof observation !== 'object' || observation === null || !issued.has(observation) ||
+          revalidateOutput === undefined || !originalOutputPorts()) return false;
+      const saved = readFinalizedFileObservation(observation);
+      return saved !== null && await revalidateOutput(saved) && originalOutputPorts();
+    } }),
     available: intent => resolve(intent) !== null || resolveControl(intent) !== null,
     resultContext: intent => resolve(intent)?.context ?? resolveControl(intent)?.context ?? null,
     controlCorrelation(intent, owner) {
