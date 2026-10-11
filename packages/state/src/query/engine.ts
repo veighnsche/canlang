@@ -35,6 +35,7 @@ import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';
 import { byDependsOnRow, evaluateBy, type ByPredicate, type MembershipReader } from '../policy/roles.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
+import { evaluateInstalledReadPredicate, executeUnboundReadPredicate, hasInstalledReadPredicateMembership, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { deepFreeze } from '../internal/own-data.js';
 import {
   collectPredicateFields,
@@ -90,10 +91,11 @@ export interface ViewerRecordsInput extends BaseQueryInput {
   /**
    * Trusted internal generated-source wiring only, never JSON/user input.
    * Receives a detached snapshot after per-row grant projection and AST
-   * where, before sorting/limit. Source conversion and final authority
-   * rechecks belong to the owning caller; this hook grants no capability.
+   * where, before sorting/limit. Source conversion belongs to the owning caller. Bound membership predicates
+   * receive a State-issued second observation and join current authority
+   * revalidation; this hook grants no capability.
    */
-  readonly predicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+  readonly predicate?: InstalledSourceQueryPredicate;
 }
 
 /** Internal owner-stage observation; this is not a public read capability. */
@@ -147,7 +149,7 @@ export interface ViewerPageRecordsResult {
 export interface ViewerPageQueryInput extends Omit<ViewerRecordsInput, 'predicate' | 'limit' | 'where' | 'order' | 'archived'> {
   readonly selection?: ViewerPageSelection;
   /** Trusted generated-source closure; never admitted from a request body. */
-  readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+  readonly generatedPredicate?: InstalledSourceQueryPredicate;
 }
 
 /** Internal checked containment inventory; never selection/request authority. */
@@ -964,12 +966,14 @@ async function runAuthorizedQuery(
   eventual = false,
   predicate?: ViewerRecordsInput['predicate'],
   page?: { readonly parent?: RecordParent; readonly revision?: Revision;
-    readonly parentPolicies?: ReadonlyMap<ModelName, ViewerPageParentPolicy>; readonly readBy?: ByPredicate },
+    readonly parentPolicies?: ReadonlyMap<ModelName, ViewerPageParentPolicy>; readonly readBy?: ByPredicate;
+    readonly membershipPredicate?: InstalledSourceQueryPredicate },
   observation?: QueryObservation,
 ): Promise<AuthorizedSet> {
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
   }
+  const coherentPredicate = predicate !== undefined && hasInstalledReadPredicateMembership(page?.membershipPredicate ?? predicate);
   const order = input.order ?? DEFAULT_ORDER;
   for (const term of order) {
     if (term.direction !== 'asc' && term.direction !== 'desc') {
@@ -1094,7 +1098,7 @@ async function runAuthorizedQuery(
     if (found !== undefined) { policy = found; secrets = found.secretFields; }
     const parentDependsOnRow = [...(page?.parentPolicies?.keys() ?? [])].some(model =>
       input.policy.get(model)?.grants.some(grant => byDependsOnRow(grant.by)));
-    if (policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow) rowContext = byCtx;
+    if (policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow || coherentPredicate) rowContext = byCtx;
     else {
       parentDecisions = await evaluateParents(byCtx);
       grantByOk = await prepareViewer(byCtx);
@@ -1126,6 +1130,7 @@ async function runAuthorizedQuery(
   let scanned: readonly StoredRow[];
   let rowAuthority: readonly { allowed: boolean[]; grants: InterimGrant[] }[] | undefined;
   let revalidateRowAuthority: (() => Promise<void>) | undefined;
+  let predicateMatches: readonly boolean[] | undefined;
   if (rowContext !== undefined) {
     const selectedPolicy = policy; let originalRows: readonly StoredRow[] | undefined;
     const authority = await observeRowGrantAuthority(rowContext, async current => {
@@ -1136,12 +1141,30 @@ async function runAuthorizedQuery(
       const cached = await prepareViewer(current);
       const observedRows = originalRows ??= await input.store.query(spec);
       if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
-      const rows = [];
+      const rows = [], matches: boolean[] = [];
       for (const row of observedRows) rows.push(selectedPolicy === null ? { allowed: [], grants: [] } :
         await viewerRowAuthority(selectedPolicy, current, cached, row));
-      return { cached, rows, parents };
+      if (coherentPredicate) for (const [index, row] of observedRows.entries()) {
+        const authority = rows[index]!;
+        if (authority.grants.length === 0) { matches.push(false); continue; }
+        const projected = projectRow(row, authority.grants, secrets);
+        if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
+          matches.push(false); continue;
+        }
+        const detached = cleanCopy(projected) as ProjectedRecord;
+        // The source predicate sees only projected fields. Its membership
+        // reads join this complete domain's coherent authority observation.
+        matches.push(await evaluateInstalledReadPredicate(predicate!, detached, {
+          context: current, row: { ...row, data: cleanCopy(projected.data) as StoredRow['data'] }, revision, fence: input.fence,
+        }, input.store));
+        if (await input.store.readRevision() !== revision) {
+          throw new StateError('conflict', 'Source predicate moved beyond its original State revision.');
+        }
+      }
+      return { cached, rows, parents, matches };
     });
     scanned = originalRows!; rowAuthority = authority.value.rows; revalidateRowAuthority = authority.revalidate;
+    if (coherentPredicate) predicateMatches = authority.value.matches;
     if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Row grant discovery moved beyond its original State revision.');
     grantByOk = selectedPolicy?.grants.map((grant, index) => byDependsOnRow(grant.by)
       ? rowAuthority!.some(row => row.allowed[index] === true) : authority.value.cached[index] === true) ?? [];
@@ -1185,7 +1208,7 @@ async function runAuthorizedQuery(
         // callback mutation must never alter the matched or output rows.
         const detached = cleanCopy(projected) as ProjectedRecord;
         const accepted = observation === undefined
-          ? await predicate!(detached)
+          ? coherentPredicate ? predicateMatches![index]! : await executeUnboundReadPredicate(predicate!, detached)
           : await observation.predicate(detached, row);
         if (typeof accepted !== 'boolean') {
           throw new StateError('validation', 'Generated-source query predicate must return a boolean.');
@@ -1299,13 +1322,15 @@ async function runPageQuery(input: ViewerPageQueryInput,
   const order = viewerPageOrder(selection.order);
   const requestedSearch = search?.query.toLowerCase() ?? '';
   const predicate = search === undefined && input.generatedPredicate === undefined ? undefined :
-    async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
+    async (record: Readonly<ProjectedRecord>, observation?: Parameters<InstalledSourceQueryPredicate>[1]): Promise<boolean> => {
       if (search !== undefined && requestedSearch !== '' &&
           !search.fields.some(field => {
             const value = record.data[field];
             return typeof value === 'string' && value.toLowerCase().includes(requestedSearch);
           })) return false;
-      return input.generatedPredicate === undefined ? true : input.generatedPredicate(record);
+      if (input.generatedPredicate === undefined) return true;
+      if (observation === undefined) return executeUnboundReadPredicate(input.generatedPredicate, record);
+      return evaluateInstalledReadPredicate(input.generatedPredicate, record, observation, input.store);
     };
   const position = selection.continuation;
   if (position !== undefined && (typeof position !== 'object' || position === null || Array.isArray(position) ||
@@ -1328,6 +1353,7 @@ async function runPageQuery(input: ViewerPageQueryInput,
     ...(position === undefined ? {} : { revision: position.revision }),
     ...(parentPolicies === undefined ? {} : { parentPolicies }),
     ...(readBy === undefined ? {} : { readBy }),
+    ...(input.generatedPredicate === undefined ? {} : { membershipPredicate: input.generatedPredicate }),
   });
   if (position !== undefined && position.revision !== set.revision) {
     throw new StateError('conflict', 'Collection changed; restart pagination.');

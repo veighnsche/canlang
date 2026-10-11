@@ -13,7 +13,7 @@ export interface ScenarioReceiptMembershipSite {
   readonly owner: string;
   readonly node: ScenarioReceiptMembershipNode;
   readonly statement: ScenarioReceiptMembershipNode;
-  readonly stage: 'leading-require' | 'body-require' | 'body-condition' | 'send-dispatch' | 'read-policy';
+  readonly stage: 'leading-require' | 'body-require' | 'body-condition' | 'send-dispatch' | 'read-policy' | 'read-predicate';
   readonly position: readonly (
     { readonly kind: 'guard' | 'body' | 'then' | 'else' | 'loop'; readonly index: number } |
     { readonly kind: 'match'; readonly arm: number; readonly statement: number }
@@ -91,12 +91,12 @@ export function checkScenarioReceiptMembershipSites(value: unknown): readonly Sc
   for (const value of sites) {
     const site = object(value, ['version', 'source', 'owner', 'node', 'statement', 'stage', 'position', 'calls']);
     if (site.version !== 1 || typeof site.stage !== 'string' ||
-        !['leading-require', 'body-require', 'body-condition', 'send-dispatch', 'read-policy'].includes(site.stage)) fail('closed v1 stage required.');
+        !['leading-require', 'body-require', 'body-condition', 'send-dispatch', 'read-policy', 'read-predicate'].includes(site.stage)) fail('closed v1 stage required.');
     source(site.source); text(site.owner); node(site.node); node(site.statement);
     const guard = site.node as ScenarioReceiptMembershipNode, statement = site.statement as ScenarioReceiptMembershipNode;
     if (guard.start < statement.start || guard.end > statement.end) fail('guard must belong to its authored statement.');
     const position = list(site.position);
-    if (site.stage === 'read-policy' && position.length !== 0) fail('read-policy requires its empty authored position.');
+    if ((site.stage === 'read-policy' || site.stage === 'read-predicate') && position.length !== 0) fail('current reads require their empty authored position.');
     for (const value of position) {
       const kind = typeof value === 'object' && value !== null ? (value as Record<string, unknown>).kind : undefined;
       const part = object(value, kind === 'match' ? ['kind', 'arm', 'statement'] : ['kind', 'index']);

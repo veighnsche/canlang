@@ -367,9 +367,9 @@ test('recipe checker preserves exact transitive source/default/type vocabulary, 
   ]) assert.throws(() => checkScenarioReceiptMembershipSites([malformed]), isStateError);
 });
 
-for (const stage of ['read-policy', 'send-dispatch'] as const) test(`${stage} cannot bind an owner-execution membership lifetime`, async () => {
+for (const stage of ['read-policy', 'read-predicate', 'send-dispatch'] as const) test(`${stage} cannot bind an owner-execution membership lifetime`, async () => {
   const w = await world();
-  const site = { ...recipe(ROOT, stage), ...(stage === 'read-policy' ? { position: [] } : {}) };
+  const site = { ...recipe(ROOT, stage), ...(stage === 'send-dispatch' ? {} : { position: [] }) };
   assert.throws(() => bindScenarioReceiptMembershipProducer(w.parent, { source: source(), app: APP,
     sites: [site], capture: () => { assert.fail('a foreign lifetime must not capture an owner pair'); },
   }), isStateError);
