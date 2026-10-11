@@ -8604,3 +8604,22 @@ This releases the real producer for Dev's genuine native capture/receiving consu
 Retain the complete original a4 source and all six actual DO/MemoryD1 positive/refusal/reopen bodies. Exact uncollapsed scalar tags independently identify their primitive type when redundant valueType is omitted; a collapsed scalar still requires its explicit checked identity. No source census, default, constraint or authority check is weakened. The original source has no numeric bound, so its negative control adds a legal constraint to a genuine original field; moved-slot refusal now changes the claimed creation metadata that both adapters actually preserve.
 
 All six affected original backend cases pass after released4b plus bbbfc851: DO positive625.25ms; Memory/D1 positives1025.75/4112.37ms; Memory/D1 refusal/reopen2/2 in3663.52ms; DO refusal1701.01ms. Reuse three unchanged positives and run only corrected failed controls. Final normal State/Work emissions including actual DO bundle and strict13/950/1432/zero pass. Finite changed-source/refusal correspondence review CLEAR; no repeated parent review. Stop this satisfied backend criterion. Dev's actual native before-await source capture, original owner-store/current reader/receiving workflow and precise holds remain separate; whole plans and checkpoint remain unfinished.
+Current IncomingEmail qualification, 2026-10-11: complete the existing accepted
+nullable/array literal omission semantics only for exact checked IncomingEmail
+objects, appending null/[] after authored fields without reordering evaluation.
+Without these fields a typed literal disagreed with the complete canonical
+envelope used by the replay guard. The same untouched CLI/native pure case now
+proves this defaulted equality plus all12 fields, wrappers, generic selection,
+copy, datetime/File identity and strict malformed-input refusals.
+
+Reviewed containinge380 preserves424 ancestry and supplies Packagesffd's exact
+existing choose facade. Actual current CF graph22/22 uncached14.244s; current
+nominal target5/5 0.52s, zero failed/ignored/bodySKIP; existing454 affected checks
+reused, changed strict all-target Clippy0 7.10s, fmt/diff0. This satisfies only
+Compiler nominal identity/equality and genuine emitted schema/pure consumer
+correspondence. Dev/Interfaces still own the authenticated standard issuer,
+closed payload/cause/occurrence/trusted-null actor and native retained commit/
+replay. Pure File identity is not File authority; standard ingress E6008 and
+all human/recipient-specific holds remain. No whole-plan acceptance or publication.
+
+Local original-ancestry integrationa619fec0: finite exact IncomingEmail literal/default/native correspondence review CLEAR. Only exact sealed StdNominal literals append omitted nullable null/array empty defaults after authored fields; ordinary objects and missing required/schema refusals remain unchanged. Reuse owning actual CLI/native5/5 .52s, affected454 and changed strictalltargets0 7.10s/actual own CF22 graph0. The finite Compiler nominal identity/equality producer criterion is satisfied and stops. Dev authenticated standard issuer/closed original payload/trusted-null receiving/current authority/retained commit replay, original File native workflow and all precise holds remain separate.

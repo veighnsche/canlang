@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-11T00:26:38Z",
+  "updated_utc": "2026-10-11T00:37:56Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -104,10 +104,10 @@
     "reused_results": "Unchanged successful prefix/library/analysis/corpus and editor/client TypeScript; currentaffected producer/native repairs and allunrun targets supply actual delta, old failures superseded by meaningful current cases."
   },
   "latest_component": {
-    "base_commit": "67a6d4e8e861432ae9a05ec8d6a314e0428d796f",
-    "state": "incoming_email_identity_implemented_native_pure_check_blocked_unfinished",
-    "record": "std_nominal_equality/analysis/delivery_error_shapes",
-    "outcome": "IncomingEmail retains exact catalog nominal name and all12 closed fields through checked declarations, locals, nullable/ordered arrays, member/field reuse and generic choose; other standard schemas remain Object. Canonical equality lowers to existing Values equalValue; source-aware selected inventory, native field schemas and nominal input/result/model metadata require the exact owning schema. Original CanInbox107 replay guard/create order are unchanged. Full52 corpus assertions clear only Inbox E3002 (41→40), all51 other rows unchanged; original example/effect traversal preserved. Generic Object, lookalike contract, other nominal, json and opaque WorkflowField refuse; altered nominal name/fields cannot borrow the sealed census. Existing affected454 plus new4 pass (458distinct), native pure equality fifthcase is blocked at actual module import because CF stdlib omits implemented Values choose; strict all-target Clippy0 8.12s, fmt/diff0. Finite source review CLEAR; no verified ingress, State write/replay or File authority claim."
+    "base_commit": "e380f8419eb9c296c8278177e460cdea40dee1f2",
+    "state": "incoming_email_identity_cli_native_pure_qualified_verified_ingress_external",
+    "record": "std_nominal_equality",
+    "outcome": "Exact IncomingEmail nominal producer criterion is satisfied at actual source/CLI/native pure scope. Complete12-field identity/equality, nullable/ordered arrays, generic choose, copy and reused datetime connect untouched CLI artifact/modules through genuine installed assembler/Values schemas and pure registry. Existing accepted nullable/array literal omissions now append null/[] after authored entries, preserving source order and full canonical equality; ordinary objects remain unchanged. All12 canonical fields (datetime and File identity included), reordered arrays, omission defaults and malformed input controls execute. Current owning5/5 pass0.52s,0fail/ignored/SKIP; existing454 affected outcomes are reused (459distinct combined). Exact reviewed containinge380 preserves original424 ancestry and consumes Packagesffd choose facade; actual own CF graph22/22 uncached14.244s and changed strict all-target Clippy0 7.10s/fmt/diff0. Full52 original corpus already preserves51rows and clears only Inbox41→40 with untouched107 guard/create. Verified ingress, State writes/replay and File authority remain outside pure equality and Dev-owned."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -852,19 +852,19 @@
     "state": "source_producer_and_consumers_current_whole_qualified_native_pending",
     "owner": "Compiler source/type/effect/example and standard nominal identity/comparison; Contracts/Values exact DatetimeValue facade; Dev verified private ingress/native consumer",
     "behavior": "Accepted standard verified event fields now flow through exact checked capability/event/owner-qualified alias facts to body, example and effect consumers. Payments.changed retains flattened PaymentState fields/status including pending and excluding skipped; Mailbox.received retains nested IncomingEmail and its existing opaque DatetimeValue leaf. Local/imported event Record identities, standard completion/progress, lexical precedence, null trusted actor, nullable fields, unknown/operation-as-event refusals and IR/private E6008 remain. Owning delivery_error_shapes7/7 plus analysis37/37 yield44 distinct current affected checks, retaining native receipt consumer; corrected source-span and trusted-null actor assertions supersede initial test assumptions. Exact original25/catalog71→69 removes ONLY Invoice468 E3010 and469 opaque-value E3001, adds none,complete/omitted0/all25hashes/noartifact. Corpus only Inbox44→43 andInvoice214→212, all52/full assertions/50unchanged. Equal-byte unknown-event controls restore prior diagnostics: Inbox removes1E3010/2E3001 but adds actual whole IncomingEmail E3002 comparison and nested-opaque DatetimeValue E3001 assignment; keep both, do not claim a clean source reduction. Runtime/private verified event publication and exact nominal/facade joins remain separate owner prerequisites. Safe containing reviewed carrier98e3849 is fast-forward consumed preserving source/draft; fresh dependency graph22/22/cache0 and current whole1422/138/strict lint1m02s/fmt/diff0 qualify the coherent producer unit.58/67 and every precise hold unchanged.",
-    "remaining": "Exact IncomingEmail identity/typed equality source producer is implemented and source/schema integrity qualified; actual native pure fifthcase awaits Packages existing CF stdlib choose facade. Defining Dev/Interfaces standard ingress remains fail-closed: installed alias/from→canonical cap/event, verified namespace/team/owner, actual codecs/causation/occurrence and trusted-null actor native commit/replay are the concrete prerequisite. Generic declared inputs/retained receipt routes give no std ingress authority. No Values brand/ABI gap exists: installed Values canonical contracts are structural frozen objects, and Compiler exact nominal identity gates equality.",
+    "remaining": "Compiler exact IncomingEmail nominal identity/equality producer criterion is satisfied by current CLI/native pure5/5; reuse it. Defining Dev/Interfaces authenticated standard ingress remains fail-closed: installed alias/from→canonical cap/event, verified namespace/team/owner, actual codecs/causation/occurrence and trusted-null actor native commit/replay are the remaining concrete prerequisite. Generic declared inputs/retained receipt routes and pure File identity comparison give no standard ingress/File authority. No Values branding ABI gap exists.",
     "dependency_build": "Fresh current released Cloudflare dependency graph22/22/cache0 passes36.66s onNode24.19 after exact98e intake; genuine current owning outputs available for compiler native validation.",
     "validation": "Frozen bc02e317/draft5cbdded current compiler whole passes1422 over138 actual targets, zero failed/ignored/filtered/bodySKIP, Node24.19 and CAN_COMPLETION_REQUIRE_ENGINES=1 with real completion engines and genuine native/permission bodies. Strict all-target Clippy0 in1m02s and fmt/diff0. This final record-only amendment changes no tested compiler/draft input. Qualifies both standard completion/event source producers and their body/example/effect consumers, required File73 and preceding source fixes; native terminal/event transport and full58/67 remain unfinished.",
     "source_review": "Finite independent source review CLEAR for exact owning canonical/alias identity, body/example/effect payload agreement, unchanged local/imported identity, trusted null actor, operation/event distinction and preserved E6008 publication boundary. No native ingress or nominal-facade acceptance.",
     "incoming_email_identity": {
-      "state": "implemented_owning_source_and_integrity_tested_native_pure_blocked_unfinished",
+      "state": "compiler_nominal_identity_and_actual_cli_native_pure_criterion_satisfied",
       "source": "draft/CanInbox.can:107 (unchanged guard/create); compiler/tests/std_nominal_equality.rs",
-      "consumer_source_sha256": "77f3eec7cce65637e6e845032c5fe2f03636e290052181e3dc6641e759812339",
-      "outcome": "IncomingEmail retains exact catalog nominal name and all12 closed fields through checked declarations, locals, nullable/ordered arrays, member/field reuse and generic choose; other standard schemas remain Object. Canonical equality lowers to existing Values equalValue; source-aware selected inventory, native field schemas and nominal input/result/model metadata require the exact owning schema. Original CanInbox107 replay guard/create order are unchanged. Full52 corpus assertions clear only Inbox E3002 (41→40), all51 other rows unchanged; original example/effect traversal preserved. Generic Object, lookalike contract, other nominal, json and opaque WorkflowField refuse; altered nominal name/fields cannot borrow the sealed census. Existing affected454 plus new4 pass (458distinct), native pure equality fifthcase is blocked at actual module import because CF stdlib omits implemented Values choose; strict all-target Clippy0 8.12s, fmt/diff0. Finite source review CLEAR; no verified ingress, State write/replay or File authority claim.",
+      "consumer_source_sha256": "a3fafcf79b7f23ab46c79c15e55e2508d7b6386ff0cbaac8111a26c59732372d",
+      "outcome": "Exact IncomingEmail nominal producer criterion is satisfied at actual source/CLI/native pure scope. Complete12-field identity/equality, nullable/ordered arrays, generic choose, copy and reused datetime connect untouched CLI artifact/modules through genuine installed assembler/Values schemas and pure registry. Existing accepted nullable/array literal omissions now append null/[] after authored entries, preserving source order and full canonical equality; ordinary objects remain unchanged. All12 canonical fields (datetime and File identity included), reordered arrays, omission defaults and malformed input controls execute. Current owning5/5 pass0.52s,0fail/ignored/SKIP; existing454 affected outcomes are reused (459distinct combined). Exact reviewed containinge380 preserves original424 ancestry and consumes Packagesffd choose facade; actual own CF graph22/22 uncached14.244s and changed strict all-target Clippy0 7.10s/fmt/diff0. Full52 original corpus already preserves51rows and clears only Inbox41→40 with untouched107 guard/create. Verified ingress, State writes/replay and File authority remain outside pure equality and Dev-owned.",
       "prerequisite": {
-        "owner": "Packages: common Cloudflare stdlib facade; then Compiler affected native pure case",
-        "output": "Re-export existing @canlang/values choose through packages/cloudflare/src/runtime/stdlib.ts and release its owning output; preserve strict selection semantics. Actual module import currently throws missing choose export.",
-        "exit": "Untouched CLI artifact/input schemas and installed Values/native pure derive registry compare all12 canonical fields, wrappers, choose/copy and malformed inputs; no fabricated authorizing frame."
+        "owner": "Dev/Interfaces verified standard ingress; Compiler missing sealed source producer only after defining consumer contract release",
+        "output": "Genuine authenticated Payments.changed/Mailbox.received issuance, complete owning12-field codec/payload, cap/event/binding/namespace/team/owner identity, trusted-null actor, cause/occurrence and native retained commit/replay. Existing source/private E6008 remains until this exact join.",
+        "exit": "Qualify original authored event workflow through the actual verified issuer and retained consumer; reuse qualified IncomingEmail identity/equality and DatetimeValue facade. No substitute declared scenario or fake authorizing frame."
       },
       "consultation": {
         "model_requested": "jev-latest",
@@ -998,6 +998,19 @@
         ],
         "uncertainty": "Equivalent Choice calls split2 nominal_type/1 checked_identity_facts with low confidence0.41/0.35/0.28. Advice only; disagreement investigated against actual propagation.",
         "decision": "Use the smallest explicit ResolvedType::StdNominal, produced only for IncomingEmail. Sidecar Object identity would require a second propagation/provenance system across locals, signatures, generic selection, fields and emission; explicit existing type flow retains identity centrally. Other standard nominal migration is outside this required unit."
+      },
+      "validation": {
+        "owning_target": "std_nominal_equality",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "body_skips": 0,
+        "duration": "0.52s",
+        "distinct_affected_combined": 459,
+        "runtime_graph": "22/22 successful,0cached,14.244s",
+        "strict_all_targets": "exit0,7.10s",
+        "format_and_diff": "exit0",
+        "scope": "Untouched original CLI artifact/module/input-schema consumer and pure derive registry over installed Values canonical inputs; no State mutation, authenticated ingress or current File authority."
       }
     }
   },
