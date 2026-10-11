@@ -54,6 +54,8 @@ import type {
 } from '../ports.js';
 import { systemClock, toInstant, webRandom } from '../ports.js';
 import { captureMembershipRequest, finishMembershipSnapshot, snapshotData } from '../membership-snapshot.js';
+import { captureRemoval, removalEnvelope, type RemovalRow } from '../teams/removal-occurrence.js';
+import { IdentityError } from '../ports.js';
 
 /* ------------------------------------------------------------------ */
 /* Minimal D1 surface. No `@cloudflare/workers-types` import: this     */
@@ -84,6 +86,8 @@ export interface IdentityD1Statement {
 export interface IdentityD1Database {
   prepare(sql: string): IdentityD1Statement;
   exec(sql: string): Promise<unknown>;
+  /** Genuine transactional D1 batch; absence keeps the optional removal command unavailable. */
+  batch?(statements: IdentityD1BoundStatement[]): Promise<unknown>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -143,6 +147,7 @@ export const IDENTITY_DDL: readonly string[] = [
   IDENTITY_MCP_GRANTS_DDL,
   IDENTITY_OAUTH_CLIENTS_DDL,
   IDENTITY_AUTH_CODES_DDL,
+  'CREATE TABLE IF NOT EXISTS identity_member_removals (event_id TEXT PRIMARY KEY, namespace TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, team_id TEXT NOT NULL, membership_id TEXT NOT NULL, user_id TEXT NOT NULL, removed_by TEXT NOT NULL, occurred_at TEXT NOT NULL, winner_token TEXT NOT NULL, UNIQUE(namespace, operation_id))',
   ...IDENTITY_INDEXES,
 ];
 
@@ -450,6 +455,39 @@ export function createD1IdentityStore(
   const now = () => toInstant(clock.nowMs());
 
   return {
+    ...(typeof db.batch !== 'function' ? {} : {
+      async removeMemberWithOccurrence(raw: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) {
+        const { input, digest } = await captureRemoval(raw);
+        const read = () => db.prepare('SELECT namespace, operation_id, request_digest, event_id, team_id, membership_id, user_id, removed_by, occurred_at FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
+          .bind(input.namespace, input.operationId).first<RemovalRow>();
+        const prior = await read();
+        if (prior !== null) return removalEnvelope(prior, input, digest);
+        const at = now(), eventId = random.randomUUID(), winner = random.randomUUID();
+        const insert = db.prepare(`INSERT INTO identity_member_removals (event_id, namespace, operation_id, request_digest, team_id, membership_id, user_id, removed_by, occurred_at, winner_token)
+          SELECT ?, ?, ?, ?, target.team_id, target.membership_id, target.user_id, remover.user_id, ?, ?
+          FROM identity_memberships target JOIN identity_memberships remover ON remover.team_id = target.team_id
+          JOIN identity_users subject ON subject.user_id = target.user_id JOIN identity_users principal ON principal.user_id = remover.user_id
+          WHERE target.team_id = ? AND target.user_id = ? AND target.status = 'active'
+          AND remover.user_id = ? AND remover.status = 'active' AND remover.is_owner = 1
+          AND (target.is_owner = 0 OR (SELECT COUNT(*) FROM identity_memberships owners WHERE owners.team_id = target.team_id AND owners.status = 'active' AND owners.is_owner = 1) > 1)
+          ON CONFLICT(namespace, operation_id) DO NOTHING`)
+          .bind(eventId, input.namespace, input.operationId, digest, at, winner, input.team_id, input.member_user_id, input.removed_by);
+        const eligible = 'EXISTS (SELECT 1 FROM identity_member_removals removal WHERE removal.namespace = ? AND removal.operation_id = ? AND removal.winner_token = ?)';
+        const key = [input.namespace, input.operationId, winner];
+        await db.batch!([
+          insert,
+          db.prepare(`UPDATE identity_memberships SET status = 'removed', updated_at = ? WHERE team_id = ? AND user_id = ? AND ${eligible}`)
+            .bind(at, input.team_id, input.member_user_id, ...key),
+          db.prepare(`UPDATE identity_mcp_grants SET revoked_at = ? WHERE team_id = ? AND user_id = ? AND revoked_at IS NULL AND ${eligible}`)
+            .bind(at, input.team_id, input.member_user_id, ...key),
+          db.prepare(`UPDATE identity_invitations SET revoked_at = ? WHERE team_id = ? AND email_lc = (SELECT email_lc FROM identity_users WHERE user_id = ?) AND accepted_at IS NULL AND revoked_at IS NULL AND ${eligible}`)
+            .bind(at, input.team_id, input.member_user_id, ...key),
+        ]);
+        const saved = await read();
+        if (saved === null) throw new IdentityError('forbidden', 'Current owner and removable active membership are required.');
+        return removalEnvelope(saved, input, digest);
+      },
+    }),
     async createUser(input) {
       const user_id = random.randomUUID();
       const at = now();

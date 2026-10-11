@@ -24,6 +24,7 @@ import type {
   Team,
   TeamId,
   UserId,
+  VerifiedTeamsMemberRemovedEnvelope,
 } from '@canlang/contracts';
 import type { BusinessErrorCode } from '@canlang/contracts';
 
@@ -139,6 +140,13 @@ export interface IdentityStore {
   ): Promise<void>;
   setMembershipOwner(membership_id: MembershipId, is_owner: boolean): Promise<void>;
   removeMembership(membership_id: MembershipId): Promise<void>;
+  /** Atomic original removal and cascades; exact replay returns the saved technical outcome only.
+   * Trusted host authentication/namespace binding is required. Replay performs no new work,
+   * including after re-admission; receiving handler admission remains independent. */
+  removeMemberWithOccurrence?(input: {
+    readonly team_id: string; readonly member_user_id: string; readonly removed_by: string;
+    readonly namespace: string; readonly operationId: string;
+  }): Promise<VerifiedTeamsMemberRemovedEnvelope>;
   /**
    * Re-admit a removed membership with a fresh grant ceiling (re-invitation
    * acceptance). Exactly one row per (team, user) ever exists; production

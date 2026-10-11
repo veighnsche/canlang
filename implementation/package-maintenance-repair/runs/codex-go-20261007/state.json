@@ -1651,7 +1651,7 @@
       "membership_removal_source_prerequisite": {
         "owner": "Packages Identity/Contracts defining removal occurrence; trusted host operation/namespace producer; Compiler source lowering; Dev native ingress consumer",
         "verified_gap": "Existing removeMember has genuine target membership/team/user and owner remover, but separate unfenced removal/grant/invitation calls, no stable operation/namespace input, durable occurrence or rollback/recovery output. Adding raw event.user or an after-commit callback cannot supply required original event semantics.",
-        "next_action": "Packages implements the bounded optional atomic Identity removal/retained occurrence producer as the reasonable finite engineering choice. Current D1 owns the relevant effects; optional unsupported mode refuses before mutation and legacy compatibility stays scoped. More phased intent adds unnecessary ownership/recovery states; external deferral does not implement the required source. The exact JEV transmission approval remains pending; this is not a lane or implementation hold. Preserve exact activation/publication/source restrictions where they actually apply.",
+        "next_action": "Defining optional atomic removal/retained occurrence is implemented and qualified below. Dev must supply trusted host authentication, namespace and stable original operation cause, real D1 batch adapter/mirror and original durable ingress/handler consumer; Compiler must lower original typed source. Existing broader J2 remains external.",
         "acceptance": "Actual original Identity winning removal retains exact removed subject/team/current principal/trusted namespace/causation, one event identity for exact retry, no event after rollback or unauthorized/last-owner refusal; original recovery/re-admission semantics and native consumer honestly scoped.",
         "hold_limit": "Only this new external consultation payload is pending approval; existing source/adoption/native/publication holds remain exact. Common fixture repair already committed823 and handed to coordinator; unsupported provider-void remains skipped."
       },
@@ -1664,10 +1664,42 @@
         "contract": "TeamsMemberRemovedEvent matches approved DESIGN6 {team_id,membership_id,user:UserRef}. Specialized VerifiedTeamsMemberRemovedEnvelope fixes operationKind teams.member_removed/deliveryId null and retains membershipRemoval payload, removedBy attribution, original operationId and occurredAt alongside existing namespace/producerEventId/requestDigest.",
         "authority": "Only the trusted Identity issuer can couple this exact subject/principal/namespace/cause/digest to a winning removal. Types alone neither issue nor authenticate; raw request user/current remover never substitutes as subject, handler actor remains null.",
         "verified": "Contracts owning emission pass0, repeated only for reviewer-found readonly-causation correction; finite source review confirms genuine removed-account/remover separation, fixed kind/null delivery and honest contract-only limits. No runtime behavior/adoption claimed; unchanged consumers/results reused.",
-        "remaining": "Identity source needs actual conditional atomic removal plus durable original occurrence/cascade/once/replay/rollback/recovery; exact JEV transmission approval pending after automatic review rejections. Compiler owns genuine checked payload/source lowering, Dev actual native ingress/handler consumer.",
+        "remaining": "The defining optional atomic Identity occurrence source is implemented/tested/reviewed in LOCAL main. Dev authentic host namespace/cause/remover, real batch/mirror/durable ingress/current handler and Compiler checked original lowering remain unfinished. Exact consultation transmission approval remains pending; no advice claimed and it is not an engineering lane hold.",
         "limits": "No generic bus, provider-void support, subject added to all generic ingress, fake constructed verified envelope, whole J2 completion or hold lift.",
         "review_correction": "Specialized subtype redeclares namespace/producerEventId/requestDigest readonly; the generic existing ingress envelope remains compatible. Review finding addressed directly, no review-of-review.",
         "coordinator_review": "CLEAR at type-contract scope: exact original removed UserRef is distinct from removedBy attribution, fixed kind/null delivery and readonly specialized causation. Contracts emission0 reused; types do not authenticate, authorize or issue occurrences. Integrated locally after deadline; original issuer/native consumer remains unfinished."
+      },
+      "membership_removal_occurrence_source": {
+        "status": "implemented_tested_reviewed_optional_Identity_producer_in_LOCAL_main; authentic_native_issuer_ingress_unfinished",
+        "files": [
+          "packages/identity/src/ports.ts",
+          "packages/identity/src/teams/membership.ts",
+          "packages/identity/src/teams/removal-occurrence.ts",
+          "packages/identity/src/storage/d1.ts",
+          "packages/identity/src/testing.ts",
+          "packages/identity/test/teams.test.ts",
+          "packages/identity/test/d1.test.ts"
+        ],
+        "contract": "Optional IdentityStore.removeMemberWithOccurrence({team_id,member_user_id,removed_by,namespace,operationId}) returns the specialized original envelope from Contracts8208. removeMember opts.occurrence selects this mode and returns {removed:true,occurrence}; legacy mode retains its original behavior/limits. Missing genuine batch capability refuses before mutation, with a configuration Error using no invented business-code enum.",
+        "atomicity": "One conditional D1 INSERT checks current active owner/remover/target and last-owner count while capturing genuine target membership/team/user/removing principal; unique(namespace,operation_id) and request digest bind exact cause. Same batch retains occurrence and removes membership/revokes team grants/pending addressed invitations. All effects require this attempt winner_token, so delayed losing attempts cannot touch re-admitted resources. A failure rolls back event and all cascades. Memory is a synchronous test-only implementation, not native durable evidence.",
+        "replay": "Exact saved operation returns the same immutable original event ID/time/subject/principal/namespace/digest after acknowledgment loss/reopen/re-admission. It performs no new removal/cascade and conveys no new owner authority; mismatched same-key requests conflict. Technical replay survives the original remover losing membership, while any fresh operation still checks current owner and target. Native ingress and receiving handler must authenticate/re-admit independently.",
+        "verified": {
+          "identity_owning_emit": "pass0 after replacing unsupported unavailable business code with existing configuration/storage Error semantics",
+          "affected_owning_files": "teams+d1 31/31 pass978.626ms: real SQL rollback, same-key/two-handle and last-owner winners, lostack/reopen, new vs replay/mismatch, delayed losing batch after readmission preserves fresh grants/invitations, revoked-remover saved outcome/new-op refusal, frozen subject!=remover, malformed/accessor capture and unsupported adapter no effects. Other unchanged owning, installed and native results are reused at their original scope.",
+          "finite_source_review": "CLEAR conditional original capture, batch rollback and per-attempt replay predicates; explicit technical replay exception reviewed and qualified. No broad J2/native qualification."
+        },
+        "remaining_dependencies": [
+          {
+            "owner": "Dev",
+            "prerequisite": "Trusted authenticated host supplies namespace and stable original operation ID, binds removing principal, exposes real D1 transactional batch and additive IdentityStore mirror, consumes persisted original envelope through authenticated durable ingress/current handler admission and original recovery. Handler actor=null; event.user is removed subject. Source type/return alone does not grant ingress authority."
+          },
+          {
+            "owner": "Compiler",
+            "prerequisite": "Checked original teams.member_removed source lowering consumes Contracts8208 exact removed-subject UserRef/team/membership and durable original envelope, preserving original account/author comparisons."
+          }
+        ],
+        "acceptance_limit": "Optional bounded global-Identity command only; legacy mutation remains unfenced at its recorded scope. No generic event bus, cross-database J2 acceptance, real workerd batch/native handler qualification, hold release or push. JEV transmission restricted/no advice; source engineering choice was released separately.",
+        "coordinator_review": "Independent defining source review CLEAR: conditional current owner/target/last-owner INSERT, same-batch winner-token cascades, exact retained replay without new authority/effects, rollback/reopen/lostACK/delayed loser controls. Identity emission0/real SQL owning31 reused; changed current integration Identity/CF/root type closure0. Native mirror/real batch host binding/ingress admission remain Dev-owned and unaccepted; no broad J2 or hold release."
       }
     },
     "TECH-I02": {

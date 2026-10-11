@@ -13,12 +13,30 @@
  */
 import { IdentityError } from '../ports.js';
 import type { IdentityStore } from '../ports.js';
+import type { VerifiedTeamsMemberRemovedEnvelope } from '@canlang/contracts';
+
+export function removeMember(store: IdentityStore, input: { team_id: string; member_user_id: string },
+  opts: { removed_by: string; occurrence: { namespace: string; operationId: string } }):
+  Promise<{ removed: true; occurrence: VerifiedTeamsMemberRemovedEnvelope }>;
+export function removeMember(store: IdentityStore, input: { team_id: string; member_user_id: string },
+  opts: { removed_by: string }): Promise<{ removed: true }>;
+export function removeMember(store: IdentityStore, input: { team_id: string; member_user_id: string },
+  opts: { removed_by: string; occurrence?: { namespace: string; operationId: string } }):
+  Promise<{ removed: true; occurrence?: VerifiedTeamsMemberRemovedEnvelope }>;
 
 export async function removeMember(
   store: IdentityStore,
   input: { team_id: string; member_user_id: string },
-  opts: { removed_by: string },
-): Promise<{ removed: true }> {
+  opts: { removed_by: string; occurrence?: { namespace: string; operationId: string } },
+): Promise<{ removed: true; occurrence?: VerifiedTeamsMemberRemovedEnvelope }> {
+  if (opts.occurrence !== undefined) {
+    if (typeof store.removeMemberWithOccurrence !== 'function') {
+      throw new Error('Atomic membership removal occurrences are not configured.');
+    }
+    const occurrence = await store.removeMemberWithOccurrence({ ...input, removed_by: opts.removed_by,
+      namespace: opts.occurrence.namespace, operationId: opts.occurrence.operationId });
+    return { removed: true, occurrence };
+  }
   const remover = await store.findMembership(input.team_id, opts.removed_by);
   if (remover === null || remover.status !== 'active' || !remover.is_owner) {
     throw new IdentityError('forbidden', 'Only team owners can remove members.');
