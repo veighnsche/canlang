@@ -791,11 +791,11 @@
       },
       "current_execution": {
         "disposition": "partial-selected-packet",
-        "next_work": "ready-owner-contract",
-        "owner": "Values TS/Rust and selected supported consumer owners",
-        "accepted_scope": "Finite conformance record hygiene accepted; actual current Wasm prerequisite recorded; production codec/error/lossless/profile/retirement joins remain open",
-        "next_action": "Freeze the smallest existing codec family, public error/carrier and supported-host domain; release joint capacity/startup/retirement semantics before implementation. Keep explicit UTF16 exclusions until their lossless carrier exists.",
-        "done_when": "Selected production decode route preserves ordered values/errors and rejects duplicate tuples or startup/capacity failure; only the explicitly selected released host matrix is qualified.",
+        "next_work": "held-selected-codec-source-and-adoption",
+        "owner": "Values TS/Rust bounded producer + public SchemaError; Interfaces existing CSV int consumer; Dev actual installed resource/lifetime profile",
+        "accepted_scope": "Retain accepted conformance record hygiene/raw25/bootstrap7 at their original scope. Defining-owner int/ASCII contract now selected only; no production, public-error, capacity, installed or parent acceptance.",
+        "next_action": "Use state selected_codec_contract: existing int decode/encode only, exact raw ASCII/caller1MiB domain, ordered public SchemaError, bounded signed64 preflight and existing bootstrap/stateless lifetime. Obtain exact source-edit/adoption release before implementation; keep Unicode/astral, money and prepared-plan retire-capacity criteria open. No native/default/preparation/publication lift.",
+        "done_when": "After exact releases, actual selected producer→owning SchemaError→existing int duplicate-key consumer preserves leading-zero/-0, int64 limits and exact ordered error fields; original over-bound/domain/ABI/startup failures refuse before acceptance. Dev qualifies only claimed installed host/resource/lifetime scope. Full Unicode workflow and wider parent remain unmet.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V04"
       }
     },

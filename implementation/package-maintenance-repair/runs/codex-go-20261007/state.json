@@ -335,7 +335,7 @@
     },
     "TECH-V04": {
       "planning_status": "blocked",
-      "state": "Finite conformance record hygiene accepted; actual current Wasm prerequisite recorded; production codec/error/lossless/profile/retirement joins remain open",
+      "state": "Finite int/ASCII current-consumer contract selected; source/error/preallocation/actual installed adoption remain unfinished under existing source limit; wider lossless/money/prepared-plan criteria remain open.",
       "files": [
         "packages/values/semantics/src/transport/exact.rs",
         "packages/values/semantics/src/codecs/numeric.rs",
@@ -396,8 +396,196 @@
         }
       },
       "remaining_prerequisite": {
-        "prerequisite": "Released production codec domain, lossless UTF16/error/carrier/profile and joint retirement/startup contract.",
-        "owner": "Values TS/Rust and actual supported consumer owners"
+        "prerequisite": "Exact source-edit/adoption release for chosen int/ASCII contract, Values genuine bounded producer + owning SchemaError entry, Interfaces original consumer connection and Dev actual installed Node resource/lifetime qualification. Full Unicode/error and prepared-plan retire-capacity remain separately required.",
+        "owner": "Values TS/Rust (defining producer/error/bounded work); Interfaces (existing CSV int consumer); Dev (actual installed host/resource/lifetime); existing human source/adoption/activation hold release"
+      },
+      "codec_domain_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct human public Canlang design/source-derived JEV authorization plus AGENTS difficult-design consultation; no credentials or private application/user data in requests. Consultation only, all nonconsultation holds preserved.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "TECH-V04 existing bounded codec contract selection",
+              "verified_facts": [
+                "Scope is the already queued TECH-V04 contract-only choice for the next existing codec producer/consumer unit. No source edit, native activation, backend default/fallback, installed adoption, TS retirement, preparation activation or publication is authorized. Parent money/lossless/prepared-plan outcomes stay open; accepted25raw-boundary+7host/hygiene controls are reused.",
+                "Current transport/exact.rs dispatches decode-value and encode-value for existing int,duration,decimal,money,date,datetime. Int and duration share decode_int64: optional minus plus ASCII digits, signed64 bounds, native bigint success. Leading zeros and -0 ARE accepted despite canonical comments. Encoding in-range bigint returns normalized decimal text.",
+                "Decode failures preserve ordered path/code/message/optional expected/actual in the Rust response. Current wasmBackend throws generic ValueError instead of preserving that envelope; the defining Values facade must reconstruct owning SchemaError, distinguishing semantic violation from malformed ABI/startup/capacity failures. No canned glue is acceptable.",
+                "Existing JSON carriers preserve ASCII strings and bigint decimal text. They do not preserve arbitrary lone-surrogate strings or numeric negative zero. Even valid Unicode malformed int text can produce non-equivalent actual text: Rust avoids splitting an astral pair at64UTF16 units where JavaScript slice retains the lone half. InputArena already has lossless UTF16/f64 frames and caller-supplied node/depth/text/entry budgets, but is NOT joined to these scalar codecs. Do not infer a lossless codec merely from arena existence.",
+                "Concrete current consumer is Interfaces CSV typed int decode and normalized duplicate-key encoding through Values decodeValue/encodeValue. It receives raw strings and currently accepts Unicode; its full workflow cannot be declared native-qualified from an ASCII subset. The newly released named CSV profile already caps total raw request/text at1MiB before materialization,1000rows and source-width cells. Reusing its existing byte bound for an explicit first native ASCII domain adds no smaller global numeric policy. Out-of-domain Unicode remains unmigrated, with no automatic fallback after native failure.",
+                "A finite int-only ASCII call would require checking trusted caller byte bound before tag/JSON/allocation, preserving original raw string, and avoiding huge intermediate arbitrary-precision parsing: scan optional sign/zeros/significant digits against signed64 limits before allocating only the bounded successful bigint. Return original ordered format/bound fields and64-unit ASCII actual truncation; malformed/over-budget envelopes refuse, no accepted result. Exact TS/Rust preallocation/work behavior remains producer work, not already implemented.",
+                "Bootstrap uses private copied bytes or genuine compiled-module identity, ABI1+required exports, publishes only successful initialization and refuses changed assets or outside initialization. Scalar calls are synchronous and stateless: no plan registration/capacity/handle retirement. Stop new calls before releasing caller references; no changed-asset reinitialization in same singleton. If a call traps/capacity refuses, never accept a result or silently fall back. Node24.19 is the available initial qualification host; Bun/workerd/replacement lifetimes require their actual owner releases. Prepared TS retire frees capacity but Rust retained unreleased slots still count; selecting stateless calls does not close that separate criterion.",
+                "Uncertainty: real native SchemaError projection and bounded int work are missing; source activation stays held. Complete arbitrary-Unicode CSV/native support needs the existing lossless owner mechanism or a separately released repair. No live consumer host capacity/retirement facts beyond the existing bootstrap are inferred. Advice must compare finite first units fairly and preserve all broader unmet criteria."
+              ]
+            },
+            "questions": {
+              "codec_contract": {
+                "type": "choice",
+                "instructions": "Which first existing codec family/domain should this contract select to enable a useful next real producer/consumer unit at the least total implementation and qualification cost? Compare the same preservation/hold requirements, distinguish a finite subset from full-workflow acceptance, and treat source facts as controlling.",
+                "criteria": {
+                  "int_ascii_first": "Choose existing int decode/encode only for explicitly admitted ASCII wire strings within the already released CSV byte bound, preserving format/bound errors and leading-zero/-0 behavior. Values owns checked SchemaError projection and bounded signed64 preflight before native allocations; Interfaces owns actual duplicate-key consumer connection, Dev actual initial Node24 qualification when released. No full Unicode workflow/native or parent acceptance; no new carrier/resource program.",
+                  "int_duration_ascii": "Choose the shared existing int+duration decode/encode family for the same explicit ASCII/caller-bound/stateless/bootstrap contract. It reuses the Rust helper and serves both public scalar names, but adds duration error-label/caller qualification without a concrete released duration consumer beyond Values public facade. Broader Unicode/money/prepared-plan outcomes still open.",
+                  "six_codecs_complete": "Select all six existing numeric codecs and require the existing lossless unit arena to join both input and error projection, including arbitrary UTF16/truncation and carrier/constructor/currency/calendar behavior. This better addresses full existing consumer domains but requires larger producer and real caller/profile qualifications. It must not claim arena existence is already a codec join or activate held source.",
+                  "defer_named_fact": "Retain all existing source and explicitly name the actual missing caller/domain/capacity fact that makes even a finite first int unit non-useful or impossible. Do not turn unmade defining-owner choices into a generic human blocker or waive any accepted/error/resource requirement."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "TECH-V04 existing bounded codec contract selection",
+              "verified_facts": [
+                "Scope is the already queued TECH-V04 contract-only choice for the next existing codec producer/consumer unit. No source edit, native activation, backend default/fallback, installed adoption, TS retirement, preparation activation or publication is authorized. Parent money/lossless/prepared-plan outcomes stay open; accepted25raw-boundary+7host/hygiene controls are reused.",
+                "Current transport/exact.rs dispatches decode-value and encode-value for existing int,duration,decimal,money,date,datetime. Int and duration share decode_int64: optional minus plus ASCII digits, signed64 bounds, native bigint success. Leading zeros and -0 ARE accepted despite canonical comments. Encoding in-range bigint returns normalized decimal text.",
+                "Decode failures preserve ordered path/code/message/optional expected/actual in the Rust response. Current wasmBackend throws generic ValueError instead of preserving that envelope; the defining Values facade must reconstruct owning SchemaError, distinguishing semantic violation from malformed ABI/startup/capacity failures. No canned glue is acceptable.",
+                "Existing JSON carriers preserve ASCII strings and bigint decimal text. They do not preserve arbitrary lone-surrogate strings or numeric negative zero. Even valid Unicode malformed int text can produce non-equivalent actual text: Rust avoids splitting an astral pair at64UTF16 units where JavaScript slice retains the lone half. InputArena already has lossless UTF16/f64 frames and caller-supplied node/depth/text/entry budgets, but is NOT joined to these scalar codecs. Do not infer a lossless codec merely from arena existence.",
+                "Concrete current consumer is Interfaces CSV typed int decode and normalized duplicate-key encoding through Values decodeValue/encodeValue. It receives raw strings and currently accepts Unicode; its full workflow cannot be declared native-qualified from an ASCII subset. The newly released named CSV profile already caps total raw request/text at1MiB before materialization,1000rows and source-width cells. Reusing its existing byte bound for an explicit first native ASCII domain adds no smaller global numeric policy. Out-of-domain Unicode remains unmigrated, with no automatic fallback after native failure.",
+                "A finite int-only ASCII call would require checking trusted caller byte bound before tag/JSON/allocation, preserving original raw string, and avoiding huge intermediate arbitrary-precision parsing: scan optional sign/zeros/significant digits against signed64 limits before allocating only the bounded successful bigint. Return original ordered format/bound fields and64-unit ASCII actual truncation; malformed/over-budget envelopes refuse, no accepted result. Exact TS/Rust preallocation/work behavior remains producer work, not already implemented.",
+                "Bootstrap uses private copied bytes or genuine compiled-module identity, ABI1+required exports, publishes only successful initialization and refuses changed assets or outside initialization. Scalar calls are synchronous and stateless: no plan registration/capacity/handle retirement. Stop new calls before releasing caller references; no changed-asset reinitialization in same singleton. If a call traps/capacity refuses, never accept a result or silently fall back. Node24.19 is the available initial qualification host; Bun/workerd/replacement lifetimes require their actual owner releases. Prepared TS retire frees capacity but Rust retained unreleased slots still count; selecting stateless calls does not close that separate criterion.",
+                "Uncertainty: real native SchemaError projection and bounded int work are missing; source activation stays held. Complete arbitrary-Unicode CSV/native support needs the existing lossless owner mechanism or a separately released repair. No live consumer host capacity/retirement facts beyond the existing bootstrap are inferred. Advice must compare finite first units fairly and preserve all broader unmet criteria."
+              ]
+            },
+            "questions": {
+              "codec_contract": {
+                "type": "choice",
+                "instructions": "Choose the most useful bounded next production-codec contract from these alternatives. We need exact values/errors/carriers, bounded native work, joint startup/lifetime refusal and an actual caller, while preserving unmigrated Unicode and broader parent criteria. Evaluate added duration/six-codec scope at its real cost; deferral needs a concrete missing fact.",
+                "criteria": {
+                  "int_ascii_first": "Choose existing int decode/encode only for explicitly admitted ASCII wire strings within the already released CSV byte bound, preserving format/bound errors and leading-zero/-0 behavior. Values owns checked SchemaError projection and bounded signed64 preflight before native allocations; Interfaces owns actual duplicate-key consumer connection, Dev actual initial Node24 qualification when released. No full Unicode workflow/native or parent acceptance; no new carrier/resource program.",
+                  "int_duration_ascii": "Choose the shared existing int+duration decode/encode family for the same explicit ASCII/caller-bound/stateless/bootstrap contract. It reuses the Rust helper and serves both public scalar names, but adds duration error-label/caller qualification without a concrete released duration consumer beyond Values public facade. Broader Unicode/money/prepared-plan outcomes still open.",
+                  "six_codecs_complete": "Select all six existing numeric codecs and require the existing lossless unit arena to join both input and error projection, including arbitrary UTF16/truncation and carrier/constructor/currency/calendar behavior. This better addresses full existing consumer domains but requires larger producer and real caller/profile qualifications. It must not claim arena existence is already a codec join or activate held source.",
+                  "defer_named_fact": "Retain all existing source and explicitly name the actual missing caller/domain/capacity fact that makes even a finite first int unit non-useful or impossible. Do not turn unmade defining-owner choices into a generic human blocker or waive any accepted/error/resource requirement."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "TECH-V04 existing bounded codec contract selection",
+              "verified_facts": [
+                "Scope is the already queued TECH-V04 contract-only choice for the next existing codec producer/consumer unit. No source edit, native activation, backend default/fallback, installed adoption, TS retirement, preparation activation or publication is authorized. Parent money/lossless/prepared-plan outcomes stay open; accepted25raw-boundary+7host/hygiene controls are reused.",
+                "Current transport/exact.rs dispatches decode-value and encode-value for existing int,duration,decimal,money,date,datetime. Int and duration share decode_int64: optional minus plus ASCII digits, signed64 bounds, native bigint success. Leading zeros and -0 ARE accepted despite canonical comments. Encoding in-range bigint returns normalized decimal text.",
+                "Decode failures preserve ordered path/code/message/optional expected/actual in the Rust response. Current wasmBackend throws generic ValueError instead of preserving that envelope; the defining Values facade must reconstruct owning SchemaError, distinguishing semantic violation from malformed ABI/startup/capacity failures. No canned glue is acceptable.",
+                "Existing JSON carriers preserve ASCII strings and bigint decimal text. They do not preserve arbitrary lone-surrogate strings or numeric negative zero. Even valid Unicode malformed int text can produce non-equivalent actual text: Rust avoids splitting an astral pair at64UTF16 units where JavaScript slice retains the lone half. InputArena already has lossless UTF16/f64 frames and caller-supplied node/depth/text/entry budgets, but is NOT joined to these scalar codecs. Do not infer a lossless codec merely from arena existence.",
+                "Concrete current consumer is Interfaces CSV typed int decode and normalized duplicate-key encoding through Values decodeValue/encodeValue. It receives raw strings and currently accepts Unicode; its full workflow cannot be declared native-qualified from an ASCII subset. The newly released named CSV profile already caps total raw request/text at1MiB before materialization,1000rows and source-width cells. Reusing its existing byte bound for an explicit first native ASCII domain adds no smaller global numeric policy. Out-of-domain Unicode remains unmigrated, with no automatic fallback after native failure.",
+                "A finite int-only ASCII call would require checking trusted caller byte bound before tag/JSON/allocation, preserving original raw string, and avoiding huge intermediate arbitrary-precision parsing: scan optional sign/zeros/significant digits against signed64 limits before allocating only the bounded successful bigint. Return original ordered format/bound fields and64-unit ASCII actual truncation; malformed/over-budget envelopes refuse, no accepted result. Exact TS/Rust preallocation/work behavior remains producer work, not already implemented.",
+                "Bootstrap uses private copied bytes or genuine compiled-module identity, ABI1+required exports, publishes only successful initialization and refuses changed assets or outside initialization. Scalar calls are synchronous and stateless: no plan registration/capacity/handle retirement. Stop new calls before releasing caller references; no changed-asset reinitialization in same singleton. If a call traps/capacity refuses, never accept a result or silently fall back. Node24.19 is the available initial qualification host; Bun/workerd/replacement lifetimes require their actual owner releases. Prepared TS retire frees capacity but Rust retained unreleased slots still count; selecting stateless calls does not close that separate criterion.",
+                "Uncertainty: real native SchemaError projection and bounded int work are missing; source activation stays held. Complete arbitrary-Unicode CSV/native support needs the existing lossless owner mechanism or a separately released repair. No live consumer host capacity/retirement facts beyond the existing bootstrap are inferred. Advice must compare finite first units fairly and preserve all broader unmet criteria."
+              ]
+            },
+            "questions": {
+              "codec_contract": {
+                "type": "choice",
+                "instructions": "Given these verified codec, JSON-carrier, caller-bound, error and bootstrap facts, which explicit family/domain is the smallest coherent next unit worth selecting? Do not count historical conformance as production adoption or allow a narrowed scope to satisfy the whole existing CSV workflow. Select advice only; all source/adoption/activation holds remain.",
+                "criteria": {
+                  "int_ascii_first": "Choose existing int decode/encode only for explicitly admitted ASCII wire strings within the already released CSV byte bound, preserving format/bound errors and leading-zero/-0 behavior. Values owns checked SchemaError projection and bounded signed64 preflight before native allocations; Interfaces owns actual duplicate-key consumer connection, Dev actual initial Node24 qualification when released. No full Unicode workflow/native or parent acceptance; no new carrier/resource program.",
+                  "int_duration_ascii": "Choose the shared existing int+duration decode/encode family for the same explicit ASCII/caller-bound/stateless/bootstrap contract. It reuses the Rust helper and serves both public scalar names, but adds duration error-label/caller qualification without a concrete released duration consumer beyond Values public facade. Broader Unicode/money/prepared-plan outcomes still open.",
+                  "six_codecs_complete": "Select all six existing numeric codecs and require the existing lossless unit arena to join both input and error projection, including arbitrary UTF16/truncation and carrier/constructor/currency/calendar behavior. This better addresses full existing consumer domains but requires larger producer and real caller/profile qualifications. It must not claim arena existence is already a codec join or activate held source.",
+                  "defer_named_fact": "Retain all existing source and explicitly name the actual missing caller/domain/capacity fact that makes even a finite first int unit non-useful or impossible. Do not turn unmade defining-owner choices into a generic human blocker or waive any accepted/error/resource requirement."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "codec_contract": {
+                  "type": "choice",
+                  "choice": "int_ascii_first",
+                  "confidence": 0.95,
+                  "probabilities": {
+                    "int_ascii_first": 0.96,
+                    "int_duration_ascii": 0.03,
+                    "six_codecs_complete": 0.0,
+                    "defer_named_fact": 0.01
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1504,
+                "output_tokens": 58
+              }
+            }
+          },
+          {
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "codec_contract": {
+                  "type": "choice",
+                  "choice": "int_ascii_first",
+                  "confidence": 0.95,
+                  "probabilities": {
+                    "int_ascii_first": 0.96,
+                    "int_duration_ascii": 0.02,
+                    "six_codecs_complete": 0.0,
+                    "defer_named_fact": 0.02
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1518,
+                "output_tokens": 58
+              }
+            }
+          },
+          {
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "codec_contract": {
+                  "type": "choice",
+                  "choice": "int_ascii_first",
+                  "confidence": 0.96,
+                  "probabilities": {
+                    "int_ascii_first": 0.97,
+                    "int_duration_ascii": 0.02,
+                    "six_codecs_complete": 0.0,
+                    "defer_named_fact": 0.01
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1517,
+                "output_tokens": 58
+              }
+            }
+          }
+        ],
+        "status": "Completed once; results are advice only and no source/adoption/activation authorization.",
+        "adjudication": "All3 advice selects int_ascii_first (.96/.96/.97, confidence .95/.95/.96), no rationale returned. Source choice: the current int CSV duplicate-key consumer is concrete, duration adds no released caller outcome, and six-codec/lossless breadth is not required for this next finite unit. ASCII is an explicit transport/error domain, never full Unicode CSV or parent acceptance."
+      },
+      "selected_codec_contract": {
+        "stage": "Selected defining-owner contract only; producer/source/adoption remain unfinished and held. No source or installed qualification executed.",
+        "family_and_consumer": {
+          "codec": "Existing int branch of decode-value/encode-value only; duration/decimal/money/date/datetime remain separate unmet parent scope.",
+          "current_consumer": "Owning Values decodeValue(int,wire)/encodeValue(int,value), consumed by existing Interfaces CSV typed integer duplicate-key normalization. Current full Unicode caller is not migrated or certified by this subset.",
+          "domain": "Primitive ASCII raw wire strings, including empty/control/malformed/leading-zero/-0/out-of-range text, under the existing named CSV 1MiB byte bound. Encode accepts only the actual in-range bigint yielded by selected decode. No object/tuple/accessor/number coercion or non-ASCII/astral/lone-surrogate domain inferred; outside-domain admission must refuse before native entry, never normalize or fall back after failure. Legacy full public domain remains unmigrated under the hold."
+        },
+        "values_errors_carrier": {
+          "value": "Preserve optional minus + ASCII digits, leading zeros and -0, then exact signed64 range. Decode yields native bigint; encode yields normalized decimal string. Never narrow through JS number or use raw JSON bytes as duplicate identity.",
+          "errors": "Checked ABI1 response must preserve ordered violations with exact path/code/message and present/absent expected/actual values; for this scalar path is empty, malformed text is format and valid digits outside signed64 is bound. Owning SchemaError facade projects to its declared public field names/constructor; generic backend ValueError erasure is an identified producer defect. Malformed envelope/unknown field or tag/bad scalar/arity/transport/startup/capacity refusal is not a semantic accepted decode.",
+          "carrier": "Existing exact JSON string/bigint tags suffice only for this ASCII scalar slice. Preserve exact64-unit JSON-string actual truncation and optional fields. Reuse accepted duplicate-tuple hygiene; refuse other carrier shapes before guards. Existing lossless arena is not claimed joined; UTF16 and astral-cut exclusions remain.",
+          "public_owner_prerequisite": "Values TS must release the exact owning SchemaError projection and codec entry together with actual Rust producer under the source-edit release. The allowed contract files expose the wire envelope, not that completed public facade."
+        },
+        "capacity_startup_retirement": {
+          "capacity": "Reuse the already released named CSV raw/text1MiB admission; no new smaller fixed/global quota. Selected caller checks original ASCII/text bytes before tag/JSON/string allocations. TS and Rust enforce the same admitted bound BEFORE JSON/tag payload materialization, including native serde allocation; raw encoded request-size overhead must be bounded before parsing, not merely before BigInt. Validate exact scalar/arity before usable native decode; serialized escape/envelope overhead is derived from the admitted original text and fixed two-scalar call shape. Native sign/zero/significant-digit and signed-bound scan must precede arbitrary-precision parsing, so only at most19significant digits allocate a successful bigint. Format-before-bound and original actual text remain; over-budget, allocation or trap failure produces no accepted result/effect or fallback. Current exact route has no such bounded-work join: this is finite producer work, not an existing guarantee.",
+          "startup": "Use genuine producer bytes or compiled module, private copied-byte/module identity pin, ABI1 and existing required exports. Publish backend only after success; same asset may reuse, changed asset or outside glue initialization refuses. Preserve missing/corrupt/ABI/startup refusals; no canned glue.",
+          "retirement": "Selected calls are synchronous and stateless: no prepare/register/release handles or plan capacity participates. Caller stops admitting new calls before dropping its backend references; an entered call finishes or throws and owns no retained operation state. Generated singleton cannot accept replacement assets; a replacement requires a fresh isolated host lifetime qualified by its owner. TS/Rust prepared-plan retire-capacity disagreement remains a separate unmet criterion and cannot be marked closed by this selection.",
+          "host": "Initial intended codec qualification is actual installed Node24.19 with genuine released artifact at explicit selection only. Accepted7 bootstrap controls are reused for their original scope; no int codec/consumer test claimed. Bun/workerd/multi-instance/replacement or broad Node engine support require separate actual owner admission; required shared engines/assertions unchanged."
+        },
+        "finite_next_producer_consumer_unit": {
+          "Values_TS_Rust": "Under a later exact source-edit release, implement bounded int preflight and checked ordered SchemaError projection connecting existing decode-value/encode-value to owning public facade. Supply genuine artifact and exact entry; preserve all excluded domains/refusals/defaults.",
+          "Interfaces": "Only after producer/source-adoption release, connect exact selected int consumer at its existing CSV typed/duplicate boundary, preserving raw capture/default/mapping/current authority and all original non-ASCII behavior; ASCII proof alone cannot adopt the entire workflow.",
+          "Dev": "Qualify original installed Node selected producer+consumer, genuine bounded maximum work/peak memory, failure/startup and lifetime. Bun/workerd or replacement scope requires exact corresponding profile, not historical engine inference.",
+          "acceptance": "After releases, actual selected int producer/owning SchemaError/current duplicate-key consumer must preserve range extremes, leading zeros/-0, malformed and ordered error optional fields, and refuse over-bound/ABI/startup/asset/domain failures. No full money/Unicode/prepared-plan or whole-parent acceptance; no source activation, default, fallback, TS retirement, preparation or publication lift."
+        },
+        "checks": "Design/source fact selection only. Reuse accepted25raw-boundary+7realhost/hygiene and unchanged CSV/source results; no repeat tests/builds/conformance or new proof tree.",
+        "independent_review": "Finite allowed-source contract review CLEAR: actual int grammar/value/error exclusions, unfinished producer/consumer work, stateless versus prepared lifetime and all exact holds remain honest. Native admission must precede JSON/tag/serde allocations as well as BigInt parsing; current exact.rs parses first and receives no capacity credit. No checks or source edits by reviewer. Coordinator independent finite contract review CLEAR and LOCAL main contract intake after deadline; no source/adoption/activation lift or production/installed acceptance."
       }
     },
     "TECH-V05": {

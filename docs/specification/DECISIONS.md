@@ -9803,3 +9803,61 @@ Coordinator finite Compiler membership/source-census, awaited subject-role and c
 2026-10-11 — explicit native recovery consumer (finite original Images TS/WASM scope reviewed in LOCAL main after deadline). Exact Dev7d1 implementation and327 qualification consume the existing Work343 synchronous demand/resume planner through original durable recover/sweep. Independent consumer review CLEAR; retain complete native TS1/1 and WASM1/1, each26 planner calls, atomic maintenance/reconcile fences and ACK, original retry/replay/current and in-flight authority/File/resources/source/cleanup assertions. These results supersede pre-assertion restricted-runner failures. Selection is explicit test-only; default, preparation, activation/publication and full parent remain held or unfinished. No unchanged runs repeated or producer paths duplicated.
 
 2026-10-11 — original Office unknown-head refusal consumer (finite diagnostic scope reviewed in LOCAL main after deadline). Dev7c actual source SHA/span, complete single diagnostic/no omission, private-socket grammar help with unknown coverage/no cards and candidate_coverage_unknown retain zero provider calls and no preview. Coordinator finite consumer review CLEAR; reuse1/1 owning result425ms and unchanged41-card/browser results. Compiler0bf incomplete inventory is the exact captured prerequisite; later actual complete-inventory producer requires relevant consumer update, not an unchanged frozen claim. Live ranking/T04/T11/G2/G3 and full plan remain unfinished.
+
+## 2026-10-11 — First production codec contract (selected; source and adoption held)
+
+For TECH-V04, select the existing int decode-value/encode-value branch as the
+next finite producer/consumer unit. Its concrete consumer is Values' owning
+decodeValue/encodeValue facade at Interfaces' CSV integer duplicate-key boundary.
+The explicit first domain is raw ASCII strings within the already released CSV
+1 MiB request/text bound, including malformed text, leading zeros and -0.
+Preserve the actual optional-minus/digits grammar and signed64 limits; return
+bigint and normalized decimal text without a JS-number intermediate. Encode only
+the genuine in-range decoded bigint in this selected recipe. Duration and the
+other scalar families remain outside this first unit, with parent criteria open.
+
+The existing JSON tags are lossless for that ASCII/bigint slice. Native decode
+must preserve ordered path/code/message and optional expected/actual values and
+project through the owning SchemaError facade. Current wasmBackend discards those
+violations, so this public error join is required producer work. The exact owning
+public constructor/field projection must accompany the source release; wire
+envelope existence alone is not an implemented public facade. Reject malformed
+ABI/domain/capacity failures without a semantic accepted decode or native-failure
+fallback. Keep existing tuple hygiene and all source/import/security refusals.
+
+Caller admission checks the original ASCII/text byte bound before tag/JSON
+allocation; native encoded request-size admission must also precede serde/tag
+payload materialization. Envelope/escaping overhead derives from that bound and
+the fixed scalar call shape. Native sign, zero, significant-digit and signed-limit scanning
+must precede arbitrary-precision parsing, so a successful bigint allocates at most
+19 significant digits. Preserve format-before-bound errors and exact ASCII
+64-unit actual truncation. This bounded-work mechanism is unfinished; the current
+exact route has ordinary allocations and cannot claim the required capacity
+refusal. No smaller global quota or general carrier programme is selected.
+
+Use existing genuine-asset bootstrap, private identity pin, ABI1/export checks and
+publication only after successful startup. Same asset reuse is allowed; changed
+assets, corrupt/missing bytes and outside initialization refuse. The selected
+calls are synchronous and stateless. Stop new calls before releasing caller
+references; no plan handles or registry capacity participate. Replacement assets
+need a fresh isolated host lifetime. The TS/Rust prepared-plan retirement/capacity
+disagreement remains unmet, separately from this stateless unit.
+
+Three JEV requests unanimously select this first int slice (.96/.96/.97,
+confidence .95/.95/.96), with no rationale returned. Source adjudication favors
+the existing concrete int caller over adding an unreleased duration caller or
+six-codec breadth. Advice does not certify a narrowed full workflow: arbitrary
+UTF16, astral error truncation and the existing Unicode CSV domain remain
+unmigrated. The lossless arena is not already a codec join. Initial intended
+qualification is genuine installed Node24.19; Bun/workerd and replacement scopes
+require their actual owner releases. Reuse accepted25 raw-boundary and7 bootstrap
+controls at their original scope; no codec/consumer checks were repeated.
+
+Values owns the bounded native producer and exact public SchemaError join;
+Interfaces owns connection at the existing typed duplicate-key boundary; Dev owns
+actual installed resource, lifetime and original consumer qualification. This
+decision releases a contract only. Existing source-change/adoption/default/
+fallback/TS-retirement/preparation/activation/publication holds remain; neither
+the full Unicode CSV workflow nor the wider V04 parent is accepted.
+
+Coordinator independent finite V04 defining contract review CLEAR; existing int/ASCII grammar, signed64/error/caller/bootstrap/lifetime scope and genuine missing producer match the selected owner record. Contract only integrated LOCAL main after deadline. Reuse25+7 results; exact source/adoption/default/preparation/activation/publication holds, Unicode/astral and prepared retirement/whole-parent criteria remain unchanged. No production or native acceptance inferred.
