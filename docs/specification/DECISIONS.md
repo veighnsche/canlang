@@ -8490,3 +8490,24 @@ Local integration0a396db7: exact existing Contracts originalContracts input, pub
 Original typed-images-progress.can and its app-identity-only Documents variant now publish the complete selected Images.submit input/result/DeliveryError catalog closure: WorkflowDefinition, WorkflowInput, ImageRequest, ImageRun, GeneratedImage and DeliveryError, including nested File/duration/array/nullable identities. Sealed original source/catalog/import/declaration/selected-SEND census refuses dropped or edited operations, bindings, effects, owners and stale sources; unselected WorkflowField remains refused. Actual unchanged CLI modules assemble through installed Cloudflare and Values with identical native/artifact schemas. New six cases6/6 .71s; affected delivery9, emptyFile4, schedule2, nominal1 and native nominal-reuse1 pass, zero skips. Earlier library162/codegen121/ordinary5/runtime1+1/completion2 pass and are reused; initial provenance refusals and outdated inventory assertions are corrected. Strict all-target Clippy0 in1m24s, fmt/diff0. This releases metadata for Capability original opaque4+2 cases; native File authority/issuance/receiving remains owner validation. Frozen whole1457 remains recorded separately;58/67/nine and BDD3/S9Q07/Task22/T11 holds remain.
 
 Local original-ancestry intakea4d32969: independent selected inventory source/census review CLEAR. Six complete original CLI/native schema cases and changed owning/strict results are reused at their scope. Complete selected Images six-contract closure is released to original runtime consumers; raw-default admission and actual File authority remain Capability/Dev prerequisites. Existing finite plan and original union/private rollback results are retained; no public terminal or whole-plan acceptance.
+
+
+## 2026-10-11 — Expired signed scenario receipt restoration
+
+Extend the existing singular versioned-ref source-form restoration to checked
+scenarios, using the released retained-only invoker. Preserve every signed
+context/selection claim and exact lease span. Ordinary expired restoration
+remains refused; both recovery methods must be callable and unseen identities
+can never fall through to ordinary execution. No new State output is needed.
+
+Interfaces emission and three affected maintained cases pass; the failed new
+native component omitted its scenario title control and was corrected. The
+existing genuine Compiler/two-owner D1 consumer passes1/1 in52223.617458ms:
+expired native/JSON carriers replay original results/records with zero commits;
+changed inputs, valid unseen signed nonce, tampering and revoked membership
+refuse with unchanged stores. Original producer hashes are preserved. Missing
+local Compiler bytes were rebuilt once locked/offline; unchanged checks are
+reused. Finite source review CLEAR. Coordinator reviews this exact local slice;
+wider disclosure/reference/host criteria and all precise human holds remain.
+
+Local selected intake380eacf2: reused independent source review and proportionate affected/genuine Compiler two-owner D1 consumer1/1 52223.617458ms; coordinator checks exact existing HMAC/context/callable recovery/dedicated receipt-only invocation route and preservation of current credential/hash/unseen/refusal semantics. Six related source/test paths match the released unit exactly. This satisfies only original signed scenario direct generated native/JSON recovery; wider disclosure/installed/browser/row-lifetime parents, native preparation/security holds remain. No new validation repetition or remote publication.

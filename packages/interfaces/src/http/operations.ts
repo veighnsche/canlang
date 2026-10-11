@@ -389,8 +389,8 @@ export async function handleOperationRequest(
         derived = deps.catalog.derivedFor?.(operation) ?? null;
       }
       retainedScenario = derived?.kind === 'scenario' && idError.message === 'Expired operation_id.' &&
-        !Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) &&
-        typeof deps.invoker.invokeRetainedMutation === 'function';
+        typeof deps.invoker.invokeRetainedMutation === 'function' &&
+        (!Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) || typeof deps.formBindings?.restoreRetained === 'function');
       if (!retainedScenario && derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
         return denyOrRerender(deps, request, operation, idError, seen, authed);
       }
@@ -425,7 +425,7 @@ export async function handleOperationRequest(
         await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
           operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
       if (restored === null && typeof token === 'string' && derived !== null &&
-          ['create', 'update', 'delete'].includes(derived.kind) &&
+          ['create', 'update', 'delete', 'scenario'].includes(derived.kind) &&
           typeof deps.formBindings?.restoreRetained === 'function' && typeof deps.invoker.invokeRetainedMutation === 'function') {
         restored = await deps.formBindings.restoreRetained({ appId: deps.app.appId, sessionToken, identity, derived,
           operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);

@@ -17,7 +17,9 @@ import { distribution } from '@canlang/values/distribution';
 import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import { ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperationId, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
+import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
+import { catalogFromArtifactOperations, createSourceFormBindings, handleOperationRequest } from '@canlang/interfaces/http/operations';
+import { createTestDeps } from '@canlang/interfaces/testing';
 import { WORK_OCCURRENCE_MODEL, WORK_SCHEDULE_MODEL, readOccurrenceRow } from '@canlang/work/kernel/tables';
 import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
 import { WORK_FANOUT_INTENT_MODEL, readFanoutIntentRow } from '@canlang/work/kernel/tables';
@@ -370,6 +372,64 @@ test('authored native CRUD joins checked committed sources and retained ordinary
         readHandlerOccurrenceRow(row).sourceOccurrence === deletedSource.occurrence.occurrenceId);
       assert.equal(deletedHandlers.length, 1); assert.equal(readHandlerOccurrenceRow(deletedHandlers[0]!).handler, `${APP}.deleted`);
       await checkRetainedHandler(deletedHandlers[0]!);
+
+      // The real checked scenario's expired signed carrier can observe only its
+      // original receipt. Its protected ref retains the pre-mutation version.
+      const http = await createTestDeps({});
+      const formCatalog = catalogFromArtifactOperations(artifact);
+      const derived = formCatalog.derivedFor?.(changed.envelope.operation); assert.ok(derived);
+      const formBindings = await createSourceFormBindings(randomBytes(32), producerHashes.join(':'));
+      const bindingContext = { appId: APP, sessionToken: token, identity, derived,
+        operationId: changed.envelope.operation_id, nowMs: FIXED_NOW };
+      const bound = { record: { id: scenarioRow.id, version: String(scenarioRow.version) } };
+      const proof = await formBindings.seal(bindingContext, bound, ['title']);
+      const expiredClock = { nowMs: () => FIXED_NOW + 16 * 60 * 1000 };
+      const canonicalRecovery = buildInvoker(artifact, asm, observed,
+        { appId: APP, memberships: identities, now: expiredClock.nowMs });
+      let ordinaryCalls = 0, retainedCalls = 0;
+      const httpInvoker = { ...canonicalRecovery,
+        async invokeMutation(...args: Parameters<typeof canonicalRecovery.invokeMutation>) {
+          ordinaryCalls++; return canonicalRecovery.invokeMutation(...args);
+        },
+        async invokeRetainedMutation(...args: Parameters<typeof canonicalRecovery.invokeRetainedMutation>) {
+          retainedCalls++; return canonicalRecovery.invokeRetainedMutation(...args);
+        },
+      };
+      const deps = { ...http.deps, app: { ...http.deps.app, appId: APP }, catalog: formCatalog,
+        identity: { ...http.deps.identity, store: identities }, formBindings, invoker: httpInvoker, clock: expiredClock };
+      const csrf = await deriveCsrfToken(token), cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false });
+      const submitSigned = (native: boolean, operationId = changed.envelope.operation_id,
+        signed = proof.token, title = 'scenario-after') => {
+        const body = { operation: changed.envelope.operation, operation_id: operationId,
+          form_binding: signed, inputs: { title } };
+        return handleOperationRequest(deps, new Request('https://test.invalid/operations', { method: 'POST',
+          headers: { cookie, 'x-csrf-token': csrf,
+            'content-type': native ? 'application/x-www-form-urlencoded' : 'application/json' },
+          body: native ? new URLSearchParams({ operation: body.operation, operation_id: operationId,
+            form_binding: signed, 'inputs[title]': title }).toString() : JSON.stringify(body),
+        }), changed.envelope.operation);
+      };
+      const beforeRecovery = await all(), beforeRecoveryBatches = batches.length;
+      for (const native of [false, true]) {
+        const response = await submitSigned(native); assert.equal(response.status, 200, await response.clone().text());
+        const result = await response.json() as typeof changed.result;
+        assert.equal(result.status, 'replayed'); assert.equal(result.operation_id, changed.envelope.operation_id);
+        assert.deepEqual(result.result, changed.result.result); assert.deepEqual(result.records, changed.result.records);
+        assert.deepEqual(await all(), beforeRecovery); assert.equal(batches.length, beforeRecoveryBatches);
+      }
+      assert.equal((await submitSigned(false, changed.envelope.operation_id, proof.token, 'changed-retry')).status, 409);
+      const unseen = asOperationId(uuidv7(FIXED_NOW, sequence + 100000));
+      const unseenProof = await formBindings.seal({ ...bindingContext, operationId: unseen }, bound, ['title']);
+      assert.equal((await submitSigned(true, unseen, unseenProof.token)).status, 404);
+      assert.equal((await submitSigned(false, changed.envelope.operation_id, `${proof.token}x`)).status, 403);
+      assert.equal(ordinaryCalls, 0); assert.equal(retainedCalls, 4);
+      assert.deepEqual(await all(), beforeRecovery); assert.equal(batches.length, beforeRecoveryBatches);
+      const membership = await identities.findMembership(team.team_id, user.user_id); assert.ok(membership);
+      await identities.removeMembership(membership.membership_id);
+      const afterRevocation = await all();
+      assert.equal((await submitSigned(true)).status, 403);
+      assert.equal(ordinaryCalls, 0); assert.equal(batches.length, beforeRecoveryBatches);
+      assert.deepEqual(await all(), afterRevocation);
       assert.deepEqual(await Promise.all([fixture, compiler, catalog].map(async path => digest(await readFile(path)))), producerHashes);
     } finally { await worker?.dispose(); await rm(dir, { recursive: true, force: true }); }
   });
