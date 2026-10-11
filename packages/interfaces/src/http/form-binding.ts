@@ -67,7 +67,7 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
   });
   const restore = async (context: SourceFormBindingContext, token: string, inputs: ClosedInputs, retained: boolean): Promise<ClosedInputs | null> => {
     if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS || !record(inputs)) return null;
-    if (retained && !['create', 'update', 'delete'].includes(context.derived.kind)) return null;
+    if (retained && !['create', 'update', 'delete', 'scenario'].includes(context.derived.kind)) return null;
     const segments = token.split('.');
     if (segments.length !== 2) return null;
     const payload = canonicalBytes(segments[0]!), signature = canonicalBytes(segments[1]!);

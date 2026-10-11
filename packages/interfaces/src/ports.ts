@@ -103,7 +103,7 @@ export interface SourceFormBindingProof {
 export interface SourceFormBindings {
   seal(context: SourceFormBindingContext, bound: ClosedInputs, editable: readonly string[]): Promise<SourceFormBindingProof>;
   restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
-  /** Expired checked CRUD proof; recovered inputs require receipt-only invocation. */
+  /** Expired checked mutation proof; recovered inputs require receipt-only invocation. */
   restoreRetained?(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
 }
 
