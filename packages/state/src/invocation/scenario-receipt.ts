@@ -1149,7 +1149,7 @@ interface QueryExecution {
   readonly candidates: { readonly row: StoredRow; readonly record: ProjectedRecord;
     readonly slot: ScenarioReceiptQuerySlot; readonly dependencies: Set<string>;
     readonly reads: Map<string, number>; readonly markers: Map<string, number>;
-    pendingRead: string | null; matched: boolean }[];
+    pendingRead: string | null; matched: boolean; readonly parentRows: StoredRow[] }[];
   selectedIndices: readonly number[];
   activeSlot: ScenarioReceiptQuerySlot | null;
   complete: boolean;
@@ -2048,14 +2048,14 @@ function queryModelDescriptor(bound: BoundPlan, query: ScenarioReceiptQueryPlan)
 /** Original first-query rows reuse the installed source/ancestor projector and
  * complete Identity observation, both now and against actual final effects. */
 async function observeModelQuerySourceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
-  state: Capture, model: ModelName, row: StoredRow, fields: readonly string[]): Promise<(fields: readonly string[]) => Promise<void>> {
+  state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0): Promise<(fields: readonly string[]) => Promise<void>> {
   const producer = referenceProducers.get(call.def as GeneratedOperationDef), read = producer?.readPolicies?.get(model);
   if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read) ||
       owner.session === null || owner.callGuards.length >= MAX_ITEMS) return invalid('model query requires its installed whole source field grants.');
   const stage = owner.stage;
   const healthy = () => {
     capture(call, store); ownerHealthy(owner);
-    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 0 || state.returnId !== null) {
+    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== pending || state.returnId !== null) {
       return invalid('model query source authority crossed its original owner stage.');
     }
   };
@@ -2200,7 +2200,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
         sourceAuthorities.push(sourceAuthority);
         const slot = Object.freeze({});
         const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(),
-          reads: new Map<string, number>(), markers: new Map<string, number>(), pendingRead: null as string | null, matched: false };
+          reads: new Map<string, number>(), markers: new Map<string, number>(), pendingRead: null as string | null, matched: false, parentRows: [] as StoredRow[] };
         querySlots.set(slot, { execution, index: execution.candidates.length }); execution.candidates.push(candidate);
         execution.activeSlot = slot;
         try {
@@ -2208,6 +2208,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
           capture(call, store); ownerHealthy(owner);
           if (typeof accepted !== 'boolean') return invalid('query predicate requires an actual boolean.');
           if (candidate.pendingRead !== null || [...candidate.reads].some(([field, count]) => candidate.markers.get(field) !== count)) return invalid('query predicate omitted an executed control source marker.');
+          if (candidate.parentRows.some(row => queryParentRows.get(row)?.observed !== true)) return invalid('query predicate omitted its issued owning parent observation.');
           await sourceAuthority?.(plan.dependencies.filter(dependency => candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
           candidate.matched = accepted; return accepted;
         } finally { execution.activeSlot = null; }
@@ -2246,6 +2247,60 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
     }, call);
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
+const queryParentRows = new WeakMap<StoredRow, { readonly execution: QueryExecution;
+  readonly slot: ScenarioReceiptQuerySlot; readonly dependencyId: string; observed: boolean }>();
+
+/** Finite active-query navigation for Run.parent → Branch.parent. The parent
+ * comes from the actual candidate and declared containment, never request IDs.
+ * Its ordinary dependency still observes the owning Branch metadata separately. */
+export async function readScenarioReceiptQueryParentRow(call: AdmittedCall, store: StoragePort, input: {
+  readonly slot: ScenarioReceiptQuerySlot; readonly dependencyId: string;
+}): Promise<StoredRow> {
+  let state: Capture | undefined, acquired = false;
+  const slotMember = typeof input === 'object' && input !== null ? Object.getOwnPropertyDescriptor(input, 'slot') : undefined;
+  const issued = slotMember !== undefined && 'value' in slotMember ? querySlots.get(slotMember.value) : undefined;
+  try {
+    state = capture(call, store); object(input, ['slot', 'dependencyId']);
+    const execution = issued?.execution, owner = ownerSessions.get(call);
+    const candidate = execution?.candidates[issued!.index];
+    const dependency = state.bound.referenceDependencies.get(input.dependencyId);
+    const parent = candidate?.row.parent;
+    if (execution === undefined || candidate === undefined || owner === undefined || owner.session === null ||
+        execution.call !== call || execution.owner !== owner || execution.stage !== owner.stage || !owner.busy ||
+        owner.executingCall !== call || execution.activeSlot !== input.slot || execution.complete || state.pending !== 0 ||
+        state.returnId !== null || parent == null || dependency?.profile.kind !== 'parent' ||
+        dependency.dependency.model !== parent.model || state.bound.artifactModels.get(execution.plan.model)?.parent !== parent.model ||
+        candidate.pendingRead !== null || (candidate.reads.get('parent') ?? 0) === 0 ||
+        !execution.plan.dependencies.some(dep => dep.role === 'control' && dep.field === 'parent' && dep.type === parent.model &&
+          candidate.dependencies.has(dep.id))) {
+      return invalid('parent navigation requires its actual active query slot and exact owning parent dependency.');
+    }
+    ownerHealthy(owner); state.pending += 1; acquired = true;
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.executingCall !== call || owner.stage !== execution.stage || !owner.busy || state!.pending !== 1 ||
+          state!.returnId !== null || execution.activeSlot !== input.slot || execution.complete) {
+        return invalid('query parent navigation crossed its original active candidate.');
+      }
+    };
+    const row = await owner.session.views.final.get(parent.model, parent.id); healthy();
+    if (row === null || row.archivedAt !== null || row.parent?.model !== dependency.profile.target) {
+      throw new StateError('forbidden', 'Query candidate parent lifetime is unavailable.');
+    }
+    await observeModelQuerySourceAuthority(call, store, owner, state, parent.model, row, [], 1); healthy();
+    // Each issuance has its own identity even when two candidates share Branch.
+    const original = deepFreeze(dataCopy(row));
+    ownerRows.set(original, { session: owner, stage: owner.stage, model: parent.model });
+    queryParentRows.set(original, { execution, slot: input.slot, dependencyId: input.dependencyId, observed: false });
+    candidate.parentRows.push(original);
+    return original;
+  } catch (error) {
+    if (state !== undefined) state.poisoned = true;
+    if (issued !== undefined) issued.execution.owner.capture.poisoned = true;
+    throw error;
+  } finally { if (acquired) state!.pending -= 1; }
+}
+
 /** Consume first at its original owner stage. This supplies the genuine row for
  * native private binding; ordinary field/mutation gates still own authority.
  * Every matched index remains saved: first is never a query limit/truncation. */
@@ -2684,7 +2739,7 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     throw error;
   }
   const owner = ownerSessions.get(call);
-  let acquired = false;
+  let acquired = false, acquiredOwner = false;
   try {
     if (state.pending !== 0) return invalid('concurrent observations are forbidden.');
     if (state.returnId !== null) return invalid('observation cannot follow the selected return.');
@@ -2724,11 +2779,18 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
     if (owner !== undefined) {
       ownerHealthy(owner);
-      const issued = ownerRows.get(input.row);
-      if (owner.busy || admitted === undefined && (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model)) {
-        return invalid('observation requires the actual current-stage owner row.');
+      const issued = ownerRows.get(input.row), parent = queryParentRows.get(input.row);
+      const candidate = parent === undefined ? undefined : parent.execution.candidates[querySlots.get(parent.slot)!.index];
+      const activeParent = parent !== undefined && !rowId && reference?.profile.kind === 'parent' &&
+        parent.dependencyId === dependency.id && parent.execution.call === call && parent.execution.owner === owner &&
+        parent.execution.stage === owner.stage && parent.execution.activeSlot === parent.slot && !parent.execution.complete &&
+        candidate?.pendingRead === null && (candidate.reads.get('parent') ?? 0) > 0 &&
+        parent.execution.plan.dependencies.some(dep => dep.field === 'parent' && candidate.dependencies.has(dep.id));
+      if (parent !== undefined && !activeParent || owner.busy && !activeParent || admitted === undefined &&
+          (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model)) {
+        return invalid('observation requires the actual current-stage owner row and active parent query slot.');
       }
-      owner.busy = true;
+      if (!owner.busy) { owner.busy = true; acquiredOwner = true; }
     }
     if (id !== undefined && owner === undefined && admitted === undefined) return invalid('current row id requires its actual current-stage owner session.');
     state.pending += 1; acquired = true;
@@ -2763,12 +2825,14 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       ...(files === undefined ? {} : { files }),
       stored: current !== null && stableStringify(current) === stableStringify(row), ownerSession: owner !== undefined };
     state.observations.push(observation);
+    const queryParent = queryParentRows.get(input.row);
+    if (queryParent !== undefined) queryParent.observed = true;
     if (reference !== undefined) storedParentInputs.set(observation, { call, owner: owner!, stage: owner!.stage,
       row: input.row, revalidate: referenceRevalidate! });
     if (files !== undefined) storedFileInputs.set(observation, { call, owner: owner!, stage: owner!.stage, revalidate: referenceRevalidate!, used: false });
     return id === undefined ? undefined : row.id;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
-  finally { if (acquired) { state.pending -= 1; if (owner !== undefined) owner.busy = false; } }
+  finally { if (acquired) { state.pending -= 1; if (owner !== undefined && acquiredOwner) owner.busy = false; } }
 }
 
 export type ScenarioReceiptIntrinsicInput = {
