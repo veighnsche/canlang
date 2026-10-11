@@ -80,6 +80,107 @@ async function rejectsWith(fn: () => Promise<unknown>, ...needles: string[]): Pr
 }
 
 describe("list", () => {
+  it("renders selected authorized columns in authored order before each original row body", async () => {
+    const seen: SeenCall[] = [];
+    const rows = [row("a", { title: '<script>unsafe</script>', count: 42n, done: true, secret: "unselected" }),
+      row("b", { title: null, count: 7n, done: false })];
+    const columns: ColumnMeta[] = [
+      { field: "title", label: message("Title", { nl: "Titel <b>" }), type: "text" },
+      { field: "count", label: "Count", type: "int" },
+      { field: "done", label: "Done", type: "bool", valueLabels: {
+        true: message("Yes", { nl: "Ja" }), false: message("No", { nl: "Nee" }),
+      } },
+    ];
+    const calls: RowView[] = [];
+    const context = makeContext({ preferredLocales: ["nl"], query: stubRunner(seen, { rows, columns }) });
+    const html = await list({ context, model: "TeamTasks.Todo", columns: ["count", "title", "done"],
+      renderRow: (current, view) => { assert.equal(view, context); calls.push(current); return [`<p>body-${current.id}</p>`]; } });
+    assert.deepEqual(calls, rows);
+    assert.equal(calls[0], rows[0]); assert.equal(calls[1], rows[1]);
+    assert.deepEqual(seen[0]?.args, {}, "rendering selection does not alter the authorized query");
+    const page = await loadHtml(html);
+    try {
+      const items = [...page.document.querySelectorAll("li.list-row")];
+      assert.equal(items.length, 2);
+      for (const item of items) {
+        assert.deepEqual([...item.querySelectorAll("dt")].map(label => label.textContent), ["Count", "Titel <b>", "Done"]);
+        assert.equal(item.firstElementChild?.tagName.toLowerCase(), "dl");
+        assert.equal(item.lastElementChild?.tagName.toLowerCase(), "p");
+      }
+      assert.equal(items[0]?.querySelector("dd")?.textContent, "\u206842\u2069");
+      assert.ok(items[0]?.textContent?.includes("<script>unsafe</script>"));
+      assert.equal(page.document.querySelector("script"), null);
+      assert.equal(page.document.querySelector("b"), null);
+      assert.ok(items[0]?.textContent?.includes("Ja"));
+      assert.ok(items[1]?.textContent?.includes("Nee"));
+      assert.equal(items[1]?.querySelectorAll("dd")[1]?.textContent, "");
+      assert.ok(!html.includes("unselected"));
+    } finally { await page.close(); }
+  });
+
+  it("refuses missing list metadata or own projected fields before authored callbacks", async () => {
+    let calls = 0;
+    const title: ColumnMeta = { field: "title", label: "Title", type: "text" };
+    const inherited = Object.create({ title: "inherited" }) as Record<string, unknown>;
+    for (const result of [
+      { rows: [row("a", { title: "present" })], columns: [], emptyDeclarations: [title] },
+      { rows: [row("a", { title: "present" }), row("b")], columns: [title] },
+      { rows: [row("a", inherited)], columns: [title] },
+    ]) {
+      await rejectsWith(() => list({ context: makeContext({ query: stubRunner([], result) }),
+        model: "TeamTasks.Todo", columns: ["title"], renderRow: () => { calls++; return []; } }), "missing");
+      assert.equal(calls, 0);
+    }
+  });
+
+  it("uses empty list declarations only to validate names without rendering column evidence", async () => {
+    let calls = 0;
+    const declarations = [{ field: "secretLabel", type: "App.Secret.state" }];
+    const html = await list({ context: makeContext({ query: stubRunner([], { rows: [], columns: [], emptyDeclarations: declarations }) }),
+      model: "TeamTasks.Todo", columns: ["secretLabel"], empty: "Nothing here",
+      renderRow: () => { calls++; return []; } });
+    assert.equal(calls, 0);
+    assert.ok(html.includes("Nothing here"));
+    for (const hidden of ["secretLabel", "App.Secret.state", "<dl", "<dt", "badge"]) assert.ok(!html.includes(hidden));
+    for (const result of [{ rows: [], columns: [] }, { rows: [], columns: [], emptyDeclarations: declarations }]) {
+      await rejectsWith(() => list({ context: makeContext({ query: stubRunner([], result) }),
+        model: "TeamTasks.Todo", columns: ["unknown"], renderRow: () => [] }), "missing columns: unknown");
+    }
+  });
+
+  it("keeps selected columns in split summaries and renders only the current projected selection", async () => {
+    const occurrence = "page:/todos/list:columns";
+    const rows = [row("a", { title: "A" }), row("b", { title: "B" })];
+    const columns: ColumnMeta[] = [{ field: "title", label: "Title", type: "text" }];
+    const where = { original: "predicate" };
+    const seen: SeenCall[] = [];
+    const calls: RowView[] = [];
+    const context = makeContext({ path: "/todos", pollUrl: "/todos?q=current", collectionSelections: new Map([[occurrence, "b"]]),
+      query: stubRunner(seen, { rows, columns }) });
+    const props = { context, model: "TeamTasks.Todo", columns: ["title"], display: "split" as const, occurrence,
+      parent: { id: "parent" }, where, page: true as const, limit: 2, cursor: "original",
+      renderRow: (current: RowView) => { calls.push(current); return [`<p>selected-${current.id}</p>`]; } };
+    const html = await list(props);
+    assert.deepEqual(calls, [rows[1]]);
+    assert.equal(calls[0], rows[1]);
+    assert.deepEqual(seen[0]?.args, { parent: { id: "parent" }, where, limit: 2, cursor: "original", page: true, occurrence });
+    const page = await loadHtml(html);
+    try {
+      assert.equal(page.document.querySelectorAll("li.list-row dl").length, 2);
+      assert.equal(page.document.querySelectorAll("li.list-row a").length, 2);
+      assert.ok(page.document.querySelector("li.list-row a[aria-current=true]")?.getAttribute("href")?.includes("=b"));
+      assert.ok(page.document.querySelector("[data-can-split-panel]")?.textContent?.includes("selected-b"));
+      assert.ok(!html.includes("selected-a"));
+    } finally { await page.close(); }
+    for (const selection of ["stale", undefined]) {
+      calls.length = 0;
+      const fresh = await list({ ...props, context: { ...context, collectionSelections:
+        selection === undefined ? new Map() : new Map([[occurrence, selection]]) } });
+      assert.equal(calls.length, 0);
+      assert.ok(!fresh.includes("selected-a") && !fresh.includes("selected-b"));
+    }
+  });
+
   it("renders source search and the authorized visible count outside rows", async () => {
     const seen: SeenCall[] = [];
     const context = makeContext({
