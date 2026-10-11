@@ -8752,3 +8752,17 @@ eleven captured-name findings retain the exported-name exclusion. Remaining
 original23/no artifact, native applications and all precise holds stay open.
 
 Coordinator reviewed the exact stored Booking.benefit_unit type-token change to the owning Resource.price_unit, preserving its default and full labels. The original-source differential and affected corpus close only the two assignment findings; visit adaptation, captured names, guards and full-plan acceptance remain open.
+
+
+### Ungated bound-panel implementation checkpoint — 2026-10-11 (unfinished)
+
+Implement only the existing DESIGN921 ungated panel contract through the
+installed UI binding/items bijection. Private source correspondence protects
+owning cases, receiving/reused labels and save context from edited checked
+tables; current/default selection and version/route remain the existing binding.
+Direct Tab guards continue to refuse until UI defines unavailable options/current
+behavior. The finite CLI/UI consumer and176 affected checks/strict0 qualify this
+producer scope, not preference persistence or full applications. Unchanged
+Loyalty's original IR remains blocked by its unsupported enclosing compact hero;
+Compiler owns that necessary existing-contract prerequisite and the new failing
+original-IR assertion is retained. No new product policy or hold release.

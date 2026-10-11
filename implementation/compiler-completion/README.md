@@ -3676,3 +3676,23 @@ C05 runtime or Office41 repetition. Verified standard ingress, actual State
 mutation/replay and File authority are genuine separate Dev/Interfaces exits;
 the existing E6008 gate remains.58/67 and nine overlapping canonical parents,
 BDD3/Task22/T11 and other recipient-specific holds are unchanged.
+
+
+**Unfinished local checkpoint — ungated bound-panel producer, 2026-10-11.**
+
+Private original selector/header/case/receiving-field/reuse/module correspondence
+now feeds the existing owned binding and ordered tabItem payload. The actual
+CLI/installed UI finite consumer reuses Loyalty's declaration labels and cases,
+current/default/version/save route, grouped/reordered panels and repeated row
+scopes. Direct Tab guards retain specific E6008; no option filtering or fallback
+is invented. Affected176 distinct cases pass (analysis37/full52 corpus1.88s,
+bound8, codegen121 .22s, UI10), zero ignored/body skips; strict all-target
+Clippy0 6.39s and fmt/diff0. Only the failed CST-span/obsolete diagnostic
+assertions were corrected and requalified; successful results are reused.
+
+The new unchanged original Loyalty raw-IR assertion remains failing: its
+enclosing hero221 refuses E6008 before entering tabs234. This is an exact
+Compiler prerequisite under the existing compact-group contract, not a UI
+product decision. Continue that producer after saving this unfinished unit.
+Other original body profiles, preference persistence and full app acceptance
+remain separate. Original composition23,58/67/nine and precise holds unchanged.

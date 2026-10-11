@@ -603,9 +603,102 @@ pub struct CheckedStdCapabilityEvent {
     pub payload: ResolvedType,
 }
 
+/// Original checked selector and direct panel correspondence. This fact is
+/// private to source analysis; editable type tables cannot manufacture it.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedBoundTabs {
+    pub module: ModuleId,
+    owner_module: super::resolve::Module,
+    pub selector: NodeKey,
+    pub field: SymbolId,
+    pub ty: ResolvedType,
+    pub panels: Vec<(NodeKey, NodeKey, String)>,
+    nodes: Vec<(NodeKey, ResolvedType)>,
+    symbols: Vec<(super::resolve::Symbol, Option<ResolvedType>)>,
+    reuse: Vec<(SymbolId, Option<SymbolId>)>,
+}
+
+impl CheckedBoundTabs {
+    pub(crate) fn matches(&self, program: &super::CheckedProgram) -> bool {
+        program
+            .modules
+            .get(self.module.0 as usize)
+            .is_some_and(|module| {
+                module.id == self.owner_module.id
+                    && module.name == self.owner_module.name
+                    && module.kind == self.owner_module.kind
+                    && module.file == self.owner_module.file
+                    && module.span == self.owner_module.span
+                    && module.name_span == self.owner_module.name_span
+            })
+            && program
+                .types
+                .preference_field_references
+                .get(&self.selector)
+                == Some(&self.field)
+            && self
+                .nodes
+                .iter()
+                .all(|(node, ty)| program.types.node_types.get(node) == Some(ty))
+            && self.panels.iter().all(|(_, header, _)| {
+                program.types.resolved_cases.contains(header)
+                    && !program.types.bound_names.contains(header)
+            })
+            && self.reuse.iter().all(|(field, source)| {
+                program.types.field_reuse_sources.get(field).copied() == *source
+            })
+            && self.symbols.iter().all(|(original, ty)| {
+                let Some(current) = program.symbols.get(original.id.0 as usize) else {
+                    return false;
+                };
+                let same_kind = match (&original.kind, &current.kind) {
+                    (
+                        SymbolKind::Field {
+                            owner: a,
+                            type_node: x,
+                        },
+                        SymbolKind::Field {
+                            owner: b,
+                            type_node: y,
+                        },
+                    ) => a == b && x == y,
+                    (
+                        SymbolKind::Preferences { fields: a },
+                        SymbolKind::Preferences { fields: b },
+                    )
+                    | (SymbolKind::Contract { fields: a }, SymbolKind::Contract { fields: b }) => {
+                        a == b
+                    }
+                    (
+                        SymbolKind::Model {
+                            fields: a,
+                            owner: x,
+                            crud: c,
+                        },
+                        SymbolKind::Model {
+                            fields: b,
+                            owner: y,
+                            crud: d,
+                        },
+                    ) => a == b && x == y && c == d,
+                    _ => false,
+                };
+                same_kind
+                    && current.id == original.id
+                    && current.module == original.module
+                    && current.canonical == original.canonical
+                    && current.name == original.name
+                    && current.span == original.span
+                    && current.exported == original.exported
+                    && program.types.symbol_types.get(&original.id) == ty.as_ref()
+            })
+    }
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    bound_tabs: HashMap<NodeKey, CheckedBoundTabs>,
     /// Selected query-domain collection calls; separate from authored Where clauses.
     pub checked_collection_calls: HashMap<NodeKey, CheckedCollectionCall>,
     /// Checked contract-array any/all; distinct from stored-model proofs.
@@ -689,6 +782,12 @@ pub struct TypeTable {
     /// Declared result of every Scenario/CapabilityOp symbol
     /// (`None` = void). PR5 emission input: operation signatures.
     pub symbol_results: HashMap<SymbolId, Option<ResolvedType>>,
+}
+
+impl TypeTable {
+    pub(crate) fn bound_tabs(&self, node: &NodeKey) -> Option<&CheckedBoundTabs> {
+        self.bound_tabs.get(node)
+    }
 }
 
 /// Check types over `trees` with `tables`.
@@ -8690,7 +8789,12 @@ impl<'a> Typer<'a> {
                 },
             );
         }
-        if let Some(ResolvedType::Enum { cases, .. }) = bound_tab_expected {
+        if let Some(ty @ ResolvedType::Enum { .. }) = bound_tab_expected {
+            let ResolvedType::Enum { cases, owner } = &ty else {
+                unreachable!()
+            };
+            let mut panels = Vec::new();
+            let mut nodes = Vec::new();
             let mut seen = HashSet::new();
             for tab in kids(node)
                 .into_iter()
@@ -8703,6 +8807,7 @@ impl<'a> Typer<'a> {
                     continue;
                 };
                 let mut case = header;
+                nodes.push((NodeKey::of(header), ty.clone()));
                 while case.kind == SyntaxKind::Group {
                     let Some(inner) = kids(case)
                         .into_iter()
@@ -8711,6 +8816,7 @@ impl<'a> Typer<'a> {
                         break;
                     };
                     case = inner;
+                    nodes.push((NodeKey::of(case), ty.clone()));
                 }
                 let name = nameref_word(case, cx.text);
                 if case.kind != SyntaxKind::NameRef
@@ -8726,6 +8832,7 @@ impl<'a> Typer<'a> {
                     continue;
                 }
                 let name = name.expect("checked exact enum case").to_string();
+                panels.push((NodeKey::of(tab), NodeKey::of(case), name.clone()));
                 if !seen.insert(name.clone()) {
                     self.diags.push(Diagnostic::error(
                         "E3001",
@@ -8748,6 +8855,65 @@ impl<'a> Typer<'a> {
                     ),
                     tight_span(cx.text, domain.expect("bound selector")),
                 ));
+            }
+            if missing.is_empty() && panels.len() == cases.len() && seen.len() == cases.len() {
+                let mut selector = domain.expect("bound selector");
+                nodes.push((NodeKey::of(selector), ty.clone()));
+                while selector.kind == SyntaxKind::Group {
+                    let Some(inner) = kids(selector)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))
+                    else {
+                        break;
+                    };
+                    selector = inner;
+                    nodes.push((NodeKey::of(selector), ty.clone()));
+                }
+                if let Some(field) = self
+                    .types
+                    .preference_field_references
+                    .get(&NodeKey::of(selector))
+                    .copied()
+                {
+                    let mut symbols = Vec::new();
+                    let mut reuse = Vec::new();
+                    let mut pending = vec![field];
+                    if let Some(owner) = owner {
+                        pending.push(*owner);
+                    }
+                    let mut visited = HashSet::new();
+                    while let Some(id) = pending.pop() {
+                        if !visited.insert(id) {
+                            continue;
+                        }
+                        let Some(symbol) = self.tables.symbols.get(id.0 as usize) else {
+                            continue;
+                        };
+                        symbols.push((symbol.clone(), self.decl.get(&id).cloned()));
+                        if let SymbolKind::Field { owner, .. } = symbol.kind {
+                            pending.push(owner);
+                            let source = self.types.field_reuse_sources.get(&id).copied();
+                            reuse.push((id, source));
+                            if let Some(source) = source {
+                                pending.push(source);
+                            }
+                        }
+                    }
+                    self.types.bound_tabs.insert(
+                        NodeKey::of(node),
+                        CheckedBoundTabs {
+                            module: cx.module,
+                            owner_module: self.tables.modules[cx.module.0 as usize].clone(),
+                            selector: NodeKey::of(selector),
+                            field,
+                            ty,
+                            panels,
+                            nodes,
+                            symbols,
+                            reuse,
+                        },
+                    );
+                }
             }
         }
     }
