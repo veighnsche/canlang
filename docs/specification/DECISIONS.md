@@ -10821,3 +10821,24 @@ Coordinator defining corrected gallery review CLEAR following the actual eager-g
 The actual Compiler supplier exposes a nullable model ref compatibility failure in State. Keep nullable SEND inputs on the existing canonical ModelRef/null path at opaque declaration binding and framework guard enrollment; required null slots, versioned references, exact owning source/container correspondence and independent typed File census remain enforced. The singular nonnullable stored-row snapshot binder and its genuine row/source/ancestor/final-authority controls stay strict. No new representation or grant is needed. Normal State/Work/DO emissions and32 distinct affected component outcomes pass; the sole initial new refusal assertion is corrected to the owning reference StorageConstraintError and only that group is retried. Coordinator release, Compiler actual emitted supplier/refusal retry and Dev original native interpretation remain, with all holds preserved.
 
 Coordinator independent defining correction review CLEAR and exact LOCAL integration after deadline. Keep nullable canonical versioned ModelRef/null and required slots; strict nonnullable private StoredRow source/grant/File census unchanged. Reuse32 affected owning outcomes, exact source/test preimages and State/Work/DO checks; changed normal State/Work0. Compiler owning emitted supplier failure requires only affected retry. Original native consumers and separate frozen field-presence representation remain unfinished, precise holds and complete checkpoint unchanged.
+
+## 2026-10-11 — Required File arrays in artifact consumers (implemented; native retry unfinished)
+
+Accept the original Compiler File `file[]!` input profile with exact array-required
+marker correspondence. Keep create/update slot presence independent from array
+requiredness; empty arrays and ordered duplicate File IDs remain valid. Carry
+File array/nullability/bounds through both full and legacy MCP schema producers,
+and bind the entire File profile using its owning Values codec. Defaults, other
+scalar restrictions and current File/row authority remain unchanged.
+
+Interfaces emission passes. Four affected existing controls pass; the new case
+found missing legacy mapper forwarding, then an unsupported exotic JavaScript
+codec assumption, both corrected at their actual scope. Only the affected new
+case was repeated and passes. A public Cloudflare catalog descriptor control
+accepts required File-array create/update metadata and refuses marker mismatch.
+Finite source review is clear; these controls do not execute CRUD or qualify the
+original native journey. Dev retries that affected original source/page scope
+after consuming the repair, reusing the retained capture. Provider-void and all
+precise human holds remain, with full parents unfinished and no publication.
+
+Coordinator defining source review CLEAR and exact LOCAL intake after deadline. Genuine file[]! profile agrees with array.required and independent create/update-slot presence; complete owning File codec and full/legacy MCP wrapper facts preserve nullable/bounds and malformed/null-element/extra-key refusals. Reuse owning4 and actual public CF catalog1; changed normal Interfaces/Cloudflare/root0. This releases the demonstrated original native FileCollectionDownload catalog stop to Dev for affected-only retry, not native/current-authority/application acceptance. Existing precise holds and complete checkpoint unchanged.
