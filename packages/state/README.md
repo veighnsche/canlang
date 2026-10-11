@@ -62,6 +62,18 @@ govern issuance; copied ports lack the original migration validator binding.
 The genuine physical Files transaction and native owner routing need their
 separate owning consumer qualification.
 
+`queryGenerationCallbackDiagnosticsForViewer` keeps callback authority separate
+from ordinary delivery grants. An installed `callbackRead` evaluates the checked
+source predicate with State's coherent Identity context and observed row/revision/
+fence; it is exclusive with the legacy `callbackPolicy`. Ordinary current row,
+delivery identity and live readable parent-chain permissions remain required.
+After authority and exact association checks, installed `resolveOrigin` derives
+the genuine original request revision and declaration; it is exclusive with a
+legacy `origin`. Authorized absence needs neither origin nor Work lookup. State
+revalidates Identity and its revision before Work and after evidence awaits.
+These functions come from the verified host, never request data. Native checked
+relational read-policy consumption and original-app rendering need their own join.
+
 ## Build and test
 
 ```sh
