@@ -565,6 +565,11 @@ export type PageHistoryReader = (
 /** One request's authorized readers; this scope itself grants no authority. */
 export interface PageReadScope {
   readonly query: RowQueryRunner;
+  /** Host-only terminal cleanup, awaited once after the original request's
+   * full/partial rendering or failure. Uses this scope as receiver; it is
+   * never installed in renderer/source context. Close private File bindings
+   * here so results completing after scope end cannot produce links. */
+  readonly close?: () => void | Promise<void>;
   /**
    * Host-only association hook, called once before rendering with the exact
    * identity/limit-bound query installed by Interfaces and this scope as receiver.

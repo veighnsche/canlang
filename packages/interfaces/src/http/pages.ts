@@ -410,31 +410,102 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
 
   const partial = isPartialRequest(request);
   let scope: PageReadScope | undefined;
-  let query: RowQueryRunner;
+  let closeScope: (() => void | Promise<void>) | undefined;
   try {
-    scope = await deps.createReadScope?.(identity, source);
-    const scopedQuery = scope?.query;
-    query = bindRowQueryRunner(deps, identity, scopedQuery, scopedQuery === undefined ? deps : scope);
-    await scope?.onQueryBound?.(query);
-  } catch (err) {
-    return renderThrowResponse(deps, err, pathname);
-  }
-  const candidates = selectDiscoveryCandidates(descriptors);
-  const ancestors = declaredAncestors(descriptors, candidates, match.descriptor);
-  const outcomes = await admitDiscovery(deps, partial ? ancestors : candidates, source);
-  let breadcrumbs: ReturnType<typeof pageBreadcrumbs>;
-  try {
-    breadcrumbs = pageBreadcrumbs(match.descriptor, pathname, ancestors, outcomes);
-  } catch (err) {
-    return internalResponse(deps, err, pathname);
-  }
-  if (partial) {
+    let query: RowQueryRunner;
+    try {
+      scope = await deps.createReadScope?.(identity, source);
+      closeScope = scope?.close?.bind(scope);
+      const scopedQuery = scope?.query;
+      query = bindRowQueryRunner(deps, identity, scopedQuery, scopedQuery === undefined ? deps : scope);
+      await scope?.onQueryBound?.(query);
+    } catch (err) {
+      return renderThrowResponse(deps, err, pathname);
+    }
+    const candidates = selectDiscoveryCandidates(descriptors);
+    const ancestors = declaredAncestors(descriptors, candidates, match.descriptor);
+    const outcomes = await admitDiscovery(deps, partial ? ancestors : candidates, source);
+    let breadcrumbs: ReturnType<typeof pageBreadcrumbs>;
+    try {
+      breadcrumbs = pageBreadcrumbs(match.descriptor, pathname, ancestors, outcomes);
+    } catch (err) {
+      return internalResponse(deps, err, pathname);
+    }
+    if (partial) {
+      const context = buildPresentationContext({
+        ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
+        request,
+        pathname,
+        searchQuery,
+        isPartial: true,
+        appDefaultLocale: deps.app.appDefaultLocale,
+        csrfToken,
+        principal: identity,
+        source,
+        breadcrumbs,
+        query,
+        ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
+        ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
+        ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
+        ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
+        ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
+          observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
+        }),
+        ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
+        ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
+        appId: deps.app.appId, sessionToken,
+        clock: deps.clock,
+      });
+      let children: string;
+      try {
+        children = await match.descriptor.render(context, bindings);
+      } catch (err) {
+        return renderThrowResponse(deps, err, pathname);
+      }
+      let html: string;
+      try {
+        html = await renderPage(context, match.descriptor, [children]);
+      } catch (err) {
+        return internalResponse(deps, err, pathname);
+      }
+      return cappedHtmlResponse(deps, html, { method, path: pathname });
+    }
+
+    let navigation: NavigationResult;
+    try {
+      navigation = buildNavigation(candidates, outcomes, {
+        currentPath: pathname,
+        ownerLabels: deps.app.ownerLabels,
+      });
+    } catch (err) {
+      return internalResponse(deps, err, pathname);
+    }
+
+    let teams: TeamOption[];
+    try {
+      teams = await teamOptions(deps, identity);
+    } catch (err) {
+      return internalResponse(deps, err, pathname);
+    }
+    const account: AccountMenuData = {
+      authenticated: identity.actor !== null,
+      ...(identity.actor !== null ? { userLabel: identity.actor.email } : {}),
+      teams,
+      ...(identity.team !== null ? { currentTeamId: identity.team.team_id } : {}),
+    };
+    const shell: ShellData = {
+      navigation,
+      brand: deps.app.brand,
+      routes: { signIn: SIGN_IN_PATH, signOut: SIGN_OUT_PATH, switchTeam: SWITCH_TEAM_PATH },
+      account,
+      settings: { sections: [] },
+    };
     const context = buildPresentationContext({
       ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
       request,
       pathname,
       searchQuery,
-      isPartial: true,
+      isPartial: false,
       appDefaultLocale: deps.app.appDefaultLocale,
       csrfToken,
       principal: identity,
@@ -461,77 +532,13 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     }
     let html: string;
     try {
-      html = await renderPage(context, match.descriptor, [children]);
+      html = await renderPage(context, match.descriptor, [children], shell);
     } catch (err) {
       return internalResponse(deps, err, pathname);
     }
     return cappedHtmlResponse(deps, html, { method, path: pathname });
+  } finally {
+    try { await closeScope?.(); }
+    catch (err) { return internalResponse(deps, err, pathname); }
   }
-
-  let navigation: NavigationResult;
-  try {
-    navigation = buildNavigation(candidates, outcomes, {
-      currentPath: pathname,
-      ownerLabels: deps.app.ownerLabels,
-    });
-  } catch (err) {
-    return internalResponse(deps, err, pathname);
-  }
-
-  let teams: TeamOption[];
-  try {
-    teams = await teamOptions(deps, identity);
-  } catch (err) {
-    return internalResponse(deps, err, pathname);
-  }
-  const account: AccountMenuData = {
-    authenticated: identity.actor !== null,
-    ...(identity.actor !== null ? { userLabel: identity.actor.email } : {}),
-    teams,
-    ...(identity.team !== null ? { currentTeamId: identity.team.team_id } : {}),
-  };
-  const shell: ShellData = {
-    navigation,
-    brand: deps.app.brand,
-    routes: { signIn: SIGN_IN_PATH, signOut: SIGN_OUT_PATH, switchTeam: SWITCH_TEAM_PATH },
-    account,
-    settings: { sections: [] },
-  };
-  const context = buildPresentationContext({
-    ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
-    request,
-    pathname,
-    searchQuery,
-    isPartial: false,
-    appDefaultLocale: deps.app.appDefaultLocale,
-    csrfToken,
-    principal: identity,
-    source,
-    breadcrumbs,
-    query,
-    ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
-    ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
-    ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
-    ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
-    ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
-      observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
-    }),
-    ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
-    ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
-    appId: deps.app.appId, sessionToken,
-    clock: deps.clock,
-  });
-  let children: string;
-  try {
-    children = await match.descriptor.render(context, bindings);
-  } catch (err) {
-    return renderThrowResponse(deps, err, pathname);
-  }
-  let html: string;
-  try {
-    html = await renderPage(context, match.descriptor, [children], shell);
-  } catch (err) {
-    return internalResponse(deps, err, pathname);
-  }
-  return cappedHtmlResponse(deps, html, { method, path: pathname });
 }

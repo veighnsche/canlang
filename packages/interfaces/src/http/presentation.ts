@@ -176,9 +176,9 @@ export function buildPresentationContext(
   // Source extras cannot override host configuration, native readers or the
   // trusted identity admission instant shared with page guards and discovery.
   const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory,
-    breadcrumbs: _sourceBreadcrumbs, presentFile: _sourcePresentFile, now: _sourceNow, ...source } =
+    breadcrumbs: _sourceBreadcrumbs, presentFile: _sourcePresentFile, close: _sourceClose, now: _sourceNow, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
-      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs' | 'presentFile'>;
+      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs' | 'presentFile'> & { readonly close?: unknown };
   const { observeGenerationCallbackDiagnostics: _sourceCallbackDiagnostics, ...canonical } = source.canonical;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
