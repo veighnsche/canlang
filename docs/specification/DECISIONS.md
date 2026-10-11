@@ -8880,3 +8880,22 @@ Coordinator critical source/security review and integration, Capability State pr
 Coordinator critical review identified unconditional numeric-affinity metadata return as an actual first-materialization gap. Count and withhold every returned SQL column before host materialization, including version/created/updated/archived_at text or blobs; retain the existing null-data limit sentinel and valid numeric/ordinary behavior. Updated actual aggregate2/2 and new reachable hostile numeric text/blob2/2 pass (294.84/104.78ms;613.36/289.87ms), with prior21 unchanged results reused: selected25/25. Both platforms reject an above-cap single value with SQLITE_TOOBIG before storage, so qualification uses reachable seven-row aggregates and bounded archived point/live exclusion instead of a fabricated lower cap. The all-column source guard covers archive metadata; above-cap archived points are unreachable on this actual host. Final owning Contracts/State/Work emissions and genuine DO build exit0. Forward the mandatory actual RPC fields in the existing receipt proxy and consume only Capability107836's exact fanout proxy/error correspondence; original bodies are unchanged/unrerun. Coordinator review of this correction and original State/native caller qualification remain unfinished; all precise holds persist.
 
 Coordinator critical source/security review CLEAR for the exact bounded storage profile and all-column metadata correction. Actual25 backend controls/owning emissions/DO build reused; only a4 and12c unit deltas integrated, not broad Package sync ancestry. Actual State/lifecycle/native joins, separate SQL-work policy and all precise holds remain.
+
+
+## 2026-10-11 — connect collapse through the existing Details contract
+
+Implemented/tested: the catalog spelling `collapse` and compatibility spelling
+`details` share their existing disclosure decoder and installed UI factory, as
+UI-COMPONENTS147 already specifies. Preserve the checked required caption,
+open/id options, original scoped children/order and gate. Resolve/type the
+catalog open expression through the same lexical path as Details, including
+owning preference fields; do not infer or coerce types during emission. Direct
+slots remain unsupported rather than flattening into the disclosure body.
+
+Actual generated native rendering covers captions/localization, dynamic and
+preference/row options, original scope and false-gate nonevaluation. Unchanged
+CanBook IR preserves both uses of its original Appointment disclosure. Its
+query/calendar/body and real application qualification remain with their exact
+owning prerequisites; nullable `content` retains its separate refusal.
+
+Coordinator finite source review CLEAR for exact6af collapse/Details decoding: lexical open typing, owning caption/children/row/view/gate/id and explicit slot refusals. Owning161 affected assertions/strict0/fmt reused. Finite disclosure producer/native rendering is satisfied; original application/browser/persistence/current dispatch and exact listed prerequisites remain open.

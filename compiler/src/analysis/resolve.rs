@@ -6359,6 +6359,13 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::CatalogItem => {
+                // Collapse shares Details' expression-valued open option and
+                // must retain the same lexical scope and preference bindings.
+                if kids(node).iter().find_map(|n| name_text(n, text)) == Some("collapse")
+                    && let Some(open) = attribute_value(node, "open", text)
+                {
+                    self.walk_expr(module, scope, open, text, ExprCtx::bare(), diags)?;
+                }
                 // Destination controls carry real expressions, not catalog words.
                 if kids(node).iter().find_map(|n| name_text(n, text)) == Some("button")
                     && attribute_value(node, "target", text).is_some()
