@@ -11073,3 +11073,35 @@ refusal controls, native5/disclosure32 and strict0 pass; original richer
 SEND/CALL, current authority/replay/rollback and held policies remain separate.
 
 Coordinator independent guarded-SEND defining analysis/source-type and private whole-IR seal/emission reviews CLEAR. Reuse scoped owning results; coherent original producer now joins reviewed Dev main3fc runtime source without implying native execution. Main locked CLI build validates source integration. Required native false guard, ordered parent effects, late rollback and recovery remain Dev-owned; no full-plan or precise hold release. Retained incremental filetree coverage reconciled, complete checkpoint unchanged.
+
+## 2026-10-11 — Configured Identity ingress verifier (library implemented; durable/native consumer unfinished)
+
+Consume defining Devcf33f93a's bounded operator-controlled
+`standard-webhooks-v1-identity-removal` profile through the existing ingress
+port. The agreed six-field factory captures the original binding, trusted
+clock/key/lifetime callbacks, SELECT-only original reader and synchronous private
+capture callback. Verify exact raw ID/timestamp/body with native HMAC-SHA256,
+canonical bounded headers/keys, strict UTF-8 and duplicate-free closed JSON.
+Retain the existing route's cap and parse-before-verifier order. The attempt
+and original journal age bounds are respectively 300 seconds/24 hours past,
+both with 30 seconds future tolerance; retries do not renew original age.
+
+Binding-owned team/namespace plus original subject/remover/operation select the
+retained cause. Compare every owning envelope field and return the same genuine
+reader object, never signed JSON or a newly issued occurrence. After all awaited
+work, recheck key retirement, original host/receiver lifetime and age, then
+privately associate that object with SHA-256 of its captured raw body, distinct
+from the five-argument request digest. Throwing or asynchronous capture refuses;
+no new event/DTO/carrier, command fallback or principal authority is introduced.
+
+Interfaces emission/root types pass; six new genuine Memory Identity/independent
+Node-HMAC and route control groups pass. The first run retained five passes and
+failed a fixture that renamed an escaped member instead of duplicating it.
+Correct the fixture to insert the decoded-name duplicate and repeat only that
+group: pass. Finite source review is clear after the async-capture correction.
+Dev owns actual immutable host/key/physical receiver binding, original callbacks,
+durable raw-digest/occurrence/complete routing correspondence and the signed
+original native/current-authority/fence journey. Other provider/File profiles,
+full parents and all precise activation/default/publication holds remain open.
+
+Coordinator independent Interfaces strict original byte/signature/parser/envelope correspondence and async key/age/lifetime/private capture reviews CLEAR. Six scoped meaningful groups retained, including corrected duplicate-key fixture; changed normal integration qualifies only the configured library. Finite library criterion closes, Dev exact trusted physical binding/source/read callbacks and durable original raw-digest/complete routing/current receiving/final fence/native signed consumer remain unfinished. No new carrier/command fallback/default/activation/publication or full-plan acceptance. Coverage reconciled incrementally and complete checkpoint unchanged.

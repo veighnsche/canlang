@@ -59,7 +59,7 @@ Key exports (all verified in `src/`):
 - MCP: `createMcpHandler`, `toolsFor`, `toMcpTool`,
   `MCP_SERVER_VERSION`
 - Uploads: `handleUploadRequest`; ingress: `handleIngressRequest`,
-  `INGRESS_BODY_MAX_BYTES`; OAuth: `handleOAuthRequest`,
+  `INGRESS_BODY_MAX_BYTES`, `createIdentityRemovalIngressVerifier`; OAuth: `handleOAuthRequest`,
   `authorizationServerMetadata`, `TOKEN_PATH`
 - Envelope: `validateOperationId`, `checkClosedInputs`,
   `extractUuidV7Ms`; errors: `redactForLog`, `fieldError`,
@@ -96,6 +96,43 @@ Files owns current physical policy validation; State and the host must separatel
 establish current field/occurrence authority before disclosure. An absent or
 nonfunction binding refuses at kernel construction.
 
+`createIdentityRemovalIngressVerifier` implements only the configured
+`standard-webhooks-v1-identity-removal` profile. Its six options are the exact
+existing `binding`, trusted `clock`, synchronous `keys` and `isCurrent`, captured
+`readOriginalOccurrence`, and synchronous `captureVerified`. The host owns the
+original namespace/app/team/owner/physical receiver and source lifetime;
+`isCurrent` must refuse closed or replaced bindings/receivers. `keys()` returns
+one canonical `whsec_` Base64 32-byte current key and at most one explicit previous
+key, or null. Removing a key immediately withdraws it from subsequent admission,
+including verification already awaiting crypto or original lookup. Keys come
+only from trusted private configuration, never the request.
+
+The existing route still caps the body and parses JSON before verification.
+This adapter additionally requires strict UTF-8, unique decoded JSON member
+names and the closed original `VerifiedTeamsMemberRemovedEnvelope`. It verifies
+`webhook-id.webhook-timestamp.rawBody` with native HMAC-SHA256 verification using
+the [Standard Webhooks signing scheme](https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md#verifying-webhook-authenticity).
+IDs, canonical decimal timestamps and canonical padded Base64 signature entries
+are bounded; only the named `v1` profile is supported. The trusted clock enforces
+300 seconds past/30 seconds future for the attempt and 24 hours past/30 seconds
+future for the canonical original journal timestamp. A retry cannot renew that
+original age.
+
+The reader has exactly `IdentityStore.readMemberRemovalOccurrence`'s five original
+arguments: binding-owned team/namespace plus admitted original subject/remover/
+operation. Dev must close over the authentic SELECT-only receiver and its original
+`this`, with no removal-command fallback. Every original envelope field must
+match the signed body; absent, conflicting or invalid causes refuse. Verification
+returns that same genuine reader envelope, granting no user/principal authority
+to signed JSON. After all awaited work and current key/lifetime checks,
+`captureVerified(original, rawBodyDigest)` privately associates that exact object
+with SHA-256 of its captured raw bytes; a throwing or asynchronous callback
+refuses. The digest is distinct from the original five-argument `requestDigest`.
+The paired host sink
+must consume this private association and independently establish durable
+occurrence/routing correspondence, idempotency, current receiving authority and
+final fences. This library does not stage a source/handler or activate an endpoint.
+
 ## Source layout
 
 All paths under `packages/interfaces/`:
@@ -110,7 +147,8 @@ All paths under `packages/interfaces/`:
   `schemas.ts`, `discovery.ts`
 - `src/uploads/` — `routes.ts` (`handleUploadRequest`), `kernel.ts`,
   `principals.ts`
-- `src/ingress/` — `routes.ts` (`handleIngressRequest`), `mapping.ts`
+- `src/ingress/` — `routes.ts` (`handleIngressRequest`), `mapping.ts`,
+  `identity-removal.ts` (configured original-cause verification)
 - `src/oauth/` — `routes.ts` (`handleOAuthRequest`), `metadata.ts`
 - `src/envelope/` — `validate.ts`, `refs.ts`, `versions.ts`
 - `src/errors/` — `envelope.ts`, `safe.ts`, `redact.ts`, `logging.ts`
