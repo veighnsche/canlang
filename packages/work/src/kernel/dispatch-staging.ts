@@ -5,6 +5,7 @@
 import type {
   DomainWrite, OperationId, OperationName, OutboxIntent, RecordId,
   OccurrenceId, OutboxId, DeliveryRef,
+  FrameworkFilePayloadOrigin, StoredRow,
 } from '@canlang/contracts';
 import type { SystemCommandContext, SystemCommandDef, SystemStaging } from '@canlang/state';
 import { makeDeliveryRef } from '@canlang/values';
@@ -15,7 +16,8 @@ import type { StageOutboxIntentInput } from '../intent/staging.js';
 import {
   KernelTableError, WORK_DISPATCH_MODEL, newDispatchRow, readDispatchRow,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageCorrelation, type DispatchImageCorrelation,
-  dispatchGenerationTargetProfile,
+  dispatchGenerationTargetProfile, readDispatchSourceGuard, type DispatchSourceGuard,
+  readWorkFilePayloadOrigin,
 } from './tables.js';
 
 /** L3 staging bound (`STAGING_MAX_ID_LENGTH`); length is UTF-16 units. */
@@ -33,6 +35,8 @@ interface ParsedStageIntent {
   guardVerdict: boolean | null;
   fanout: FanoutLineage | null;
   correlation: DispatchImageCorrelation | null;
+  sourceGuard: DispatchSourceGuard | null;
+  filePayloadOrigin: FrameworkFilePayloadOrigin | null;
 }
 
 function argGenerationCorrelation(record: Readonly<Record<string, unknown>>, source: string,
@@ -119,6 +123,7 @@ function parseStageIntent(
   candidate: unknown,
   index: number,
   what: string,
+  context: SystemCommandContext,
 ): ParsedStageIntent {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
     throw new KernelTableError(`${what}: intents[${index}] must be an object.`);
@@ -134,6 +139,16 @@ function parseStageIntent(
   const { guard, verdict } = argGuard(record, item);
   const source = argString(record, 'source', item);
   const request = argRecord(record, 'request', item);
+  const sourceGuard = readDispatchSourceGuard(record);
+  if (sourceGuard !== null && (sourceGuard.rule !== guard || verdict !== true)) {
+    throw new KernelTableError(`${item}: sourceGuard requires its matching true guard verdict.`);
+  }
+  const filePayloadOrigin = readWorkFilePayloadOrigin(record,
+    { id: intentId as RecordId, created: context.now, createdBy: context.actor },
+    WORK_DISPATCH_MODEL, 'sourceGuard', 'deferred-input') ?? null;
+  if ((sourceGuard === null) !== (filePayloadOrigin === null)) {
+    throw new KernelTableError(`${item}: source guard requires its original atomic payload header.`);
+  }
   return {
     intentId,
     operation: argString(record, 'operation', item),
@@ -146,6 +161,8 @@ function parseStageIntent(
     guardVerdict: verdict,
     fanout: argFanout(record, item),
     correlation: argGenerationCorrelation(record, source, request, item),
+    sourceGuard,
+    filePayloadOrigin,
   };
 }
 
@@ -185,7 +202,7 @@ export const workDispatchStageCommand: SystemCommandDef = {
     if (!Array.isArray(rawIntents) || rawIntents.length === 0) {
       throw new KernelTableError(`${what}: intents must be a non-empty array.`);
     }
-    const intents = rawIntents.map((candidate, index) => parseStageIntent(candidate, index, what));
+    const intents = rawIntents.map((candidate, index) => parseStageIntent(candidate, index, what, ctx));
     const seen = new Set<string>();
     for (const intent of intents) {
       if (seen.has(intent.intentId)) {
@@ -211,6 +228,8 @@ export const workDispatchStageCommand: SystemCommandDef = {
           data.occurrenceIndex !== intent.occurrenceIndex ||
           data.originOccurrence !== intent.originOccurrence ||
           data.guardVerdict !== intent.guardVerdict ||
+          !sameSendData(data.sourceGuard ?? null, intent.sourceGuard) ||
+          !sameSendData(data.filePayloadOrigin ?? null, intent.filePayloadOrigin) ||
           DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => data[field] !== intent.correlation?.[field])
         ) {
           throw new KernelTableError(
@@ -229,6 +248,8 @@ export const workDispatchStageCommand: SystemCommandDef = {
           occurrenceIndex: intent.occurrenceIndex,
           originOccurrence: intent.originOccurrence,
           ...(intent.correlation ?? {}),
+          ...(intent.sourceGuard === null ? {} : { sourceGuard: intent.sourceGuard }),
+          ...(intent.filePayloadOrigin === null ? {} : { filePayloadOrigin: intent.filePayloadOrigin }),
         },
         { nowMs: ctx.now, actor: ctx.actor },
       );
@@ -280,6 +301,14 @@ export interface CanonicalSendStaging {
 /** Correlation is supplied only by the genuine checked request/scope producer. */
 export interface CanonicalSendInput extends StageOutboxIntentInput {
   readonly correlation?: DispatchImageCorrelation;
+  readonly sourceGuard?: DispatchSourceGuard;
+}
+
+/** Literal source-verified native adapter; State prepares the actual atomic
+ * typed lexical payload header and genuine receiving File observations. */
+export interface CanonicalSendGuardOriginProducer {
+  readonly prepareSourceGuardOrigin: (row: Readonly<StoredRow>,
+    intent: Readonly<OutboxIntent>) => Promise<FrameworkFilePayloadOrigin>;
 }
 
 interface CanonicalSendSeal {
@@ -381,8 +410,10 @@ function captureCanonicalSendData(input: CanonicalSendInput, context: SystemComm
   if (inputCopy === null || typeof inputCopy.value !== 'object' || inputCopy.value === null || Array.isArray(inputCopy.value)) return null;
   const keys = Reflect.ownKeys(inputCopy.value);
   const required = ['operationId', 'source', 'occurrenceIndex', 'request', 'originOccurrence'];
-  if (required.some(key => !keys.includes(key)) || keys.some(key => !required.includes(key as string) && key !== 'correlation')) return null;
+  if (required.some(key => !keys.includes(key)) || keys.some(key => !required.includes(key as string) && key !== 'correlation' && key !== 'sourceGuard')) return null;
   if (!keys.includes('correlation') && Reflect.has(input, 'correlation')) return null;
+  if (!keys.includes('sourceGuard') && Reflect.has(input, 'sourceGuard')) return null;
+  readDispatchSourceGuard(input as unknown as Readonly<Record<string, unknown>>);
   if (typeof context !== 'object' || context === null || !Object.isFrozen(context) ||
       (Object.getPrototypeOf(context) !== Object.prototype && Object.getPrototypeOf(context) !== null)) return null;
   const contextKeys = ['actor', 'now', 'operation', 'load', 'query'];
@@ -421,13 +452,17 @@ export function readCanonicalSendStaging(
 }
 
 /**
- * Stage one unconditional checked bound send in the admitted scenario's
+ * Stage one checked bound send in the admitted scenario's
  * existing transaction. The caller resolves the exact compiler binding,
  * checks and wire-encodes its request, and allocates the occurrence index in
  * evaluation order. `input.source` is the checked capability operation;
  * `ctx.operation` and `input.operationId` are the admitted business origin.
  * Bound sends carry the Contracts `BoundCapabilityRequest` in `input.request`
  * so the exact logical binding and deployment route survive persistence.
+ *
+ * An optional sourceGuard retains the verified source-stage true declaration
+ * and encoded lexical inputs separately from provider arguments. Shape grants
+ * no execution authority; source-stage false bypass belongs to State.
  *
  * Only readers are accepted. The caller collects these writes/outbox effects
  * alongside domain writes, history and uniques for ONE fenced State commit;
@@ -437,7 +472,18 @@ export function readCanonicalSendStaging(
 export async function stageCanonicalSend(
   input: CanonicalSendInput,
   ctx: SystemCommandContext,
+  guardOrigin?: CanonicalSendGuardOriginProducer,
 ): Promise<CanonicalSendStaging> {
+  const sourceGuard = readDispatchSourceGuard(input as unknown as Readonly<Record<string, unknown>>);
+  const descriptor = guardOrigin === undefined ? undefined : Object.getOwnPropertyDescriptor(guardOrigin, 'prepareSourceGuardOrigin');
+  const prepare = descriptor !== undefined && 'value' in descriptor && descriptor.enumerable ? descriptor.value : undefined;
+  if (sourceGuard !== null && (typeof prepare !== 'function' || guardOrigin === undefined ||
+      Reflect.ownKeys(guardOrigin).length !== 1 || !Object.hasOwn(guardOrigin, 'prepareSourceGuardOrigin'))) {
+    throw new KernelTableError('Guarded canonical send requires its installed original payload producer.');
+  }
+  if (sourceGuard === null && guardOrigin !== undefined) {
+    throw new KernelTableError('Unguarded send cannot acquire an orphan guard origin.');
+  }
   const seal = captureCanonicalSend(input, ctx);
   const stageContext = { ...ctx };
   let correlation: DispatchImageCorrelation | undefined;
@@ -450,6 +496,18 @@ export async function stageCanonicalSend(
   }
   const staged = await stageOutboxIntentAsync(input);
   const item = staged.item;
+  let filePayloadOrigin: FrameworkFilePayloadOrigin | undefined;
+  if (sourceGuard !== null) {
+    const row = newDispatchRow({ intentId: item.id as OutboxId, operationId: item.operationId,
+      source: item.source, occurrenceIndex: item.occurrenceIndex, originOccurrence: item.originOccurrence,
+      sourceGuard, ...(correlation === undefined ? {} : correlation) }, { nowMs: ctx.now, actor: ctx.actor });
+    const intent: OutboxIntent = { intentId: item.id, operation: ctx.operation as OperationName,
+      operationId: item.operationId as OperationId, target: item.source, arguments: item.request,
+      occurrenceIndex: item.occurrenceIndex, dispatchGuard: sourceGuard.rule };
+    const guarded = { ...row, data: { ...row.data, guardVerdict: true } };
+    filePayloadOrigin = await prepare!(guarded, intent);
+    readDispatchRow({ ...guarded, data: { ...guarded.data, filePayloadOrigin } });
+  }
   const effects = await stageCanonicalDispatch({
     operationId: item.operationId,
     intents: [{
@@ -460,8 +518,10 @@ export async function stageCanonicalSend(
       occurrenceIndex: item.occurrenceIndex,
       request: item.request,
       originOccurrence: item.originOccurrence,
-      guard: null,
-      guardVerdict: null,
+      guard: sourceGuard?.rule ?? null,
+      guardVerdict: sourceGuard === null ? null : true,
+      ...(sourceGuard === null ? {} : { sourceGuard }),
+      ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
       ...(correlation === undefined ? {} : { correlation }),
     }],
   }, stageContext);

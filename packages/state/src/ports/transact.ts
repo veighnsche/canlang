@@ -15,6 +15,7 @@ import type {
   CommitBatch,
   CommitResult,
   DomainWrite,
+  ModelName,
   MutationAdmissionMode,
   OutboxIntent,
   Revision,
@@ -46,6 +47,7 @@ import type { OperationRegistry } from '../invocation/registry.js';
 import type { ClockPort } from '../invocation/context.js';
 import type { MembershipReader } from '../policy/roles.js';
 import type { PolicyTable } from '../policy/grants.js';
+import { captureSourceReadPolicies, type ViewerSourceReadPolicy } from '../query/source-policy.js';
 
 /**
  * Single-shot fenced commit surface. The `expectedRevision` intersection
@@ -115,6 +117,8 @@ export function createInvoker(input: InvokerInput): BoundInvoker {
 
 /** Engine dependencies bound once at read-invoker creation. */
 export interface ReadInvokerInput {
+  /** Checked installed source declarations, outside per-call/request arguments. */
+  readonly sourceReadPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly registry: OperationRegistry;
   /** Checked model declarations supplied by the owning host, outside per-call selection. */
   readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
@@ -144,11 +148,13 @@ export type BoundReadInvoker = (args: ReadInvokeArgs) => Promise<AuthorizedRecor
  * they commit nothing and receipt nothing.
  */
 export function createReadInvoker(input: ReadInvokerInput): BoundReadInvoker {
+  const sourceReadPolicies = input.sourceReadPolicies === undefined ? undefined : captureSourceReadPolicies(input.sourceReadPolicies);
   const models = input.models === undefined ? undefined : structuredClone(input.models);
   return (args) =>
     invokeRead({
       registry: input.registry,
       ...(models !== undefined ? { models } : {}),
+      ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
       policy: input.policy,
       store: input.store,
       memberships: input.memberships,
@@ -184,6 +190,7 @@ export interface BoundReadPageInvoker {
 
 /** Bound metadata is detached once; call selection cannot replace dependencies. */
 export function createReadPageInvoker(input: ReadPageInvokerInput): BoundReadPageInvoker {
+  const sourceReadPolicies = input.sourceReadPolicies === undefined ? undefined : captureSourceReadPolicies(input.sourceReadPolicies);
   const models = input.models === undefined ? undefined : structuredClone(input.models);
   const containment = new Map([...input.containment].map(([model, relation]) => [model, structuredClone(relation)]));
   function read(args: ReadPageInvokeArgs): Promise<ViewerPageResult>;
@@ -192,6 +199,7 @@ export function createReadPageInvoker(input: ReadPageInvokerInput): BoundReadPag
     const call: InvokeReadPageInput = {
       registry: input.registry, policy: input.policy, store: input.store, memberships: input.memberships,
       ...(models === undefined ? {} : { models }), containment,
+      ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
       envelope: args.envelope, identity: args.identity,
       ...(args.selection === undefined ? {} : { selection: args.selection }),
       ...(args.generatedPredicate === undefined ? {} : { generatedPredicate: args.generatedPredicate }),

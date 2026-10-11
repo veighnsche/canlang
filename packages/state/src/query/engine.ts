@@ -35,7 +35,7 @@ import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';
 import { byDependsOnRow, evaluateBy, type ByPredicate, type MembershipReader } from '../policy/roles.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
-import { evaluateInstalledReadPredicate, executeUnboundReadPredicate, hasInstalledReadPredicateMembership, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
+import { evaluateInstalledReadPredicate, executeUnboundReadPredicate, hasInstalledSourceQueryPredicate, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors,
   type InstalledSourceRowDecision, type ViewerSourceReadPolicy } from './source-policy.js';
@@ -95,7 +95,7 @@ export interface ViewerRecordsInput extends BaseQueryInput {
   /**
    * Trusted internal generated-source wiring only, never JSON/user input.
    * Receives a detached snapshot after per-row grant projection and AST
-   * where, before sorting/limit. Source conversion belongs to the owning caller. Bound membership predicates
+   * where, before sorting/limit. Source conversion belongs to the owning caller. Checked source predicates
    * receive a State-issued second observation and join current authority
    * revalidation; this hook grants no capability.
    */
@@ -991,7 +991,7 @@ async function runAuthorizedQuery(
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
   }
-  const coherentPredicate = predicate !== undefined && hasInstalledReadPredicateMembership(page?.membershipPredicate ?? predicate);
+  const coherentPredicate = predicate !== undefined && hasInstalledSourceQueryPredicate(page?.membershipPredicate ?? predicate);
   const order = input.order ?? DEFAULT_ORDER;
   for (const term of order) {
     if (term.direction !== 'asc' && term.direction !== 'desc') {

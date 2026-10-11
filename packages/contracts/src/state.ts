@@ -787,7 +787,16 @@ export type FrameworkFileReferenceField =
       readonly nullable?: true;
       readonly optional?: true;
     }
-  | { readonly kind: 'opaque'; readonly role: 'retained-result' | 'deferred-input' }
+  | { readonly kind: 'opaque'; readonly role: 'retained-result' }
+  | {
+      readonly kind: 'opaque';
+      readonly role: 'deferred-input';
+      /** Absence alone is permitted for an owning optional retained input.
+       * Every present value, including null/empty/File-free data, still needs
+       * its genuine payload-origin binding and complete typed projection.
+       * Present undefined and an orphan origin header are not absence. */
+      readonly optional?: true;
+    }
   | {
       /** Owning filePayloadOrigin evidence, never an arbitrary JSON control.
        * Optional only for unbound/legacy row compatibility. Bound opaque census
@@ -833,6 +842,21 @@ export type FrameworkOpaqueDeliveryContext =
       readonly specification: FrameworkOpaqueJudgmentSpec; readonly order: ReadonlyArray<string>;
       readonly valueTypes: CanonicalValueTypes };
 
+/** Checked original SEND predicate occurrence and complete free lexical inputs.
+ * These are the actual compiler/loader declaration, not a fabricated callable
+ * signature or an execution verdict. Rule, source, owning callable, span,
+ * binding/target and each input name/type must correspond to that exact loaded
+ * occurrence. Captured input values remain in the existing dispatch field. */
+export interface FrameworkOpaqueSendGuardDeclaration {
+  readonly rule: string;
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly owner: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly binding: string;
+  readonly target: string;
+  readonly inputs: ReadonlyArray<{ readonly name: string; readonly type: CanTypeId }>;
+}
+
 /** Complete original profile. Source evidence is bound by the genuine loader;
  * copied source/callable descriptors and successful codecs authenticate nothing. */
 export interface FrameworkOpaqueDeclaration {
@@ -842,7 +866,8 @@ export interface FrameworkOpaqueDeclaration {
         readonly callable: Readonly<ArtifactCallable> }
     | { readonly kind: 'event'; readonly source: ScenarioReceiptSourceOrigin; readonly event: string }
     | { readonly kind: 'delivery'; readonly source: ScenarioReceiptSourceOrigin;
-        readonly context: FrameworkOpaqueDeliveryContext };
+        readonly context: FrameworkOpaqueDeliveryContext }
+    | ({ readonly kind: 'send-guard' } & FrameworkOpaqueSendGuardDeclaration);
   readonly profile:
     | { readonly kind: 'inputs'; readonly canonical: ReadonlyArray<CanonicalInputDef>;
         readonly artifact: ReadonlyArray<Readonly<ArtifactOperationInput>> }
@@ -998,6 +1023,27 @@ export interface FrameworkOpaqueStandardCompletionOrigin {
   readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute>;
 }
 
+/** Original deferred lexical capture, separate from provider request arguments.
+ * The actual owning producer validates the complete sourceGuard envelope against
+ * this declaration and its original dispatch/outbox intent, then resolves the
+ * existing complete inputs projection at ['inputs']. The declaration selected by
+ * inputsDeclarationId must be this exact send-guard source and complete original
+ * name/type profile. Historical interpretation and genuine receiving File facts
+ * survive progress/reopen/migration; neither current metadata nor a File-free
+ * assertion can replace them. Original intent.dispatchGuard must equal both
+ * declaration.rule and the physically retained sourceGuard.rule; a current
+ * reconstructed rule or matching operation/target alone is insufficient.
+ * No execution/current-authority grant is conveyed. */
+export interface FrameworkOpaqueSendGuardOrigin {
+  readonly kind: 'send-guard';
+  readonly intent: Readonly<Pick<OutboxIntent,
+    'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'> & {
+      readonly dispatchGuard: string;
+    }>;
+  readonly declaration: Readonly<FrameworkOpaqueSendGuardDeclaration>;
+  readonly inputsDeclarationId: string;
+}
+
 /** Closed owning origins, captured at original production. The actual rich
  * payload bytes stay in their existing field. Standard completion resolution
  * covers original provider inputs, terminal R, event payload's duplicate R and
@@ -1016,7 +1062,8 @@ export type FrameworkOpaquePayloadOrigin =
       readonly operationId: OperationId; readonly handler: FrameworkOpaqueCallable;
       readonly event: FrameworkOpaqueEventInputOrigin }
   | FrameworkOpaqueSourceRoutingOrigin
-  | FrameworkOpaqueStandardCompletionOrigin;
+  | FrameworkOpaqueStandardCompletionOrigin
+  | FrameworkOpaqueSendGuardOrigin;
 
 /** One original owning row.data.filePayloadOrigin, persisted atomically with
  * its payload; updates explicitly preserve it through progress/supersession.

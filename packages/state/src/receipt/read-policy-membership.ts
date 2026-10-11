@@ -52,6 +52,7 @@ interface ReadLifetime {
 }
 const bindings = new WeakMap<InstalledRead, readonly BoundRead[]>();
 const invoked = new WeakSet<InstalledRead>();
+const installedPredicates = new WeakMap<InstalledSourceQueryPredicate, InstalledSourceQueryPredicateProducer>();
 const handles = new WeakMap<ReadPolicyMembershipHandle, {
   readonly bound: BoundRead; readonly site: ScenarioReceiptMembershipSite; readonly callIndex: number;
 }>();
@@ -73,6 +74,36 @@ function teamSnapshot(team: TeamScope): string {
   return stableStringify({ teamId: text(value.teamId), timezone: text(value.timezone) });
 }
 
+/** Checked native identity for a source WHERE, including pure/role-only expressions.
+ * Metadata is supplied by the verified loader, never by a read request. */
+export interface InstalledSourceQueryPredicateProducer {
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly rule: string;
+}
+
+/** Bind the original function once before first use. This marker creates no
+ * grants, membership handles or observations; State owns evaluation below. */
+export function bindInstalledSourceQueryPredicate(read: InstalledSourceQueryPredicate,
+  producer: InstalledSourceQueryPredicateProducer): void {
+  if (typeof read !== 'function' || invoked.has(read) || installedPredicates.has(read)) {
+    return fail('owning installed query predicate must bind once before execution.');
+  }
+  object(producer, ['source', 'rule']);
+  const raw = object(producer.source, ['path', 'sha256', 'module']);
+  const source = Object.freeze({ path: text(raw.path), sha256: text(raw.sha256), module: text(raw.module) });
+  const rule = text(producer.rule);
+  if (!/^[a-f0-9]{64}$/.test(source.sha256) || [source.path, source.module, rule].some(value => /[\u0000-\u001f\u007f]/.test(value))) {
+    return fail('exact bounded original source/rule identity required.');
+  }
+  try { [source.path, source.module, rule].forEach(value => encodeURIComponent(value)); }
+  catch { return fail('valid original source/rule identity required.'); }
+  if ((bindings.get(read) ?? []).some(bound => bound.stage !== 'read-predicate' ||
+      bound.rule !== rule || stableStringify(bound.source) !== stableStringify(source))) {
+    return fail('query marker must match its exact original read-predicate bindings.');
+  }
+  installedPredicates.set(read, Object.freeze({ source, rule }));
+}
+
 /** Bind once per exact rule before any read. Shape checking alone does not
  * attest emitted JavaScript; the same verified native loader supplies these
  * ports and the installed ordinary/callback read predicate. */
@@ -87,6 +118,11 @@ export function bindReadPolicyMembershipProducer(read: InstalledRead,
   if (stage !== 'read-policy' && stage !== 'read-predicate') return fail('an exact current-read stage is required.');
   if (sites.some(site => site.stage !== stage || site.owner !== rule ||
       stableStringify(site.source) !== stableStringify(source))) return fail('exact original read-policy rule/source required.');
+  const marker = installedPredicates.get(read as InstalledSourceQueryPredicate);
+  if (marker !== undefined && (stage !== 'read-predicate' || marker.rule !== rule ||
+      stableStringify(marker.source) !== stableStringify(source))) {
+    return fail('membership binding must match its exact original query marker.');
+  }
   const previous = bindings.get(read) ?? [];
   const occurrences = sites.map(site => stableStringify({ source: site.source, owner: site.owner, node: site.node }));
   const callCount = sites.reduce((count, site) => count + site.calls.length, 0);
@@ -124,10 +160,15 @@ export async function evaluateInstalledReadPredicate(read: InstalledSourceQueryP
 }
 
 /** Internal query selection only. Unchanged predicates retain their existing
- * once-only execution after grant discovery; a checked membership predicate
+ * once-only execution after grant discovery; a checked source predicate
  * joins discovery and coherent replay of its actual candidate domain. */
 export function hasInstalledReadPredicateMembership(read: InstalledSourceQueryPredicate): boolean {
   return bindings.get(read)?.some(bound => bound.stage === 'read-predicate') === true;
+}
+
+/** Internal detection preserves the generic ABI for unmarked functions. */
+export function hasInstalledSourceQueryPredicate(read: InstalledSourceQueryPredicate): boolean {
+  return installedPredicates.has(read) || hasInstalledReadPredicateMembership(read);
 }
 
 /** Internal accepted unbound route: record the actual function's first use
@@ -142,6 +183,9 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
   input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
   execute: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>): Promise<boolean> {
   invoked.add(read);
+  if (stage === 'read-policy' && installedPredicates.has(read as InstalledSourceQueryPredicate)) {
+    return fail('installed query predicate cannot execute as a read policy.');
+  }
   const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
   const lifetime: ReadLifetime = { read, stage, observation, store, bound: bindings.get(read) ?? [],
     pending: false, poisoned: false, closed: false, count: 0 };

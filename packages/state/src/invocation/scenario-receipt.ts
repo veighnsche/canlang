@@ -11,7 +11,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
+import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, makeDeliveryRef, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
@@ -27,7 +27,7 @@ import { ownerMutationBusinessWrites } from '../mutation/source-finalization.js'
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { stableStringify, hashInputs } from './replay.js';
 import type { SystemCommandContext, SystemStaging } from '../ports/system.js';
-import { stageAuthoredDelivery } from '../receipt/authored-delivery.js';
+import { stageAuthoredDelivery, type AuthoredSkippedDelivery } from '../receipt/authored-delivery.js';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../receipt/tables.js';
 import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
 import { isGeneratedOperationDef } from './registry.js';
@@ -341,10 +341,41 @@ interface BoundMemberships {
   readonly sites: readonly ScenarioReceiptMembershipSite[];
 }
 const membershipProducers = new WeakMap<GeneratedOperationDef, BoundMemberships>();
+const sendMembershipProducers = new WeakMap<GeneratedOperationDef, BoundMemberships>();
 const membershipHandles = new WeakMap<ScenarioReceiptMembershipHandle, {
   readonly def: GeneratedOperationDef; readonly bound: BoundMemberships;
   readonly site: ScenarioReceiptMembershipSite; readonly callIndex: number;
 }>();
+
+const sendMembershipHandles = new WeakMap<ScenarioReceiptMembershipHandle, { readonly def: GeneratedOperationDef; readonly bound: BoundMemberships; readonly site: ScenarioReceiptMembershipSite; readonly callIndex: number }>();
+
+export interface ScenarioReceiptMembershipSourceAssociation {
+  readonly logical: ScenarioResultDisclosurePlan['source'];
+  readonly transport: ScenarioResultDisclosurePlan['source'];
+}
+const membershipSourceAssociations = new WeakMap<GeneratedOperationDef, ScenarioReceiptMembershipSourceAssociation>();
+const membershipSourcesUsed = new WeakSet<GeneratedOperationDef>();
+
+/** The verified native loader supplies both original logical source and its
+ * actual emitted callable source. This binds that association to the genuine
+ * loaded definition once; shape does not attest executable/source bytes. */
+export function bindScenarioReceiptMembershipSource(def: GeneratedOperationDef,
+  association: ScenarioReceiptMembershipSourceAssociation): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined || invokedPlans.has(def) || membershipSourcesUsed.has(def) || membershipSourceAssociations.has(def)) {
+    return invalid('membership source association requires its actual checked definition once before use.');
+  }
+  const retained = dataCopy(association); object(retained, ['logical', 'transport']);
+  origin(retained.logical); origin(retained.transport);
+  if (stableStringify(retained.transport) !== stableStringify(bound.plan.source) ||
+      retained.logical.path !== retained.transport.path || retained.logical.sha256 !== retained.transport.sha256) {
+    return invalid('membership source association differs from its exact original source/installed callable.');
+  }
+  membershipSourceAssociations.set(def, deepFreeze(retained));
+}
+function membershipSource(def: GeneratedOperationDef, bound: BoundPlan): ScenarioResultDisclosurePlan['source'] {
+  return membershipSourceAssociations.get(def)?.logical ?? bound.plan.source;
+}
 
 /** Internal sibling-component loader join; intentionally absent from barrels.
  * It cannot register a definition or grant an active execution. */
@@ -353,7 +384,8 @@ export function assertScenarioReceiptMembershipSource(def: GeneratedOperationDef
   const bound = boundPlans.get(def);
   if (bound === undefined || invokedPlans.has(def)) return invalid('membership source requires its actual checked definition before execution.');
   const actual = dataCopy(source); origin(actual);
-  if (stableStringify(actual) !== stableStringify(bound.plan.source)) return invalid('membership source differs from its owning checked callable.');
+  if (stableStringify(actual) !== stableStringify(membershipSource(def, bound))) return invalid('membership source differs from its owning checked callable.');
+  membershipSourcesUsed.add(def);
 }
 /** Bind once before execution at the existing verified source/callable loader
  * boundary. Transport validation is not JavaScript attestation. Handles are
@@ -379,6 +411,31 @@ export function bindScenarioReceiptMembershipProducer(def: GeneratedOperationDef
   return Object.freeze(handles);
 }
 
+/** Separate source SEND lifetime, never a deferred Work execution handle.
+ * Bind after the exact framework guard inventory at the verified loader. */
+export function bindScenarioReceiptSendMembershipProducer(def: GeneratedOperationDef,
+  producer: ScenarioReceiptMembershipProducer): readonly ScenarioReceiptMembershipHandle[] {
+  if (sendMembershipProducers.has(def)) return invalid('one checked source SEND membership binding required.');
+  object(producer, ['source', 'app', 'sites', 'capture']);
+  if (typeof producer.capture !== 'function') return invalid('literal source SEND argument capture required.');
+  const source = dataCopy(producer.source); origin(source); text(producer.app);
+  assertScenarioReceiptMembershipSource(def, source);
+  const guards = frameworkProducers.get(def)?.sendGuards;
+  const sites = checkScenarioReceiptMembershipSites(producer.sites);
+  if (guards === undefined || sites.some(site => site.stage !== 'send-dispatch' || site.owner !== def.name ||
+      stableStringify(site.source) !== stableStringify(source) || !guards.some(guard =>
+        stableStringify(guard.node) === stableStringify(site.node)))) return invalid('source SEND recipe lacks its exact checked guard occurrence.');
+  const bound: BoundMemberships = Object.freeze({ source: deepFreeze(source), app: producer.app, sites, capture: producer.capture });
+  const handles: ScenarioReceiptMembershipHandle[] = [];
+  for (const site of sites) site.calls.forEach((call, callIndex) => {
+    if (call.target.kind !== 'builtin' || call.target.id !== 'active_member') return;
+    const handle = Object.freeze({}); sendMembershipHandles.set(handle, { def, bound, site, callIndex }); handles.push(handle);
+  });
+  if (handles.length === 0) return invalid('source SEND requires its exact checked active_member occurrence.');
+  sendMembershipProducers.set(def, bound);
+  return Object.freeze(handles);
+}
+
 function membershipOwner(call: AdmittedCall): ReceiptOwnerSession | undefined {
   const context = typeof call === 'object' && call !== null ? Object.getOwnPropertyDescriptor(call, 'context') : undefined;
   return ownerSessions.get(call) ?? (context !== undefined && 'value' in context && typeof context.value === 'object' &&
@@ -400,18 +457,32 @@ export async function readScenarioCurrentMembership(reader: MembershipReader, te
  * This component does not supply saved return/query membership closure. */
 export async function evaluateScenarioReceiptMembership(call: AdmittedCall, store: StoragePort,
   input: { readonly site: ScenarioReceiptMembershipHandle }): Promise<boolean> {
+  return evaluateOwnerMembership(call, store, input, false);
+}
+
+export async function evaluateScenarioReceiptSendMembership(call: AdmittedCall, store: StoragePort,
+  input: { readonly site: ScenarioReceiptMembershipHandle }): Promise<boolean> {
+  return evaluateOwnerMembership(call, store, input, true);
+}
+
+async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
+  input: { readonly site: ScenarioReceiptMembershipHandle }, send: boolean): Promise<boolean> {
   let owner = membershipOwner(call), state: Capture | undefined; let acquired = false;
   try {
     state = capture(call, store); owner = ownerSessions.get(call);
     object(input, ['site']);
-    const issued = membershipHandles.get(input.site);
+    const issued = (send ? sendMembershipHandles : membershipHandles).get(input.site);
     if (owner === undefined || owner.session === null || issued === undefined || issued.def !== call.def ||
-        membershipProducers.get(issued.def) !== issued.bound || issued.bound.app !== call.context.app ||
-        stableStringify(issued.bound.source) !== stableStringify(state.bound.plan.source) ||
-        issued.site.stage === 'send-dispatch' || issued.site.stage === 'read-policy' || issued.site.stage === 'read-predicate') return invalid('membership requires its actual bound active owner call/source/app, never a current-read or dispatch lifetime.');
+        (send ? sendMembershipProducers : membershipProducers).get(issued.def) !== issued.bound || issued.bound.app !== call.context.app ||
+        stableStringify(issued.bound.source) !== stableStringify(membershipSource(issued.def, state.bound)) ||
+        (send ? issued.site.stage !== 'send-dispatch' : issued.site.stage === 'send-dispatch') ||
+        issued.site.stage === 'read-policy' || issued.site.stage === 'read-predicate') return invalid('membership requires its actual bound source lifetime, never a current-read or deferred dispatch execution.');
     ownerHealthy(owner);
     if (owner.executingCall !== call || state.returnId !== null || state.pending !== 0 || owner.capture.pending !== 0 ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 || owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
+    const activeSend = owner.activeSend;
+    if (send ? activeSend === null || activeSend.call !== call || activeSend.stage !== owner.stage ||
+        stableStringify(activeSend.guard.node) !== stableStringify(issued.site.node) : activeSend !== null) return invalid('membership differs from its genuine owner or source SEND occurrence.');
     const query = state.queries.find(value => value.call === call && value.owner === owner && value.stage === owner!.stage && value.activeSlot !== null) ?? null;
     if (owner.busy && query === null || !owner.busy && query !== null) return invalid('membership query capture requires its actual active candidate slot.');
     const stage = owner.stage, slot = query?.activeSlot ?? null;
@@ -428,7 +499,7 @@ export async function evaluateScenarioReceiptMembership(call: AdmittedCall, stor
     const teamId = text(values.team.teamId), userId = text(values.person.id), reader = scenarioReceiptMemberships(owner.call, store);
     const healthy = () => {
       capture(call, store); ownerHealthy(owner!);
-      if (owner!.executingCall !== call || owner!.stage !== stage || query !== null &&
+      if (owner!.executingCall !== call || owner!.stage !== stage || owner!.activeSend !== activeSend || query !== null &&
           (query.activeSlot !== slot || query.complete) || state!.pending !== 1) return invalid('membership read crossed its exact active call/query stage.');
     };
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership observation moved beyond its admitted revision.');
@@ -746,10 +817,30 @@ export interface ScenarioReceiptFrameworkProducer {
     readonly targets: readonly { readonly source: string; readonly correlation: 'value' | 'arguments' | null }[] }[];
   readonly stage: (input: ScenarioReceiptSendProducerInput, context: SystemCommandContext) => Promise<ScenarioReceiptSendStaging>;
   readonly read: (value: unknown, input: ScenarioReceiptSendProducerInput, context: SystemCommandContext) => ScenarioReceiptSendStaging | null;
+  readonly sendGuards?: readonly ScenarioReceiptSendGuard[];
+  /** Literal verified native adapter executes the complete original predicate
+   * with this actual owner read frame and detached encoded lexical inputs. */
+  readonly evaluateGuard?: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
+}
+export interface ScenarioReceiptSendGuard {
+  readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source']; readonly owner: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly binding: string; readonly target: string;
+  readonly inputs: readonly { readonly name: string; readonly type: CanTypeId }[];
+}
+export interface ScenarioReceiptSendGuardFrame {
+  readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard;
+  readonly inputs: Readonly<Record<string, unknown>>;
+}
+export interface ScenarioReceiptSourceSendGuard {
+  readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source']; readonly owner: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly inputs: Readonly<Record<string, unknown>>;
 }
 export interface ScenarioReceiptSendProducerInput {
   readonly operationId: string; readonly source: string; readonly occurrenceIndex: number;
   readonly request: BoundCapabilityRequest; readonly originOccurrence: null;
+  readonly sourceGuard?: ScenarioReceiptSourceSendGuard;
   readonly correlation?: { readonly requestSource: string; readonly requestRevision: string;
     readonly requestBinding: string; readonly requestFrom: string; readonly requestApp: string; readonly requestOwner: string };
 }
@@ -760,11 +851,15 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
   if (bound === undefined || frameworkProducers.has(def) || invokedPlans.has(def)) return invalid('framework producer requires one checked source binding before execution.');
   if (typeof producer !== 'object' || producer === null || Array.isArray(producer) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(producer)) ||
-      Reflect.ownKeys(producer).length !== 5 || ['source', 'app', 'bindings', 'stage', 'read'].some(key => {
+      Reflect.ownKeys(producer).length !== (Object.hasOwn(producer, 'sendGuards') ? 7 : 5) ||
+      (Object.hasOwn(producer, 'sendGuards') !== Object.hasOwn(producer, 'evaluateGuard')) ||
+      ['source', 'app', 'bindings', 'stage', 'read', ...(Object.hasOwn(producer, 'sendGuards') ? ['sendGuards', 'evaluateGuard'] : [])].some(key => {
         const member = Object.getOwnPropertyDescriptor(producer, key);
         return member === undefined || !('value' in member) || !member.enumerable;
       }) || typeof producer.stage !== 'function' || typeof producer.read !== 'function') return invalid('own closed loader producer required.');
-  const metadata = dataCopy({ source: producer.source, app: producer.app, bindings: producer.bindings });
+  if (Object.hasOwn(producer, 'evaluateGuard') && typeof producer.evaluateGuard !== 'function') return invalid('literal complete SEND guard adapter required.');
+  const metadata = dataCopy({ source: producer.source, app: producer.app, bindings: producer.bindings,
+    ...(producer.sendGuards === undefined ? {} : { sendGuards: producer.sendGuards }) });
   origin(metadata.source); text(metadata.app);
   if (stableStringify(metadata.source) !== stableStringify(bound.plan.source)) return invalid('framework producer source differs from its checked plan.');
   const names = new Set<string>();
@@ -778,7 +873,28 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       targets.add(source);
     }
   }
-  frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read }));
+  const guardRules = new Set<string>(), guardNodes = new Set<string>();
+  for (const value of list(metadata.sendGuards ?? [])) {
+    const guard = object(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+    const rule = text(guard['rule']); origin(guard['source']);
+    const node = object(guard['node'], ['start', 'end']);
+    const occurrence = stableStringify(guard['node']);
+    if (guard['owner'] !== def.name || stableStringify(guard['source']) !== stableStringify(bound.plan.source) ||
+        !Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
+        guardRules.has(rule) || guardNodes.has(occurrence)) return invalid('exact unique owning SEND guard occurrence required.');
+    guardRules.add(rule); guardNodes.add(occurrence);
+    const binding = metadata.bindings.find(item => item.binding === guard['binding']);
+    if (binding === undefined || !binding.targets.some(item => item.source === guard['target'])) return invalid('SEND guard differs from checked binding/target.');
+    const inputs = new Set<string>();
+    for (const value of list(guard['inputs'])) {
+      const input = object(value, ['name', 'type']), name = text(input['name']), type = text(input['type']);
+      if (inputs.has(name) || printTypeId(parseTypeId(type)) !== type) return invalid('exact unique canonical SEND lexical type required.');
+      inputs.add(name);
+    }
+  }
+  frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read,
+    ...(producer.evaluateGuard === undefined ? {} : { evaluateGuard: producer.evaluateGuard }) }));
 }
 
 function primitiveInputType(type: unknown): type is CanTypeId {
@@ -1000,6 +1116,7 @@ interface FrameworkLedger {
   readonly producer: ScenarioReceiptFrameworkProducer;
   readonly rows: Map<string, FrameworkRow>;
   readonly queued: Map<string, OutboxIntent>;
+  readonly skipped: Map<string, AuthoredSkippedDelivery>;
   ordinal: number;
 }
 interface ReceiptOwnerSession {
@@ -1024,6 +1141,7 @@ interface ReceiptOwnerSession {
   callDepth: number;
   readonly calls: NonNullable<ScenarioReceiptAssociation['calls']>[number][];
   readonly callGuards: NonNullable<ExecutionEffects['guards']>[number][];
+  activeSend: { readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard; readonly stage: number } | null;
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
@@ -1121,6 +1239,7 @@ async function appendFrameworkWrites(owner: ReceiptOwnerSession, effects: System
     const intent = value as OutboxIntent;
     if (send === undefined || intent.operationId !== send.operationId || intent.operation !== context.operation ||
         intent.target !== send.source || stableStringify(intent.arguments) !== stableStringify(send.request) ||
+        intent.dispatchGuard !== send.sourceGuard?.rule ||
         owner.framework!.queued.has(text(intent.intentId))) return invalid('framework outbox differs from its actual checked send.');
     if (owner.framework!.queued.size >= MAX_ITEMS) return invalid('framework outbox budget exceeded.');
     owner.framework!.queued.set(intent.intentId, deepFreeze(intent));
@@ -1130,10 +1249,14 @@ async function appendFrameworkWrites(owner: ReceiptOwnerSession, effects: System
 /** Allocate and stage at the actual source Send evaluation point. Only the
  * once-bound installed producer can contribute framework effects. */
 export async function stageScenarioReceiptSend(call: AdmittedCall, store: StoragePort,
-  report: { readonly source: string; readonly request: BoundCapabilityRequest }): Promise<DeliveryRef> {
+  report: { readonly source: string; readonly request: BoundCapabilityRequest;
+    readonly when?: { readonly rule: string; readonly inputs: Readonly<Record<string, unknown>> } }): Promise<DeliveryRef> {
   const owner = frameworkOwner(call, store);
-  return ownerOperation(owner, async () => {
-    const received = object(dataCopy(report), ['source', 'request']);
+  try {
+    if (owner.busy || owner.activeSend !== null) return invalid('SEND requires its nonconcurrent original owner stage.');
+    // Capture request and lexical values once, before entering native code or yielding.
+    const copied = dataCopy(report);
+    const received = object(copied, ['source', 'request', ...(Object.hasOwn(copied, 'when') ? ['when'] : [])]);
     const source = text(received['source']);
     const request = object(received['request'], ['binding', 'from', 'arguments',
       ...(typeof received['request'] === 'object' && received['request'] !== null &&
@@ -1144,26 +1267,67 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
     if (producer.app !== call.context.app || binding === undefined || target === undefined || request.from !== binding.from ||
         typeof request.arguments !== 'object' || request.arguments === null || Array.isArray(request.arguments)) return invalid('send differs from its owning app/binding/target route.');
     if (ledger.ordinal >= MAX_ITEMS) return invalid('send occurrence budget exceeded.');
-    let correlation: ScenarioReceiptSendProducerInput['correlation'];
-    if (target.correlation !== null) {
-      const value = target.correlation === 'value' ? request.arguments['value'] : request.arguments;
-      if (call.checkpoint === undefined || typeof value !== 'object' || value === null || Array.isArray(value)) return invalid('generation send requires its original owner checkpoint and request correlation.');
-      const args = value as Record<string, unknown>;
-      correlation = { requestSource: text(args['source']), requestRevision: text(args['revision']), requestBinding: binding.binding,
-        requestFrom: binding.from, requestApp: call.context.app, requestOwner: call.checkpoint.owner };
+    let sourceGuard: ScenarioReceiptSourceSendGuard | undefined, accepted = true;
+    if (Object.hasOwn(received, 'when')) {
+      const when = object(received['when'], ['rule', 'inputs']), rule = text(when['rule']);
+      const guard = producer.sendGuards?.find(item => item.rule === rule);
+      if (guard === undefined || guard.binding !== binding.binding || guard.target !== source ||
+          producer.evaluateGuard === undefined) return invalid('SEND when lacks its exact checked owner/binding/target guard.');
+      const inputs = object(when['inputs'], guard.inputs.map(input => input.name));
+      for (const input of guard.inputs) {
+        const value = owner.capture.bound.valueSchema === undefined ? decodeValue(input.type, inputs[input.name])
+          : validateValue(owner.capture.bound.valueSchema, input.type, inputs[input.name], 'create');
+        if (stableStringify(encodeValue(input.type, value)) !== stableStringify(inputs[input.name])) return invalid('SEND lexical input is not canonical owning typed wire.');
+      }
+      const lexical = deepFreeze(dataCopy(inputs));
+      sourceGuard = deepFreeze({ rule, source: guard.source, owner: guard.owner, node: guard.node, inputs: lexical });
+      const active = Object.freeze({ call, guard, stage: owner.stage }); owner.activeSend = active;
+      try {
+        accepted = await producer.evaluateGuard(Object.freeze({ call, guard, inputs: lexical }));
+        ownerHealthy(owner);
+        if (owner.activeSend !== active || owner.stage !== active.stage || owner.busy || owner.capture.pending !== 0 ||
+            typeof accepted !== 'boolean') return invalid('SEND guard crossed its original source stage or returned a malformed Bool.');
+        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'SEND guard moved beyond its admitted revision.');
+        ownerHealthy(owner);
+        if (owner.activeSend !== active || owner.stage !== active.stage || owner.busy || owner.capture.pending !== 0) {
+          return invalid('SEND guard crossed its original source stage while checking the revision.');
+        }
+      } finally { owner.activeSend = null; }
     }
-    const input = deepFreeze({ operationId: call.context.operationId, source, occurrenceIndex: ledger.ordinal++, request,
-      originOccurrence: null, ...(correlation === undefined ? {} : { correlation }) });
-    const reader = frameworkContext(owner, [DISPATCH_MODEL]);
-    try {
-      const original = await producer.stage(input, reader.context); ownerHealthy(owner);
-      const sealed = producer.read(original, input, reader.context); ownerHealthy(owner);
-      if (sealed === null) return invalid('send lacks its genuine original one-shot Work carrier.');
-      await appendFrameworkWrites(owner, sealed.effects, reader.context, input);
-      if (sealed.delivery.operation !== source || !owner.framework!.queued.has(sealed.delivery.id)) return invalid('send delivery lacks its actual queued intent.');
-      return sealed.delivery;
-    } finally { reader.close(); }
-  });
+    return await ownerOperation(owner, async () => {
+      const occurrenceIndex = ledger.ordinal++;
+      if (!accepted) {
+        // A genuine skipped receipt needs its own identity, never a fabricated
+        // queued intent or Work dispatch identity. Invoke replay owns reuse.
+        const id = `skp_${await hashInputs({ operationId: call.context.operationId, source,
+          occurrenceIndex, rule: sourceGuard!.rule })}`;
+        ownerHealthy(owner);
+        ledger.skipped.set(id, deepFreeze({ deliveryId: id, operationId: call.context.operationId,
+          operation: call.context.operation, target: source, arguments: request.arguments }));
+        return makeDeliveryRef(id, source);
+      }
+      let correlation: ScenarioReceiptSendProducerInput['correlation'];
+      if (target.correlation !== null) {
+        const value = target.correlation === 'value' ? request.arguments['value'] : request.arguments;
+        if (call.checkpoint === undefined || typeof value !== 'object' || value === null || Array.isArray(value)) return invalid('generation send requires its original owner checkpoint and request correlation.');
+        const args = value as Record<string, unknown>;
+        correlation = { requestSource: text(args['source']), requestRevision: text(args['revision']), requestBinding: binding.binding,
+          requestFrom: binding.from, requestApp: call.context.app, requestOwner: call.checkpoint.owner };
+      }
+      const input = deepFreeze({ operationId: call.context.operationId, source, occurrenceIndex, request,
+        originOccurrence: null, ...(correlation === undefined ? {} : { correlation }),
+        ...(sourceGuard === undefined ? {} : { sourceGuard }) });
+      const reader = frameworkContext(owner, [DISPATCH_MODEL]);
+      try {
+        const original = await producer.stage(input, reader.context); ownerHealthy(owner);
+        const sealed = producer.read(original, input, reader.context); ownerHealthy(owner);
+        if (sealed === null) return invalid('send lacks its genuine original one-shot Work carrier.');
+        await appendFrameworkWrites(owner, sealed.effects, reader.context, input);
+        if (sealed.delivery.operation !== source || !ledger.queued.has(sealed.delivery.id)) return invalid('send delivery lacks its actual queued intent.');
+        return sealed.delivery;
+      } finally { reader.close(); }
+    });
+  } catch (error) { owner.capture.poisoned = true; throw error; }
 }
 
 /** Associate only the current row issued by this real owner session. No host
@@ -1188,7 +1352,7 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
     const reader = frameworkContext(owner, receiptModels);
     try {
       const effects = await stageAuthoredDelivery({ model, recordId: report.row.id, field: report.field, value,
-        queued: owner.framework!.queued, operationId: call.context.operationId, revision: call.checkpoint.revision + 1,
+        queued: owner.framework!.queued, skipped: owner.framework!.skipped, operationId: call.context.operationId, revision: call.checkpoint.revision + 1,
         ...(owner.capture.bound.valueTypes === undefined ? {} : { valueTypes: owner.capture.bound.valueTypes }),
         ...(owner.capture.bound.valueSchema === undefined ? {} : { valueSchema: owner.capture.bound.valueSchema }) }, reader.context);
       ownerHealthy(owner); await appendFrameworkWrites(owner, effects, reader.context);
@@ -1339,9 +1503,9 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
         [DISPATCH_MODEL, ...receiptModels].some(model => state.bound.models.has(model as ModelName)))) return invalid('framework owner inventory collides with its app or business models.');
     const owner: ReceiptOwnerSession = { call, store, capture: state, stage: 0, busy: false, closed: false, finalized: null,
       commitEffects: null, consumeWork: null, maxRows: bounds['maxRows'] as number,
-      framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), ordinal: 0 },
+      framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), skipped: new Map(), ordinal: 0 },
       ...inputDefaultSlots(call, state.bound), computedIndex: 0,
-      session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [] };
+      session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [], activeSend: null };
     ownerSessions.set(call, owner);
     ownerContexts.set(call.context, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,

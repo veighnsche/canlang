@@ -22,6 +22,9 @@ import type {
 } from '@canlang/contracts';
 import type {
   ModelName,
+  FileReferenceInventory,
+  FrameworkOpaqueSendGuardDeclaration,
+  Revision,
   QuerySpec,
   RecordId,
   StoredRow,
@@ -35,6 +38,8 @@ import type {
 import { createSystemRegistry } from '@canlang/state';
 import { RECEIPT_MODEL, newReceiptRow, readReceiptRow, withReceiptRowData } from '@canlang/state/receipt/tables';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { prepareFrameworkFilePayloadOrigin, StorageConstraintError } from '@canlang/state/storage';
+import { WORK_FILE_REFERENCE_PRODUCER } from '../src/kernel/file-reference-inventory.js';
 import { DISPATCH_JOIN_MODEL } from '@canlang/state/ports/transact';
 import {
   WORK_DISPATCH_MODEL,
@@ -42,6 +47,8 @@ import {
   readDispatchRow,
   readDispatchImageCorrelation,
   readDispatchImageControlPin,
+  withRowData,
+  type DispatchSourceGuard,
 } from '../src/kernel/tables.js';
 import { KernelTableError } from '../src/kernel/tables.js';
 import {
@@ -563,6 +570,118 @@ describe('t24a work.dispatch.stage command', () => {
     assert.deepEqual(replay.effects.writes, []); assert.deepEqual(replay.effects.outbox, []);
     assert.equal(readCanonicalSendStaging(replay, input, ctx), replay);
     assert.equal(readCanonicalSendStaging(replay, input, ctx), null);
+  });
+
+  function sourceGuard(): DispatchSourceGuard {
+    return Object.freeze({ rule: 'Acme.notify.send.0',
+      source: Object.freeze({ path: 'app.can', sha256: 'a'.repeat(64), module: 'Acme' }),
+      owner: 'Acme.notify', node: Object.freeze({ start: 20, end: 55 }),
+      inputs: Object.freeze({ person: 'usr-original', count: '2', tags: Object.freeze(['captured']) }) });
+  }
+
+  async function guardOriginFixture(guard: DispatchSourceGuard) {
+    const authority = { app: 't24a-guard', stateOwner: 'Acme', stateStoreId: 't24a-state', fileStoreId: 't24a-files',
+      receiver: { app: 't24a-guard', team: 'team-a', owner: 'team-a' } };
+    const { store } = createTestMemoryStorage(authority, [WORK_FILE_REFERENCE_PRODUCER]);
+    const identity = { owner: 'Acme', snapshotId: 'guard-original', digest: 'guard-original-digest' };
+    const snapshot = { ...identity, installedRevision: 1 as Revision, installedAt: NOW };
+    const declaration: FrameworkOpaqueSendGuardDeclaration = { rule: guard.rule, source: guard.source,
+      owner: guard.owner, node: guard.node, binding: 'Acme.Mail', target: 'std.EmailV1.send',
+      inputs: [{ name: 'person', type: 'text' }, { name: 'count', type: 'int' }, { name: 'tags', type: 'text[]' }] };
+    const inventory: FileReferenceInventory = { ...identity, canonicalModels: [], artifactModels: [], valueTypes: { contracts: [] },
+      frameworkModels: WORK_FILE_REFERENCE_PRODUCER.models, opaqueDeclarationSets: [{ id: 'guard-inputs-original', inventory: identity,
+        snapshot, sources: [{ path: guard.source.path, sha256: guard.source.sha256 }], canonicalModels: [], artifactModels: [],
+        valueTypes: { contracts: [] }, originalContracts: {}, valueDefaults: [], declarations: [{ id: 'guard-inputs',
+          source: { kind: 'send-guard', ...declaration }, profile: { kind: 'inputs', canonical: [
+            { name: 'person', kind: 'string', valueType: 'text', required: true },
+            { name: 'count', kind: 'integer', valueType: 'int', required: true },
+            { name: 'tags', kind: 'string', valueType: 'text[]', required: true } ], artifact: [
+            { name: 'person', field: { kind: 'string' }, valueType: 'text', required: true },
+            { name: 'count', field: { kind: 'integer' }, valueType: 'int', required: true },
+            { name: 'tags', field: { kind: 'string' }, valueType: 'text[]', array: { required: false }, required: true } ] } }] }] };
+    await store.installFileReferenceInventory({ expectedRevision: await store.readRevision(), authority, snapshot, inventory });
+    return { prepareSourceGuardOrigin: async (row: Readonly<StoredRow>, intent: import('@canlang/contracts').OutboxIntent) => {
+      return prepareFrameworkFilePayloadOrigin(store, { expectedRevision: await store.readRevision(), inventoryOwner: identity.owner,
+        declarationSetId: 'guard-inputs-original', model: WORK_DISPATCH_MODEL, row, field: 'sourceGuard',
+        scope: { app: authority.app, owner: authority.receiver.owner, ownerPackage: identity.owner },
+        origin: { kind: 'send-guard', declaration, inputsDeclarationId: 'guard-inputs', intent: {
+          intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId, target: intent.target,
+          occurrenceIndex: intent.occurrenceIndex, dispatchGuard: intent.dispatchGuard! } }, files: [] });
+    } };
+  }
+
+  it('round-trips genuine sourceGuard lexical inputs separately from provider arguments and retains them across updates', async () => {
+    const fixture = sealedSendFixture();
+    const input = Object.freeze({ ...fixture.input, sourceGuard: sourceGuard() });
+    const origin = await guardOriginFixture(input.sourceGuard);
+    const staged = await stageCanonicalSend(input, fixture.ctx, origin);
+    assert.equal(readCanonicalSendStaging(staged, input, fixture.ctx), staged);
+    const write = staged.effects.writes![0]!; assert.equal(write.kind, 'insert');
+    if (write.kind !== 'insert') return;
+    const persisted = JSON.parse(JSON.stringify(write.row)) as StoredRow;
+    const data = readDispatchRow(persisted);
+    assert.ok(data.filePayloadOrigin);
+    assert.equal(data.filePayloadOrigin.slot.field, 'sourceGuard');
+    assert.deepEqual(data.sourceGuard, input.sourceGuard);
+    assert.notEqual(data.sourceGuard, input.sourceGuard);
+    assert.ok(Object.isFrozen(data.sourceGuard!.inputs));
+    assert.ok(Object.isFrozen(data.sourceGuard!.inputs.tags));
+    assert.equal(data.guardVerdict, true);
+    assert.equal(staged.effects.outbox![0]!.dispatchGuard, input.sourceGuard.rule);
+    assert.deepEqual(staged.effects.outbox![0]!.arguments, fixture.input.request);
+    assert.equal(Object.hasOwn(staged.effects.outbox![0]!.arguments, 'sourceGuard'), false);
+    const changed = withRowData(persisted, { ...data, state: 'claimed', claimId: 'claim-original', claimedAtMs: NOW },
+      { nowMs: NOW, actor: 'worker' }, 'work.dispatch');
+    assert.deepEqual(readDispatchRow(JSON.parse(JSON.stringify(changed)) as StoredRow).sourceGuard, input.sourceGuard);
+    assert.deepEqual(readDispatchRow(changed).filePayloadOrigin, data.filePayloadOrigin);
+    fixture.stored.set(`${WORK_DISPATCH_MODEL}\0${persisted.id}`, persisted);
+    const replay = await stageCanonicalSend(input, fixture.ctx, origin);
+    assert.deepEqual(replay.effects.writes, []);
+    assert.deepEqual(replay.effects.outbox, []);
+    assert.equal(readCanonicalSendStaging(replay, input, fixture.ctx), replay);
+  });
+
+  it('refuses sourceGuard replay with changed lexical values, rule, source, owner or source occurrence', async () => {
+    const fixture = sealedSendFixture(), guard = sourceGuard();
+    const input = Object.freeze({ ...fixture.input, sourceGuard: guard });
+    const origin = await guardOriginFixture(input.sourceGuard);
+    const staged = await stageCanonicalSend(input, fixture.ctx, origin);
+    const write = staged.effects.writes![0]!; assert.equal(write.kind, 'insert');
+    if (write.kind !== 'insert') return;
+    fixture.stored.set(`${WORK_DISPATCH_MODEL}\0${write.row.id}`, write.row);
+    const variants = [
+      { ...guard, inputs: Object.freeze({ ...guard.inputs, person: 'usr-other' }) },
+      { ...guard, rule: 'Acme.notify.send.other' },
+      { ...guard, source: Object.freeze({ ...guard.source, sha256: 'b'.repeat(64) }) },
+      { ...guard, owner: 'Acme.other' },
+      { ...guard, node: Object.freeze({ start: 21, end: 55 }) },
+    ];
+    for (const variant of variants) {
+      await assert.rejects(stageCanonicalSend(Object.freeze({ ...fixture.input, sourceGuard: Object.freeze(variant) }), fixture.ctx, origin), error =>
+        error instanceof KernelTableError && /different origin or verdict|guard|original/.test(error.message) ||
+        error instanceof StorageConstraintError && error.kind === 'reference');
+    }
+    await assert.rejects(stageCanonicalSend(fixture.input, fixture.ctx), /different origin or verdict/);
+  });
+
+  it('rejects nonclosed sourceGuard data without invoking getters and requires the actual payload producer before mutable lexical staging', async () => {
+    const fixture = sealedSendFixture(), guard = sourceGuard();
+    let reads = 0;
+    const accessor = Object.defineProperty({ ...guard }, 'inputs', { enumerable: true, get: () => { reads++; return guard.inputs; } });
+    const malformed = [accessor, { ...guard, foreign: true }, { ...guard, source: { ...guard.source, foreign: true } },
+      { ...guard, node: { start: 55, end: 20 } }, { ...guard, inputs: { value: undefined } },
+      { ...guard, inputs: { value: new Array(2) } }, { ...guard, inputs: { value: 2n } },
+      { ...guard, inputs: { value: Infinity } }, { ...guard, inputs: { value: new Array(100_001).fill(null) } }];
+    for (const value of malformed) {
+      await assert.rejects(stageCanonicalSend(Object.freeze({ ...fixture.input, sourceGuard: value as DispatchSourceGuard }), fixture.ctx), /sourceGuard/);
+    }
+    assert.equal(reads, 0);
+    const lexical = { person: 'usr-original' };
+    const input = Object.freeze({ ...fixture.input, sourceGuard: Object.freeze({ ...guard, inputs: lexical }) });
+    const context = Object.freeze({ ...fixture.ctx, load: async () => { lexical.person = 'usr-mutated'; return null; } });
+    await assert.rejects(stageCanonicalSend(input, context), /installed original payload producer/);
+    assert.deepEqual(lexical, { person: 'usr-original' });
+    assert.equal(fixture.stored.size, 0);
   });
 
   it('refuses copied, inherited and accessor send carriers without executing carrier getters', async () => {

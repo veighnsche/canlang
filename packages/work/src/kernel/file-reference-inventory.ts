@@ -33,6 +33,7 @@ const dispatch = {
   requestSource: optionalString, requestRevision: optionalString, requestBinding: optionalString,
   requestFrom: optionalString, requestApp: optionalString, requestOwner: optionalString,
   originalIntentId: optionalString, observationStartedAtMs: optionalNumber, observationDeadlineMs: optionalNumber,
+  sourceGuard: Object.freeze({ ...deferred, optional: true }), filePayloadOrigin: payloadOrigin('sourceGuard'),
 } satisfies Fields<DispatchRowData>;
 const occurrence = { occurrenceId: string, status: string, result, code: nullableString,
   message: nullableString, recordedAtMs: number, filePayloadOrigin: payloadOrigin('result') } satisfies Fields<OccurrenceRowData>;
@@ -112,7 +113,8 @@ function closed(value: unknown, fields: Readonly<Record<string, Field>>): Record
   if (Object.keys(data).some(key => !Object.hasOwn(fields, key))) return invalid('unknown field.');
   for (const [key, field] of Object.entries(fields)) {
     if (!Object.hasOwn(data, key)) {
-      if (field.kind === 'control' && field.optional === true || field.kind === 'opaque' && field.role === 'payload-origin' && field.optional) continue;
+      if (field.kind === 'control' && field.optional === true || field.kind === 'opaque' &&
+          (field.role === 'payload-origin' || field.role === 'deferred-input') && field.optional) continue;
       return invalid(`missing ${key}.`);
     }
     const member = data[key];
