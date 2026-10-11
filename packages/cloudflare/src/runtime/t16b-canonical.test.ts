@@ -749,12 +749,15 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
 });
 
 describe("T16b canonical scenario (handler as the execute seam)", () => {
-  it("runs the handler once with admitted inputs; replays without re-running", async () => {
+  it("runs the unassociated scenario once with admitted inputs; refuses saved disclosure without re-running", async () => {
     const dir = tempDir();
     const url = writeModule(dir, "ops.mjs", OPS_MODULE);
     const asm = stubAsm(dir, { "ops.mjs": url });
     const artifact = generatedArtifact("ops.mjs");
-    const { store } = createTestMemoryStorage();
+    const { store, probe } = createTestMemoryStorage();
+    const batches: Array<Parameters<StoragePort['commit']>[0]> = [];
+    const commit = store.commit.bind(store);
+    store.commit = async batch => { batches.push(batch); return commit(batch); };
     const seed = await seedIdentity();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -780,11 +783,32 @@ describe("T16b canonical scenario (handler as the execute seam)", () => {
     assert.equal(call.input.operation_id, operationId);
     assert.deepEqual(call.input.inputs, { sku: "s-1", tags: [] });
     const revisionAfterCommit = await store.readRevision();
+    const receiptIdentity = { app: 'TeamTasks', owner: seed.teamId, principal: seed.memberId,
+      operation: 'acme.Shop.restock' as OperationName, operationId: operationId as OperationId };
+    const snapshot = async () => {
+      const rows = await store.query({ model: 'acme.Todo' as ModelName, authority: 'owner', archived: 'include' });
+      return { revision: await store.readRevision(), rows,
+        history: await Promise.all(rows.map(row => store.historyFor('acme.Todo' as ModelName, row.id))),
+        outbox: probe.outboxAll(), schedules: await store.schedulesDue(Number.MAX_SAFE_INTEGER, 1_000),
+        receipt: await store.readReceipt(receiptIdentity) };
+    };
+    const before = await snapshot();
+    assert.ok(before.receipt); assert.equal(before.receipt.outcome.status, 'committed');
+    assert.equal(Object.hasOwn(before.receipt.outcome, 'scenario'), false,
+      'this original fixture declares no supported result disclosure association');
+    assert.equal(batches.length, 1);
+    for (const effects of [batches[0]!.writes, batches[0]!.history, batches[0]!.outbox,
+      batches[0]!.schedules, batches[0]!.uniqueClaims, batches[0]!.uniqueReleases]) assert.deepEqual(effects, []);
     const second = await invoker.invokeMutation(envelope, identity);
-    assert.ok("result" in second, `want replayed result, got ${JSON.stringify(second)}`);
-    assert.equal((second.result as MutationResult).status, "replayed");
+    assert.ok('error' in second, JSON.stringify(second));
+    assert.equal(second.error.code, 'validation');
+    assert.equal(second.error.message, 'Saved scenario has no supported execution association.');
+    assert.equal(second.error.operation_id, operationId); assert.equal(second.error.retryable, false);
+    assert.equal(Object.hasOwn(second, 'result'), false);
     assert.equal(registry.canApp().calls.length, 1);
     assert.equal(await store.readRevision(), revisionAfterCommit);
+    assert.equal(batches.length, 1, 'saved disclosure refusal commits no replacement receipt or other resources');
+    assert.deepEqual(await snapshot(), before);
   });
 
   it("hydrates immutable record aliases that observe ordered provisional fields with one reserved version", async () => {

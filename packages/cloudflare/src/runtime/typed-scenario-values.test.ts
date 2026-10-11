@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ArtifactOperationInput, CompileArtifact, MutationEnvelope } from '@canlang/contracts';
+import type { ArtifactOperationInput, CompileArtifact, MutationEnvelope, ResolvedIdentity, StoragePort } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
@@ -32,6 +32,27 @@ function rejected(outcome: MutationOutcome, code?: string) {
   assert.ok('error' in outcome, JSON.stringify(outcome));
   if (code !== undefined) assert.equal(outcome.error.code, code);
   return outcome.error;
+}
+async function refusesUnassociatedReplay(
+  invoker: ReturnType<typeof buildInvoker>, store: StoragePort,
+  request: MutationEnvelope, identity: ResolvedIdentity,
+): Promise<void> {
+  const receiptKey = { app: APP, owner: identity.team!.team_id, principal: identity.actor!.user_id,
+    operation: asOperation(request.operation), operationId: asOperationId(request.operation_id) };
+  const snapshot = async () => {
+    const rows = await store.query({ model: MODEL, authority: 'owner', archived: 'include' });
+    return { revision: await store.readRevision(), rows,
+      history: await Promise.all(rows.map(row => store.historyFor(MODEL, row.id))),
+      outbox: await store.outboxPending(), schedules: await store.schedulesDue(Number.MAX_SAFE_INTEGER, 1_000),
+      receipt: await store.readReceipt(receiptKey) };
+  };
+  const before = await snapshot();
+  assert.equal(before.receipt?.outcome.status, 'committed');
+  assert.equal(Object.hasOwn(before.receipt!.outcome, 'scenario'), false);
+  const error = rejected(await invoker.invokeMutation(request, identity), 'validation');
+  assert.equal(error.message, 'Saved scenario has no supported execution association.');
+  assert.equal(error.operation_id, request.operation_id); assert.equal(error.retryable, false);
+  assert.deepEqual(await snapshot(), before);
 }
 async function artifact(): Promise<CompileArtifact> {
   return JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
@@ -201,11 +222,16 @@ canApp = function() {
       memberships: world.memberships, now: () => FIXED_NOW,
     });
     const beforeInherited = await d1.store.readRevision();
-    const inheritedRefusal = rejected(await inheritedInvoker.invokeMutation(envelope('boundNullable', {
-      counter: boundRef,
-    }), world.identity));
-    assert.match(inheritedRefusal.message, /computedDefault/);
+    const inheritedRequest = envelope('boundNullable', { counter: boundRef });
+    const inheritedRows = await d1.store.query({ model: MODEL, authority: 'owner', archived: 'include' });
+    const inheritedHistory = await Promise.all(inheritedRows.map(row => d1!.store.historyFor(MODEL, row.id)));
+    const inheritedReceipt = await d1.store.readReceipt(receiptIdentity(inheritedRequest));
+    const inheritedRefusal = rejected(await inheritedInvoker.invokeMutation(inheritedRequest, world.identity));
+    assert.equal(inheritedRefusal.message, 'importVerifiedAssemblyModule: artifact differs from assembled source');
     assert.equal(await d1.store.readRevision(), beforeInherited);
+    assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner', archived: 'include' }), inheritedRows);
+    assert.deepEqual(await Promise.all(inheritedRows.map(row => d1!.store.historyFor(MODEL, row.id))), inheritedHistory);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(inheritedRequest)), inheritedReceipt);
     assert.equal((await d1.store.load(MODEL, asId(defaultCounter.id)))?.version, 1);
     const nullableDefault = envelope('boundNullable', { counter: boundRef });
     const arrayDefault = envelope('boundArray', { counter: boundRef });
@@ -275,7 +301,7 @@ canApp = function() {
     const finished = committed(await invoker.invokeMutation(finish, world.identity));
     assert.ok(Object.hasOwn(finished, 'result'));
     assert.equal(finished.result, null);
-    assert.equal(committed(await invoker.invokeMutation(finish, world.identity), 'replayed').result, null);
+    await refusesUnassociatedReplay(invoker, d1.store, finish, world.identity);
     assert.equal(committed(await invoker.invokeMutation(envelope('observedVersion', {
       counter: ref(4),
     }), world.identity)).result, '4');
@@ -297,7 +323,7 @@ canApp = function() {
     assert.doesNotThrow(() => JSON.stringify([large, twice, finished, receipt]));
     const discard = envelope('discard', { counter: ref(5) });
     assert.equal(committed(await invoker.invokeMutation(discard, world.identity)).result, null);
-    assert.equal(committed(await invoker.invokeMutation(discard, world.identity), 'replayed').result, null);
+    await refusesUnassociatedReplay(invoker, d1.store, discard, world.identity);
     const archived = await d1.store.load(MODEL, asId(row.id));
     assert.equal(archived?.archivedAt, FIXED_NOW);
     assert.equal(archived?.version, 6);
@@ -319,8 +345,8 @@ canApp = function() {
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), archivedHistory);
     const revision = await d1.store.readRevision();
     assert.equal(committed(await reopened.invokeMutation(increment, world.identity), 'replayed').result, large.result);
-    assert.equal(committed(await reopened.invokeMutation(finish, world.identity), 'replayed').result, null);
-    assert.equal(committed(await reopened.invokeMutation(discard, world.identity), 'replayed').result, null);
+    await refusesUnassociatedReplay(reopened, d1.store, finish, world.identity);
+    await refusesUnassociatedReplay(reopened, d1.store, discard, world.identity);
     assert.equal(committed(await reopened.invokeMutation(nullableDefault, world.identity), 'replayed').result, '7');
     assert.deepEqual(committed(await reopened.invokeMutation(arrayDefault, world.identity), 'replayed').result, ['7']);
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(nullableDefault)), nullableReceipt);
@@ -394,7 +420,8 @@ canApp = function() {
     assert.equal(row?.archivedAt, FIXED_NOW);
     assert.equal(row?.version, 1);
     assert.deepEqual((await store.historyFor(MODEL, asId(request.operation_id))).map(entry => entry.change), ['create', 'update', 'archive']);
-    assert.equal(committed(await invoker.invokeMutation(request, world.identity), 'replayed').result, '3');
+    // Historical helper execution carries no supported original replay association.
+    await refusesUnassociatedReplay(invoker, store, request, world.identity);
     // An object carrying a valid ID does not become a bound language record.
     const forged = await artifact();
     forged.modules[0]!.js += `
