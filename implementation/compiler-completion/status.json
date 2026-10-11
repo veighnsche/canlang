@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-11T02:15:00Z",
+  "updated_utc": "2026-10-11T02:16:19Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -104,10 +104,11 @@
     "reused_results": "Unchanged successful prefix/library/analysis/corpus and editor/client TypeScript; currentaffected producer/native repairs and allunrun targets supply actual delta, old failures superseded by meaningful current cases."
   },
   "latest_component": {
-    "base_commit": "86ad8c10",
-    "state": "producer_and_finite_native_consumer_satisfied_original_application_unfinished",
-    "record": "committed_model_event_source.original_date_field",
-    "outcome": "Original protected Calendar checkbox/edit and Date control producers are implemented,tested,independently reviewed in local main.125 affected checkbox/edit results plus changed date1/refusals6 and owning aggregate22/22 reused; other results unchanged. Original list lowering, application/browser/persistence/current dispatch and holds remain."
+    "base_commit": "f0f41ff9919510a2d6c082eba332b233ccb7ad5b",
+    "state": "original_event_owned_pair_reviewed_and_qualified_native_lifetime_separate",
+    "record": "committed_model_event_source.declared_file_event_inputs",
+    "outcome": "Original event-owned canonical/flat pair emitted and qualified by123 affected/strict0; exact Dev scheduled File origin consumer now has original event inputFields excluding cohort args. Native lifetime/current grant/replay/reopen remain Dev-owned.",
+    "source_commit": "0e4c31b62115b609c2fac07fe3124af824476210"
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -899,6 +900,16 @@
       "scope_limit": "Finite authored protected edit/checkbox producer/native render satisfied/reviewed in local main; original full application/browser/persistence/current dispatch and23 source findings remain. Date mapping is now released/qualified. Whole qualification false; precise holds unchanged.",
       "shared_build_blocker": "Cloudflare aggregate build21/22 successful,11 StoragePort wrapper TS2739 on4c5 source; exact coordinator-reviewed0c6931e6 mandatory ports/native wrapper repair is released for safe boundary intake. Owning UI/Interfaces/State/Work builds succeeded; no duplicate common repair. Exact reviewed0c693 consumed as e55673; final aggregate22/22 exit0 12.654s clears this wrapper blocker.",
       "coordinator_review": "Finite independent source review CLEAR for exact5a Date or a632 authored checkbox/edit delta: checked enabledCRUD, own selected writable type lineage, prepared field/record/version/occurrence and complete eligible remainder; malformed source refuses. Owning qualified scopes/strict/fmt and final aggregate22/22 reused. Finite producer/native rendering accepted only; original application/browser/persistence/current dispatch and exact holds remain."
+    },
+    "declared_file_event_inputs": {
+      "base_commit": "f0f41ff9919510a2d6c082eba332b233ccb7ad5b",
+      "state": "original_event_owned_pair_reviewed_and_qualified_native_lifetime_separate",
+      "implemented": "Original declared appDefinition.events[canonicalEvent] now publishes inputFields:ArtifactOperationInput[] alongside untouched complete Values inputs. One checked event-field helper validates exact field ID/owner/canonical correspondence and supplies existing field/valueType/ref/default/null/ordinary-array/description/array-bound carriers. Private handler invocation reuses original fields then separately appends its cohort child. Unmappable or incomplete original fields refuse E6008/no artifact; file[]! remains refused. No handler/cohort fields or new input kind/authority fabricated.",
+      "tested": "123 distinct affected PASS: real CLI/public loader/verified original module File event pair1/1 .51s, owning existing cohort ABI/order/refusal1/1 .08s, codegen121/121 .22s. Direct owning File shapes file,file?,file[],file[]? retain exact required/null/array/valueType; original model ref/order and note:text min1 max16 trim remain in complete event.inputs. Ordinary invocation equals original inputFields; cohort invocation appends child while original pair excludes it. Required array CLI10/E6008/no modules. Strict all-target Clippy0 3.84s,fmt/diff0; no affected failures/ignored/bodySKIP. Reuse unchanged analysis/corpus/other native results.",
+      "accepted": true,
+      "consumer_output": "Genuine same-load module event.inputs retains original full Values constraint schema; event.inputFields is the existing flat ArtifactOperationInput profile. Preserve original artifact sources/module proof and whole declaration field order; obtain CanonicalInputDef using owning existing adapter, never fabricate ArtifactOperationInput from types or strip handler fields. Exact named Dev NativeFileDeferred.Retained entry:Entry/attachment:file/note:text min1 max16 trim deferred scheduling/rollback/replay/reopen join is Dev-owned.",
+      "scope_limit": "Accepted only compiler producer/installed module descriptor correspondence. Genuine declared-event ingress, scheduled File origin/current grants/lifetime/native retained consumer remain Dev-owned; precise holds unchanged.",
+      "source_review": "Independent finite source review CLEAR for exact original event field identity/order, unchanged complete Values schema, supported existing artifact mappings and exclusion of handler/cohort fields. Owning 123 affected/strict/fmt outcomes reused; no ingress/File/current-authority acceptance."
     }
   },
   "typed_file_association_prerequisite": {
