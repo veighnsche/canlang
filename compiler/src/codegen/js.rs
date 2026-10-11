@@ -3903,7 +3903,12 @@ impl<'a> Emitter<'a> {
         Some(source.clone())
     }
 
-    fn receipt_return_selection(&mut self, span: Span, implicit: bool) -> Option<String> {
+    fn receipt_return_selection(
+        &mut self,
+        span: Span,
+        implicit: bool,
+        model_result: bool,
+    ) -> Option<String> {
         use crate::analysis::scenario_disclosure::DisclosureChoice;
         let returns: Vec<_> = self
             .receipt_capture
@@ -3950,7 +3955,14 @@ impl<'a> Emitter<'a> {
                 js_string(&returned.id),
             ));
         }
-        selection.push_str("if($receiptReturns.length!==1){throw new Error('Scenario return capture is incomplete or ambiguous');}selectScenarioReceiptReturn(c,$receiptReturns[0]);");
+        selection.push_str("if($receiptReturns.length!==1){throw new Error('Scenario return capture is incomplete or ambiguous');}");
+        if model_result {
+            // The existing native frame captures the genuine once-evaluated
+            // owning view. Bind before selection, and return its canonical wire.
+            self.stdlib.insert("bindScenarioReceiptModelResult".into());
+            selection.push_str("const $receiptModelResult=await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptValue);");
+        }
+        selection.push_str("selectScenarioReceiptReturn(c,$receiptReturns[0]);");
         Some(selection)
     }
 
@@ -6154,14 +6166,23 @@ impl<'a> Emitter<'a> {
                         *span,
                     )];
                 }
+                let model_result = value.as_ref().is_some_and(|value| {
+                    matches!(value.ty, ResolvedType::Record { stored: true, .. })
+                });
                 if self.receipt_capture.is_some()
-                    && let Some(selection) = self.receipt_return_selection(*span, false)
+                    && let Some(selection) =
+                        self.receipt_return_selection(*span, false, model_result)
                 {
                     let value = value.as_ref().map(|value| self.lower_expr(value));
+                    let result = if model_result {
+                        "$receiptModelResult"
+                    } else {
+                        "$receiptValue"
+                    };
                     return vec![(
                         match value {
                             Some(value) => format!(
-                                "{pad}{{const $receiptValue={value};{selection}return $receiptValue;}}"
+                                "{pad}{{const $receiptValue={value};{selection}return {result};}}"
                             ),
                             None => format!("{pad}{{{selection}return;}}"),
                         },
@@ -12479,7 +12500,7 @@ impl<'a> Emitter<'a> {
                             out.push(span, Some(item.canonical.clone()), &line);
                         }
                     }
-                    if let Some(selection) = self.receipt_return_selection(item.span, true) {
+                    if let Some(selection) = self.receipt_return_selection(item.span, true, false) {
                         out.push(
                             item.span,
                             Some(item.canonical.clone()),

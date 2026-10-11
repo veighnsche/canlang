@@ -287,6 +287,22 @@ fn created_singular_call_result_joins_the_real_emitted_model_interface() {
             .to_json()
     );
     let body = &emitted.entry.js;
+    let binding = "const $receiptModelResult=await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptValue);";
+    assert_eq!(
+        body.matches(binding).count(),
+        2,
+        "root and child returned views bind exactly once: {body}"
+    );
+    assert_eq!(
+        body.matches(&format!(
+            "{binding}selectScenarioReceiptReturn(c,$receiptReturns[0]);return $receiptModelResult;"
+        ))
+        .count(),
+        2,
+        "await genuine binding before selection and return its same canonical wire: {body}"
+    );
+    let ordinary = js::emit_program(&ir);
+    assert!(!ordinary.entry.js.contains("bindScenarioReceiptModelResult"));
     let occurrence = format!("await invokeScenarioReceiptCall(c,\"{}\"", site.id);
     assert_eq!(body.matches(occurrence.as_str()).count(), 1, "{body}");
     let start = body.find(&occurrence).unwrap();

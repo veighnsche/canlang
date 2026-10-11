@@ -10842,3 +10842,38 @@ after consuming the repair, reusing the retained capture. Provider-void and all
 precise human holds remain, with full parents unfinished and no publication.
 
 Coordinator defining source review CLEAR and exact LOCAL intake after deadline. Genuine file[]! profile agrees with array.required and independent create/update-slot presence; complete owning File codec and full/legacy MCP wrapper facts preserve nullable/bounds and malformed/null-element/extra-key refusals. Reuse owning4 and actual public CF catalog1; changed normal Interfaces/Cloudflare/root0. This releases the demonstrated original native FileCollectionDownload catalog stop to Dev for affected-only retry, not native/current-authority/application acceptance. Existing precise holds and complete checkpoint unchanged.
+
+2026-10-11 — bind source policies through invocation-local genuine definitions
+(implemented/checks passed; native model workflow unfinished).
+
+For checked model consumers, load fresh definitions through the existing genuine
+artifact registry, then bind original framework, calls, queries and complete model
+root/ancestor reference policies once before admission. Immutable actual Identity,
+source, preferences and one captured clock supply native context. Each State
+observation supplies its own revision for retry/replay; the exact receiptStore
+serves adapters, admission, nested stages and disclosure. Ordinary cached paths
+retain their scope. No mutable active-call routing, definition rebinding or copied
+row can supply policy authority. Normal CF/root checks pass; genuine C04 binding
+and staged-parent presence seams remain required before native acceptance.
+
+2026-10-11 — expose created-model binding through the original native frame
+(implemented/export checked; native workflow unfinished).
+
+Generated source calls await bindScenarioReceiptModelResult(c,returnId,value)
+before original return selection and returns its same canonical State wire. Only
+the live frame captures the original current owner StoredRow from its exact native
+view and declared singular model. State retains private result identity through
+child/root and commit; copied objects, raw references and other owner views cannot
+create it. A child wire selects a genuine current parent-stage row, preserving
+owner-navigation grants. Normal checks and installed facade correspondence pass;
+actual Compiler binder emission/native workflow remain separate requirements.
+
+2026-10-11 — bind actual created-model returns before selection (implemented;
+installed/native consumer unfinished). For the exact admitted Model result,
+evaluate once and call the existing Dev native-frame facade with original returnId
+and view, await binding, select and return its same canonical wire. Dev captures
+the genuine current-stage State row; source cannot manufacture it. Five source/
+refusal cases pass. Exact facade release and actual installed/native qualification
+remain required, alongside richer original C04 producers.
+
+Coordinator independent defining model emitter/frame/factory correction reviews CLEAR and coherent exact LOCAL source integration after deadline. Preserve once original Model expression, actual private owning current-stage row, awaited State binder before select and SAME canonicalwire. Focused source preferences pass through actual predicate/ancestor/containment contexts; accepted same-load presence replaces committed reread, unrelated absent SEND dependency excluded. Existing query/SEND/refusals remain. Reuse owning6 source/actualCLI/installed controls and strict0/fmt0; changed normal Cloudflare/root0. Original Dev native row/current-authority/rollback/replay control remains unrun; no application/fullplan/hold/checkpoint completion.

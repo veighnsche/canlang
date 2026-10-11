@@ -9,11 +9,12 @@ import { observeScenarioReceiptDependency as observeStateDependency,
   executeScenarioReceiptQuery as executeStateQuery,
   observeScenarioReceiptQueryDependency as observeStateQueryDependency,
   bindScenarioReceiptQueryResult as bindStateQueryResult,
+  bindScenarioReceiptModelResult as bindStateModelResult,
   assertScenarioReceiptCallExecution, stableStringify } from '@canlang/state/invocation';
 import { isGeneratedOperationDef, type GeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { StateError } from '@canlang/state/errors';
 import type { HandlerContext } from './context.js';
-import { encodeValue } from '@canlang/values';
+import { encodeValue, parseTypeId } from '@canlang/values';
 import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow,
   bindNativeScenarioReceiptReference, captureNativeScenarioReceiptReference, nativeRecordReference } from './native-records.js';
 
@@ -496,6 +497,27 @@ export function bindScenarioReceiptQueryResult(c: HandlerContext, returnId: stri
       return current;
     });
   } catch (error) { fail(frame, error); }
+}
+
+/** Existing-frame model leaf: only the host-bound native view can supply the
+ * original current-stage StoredRow. Preserve State's private result identity. */
+export async function bindScenarioReceiptModelResult(c: HandlerContext, returnId: string,
+  value: unknown): Promise<Readonly<{ id: import('@canlang/contracts').RecordId }>> {
+  const frame = checked(c);
+  let acquired = false;
+  try {
+    const type = isGeneratedOperationDef(frame.call.def) ? frame.call.def.descriptor.result?.type : undefined;
+    if (type === undefined || frame.pending !== 0) return refuse('Model return requires its checked singular type and awaited observations.');
+    const parsed = parseTypeId(type);
+    if (parsed.base.kind !== 'nominal' || parsed.array || parsed.nullable) return refuse('Model return requires its declared singular model.');
+    const row = captureNativeScenarioReceiptRow(value, frame.owner, parsed.base.path);
+    frame.pending++; acquired = true;
+    const wire = await bindStateModelResult(frame.call, frame.store, { returnId, row });
+    checked(c);
+    frame.queryResults.set(wire, () => wire);
+    return wire;
+  } catch (error) { return fail(frame, error); }
+  finally { if (acquired) frame.pending--; }
 }
 
 /** Compiler selects only the actually evaluated return after its observations. */
