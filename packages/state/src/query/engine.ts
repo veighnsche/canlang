@@ -37,6 +37,8 @@ import { byDependsOnRow, evaluateBy, type ByPredicate, type MembershipReader } f
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { evaluateInstalledReadPredicate, executeUnboundReadPredicate, hasInstalledReadPredicateMembership, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { deepFreeze } from '../internal/own-data.js';
+import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors,
+  type InstalledSourceRowDecision, type ViewerSourceReadPolicy } from './source-policy.js';
 import {
   collectPredicateFields,
   evalPredicateForRow,
@@ -88,6 +90,8 @@ export interface BaseQueryInput {
 /** Viewer query input: grant-checked, projected records. */
 export interface ViewerRecordsInput extends BaseQueryInput {
   readonly authority: 'viewer';
+  /** Checked installed ordinary read declarations; State owns their row and ancestor observations. */
+  readonly sourceReadPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   /**
    * Trusted internal generated-source wiring only, never JSON/user input.
    * Receives a detached snapshot after per-row grant projection and AST
@@ -443,7 +447,7 @@ function deleteProjectedPath(node: unknown, segments: ReadonlyArray<string>): vo
  */
 function projectRow(
   row: StoredRow,
-  grants: ReadonlyArray<InterimGrant>,
+  grants: ReadonlyArray<Pick<InterimGrant, 'fields'>>,
   secrets: ReadonlyArray<string>,
 ): ProjectedRecord {
   const data: Record<string, unknown> = {};
@@ -495,6 +499,12 @@ function projectRow(
     parent: row.parent ?? null,
     data,
   };
+}
+
+/** Internal field union shared by installed source readers; this issues no read authority. */
+export function projectSourceRowFields(row: StoredRow,
+  grants: ReadonlyArray<Pick<InterimGrant, 'fields'>>, secrets: ReadonlyArray<string>): ProjectedRecord {
+  return projectRow(row, grants, secrets);
 }
 
 /** Only row-independent predicates enter the existing query-level cache. */
@@ -970,6 +980,14 @@ async function runAuthorizedQuery(
     readonly membershipPredicate?: InstalledSourceQueryPredicate },
   observation?: QueryObservation,
 ): Promise<AuthorizedSet> {
+  // Capture installed declaration metadata before the first storage/Identity await.
+  const suppliedReads = (input as ViewerRecordsInput).sourceReadPolicies;
+  if (suppliedReads !== undefined && (input.authority !== 'viewer' || eventual)) {
+    throw new StateError('validation', 'Installed source policies require a current viewer query.');
+  }
+  const sourceReads = suppliedReads === undefined ? undefined : captureSourceReadPolicies(suppliedReads);
+  const selectedRead = sourceReads?.get(input.model);
+  const sourceRows = new Map<string, StoredRow>();
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
   }
@@ -1033,6 +1051,21 @@ async function runAuthorizedQuery(
   let parentDecisions: readonly ViewerPageParentDecision[] = [];
   const parentRows = new Map<string, StoredRow | null>();
   const evaluateParents = async (current: ByContext): Promise<readonly ViewerPageParentDecision[]> => {
+    if (sourceReads !== undefined && page?.parent !== undefined) {
+      const selected = page.parent, key = `${selected.model}\0${selected.id}`;
+      if (!sourceRows.has(key)) {
+        const row = await input.store.cohortLoad({ model: selected.model, id: selected.id, expectedRevision: revision });
+        if (row === null) throw new StateError('not_found', 'Parent record not found.');
+        if (row.id !== selected.id) throw new StateError('validation', 'Parent row identity mismatch.');
+        sourceRows.set(key, row);
+      }
+      const projected = await projectInstalledSourceRowAndAncestors({ model: selected.model, row: sourceRows.get(key)!,
+        readPolicies: sourceReads, policy: input.policy, context: current, revision, fence: input.fence,
+        store: input.store, rows: sourceRows });
+      if (projected.record === null) throw new StateError('not_found', 'Parent record not found.');
+      return projected.decisions.map(decision => ({ model: decision.model, allowed: decision.allowed,
+        projection: JSON.stringify(decision.projection) }));
+    }
     const decisions: ViewerPageParentDecision[] = [];
     let selected = page?.parent ?? null;
     const visited = new Set<ModelName>();
@@ -1062,6 +1095,13 @@ async function runAuthorizedQuery(
     return decisions;
   };
   const prepareViewer = async (current: ByContext): Promise<boolean[]> => {
+    if (sourceReads !== undefined && (selectedRead === undefined || 'grants' in selectedRead)) {
+      grantedFields = selectedRead === undefined ? [] : selectedRead.grants.flatMap(grant => [...grant.fields]);
+      if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets);
+      for (const term of order) checkViewerPath(term.field, grantedFields, secrets);
+      for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets);
+      return [];
+    }
     const allowed = policy === null ? [] : await viewerGrantAuthority(policy, current);
     grantedFields = policy === null ? [] : policy.grants.flatMap((grant, index) =>
       allowed[index] || byDependsOnRow(grant.by) ? [...grant.fields] : []);
@@ -1096,9 +1136,10 @@ async function runAuthorizedQuery(
     byContext = byCtx;
     const found = input.policy.get(input.model);
     if (found !== undefined) { policy = found; secrets = found.secretFields; }
+    if (selectedRead !== undefined && 'grants' in selectedRead) secrets = selectedRead.secretFields;
     const parentDependsOnRow = [...(page?.parentPolicies?.keys() ?? [])].some(model =>
       input.policy.get(model)?.grants.some(grant => byDependsOnRow(grant.by)));
-    if (policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow || coherentPredicate) rowContext = byCtx;
+    if (sourceReads !== undefined || policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow || coherentPredicate) rowContext = byCtx;
     else {
       parentDecisions = await evaluateParents(byCtx);
       grantByOk = await prepareViewer(byCtx);
@@ -1128,7 +1169,8 @@ async function runAuthorizedQuery(
     }),
   };
   let scanned: readonly StoredRow[];
-  let rowAuthority: readonly { allowed: boolean[]; grants: InterimGrant[] }[] | undefined;
+  let rowAuthority: readonly { allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
+    record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[] | undefined;
   let revalidateRowAuthority: (() => Promise<void>) | undefined;
   let predicateMatches: readonly boolean[] | undefined;
   if (rowContext !== undefined) {
@@ -1142,12 +1184,19 @@ async function runAuthorizedQuery(
       const observedRows = originalRows ??= await input.store.query(spec);
       if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
       const rows = [], matches: boolean[] = [];
-      for (const row of observedRows) rows.push(selectedPolicy === null ? { allowed: [], grants: [] } :
-        await viewerRowAuthority(selectedPolicy, current, cached, row));
+      for (const row of observedRows) {
+        if (sourceReads !== undefined) {
+          sourceRows.set(`${input.model}\0${row.id}`, row);
+          rows.push(await projectInstalledSourceRowAndAncestors({ model: input.model, row, readPolicies: sourceReads,
+            policy: input.policy, context: current, revision, fence: input.fence, store: input.store, rows: sourceRows }));
+        } else rows.push(selectedPolicy === null ? { allowed: [], grants: [] } :
+          await viewerRowAuthority(selectedPolicy, current, cached, row));
+      }
       if (coherentPredicate) for (const [index, row] of observedRows.entries()) {
         const authority = rows[index]!;
-        if (authority.grants.length === 0) { matches.push(false); continue; }
-        const projected = projectRow(row, authority.grants, secrets);
+        const projected = 'record' in authority ? authority.record :
+          authority.grants.length === 0 ? null : projectRow(row, authority.grants, secrets);
+        if (projected === null) { matches.push(false); continue; }
         if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
           matches.push(false); continue;
         }
@@ -1166,8 +1215,10 @@ async function runAuthorizedQuery(
     scanned = originalRows!; rowAuthority = authority.value.rows; revalidateRowAuthority = authority.revalidate;
     if (coherentPredicate) predicateMatches = authority.value.matches;
     if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Row grant discovery moved beyond its original State revision.');
-    grantByOk = selectedPolicy?.grants.map((grant, index) => byDependsOnRow(grant.by)
-      ? rowAuthority!.some(row => row.allowed[index] === true) : authority.value.cached[index] === true) ?? [];
+    grantByOk = sourceReads === undefined ? selectedPolicy?.grants.map((grant, index) => byDependsOnRow(grant.by)
+      ? rowAuthority!.some(row => row.allowed[index] === true) : authority.value.cached[index] === true) ?? [] :
+      (selectedRead !== undefined && 'grants' in selectedRead ? selectedRead.grants : selectedPolicy?.grants ?? [])
+        .map((_, index) => rowAuthority!.some(row => row.allowed[index] === true));
     if (page !== undefined) pageAuthority = { policy, byContext: rowContext, allowed: grantByOk,
       parents: authority.value.parents, revalidate: authority.revalidate };
   } else scanned = await input.store.query(spec);
@@ -1191,10 +1242,11 @@ async function runAuthorizedQuery(
     for (const [index, row] of scanned.entries()) {
       const matching = rowAuthority?.[index]?.grants ?? (policy === null ? [] :
         (await viewerRowAuthority(policy, byContext!, grantByOk, row)).grants);
-      if (matching.length === 0) {
+      const projected = sourceReads !== undefined ? rowAuthority![index]!.record ?? null :
+        matching.length === 0 ? null : projectRow(row, matching, secrets);
+      if (projected === null) {
         continue;
       }
-      const projected = projectRow(row, matching, secrets);
       const candidateIndex = observation?.candidates.length;
       const candidate = observation === undefined ? undefined : {
         row, record: cleanCopy(projected) as ProjectedRecord, matched: false,

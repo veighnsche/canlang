@@ -132,3 +132,45 @@ test('denied candidate documents never reach a bound source membership predicate
     policy: policyTable(modelPolicy(MODEL, { grants: [grant('owner', ['author', 'title'])] })) });
   assert.deepEqual(result.records, []); assert.equal(native.captures, 0);
 });
+
+test('installed source grants and bound list membership predicates share one coherent projected query/page domain', async () => {
+  for (const route of ['records', 'page-revoked'] as const) {
+    const s = await setup(), grants: ViewerGenerationCallbackReadObservation[] = [],
+      candidates: ViewerGenerationCallbackReadObservation[] = [], seen: string[] = [];
+    const sourceReadPolicies = new Map([[MODEL, {
+      fields: ['author', 'title', 'private_prompt'], secretFields: ['private_prompt'],
+      grants: [{ fields: ['author', 'title'], read: async (observation: ViewerGenerationCallbackReadObservation) => {
+        grants.push(observation); assert.notEqual(observation.context.memberships, s.memberships);
+        const author = await observation.context.memberships.findMembership(TEAM, observation.row.data.author as string);
+        if (author?.status === 'active') return true;
+        const caller = await observation.context.memberships.findMembership(TEAM, 'caller');
+        return caller?.status === 'active';
+      } }],
+    }]]);
+    const native = nativePredicate(async (record, observation, member) => {
+      candidates.push(observation); seen.push(record.id);
+      assert.deepEqual(Object.keys(record.data).sort(), ['author', 'title']);
+      assert.equal(Object.hasOwn(observation.row.data, 'private_prompt'), false);
+      return member(record.data.author as string);
+    });
+    const where = { op: 'ne' as const, field: 'title', value: 'skipped' };
+    if (route === 'records') {
+      const result = await queryRecords({ ...s.input, policy: new Map(), sourceReadPolicies,
+        where, predicate: native.predicate });
+      assert.deepEqual(result.records.map(row => row.id), ['a']);
+    } else {
+      let transforms = 0;
+      await assert.rejects(queryRecordsPage({ ...s.input, policy: new Map(), sourceReadPolicies,
+        selection: { where }, generatedPredicate: native.predicate }, async page => {
+        transforms++; assert.deepEqual(page.records.map(row => row.id), ['a']);
+        await s.memberships.removeMembership(s.subject.membership_id); return page;
+      }), refuses);
+      assert.equal(transforms, 1);
+    }
+    assert.deepEqual(seen, ['a', 'b', 'a', 'b'], route);
+    assert.equal(native.captures, 4);
+    assert.equal(grants.length, 6, 'ordinary grants and false/AST-skipped candidates retain the complete scanned domain');
+    assert.equal(new Set(grants).size, 6, 'source grants receive fresh observations during coherent replay');
+    assert.equal(new Set(candidates).size, 4, 'bound source predicate captures reopen for each actual decision');
+  }
+});
