@@ -1872,7 +1872,7 @@ export function artifactToDescriptorSet(
         [returned.source, ...returned.dependencies.map(dependency => dependency.source),
           ...(returned.intrinsics ?? []).map(dependency => dependency.source),
           ...(returned.projection === undefined ? [] : [returned.projection.source])]),
-        ...(result.disclosure.queries ?? []).flatMap(query => [query.source, ...query.dependencies.map(dependency => dependency.source)])];
+        ...(result.disclosure.queries ?? []).flatMap(query => [query.source, ...(query.parent === undefined ? [] : [query.parent.source]), ...query.dependencies.map(dependency => dependency.source)])];
       if (origins.some(origin => !sources?.some(entry => entry.path === origin.path && entry.sha256 === origin.sha256) ||
             !modulePaths.includes(origin.module)) || matches !== 1) {
         fail('malformed_descriptor', 'Scenario dependency plan disagrees with its exact artifact source/callable module.');

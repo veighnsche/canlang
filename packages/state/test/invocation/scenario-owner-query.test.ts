@@ -12,6 +12,7 @@ import { queryRecords } from '../../src/query/engine.js';
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTable } from '../../src/mutation/models.js';
+import { beginOwnerMutation, type OwnerMutationQuery } from '../../src/mutation/pipeline.js';
 import { buildPolicyTable } from '../../src/policy/grants.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { invoke, type ExecutionEffects } from '../../src/invocation/invoke.js';
@@ -20,8 +21,8 @@ import { beginScenarioReceiptMutation, bindScenarioReceiptCallProducer, bindScen
   invokeScenarioReceiptCall, executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency,
   bindScenarioReceiptQueryResult, selectScenarioReceiptReturn, readScenarioReceiptAssociation,
   projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
-import { FIXED_NOW, asModel, createMemoryIdentityStore, makeEnvelope, makeIdentity, seedMember, seedRow, updateRow, uuidv7 } from './fixtures.js';
-import { field, modelDef } from '../mutation/fixtures.js';
+import { FIXED_NOW, asId, asModel, createMemoryIdentityStore, makeBatch, makeEnvelope, makeIdentity, makeRow, seedMember, seedRow, updateRow, uuidv7 } from './fixtures.js';
+import { field, modelDef, pipelineContext } from '../mutation/fixtures.js';
 
 const MODEL = asModel('Query.Task'), ROOT = 'Query.review', READ = 'Query.facts';
 const APP = 'owner-query-app', bounds = { maxRows: 10, maxWork: 1000 }, cause = { cause: 'scenario' } as const;
@@ -30,6 +31,67 @@ const source = () => ({ path: 'query.can', sha256: '9'.repeat(64), module: 'quer
 const stateError = (error: unknown) => error instanceof StateError;
 const empty = (): ExecutionEffects => ({ result: null, writes: [], history: [], outbox: [], schedules: [],
   uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
+
+async function containedOwnerWorld(selectedCount = 2) {
+  const parentModel = asModel('Query.Scope'), childModel = asModel('Query.ScopedTask');
+  const selected = { model: parentModel, id: asId('selected') }, other = { model: parentModel, id: asId('other') };
+  const table = buildModelTable([
+    { ...modelDef(parentModel), containment: {} },
+    { ...modelDef(childModel, { fields: { key: field({ required: true }) }, deleteMode: 'remove' }),
+      containment: { parent: parentModel } },
+  ]);
+  const store = createMemoryStorage();
+  const insert = async (model: typeof parentModel, row: StoredRow) => {
+    await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model, row }] }));
+  };
+  for (const parent of [selected, other]) await insert(parentModel, makeRow({ id: parent.id }));
+  for (let index = 0; index < 5; index++) await insert(childModel, {
+    ...makeRow({ id: `other-${index}`, data: { key: `other-${index}` } }), parent: other,
+  });
+  for (let index = 0; index < selectedCount; index++) await insert(childModel, {
+    ...makeRow({ id: `selected-${index}`, data: { key: `${selectedCount - index}` } }), parent: selected,
+  });
+  const scans: Parameters<typeof store.query>[0][] = [], query = store.query;
+  store.query = async spec => { scans.push(spec); return query(spec); };
+  const session = await beginOwnerMutation({ table, store, bounds: { maxRows: 2, maxWork: 1000 },
+    context: pipelineContext({ operation: ROOT }) });
+  const selection: OwnerMutationQuery = { model: childModel, authority: 'owner', parent: selected,
+    limit: 2, order: [{ field: 'key', direction: 'asc' }] };
+  return { store, session, scans, selection, selected, other, childModel, parentModel };
+}
+
+test('owner parent queries bound the scoped physical and provisional domains before ordering', async () => {
+  const w = await containedOwnerWorld();
+  assert.deepEqual((await w.session.views.entry.query(w.selection)).map(row => row.id), ['selected-1', 'selected-0']);
+  await w.session.stage({ op: 'remove', model: w.childModel, id: asId('selected-0') }, cause);
+  await w.session.stage({ op: 'update', model: w.childModel, id: asId('selected-1'), data: { key: 'z' } }, cause);
+  await w.session.stage({ op: 'create', model: w.childModel, id: asId('new-other'), parent: w.other, data: { key: 'a' } }, cause);
+  await w.session.stage({ op: 'create', model: w.childModel, id: asId('new-selected'), parent: w.selected, data: { key: 'a' } }, cause);
+  assert.deepEqual((await w.session.views.final.query(w.selection)).map(row => row.id), ['new-selected', 'selected-1']);
+  assert.deepEqual((await w.session.views.entry.query(w.selection)).map(row => row.id), ['selected-1', 'selected-0']);
+  assert.ok(w.scans.length > 0);
+  assert.ok(w.scans.every(scan => scan.parent?.model === w.selected.model && scan.parent.id === w.selected.id && scan.limit === 3));
+  await w.session.finalize();
+  assert.equal(await w.store.load(w.childModel, asId('new-selected')), null, 'owner staging does not commit');
+});
+
+for (const side of ['physical', 'provisional'] as const) test(`owner parent query refuses complete scoped ${side} overflow`, async () => {
+  const w = await containedOwnerWorld(side === 'physical' ? 3 : 2);
+  if (side === 'provisional') await w.session.stage({ op: 'create', model: w.childModel,
+    id: asId('new-selected'), parent: w.selected, data: { key: 'a' } }, cause);
+  await assert.rejects(w.session.views.final.query(w.selection), /exceeds its row bound/);
+  await assert.rejects(w.session.finalize(), stateError);
+});
+
+for (const invalid of ['foreign-model', 'root', 'empty-id'] as const) test(`owner query refuses ${invalid} parent selection`, async () => {
+  const w = await containedOwnerWorld();
+  await assert.rejects(w.session.views.entry.query({ ...w.selection,
+    ...(invalid === 'root' ? { model: w.parentModel } : {}),
+    parent: { model: invalid === 'foreign-model' ? w.childModel : w.parentModel,
+      id: asId(invalid === 'empty-id' ? '' : 'selected') },
+  }), /must match declared containment/);
+  assert.equal(w.scans.length, 0);
+});
 function disclosure() {
   return { version: 1 as const, source: source(), queries: [{ id: 'tasks', source: source(), model: MODEL,
     order: [{ field: 'key', direction: 'asc' as const }], limit: null, archived: 'exclude' as const,

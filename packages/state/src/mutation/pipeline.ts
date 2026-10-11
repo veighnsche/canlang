@@ -507,12 +507,22 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         Object.keys(spec).some(key => !['model', 'authority', 'limit', 'where', 'parent', 'archived', 'order'].includes(key))) {
       throw new StateError('validation', 'Owner mutation queries require checked finite owner selections.');
     }
+    if (spec.parent !== undefined && (spec.parent === null || typeof spec.parent !== 'object' ||
+        typeof spec.parent.model !== 'string' || spec.parent.model === '' ||
+        typeof spec.parent.id !== 'string' || spec.parent.id === '' ||
+        table.get(spec.model)!.containment !== undefined &&
+        table.get(spec.model)!.containment!.parent !== spec.parent.model)) {
+      throw new StateError('validation', 'Owner mutation query parent must match declared containment.');
+    }
+    const inDomain = (row: StoredRow) => spec.parent === undefined ||
+      row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id;
     await checkRevision();
     const cap = owner?.bounds.maxRows ?? spec.limit;
     // Storage predicates/order only support a flat wire-field subset. Read
-    // the complete bounded model domain in deterministic identity order;
+    // the complete bounded parent/model domain in deterministic identity order;
     // the defining query producer applies the checked native selection.
     const base = await store.query({ model: spec.model, authority: 'owner', archived: 'include',
+      ...(spec.parent === undefined ? {} : { parent: spec.parent }),
       order: [{ field: 'id', direction: 'asc' }], limit: cap + 1 });
     consumeWork(base.length);
     if (base.length > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
@@ -521,13 +531,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       const key = keyOf(spec.model, row.id);
       if (!entryRows.has(key)) entryRows.set(key, deepFreeze(structuredClone(row)));
       const entry = entryRows.get(key);
-      if (entry != null) merged.set(key, entry);
+      if (entry != null && inDomain(entry)) merged.set(key, entry);
     }
     if (side === 'final') {
       for (const [key, entry] of provisional) {
         consumeWork();
         if (!key.startsWith(`${spec.model as string}\0`)) continue;
-        if (entry.status === 'row') merged.set(key, entry.row);
+        if (entry.status === 'row' && inDomain(entry.row)) merged.set(key, entry.row);
         else merged.delete(key);
       }
     }
