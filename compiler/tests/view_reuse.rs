@@ -6,7 +6,7 @@ use canlang_compiler::source::{SourceDb, Span};
 use std::{path::Path, process::Command};
 
 #[test]
-fn original_canbook_bare_edits_keep_the_owning_update_fields_and_rows() {
+fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let original = include_str!("../../draft/CanBook.can");
     let mut db = SourceDb::new();
@@ -21,7 +21,7 @@ fn original_canbook_bare_edits_keep_the_owning_update_fields_and_rows() {
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (checked, _) = check_program(&db, &[id], catalog.as_ref());
     // Original imports and other unsupported source profiles still prevent
-    // shipment. Inspect only the original bare edit producer in raw IR.
+    // shipment. Inspect only the original ready edit/disclosure producers in raw IR.
     let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
     let mut pending = program
         .modules
@@ -30,9 +30,63 @@ fn original_canbook_bare_edits_keep_the_owning_update_fields_and_rows() {
         .flat_map(|page| &page.render)
         .collect::<Vec<_>>();
     let mut edits = std::collections::BTreeMap::new();
+    let mut disclosures = 0;
     while let Some(node) = pending.pop() {
         pending.extend(&node.children);
         let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory == "collapse" && authored.contains("Appointment coordination") {
+            disclosures += 1;
+            let caption = &node
+                .props
+                .iter()
+                .find(|(key, _)| key == "caption")
+                .unwrap()
+                .1;
+            let IrExpr::Message(caption) = &caption.expr else {
+                panic!("original localized caption");
+            };
+            assert_eq!(caption.source, "Appointment coordination");
+            assert!(
+                caption
+                    .variants
+                    .contains(&("nl".into(), Some("Afspraakafstemming".into())))
+            );
+            assert_eq!(node.children[0].factory, "text");
+            let values = &node.children[0]
+                .props
+                .iter()
+                .find(|(key, _)| key == "values")
+                .unwrap()
+                .1;
+            let IrExpr::Array(values) = &values.expr else {
+                panic!("original row values");
+            };
+            let mut fields = Vec::new();
+            for value in values {
+                let IrExpr::Member { base, field } = &value.expr else {
+                    panic!("original row member");
+                };
+                let canlang_compiler::analysis::types::ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } = base.ty
+                else {
+                    panic!("original stored appointment scope");
+                };
+                assert_eq!(
+                    checked.symbols[symbol.0 as usize].canonical,
+                    "appointments.Appointment"
+                );
+                fields.push(field.as_str());
+            }
+            assert_eq!(
+                fields,
+                ["host_ok", "room_ok", "host_delivery", "room_delivery"]
+            );
+            assert!(node.children.iter().all(|child| child.span.file == id
+                && child.span.start >= node.span.start
+                && child.span.end <= node.span.end));
+        }
         if node.factory != "form" || authored.trim() != "edit" {
             continue;
         }
@@ -80,6 +134,16 @@ fn original_canbook_bare_edits_keep_the_owning_update_fields_and_rows() {
         assert!(node.children.is_empty());
         edits.insert(operation.as_str(), fields);
     }
+    assert_eq!(
+        disclosures, 2,
+        "both original view uses retain their authored disclosure: {diagnostics:?}"
+    );
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("cannot lower collapse:")),
+        "original disclosure no longer refuses: {diagnostics:?}"
+    );
     assert_eq!(
         edits,
         std::collections::BTreeMap::from([

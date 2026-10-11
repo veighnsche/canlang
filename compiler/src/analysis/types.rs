@@ -8565,6 +8565,13 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                // Collapse shares Details' expression-valued open option;
+                // retain its checked type instead of treating it as vocabulary.
+                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("collapse")
+                    && let Some(open) = attribute_value(node, "open", cx.text)
+                {
+                    let _ = self.expr(cx, open, None);
+                }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("button")
                     && attribute_value(node, "target", cx.text).is_some()
                 {
