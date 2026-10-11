@@ -60,10 +60,11 @@ dates and authority; they do not freeze current workers or override these plans.
 The package queue's declared dependencies are acyclic. Cross-plan reciprocal
 joins are staged as defining contract → producer → consumer → affected outcome;
 consumer feedback may identify a concrete correction, but does not create a
-whole-plan waiting cycle. The terminal-completion join is now qualified Dev original private late-write
-rollback/replay → Compiler supported public Email publication → Dev changed public
-receiving case. Reviewed8c/main758 satisfies the original private outcome; it
-must not be reopened or wait for that final publication.
+whole-plan waiting cycle. The selected terminal-completion join is complete: reviewed Dev8c original
+private late-write rollback/replay, Compiler e28 supported public Email source,
+and Dev319 unchanged genuine retained public receiving1/1. Reuse these finite
+outcomes; authored SEND, verified ingress and other selected profiles remain
+separate owning requirements.
 
 Every remaining entry must name a finite deliverable, accountable owner,
 concrete prerequisite and observable exit. If its original requirement does not
