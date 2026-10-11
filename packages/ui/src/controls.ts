@@ -24,14 +24,12 @@ import type {
   FileLinkView,
   FileProps,
   FilterProps,
-  FilterCondition,
   FormFieldDef,
   InputProps,
   LabelProps,
   MessageValue,
   OtpProps,
   PresentationContext,
-  QueryPredicate,
   RadioProps,
   RangeProps,
   RatingProps,
@@ -41,7 +39,6 @@ import type {
   ToggleProps,
   ValidatorProps,
 } from "@canlang/contracts";
-import { COLLECTION_FILTER_PREFIX, collectionFilterName } from "@canlang/contracts";
 import {
   isValidDate,
   stringFieldValue,
@@ -56,7 +53,7 @@ import type { FieldError } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderState } from "./components.js";
-import { EMPTY_COLLECTION } from "./collections.js";
+import { EMPTY_COLLECTION, assertSourceFilterRow, prepareSourceFilters, sourceFilterControls } from "./collections.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import {
   assertFieldPath,
@@ -82,9 +79,6 @@ const RANGE_INVALID = message("Value is outside the allowed range.", {
 const FILE_UNAVAILABLE = message("File unavailable", {
   nl: "Bestand niet beschikbaar",
 });
-
-const APPLY_FILTERS = message("Apply filters", { nl: "Filters toepassen" });
-const CLEAR_FILTER = message("Clear filter", { nl: "Filter wissen" });
 
 /** String-valued scalar input types (mirrors forms.ts). */
 const TEXT_TYPES = new Set(["text", "email", "url", "timezone", "locale", "currency"]);
@@ -771,52 +765,6 @@ async function calendarField(props: CalendarProps & { readonly kind: "field" }):
   );
 }
 
-/** Render current source selections only after the owning query has authorized them. */
-function agendaFilterControls(
-  props: CalendarProps & { readonly kind: "agenda" },
-  conditions: readonly FilterCondition[],
-  columns: readonly ColumnMeta[],
-  empty: boolean,
-): string {
-  const fields = props.filter ?? [];
-  if (fields.length === 0) return "";
-  const occurrence = props.occurrence!;
-  const current = props.context.pollUrl ?? props.context.path;
-  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
-    throw new TypeError("calendar agenda: filter controls require a same-app relative URL");
-  }
-  const url = new URL(current, "https://can.invalid");
-  const prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`;
-  const hidden = (excluded: (name: string) => boolean): string => [...url.searchParams]
-    .filter(([name]) => name !== "cursor" && !excluded(name))
-    .map(([name, value]) => `<input type="hidden" name="${escapeAttr(name)}" value="${escapeAttr(value)}">`)
-    .join("");
-  const action = escapeAttr(url.pathname);
-  if (empty) {
-    // Empty declarations never authorize enum metadata or options. A current
-    // accepted selection can still be cleared without disclosing any records.
-    return conditions.map(condition => {
-      const name = collectionFilterName(occurrence, condition.field);
-      return `<form method="get" action="${action}" data-can-agenda-filters>${hidden(key => key === name)}` +
-        `<button type="submit" name="${escapeAttr(name)}" value="" class="btn">${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</button></form>`;
-    }).join("");
-  }
-  const byField = new Map(columns.map(column => [column.field, column]));
-  const selected = new Map(conditions.map(condition => [condition.field, condition.value]));
-  const controls = fields.map(field => {
-    const meta = byField.get(field.field);
-    if (meta === undefined) throw new Error(`calendar agenda: missing authorized filter field "${field.field}"`);
-    const name = collectionFilterName(occurrence, field.field);
-    const value = selected.get(field.field) ?? "";
-    const options = `<option value=""${value === "" ? " selected" : ""}>${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</option>` +
-      Object.entries(field.valueLabels!).map(([choice, label]) => `<option value="${escapeAttr(choice)}"${choice === value ? " selected" : ""}>${escapeHtml(resolveCaption(meta.valueLabels?.[choice] ?? label, props.context))}</option>`).join("");
-    return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
-      `<select id="${escapeAttr(name)}" name="${escapeAttr(name)}" class="select">${options}</select>`;
-  }).join("");
-  return `<form method="get" action="${action}" data-can-agenda-filters>${hidden(name => name.startsWith(prefix))}${controls}` +
-    `<button type="submit" class="btn">${escapeHtml(resolveCaption(APPLY_FILTERS, props.context))}</button></form>`;
-}
-
 /**
  * Date-grouped authorized rows retain endpoint text before authored content.
  * Authored bodies receive the same projected row and dispatcher context as lists.
@@ -831,26 +779,7 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
   ) {
     throw new Error(`calendar: limit must be an integer 1..${String(MAX_LIMIT)}`);
   }
-  if (props.defaults !== undefined && props.filter === undefined) {
-    throw new Error("calendar agenda: defaults require declared filter controls");
-  }
-  let conditions: readonly FilterCondition[] = [];
-  if (props.filter !== undefined) {
-    if (typeof props.occurrence !== "string" || props.occurrence === "" || props.context.prepareCollectionFilters === undefined) {
-      throw new Error("calendar agenda: source filter preparation is unavailable");
-    }
-    conditions = props.context.prepareCollectionFilters(props.occurrence, props.filter, props.defaults);
-  }
-  const filters: QueryPredicate[] = conditions.map(condition => {
-    if (condition.op !== "eq") throw new Error("calendar agenda: owning enum equality selection required");
-    return { op: "eq", field: condition.field, value: condition.value };
-  });
-  if (filters.length !== 0 && typeof props.where === "function") {
-    throw new Error("calendar agenda: typed filters require a data-only where predicate");
-  }
-  const where = filters.length === 0 ? props.where
-    : props.where === undefined && filters.length === 1 ? filters[0]
-    : { op: "and", args: [...(props.where === undefined ? [] : [props.where as QueryPredicate]), ...filters] };
+  const { conditions, where } = prepareSourceFilters(props, "calendar agenda");
   const result = await props.context.query(props.context.invocation, props.model, {
     ...(where === undefined ? {} : { where }),
     ...(props.order === undefined ? {} : { order: props.order }),
@@ -859,7 +788,7 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
     ...(props.page === undefined ? {} : { page: props.page }),
     ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
   });
-  const filterControls = agendaFilterControls(props, conditions, result.columns, result.rows.length === 0);
+  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "calendar agenda");
   if (result.rows.length === 0) {
     return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
   }
@@ -868,11 +797,7 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
   const groups = new Map<string, { readonly row: RowView; readonly endpoints: string; body: string }[]>();
   const items: { readonly row: RowView; readonly endpoints: string; body: string }[] = [];
   for (const row of result.rows) {
-    for (const field of props.filter ?? []) {
-      if (!Object.hasOwn(row.fields, field.field)) {
-        throw new Error(`calendar agenda: row "${row.id}" is missing projected filter field "${field.field}"`);
-      }
-    }
+    assertSourceFilterRow(props, row, "calendar agenda");
     for (const field of [props.startField, props.endField]) {
       if (!Object.hasOwn(row.fields, field)) {
         throw new Error(`calendar agenda: row "${row.id}" is missing projected field "${field}"`);
