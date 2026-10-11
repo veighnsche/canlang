@@ -106,6 +106,17 @@ Wrangler has a configured 180-second child timeout, without a process-tree or
 remote rollback guarantee. After an attempted apply fails, the remote outcome
 is unconfirmed: inspect it before manual retry. There is no automatic retry.
 
+Native private cohorts use State's bounded physical identity, row, child-page
+and anchor ports under the original source or retained-turn revision. The
+selected profile allows 1,000 frozen members, 100 per transport page/chunk,
+200 UTF16 code units per identity component and 6,000 per compound identity.
+Retained turns advance their read revision only after a successful owned commit;
+external changes refuse rather than refreshing stale intent or coverage.
+Original saved logical transport bounds are retained, including older values
+above 100; actual capture, admission and installed scheduler calls cap at 100.
+Child pages retain terminal and held rows, and navigation wraps only on an empty
+page. Staged overlays cannot serve these physical checkpoint reads.
+
 Confirmed deployment preflights both plan/TOML sidecars with the bundle writer's
 canonical-root and existing-entry checks before writing deployment output.
 Pre-existing symlinks and file/directory collisions refuse. Publication remains
