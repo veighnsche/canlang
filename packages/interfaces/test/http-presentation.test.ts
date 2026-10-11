@@ -23,13 +23,13 @@ import type {
   RowView,
   PageSourceContext,
 } from '@canlang/contracts';
-import { deriveCsrfToken } from '@canlang/identity';
+import { deriveCsrfToken, IdentityError } from '@canlang/identity';
 import { decodeValue, encodeValue, makeFileValue } from '@canlang/values';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
 import { resolveRequestIdentity } from '../src/http/context.js';
-import { calendar, table, text } from '@canlang/ui';
+import { calendar, detailsDrawer, table, text } from '@canlang/ui';
 
 function fakeIdentity(): ResolvedIdentity {
   return {
@@ -914,5 +914,84 @@ test('full and partial File text without an installed presenter refuse rather th
     assert.equal(response.status, 422);
     const body = await response.text();
     assert.ok(!body.includes(file.id)); assert.ok(!body.includes('href=')); assert.ok(!body.includes('source-bound presenter'));
+  }
+});
+
+
+test('full and partial repeated details drawers select only current queried rows and retain enclosing row context', async () => {
+  for (const partial of [false, true]) {
+    const occurrence = 'page:/details/repeated:é';
+    const rows: RowView[] = [
+      { id: 'row-one', version: '7', fields: { title: 'First' } },
+      { id: 'row-two', version: '9', fields: { title: 'Second' } },
+    ];
+    const parent: RowView = { id: 'parent-current', version: '3', fields: { title: 'Enclosing parent' } };
+    let returned: readonly RowView[] = rows, queryCalls = 0, scopes = 0;
+    let principal: ResolvedIdentity | undefined, source: PageSourceContext | undefined;
+    const bodies: { row: RowView; context: PresentationContext; parent: RowView }[] = [];
+    const page: PageDescriptor = { owner: 'TestApp', path: '/details', title: 'Details',
+      admit: async original => {
+        source = original as PageSourceContext;
+        if (!source.canonical.builtinRoles.includes('members')) throw new IdentityError('forbidden', 'Members only.');
+        return {};
+      },
+      render: async context => {
+        assert.equal(context.principal, principal); assert.equal(context.actor, source!.actor);
+        const result = await context.query(context.invocation, 'TestApp.Item', { limit: 2 });
+        assert.equal(result.rows, returned);
+        const html: string[] = [];
+        for (const record of result.rows) html.push(await detailsDrawer({ context, occurrence,
+          caption: 'Inspect item', record,
+          renderBody: async (actual, originalContext) => {
+            assert.equal(actual, record); assert.equal(originalContext, context);
+            assert.equal(actual.version, record.version);
+            bodies.push({ row: actual, context: originalContext, parent });
+            await Promise.resolve();
+            return [`<p data-details-body="${actual.id}">${parent.id}:${actual.id}:${actual.version}</p>`];
+          },
+        }));
+        return html.join('');
+      },
+    };
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const scoped = { ...deps, createReadScope: (current: ResolvedIdentity, admitted: PageSourceContext) => {
+      scopes++; principal = current; assert.equal(admitted, source);
+      return { query: async (invocation: unknown, model: string, args: unknown) => {
+        assert.equal(invocation, current); assert.equal(model, 'TestApp.Item'); assert.deepEqual(args, { limit: 2 });
+        queryCalls++; return { rows: returned, columns: [] };
+      } };
+    } };
+    const request = (params: URLSearchParams) => testRequest(`/details?${params}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) });
+    const params = new URLSearchParams([['team', identity.teamId], ['q', 'keep me'], ['can-row:sibling', 'other-row']]);
+    let response = await handlePageRequest(scoped, request(params));
+    assert.equal(response.status, 200);
+    const closedHtml = await response.text(); assert.equal(bodies.length, 0); assert.ok(!closedHtml.includes('data-details-body'));
+    const openers = [...closedHtml.matchAll(/href="([^"]+)"/g)].map(match => match[1]!.replace(/&amp;/g, '&'))
+      .map(href => new URL(href, 'https://component.invalid')).filter(url => url.searchParams.has(`can-row:${occurrence}`));
+    assert.equal(openers.length, 2);
+    assert.deepEqual(openers.map(url => url.searchParams.get(`can-row:${occurrence}`)), rows.map(row => row.id));
+    for (const url of openers) {
+      assert.equal(url.pathname, '/details'); assert.equal(url.searchParams.get('team'), identity.teamId);
+      assert.equal(url.searchParams.get('q'), 'keep me'); assert.equal(url.searchParams.get('can-row:sibling'), 'other-row');
+    }
+    const selected = new URLSearchParams(openers[1]!.search);
+    response = await handlePageRequest(scoped, request(selected)); assert.equal(response.status, 200);
+    const selectedHtml = await response.text();
+    assert.equal(bodies.length, 1); assert.equal(bodies[0]!.row, rows[1]); assert.equal(bodies[0]!.parent, parent);
+    assert.ok(selectedHtml.includes('parent-current:row-two:9')); assert.ok(!selectedHtml.includes('data-details-body="row-one"'));
+    returned = [rows[0]!];
+    response = await handlePageRequest(scoped, request(selected)); assert.equal(response.status, 200);
+    assert.ok(!(await response.text()).includes('data-details-body')); assert.equal(bodies.length, 1);
+    returned = rows;
+    for (const [key, value] of [[`can-row:${occurrence}`, 'forged-row-id'], ['can-row:foreign-occurrence', 'row-two']] as const) {
+      const stale = new URLSearchParams(params); stale.set(key, value);
+      response = await handlePageRequest(scoped, request(stale)); assert.equal(response.status, 200);
+      assert.ok(!(await response.text()).includes('data-details-body')); assert.equal(bodies.length, 1);
+    }
+    assert.equal(queryCalls, 5); assert.equal(scopes, 5);
+    const denied = await handlePageRequest(scoped, testRequest(`/details?${selected}`,
+      partial ? { headers: { 'HX-Request': 'true' } } : {}));
+    assert.equal(denied.status, 403); assert.equal(queryCalls, 5); assert.equal(scopes, 5); assert.equal(bodies.length, 1);
   }
 });

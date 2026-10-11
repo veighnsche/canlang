@@ -1355,6 +1355,19 @@ export interface CollapseProps {
   readonly id?: string;
 }
 
+/** Original source `details display=drawer`, after current record admission.
+ * The callback retains enclosing row/parent aliases and runs only for this
+ * activated occurrence/record. Selection itself grants no read authority. */
+export interface DetailsDrawerProps {
+  readonly context: PresentationContext;
+  readonly caption: MessageValue;
+  readonly occurrence: string;
+  readonly record: RowView;
+  readonly renderBody: (record: RowView, context: PresentationContext) => PageChildren | Promise<PageChildren>;
+  /** `open=` is admitted only by Collapse details. */
+  readonly open?: never;
+}
+
 /** `fieldset` native group for existing form fields; legend only when captioned. */
 export interface FieldsetProps {
   readonly context: PresentationContext;

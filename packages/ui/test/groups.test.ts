@@ -4,12 +4,15 @@ import type {
   AppearanceOrientation,
   AppearanceTone,
   PresentationContext,
+  DetailsDrawerProps,
+  RowView,
 } from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import {
   accordion,
   carousel,
   collapse,
+  detailsDrawer,
   diff,
   fieldset,
   footer,
@@ -21,6 +24,72 @@ import {
   timeline,
 } from "../src/groups.js";
 import { loadHtml } from "./harness.js";
+
+describe("source details drawer", () => {
+  it("evaluates only the activated original row with its enclosing aliases and GET context", async () => {
+    const first: RowView = { id: "one", fields: {} }, second: RowView = { id: "two", fields: {} };
+    const parent = { id: "parent-original" };
+    const context = makeContext({ path: "/records", pollUrl: "/records?team=team-one&filter=active&can-row%3Asibling=kept",
+      collectionSelections: new Map([["details:é", "two"]]) });
+    const seen: RowView[] = [];
+    const renderBody: DetailsDrawerProps['renderBody'] = (record, actualContext) => {
+      assert.equal(actualContext, context); assert.equal(record, second); seen.push(record);
+      return [`<p>${parent.id}</p>`];
+    };
+    const inactive = await detailsDrawer({ context, caption: "First", occurrence: "details:é", record: first, renderBody });
+    assert.equal(seen.length, 0); assert.ok(!inactive.includes("dialog"));
+    const active = await detailsDrawer({ context, caption: message("<Details>", { nl: "<Gegevens>" }),
+      occurrence: "details:é", record: second, renderBody });
+    assert.deepEqual(seen, [second]);
+    assert.ok(active.includes(parent.id)); assert.ok(active.includes("&lt;Details&gt;"));
+    const page = await loadHtml(active);
+    try {
+      const opener = page.document.querySelector('.drawer-content a')!;
+      const openUrl = new URL(opener.getAttribute('href')!, 'https://can.test');
+      assert.equal(openUrl.searchParams.get('can-row:details:é'), 'two');
+      assert.equal(openUrl.searchParams.get('team'), 'team-one'); assert.equal(openUrl.searchParams.get('filter'), 'active');
+      assert.equal(openUrl.searchParams.get('can-row:sibling'), 'kept');
+      const closeUrl = new URL(page.document.querySelector('[data-can-split-close]')!.getAttribute('href')!, 'https://can.test');
+      assert.equal(closeUrl.searchParams.has('can-row:details:é'), false);
+      assert.equal(closeUrl.searchParams.get('can-row:sibling'), 'kept'); assert.equal(closeUrl.searchParams.get('team'), 'team-one');
+      const dialog = page.document.querySelector('dialog[open][data-can-split-panel]')!;
+      assert.ok(dialog); assert.equal(page.document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent, '<Details>');
+      assert.notEqual(opener.getAttribute('aria-controls'), /aria-controls="([^"]+)"/.exec(inactive)?.[1]);
+    } finally { await page.close(); }
+  });
+
+  it("keeps absent stale and foreign occurrences lazy and propagates only active body failures", async () => {
+    const record: RowView = { id: 'current', fields: {} };
+    let calls = 0;
+    const failure = new Error('body failed');
+    const renderBody = () => { calls++; throw failure; };
+    for (const selection of [new Map<string, string>(), new Map([['details', 'stale']]), new Map([['foreign', 'current']])]) {
+      const html = await detailsDrawer({ context: makeContext({ collectionSelections: selection }), caption: 'Details',
+        occurrence: 'details', record, renderBody });
+      assert.ok(!html.includes('<dialog')); assert.equal(calls, 0);
+    }
+    await assert.rejects(detailsDrawer({ context: makeContext({ collectionSelections: new Map([['details', 'current']]) }),
+      caption: 'Details', occurrence: 'details', record, renderBody }), error => error === failure);
+    assert.equal(calls, 1);
+    const html = await detailsDrawer({ context: makeContext({ preferredLocales: ['nl'], collectionSelections: new Map([['details', 'current']]) }),
+      caption: message('Details', { nl: 'Gegevens' }), occurrence: 'details', record, renderBody: () => ['<p>body</p>'] });
+    assert.match(html, /Gegevens/); assert.match(html, /Details sluiten/);
+  });
+
+  it("refuses open and malformed source locators or foreign GET paths before body effects", async () => {
+    let calls = 0, getters = 0;
+    const base: DetailsDrawerProps = { context: makeContext({ collectionSelections: new Map([['details', 'current']]) }),
+      caption: 'Details', occurrence: 'details', record: { id: 'current', fields: {} }, renderBody: () => { calls++; return ['body']; } };
+    const accessor = { fields: {}, get id() { getters++; return 'current'; } };
+    for (const props of [{ ...base, open: false }, { ...base, open: undefined }, { ...base, occurrence: '' },
+      { ...base, record: Object.create(base.record) }, { ...base, record: accessor }, { ...base, record: { id: '', fields: {} } },
+      { ...base, renderBody: undefined }, { ...base, caption: null },
+      { ...base, context: makeContext({ pollUrl: 'https://foreign.test/records' }) }]) {
+      await assert.rejects(detailsDrawer(props as unknown as DetailsDrawerProps));
+    }
+    assert.equal(calls, 0); assert.equal(getters, 0);
+  });
+});
 
 function makeContext(overrides: Partial<PresentationContext> = {}): PresentationContext {
   return {
