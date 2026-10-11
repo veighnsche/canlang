@@ -8557,3 +8557,34 @@ Reexport Values' existing strict `choose` through the installed Cloudflare runti
 Cloudflare emission and strict maintained consumer noEmit exit0. The actual installed native ESM named-import consumer passes1/1 (26ms), including exact producer/ValueError identity, both frozen input selections, null and eight invalid conditions. A test-only shared readonly annotation resolves literal inference; unchanged runtime and producer results are reused. Coordinator reviews/releases the finite local unit; Compiler owns genuine C06 source/native acceptance. All precise holds remain.
 
 Local selected integrationffd73f13: finite direct export/actual installed import consumer review CLEAR. The facade exposes the identical existing strict Values producer without wrappers or changed codegen selection semantics. Owner1/1 installed ESM identity/selection/refusal and emit/strict test noEmit0 reused. Release only this exact missing export; Compiler original C06 native source and Dev authenticated ingress remain their distinct criteria.
+### IncomingEmail retains checked nominal identity (implemented; native pure qualification pending, 2026-10-11)
+
+The unchanged CanInbox107 replay guard compares the complete stored IncomingEmail
+with the verified event value before the existing else-create. Preserve that
+identity in ResolvedType::StdNominal only for IncomingEmail; keep its exact12-field
+catalog schema through ordinary type propagation and existing source inventory.
+Emit canonical equality and named input/result/model field schemas through
+installed Values. Anonymous objects, lookalike contracts, other named schemas and
+opaque leaves acquire no nominal equality. Values contracts are frozen canonical
+structural objects; the compile-time identity gate supplies the nominal distinction,
+so no runtime brand or new Contracts/Values ABI is introduced.
+
+Three independently worded equivalent JEV Choice requests (jev-latest resolved
+jev-1.13.0) advised explicit nominal twice (probabilities0.61/0.52) and a checked
+sidecar once (0.57), with confidence0.41/0.35/0.28. Requests, responses and
+uncertainty are saved in the existing compiler status record. Investigation of
+actual locals/signatures/generic choice/fields/emission showed a sidecar would
+need parallel identity propagation and stale-proof machinery. The explicit type
+is the smaller complete mechanism for this required guard. Advice is not
+acceptance; broader standard nominal migration is outside this change.
+
+All52 corpus assertions preserve51 rows and remove only Inbox replay E3002
+(41→40). Existing example/effect field traversal is preserved. Related458 distinct
+source/schema/integrity outcomes pass and strict all-target Clippy0 in8.12s. Native
+pure fifthcase currently fails at module import because the Cloudflare stdlib
+facade does not export the existing implemented Values choose helper; Packages
+owns that exact common repair. The unchanged CLI/native witness remains required.
+Authenticated standard event ingress, State commit/replay and File authority stay
+external, unfinished criteria; no full Inbox or whole-plan acceptance is claimed.
+
+Local original-ancestry integration424b959f: reuse the finite owner source review and458 affected passing outcomes/changed strict Clippy0. Coordinator checks exact IncomingEmail-only canonical name/12-field identity, generic/member traversal, exact sealed schema/publication refusals and original107 guard/create order. Source unit review CLEAR at this finite producer scope. The original native pure equality case remains explicitly unfinished until Compiler consumes the reviewed identical Values choose facade from0019835d and runs only that affected genuine source77f3eec7 case. C05 public producer/consumer completion is preserved; no verified ingress, File authority, full C06/application or hold acceptance.

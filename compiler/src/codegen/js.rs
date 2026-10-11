@@ -2633,6 +2633,15 @@ impl<'a> Emitter<'a> {
     /// Nominal claims resolve only through the emitted checked inventory.
     fn nominal_value_type(&self, ty: &ResolvedType) -> Option<String> {
         match ty {
+            ResolvedType::StdNominal { .. } => {
+                let name = crate::analysis::types::checked_standard_nominal_name(ty)?;
+                self.value_types
+                    .as_ref()?
+                    .contracts
+                    .iter()
+                    .any(|record| record.name == name)
+                    .then(|| name.to_string())
+            }
             ResolvedType::Record { symbol, .. }
             | ResolvedType::Enum {
                 owner: Some(symbol),
@@ -3219,6 +3228,14 @@ impl<'a> Emitter<'a> {
                 .map(|id| self.ir.items[id.0 as usize].canonical.clone())
                 .collect::<Vec<_>>()
                 .join("|"),
+            ResolvedType::StdNominal { .. } => {
+                if let Some(name) = crate::analysis::types::checked_standard_nominal_name(ty) {
+                    name.to_string()
+                } else {
+                    self.unsupported("type", "standard nominal has no exact owning schema", span);
+                    self.throw_expr("standard nominal type id")
+                }
+            }
             ResolvedType::Object(_) => {
                 self.unsupported("type", "object values have no §13 type id", span);
                 self.throw_expr("object type id")
@@ -3271,6 +3288,12 @@ impl<'a> Emitter<'a> {
     fn array_element_schema(&mut self, element: &ResolvedType, span: Span) -> String {
         match element {
             ResolvedType::Scalar(scalar) => format!("type:{}", js_string(scalar.as_str())),
+            ResolvedType::StdNominal { .. } if self.nominal_value_type(element).is_some() => {
+                format!(
+                    "type:{}",
+                    js_string(&self.nominal_value_type(element).unwrap())
+                )
+            }
             ResolvedType::Record { symbol, .. } => format!(
                 "type:{}",
                 js_string(&self.ir.items[symbol.0 as usize].canonical.clone())
@@ -3324,6 +3347,9 @@ impl<'a> Emitter<'a> {
         }
         match ty {
             ResolvedType::Scalar(scalar) => format!("type:{}", js_string(scalar.as_str())),
+            ResolvedType::StdNominal { .. } if self.nominal_value_type(ty).is_some() => {
+                format!("type:{}", js_string(&self.nominal_value_type(ty).unwrap()))
+            }
             ResolvedType::Record { symbol, .. } => format!(
                 "type:{}",
                 js_string(&self.ir.items[symbol.0 as usize].canonical.clone())
@@ -9701,7 +9727,9 @@ impl<'a> Emitter<'a> {
                 },
                 false,
             )),
-            ResolvedType::Record { .. } | ResolvedType::Enum { .. }
+            ResolvedType::Record { .. }
+            | ResolvedType::Enum { .. }
+            | ResolvedType::StdNominal { .. }
                 if self.nominal_value_type(resolved).is_some() =>
             {
                 Some((
@@ -10162,6 +10190,9 @@ impl<'a> Emitter<'a> {
             },
             ResolvedType::Object(_) => JsModelFieldType::Other {
                 type_id: "object".to_string(),
+            },
+            ResolvedType::StdNominal { name, .. } => JsModelFieldType::Other {
+                type_id: (*name).to_string(),
             },
             ResolvedType::Operation(symbol) => JsModelFieldType::Other {
                 type_id: self
