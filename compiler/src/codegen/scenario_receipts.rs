@@ -1680,6 +1680,10 @@ pub(super) fn checked_count_query_ir<'a>(
         return None;
     }
     let count = query.count.as_ref()?;
+    if count.contained_parent.is_none() {
+        let (call, _, _) = checked_ancestor_count_query_operands(ir, owner, query, db)?;
+        return (count.call == node && std::ptr::eq(call, actual)).then_some(query);
+    }
     let (receiver, _) = count.contained_parent?;
     let (target, args, slots) = match &actual.expr {
         IrExpr::Call { target, args } => (target, args.as_slice(), None),
@@ -1828,6 +1832,256 @@ pub(super) fn checked_count_query_ir<'a>(
     Some(query)
 }
 
+/// The source-owned ancestor count is the original leading Require. Its two
+/// ordinary reads occur inside the actual predicate, never at the root stage.
+fn checked_ancestor_count_query_operands<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+) -> Option<(&'a TypedExpr, &'a TypedExpr, &'a TypedExpr)> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [owning] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let [created] = facts.creates.as_deref()? else {
+        return None;
+    };
+    let count = query.count.as_ref()?;
+    let [_, candidate, supplied] = count.parent_edges.as_slice() else {
+        return None;
+    };
+    let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        return None;
+    };
+    let mut matching = guards.iter().filter(|statement|
+        matches!(statement, IrStmt::Require {span, ..} if *span == node_span(count.statement)));
+    let IrStmt::Require { cond, .. } = matching.next()? else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Lt,
+        left: call,
+        right: bound,
+    } = &cond.expr
+    else {
+        return None;
+    };
+    let arguments = match &call.expr {
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => args,
+        _ => return None,
+    };
+    let [domain] = arguments.as_slice() else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    let predicate = scan.where_pred.as_deref()?;
+    let IrExpr::Binary {
+        op: IrBinOp::And,
+        left: equality,
+        ..
+    } = &predicate.expr
+    else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Eq,
+        left: actual_candidate,
+        right: actual_supplied,
+    } = &equality.expr
+    else {
+        return None;
+    };
+    if matching.next().is_some()
+        || owning != query
+        || count.contained_parent.is_some()
+        || count.statement.kind != SyntaxKind::Require as u8
+        || count.statement.end > created.node.start
+        || created.model != query.model
+        || created.source != query.source
+        || checked_created_model_result(ir, owner) != Some(created.model)
+        || cond.ty != ResolvedType::Scalar(Scalar::Bool)
+        || bound.ty != ResolvedType::Scalar(Scalar::Int)
+        || !matches!(bound.expr, IrExpr::Int(10))
+        || call.span != node_span(count.call)
+    {
+        return None;
+    }
+    checked_native_query_influences(facts.queries.as_deref()?)?;
+    let returned = proof.returns.first()?;
+    for (edge, actual) in [
+        (candidate, actual_candidate.as_ref()),
+        (supplied, actual_supplied.as_ref()),
+    ] {
+        let mut reads = returned
+            .dependencies
+            .iter()
+            .filter(|read| read.node == edge.node);
+        let read = reads.next()?;
+        if reads.next().is_some() {
+            return None;
+        }
+        checked_candidate_parent_association(ir, owner, read, actual, db)?;
+    }
+    let census = facts.expression_types.as_deref()?;
+    let authored_guard = checked_effect_node(ir, owner, count.statement, db)?;
+    let source_condition = authored_guard
+        .children
+        .iter()
+        .find(|node| matches!(node.kind, SyntaxKind::Binary | SyntaxKind::Group))?;
+    if cond.span != source_condition.span
+        || census
+            .iter()
+            .find(|(node, _)| node_span(*node) == cond.span)?
+            .1
+            != cond.ty
+        || census
+            .iter()
+            .find(|(node, _)| node_span(*node) == bound.span)?
+            .1
+            != bound.ty
+    {
+        return None;
+    }
+    for id in [query.model, candidate.child, candidate.parent] {
+        let mut schemas = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .filter(|schema| schema.id == id);
+        let schema = schemas.next()?;
+        if schemas.next().is_some() || schema.source != query.source {
+            return None;
+        }
+        match_stored_contract_schema(ir, schema, db)?;
+        for field in &schema.fields {
+            match_stored_contract_field(ir, field, db)?;
+        }
+    }
+    Some((
+        call.as_ref(),
+        actual_candidate.as_ref(),
+        actual_supplied.as_ref(),
+    ))
+}
+
+fn checked_native_ancestor_count_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    checked_ancestor_count_query_operands(ir, owner, query, db)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [created] = facts.creates.as_deref()? else {
+        return None;
+    };
+    let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let mut statements = effects.iter().filter(|statement|
+        matches!(statement, IrStmt::Create {span,..} if *span == node_span(created.node)));
+    let statement = statements.next()?;
+    let mut creates = proof
+        .effects
+        .iter()
+        .filter(|effect| effect.node == created.node);
+    let create = creates.next()?;
+    if statements.next().is_some() || creates.next().is_some() {
+        return None;
+    }
+    let models = super::js::Emitter::new(ir).collect_models();
+    checked_scenario_create(ir, owner, &models, proof, create, statement, db)?;
+    let kinds = [
+        InfluenceKind::QueryExistence,
+        InfluenceKind::QueryCardinality,
+        InfluenceKind::QueryMembership,
+        InfluenceKind::QueryOrder,
+    ];
+    let influences = query
+        .influences
+        .iter()
+        .zip(kinds)
+        .map(|(influence, kind)| {
+            if influence.kind != kind {
+                return None;
+            }
+            Some(ReceiptInfluence {
+                id: influence.id.clone(),
+                query_id: influence.query_id.clone(),
+                kind: match kind {
+                    InfluenceKind::QueryExistence => "query-existence",
+                    InfluenceKind::QueryCardinality => "query-cardinality",
+                    InfluenceKind::QueryMembership => "query-membership",
+                    InfluenceKind::QueryOrder => "query-order",
+                    _ => return None,
+                }
+                .into(),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if proof.returns.is_empty()
+        || proof.returns.len() > 200
+        || proof.returns.iter().any(|returned| {
+            returned.node != query.return_node
+                || returned.source != query.source
+                || returned.influences != query.influences
+                || returned.model_result.is_none()
+        })
+    {
+        return None;
+    }
+    Some(ReceiptDisclosurePlan {
+        version: 1,
+        source: transport_source(&query.source, entry)?,
+        queries: vec![ReceiptQuery {
+            id: query.id.clone(),
+            source: transport_source(&query.source, entry)?,
+            model: query.model_name.clone(),
+            parent: None,
+            order: Vec::new(),
+            limit: None,
+            archived: "exclude".into(),
+            dependencies: query
+                .dependencies
+                .iter()
+                .map(|read| {
+                    Some(ReceiptQueryDependency {
+                        id: read.id.clone(),
+                        source: transport_source(&read.source, entry)?,
+                        role: ReceiptRole::Control,
+                        field: read.field_name.clone(),
+                        type_id: read.type_id.clone(),
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+        }],
+        returns: proof
+            .returns
+            .iter()
+            .map(|returned| {
+                Some(ReceiptReturn {
+                    id: returned.id.clone(),
+                    source: transport_source(&returned.source, entry)?,
+                    influences: influences.clone(),
+                    dependencies: Vec::new(),
+                    intrinsics: Vec::new(),
+                    projection: None,
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    })
+}
+
 /// A bounded contained COUNT+1 Create uses the same prepared-query skeleton as
 /// first. No runtime handle or parent authority is issued by this source join.
 pub(super) fn checked_native_count_query_plan(
@@ -1838,6 +2092,9 @@ pub(super) fn checked_native_count_query_plan(
     entry: &str,
 ) -> Option<ReceiptDisclosurePlan> {
     let count = query.count.as_ref()?;
+    if count.contained_parent.is_none() {
+        return checked_native_ancestor_count_query_plan(ir, owner, query, db, entry);
+    }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let expected_influences = checked_native_query_influences(facts.queries.as_deref()?)?;
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
@@ -6559,6 +6816,20 @@ impl<'a> Sites<'a> {
                                 })
                             })
                         {
+                            if query.count.as_ref()?.contained_parent.is_none() {
+                                let (call, candidate, supplied) =
+                                    checked_ancestor_count_query_operands(ir, owner, query, db?)?;
+                                if !std::ptr::eq(call, expression) {
+                                    return None;
+                                }
+                                for actual in [candidate, supplied] {
+                                    out.members
+                                        .entry(context.site(actual.span))
+                                        .or_default()
+                                        .push(actual);
+                                }
+                                continue;
+                            }
                             let original = facts.creates.as_deref()?.iter().find(|created| {
                                 query
                                     .count

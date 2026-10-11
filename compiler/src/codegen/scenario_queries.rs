@@ -480,8 +480,8 @@ fn checked_query_plan(
     })
 }
 
-/// Exact original owning first-query source. Generic arrays, copied queries and
-/// projections cannot supply this plan or the native first-row hook.
+/// Exact checked Count selection, including the original ancestor guard.
+/// Supplied arrays and copied queries cannot supply this native query plan.
 fn checked_count_query_plan(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -498,13 +498,35 @@ fn checked_count_query_plan(
         if id == "count" && *overload == count.overload)
         || selected.slots != count.slots
         || selected.arguments.len() != 1
-        || program.types.checked_queries.contains_key(&query.node)
-        || program
-            .types
-            .checked_collection_calls
-            .contains_key(&count.call)
     {
         return None;
+    }
+    if count.contained_parent.is_some() {
+        if program.types.checked_queries.contains_key(&query.node)
+            || program
+                .types
+                .checked_collection_calls
+                .contains_key(&count.call)
+        {
+            return None;
+        }
+    } else {
+        let source = program.types.checked_queries.get(&query.node)?;
+        let collection = program.types.checked_collection_calls.get(&count.call)?;
+        if selected.arguments.as_slice() != [query.node]
+            || source.node != query.node
+            || source.domain != query.domain
+            || source.projection.is_some()
+            || collection.node != count.call
+            || collection.builtin != "count"
+            || collection.overload != count.overload
+            || collection.model != query.model
+            || collection.query != query.node
+            || Some(collection.alias) != query.alias
+            || collection.predicate.is_some()
+        {
+            return None;
+        }
     }
     Some(plan)
 }
