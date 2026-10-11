@@ -352,6 +352,49 @@ fn original_ordered_list_columns_reach_the_authorized_installed_consumer() {
 }
 
 #[test]
+fn original_nullable_enum_initial_default_reaches_native_page_admission() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/view-reuse.can")
+        .replace("flag:bool label=\"Card flag\"}", "flag:bool label=\"Card flag\",state:enum(pending,confirmed)=pending}")
+        .replace("Then\n", "Then\n preferences {appointment_state:Card.state?,explicit:Card.state=confirmed}\n")
+        .replace("  table Card", "  details \"Initial state\" open=preferences.appointment_state!=null\n   text \"Default preserved\"\n  table Card");
+    let input = scratch.path().join("agenda-preference.can");
+    std::fs::write(&input, &source).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    let consumer = Command::new("node")
+        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root)
+        .arg(&artifact)
+        .arg(scratch.path().join("staged"))
+        .arg("agenda-preference")
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        consumer.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumer.stdout),
+        String::from_utf8_lossy(&consumer.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumer.stdout));
+}
+
+#[test]
 fn checked_scenario_checkbox_reaches_the_complete_protected_native_form() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
