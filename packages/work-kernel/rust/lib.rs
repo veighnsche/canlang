@@ -1,8 +1,10 @@
-// Registered pure decision candidates. Production producer, transport,
-// backend, Wasm, and installed-consumer joins retain their own release gates.
+// Registered pure decision candidates plus the selected synchronous recovery
+// ABI. Original installed-consumer adoption and activation retain their gates.
 
 #[path = "../decisions/lib.rs"]
 pub mod decisions;
+
+mod recovery_scan_abi;
 
 #[cfg(test)]
 #[path = "../conformance/registered-native.rs"]
