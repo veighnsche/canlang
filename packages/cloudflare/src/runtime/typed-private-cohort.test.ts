@@ -110,9 +110,9 @@ test('installed bound cohort tick retains an infrastructure read failure and adv
     const faultyBoundary = { ...boundary, forTrustedScope: async (requested: typeof scope, at: number) => {
       const actual = await boundary.forTrustedScope(requested, at);
       return { ...actual, store: { ...actual.store,
-        load: async (model: Parameters<StoragePort['load']>[0], id: Parameters<StoragePort['load']>[1]) => {
-          if (model === ENTRY && id === failedMember.id) { failedReads++; throw readFailure; }
-          return actual.store.load(model, id);
+        cohortLoad: async (input: Parameters<StoragePort['cohortLoad']>[0]) => {
+          if (input.model === ENTRY && input.id === failedMember.id) { failedReads++; throw readFailure; }
+          return actual.store.cohortLoad(input);
         },
         commit: async (batch: Parameters<StoragePort['commit']>[0]) => {
           if (batch.writes.some(write => write.model === T34F7_FANOUT_CHILD_MODEL && write.kind !== 'remove' &&
@@ -392,12 +392,13 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const retainedSlice = async (loseResponse = false, advanceOwnerScan = false) => {
       const actualStore = storage.state;
       let childQueries = 0;
-      const measured: StoragePort = { ...actualStore, query: async query => {
+      const measured: StoragePort = { ...actualStore, cohortRowPage: async query => {
         if (query.model === T34F7_FANOUT_CHILD_MODEL) {
           childQueries += 1;
-          assert.ok(query.limit !== undefined && query.limit <= 2);
+          assert.ok(query.limit <= 2);
+          assert.equal(query.fanoutId, retained.fanoutId);
         }
-        return actualStore.query(query);
+        return actualStore.cohortRowPage(query);
       }, commit: async batch => {
         const committed = await actualStore.commit(batch);
         if (loseResponse && !lossFired && batch.receipt !== null &&
@@ -1070,12 +1071,11 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const measuredTick = await createBoundCohortTick({ artifact, asm, identities: owners.identities, scope: scopeB,
       now: Date.now, ownerStorage: { ...boundary, forTrustedScope: async (scope, time) => {
         const selected = await boundary.forTrustedScope(scope, time);
-        return { ...selected, store: { ...selected.store, query: async query => {
-          if (query.model === T34F7_FANOUT_CHILD_MODEL) {
-            assert.ok(query.limit !== undefined && query.limit <= 100);
-            queryCapacity += query.limit; childPages += 1;
-          }
-          return selected.store.query(query);
+        return { ...selected, store: { ...selected.store, cohortRowPage: async input => {
+          assert.equal(input.model, T34F7_FANOUT_CHILD_MODEL);
+          assert.ok(input.limit <= 100);
+          queryCapacity += input.limit; childPages += 1;
+          return selected.store.cohortRowPage(input);
         } } };
       } } });
     await measuredTick.tick(); // Later third child, retaining original 200 bounds.

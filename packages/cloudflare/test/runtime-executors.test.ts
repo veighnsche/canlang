@@ -88,6 +88,11 @@ function fakeStore(): Fake {
     throw new Error("unused StoragePort method");
   };
   fake.port = {
+    cohortIdOrder: 'utf16',
+    cohortIdentityPage: unused,
+    cohortLoad: unused,
+    cohortRowPage: unused,
+    cohortAnchorFact: unused,
     readRevision: async (): Promise<Revision> => {
       fake.revisions += 1;
       return 7 as Revision;

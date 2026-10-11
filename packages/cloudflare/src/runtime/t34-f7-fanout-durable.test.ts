@@ -35,6 +35,7 @@ import type {
   StoredRow,
 } from "@canlang/contracts";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
+import { StateError } from "@canlang/state/errors";
 import {
   FenceConflictError,
   StorageConstraintError,
@@ -142,9 +143,15 @@ interface WorkerErrorJson {
   readonly detail?: string;
   readonly expected?: number;
   readonly actual?: number | null;
+  readonly code?: StateError['code'];
+  readonly retryable?: boolean;
 }
 
 function rehydrate(error: WorkerErrorJson): Error {
+  if (error.name === "StateError" && error.code !== undefined) {
+    return new StateError(error.code, error.message, null,
+      error.retryable === undefined ? undefined : { retryable: error.retryable });
+  }
   if (error.name === "FenceConflictError") {
     return new FenceConflictError(
       error.expected as unknown as Revision,
@@ -181,9 +188,14 @@ async function doCall<T>(mf: Miniflare, method: string, ...args: ReadonlyArray<u
 
 function doProxy(mf: Miniflare): StoragePort {
   return {
+    cohortIdOrder: "utf8-binary",
     readRevision: () => doCall(mf, "readRevision"),
     load: (model: ModelName, id: RecordId) => doCall(mf, "load", model, id),
     query: (spec) => doCall(mf, "query", spec),
+    cohortIdentityPage: (input) => doCall(mf, "cohortIdentityPage", input),
+    cohortLoad: (input) => doCall(mf, "cohortLoad", input),
+    cohortRowPage: (input) => doCall(mf, "cohortRowPage", input),
+    cohortAnchorFact: (input) => doCall(mf, "cohortAnchorFact", input),
     commit: (batch) => doCall(mf, "commit", batch),
     readReceipt: (identity) => doCall(mf, "readReceipt", identity),
     outboxPending: () => doCall(mf, "outboxPending"),

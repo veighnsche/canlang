@@ -189,6 +189,11 @@ export function withDispatchProducer(
   meta: DispatchProducerMeta,
 ): StoragePort {
   return {
+    cohortIdOrder: inner.cohortIdOrder,
+    cohortIdentityPage: (input) => inner.cohortIdentityPage(input),
+    cohortLoad: (input) => inner.cohortLoad(input),
+    cohortRowPage: (input) => inner.cohortRowPage(input),
+    cohortAnchorFact: (input) => inner.cohortAnchorFact(input),
     readRevision: () => inner.readRevision(),
     load: (model, id) => inner.load(model, id),
     query: (spec) => inner.query(spec),
