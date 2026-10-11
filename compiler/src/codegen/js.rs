@@ -6546,25 +6546,14 @@ impl<'a> Emitter<'a> {
         if node.factory == "table"
             && let Some((_, value)) = node.props.iter().find(|(key, _)| key == "where")
             && let IrExpr::PageTimePredicate(predicate) = &value.expr
+            && predicate.checked_parts(self.ir, node, value).is_none()
         {
-            if predicate.checked_parts(self.ir, node, value).is_none() {
-                self.unsupported(
-                    "table time predicate",
-                    "the original checked source and owning datetime field are required",
-                    value.span,
-                );
-                return self.throw_expr("unsupported table time predicate");
-            }
-            if node.props.iter().any(|(key, value)| {
-                key == "cursor" || (key == "page" && matches!(value.expr, IrExpr::Bool(true)))
-            }) {
-                self.unsupported(
-                    "paginated table time predicate",
-                    "the original query time must be retained by the owning cursor contract",
-                    value.span,
-                );
-                return self.throw_expr("unsupported paginated table time predicate");
-            }
+            self.unsupported(
+                "table time predicate",
+                "the original checked source and owning datetime field are required",
+                value.span,
+            );
+            return self.throw_expr("unsupported table time predicate");
         }
         if node.factory == "table"
             && node
@@ -6831,12 +6820,17 @@ impl<'a> Emitter<'a> {
                 && key == "where"
                 && let IrExpr::PageTimePredicate(predicate) = &value.expr
             {
-                let (operation, field) = predicate
+                let (operation, field, paginated) = predicate
                     .checked_parts(self.ir, node, value)
                     .expect("original table time predicate checked above");
-                self.stdlib.insert("encodeValue".to_string());
+                let query_time = if paginated {
+                    "{kind:\"page-query-now\"}".to_string()
+                } else {
+                    self.stdlib.insert("encodeValue".to_string());
+                    "encodeValue(\"datetime\",c.now)".to_string()
+                };
                 format!(
-                    "{{op:{},field:{},value:encodeValue(\"datetime\",c.now)}}",
+                    "{{op:{},field:{},value:{query_time}}}",
                     js_string(operation),
                     js_string(field)
                 )

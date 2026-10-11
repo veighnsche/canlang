@@ -1210,7 +1210,7 @@ pub enum IrExpr {
         /// Predicate body.
         body: Box<TypedExpr>,
     },
-    /// Checked ordinary Table comparison against its admitted page time.
+    /// Checked Table comparison against its source-owned query time.
     /// Private construction retains the owning source/field; this is consumed
     /// only as the Table's data-only `where`, never as a business expression.
     PageTimePredicate(CheckedPageTimePredicate),
@@ -1237,6 +1237,11 @@ pub struct CheckedPageTimePredicate {
     operation: IrBinOp,
     collection_span: Span,
     predicate_span: Span,
+    /// The original bare marker owns this exact emitted prop occurrence.
+    pagination: Option<(Span, usize)>,
+    /// Authored cursor/page headers and malformed markers cannot gain this
+    /// profile by dropping their editable IR props after source lowering.
+    source_paging_supported: bool,
 }
 
 impl CheckedPageTimePredicate {
@@ -1245,18 +1250,53 @@ impl CheckedPageTimePredicate {
         ir: &IrProgram,
         node: &IrUi,
         value: &TypedExpr,
-    ) -> Option<(&'a str, &'a str)> {
+    ) -> Option<(&'a str, &'a str, bool)> {
         if node.factory != "table"
             || node.span != self.collection_span
             || value.span != self.predicate_span
             || value.ty != ResolvedType::Unknown
-            || !node.props.iter().any(|(key, value)| {
-                key == "model"
-                    && matches!(&value.expr, IrExpr::Text(name) if name == &self.model_name)
-            })
+            || !self.source_paging_supported
+            || node.props.iter().any(|(key, _)| key == "cursor")
         {
             return None;
         }
+        let mut model_props = node.props.iter().filter(|(key, _)| key == "model");
+        let (_, original_model) = model_props.next()?;
+        if model_props.next().is_some()
+            || original_model.ty != ResolvedType::Scalar(Scalar::Text)
+            || !matches!(&original_model.expr, IrExpr::Text(name) if name == &self.model_name)
+        {
+            return None;
+        }
+        let mut where_props = node.props.iter().filter(|(key, _)| key == "where");
+        let (_, original_where) = where_props.next()?;
+        if where_props.next().is_some()
+            || !std::ptr::eq(original_where, value)
+            || original_where.span != self.predicate_span
+            || original_where.ty != ResolvedType::Unknown
+            || !matches!(&original_where.expr, IrExpr::PageTimePredicate(predicate)
+                if std::ptr::eq(predicate, self))
+        {
+            return None;
+        }
+        let mut page_props = node
+            .props
+            .iter()
+            .enumerate()
+            .filter(|(_, (key, _))| key == "page");
+        let paginated = match (self.pagination, page_props.next()) {
+            (None, None) => false,
+            (Some((span, position)), Some((actual_position, (_, page))))
+                if actual_position == position
+                    && page.span == span
+                    && page.ty == ResolvedType::Scalar(Scalar::Bool)
+                    && matches!(page.expr, IrExpr::Bool(true))
+                    && page_props.next().is_none() =>
+            {
+                true
+            }
+            _ => return None,
+        };
         let model = ir.items.get(self.model.0 as usize)?;
         let IrItemKind::Model { fields, .. } = &model.kind else {
             return None;
@@ -1282,7 +1322,7 @@ impl CheckedPageTimePredicate {
             IrBinOp::Lt => "lt",
             _ => return None,
         };
-        Some((operation, &self.field_name))
+        Some((operation, &self.field_name, paginated))
     }
 }
 
@@ -13520,7 +13560,7 @@ impl<'a> Cx<'a> {
     fn checked_page_time_predicate(
         &self,
         model: SymbolId,
-        collection_span: Span,
+        collection: &SyntaxNode,
         alias: &str,
         body: &TypedExpr,
     ) -> Option<CheckedPageTimePredicate> {
@@ -13558,8 +13598,12 @@ impl<'a> Cx<'a> {
             field_name: field.clone(),
             field_span: symbol.span,
             operation: *op,
-            collection_span,
+            collection_span: collection.span,
             predicate_span: body.span,
+            pagination: None,
+            source_paging_supported: !ui_attributes(self.db, collection)
+                .iter()
+                .any(|(name, _)| matches!(name.as_str(), "page" | "cursor")),
         })
     }
 
@@ -13718,7 +13762,7 @@ impl<'a> Cx<'a> {
                             inner.row_rewrite.insert(param.clone(), param.clone());
                             let body = self.decode_expr(&inner, pred);
                             let predicate = if word == "table" {
-                                self.checked_page_time_predicate(id, node.span, &param, &body)
+                                self.checked_page_time_predicate(id, node, &param, &body)
                             } else {
                                 None
                             };
@@ -13948,6 +13992,7 @@ impl<'a> Cx<'a> {
             }
         }
         if let Some(marker) = pagination.first() {
+            let position = props.len();
             props.push((
                 "page".to_string(),
                 TypedExpr::new(
@@ -13956,6 +14001,19 @@ impl<'a> Cx<'a> {
                     marker.span,
                 ),
             ));
+            let source_marker_supported = pagination.len() == 1
+                && ui_attributes(self.db, marker).is_empty()
+                && !kids(marker)
+                    .iter()
+                    .any(|child| is_expression(child.kind) || is_ui_node(child.kind));
+            for (key, value) in &mut props {
+                if key == "where"
+                    && let IrExpr::PageTimePredicate(predicate) = &mut value.expr
+                {
+                    predicate.source_paging_supported &= source_marker_supported;
+                    predicate.pagination = Some((marker.span, position));
+                }
+            }
         }
         if pagination.len() > 1 {
             self.diags.push(Diagnostic::error(

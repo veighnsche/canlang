@@ -100,7 +100,7 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                 assert!(
                     node.props.iter().any(|(key, value)| key == "where"
                         && matches!(value.expr, IrExpr::PageTimePredicate(_))),
-                    "original Upcoming/Past checked where stays preserved while its cursor-time contract is unavailable"
+                    "original Upcoming/Past retain the source-owned paginated time predicate; native cursor qualification remains separate"
                 );
             }
         }
