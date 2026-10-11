@@ -5626,13 +5626,88 @@
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
       "current_execution": {
-        "disposition": "open-selected-packet",
-        "next_work": "ready-owner-contract",
-        "owner": "Capability State/Work admission/resource contract",
-        "accepted_scope": "blocked on packet prerequisites",
-        "next_action": "Select the existing pre-hash/copy canonical byte/depth/node/work bound and exact refusal point for its original caller; do not invent global thresholds or wait on query/cohort policies.",
+        "disposition": "owner-contract-released-implementation-unfinished",
+        "next_work": "ready-coordinator-dispatch",
+        "owner": "Packages exact pre-hash/copy implementation; Capability defining contract",
+        "accepted_scope": "Only defining bounded caller contract released; original implementation/consumer/security acceptance pending.",
+        "next_action": "Coordinator dispatch exact State admission/replay and original system Work preclone consumer using owner_contract; later Work checkArgs alone does not protect the first clone.",
         "done_when": "Boundary-valid inputs preserve identity/order/authority and hostile huge/deep inputs refuse before excessive allocation/hash at the released admission boundary.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-admission"
+      },
+      "owner_contract": {
+        "status": "accepted_by_defining_owner_contract_only_runtime_unfinished",
+        "owner": "Capability State/Work admission/resource contract",
+        "implementation_owner": "Packages; exact shared caller edits require coordinator dispatch/writer release",
+        "decision_reference": "docs/specification/DECISIONS.md#2026-10-11--bounded-original-admission-contract-runtime-unfinished",
+        "profile": {
+          "scope": "One fresh budget per complete submitted mutation input or composed Work system-command args root; no configurable caller bypass or global helper quota.",
+          "max_value_visits": 20000,
+          "max_depth": 32,
+          "depth_origin": "Root0; every recursive serialization/capture visit, including State toJSON receiver and returned value, adds1 depth. Shared aliases charge per expanded occurrence.",
+          "max_text_utf16_units": 2000000,
+          "text_accounting": "Sum every serialized/captured own key and string-value occurrence, measured in UTF16 code units; string.length is charged before escape/copy allocation. State ignored properties retain existing serializer treatment.",
+          "max_canonical_utf8_bytes": 12640000,
+          "byte_derivation": "6*2000000 +32*20000. JSON string/key escaping uses at most6UTF8 bytes per UTF16 unit;32 per value covers finite-f64 spelling and member/container punctuation. This is the conservative ceiling of the reused local profile, not a new1MiB transport quota.",
+          "work_accounting": "At most20000 expanded value visits and their accepted member/index entries; root/array length and each own-key count must fit remaining visit budget before child copy or sorting. One bounded key sort per serialized record retains UTF16 lexicographic order. At most2000000 key/string units enter escaping/copy; final join/UTF8/digest receives at most12640000bytes. No separate preflight that re-evaluates State getters/toJSON."
+        },
+        "state_mutation_boundary": {
+          "site": "packages/state/src/invocation/admission.ts: current raw hashInputs(inputs) after readRevision/openFenceScope and before readReceipt; bounded serialization support in existing replay.ts.",
+          "domain": "Retain current serializer domain and exact successful bytes/evaluation/rejection behavior within the released resource profile. Preserve toJSON/getter counts and order, own enumerable key sorting, native finite-f64/-0/text/lone-surrogate spelling, boxed/custom-prototype behavior, unsafe/symbol/hole handling and ignored properties.",
+          "enforcement": "Use the existing serialization evaluation with caller-scoped counters; no preliminary clone or second serializer walk. Charge/check visits/depth/keys/text/escaped bytes before each costly child/escape/sort/final join/UTF8 allocation and digest. Raw supplied input remains before shape/default normalization. Public stableStringify/hashInputs callers outside this admission keep their existing unbounded protocol.",
+          "ordering": "Mode validation -> revision -> fence -> bounded raw hash -> receipt/replay -> unseen age -> authority -> shape/defaults -> references. Preserve ordinary matching replay and retained-only current-authority policy; resource excess refuses before receipt lookup, even for a retained identity outside the new profile."
+        },
+        "work_command_boundary": {
+          "site": "packages/state/src/ports/system.ts: composed Work run, after registered command lookup/root-object validation and immediately before the first jsonClone(args); Work command.stage/checkArgs alone is too late.",
+          "commands": [
+            "work.dispatch.claim",
+            "work.dispatch.stop-pending",
+            "work.dispatch.pin-image-control",
+            "work.dispatch.record-attempt",
+            "work.dispatch.requeue",
+            "work.dispatch.release",
+            "work.dispatch.supersede",
+            "work.dispatch.stage",
+            "work.dispatch.recover",
+            "work.occurrence.put-receipt",
+            "work.schedule.put",
+            "work.schedule.cancel",
+            "work.every.advance-slot"
+          ],
+          "domain": "Own finite JSON data: ordinary/null-prototype records, dense own arrays, finite numbers, booleans, null and strings; reject accessors without invoking them, custom/native objects, toJSON/functions/undefined/symbol/nonenumerable/extra array members and cycles. Shared acyclic aliases are permitted and charged per occurrence. Root remains a nonarray object.",
+          "enforcement": "Bounded own-data capture/validation at that original preclone boundary; do not first structuredClone or stringify the unbounded input. Preserve accepted raw values/presence, existing clone output and subsequent operation-ID/revision/stage/eligibility/guard/allocator/fenced-effects order. Select only these actual registered Work command definitions; no prefix-wide/global system policy or new shared Contracts ABI.",
+          "compatibility": "This explicitly narrows previously broad direct Work clone inputs; it is not already guaranteed by their types or JSON probes. Actual original producer/consumer qualification must identify optional undefined/exotic carriers and resolve their owning producer rather than silently drop fields or relax this contract."
+        },
+        "refusal": {
+          "resource_excess": "Existing StateError limit, generic message, no input values, nonretryable.",
+          "work_domain_violation": "Existing StateError validation at the original clone boundary; retain Work KernelTableError for subsequent accepted stage validation.",
+          "effects": "State revision/fence already exists; no receipt lookup/executor/domain/history/outbox/schedule/business-rejection receipt. Work refusal precedes operation-ID/revision/readers/stage/guards/allocators and commit; no rejected system receipt is persisted."
+        },
+        "exclusions_and_uncertainty": [
+          "Bounds govern engine traversal/copy/encoding/hash over already supplied values. One native own-key listing and host Proxy/getter/toJSON execution are not a universal CPU/allocation sandbox; do not claim control of caller allocation or ignored native backing stores. A concrete primitive enumeration issue is a separately named owner prerequisite, not reason to publish an unbounded copy.",
+          "Distinct direct Work stage calls, scenario SEND/nested owner-stage copies, queries/cohort membership, stored metadata/inventory/profile closure and provider/native preparation retain existing separate contracts.",
+          "New limits can refuse formerly unbounded direct State inputs before matching-receipt replay; successful within-profile persisted hashes remain unchanged. Work has an explicit own-JSON domain restriction. No hash protocol replacement/version transition or universal legacy-input compatibility claimed."
+        ],
+        "qualification_required": [
+          "Existing persisted raw-input hash/replay/conflict goldens and genuine mutation callers: omission/null/explicit defaults, unknown keys before validator, arrays, own __proto__, UTF16 sort/lone surrogates/f64/-0, unsafe/symbol/hole/boxed/toJSON/getter-count/failure/shared aliases. Node and Worker same bounded identity; ordinary and retained-only authority order preserved.",
+          "Original composed Work command producers and real registry consumers: complete args near limits, original stage ordering/current authority/replay/refusals and no effects. Malformed own domain, reachable exact-boundary/one-over text/nodes/depth and verification of the conservative canonical-byte derivation/bounded encoding, huge/deep/cyclic/alias inputs refuse before digest or first unbounded clone. Do not substitute stage-only or narrowed fixtures. The conservative byte ceiling need not be reachable under the tighter text/node budgets; do not relax those limits or require impossible exact-byte-boundary inputs.",
+          "Applicable existing packet critical-security review of actual implementation; current decision/advice is not that review or runtime acceptance."
+        ],
+        "advice": {
+          "requests": [
+            "implementation/capability-roadmap-20261008/admission-resource-request-1.json",
+            "implementation/capability-roadmap-20261008/admission-resource-request-2.json",
+            "implementation/capability-roadmap-20261008/admission-resource-request-3.json"
+          ],
+          "responses": [
+            "implementation/capability-roadmap-20261008/admission-resource-response-1.json",
+            "implementation/capability-roadmap-20261008/admission-resource-response-2.json",
+            "implementation/capability-roadmap-20261008/admission-resource-response-3.json"
+          ],
+          "model": "jev-1.13.0",
+          "carrier_domain": "C in3/3; selected probabilities0.75/0.76/0.55; confidences0.62/0.64/0.33. Third request retains substantial B0.44 alternative uncertainty.",
+          "resource_profile": "A in3/3; selected probabilities0.94/0.97/0.96; confidences0.91/0.95/0.94.",
+          "interpretation": "No label disagreement. Choose split caller domains to preserve persisted State evaluation behavior without a native clone framework; derive the byte ceiling from existing local limits to avoid a new canonical1MiB rejection policy. Advisory probabilities do not qualify implementation or supersede holds."
+        }
       }
     },
     {

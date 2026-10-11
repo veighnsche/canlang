@@ -1,0 +1,42 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "decision": "Select a narrow resource contract for existing mutation admission and Work system-command argument copy. Contract only; no implementation or acceptance claimed.",
+    "verified_facts": [
+      "State mutation admission currently reads revision, opens scope, hashes raw submitted inputs, checks retained receipt/replay, then for unseen calls checks age, authority, shape/defaults and references. A refusal at the hash point precedes executor/domain/outbox/schedule/business receipt effects. Matching ordinary receipt replay intentionally bypasses current age/shape/authority; retained-only replay checks authority. Preserve this order for accepted bounded inputs.",
+      "The current persisted serializer sorts own enumerable string keys, uses native JSON string/f64 encoding, preserves array order, follows toJSON and getters, permits custom prototypes/boxed values, ignores hidden object properties and array extras. It rejects enumerable unsafe values, object symbol keys, nonfinite numbers and ordinary holes; inherited array slots can supply values. There are no resource caps or cycle handling. Public serializer/hash helpers have other consumers and must not acquire a global quota or changed protocol.",
+      "Current concrete HTTP/form ingestion caps raw transport at1048576 bytes before parsing. This is not a State direct-call canonical quota. Canonical f64 expansion can be longer than submitted scientific notation, so a1MiB canonical quota adds rejection within the1MiB transport domain.",
+      "Existing State opaque own-JSON capture uses one whole-root budget of20000 value visits, root depth0/max32, and2000000 aggregate UTF16 units across keys and string values. Existing nested owner-stage copies use20000/depth32. Work later JSON snapshots use100000/depth128 without aggregate text; guard snapshots use10000/depth64/1000000 UTF16 text. These are distinct local scopes, not an existing universal input policy.",
+      "The existing Work system registry looks up the command and validates root object, then structuredClone(args) before operation identity/revision/Work stage checks/readers/eligibility/guards/allocators. Thus Work stage/checkArgs-only enforcement misses the first deep copy. The named13 composed Work commands are dispatch claim/stop-pending/pin-image-control/record-attempt/requeue/release/supersede/stage/recover; occurrence put-receipt; schedule put/cancel; every advance-slot. Direct stage calls and admitted-scenario SEND are distinct scopes.",
+      "StructuredClone permits Maps/Sets/buffers/cycles/undefined and invokes enumerable accessors once; JSON safety probes only reject stringify failure. Some Work commands later require strict own JSON; this does not establish a pre-copy own-JSON guarantee. No evidence establishes that every existing direct caller already excludes those wider clone values.",
+      "For strict bounded JSON, canonical UTF8 JSON bytes are at most6 per UTF16 key/string unit plus32 per value visit:12640000 bytes from6*2000000+32*20000.32 conservatively covers finite f64 text plus member/container punctuation. This derived ceiling preserves every JSON tree satisfying the reused profile; it is not a bound on arbitrary native clone objects or user-code execution.",
+      "Plain-object key enumeration and native Proxy/getter/toJSON code cannot be given a universal CPU/allocation guarantee by synchronous JS counters. Count/refuse before child copying, sorting, final string join, UTF8 buffer allocation or hashing. State raw hashing must not normalize/fill defaults or invoke toJSON/getters twice. Neither query/cohort policy nor provider/native preparation is part of this decision."
+    ],
+    "required_outcomes": [
+      "Boundary-valid original source/wire inputs retain exact hashes, omission/null distinction, raw defaults, array order, current authority, replay and effects ordering.",
+      "Hostile huge/deep supplied values refuse at the released actual caller boundary before excessive traversal/copy/hash. Budget scope and excluded domains must be honest.",
+      "Reuse existing limits and mechanism where complete; no global canonicalizer replacement, umbrella framework, shared ABI expansion or invented source producers.",
+      "Explicitly distinguish a new caller-domain restriction from unchanged public helper semantics; release only the supported narrow owner contract with remaining compatibility/implementation obligations."
+    ]
+  },
+  "questions": {
+    "carrier_domain": {
+      "type": "choice",
+      "instructions": "Given the observed original callers and their actual first expensive operations, which A/B/C domain design most simply meets the full finite contract? Preserve identity/order/authority for its supported boundary and honestly account for lost direct-call compatibility, host-code limits and necessary implementation complexity.",
+      "criteria": {
+        "A": "Preserve broad legacy mutation serialization and broad Work structuredClone domain. Instrument the State serializer at its caller in one evaluation, and implement compatible bounded capture of native Work clone forms before its first copy. Retains helper/admission edge behavior, but requires separate cost rules for Maps/Sets/buffers/shared references/accessors and substantially more cloning logic; JSON-derived byte bounds alone do not cover it.",
+        "B": "Release strict own-data JSON only at both original caller boundaries, using the existing local closed-JSON capture mechanism. Ordinary/null-prototype records, own dense arrays, finite numbers/bools/null/strings, no accessors/toJSON/custom prototypes/symbol/hidden/extra array fields/cycles; count shared aliases per occurrence. Public helpers unchanged; accepted own-data hash bytes unchanged. New explicit caller restriction can refuse exotic historical/direct inputs before receipt replay; require actual producer/consumer qualification, do not claim universal compatibility.",
+        "C": "Split the narrow contract: preserve State current serialization/evaluation behavior with one in-path bounded serialization; require strict own JSON for Work submitted args before the first registry copy. Preserves State valid legacy hashes/getter/toJSON counts within budgets but explicitly narrows Work direct inputs; State serialization budgets bound encoded traversal/copy/hash, not ignored hidden backing stores or arbitrary host getter/Proxy CPU. Requires actual producer/consumer qualification and honest exclusions."
+      }
+    },
+    "resource_profile": {
+      "type": "choice",
+      "instructions": "Select the resource limits to release to the implementation owner. Judge A/B/C against the same finite caller acceptance: refusal before costly copy/hash, existing local-profile preservation, economical resource use and no invented universal policy.",
+      "criteria": {
+        "A": "Reuse20000 whole-root value visits/depth32/2000000 aggregate key+string UTF16 units; select derived12640000 canonical UTF8 bytes=6*text+32*visits. Charge each encoded value/toJSON return and repeated alias occurrence; limit keys before sorting/copying, string length before JSON escaping and final encoding/hash. Keeps every JSON tree already within the reused profile; larger than transport cap but finite and justified without a new magic threshold. Wide native clone forms need explicit separate treatment or exclusion.",
+        "B": "Reuse20000 visits/depth32/text2000000 but select canonical UTF8 cap1048576 from existing HTTP/form raw body limit. More economical maximum buffer/hash work; newly refuses some transport-admitted numerical expansions and larger direct JSON callers even within existing local own-JSON profile. Distinguish raw transport and canonical quotas; same actual caller/evaluation/effects requirements.",
+        "C": "Reuse20000 visits/depth32/text2000000 now but defer canonical-byte selection pending a specific human workload/profile output. Avoid new byte policy assumptions but leaves the assigned complete byte/depth/node/work contract unreleased; preparation is not implemented protection. Name precise owner/release and skip this blocked item."
+      }
+    }
+  }
+}

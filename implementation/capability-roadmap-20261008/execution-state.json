@@ -86,7 +86,18 @@
       ],
       "conditional_gates": [],
       "worker": "/root/roadmap_contract_inventory",
-      "acceptance_scope": "The factual source/contract inventory is complete; defining-owner acceptance of the missing boundaries is pending."
+      "acceptance_scope": "The factual source/contract inventory is complete; defining-owner acceptance of the missing boundaries is pending.",
+      "worker_update": {
+        "admission_resource_contract": {
+          "packet": "TECH-S04-admission",
+          "state": "accepted_defining_owner_contract_only",
+          "owner_contract": "docs/research/package-library-audit-20261006/repair-queue/queue.json#packets/TECH-S04-admission/owner_contract",
+          "selected": "Reuse20k expanded visits/root-depth32/2mUTF16 key+string units with derived12640000canonicalUTF8 bytes. State single bounded existing serialization at raw mutation hash; composed13 Work commands own-JSON capture before original system registry first clone. No global helper quota/new ABI/query-cohort policy.",
+          "advice": "Exact three committed requests sent once to approved TypeSafe destination using installed authentication. All3 choose split domainsC and derived profileA; carrier confidence0.62/0.64/0.33 retains uncertainty, not acceptance evidence. Responses saved alongside requests. No old corrected consultation resent.",
+          "validation": "One contract consistency check only: all63 task top fields/coordinator acceptances/holds retained; exact original caller/name/limits traced and arithmetic checked. No S04 product build/test/runtime acceptance.",
+          "remaining": "Packages concrete exact-caller implementation after coordinator file dispatch; original producer/consumer/resource/identity/authority/effects qualification and applicable independent security review. Work direct-clone domain narrowing/native enumeration/host code limitations remain explicit. Other SEQ005 boundaries and original roadmap scope are unchanged."
+        }
+      }
     },
     {
       "id": "SEQ-006",
