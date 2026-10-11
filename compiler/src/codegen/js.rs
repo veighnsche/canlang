@@ -4543,6 +4543,81 @@ impl<'a> Emitter<'a> {
             && !query.order[0].descending
     }
 
+    /// The prepared original contained count consumes the issued query array.
+    /// Its bare Member has no synthetic checked Query or alias/predicate.
+    fn native_count_query(
+        &self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        slots: Option<&[Option<usize>]>,
+        at: Span,
+        result: &ResolvedType,
+    ) -> bool {
+        let Some(source) = self.query_capture.as_ref() else {
+            return false;
+        };
+        let Some(count) = source.query.count.as_ref() else {
+            return false;
+        };
+        let Some((parent_node, parameter)) = count.contained_parent else {
+            return false;
+        };
+        let [domain] = args else {
+            return false;
+        };
+        let IrExpr::Query(query) = &domain.expr else {
+            return false;
+        };
+        let Some(parent) = query.parent.as_ref() else {
+            return false;
+        };
+        let Some(parameter) = self.ir.items.get(parameter.0 as usize) else {
+            return false;
+        };
+        let array = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record {
+                symbol: source.query.model,
+                stored: true,
+            }),
+            ordered: true,
+            nonempty: false,
+        };
+        count.call.file == at.file
+            && count.call.start == at.start
+            && count.call.end == at.end
+            && matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "count")
+            && slots.is_none_or(|slots| slots == [Some(0)])
+            && count.slots == [Some(0)]
+            && *result == ResolvedType::Scalar(Scalar::Int)
+            && domain.ty == array
+            && domain.span.file == source.query.node.file
+            && domain.span.start == source.query.node.start
+            && domain.span.end == source.query.node.end
+            && parent.span.file == parent_node.file
+            && parent.span.start == parent_node.start
+            && parent.span.end == parent_node.end
+            && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+            && matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty),default:None,..}
+                if ty == &parent.ty && matches!(ty,ResolvedType::Record {stored:true,..}))
+            && matches!(&query.domain, super::ir::IrQueryDomain::Model(model) if model == &source.query.model_name)
+            && source.query.first.is_none()
+            && source.query.projection.is_none()
+            && source.query.alias.is_none()
+            && source.query.predicate.is_none()
+            && source.query.cardinality_guard.is_none()
+            && count.parent_edges.is_empty()
+            && query.source.is_none()
+            && query.collection_call.is_none()
+            && query.contract_collection_call.is_none()
+            && query.where_pred.is_none()
+            && !query.where_async
+            && query.order.is_empty()
+            && query.limit.is_none()
+            && query.archived.is_none()
+            && query.select.is_none()
+            && query.select_param.is_none()
+    }
+
     /// Lower a call: catalog builtins import from `@canlang/stdlib`
     /// (availability-checked at link time); capability operations import
     /// from their owning package module as `await op(c, ...)`.
@@ -4560,6 +4635,11 @@ impl<'a> Emitter<'a> {
             self.stdlib.insert("firstQuery".into());
             let query = self.lower_expr(&args[0]);
             return format!("await firstQuery(c,{query})");
+        }
+        if self.native_count_query(target, args, None, span, result) {
+            self.stdlib.insert("countQuery".into());
+            let query = self.lower_expr(&args[0]);
+            return format!("await countQuery(c,{query})");
         }
         let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         self.lower_call_rendered(target, &parts, args.first().map(|arg| &arg.ty), span, true)
@@ -4579,6 +4659,7 @@ impl<'a> Emitter<'a> {
             return self.formatted_refusal("formatted call argument", span);
         }
         let native_first = self.native_first_query(target, args, Some(slots), span, result);
+        let native_count = self.native_count_query(target, args, Some(slots), span, result);
         let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         let capture = binding_ident("a", &self.binding_seq.to_string());
         self.binding_seq += 1;
@@ -4598,10 +4679,14 @@ impl<'a> Emitter<'a> {
         let call = if native_first {
             self.stdlib.insert("firstQuery".into());
             format!("firstQuery(c,{})", ordered[0])
+        } else if native_count {
+            self.stdlib.insert("countQuery".into());
+            format!("countQuery(c,{})", ordered[0])
         } else {
             self.lower_call_rendered(target, &ordered, domain_type, span, false)
         };
         let awaited = native_first
+            || native_count
             || matches!(
                 target,
                 IrCallTarget::Builtin { awaited: true, .. }
@@ -5523,11 +5608,19 @@ impl<'a> Emitter<'a> {
     /// Lower a query to `await records(c, model, {parent?, where?, order?,
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
-    fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, _span: Span) -> String {
-        if let Some(source) = self.query_capture.clone()
-            && let Some(fact) = query.source.as_ref()
-        {
-            if fact.node == source.query.node {
+    fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
+        if let Some(source) = self.query_capture.clone() {
+            let original_scan = query
+                .source
+                .as_ref()
+                .is_some_and(|fact| fact.node == source.query.node);
+            let contained_count = source.query.count.as_ref().is_some_and(|count| {
+                count.contained_parent.is_some()
+                    && source.query.node.file == span.file
+                    && source.query.node.start == span.start
+                    && source.query.node.end == span.end
+            });
+            if original_scan || contained_count {
                 self.stdlib.insert("executeScenarioReceiptQuery".into());
                 self.enter_scope();
                 let row = self.bind("row");
@@ -5535,19 +5628,22 @@ impl<'a> Emitter<'a> {
                     .where_pred
                     .as_ref()
                     .map(|predicate| self.lower_expr(predicate))
-                    .expect("checked source query predicate");
+                    .unwrap_or_else(|| {
+                        assert!(contained_count, "checked source query predicate");
+                        "true".into()
+                    });
                 self.exit_scope();
                 return format!(
                     "await executeScenarioReceiptQuery(c,{},async({row})=>{predicate})",
                     js_string(&source.query.id)
                 );
             }
-            if source
-                .query
-                .projection
-                .as_ref()
-                .is_some_and(|projection| fact.node == projection.node)
-            {
+            if source.query.projection.as_ref().is_some_and(|projection| {
+                query
+                    .source
+                    .as_ref()
+                    .is_some_and(|fact| fact.node == projection.node)
+            }) {
                 let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain else {
                     unreachable!("checked source local projection domain");
                 };

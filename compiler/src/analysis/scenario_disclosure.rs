@@ -5769,6 +5769,41 @@ impl<'a> Closure<'a> {
                 }]);
             }
         }
+        if calls.is_empty()
+            && self.statement_depth == 1
+            && self.loop_node.is_none()
+            && matches!(&selected.target, SelectedCallTarget::Builtin {id,..} if id == "count")
+        {
+            let original = self.effects.scenarios.values().find_map(|scenario| {
+                if scenario.module != module {
+                    return None;
+                }
+                self.checked_count_query_sources(scenario)?.into_iter().find(|query| {
+                    let Some(count) = query.count.as_ref() else { return false; };
+                    count.call == key
+                        && scenario.guards.iter().chain(&scenario.effects)
+                            .any(|statement| statement.node == count.statement)
+                        && query.inputs.iter().all(|(_, parameter)| {
+                            let Some(ResolvedType::Record { symbol, stored: true }) =
+                                self.types.symbol_types.get(parameter)
+                            else { return false; };
+                            env.get(&Local::Symbol(*parameter)).is_some_and(|value| {
+                                value.record == Some(*symbol)
+                                    && matches!(value.reference_origin,
+                                        Some(ReferenceOrigin::Parameter(original)) if original == *parameter)
+                            })
+                        })
+                })
+            });
+            if let Some(query) = original {
+                // Query-local predicate reads stay solely in query inventory.
+                // Do not manufacture ordinary parent observations or fields.
+                return Ok(vec![ValuePath {
+                    influences: query.influences,
+                    ..ValuePath::default()
+                }]);
+            }
+        }
         // State retains and reauthorizes the complete child association before
         // disclosing any parent result. Counting its exact returned wire needs
         // no fabricated parent scalar/row observation. Other uses still refuse

@@ -75,7 +75,7 @@ pub(super) fn collect_complete_query_receipt(
     let [query] = queries.as_slice() else {
         return None;
     };
-    if query.first.is_some() {
+    if query.first.is_some() || query.count.is_some() {
         let (fresh, diagnostics) = super::ir::build(program, db, catalog);
         if !diagnostics.is_empty() {
             return None;
@@ -206,7 +206,6 @@ fn checked_query_plan(
         || source.source != original.source
         || source.queries != original.queries
         || queries.len() != 1
-        || queries.iter().any(|query| query.count.is_some())
     {
         return None;
     }
@@ -223,6 +222,30 @@ fn checked_query_plan(
     };
     if queries[0].first.is_some() {
         return checked_first_query_plan(program, ir, owner, &queries[0], entry_module);
+    }
+    if queries[0].count.is_some() {
+        let plan = super::scenario_receipts::checked_native_count_query_plan(
+            ir,
+            owner,
+            &queries[0],
+            db,
+            entry_module,
+        )?;
+        let count = queries[0].count.as_ref()?;
+        let selected = program.types.selected_calls.get(&count.call)?;
+        if !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
+            if id == "count" && *overload == count.overload)
+            || selected.slots != count.slots
+            || selected.arguments.len() != 1
+            || program.types.checked_queries.contains_key(&queries[0].node)
+            || program
+                .types
+                .checked_collection_calls
+                .contains_key(&count.call)
+        {
+            return None;
+        }
+        return Some(plan);
     }
     let [
         IrStmt::Let { value: scan, .. },
@@ -430,6 +453,7 @@ fn checked_query_plan(
             id: q.id.clone(),
             source: origin(&q.source, entry_module),
             model: model.canonical.clone(),
+            parent: None,
             order: Vec::new(),
             limit: None,
             archived: "exclude".into(),
@@ -659,6 +683,7 @@ fn checked_first_query_plan(
             id: q.id.clone(),
             source: origin(&q.source, entry),
             model: model.canonical.clone(),
+            parent: None,
             order: vec![ReceiptQueryOrder {
                 field: "id".into(),
                 direction: "asc".into(),

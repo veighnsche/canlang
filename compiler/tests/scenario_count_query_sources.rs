@@ -15,6 +15,8 @@ use std::path::Path;
 
 const CHAT: &str = include_str!("fixtures/original-a850/CanChat.can");
 const CREATIVE: &str = include_str!("fixtures/original-a850/CanCreative.can");
+const BOUNDED: &str = include_str!("fixtures/native-count-turn.can");
+const EMPTY: &str = "";
 
 struct Original {
     db: SourceDb,
@@ -122,6 +124,82 @@ fn assert_missing(
             }),
         "mutated count acquired original source inventory"
     );
+}
+
+#[test]
+fn contained_count_flows_once_into_created_result_without_native_authority() {
+    let original = original(BOUNDED, EMPTY);
+    let disclosures = original.inventory();
+    let owner = original.symbol("CountSources.append");
+    let ScenarioDisclosure::Complete(complete) = &disclosures[&owner] else {
+        panic!(
+            "bounded contained count source declined: {:?}",
+            disclosures[&owner]
+        );
+    };
+    let retained = counts(&disclosures, owner);
+    assert_eq!(retained.len(), 1);
+    let query = retained[0];
+    let count = query.count.as_ref().unwrap();
+    assert_eq!(text(&original.db, count.call), "count(branch.Turn)");
+    assert!(query.dependencies.is_empty());
+    assert_eq!(complete.returns.len(), 1);
+    let returned = &complete.returns[0];
+    assert_eq!(returned.node, query.return_node);
+    assert_eq!(returned.influences, query.influences);
+    assert!(
+        returned.dependencies.is_empty(),
+        "parent is genuine metadata, not a fake field read"
+    );
+    assert_eq!(
+        complete.source_facts.as_ref().unwrap().result,
+        Some(ResolvedType::Record {
+            symbol: original.symbol("CountSources.Turn"),
+            stored: true
+        })
+    );
+    assert_eq!(returned.influences.len(), 4);
+    assert!(
+        complete
+            .effects
+            .iter()
+            .any(|effect| effect.node == count.statement)
+    );
+}
+
+#[test]
+fn copied_or_derived_count_parent_does_not_acquire_direct_query_provenance() {
+    for changed in [
+        BOUNDED
+            .replace("   create Turn", "   let copy=branch\n   create Turn")
+            .replace("count(branch.Turn)", "count(copy.Turn)"),
+        BOUNDED
+            .replace(
+                " policy Conversation",
+                " derive next(branch:Branch):int=count(branch.Turn)+1\n policy Conversation",
+            )
+            .replace("position=count(branch.Turn)+1", "position=next(branch)"),
+    ] {
+        let original = original(&changed, EMPTY);
+        let disclosures = original.inventory();
+        assert!(
+            matches!(
+                disclosures[&original.symbol("CountSources.append")],
+                ScenarioDisclosure::Declined(_)
+            ),
+            "copied or derive-local model count acquired direct query provenance"
+        );
+    }
+    let pure = BOUNDED.replace("count(branch.Turn)", "count([1,2])");
+    let original = original(&pure, EMPTY);
+    let disclosures = original.inventory();
+    // Generic supplied-array count keeps its existing executable disclosure
+    // boundary. It must not acquire model-query provenance from this hook.
+    assert!(matches!(
+        disclosures[&original.symbol("CountSources.append")],
+        ScenarioDisclosure::Declined(_)
+    ));
+    assert!(counts(&disclosures, original.symbol("CountSources.append")).is_empty());
 }
 
 #[test]
