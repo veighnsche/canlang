@@ -100,7 +100,7 @@ These are implemented seams to reuse, not proposed replacement architecture. Exa
 
 ## Current released File prerequisites
 
-Original complete FileProfile union traversal at Capability7fb is qualified1/1 672.48ms and integrated in maind117 after the exact bb defining producer. Its old E6008 skip is superseded. Capability33 persisted opaque runtime is not released: complete original raw-contract/default correspondence is a demonstrated admission gap. Packages0a provides the reviewed complete originalContracts input; Capability owns independent comparison/admission and Dev genuine same-source native capture/persistence. Compilera4 selected Images schema producer is reviewed for intake. After these outputs are released, qualify the six original Memory/D1/DO Images cases without source narrowing; a copied map or empty defaults list grants no authority.
+Original complete FileProfile union traversal at Capability7fb is qualified1/1 672.48ms and integrated in maind117 after the exact bb defining producer. Its old E6008 skip is superseded. Capability33 persisted opaque runtime is not released: complete original raw-contract/default correspondence is a demonstrated admission gap. Packages0a is reviewed and locally integrated in containing87593b72, providing the complete originalContracts input; Capability owns independent comparison/admission and Dev genuine same-source native capture/persistence. Compilera4 selected Images schema producer is reviewed and locally integrated, releasing the original six-contract closure. After these outputs are released, qualify the six original Memory/D1/DO Images cases without source narrowing; a copied map or empty defaults list grants no authority.
 
 ## Decisions and missing requirements
 
