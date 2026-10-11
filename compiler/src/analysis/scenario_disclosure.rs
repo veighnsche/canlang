@@ -304,6 +304,8 @@ pub enum DisclosureEffectKind {
     Send {
         operation: String,
         deployment_binding: Option<String>,
+        /// Durable dispatch predicate occurrence, not a parent branch selector.
+        when: Option<NodeKey>,
     },
 }
 
@@ -2167,7 +2169,10 @@ impl<'a> Closure<'a> {
                     }
                     Some(TypeRef::Symbol(id)) => {
                         self.types.symbol_types.get(id) == Some(ty)
-                            || matches!(ty, ResolvedType::Record {symbol, stored: true} if symbol == id && matches!(self.resolve.symbols.get(id.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Model {..})))
+                            // Bare owning Model/Contract names resolve to this
+                            // exact record type; their declarations are not
+                            // field/parameter entries in symbol_types.
+                            || matches!(ty, ResolvedType::Record {symbol, stored: true} if symbol == id && matches!(self.resolve.symbols.get(id.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Model {..} | SymbolKind::Contract {..})))
                     }
                     Some(TypeRef::FieldChain {
                         fields, consumed, ..
@@ -5970,9 +5975,66 @@ impl<'a> Closure<'a> {
             .nodes
             .get(&effect.node)
             .ok_or_else(|| self.fail(effect.node, "missing send anchor"))?;
-        // Conditional provider dispatch has a separate durable predicate contract.
-        if node.kind != SyntaxKind::Send || effect.when.is_some() {
-            return Err(self.fail(effect.node, "unsupported conditional send profile"));
+        let text = &self
+            .db
+            .get(effect.node.file)
+            .ok_or_else(|| self.fail(effect.node, "missing send source"))?
+            .text;
+        // SEND stores `when = expr` as direct statement children, unlike a
+        // declaration's Attribute node. Match that original parser shape.
+        let parts = super::kids(node);
+        let mut authored_when = parts
+            .windows(3)
+            .filter(|parts| {
+                super::is_name(parts[0], text, "when")
+                    && super::is_punct(parts[1], text, "=")
+                    && expression(parts[2].kind)
+            })
+            .map(|parts| NodeKey::of(parts[2]));
+        let source_when = authored_when.next();
+        if node.kind != SyntaxKind::Send
+            || authored_when.next().is_some()
+            || source_when != effect.when
+        {
+            return Err(self.fail(effect.node, "checked send source mismatch"));
+        }
+        if let Some(when) = effect.when {
+            // Dispatch happens in the durable Rule lifetime. Retain its exact
+            // checked source site without evaluating it as a parent selector:
+            // false still yields the original skipped delivery and continues.
+            let mut owners = self.effects.scenarios.values().filter(|scenario| {
+                scenario.module == module
+                    && scenario.node.file == effect.node.file
+                    && scenario.node.start <= effect.node.start
+                    && effect.node.end <= scenario.node.end
+            });
+            let owner = owners
+                .next()
+                .ok_or_else(|| self.fail(when, "missing send dispatch source owner"))?;
+            if owners.next().is_some()
+                || self.types.node_types.get(&when) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            {
+                return Err(self.fail(when, "checked Boolean send dispatch required"));
+            }
+            let sites = self
+                .checked_decision_sites(owner)
+                .ok_or_else(|| self.fail(when, "missing checked send dispatch source site"))?;
+            let mut matching = sites.iter().filter(|site| {
+                site.stage == CheckedDecisionStage::SendDispatch && site.statement == effect.node
+            });
+            let site = matching
+                .next()
+                .ok_or_else(|| self.fail(when, "missing original send dispatch source site"))?;
+            if matching.next().is_some()
+                || site.owner != owner.scenario
+                || site.node != when
+                || site.source != self.source(module, effect.node)?
+                || when.file != effect.node.file
+                || when.start < effect.node.start
+                || when.end > effect.node.end
+            {
+                return Err(self.fail(when, "send dispatch source correspondence"));
+            }
         }
         let target = node
             .children
@@ -6099,7 +6161,26 @@ impl<'a> Closure<'a> {
                 )
             }
         };
-        if effect.args.len() != input_names.len()
+        let required_inputs = match &delivery {
+            ResolvedType::StdDelivery { op, .. } => op
+                .inputs
+                .iter()
+                // Same T14/B9 source rule as types::std_send_requires_input:
+                // ordinary std arrays omit to empty in the owning supplier;
+                // their required wire key is not an authored binding slot.
+                .filter(|(_, declared)| {
+                    !declared
+                        .strip_suffix('?')
+                        .unwrap_or(declared)
+                        .ends_with("[]")
+                })
+                .map(|(name, _)| *name)
+                .collect::<Vec<_>>(),
+            _ => input_names.iter().map(String::as_str).collect(),
+        };
+        if required_inputs
+            .iter()
+            .any(|name| !effect.args.iter().any(|arg| arg.key == *name))
             || effect
                 .args
                 .iter()
@@ -6131,6 +6212,7 @@ impl<'a> Closure<'a> {
             DisclosureEffectKind::Send {
                 operation,
                 deployment_binding,
+                when: effect.when,
             },
         )?;
         Ok((paths, effect.binding.as_ref().map(|_| delivery)))
@@ -8120,7 +8202,7 @@ mod tests {
             };
             assert_eq!(plan.effects.len(), 2);
             assert!(
-                matches!(&plan.effects[0].kind,DisclosureEffectKind::Send {operation:actual,deployment_binding:Some(binding)}
+                matches!(&plan.effects[0].kind,DisclosureEffectKind::Send {operation:actual,deployment_binding:Some(binding),when:None}
                 if actual==&format!("std.TextGenerationV1.{operation}") && binding=="TypedGenerationProgress.LLM")
             );
             assert!(
@@ -8288,12 +8370,30 @@ mod tests {
     }
 
     #[test]
-    fn guarded_send_and_reference_writes_remain_outside_effect_profile() {
+    fn guarded_send_retains_dispatch_source_and_reference_writes_still_decline() {
         let send = "app Bounds\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\n Item {source:text,revision:int}\n policy Item read=members\nWhen\n scenario probe(item:Item) by=members\n  do\n   send LLM.cancel {source=item.source,revision=item.revision} when=false as stop\nThen\n";
-        let ScenarioDisclosure::Declined(decline) = checked(send) else {
-            panic!("dispatch guard must decline")
+        let ScenarioDisclosure::Complete(plan) = checked(send) else {
+            panic!("original checked dispatch source must qualify")
         };
-        assert_eq!(decline.reason, "unsupported conditional send profile");
+        let DisclosureEffectKind::Send {
+            when: Some(when), ..
+        } = plan.effects[0].kind
+        else {
+            panic!("durable predicate source must survive")
+        };
+        assert_eq!(&send[when.start as usize..when.end as usize], "false");
+        let source = plan.source_facts.as_ref().unwrap();
+        let sites = source.decision_sites.as_ref().unwrap();
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].stage, CheckedDecisionStage::SendDispatch);
+        assert_eq!(sites[0].owner, plan.scenario);
+        assert_eq!(sites[0].statement, plan.effects[0].node);
+        assert_eq!(sites[0].node, when);
+        assert_eq!(sites[0].source, plan.source);
+        assert!(sites[0].calls.is_empty());
+        assert_eq!(plan.returns.len(), 1, "false dispatch must not prune SEND");
+        assert!(plan.returns[0].decisions.is_empty());
+        assert_eq!(plan.returns[0].dependencies.len(), 2);
         let reference = "app Bounds\nGiven\n Other {value:int}\n Item {other:Other?}\n policy Other read=members\n policy Item read=members\nWhen\n scenario probe(item:Item,other:Other) by=members\n  do set item {other}\nThen\n";
         assert!(matches!(
             checked(reference),
