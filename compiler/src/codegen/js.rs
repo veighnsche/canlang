@@ -1704,7 +1704,11 @@ fn emit_program_with_sources(
                         .get(&item.id)
                         .and_then(|fact| fact.source_facts())
                         .and_then(|source| source.queries.as_ref())
-                        .is_some_and(|queries| queries.iter().all(|query| query.first.is_none()))
+                        .is_some_and(|queries| {
+                            queries
+                                .iter()
+                                .all(|query| query.first.is_none() && query.count.is_none())
+                        })
                 {
                     emitter.native_receipts.insert(item.id, recipe.clone());
                     emitter.prepared_query_receipts.insert(item.id);
@@ -3941,7 +3945,11 @@ impl<'a> Emitter<'a> {
         }) {
             return None;
         }
-        Some(source.clone())
+        let mut admitted = source.clone();
+        // The final collector owns ordinary observations. Query preparation
+        // contributes only its domain/influences and cannot replace that plan.
+        admitted.plan = plan;
+        Some(admitted)
     }
 
     fn receipt_return_selection(
@@ -4128,7 +4136,73 @@ impl<'a> Emitter<'a> {
         {
             self.stdlib
                 .insert("observeScenarioReceiptDependency".to_string());
-            let receiver = self.lower_expr(base);
+            let parent_query = self.query_capture.as_ref().and_then(|capture| {
+                let [ordinary] = dependencies.as_slice() else {
+                    return None;
+                };
+                capture.queries.iter().find_map(|query| {
+                    let count = query.count.as_ref()?;
+                    let [first, candidate, _] = count.parent_edges.as_slice() else {
+                        return None;
+                    };
+                    let first_read = query
+                        .dependencies
+                        .iter()
+                        .find(|read| read.node == first.node)?;
+                    (field == "parent"
+                        && count.contained_parent.is_none()
+                        && span.file == candidate.node.file
+                        && span.start == candidate.node.start
+                        && span.end == candidate.node.end
+                        && base.span.file == first.node.file
+                        && base.span.start == first.node.start
+                        && base.span.end == first.node.end
+                        && first_read.field_name == "parent"
+                        && first_read.model == query.model
+                        && capture.plan["returns"].as_array()?.iter().any(|returned| {
+                            returned["dependencies"].as_array().is_some_and(|reads| {
+                                reads.iter().any(|read| {
+                                    read["id"] == ordinary.id && read["queryId"] == query.id
+                                })
+                            })
+                        }))
+                    .then(|| {
+                        (
+                            query.model_name.clone(),
+                            first_read.id.clone(),
+                            ordinary.id.clone(),
+                        )
+                    })
+                })
+            });
+            let receiver = if let Some((model, first_id, parent_id)) = parent_query {
+                let IrExpr::Member {
+                    base: row,
+                    field: first_field,
+                } = &base.expr
+                else {
+                    return self.throw_expr("Original query parent receiver is missing");
+                };
+                if first_field != "parent" {
+                    return self.throw_expr("Original query parent field is missing");
+                }
+                self.stdlib
+                    .insert("observeScenarioReceiptQueryDependency".into());
+                self.stdlib.insert("readScenarioReceiptQueryParent".into());
+                let row = self.lower_expr(row);
+                // The authored first-hop getter and its immediate marker run
+                // before the genuine parent bridge. Only the active issued row
+                // enters the bridge; the ordinary second hop stays below at
+                // its source position, with no hoisted or invented observation.
+                format!(
+                    "(await (async($queryCandidate)=>{{const $queryParentReference=$queryCandidate[\"parent\"];observeScenarioReceiptQueryDependency(c,{},$queryCandidate,\"parent\",{});return await readScenarioReceiptQueryParent(c,$queryCandidate,{});}})({row}))",
+                    js_string(&model),
+                    js_string(&first_id),
+                    js_string(&parent_id)
+                )
+            } else {
+                self.lower_expr(base)
+            };
             let field_key = js_string(field);
             let value = if expr.ty.nullable_inner().is_some() {
                 format!("($receiptRow[{field_key}]??null)")
@@ -4552,8 +4626,8 @@ impl<'a> Emitter<'a> {
             && !query.order[0].descending
     }
 
-    /// The prepared original contained count consumes the issued query array.
-    /// Its bare Member has no synthetic checked Query or alias/predicate.
+    /// Prepared original counts consume only their genuine issued query array.
+    /// A contained Member and the original ancestor guard keep separate seals.
     fn native_count_query(
         &self,
         target: &IrCallTarget,
@@ -4576,13 +4650,73 @@ impl<'a> Emitter<'a> {
         let Some(count) = source.count.as_ref() else {
             return false;
         };
-        let Some((parent_node, parameter)) = count.contained_parent else {
-            return false;
-        };
         let [domain] = args else {
             return false;
         };
         let IrExpr::Query(query) = &domain.expr else {
+            return false;
+        };
+        if count.contained_parent.is_none() {
+            let Some(fact) = query.source.as_deref() else {
+                return false;
+            };
+            let Some(collection) = query.collection_call.as_deref() else {
+                return false;
+            };
+            let [first, candidate, supplied] = count.parent_edges.as_slice() else {
+                return false;
+            };
+            let array = ResolvedType::Array {
+                element: Box::new(ResolvedType::Record {
+                    symbol: source.model,
+                    stored: true,
+                }),
+                ordered: true,
+                nonempty: false,
+            };
+            return matches!(target,IrCallTarget::Builtin {id,awaited:false} if id == "count")
+                && slots.is_none_or(|slots| slots == [Some(0)])
+                && count.slots == [Some(0)]
+                && *result == ResolvedType::Scalar(Scalar::Int)
+                && domain.ty == array
+                && fact.node == source.node
+                && fact.domain == source.domain
+                && fact.result == array
+                && fact.projection.is_none()
+                && collection.node == count.call
+                && collection.builtin == "count"
+                && collection.overload == count.overload
+                && collection.query == source.node
+                && collection.model == source.model
+                && Some(collection.alias) == source.alias
+                && collection.predicate.is_none()
+                && source.first.is_none()
+                && source.projection.is_none()
+                && source.cardinality_guard.is_none()
+                && source.dependencies.len() == 2
+                && first.child == source.model
+                && first.parent == candidate.child
+                && candidate.receiver == first.node
+                && supplied.child == candidate.child
+                && supplied.parent == candidate.parent
+                && query.contract_collection_call.is_none()
+                && query.parent.is_none()
+                && query.where_pred.as_ref().is_some_and(|predicate| {
+                    source.predicate.is_some_and(|node| {
+                        predicate.span.file == node.file
+                            && predicate.span.start == node.start
+                            && predicate.span.end == node.end
+                    }) && predicate.ty == ResolvedType::Scalar(Scalar::Bool)
+                })
+                && !query.where_async
+                && query.order.is_empty()
+                && query.limit.is_none()
+                && query.archived.is_none()
+                && query.select.is_none()
+                && query.select_param.is_none()
+                && matches!(&query.domain,super::ir::IrQueryDomain::Model(model) if model == &source.model_name);
+        }
+        let Some((parent_node, parameter)) = count.contained_parent else {
             return false;
         };
         let Some(parent) = query.parent.as_ref() else {
