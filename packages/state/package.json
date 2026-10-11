@@ -164,6 +164,10 @@
       "types": "./dist/src/ports/read.d.ts",
       "default": "./dist/src/ports/read.js"
     },
+    "./ports/file-reference-profile": {
+      "types": "./dist/src/ports/file-reference-profile.d.ts",
+      "default": "./dist/src/ports/file-reference-profile.js"
+    },
     "./ports/system": {
       "types": "./dist/src/ports/system.d.ts",
       "default": "./dist/src/ports/system.js"
