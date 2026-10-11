@@ -15,13 +15,14 @@ import type {
   ResolvedIdentity,
   RowQueryRunner,
   ColumnMeta,
+  RowView,
 } from '@canlang/contracts';
 import { deriveCsrfToken } from '@canlang/identity';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
 import { resolveRequestIdentity } from '../src/http/context.js';
-import { calendar } from '@canlang/ui';
+import { calendar, table } from '@canlang/ui';
 
 function fakeIdentity(): ResolvedIdentity {
   return {
@@ -187,6 +188,100 @@ test('calendar agenda consumes occurrence enum filters through the unchanged aut
   await assert.rejects(make('closed', true), error => error === denial);
   assert.equal(callbacks, beforeRefusal);
   assert.equal(bodies, 0);
+});
+
+test('table consumes authored occurrence enum defaults and selections without changing protected query or row context', async () => {
+  const occurrence = 'page:/hello/table:1';
+  const filter: ColumnMeta = { field: 'state', label: 'State', type: 'enum:CanBook.Appointment.state',
+    valueLabels: { confirmed: 'Confirmed', cancelled: 'Cancelled' } };
+  const title: ColumnMeta = { field: 'title', label: 'Title', type: 'text' };
+  const row: RowView = { id: 'appointment-1', version: '7', fields: { title: 'Own appointment', state: 'confirmed' } };
+  const parent = { id: 'own-calendar' };
+  const where = { op: 'eq', field: 'host', value: 'own-host' };
+  const order = ['from'];
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/hello', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const filterName = collectionFilterName(occurrence, 'state');
+  const siblingName = collectionFilterName('page:/hello/table:2', 'state');
+  const preserved = [['q', 'appointment'], [siblingName, 'cancelled'], [`can-row:${occurrence}`, row.id]] as const;
+  const denial = new Error('original table query denial');
+  let queries = 0, callbacks = 0, bodies = 0;
+  const make = (selection: string | undefined, defaultValue: string | null | undefined,
+    empty = false, refuseQuery = false, extra: [string, string][] = []) => {
+    const params = new URLSearchParams([...preserved.map(([name, value]) => [name, value]),
+      ['cursor', 'stale-cursor'], ...extra]);
+    if (selection !== undefined) params.append(filterName, selection);
+    const request = testRequest(`/hello?${params}`, { cookie: identity.cookie });
+    Object.defineProperty(request, 'json', { value: () => { bodies++; throw new Error('body was read'); } });
+    const active = selection === '' ? null : selection ?? defaultValue;
+    const currentRow: RowView = { ...row, fields: { ...row.fields, state: active ?? 'confirmed' } };
+    const query: RowQueryRunner = async (invocation, model, args) => {
+      queries++;
+      assert.equal(invocation, principal); assert.equal(model, 'CanBook.Appointment');
+      assert.equal(args.parent, parent); assert.equal(args.order, order);
+      assert.deepEqual(args, { parent, where: active == null ? where : { op: 'and', args: [where,
+        { op: 'eq', field: 'state', value: active }] }, order, limit: 2, cursor: 'original-cursor', page: true, occurrence });
+      if (refuseQuery) throw denial;
+      return empty ? { rows: [], columns: [], emptyDeclarations: [{ field: 'title', type: 'text' }] }
+        : { rows: [currentRow], columns: [title, filter] };
+    };
+    const context = buildPresentationContext({ request, pathname: '/hello', isPartial: false,
+      appDefaultLocale: 'en', csrfToken: 'original-csrf', principal, query });
+    assert.equal(context.principal, principal); assert.equal(context.invocation, principal);
+    assert.equal(context.csrfToken, 'original-csrf');
+    assert.equal(context.collectionSelections!.get(occurrence), row.id);
+    assert.equal(context.pollUrl, `/hello?${params}`);
+    return table({ context, model: 'CanBook.Appointment', columns: ['title'], parent, where, order,
+      page: true, occurrence, limit: 2, cursor: 'original-cursor', filter: [filter],
+      ...(defaultValue === undefined ? {} : { defaults: { state: defaultValue } }), empty: 'No appointments',
+      renderRow: (actual, view) => {
+        callbacks++; assert.equal(actual, currentRow); assert.equal(view, context);
+        assert.equal(actual.version, '7'); assert.equal(actual.fields, currentRow.fields);
+        return ['<p>original protected row body</p>'];
+      } });
+  };
+  const assertControls = (html: string) => {
+    assert.ok(html.includes('<form method="get" action="/hello" data-can-table-filters>'));
+    for (const [name, value] of preserved) {
+      assert.ok(html.includes(`<input type="hidden" name="${name}" value="${value}">`));
+    }
+    assert.doesNotMatch(html, /name="cursor"|stale-cursor/);
+  };
+  const initial = await make(undefined, 'confirmed');
+  assertControls(initial); assert.match(initial, /original protected row body/);
+  assert.ok(initial.includes('<option value="confirmed" selected>Confirmed</option>'));
+  const selected = await make('cancelled', 'confirmed');
+  assertControls(selected);
+  assert.ok(selected.includes('<option value="cancelled" selected>Cancelled</option>'));
+  assert.ok(selected.includes('<option value="confirmed">Confirmed</option>'));
+  for (const [selection, defaultValue] of [[undefined, null], [undefined, undefined], ['', 'confirmed']] as const) {
+    const cleared = await make(selection, defaultValue);
+    assertControls(cleared); assert.ok(cleared.includes('<option value="" selected>'));
+    assert.doesNotMatch(cleared, /value="(?:confirmed|cancelled)" selected/);
+  }
+  assert.equal(callbacks, 5);
+  const activeEmpty = await make('cancelled', 'confirmed', true);
+  assertControls(activeEmpty); assert.match(activeEmpty, /No appointments/);
+  assert.ok(activeEmpty.includes(`<button type="submit" name="${filterName}" value="" class="btn">`));
+  assert.equal((activeEmpty.match(/<button/g) ?? []).length, 1);
+  assert.doesNotMatch(activeEmpty, /<option|<select|Confirmed|Cancelled|original protected row body/);
+  const clearEmpty = await make('', 'confirmed', true);
+  assert.match(clearEmpty, /No appointments/);
+  assert.doesNotMatch(clearEmpty, /<option|<select|Confirmed|Cancelled/);
+  assert.equal(callbacks, 5);
+  const beforeInvalid = queries;
+  for (const extra of [
+    [[collectionFilterName(occurrence, 'unknown'), 'confirmed']],
+    [[filterName, 'unknown']], [[filterName, 'confirmed'], [filterName, 'cancelled']],
+    [['f[state]', 'confirmed']], [['filter[state]', 'confirmed']],
+  ] as [string, string][][]) {
+    await assert.rejects(make(undefined, 'confirmed', false, false, extra), (error: unknown) =>
+      typeof error === 'object' && error !== null && 'code' in error && error.code === 'validation');
+  }
+  assert.equal(queries, beforeInvalid); assert.equal(callbacks, 5);
+  await assert.rejects(make('cancelled', 'confirmed', false, true), error => error === denial);
+  assert.equal(callbacks, 5); assert.equal(bodies, 0);
 });
 
 function fakeQuery(): RowQueryRunner {

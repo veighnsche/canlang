@@ -840,6 +840,69 @@ describe("table", () => {
     assert.equal(seen.length, 1);
   });
 
+  it("prepares authored enum table filters with exact query context and refuses invalid joins before row bodies", async () => {
+    const filter: readonly ColumnMeta[] = [{ field: "state", type: "enum:Calendar.Appointment.state",
+      label: "State", valueLabels: { confirmed: "Confirmed", cancelled: "Cancelled" } }];
+    const defaults = { state: "confirmed" };
+    const where = { op: "eq", field: "host", value: "host-1" };
+    const order: readonly string[] = ["from"];
+    const parent = { id: "parent-1" };
+    const first: RowView = { id: "appointment-1", version: "2", fields: { title: "First", state: "confirmed" } };
+    const second: RowView = { id: "appointment-2", version: "3", fields: { title: "Second", state: "confirmed" } };
+    let queries = 0, preparations = 0;
+    const bodies: RowView[] = [];
+    const context = makeContext({
+      path: "/appointments",
+      prepareCollectionFilters: (occurrence, fields, actualDefaults) => {
+        preparations++;
+        assert.equal(occurrence, "appointments-table");
+        assert.equal(fields, filter);
+        assert.equal(actualDefaults, defaults);
+        return [{ field: "state", op: "eq", value: "confirmed" }];
+      },
+      query: async (invocation, model, args) => {
+        queries++;
+        assert.equal(invocation, context.invocation);
+        assert.equal(model, "Calendar.Appointment");
+        assert.equal(args.order, order);
+        assert.equal(args.parent, parent);
+        assert.deepEqual(args, { parent, where: { op: "and", args: [where,
+          { op: "eq", field: "state", value: "confirmed" }] }, order,
+          limit: 5, cursor: "cursor-2", page: true, occurrence: "appointments-table" });
+        return { rows: [first, second], columns: [titleCol, ...filter], nextCursor: "cursor-3" };
+      },
+    });
+    const props = { context, model: "Calendar.Appointment", columns: ["title"], filter, defaults,
+      occurrence: "appointments-table", parent, where, order, limit: 5, cursor: "cursor-2", page: true as const,
+      renderRow: (record: RowView, view: PresentationContext) => {
+        assert.equal(view, context); bodies.push(record); return [`<p>body-${record.id}</p>`];
+      } };
+    const html = await table(props);
+    assert.deepEqual(bodies, [first, second]);
+    assert.equal(bodies[0], first); assert.equal(bodies[1], second);
+    assert.ok(html.indexOf("body-appointment-1") < html.indexOf("body-appointment-2"), html);
+    assert.ok(html.includes("First") && html.includes("Second") && html.includes("cursor-3"), html);
+    assert.equal(queries, 1); assert.equal(preparations, 1);
+    bodies.length = 0;
+    const { prepareCollectionFilters: _prepareFilters, ...unpreparedContext } = context;
+    const { occurrence: _occurrence, ...withoutOccurrence } = props;
+    const { filter: _filter, ...withoutFilter } = props;
+    await assert.rejects(table({ ...props, context: unpreparedContext }),
+      /source filter preparation is unavailable/);
+    await assert.rejects(table(withoutOccurrence));
+    await assert.rejects(table(withoutFilter), /defaults require declared filter controls/);
+    await assert.rejects(table({ ...props, where: () => true }), /data-only where predicate/);
+    assert.equal(queries, 1); assert.deepEqual(bodies, []);
+    await assert.rejects(table({ ...props, context: { ...context, query: async () => {
+      queries++; return { rows: [first], columns: [titleCol] };
+    } } }), /missing authorized filter field "state"/);
+    const inheritedFields = Object.assign(Object.create({ state: "confirmed" }), { title: "Second" });
+    await assert.rejects(table({ ...props, context: { ...context, query: async () => {
+      queries++; return { rows: [first, { ...second, fields: inheritedFields }], columns: [titleCol, ...filter] };
+    } } }), /row "appointment-2" is missing projected filter field "state"/);
+    assert.equal(queries, 3); assert.deepEqual(bodies, []);
+  });
+
   it("passes query args, invocation and model through", async () => {
     const seen: SeenCall[] = [];
     const invocation = { request: "req-7" };

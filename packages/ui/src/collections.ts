@@ -20,10 +20,11 @@ import type {
   OrderSelector,
   PageChildren,
   PresentationContext,
+  QueryPredicate,
   RowView,
   TableProps,
 } from "@canlang/contracts";
-import { CSRF_FIELD } from "@canlang/contracts";
+import { CSRF_FIELD, COLLECTION_FILTER_PREFIX, collectionFilterName } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderState, rowHeading } from "./components.js";
@@ -53,6 +54,8 @@ const MORE_ROWS = message("More rows available.", {
   nl: "Meer rijen beschikbaar.",
 });
 export const EMPTY_COLLECTION = message("No records.", { nl: "Geen gegevens." }, undefined, "en");
+const APPLY_FILTERS = message("Apply filters", { nl: "Filters toepassen" });
+const CLEAR_FILTER = message("Clear filter", { nl: "Filter wissen" });
 const DETAILS = message("Details", { nl: "Details" }, undefined, "en");
 const OPEN_DETAILS = message("Open details", { nl: "Details openen" }, undefined, "en");
 const CLOSE_DETAILS = message("Close details", { nl: "Details sluiten" }, undefined, "en");
@@ -254,6 +257,90 @@ export async function list(props: ListProps): Promise<string> {
   return wrapWithControls(props.controls, heading + rowsHtml, props);
 }
 
+/** Shared source enum selections retain dispatcher and query ownership. */
+type SourceFilterProps = Pick<TableProps, "context" | "filter" | "defaults" | "occurrence" | "where">;
+
+export function prepareSourceFilters(props: SourceFilterProps, factory: "calendar agenda" | "table"): {
+  readonly conditions: readonly FilterCondition[]; readonly where: unknown;
+} {
+  if (props.defaults !== undefined && props.filter === undefined) {
+    throw new Error(`${factory}: defaults require declared filter controls`);
+  }
+  let conditions: readonly FilterCondition[] = [];
+  if (props.filter !== undefined) {
+    if (typeof props.occurrence !== "string" || props.occurrence === "" || props.context.prepareCollectionFilters === undefined) {
+      throw new Error(`${factory}: source filter preparation is unavailable`);
+    }
+    conditions = props.context.prepareCollectionFilters(props.occurrence, props.filter, props.defaults);
+  }
+  const filters: QueryPredicate[] = conditions.map(condition => {
+    if (condition.op !== "eq") throw new Error(`${factory}: owning enum equality selection required`);
+    return { op: "eq", field: condition.field, value: condition.value };
+  });
+  if (filters.length !== 0 && typeof props.where === "function") {
+    throw new Error(`${factory}: typed filters require a data-only where predicate`);
+  }
+  const where = filters.length === 0 ? props.where
+    : props.where === undefined && filters.length === 1 ? filters[0]
+    : { op: "and", args: [...(props.where === undefined ? [] : [props.where as QueryPredicate]), ...filters] };
+  return { conditions, where };
+}
+
+export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, factory: "calendar agenda" | "table"): void {
+  for (const field of props.filter ?? []) {
+    if (!Object.hasOwn(row.fields, field.field)) {
+      throw new Error(`${factory}: row "${row.id}" is missing projected filter field "${field.field}"`);
+    }
+  }
+}
+
+/** Render current source selections only after the owning query has authorized them. */
+export function sourceFilterControls(
+  props: SourceFilterProps,
+  conditions: readonly FilterCondition[],
+  columns: readonly ColumnMeta[],
+  empty: boolean,
+  factory: "calendar agenda" | "table",
+): string {
+  const fields = props.filter ?? [];
+  if (fields.length === 0) return "";
+  const occurrence = props.occurrence!;
+  const current = props.context.pollUrl ?? props.context.path;
+  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
+    throw new TypeError(`${factory}: filter controls require a same-app relative URL`);
+  }
+  const url = new URL(current, "https://can.invalid");
+  const prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`;
+  const hidden = (excluded: (name: string) => boolean): string => [...url.searchParams]
+    .filter(([name]) => name !== "cursor" && !excluded(name))
+    .map(([name, value]) => `<input type="hidden" name="${escapeAttr(name)}" value="${escapeAttr(value)}">`)
+    .join("");
+  const action = escapeAttr(url.pathname);
+  if (empty) {
+    // Empty declarations never authorize enum metadata or options. A current
+    // accepted selection can still be cleared without disclosing any records.
+    return conditions.map(condition => {
+      const name = collectionFilterName(occurrence, condition.field);
+      return `<form method="get" action="${action}" data-can-${factory === "table" ? "table" : "agenda"}-filters>${hidden(key => key === name)}` +
+        `<button type="submit" name="${escapeAttr(name)}" value="" class="btn">${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</button></form>`;
+    }).join("");
+  }
+  const byField = new Map(columns.map(column => [column.field, column]));
+  const selected = new Map(conditions.map(condition => [condition.field, condition.value]));
+  const controls = fields.map(field => {
+    const meta = byField.get(field.field);
+    if (meta === undefined) throw new Error(`${factory}: missing authorized filter field "${field.field}"`);
+    const name = collectionFilterName(occurrence, field.field);
+    const value = selected.get(field.field) ?? "";
+    const options = `<option value=""${value === "" ? " selected" : ""}>${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</option>` +
+      Object.entries(field.valueLabels!).map(([choice, label]) => `<option value="${escapeAttr(choice)}"${choice === value ? " selected" : ""}>${escapeHtml(resolveCaption(meta.valueLabels?.[choice] ?? label, props.context))}</option>`).join("");
+    return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
+      `<select id="${escapeAttr(name)}" name="${escapeAttr(name)}" class="select">${options}</select>`;
+  }).join("");
+  return `<form method="get" action="${action}" data-can-${factory === "table" ? "table" : "agenda"}-filters>${hidden(name => name.startsWith(prefix))}${controls}` +
+    `<button type="submit" class="btn">${escapeHtml(resolveCaption(APPLY_FILTERS, props.context))}</button></form>`;
+}
+
 /** Render one model table over the requested column subset. */
 export async function table(props: TableProps): Promise<string> {
   const occurrence = splitOccurrence(props);
@@ -261,11 +348,15 @@ export async function table(props: TableProps): Promise<string> {
     assertControls(props.controls, "table");
     assertConsistentContext(props.context, props.controls.context, "table");
   }
+  const args = queryArgs(props, "table");
+  const { conditions, where } = prepareSourceFilters(props, "table");
   const result = await props.context.query(
     props.context.invocation,
     props.model,
-    queryArgs(props, "table"),
+    { ...args, ...(where === undefined ? {} : { where }) },
   );
+  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "table");
+  for (const row of result.rows) assertSourceFilterRow(props, row, "table");
   const byField = new Map<string, ColumnMeta>();
   for (const column of result.columns) {
     byField.set(column.field, column);
@@ -279,9 +370,9 @@ export async function table(props: TableProps): Promise<string> {
   }
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
+      return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
-    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+    return filterControls + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
   const metas: ColumnMeta[] = [];
   for (const field of props.columns) {
@@ -314,9 +405,9 @@ export async function table(props: TableProps): Promise<string> {
   const rowsHtml = occurrence === undefined ? summaries
     : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
-    return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
+    return `${filterControls}${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
-  return wrapWithControls(props.controls, rowsHtml, props);
+  return filterControls + await wrapWithControls(props.controls, rowsHtml, props);
 }
 
 /**
