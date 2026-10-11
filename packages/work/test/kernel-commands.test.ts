@@ -25,7 +25,7 @@ import type {
   SystemCommandDef,
   SystemStaging,
 } from '@canlang/state';
-import { createSystemRegistry, systemCommandStageRevision, enrollSystemCommandCommitCheck } from '@canlang/state';
+import { createSystemRegistry, systemCommandStageRevision, enrollSystemCommandCommitCheck, StateError } from '@canlang/state';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
   WORK_DISPATCH_MODEL,
@@ -249,6 +249,124 @@ describe('kernel commands: registry shape', () => {
     for (const name of composedNames) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
+  });
+});
+
+describe('composed Work registry bounded own JSON admission', () => {
+  const commands = [...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS];
+  const context = { actor: ACTOR, now: NOW, operation: 'test.bounded', operationId: 'bounded-run' };
+  const scheduleArgs = (payload: unknown): Record<string, unknown> => ({
+    key: 'reminder', scope: { app: 'A', owner: 'team', ownerPackage: 'A' },
+    at: NOW + 1000, event: 'A.due', payload, occurrenceId: 'occ',
+  });
+  const expectRefusal = async (args: unknown, code: 'validation' | 'limit', names = commands.map(command => command.name)) => {
+    for (const name of names) {
+      const { store, probe } = createTestMemoryStorage();
+      let reads = 0, commits = 0;
+      const guarded = { ...store,
+        readRevision: async () => { reads++; return store.readRevision(); },
+        load: async (...input: Parameters<typeof store.load>) => { reads++; return store.load(...input); },
+        query: async (...input: Parameters<typeof store.query>) => { reads++; return store.query(...input); },
+        commit: async (...input: Parameters<typeof store.commit>) => { commits++; return store.commit(...input); },
+      };
+      await assert.rejects(createSystemRegistry(commands).run(name, args,
+        { ...context, operationId: '' }, { store: guarded }), error => {
+        assert.ok(error instanceof StateError); assert.equal(error.code, code);
+        if (code === 'limit') assert.equal(error.retryable, false);
+        assert.match(error.message, /Work command args/); return true;
+      });
+      assert.equal(reads, 0, name); assert.equal(commits, 0, name);
+      assert.equal(await store.readRevision(), 0);
+      assert.deepEqual(probe.outboxAll(), []); assert.equal(probe.scheduleGet('A/A/team/reminder'), null);
+    }
+  };
+  const admitSchedule = async (payload: unknown) => {
+    const { store, probe } = createTestMemoryStorage();
+    await createSystemRegistry(commands).run('work.schedule.put', scheduleArgs(payload), context, { store });
+    assert.equal(await store.readRevision(), 1);
+    assert.deepEqual(probe.scheduleGet('A/A/team/reminder')!.payload, payload);
+    return store;
+  };
+  it('admits reachable exact visits, text and depth; refuses each one over before any effects', async () => {
+    // Root + six fields + three scope fields + nested array = eleven visits.
+    await admitSchedule({ value: Array(19_989).fill(null) });
+    await expectRefusal(scheduleArgs({ value: Array(19_990).fill(null) }), 'limit');
+    const base = scheduleArgs({ value: '' });
+    const scope = base['scope'] as Record<string, string>;
+    const textOverhead = Object.keys(base).reduce((sum, key) => sum + key.length, 0)
+      + ['key', 'event', 'occurrenceId'].reduce((sum, key) => sum + (base[key] as string).length, 0)
+      + Object.entries(scope).reduce((sum, [key, value]) => sum + key.length + value.length, 0) + 'value'.length;
+    await admitSchedule({ value: 'x'.repeat(2_000_000 - textOverhead) });
+    await expectRefusal(scheduleArgs({ value: 'x'.repeat(2_000_001 - textOverhead) }), 'limit');
+    let depth: unknown = null;
+    for (let i = 0; i < 31; i++) depth = { v: depth };
+    await admitSchedule(depth);
+    await expectRefusal(scheduleArgs({ v: depth }), 'limit');
+    const shared = Array(10_000).fill(null);
+    await expectRefusal({ left: shared, right: shared }, 'limit');
+  });
+  it('refuses exotic own data across all thirteen actual commands without invoking getters or toJSON', async () => {
+    let calls = 0;
+    const getter = Object.defineProperty({}, 'value', { enumerable: true, get() { calls++; return 1; } });
+    const inherited = Object.create({ value: 1 });
+    const hidden = Object.defineProperty({}, 'value', { value: 1 });
+    const symbol = { [Symbol('value')]: 1 };
+    const extra = Object.assign([1], { extra: 1 });
+    const arrayGetter = Object.defineProperty([1], '0', { enumerable: true, get() { calls++; return 1; } });
+    const cyclic: Record<string, unknown> = {}; cyclic['self'] = cyclic;
+    for (const value of [getter, inherited, hidden, symbol, extra, arrayGetter, Array(1), cyclic,
+      new Date(0), new Map(), { value: undefined }, { value: Symbol('x') }, { value: () => 1 },
+      { value: NaN }, { value: Infinity }, { value: 1n }, { toJSON() { calls++; return {}; } }]) {
+      await expectRefusal({ value }, 'validation');
+    }
+    assert.equal(calls, 0);
+  });
+  it('charges captured array-index keys at the combined array and string text boundary', async () => {
+    const array = Array(1000).fill(null);
+    const base = scheduleArgs({ array, value: '' });
+    const scope = base['scope'] as Record<string, string>;
+    const textOverhead = Object.keys(base).reduce((sum, key) => sum + key.length, 0)
+      + ['key', 'event', 'occurrenceId'].reduce((sum, key) => sum + (base[key] as string).length, 0)
+      + Object.entries(scope).reduce((sum, [key, value]) => sum + key.length + value.length, 0)
+      + 'array'.length + 'value'.length
+      + array.reduce((sum, _, index) => sum + String(index).length, 0);
+    await admitSchedule({ array, value: 'x'.repeat(2_000_000 - textOverhead) });
+    await expectRefusal(scheduleArgs({ array, value: 'x'.repeat(2_000_001 - textOverhead) }), 'limit');
+  });
+  it('detaches null-prototype payloads and shared raw aliases before asynchronous real schedule reads', async () => {
+    const { store, probe } = createTestMemoryStorage();
+    const shared = Object.assign(Object.create(null) as Record<string, unknown>, { value: -0, text: '\uD800' });
+    const payload = { left: shared, explicit: null, list: [false, 1] };
+    let queries = 0;
+    const inspected = commands.map(command => command !== workSchedulePutCommand ? command : {
+      ...command, stage: (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => {
+        const cloned = args['payload'] as typeof payload;
+        assert.ok(Object.is(cloned.left['value'], -0)); assert.equal(cloned.left, args['alias']);
+        return command.stage(args, ctx);
+      },
+    });
+    // Work's existing table validator rejects repeated payload aliases. Keep
+    // this raw alias outside the stored payload to preserve that later refusal.
+    await createSystemRegistry(inspected).run('work.schedule.put', { ...scheduleArgs(payload), alias: shared }, context, { store: {
+      ...store, query: async spec => { queries++; shared['text'] = 'changed'; payload.list[0] = true; return store.query(spec); },
+    } });
+    assert.ok(queries > 0);
+    const captured = probe.scheduleGet('A/A/team/reminder')!.payload as typeof payload;
+    assert.equal(captured.left['text'], '\uD800');
+    assert.equal(captured.left['value'], 0, 'existing JSON storage normalizes negative zero');
+    assert.deepEqual(captured.list, [false, 1]); assert.equal(captured.explicit, null);
+    assert.equal(Object.hasOwn(captured, 'absent'), false);
+  });
+  it('keeps unknown-command lookup ahead of hostile args and leaves unrelated command clone behavior unchanged', async () => {
+    const { store } = createTestMemoryStorage();
+    let calls = 0;
+    const args = Object.defineProperty({}, 'value', { enumerable: true, get() { calls++; return 'legacy'; } });
+    await assert.rejects(createSystemRegistry(commands).run('work.unknown', args, context, { store }),
+      error => error instanceof StateError && error.code === 'validation' && /Unknown system command/.test(error.message));
+    assert.equal(calls, 0);
+    const legacy: SystemCommandDef = { name: 'operator.legacy', stage: captured => ({ result: captured['value'] }) };
+    const outcome = await createSystemRegistry([legacy]).run(legacy.name, args, context, { store });
+    assert.equal(calls, 1); assert.equal(outcome.result, 'legacy');
   });
 });
 
@@ -538,7 +656,17 @@ describe('installed dispatch guard joins the actual original registry commit (me
       let guards = 0, allocations = 0;
       const f = await fixture({}, false, () => { allocations++; return allocateClaim(); });
       await assert.rejects(f.run(() => { guards++; throw new Error('ambiguous guard entered'); },
-        () => true, { claimId }), /claimId must be omitted/);
+        () => true, { claimId }), error => {
+        if (claimId === undefined) {
+          // The released own-JSON boundary refuses an explicit undefined
+          // before entering the existing claim ownership check.
+          assert.ok(error instanceof StateError); assert.equal(error.code, 'validation');
+          assert.equal(error.message, 'Work command args must be own finite JSON data.');
+        } else {
+          assert.match(String(error), /claimId must be omitted/);
+        }
+        return true;
+      });
       assert.equal(guards, 0); assert.equal(allocations, 0); await f.unchanged();
     }
   });

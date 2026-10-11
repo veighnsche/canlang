@@ -76,6 +76,67 @@ interface SystemStageLedger {
 const systemStages = new WeakMap<SystemCommandContext, SystemStageLedger>();
 const stageReaders = new WeakMap<object, SystemStageLedger>();
 const MAX_SYSTEM_COMMIT_CHECKS = 128;
+// This is the released composed Work admission profile, not a global quota
+// for operator commands or the public JSON helpers.
+const BOUNDED_WORK_COMMANDS = new Set([
+  'work.dispatch.claim', 'work.dispatch.stop-pending', 'work.dispatch.pin-image-control',
+  'work.dispatch.record-attempt', 'work.dispatch.requeue', 'work.dispatch.release',
+  'work.dispatch.supersede', 'work.dispatch.stage', 'work.dispatch.recover',
+  'work.occurrence.put-receipt', 'work.schedule.put', 'work.schedule.cancel',
+  'work.every.advance-slot',
+]);
+function captureWorkArgs(args: Record<string, unknown>): Record<string, unknown> {
+  let visits = 0, text = 0;
+  const active = new Set<object>();
+  const copies = new WeakMap<object, Record<string, unknown> | unknown[]>();
+  const invalid = (): never => { throw new StateError('validation', 'Work command args must be own finite JSON data.'); };
+  const excess = (): never => { throw new StateError('limit', 'Work command args exceed the admission budget.', null, { retryable: false }); };
+  const chargeText = (value: string): void => {
+    if (value.length > 2_000_000 - text) excess();
+    text += value.length;
+  };
+  const capture = (value: unknown, depth: number): unknown => {
+    if (depth > 32 || ++visits > 20_000) excess();
+    if (typeof value === 'string') { chargeText(value); return value; }
+    if (value === null || typeof value === 'boolean') return value;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : invalid();
+    if (typeof value !== 'object') return invalid();
+    if (active.has(value)) return invalid();
+    const array = Array.isArray(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) return invalid();
+    const length = array ? Object.getOwnPropertyDescriptor(value, 'length') : undefined;
+    if (array && (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0)) return invalid();
+    if (array && length!.value > 20_000 - visits) excess();
+    const keys = Reflect.ownKeys(value);
+    const entries = keys.length - (array ? 1 : 0);
+    if (entries > 20_000 - visits) excess();
+    if (array && entries !== length!.value) return invalid();
+    active.add(value);
+    try {
+      const result: Record<string, unknown> | unknown[] = array ? [] : {};
+      const previous = copies.get(value);
+      if (previous === undefined) copies.set(value, result);
+      for (let index = 0; index < (array ? length!.value : keys.length); index++) {
+        const key = array ? String(index) : keys[index];
+        if (typeof key !== 'string') return invalid();
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) return invalid();
+        // Work's capture profile counts every captured own key, including
+        // array indices even though canonical JSON omits their names.
+        chargeText(key);
+        Object.defineProperty(result, key, { value: capture(descriptor.value, depth + 1), enumerable: true, writable: true, configurable: true });
+      }
+      // Dense array indices above alone cannot account for symbol/extra keys.
+      if (array && keys.some(key => key !== 'length' &&
+          (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length!.value))) return invalid();
+      // Repeated aliases still traverse and consume the expanded budget, while
+      // the subsequent existing clone retains their original shared identity.
+      return previous ?? result;
+    } finally { active.delete(value); }
+  };
+  return capture(args, 0) as Record<string, unknown>;
+}
 function stageFailure(ledger: SystemStageLedger | undefined, message: string): never {
   if (ledger !== undefined) ledger.poisoned = true;
   throw new StateError('validation', message);
@@ -282,7 +343,8 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
       if (typeof args !== 'object' || args === null || Array.isArray(args)) {
         throw new StateError('validation', 'System command args must be an object.');
       }
-      const clonedArgs = jsonClone(args as Record<string, unknown>, 'System command args');
+      const capturedArgs = BOUNDED_WORK_COMMANDS.has(name) ? captureWorkArgs(args as Record<string, unknown>) : args;
+      const clonedArgs = jsonClone(capturedArgs as Record<string, unknown>, 'System command args');
       if (
         typeof ctx.operationId !== 'string' ||
         ctx.operationId === '' ||

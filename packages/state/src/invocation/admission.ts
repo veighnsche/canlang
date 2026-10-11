@@ -37,7 +37,7 @@ import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { byRequiresCallerMembership, evaluateBy } from '../policy/roles.js';
 import { isSecretValue } from '../policy/grants.js';
 import { assertOperationIdAge } from './context.js';
-import { hashInputs } from './replay.js';
+import { hashAdmittedInputs } from './replay.js';
 import { StateError } from '../errors.js';
 import { appendInputArrayLengthErrors } from './prepared-inputs.js';
 import type { OwnerMutationReadView } from '../mutation/pipeline.js';
@@ -539,7 +539,7 @@ export async function admit(input: {
   // operation enrolls in (the settled revision fence, not a second
   // fence). Owner is the team when scoped, else the deployment app.
   const scope = openFenceScope(revision, context.team?.teamId ?? context.app);
-  const inputHash = await hashInputs(inputs);
+  const inputHash = await hashAdmittedInputs(inputs);
 
   const authorize = (): Promise<void> => authorizeCall(def, context, memberships, scope);
 

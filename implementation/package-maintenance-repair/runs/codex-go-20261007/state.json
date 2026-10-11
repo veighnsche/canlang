@@ -3076,16 +3076,25 @@
       "commit": "a48dfbf"
     },
     "TECH-S04-admission": {
-      "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "planning_status": "implementing",
+      "state": "Finite exact shared admission source implemented, tested and reviewed in local main; original host and parent unfinished.",
       "files": [
         "packages/state/src/invocation/admission.ts",
         "packages/state/src/invocation/replay.ts",
-        "packages/work/src/kernel/commands.ts"
+        "packages/state/src/ports/system.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Selected pre-hash/copy canonical byte/depth/node/work resource profile and exact refusal point.",
-        "owner": "State/Work admission/resource contract owners"
+        "prerequisite": "Precise original Dev mounted/native consumer qualification after reviewed source intake. Query/cohort/direct-stage/metadata profiles remain independent.",
+        "owner": "Dev original host consumers; Capability separate defining query/cohort contracts"
+      },
+      "finite_shared_implementation": {
+        "input": "Exact defining contract Capabilityb70bfb99473388e136752cdd25048d391d8204d7, coordinator-reviewed main e4e91122 and explicit three-site implementation dispatch. Root0/depth32/20000 expanded values/2000000 UTF16 keys+strings; conservative12640000canonicalUTF8 ceiling=6*text+32*visits.",
+        "source": "State raw hash after revision/openFence and before receipt uses the existing serializer in one caller-scoped bounded pass. Charge before sort/escape/child/join/UTF8/digest; preserve raw getter/toJSON evaluation, ignored array metadata, key order, scalar/boxed/custom domain and successful bytes. Public stableStringify/hashInputs remain unbounded. Only13 exact registered Work run names capture own finite JSON before first existing clone and before operation-ID/revision/stage; aliases charge expanded while retaining detached clone identity. Domain violation validation; excess generic limit/nonretryable; no rejected receipt/effects.",
+        "tests": "Owning State and Work TypeScript emissions0. State admission/replay32/32 across unchanged31Node plus corrected actual emitted Worker1/1(205.39ms); generated scenario default/null-prototype/hash-drift original consumers3/3(14.92/1.85/1.27ms). Work original kernel/installed-guard82/82 across81unchanged passes plus corrected explicit-undefined precedence1/1(2.13ms); four focused actual-composition cases4/4(limit140.87ms,exotics3.69ms,legacy0.13ms,alias1.85ms). Total35State+86Work, no failures/cancellations/skips remain in selected scope. Reachable exact/one-over visits/text/depth; conservative encoding derivation and NUL12000002-byte successful encoding; digest not called after resource refusal; authority/replay/default/effect assertions preserved.",
+        "failed_attempts": "Worker case initially could not listen in sandbox; only that case rerun with authorized local loopback. Initial fixture date exceeded pinned server support; corrected fixture date and only Worker case rerun. Work raw shared alias test initially entered existing table repeated-payload-alias refusal; moved only the raw alias outside persisted payload, asserted exact actual-stage identity/detachment, left existing table refusal unchanged. Existing own claimId=undefined now correctly refuses earlier own-JSON boundary; its exact StateError assertion updated while null/string retain prior ownership failure and zero guard/allocation/effect assertions.",
+        "assessment": "Independent source/security review CLEAR except Work captured-index text accounting. Coordinator reviewed81274889 correction: every own index charged before child capture, combined reachable exact/one-over case covers all13 refusals; source/security CLEAR at this exact scope. Unchanged reviewed source and35State/85otherWork outcomes reused; final selected35State/87Work. Native host enumeration/Proxy/getter execution remains outside the declared budget guarantee. No preparation, payload or other hold released.",
+        "remaining": "Exact reviewed source released for Dev original host qualification. Continue ready existing packets without waiting on unrelated complete plans or pending consultation disclosure.",
+        "captured_key_correction": "Coordinator finite source/security review found Work skipped array-index own keys, contrary to the released captured-key text profile (1000indices add2890units). Charge every captured index before child capture; no profile revision. One actual composed schedule array/string exact2000000/one-over text case added, across all13refusal consumers. Final owning State/Work emissions0; only affected existing limits and new combined case rerun2/2(142.45/10.72ms), with all unchanged State35/Work85 outcomes reused. Selected total35State+87Work; exact correction review/local integration pending. Coordinator inspected the exact changed source and owning case and accepted the correction at the stated source/security scope; current code is locally integrated with original independent opaque-origin Work cases preserved."
       }
     },
     "TECH-S04-query": {

@@ -5469,14 +5469,14 @@
     {
       "family": "STATE / WORK",
       "kind": "resource-correctness",
-      "readiness": "blocked-canonical-input-and-storage-driver-resource-profile-release",
+      "readiness": "finite-admission-implemented-tested-reviewed-awaiting-original-host-qualification",
       "audit_finding_ids": [
         "SSW02",
         "SQ04"
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Owner-selected canonicalization/input bytes/depth/node/work profile at actual pre-hash/copy sites; no unselected numeric threshold; query/cohort decisions independent."
+        "Selected defining caller profile and exact three-site source implemented, tested and reviewed at81274889. Dev actual original mounted/native host qualification remains; query/cohort policies and all precise holds are separate."
       ],
       "intended_deleted_mechanisms": [],
       "expected_production_reduction": {
@@ -5487,7 +5487,7 @@
       "decisive_actual_caller_recipe": "Actual canonical input admission/hash/copy and Work command input consumption enforce a released byte/depth/node/work profile before costly work.",
       "positive_acceptance_recipe": "Boundary-valid inputs preserve canonical identity, evaluation order and current authority.",
       "negative_acceptance_recipe": "Hostile huge/deep input refuses before excessive allocation/hash; no query/cohort claim or arbitrary new threshold.",
-      "execution_authorized": false,
+      "execution_authorized": true,
       "canonical_task_references": [
         {
           "id": "challenge:T16",
@@ -5580,10 +5580,10 @@
       "existing_files": [
         "packages/state/src/invocation/admission.ts",
         "packages/state/src/invocation/replay.ts",
-        "packages/work/src/kernel/commands.ts"
+        "packages/state/src/ports/system.ts"
       ],
       "new_files_proposal_only": [],
-      "status": "blocked",
+      "status": "implementing",
       "depends_on_packets": [],
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
@@ -5594,12 +5594,12 @@
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
-        "state": "proposed; no live lease or acknowledgment claimed",
+        "state": "Coordinator expressly released only exact three shared sites and directly related existing tests/records; finite implementation complete, no whole-file/worker lock.",
         "defining_owners": [
           "state",
           "work"
         ],
-        "release": "Obtain exact-file writer release and source-current handoff before edits; compiler remains foreign-owned."
+        "release": "Capabilityb70bfb99473388e136752cdd25048d391d8204d7 owner contract; coordinator main e4e91122 corrected reachable-boundary qualification and dispatched exact sites."
       },
       "acceptance_limits": [
         "No runtime acceptance from this planning packet. Source helper, registered Rust and historical fixtures do not certify actual installed/durable/browser consumers.",
@@ -5626,13 +5626,13 @@
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
       "current_execution": {
-        "disposition": "owner-contract-released-implementation-unfinished",
-        "next_work": "ready-coordinator-dispatch",
-        "owner": "Packages exact pre-hash/copy implementation; Capability defining contract",
-        "accepted_scope": "Only defining bounded caller contract released; original implementation/consumer/security acceptance pending.",
-        "next_action": "Coordinator dispatch exact State admission/replay and original system Work preclone consumer using owner_contract; later Work checkArgs alone does not protect the first clone.",
-        "done_when": "Boundary-valid inputs preserve identity/order/authority and hostile huge/deep inputs refuse before excessive allocation/hash at the released admission boundary.",
-        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-admission"
+        "disposition": "finite-shared-source-implemented-tested-reviewed-local-main-original-host-pending",
+        "next_work": "Dev actual original host consumer qualification; Packages continue independent ready packets.",
+        "owner": "Packages exact pre-hash/preclone implementation; Capability defining contract; coordinator review/integration; Dev actual original host consumers",
+        "accepted_scope": "Exact State single-pass bounded raw hash and13 Work first-clone own-JSON boundaries implemented,35State/87Work affected cases tested and independently reviewed, including reviewed captured-index correction. Original host/native and parent acceptance remain unfinished.",
+        "next_action": "Consume this exact reviewed local main source for the changed original host consumer; reuse unchanged owning checks and source/security review. No query/cohort, whole-plan or held activation inference.",
+        "done_when": "Original bounded inputs preserve raw identity/evaluation/order/current authority and hostile inputs refuse at released boundaries; finite implementation/review complete, original host qualification remains.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-admission/finite_shared_implementation"
       },
       "owner_contract": {
         "status": "accepted_by_defining_owner_contract_only_runtime_unfinished",
