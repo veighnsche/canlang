@@ -363,7 +363,8 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
         if (from.kind !== 'delivery') return refuse('provider result must own its actual delivery source.');
         same(profile.canonical, from.context.canonical.result);
       } else if (profile.kind === 'void') {
-        record(profile.canonical, ['type']); record(profile.artifact, ['type']);
+        record(profile.canonical, ['type'], ['disclosure']); record(profile.artifact, ['type'], ['disclosure']);
+        same(profile.canonical, profile.artifact);
         if (profile.canonical.type !== 'void' || profile.artifact.type !== 'void' || from.kind !== 'callable') return refuse('explicit source-declared void required.');
       } else return refuse('complete original profile required.');
       declarations.set(item.id, { declaration: item, ...(inputs === undefined ? {} : { inputs }), ...(result === undefined ? {} : { result }) });
@@ -688,6 +689,28 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
         value.intent.target !== value.declaration.target) return refuse('actual original send-guard intent required.');
     const selected = declaration(bound, value.inputsDeclarationId, 'inputs').declaration;
     if (!sourceEqual(selected.source, { kind: 'send-guard', ...value.declaration })) return refuse('exact original send-guard input source required.');
+  } else if (value.kind === 'delivery-skipped') {
+    record(value, ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId']);
+    string(value.deliveryId); callable(bound, value.caller); deliveryContext(bound, value.declaration);
+    sendGuard(bound.declarationSet, value.guard);
+    record(value.send, ['operation', 'operationId', 'target', 'occurrenceIndex']);
+    for (const key of ['operation', 'operationId', 'target'] as const) string(value.send[key]);
+    integer(value.send.occurrenceIndex);
+    record(value.request, ['binding', 'from']); string(value.request.binding); string(value.request.from);
+    same(value.send.operation, value.caller.callable.id); same(value.send.operation, value.guard.owner);
+    same(value.send.target, value.guard.target); same(value.request.binding, value.guard.binding);
+    same(value.guard.source, value.caller.source);
+    if (value.send.target !== `${value.declaration.canonical.capability}.${value.declaration.canonical.operation}`) return refuse('actual skipped provider target required.');
+    const guards = [...owner(bound).declarations.values()].filter(item => item.declaration.source.kind === 'send-guard' &&
+      sourceEqual(item.declaration.source, { kind: 'send-guard', ...value.guard }));
+    if (guards.length !== 1 || guards[0]!.declaration.profile.kind !== 'inputs') return refuse('one complete original skipped SEND guard required.');
+    record(value.association, ['model', 'recordId', 'field']); string(value.association.recordId);
+    const field = bound.declarationSet.canonicalModels.find(model => model.name === value.association.model)?.fields[value.association.field];
+    if (field?.delivery === undefined || field.array !== undefined) return refuse('actual skipped owning delivery association required.');
+    same(field.delivery, value.declaration.canonical);
+    const result = declaration(bound, value.resultDeclarationId).declaration;
+    if (!['provider-result', 'void'].includes(result.profile.kind) || result.source.kind !== 'delivery') return refuse('original skipped provider result source required.');
+    same(result.source.context, value.declaration); same(result.source.source, value.caller.source);
   } else if (value.kind === 'delivery-result') {
     record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
     callable(bound, value.caller); deliveryContext(bound, value.declaration);

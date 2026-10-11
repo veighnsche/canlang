@@ -9,7 +9,7 @@
  * require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
-import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
+import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, makeDeliveryRef, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -28,7 +28,7 @@ import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { stableStringify, hashInputs } from './replay.js';
 import type { SystemCommandContext, SystemStaging } from '../ports/system.js';
 import { stageAuthoredDelivery, type AuthoredSkippedDelivery } from '../receipt/authored-delivery.js';
-import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../receipt/tables.js';
+import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readReceiptRow } from '../receipt/tables.js';
 import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
 import { isGeneratedOperationDef } from './registry.js';
 import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory, projectReadQueryProjectionWire, queryProjectionWire, checkSavedQueries, savedQueriesReadable } from './scenario-query-plan.js';
@@ -821,6 +821,20 @@ export interface ScenarioReceiptFrameworkProducer {
   /** Literal verified native adapter executes the complete original predicate
    * with this actual owner read frame and detached encoded lexical inputs. */
   readonly evaluateGuard?: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
+  /** Installed State census adapter prepares the actual new receipt result.
+   * The containing owner still checks source, association and stage lifetime. */
+  readonly prepareReceiptOrigin?: (frame: ScenarioReceiptDeliveryOriginFrame) => Promise<FrameworkFilePayloadOrigin>;
+}
+export interface ScenarioReceiptDeliveryOriginFrame {
+  readonly call: AdmittedCall;
+  readonly model: ArtifactModel;
+  readonly row: StoredRow;
+  readonly record: StoredRow;
+  readonly field: string;
+  readonly value: DeliveryRef;
+  /** Admitted physical revision; row.data.revision is the reserved commit. */
+  readonly revision: number;
+  readonly send: OutboxIntent | AuthoredSkippedDelivery;
 }
 export interface ScenarioReceiptSendGuard {
   readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source']; readonly owner: string;
@@ -851,13 +865,15 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
   if (bound === undefined || frameworkProducers.has(def) || invokedPlans.has(def)) return invalid('framework producer requires one checked source binding before execution.');
   if (typeof producer !== 'object' || producer === null || Array.isArray(producer) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(producer)) ||
-      Reflect.ownKeys(producer).length !== (Object.hasOwn(producer, 'sendGuards') ? 7 : 5) ||
+      Reflect.ownKeys(producer).length !== (Object.hasOwn(producer, 'sendGuards') ? 7 : 5) + (Object.hasOwn(producer, 'prepareReceiptOrigin') ? 1 : 0) ||
       (Object.hasOwn(producer, 'sendGuards') !== Object.hasOwn(producer, 'evaluateGuard')) ||
-      ['source', 'app', 'bindings', 'stage', 'read', ...(Object.hasOwn(producer, 'sendGuards') ? ['sendGuards', 'evaluateGuard'] : [])].some(key => {
+      ['source', 'app', 'bindings', 'stage', 'read', ...(Object.hasOwn(producer, 'sendGuards') ? ['sendGuards', 'evaluateGuard'] : []),
+        ...(Object.hasOwn(producer, 'prepareReceiptOrigin') ? ['prepareReceiptOrigin'] : [])].some(key => {
         const member = Object.getOwnPropertyDescriptor(producer, key);
         return member === undefined || !('value' in member) || !member.enumerable;
       }) || typeof producer.stage !== 'function' || typeof producer.read !== 'function') return invalid('own closed loader producer required.');
   if (Object.hasOwn(producer, 'evaluateGuard') && typeof producer.evaluateGuard !== 'function') return invalid('literal complete SEND guard adapter required.');
+  if (Object.hasOwn(producer, 'prepareReceiptOrigin') && typeof producer.prepareReceiptOrigin !== 'function') return invalid('literal installed receipt census adapter required.');
   const metadata = dataCopy({ source: producer.source, app: producer.app, bindings: producer.bindings,
     ...(producer.sendGuards === undefined ? {} : { sendGuards: producer.sendGuards }) });
   origin(metadata.source); text(metadata.app);
@@ -894,7 +910,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     }
   }
   frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read,
-    ...(producer.evaluateGuard === undefined ? {} : { evaluateGuard: producer.evaluateGuard }) }));
+    ...(producer.evaluateGuard === undefined ? {} : { evaluateGuard: producer.evaluateGuard }),
+    ...(producer.prepareReceiptOrigin === undefined ? {} : { prepareReceiptOrigin: producer.prepareReceiptOrigin }) }));
 }
 
 function primitiveInputType(type: unknown): type is CanTypeId {
@@ -1302,8 +1319,9 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
         const id = `skp_${await hashInputs({ operationId: call.context.operationId, source,
           occurrenceIndex, rule: sourceGuard!.rule })}`;
         ownerHealthy(owner);
+        const guard = producer.sendGuards!.find(guard => guard.rule === sourceGuard!.rule)!;
         ledger.skipped.set(id, deepFreeze({ deliveryId: id, operationId: call.context.operationId,
-          operation: call.context.operation, target: source, arguments: request.arguments }));
+          operation: call.context.operation, target: source, arguments: request.arguments, occurrenceIndex, request, guard }));
         return makeDeliveryRef(id, source);
       }
       let correlation: ScenarioReceiptSendProducerInput['correlation'];
@@ -1342,20 +1360,63 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
           const member = Object.getOwnPropertyDescriptor(report, key);
           return member === undefined || !('value' in member) || !member.enumerable;
         })) return invalid('own closed delivery assignment required.');
-    const issued = ownerRows.get(report.row);
-    if (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== report.model) return invalid('delivery requires this session current-stage row.');
-    const model = owner.capture.bound.artifactModels.get(report.model), field = model?.fields.find(value => value.name === report.field);
-    if (model === undefined || field?.field.kind !== 'delivery' || !Object.hasOwn(report.row.data, report.field) ||
+    const record = report.row, modelName = report.model, fieldName = report.field, stage = owner.stage;
+    const issued = ownerRows.get(record);
+    if (issued?.session !== owner || issued.stage !== stage || issued.model !== modelName) return invalid('delivery requires this session current-stage row.');
+    const model = owner.capture.bound.artifactModels.get(modelName), field = model?.fields.find(value => value.name === fieldName);
+    if (model === undefined || field?.field.kind !== 'delivery' || !Object.hasOwn(record.data, fieldName) ||
         call.checkpoint === undefined) return invalid('delivery requires its owning declared field and checkpoint.');
     const value = decodeValue(`delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
-      report.row.data[report.field]) as DeliveryRef | null;
+      record.data[fieldName]) as DeliveryRef | null;
     const reader = frameworkContext(owner, receiptModels);
+    const healthy = () => {
+      ownerHealthy(owner);
+      if (owner.executingCall !== call || owner.stage !== stage || ownerRows.get(record) !== issued ||
+          !owner.busy || owner.capture.pending !== 0 || owner.activeSend !== null) return invalid('receipt origin crossed its original assignment stage.');
+    };
     try {
-      const effects = await stageAuthoredDelivery({ model, recordId: report.row.id, field: report.field, value,
+      let effects = await stageAuthoredDelivery({ model, recordId: record.id, field: fieldName, value,
         queued: owner.framework!.queued, skipped: owner.framework!.skipped, operationId: call.context.operationId, revision: call.checkpoint.revision + 1,
         ...(owner.capture.bound.valueTypes === undefined ? {} : { valueTypes: owner.capture.bound.valueTypes }),
         ...(owner.capture.bound.valueSchema === undefined ? {} : { valueSchema: owner.capture.bound.valueSchema }) }, reader.context);
-      ownerHealthy(owner); await appendFrameworkWrites(owner, effects, reader.context);
+      healthy();
+      const prepare = owner.framework!.producer.prepareReceiptOrigin;
+      if (prepare !== undefined && value !== null) {
+        const send = owner.framework!.queued.get(value.id) ?? owner.framework!.skipped.get(value.id);
+        if (send === undefined) return invalid('receipt origin requires this invocation actual SEND.');
+        const writes: DomainWrite[] = [];
+        for (const write of effects.writes ?? []) {
+          if (write.kind !== 'insert' || write.model !== RECEIPT_MODEL || Object.hasOwn(write.row.data, 'filePayloadOrigin')) {
+            writes.push(write); continue;
+          }
+          const row = deepFreeze(dataCopy(write.row));
+          const header = deepFreeze(dataCopy(await prepare(Object.freeze({ call, model, row, record, field: fieldName,
+            value, revision: call.revision, send }))));
+          healthy();
+          if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Receipt origin moved beyond its admitted revision.');
+          healthy();
+          const prepared = { ...row, data: { ...row.data, filePayloadOrigin: header } };
+          const original = readReceiptRow(prepared).filePayloadOrigin!.origin;
+          if (header.scope.app !== call.context.app || header.scope.owner !== call.checkpoint.owner ||
+              (original.kind !== 'delivery-result' && original.kind !== 'delivery-skipped') ||
+              original.deliveryId !== value.id || original.association.model !== modelName ||
+              original.association.recordId !== record.id || original.association.field !== fieldName ||
+              stableStringify(original.caller.source) !== stableStringify(owner.capture.bound.plan.source) ||
+              !isGeneratedOperationDef(call.def) || stableStringify(original.caller.canonical) !== stableStringify(call.def.descriptor)) return invalid('receipt origin differs from its actual source or owning assignment.');
+          const actual = original.kind === 'delivery-result' ? original.intent : original.send;
+          if (actual.operation !== send.operation || actual.operationId !== send.operationId || actual.target !== send.target ||
+              actual.occurrenceIndex !== send.occurrenceIndex) return invalid('receipt origin differs from its actual SEND occurrence.');
+          if ('intentId' in send) {
+            if (original.kind !== 'delivery-result' || original.intent.intentId !== send.intentId ||
+                original.request.binding !== send.arguments['binding'] || original.request.from !== send.arguments['from']) return invalid('pending receipt origin differs from its queued request.');
+          } else if (original.kind !== 'delivery-skipped' || send.request === undefined || send.guard === undefined ||
+              original.request.binding !== send.request.binding || original.request.from !== send.request.from ||
+              stableStringify(original.guard) !== stableStringify(send.guard)) return invalid('skipped receipt origin differs from its original false SEND.');
+          writes.push({ ...write, row: prepared });
+        }
+        effects = { ...effects, writes };
+      }
+      healthy(); await appendFrameworkWrites(owner, effects, reader.context);
     } finally { reader.close(); }
   });
 }

@@ -1,6 +1,6 @@
 /** Pure authored-delivery staging uses reader ports and returns writes for the caller's fence; it grants no public mutation authority. */
 import { T26_PROGRESS_RELATIONS } from '@canlang/contracts';
-import type { ArtifactModel, CanonicalValueTypes, DeliveryRef, JudgmentSpec, ReceiptResultContext, FrameworkFilePayloadOrigin, DomainWrite, ModelName, OutboxIntent, RecordId } from '@canlang/contracts';
+import type { ArtifactModel, BoundCapabilityRequest, FrameworkOpaqueSendGuardDeclaration, CanonicalValueTypes, DeliveryRef, JudgmentSpec, ReceiptResultContext, FrameworkFilePayloadOrigin, DomainWrite, ModelName, OutboxIntent, RecordId } from '@canlang/contracts';
 import { isDeliveryRef, validateValue } from '@canlang/values';
 import type { NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -19,6 +19,10 @@ export interface AuthoredSkippedDelivery {
   readonly operation: string;
   readonly target: string;
   readonly arguments: Readonly<Record<string, unknown>>;
+  /** Original source SEND evidence; these three members are present together. */
+  readonly occurrenceIndex?: number;
+  readonly request?: BoundCapabilityRequest;
+  readonly guard?: FrameworkOpaqueSendGuardDeclaration;
 }
 
 export interface AuthoredDeliveryInput {
@@ -53,6 +57,42 @@ function refuse(): never {
   throw new StateError('validation', 'Delivery association cannot be staged.');
 }
 
+function closed(value: unknown, keys: readonly string[]): asserts value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value)) || Reflect.ownKeys(value).length !== keys.length ||
+      keys.some(key => { const member = Object.getOwnPropertyDescriptor(value, key);
+        return member === undefined || !('value' in member) || !member.enumerable; })) refuse();
+}
+function originalText(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 4096 && !/[\u0000-\u001f\u007f]/.test(value);
+}
+function sourceSkipped(entry: AuthoredSkippedDelivery): boolean {
+  return Object.hasOwn(entry, 'occurrenceIndex');
+}
+function checkSkipped(entry: AuthoredSkippedDelivery): void {
+  const supplied = ['occurrenceIndex', 'request', 'guard'].filter(key => Object.hasOwn(entry, key));
+  closed(entry, ['deliveryId', 'operationId', 'operation', 'target', 'arguments', ...(supplied.length === 0 ? [] : ['occurrenceIndex', 'request', 'guard'])]);
+  if (supplied.length === 0) return;
+  const request = entry.request, guard = entry.guard;
+  if (!Number.isSafeInteger(entry.occurrenceIndex) || entry.occurrenceIndex! < 0) refuse();
+  closed(request, ['binding', 'from', 'arguments']);
+  if (!originalText(request.binding) || !originalText(request.from) || typeof request.arguments !== 'object' ||
+      request.arguments === null || Array.isArray(request.arguments) || !sameOriginal(entry.arguments, request.arguments)) refuse();
+  closed(guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+  closed(guard.source, ['path', 'sha256', 'module']); closed(guard.node, ['start', 'end']);
+  if (!originalText(guard.rule) || guard.owner !== entry.operation || guard.target !== entry.target || guard.binding !== request.binding ||
+      !originalText(guard.source.path) || !originalText(guard.source.module) || typeof guard.source.sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(guard.source.sha256) || !Number.isSafeInteger(guard.node.start) || (guard.node.start as number) < 0 ||
+      !Number.isSafeInteger(guard.node.end) || (guard.node.end as number) <= (guard.node.start as number) ||
+      !Array.isArray(guard.inputs) || guard.inputs.length > 200) refuse();
+  const names = new Set<string>();
+  for (const slot of guard.inputs) {
+    closed(slot, ['name', 'type']);
+    if (!originalText(slot.name) || !originalText(slot.type) || names.has(slot.name)) refuse();
+    names.add(slot.name);
+  }
+}
+
 /** Readers and staged writes only: no standalone commit, transport or public lookup. */
 export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: SystemCommandContext): Promise<SystemStaging> {
     const originProperty = Object.getOwnPropertyDescriptor(input, 'filePayloadOrigin');
@@ -71,7 +111,7 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
     const field = fields[0]!;
     if (typeof field.required !== 'boolean' || typeof field.serverOnly !== 'boolean' ||
         field.array !== undefined || field.field.kind !== 'delivery' ||
-        (field.nullable !== undefined && field.nullable !== true)) refuse();
+        (field.nullable !== undefined && typeof field.nullable !== 'boolean')) refuse();
     const descriptor = field.field;
     const target = `${descriptor.capability}.${descriptor.operation}`;
     const judgment = 'judgment' in descriptor && descriptor.judgment === true;
@@ -95,29 +135,45 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
         if (typeof actualSkipped !== 'object' || actualSkipped === null || Array.isArray(actualSkipped) ||
             ![Object.prototype, null].includes(Object.getPrototypeOf(actualSkipped))) refuse();
         selected = deepFreeze(jsonClone(actualSkipped!, 'Skipped delivery')); status = 'skipped';
-        if (Reflect.ownKeys(selected).length !== 5 || !Object.hasOwn(selected, 'deliveryId') ||
+        checkSkipped(selected as AuthoredSkippedDelivery);
+        if (!Object.hasOwn(selected, 'deliveryId') ||
             (selected as AuthoredSkippedDelivery).deliveryId !== input.value.id ||
             typeof selected.arguments !== 'object' || selected.arguments === null || Array.isArray(selected.arguments)) refuse();
       }
       if (selected.target !== target || selected.operationId !== input.operationId || selected.operation !== ctx.operation) refuse();
     }
-    // Snapshot the original pending receipt before the first reader can yield.
+    // Snapshot the original receipt at its actual phase before the first reader can yield.
     // Complete source closure and genuine File observations remain census checks.
-    if (originProperty !== undefined && (input.value === null || status === 'skipped')) refuse();
+    if (originProperty !== undefined && (input.value === null ||
+        status === 'skipped' && !sourceSkipped(selected as AuthoredSkippedDelivery))) refuse();
     const meta = { actor: ctx.actor, nowMs: ctx.now };
     const pendingReceipt = input.value === null || originProperty === undefined ? null : newReceiptRow({ deliveryId: input.value.id,
-      revision: input.revision, status: 'pending', result: null, error: null, contentRef: null, resultExpiresAtMs: null,
+      revision: input.revision, status, result: null, error: null, contentRef: null, resultExpiresAtMs: null,
       ...(originProperty === undefined ? {} : { filePayloadOrigin: originProperty.value as FrameworkFilePayloadOrigin }) }, meta, resultContext);
     const originalBinding = pendingReceipt === null ? undefined : readReceiptRow(pendingReceipt, resultContext).filePayloadOrigin;
-    if (originalBinding !== undefined) {
-      const origin = originalBinding.origin;
-      if (origin.kind !== 'delivery-result' || input.value === null) refuse();
-      if (queued === undefined || origin.intent.intentId !== queued.intentId || origin.intent.operation !== queued.operation ||
-          origin.intent.operationId !== queued.operationId || origin.intent.target !== queued.target ||
-          origin.intent.occurrenceIndex !== queued.occurrenceIndex || origin.caller.callable.id !== ctx.operation ||
+    const checkSelectedOrigin = (origin: FrameworkFilePayloadOrigin['origin']): void => {
+      if (input.value === null || (origin.kind !== 'delivery-result' && origin.kind !== 'delivery-skipped') ||
+          origin.deliveryId !== input.value.id || origin.caller.callable.id !== ctx.operation ||
           origin.association.model !== input.model.name || origin.association.recordId !== input.recordId ||
           origin.association.field !== input.field) refuse();
-    }
+      if (status === 'pending') {
+        if (origin.kind !== 'delivery-result' || queued === undefined) refuse();
+        const request = queued.arguments;
+        closed(request, ['binding', 'from', 'arguments']);
+        if (origin.intent.intentId !== queued.intentId || origin.intent.operation !== queued.operation ||
+            origin.intent.operationId !== queued.operationId || origin.intent.target !== queued.target ||
+            origin.intent.occurrenceIndex !== queued.occurrenceIndex || origin.request.binding !== request.binding ||
+            origin.request.from !== request.from) refuse();
+      } else {
+        const skipped = selected as AuthoredSkippedDelivery;
+        if (origin.kind !== 'delivery-skipped' || !sourceSkipped(skipped) || skipped.request === undefined || skipped.guard === undefined ||
+            origin.send.operation !== skipped.operation || origin.send.operationId !== skipped.operationId ||
+            origin.send.target !== skipped.target || origin.send.occurrenceIndex !== skipped.occurrenceIndex ||
+            origin.request.binding !== skipped.request.binding || origin.request.from !== skipped.request.from ||
+            !sameOriginal(origin.guard, skipped.guard)) refuse();
+      }
+    };
+    if (originalBinding !== undefined) checkSelectedOrigin(originalBinding.origin);
     const associationId = associationRowId(input.model.name, input.recordId, input.field);
     const existing = await ctx.load(RECEIPT_ASSOCIATION_MODEL as ModelName, associationId as RecordId);
     const current = existing === null ? null : readAssociationRow(existing);
@@ -146,9 +202,11 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
       if (retained === null) refuse();
       const stored = readReceiptRow(retained, resultContext);
       const original = stored.filePayloadOrigin?.origin;
-      if (original !== undefined && (original.kind !== 'delivery-result' ||
+      if (original !== undefined && ((original.kind !== 'delivery-result' && original.kind !== 'delivery-skipped') ||
           original.association.model !== input.model.name || original.association.recordId !== input.recordId ||
-          original.association.field !== input.field || original.intent.target !== current.source)) refuse();
+          original.association.field !== input.field ||
+          (original.kind === 'delivery-skipped' ? original.send.target : original.intent.target) !== current.source ||
+          (original.kind === 'delivery-skipped') !== (stored.receipt.status === 'skipped'))) refuse();
       const receipt = stored.receipt;
       if (retained.id !== current.deliveryId || receipt.deliveryId !== current.deliveryId || receipt.revision !== current.revision) refuse();
     }
@@ -160,13 +218,13 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
     if (priorAttempt !== null) {
       const stored = readReceiptRow(priorAttempt, resultContext);
       if (originalBinding !== undefined && !sameOriginal(originalBinding, stored.filePayloadOrigin)) refuse();
+      if (stored.filePayloadOrigin !== undefined) checkSelectedOrigin(stored.filePayloadOrigin.origin);
       const receipt = stored.receipt;
       // The overlay may already contain this same staged assignment. A known
       // attempt can never be reassigned or reset to pending from a saved result.
       if (current?.deliveryId === input.value.id && current.source === target && current.revision === input.revision &&
           priorAttempt.id === input.value.id && receipt.deliveryId === input.value.id && receipt.revision === input.revision && receipt.status === status &&
-          receipt.result === null && receipt.error === null && stored.contentRef === null && stored.resultExpiresAtMs === null &&
-          (status !== 'skipped' || stored.filePayloadOrigin === undefined)) return { writes: [] };
+          receipt.result === null && receipt.error === null && stored.contentRef === null && stored.resultExpiresAtMs === null) return { writes: [] };
       refuse();
     }
     if (current?.deliveryId === input.value.id) refuse();

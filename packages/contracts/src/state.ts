@@ -1044,6 +1044,42 @@ export interface FrameworkOpaqueSendGuardOrigin {
   readonly inputsDeclarationId: string;
 }
 
+/** Original false SEND outcome: a genuine receipt and association, without an
+ * OutboxIntent, Work dispatch or provider effect. These logical send facts are
+ * captured from the current private owner/call and its actual semantic ordinal;
+ * they are not a synthetic intent. The actual checked false-guard declaration,
+ * caller, bound request and association must correspond to that exact source
+ * evaluation. deliveryId is the owning skipped receipt identity, derived by its
+ * original producer from operationId/target/occurrenceIndex/guard.rule.
+ *
+ * The owning State producer binds the standard result payload header atomically
+ * with the skipped receipt/association and preserves it through reopen/migration.
+ * This origin is valid only for original status skipped with result/error/
+ * contentRef/resultExpiresAtMs null and no queued dispatch. Resolve the actual
+ * complete provider resultDeclarationId at [] with presence no-result, retaining
+ * declared nominal R and the full historical closure, defaults and receiving
+ * File correspondence. Explicit provider void is unsupported by the current
+ * delivery descriptors and delivery-owned result profiles; a caller's void
+ * result cannot substitute for that provider declaration. Null is not a
+ * control/File-free exemption. It cannot authorize provider progress, a result value, pending or
+ * success, nor convey execution/current authority. Copies/hashes issue nothing. */
+export interface FrameworkOpaqueSkippedDeliveryOrigin {
+  readonly kind: 'delivery-skipped';
+  readonly deliveryId: string;
+  readonly send: {
+    readonly operation: string;
+    readonly operationId: OperationId;
+    readonly target: string;
+    readonly occurrenceIndex: number;
+  };
+  readonly request: { readonly binding: string; readonly from: string };
+  readonly caller: FrameworkOpaqueCallable;
+  readonly association: { readonly model: ModelName; readonly recordId: RecordId; readonly field: string };
+  readonly guard: Readonly<FrameworkOpaqueSendGuardDeclaration>;
+  readonly declaration: FrameworkOpaqueDeliveryContext;
+  readonly resultDeclarationId: string;
+}
+
 /** Closed owning origins, captured at original production. The actual rich
  * payload bytes stay in their existing field. Standard completion resolution
  * covers original provider inputs, terminal R, event payload's duplicate R and
@@ -1063,7 +1099,8 @@ export type FrameworkOpaquePayloadOrigin =
       readonly event: FrameworkOpaqueEventInputOrigin }
   | FrameworkOpaqueSourceRoutingOrigin
   | FrameworkOpaqueStandardCompletionOrigin
-  | FrameworkOpaqueSendGuardOrigin;
+  | FrameworkOpaqueSendGuardOrigin
+  | FrameworkOpaqueSkippedDeliveryOrigin;
 
 /** One original owning row.data.filePayloadOrigin, persisted atomically with
  * its payload; updates explicitly preserve it through progress/supersession.

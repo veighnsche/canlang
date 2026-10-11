@@ -137,7 +137,7 @@ function originalReceiptContext(row: StoredRow): ReceiptResultContext | undefine
   const binding = row.data.filePayloadOrigin as FrameworkFilePayloadOrigin | undefined;
   if (binding === undefined) return undefined;
   try {
-    if (binding.origin.kind !== 'delivery-result') return invalid('receipt requires its original delivery-result recipe.');
+    if (binding.origin.kind !== 'delivery-result' && binding.origin.kind !== 'delivery-skipped') return invalid('receipt requires its original delivery recipe.');
     const origin = binding.origin, declaration = origin.declaration;
     if (declaration.kind === 'judgment') {
       const specification = { ...declaration.specification,
@@ -145,7 +145,7 @@ function originalReceiptContext(row: StoredRow): ReceiptResultContext | undefine
       return createJudgmentReceiptContext(declaration.canonical, specification, declaration.valueTypes);
     }
     if (declaration.kind !== 'capability' && declaration.kind !== 'generation') return invalid('unknown original provider context.');
-    return { source: origin.intent.target, declaredResult: declaration.canonical.result,
+    return { source: origin.kind === 'delivery-skipped' ? origin.send.target : origin.intent.target, declaredResult: declaration.canonical.result,
       ...(declaration.kind === 'generation' ? { request: declaration.request } : {}) };
   } catch { return invalid('invalid original provider result context.'); }
 }
@@ -170,10 +170,11 @@ function resolveOpaqueField(model: ModelName, value: StoredRow, field: string, c
   const copied = copyJson(context) as typeof context;
   validateRow(model, row);
   const stored = readReceiptRow(row, originalReceiptContext(row)), binding = stored.filePayloadOrigin;
-  if (binding === undefined || !sameData(binding, copied.binding) || binding.origin.kind !== 'delivery-result') {
+  if (binding === undefined || !sameData(binding, copied.binding) || (binding.origin.kind !== 'delivery-result' && binding.origin.kind !== 'delivery-skipped')) {
     return invalid('exact persisted original receipt binding required.');
   }
   const { installed } = copied, origin = binding.origin;
+  const send = origin.kind === 'delivery-skipped' ? origin.send : origin.intent;
   const sets = installed.inventory.opaqueDeclarationSets?.filter(set => set.id === binding.declarationSetId);
   if (sets?.length !== 1) return invalid('one original receipt declaration set required.');
   const declarations = sets[0]!;
@@ -181,12 +182,16 @@ function resolveOpaqueField(model: ModelName, value: StoredRow, field: string, c
       binding.scope.app !== installed.authority.app || binding.scope.owner !== installed.authority.receiver.owner ||
       binding.scope.ownerPackage !== binding.inventory.owner || binding.slot.id !== row.id || binding.slot.created !== row.created ||
       binding.slot.createdBy !== row.createdBy || binding.slot.model !== model || binding.slot.field !== field ||
-      binding.slot.role !== 'retained-result' || origin.deliveryId !== row.id || origin.intent.intentId !== row.id ||
-      origin.intent.operation !== origin.caller.callable.id || origin.intent.operation !== origin.caller.canonical.name ||
-      origin.intent.operation !== origin.caller.artifact.name ||
-      origin.intent.target !== `${origin.declaration.canonical.capability}.${origin.declaration.canonical.operation}`) {
+      binding.slot.role !== 'retained-result' || origin.deliveryId !== row.id || (origin.kind === 'delivery-result' && origin.intent.intentId !== row.id) ||
+      send.operation !== origin.caller.callable.id || send.operation !== origin.caller.canonical.name ||
+      send.operation !== origin.caller.artifact.name ||
+      send.target !== `${origin.declaration.canonical.capability}.${origin.declaration.canonical.operation}`) {
     return invalid('original receipt lifetime, scope or intent correspondence.');
   }
+  if (origin.kind === 'delivery-skipped' && (stored.receipt.status !== 'skipped' || stored.receipt.result !== null ||
+      stored.receipt.error !== null || stored.contentRef !== null || stored.resultExpiresAtMs !== null ||
+      origin.guard.owner !== send.operation || origin.guard.target !== send.target || origin.guard.binding !== origin.request.binding ||
+      !sameData(origin.guard.source, origin.caller.source))) return invalid('original skipped receipt and SEND guard required.');
   const providerProfiles = declarations.declarations.filter(profile => profile.id === origin.resultDeclarationId);
   if (providerProfiles.length !== 1) return invalid('one original provider result declaration required.');
   const provider = providerProfiles[0]!;

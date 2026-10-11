@@ -35,7 +35,7 @@ export {
   type ScenarioReceiptCallProducer, type ScenarioReceiptCallFrame,
   bindScenarioReceiptQueryProducer, executeScenarioReceiptQuery, observeScenarioReceiptQueryDependency, bindScenarioReceiptQueryResult,
   type ScenarioReceiptQueryProducer, type ScenarioReceiptQueryResult, type ScenarioReceiptQuerySlot, type ScenarioReceiptQueryHandle,
-  type ScenarioReceiptFrameworkProducer, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
+  type ScenarioReceiptFrameworkProducer, type ScenarioReceiptDeliveryOriginFrame, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
   type ScenarioReceiptSendGuard, type ScenarioReceiptSendGuardFrame, type ScenarioReceiptSourceSendGuard,
   type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,

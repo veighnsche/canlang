@@ -757,8 +757,12 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
   const inventory = originRecord(header.inventory, ['owner', 'snapshotId', 'digest']);
   const slot = originRecord(header.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
   const scope = originRecord(header.scope, ['app', 'ownerPackage', 'owner']);
-  const origin = originRecord(header.origin, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
-  const intent = originRecord(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+  const skipped = (header.origin as { kind?: unknown } | null)?.kind === 'delivery-skipped';
+  const origin = originRecord(header.origin, skipped ?
+    ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId'] :
+    ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
+  const intent = originRecord(skipped ? origin.send : origin.intent, skipped ?
+    ['operation', 'operationId', 'target', 'occurrenceIndex'] : ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
   const request = originRecord(origin.request, ['binding', 'from']);
   const caller = originRecord(origin.caller, ['source', 'callable', 'canonical', 'artifact', 'resultDeclarationId']);
   const source = originRecord(caller.source, ['path', 'sha256', 'module']);
@@ -775,8 +779,8 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
       !Object.values(scope).every(originString) || !Object.values(source).every(originString) ||
       slot.model !== RECEIPT_MODEL || slot.id !== row.id || slot.created !== row.created || slot.createdBy !== row.createdBy ||
       typeof slot.created !== 'number' || !Number.isFinite(slot.created) || slot.created < 0 || !originString(slot.createdBy) ||
-      slot.field !== 'result' || slot.role !== 'retained-result' || origin.kind !== 'delivery-result' || origin.deliveryId !== deliveryId ||
-      intent.intentId !== deliveryId || !originString(intent.operation) || !originString(intent.operationId) || !originString(intent.target) ||
+      slot.field !== 'result' || slot.role !== 'retained-result' || !['delivery-result', 'delivery-skipped'].includes(String(origin.kind)) || origin.deliveryId !== deliveryId ||
+      (!skipped && intent.intentId !== deliveryId) || !originString(intent.operation) || !originString(intent.operationId) || !originString(intent.target) ||
       typeof intent.occurrenceIndex !== 'number' || !Number.isSafeInteger(intent.occurrenceIndex) || intent.occurrenceIndex < 0 ||
       !Object.values(request).every(originString) || !Object.values(association).every(originString) ||
       !originString(origin.resultDeclarationId) || !originString(caller.resultDeclarationId) ||
@@ -787,6 +791,26 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
       artifact.operation !== canonical.operation || artifact.version !== canonical.version ||
       (context !== undefined && intent.target !== context.source) || !Array.isArray(header.files)) {
     throw new ReceiptTableError('work.receipt filePayloadOrigin disagrees with its original receipt binding.');
+  }
+  if (skipped) {
+    const guard = originRecord(origin.guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+    const guardSource = originRecord(guard.source, ['path', 'sha256', 'module']);
+    const node = originRecord(guard.node, ['start', 'end']);
+    const validNode = typeof node.start === 'number' && Number.isSafeInteger(node.start) && node.start >= 0 &&
+      typeof node.end === 'number' && Number.isSafeInteger(node.end) && node.end > node.start;
+    const names = new Set<string>();
+    if (!originString(guard.rule) || guard.owner !== intent.operation || guard.target !== intent.target ||
+        guard.binding !== request.binding || !sameJudgmentWire(guardSource, source) || !validNode || !Array.isArray(guard.inputs) ||
+        guard.inputs.length > 200 || guard.inputs.some(value => {
+          const input = originRecord(value, ['name', 'type']);
+          if (!originString(input.name) || !originString(input.type) || names.has(input.name)) return true;
+          names.add(input.name); return false;
+        }) || ['result', 'error', 'contentRef', 'resultExpiresAtMs'].some(key => {
+          const member = Object.getOwnPropertyDescriptor(data, key);
+          return member === undefined || !('value' in member) || member.value !== null;
+        }) || Object.getOwnPropertyDescriptor(data, 'status')?.value !== 'skipped') {
+      throw new ReceiptTableError('work.receipt skipped origin requires its original false SEND and null skipped envelope.');
+    }
   }
   for (const entry of header.files) {
     const fact = originRecord(entry, ['path', 'file']);
@@ -1114,6 +1138,17 @@ export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<str
       receipts.set(join.deliveryId, join);
     }
   }
+  for (const receipt of receipts.values()) {
+    const original = receipt.filePayloadOrigin?.origin;
+    if (original?.kind !== 'delivery-skipped') continue;
+    const send = original.send;
+    const queued = batch.outbox?.some(intent => intent.intentId === original.deliveryId ||
+      intent.operationId === send.operationId && intent.target === send.target && intent.occurrenceIndex === send.occurrenceIndex);
+    const dispatch = batch.writes?.some(write => write.kind !== 'remove' && String(write.model) === 'work.dispatch' &&
+      (String(write.row.id) === original.deliveryId || write.row.data.operationId === send.operationId &&
+        write.row.data.source === send.target && write.row.data.occurrenceIndex === send.occurrenceIndex));
+    if (queued || dispatch) throw new StateError('validation', 'Receipt-only skipped SEND cannot queue its original provider dispatch.');
+  }
   for (const association of associations.values()) {
     const receipt = receipts.get(association.deliveryId);
     if (receipt === undefined) {
@@ -1124,10 +1159,11 @@ export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<str
       );
     }
     const original = receipt.filePayloadOrigin?.origin;
-    if (original !== undefined && (original.kind !== 'delivery-result' ||
+    if (original !== undefined && ((original.kind !== 'delivery-result' && original.kind !== 'delivery-skipped') ||
         original.association.model !== association.association!.recordModel ||
         original.association.recordId !== association.association!.recordId ||
-        original.association.field !== association.association!.field || original.intent.target !== association.association!.source)) {
+        original.association.field !== association.association!.field ||
+        (original.kind === 'delivery-skipped' ? original.send.target : original.intent.target) !== association.association!.source)) {
       throw new StateError('validation', 'Receipt join: original payload binding disagrees with its association.');
     }
     if (receipt.revision !== association.revision) {
