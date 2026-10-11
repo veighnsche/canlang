@@ -1,7 +1,10 @@
 /** Installed provider dispatch over the existing Work lifecycle and State join. */
-import type { ClaimId, OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent } from '@canlang/contracts';
+import type { ClaimId, OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent, FileReferenceStoragePort } from '@canlang/contracts';
 import type { DispatchClaimGuard, DispatchClaimGuardInput } from '@canlang/work/kernel/commands';
-import { createReceiptJoinPort, RECEIPT_ASSOCIATION_MODEL, readAssociationRow, withAssociationRowData } from '@canlang/state/receipt/tables';
+import { createReceiptJoinPort, RECEIPT_MODEL, RECEIPT_ASSOCIATION_MODEL, readAssociationRow, withAssociationRowData, readReceiptRow, withReceiptRowData, associationRowId } from '@canlang/state/receipt/tables';
+import { readFinalizedFileObservation } from '@canlang/files/finalize';
+import { prepareFrameworkFilePayloadOrigin, type FrameworkFilePayloadOriginInput } from '@canlang/state/storage';
+import { stableStringify } from '@canlang/state/invocation';
 import { decodeValue, equalValue, isDeliveryRef } from '@canlang/values';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
 import { enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
@@ -154,6 +157,8 @@ export interface BoundTextGenerationDispatcherOptions extends Omit<BoundMailDisp
 
 export interface BoundImagesDispatcherOptions extends Omit<BoundMailDispatcherOptions, 'adapter'> {
   readonly adapter: BoundImagesAdapter;
+  /** Original registered physical State port, even when store wraps commit. */
+  readonly fileOriginStore?: FileReferenceStoragePort;
   readonly progressed?: CheckedDeliveryProgressProducer;
 }
 
@@ -264,15 +269,104 @@ async function createInstalledDispatcher(
     ? readRetainedImageGenerationReceipt : readRetainedTextGenerationReceipt;
   const readRetainedEvidence = options.profile === 'images'
     ? readRetainedImageGenerationEvidence : readRetainedTextGenerationEvidence;
-  const stageRichProgress = (input: { intent: OutboxIntent; context: ReceiptResultContext; revision: number;
+  const progressFiles = new Map<string, { readonly json: string;
+    readonly files: FrameworkFilePayloadOriginInput['files']; readonly current: () => boolean | Promise<boolean>; consumed: boolean }>();
+  const stageRichProgress = async (input: { intent: OutboxIntent; context: ReceiptResultContext; revision: number;
     progressed?: { producer: CheckedDeliveryProgressProducer; owner: string } } & (
       { progress: RichRunWire; outcome?: never } |
       { outcome: { kind: 'failed'; error: { code: string; message: string } }; progress?: never }),
-    ctx: SystemCommandContext) => options.profile === 'images'
-      ? stageImageGenerationProgress({ ...input,
+    ctx: SystemCommandContext, files: FrameworkFilePayloadOriginInput['files'] = []): Promise<SystemStaging> => {
+    const staged = options.profile === 'images'
+      ? await stageImageGenerationProgress({ ...input,
           ...(input.progress === undefined ? {} : { progress: input.progress as ImageRunWire }) } as Parameters<typeof stageImageGenerationProgress>[0], ctx)
-      : stageTextGenerationProgress({ ...input,
+      : await stageTextGenerationProgress({ ...input,
           ...(input.progress === undefined ? {} : { progress: input.progress as TextRunWire }) } as Parameters<typeof stageTextGenerationProgress>[0], ctx);
+    if (options.profile !== 'images') return staged;
+    const row = await ctx.load(RECEIPT_MODEL as ModelName, input.intent.intentId as RecordId);
+    if (row === null) throw new Error('Images progress lost its original receipt lifetime.');
+    const prior = readReceiptRow(row, input.context), binding = prior.filePayloadOrigin;
+    const outputCount = input.progress === undefined ? 0 : (input.progress as ImageRunWire).outputs.length;
+    // File-free legacy attempts retain their existing behavior. New physical
+    // outputs never enter an unbound lifetime or borrow a fabricated header.
+    if (binding === undefined) {
+      if (outputCount !== 0 || files.length !== 0) throw new Error('Images outputs require the original bound receipt lifetime.');
+      return staged;
+    }
+    const physical = options.fileOriginStore, origin = binding.origin;
+    const expectedRevision = systemCommandStageRevision(ctx);
+    if (physical === undefined || input.revision !== expectedRevision + 1 ||
+        await physical.readRevision() !== expectedRevision ||
+        stableStringify(await physical.load(RECEIPT_MODEL as ModelName, row.id)) !== stableStringify(row) ||
+        origin.kind !== 'delivery-result' || origin.declaration.kind !== 'generation' ||
+        origin.intent.intentId !== input.intent.intentId || origin.intent.operation !== input.intent.operation ||
+        origin.intent.operationId !== input.intent.operationId || origin.intent.target !== input.intent.target ||
+        origin.intent.occurrenceIndex !== input.intent.occurrenceIndex ||
+        input.intent.arguments['binding'] !== origin.request.binding || input.intent.arguments['from'] !== origin.request.from ||
+        origin.declaration.request.source !== input.context.request?.source ||
+        origin.declaration.request.revision !== input.context.request?.revision) {
+      throw new Error('Images progress requires its same original State/request/source fence.');
+    }
+    const dispatchRow = await ctx.load(WORK_DISPATCH_MODEL, input.intent.intentId as RecordId);
+    if (dispatchRow === null) throw new Error('Images progress lost its original Work request.');
+    const dispatch = readDispatchRow(dispatchRow), correlation = readDispatchImageCorrelation(dispatch);
+    const wanted = { requestSource: origin.declaration.request.source, requestRevision: origin.declaration.request.revision,
+      requestBinding: origin.request.binding, requestFrom: origin.request.from,
+      requestApp: binding.scope.app, requestOwner: binding.scope.owner };
+    if (dispatch.intentId !== input.intent.intentId || dispatch.operationId !== input.intent.operationId ||
+        dispatch.source !== input.intent.target || dispatch.occurrenceIndex !== input.intent.occurrenceIndex ||
+        dispatchRow.createdBy !== row.createdBy || stableStringify(correlation) !== stableStringify(wanted)) {
+      throw new Error('Images progress changed its six-field original correlation.');
+    }
+    const association = await ctx.load(RECEIPT_ASSOCIATION_MODEL as ModelName,
+      associationRowId(origin.association.model, origin.association.recordId, origin.association.field) as RecordId);
+    const owner = await ctx.load(origin.association.model, origin.association.recordId);
+    if (association === null || owner === null || owner.archivedAt !== null ||
+        readAssociationRow(association).deliveryId !== input.intent.intentId) {
+      throw new Error('Images progress original association was superseded.');
+    }
+    const delivery = decodeValue(`delivery(${input.intent.target})`, owner.data[origin.association.field]);
+    if (!isDeliveryRef(delivery) || delivery.id !== input.intent.intentId || delivery.operation !== input.intent.target) {
+      throw new Error('Images progress original owner no longer names this attempt.');
+    }
+    if ((staged.writes?.length ?? 0) === 0) return staged;
+    if (files.length !== outputCount) throw new Error('Images progress needs every genuine typed File position.');
+    for (let index = 0; index < files.length; index++) {
+      const entry = files[index]!, file = readFinalizedFileObservation(entry.observation);
+      if (file === null || stableStringify(entry.path) !== stableStringify(['outputs', index, 'image']) ||
+          file.ref !== (input.progress as ImageRunWire).outputs[index]!.image.id ||
+          file.receiver.app !== binding.scope.app || file.receiver.team !== binding.scope.owner ||
+          file.receiver.owner !== binding.scope.owner || file.receiver.principal !== row.createdBy ||
+          file.provenance.kind !== 'request' || file.provenance.deliveryId !== input.intent.intentId ||
+          file.provenance.adapter !== origin.request.from) {
+        throw new Error('Images output changed its original physical receiver/provenance or typed position.');
+      }
+    }
+    const writes = [];
+    for (const write of staged.writes ?? []) {
+      if (write.kind !== 'update' || write.model !== RECEIPT_MODEL || write.id !== row.id) {
+        writes.push(write); continue;
+      }
+      const header = await prepareFrameworkFilePayloadOrigin(physical, {
+        expectedRevision, inventoryOwner: binding.inventory.owner, declarationSetId: binding.declarationSetId,
+        model: RECEIPT_MODEL as ModelName, row: write.row, field: 'result', scope: binding.scope,
+        origin, files,
+      });
+      const receipt = readReceiptRow(write.row, input.context);
+      writes.push({ ...write, row: withReceiptRowData(row, { ...receipt.receipt,
+        contentRef: receipt.contentRef, resultExpiresAtMs: receipt.resultExpiresAtMs, filePayloadOrigin: header },
+        { actor: ctx.actor, nowMs: ctx.now }, input.context) });
+    }
+    const revalidate = options.adapter.revalidateOutput;
+    enrollSystemCommandCommitCheck(ctx, async () => {
+      if (options.adapter.revalidateOutput !== revalidate || await physical.readRevision() !== expectedRevision ||
+          stableStringify(await physical.load(RECEIPT_MODEL as ModelName, row.id)) !== stableStringify(row)) return false;
+      for (const entry of files) {
+        if (revalidate === undefined || !await revalidate.call(options.adapter, entry.observation)) return false;
+      }
+      return options.adapter.revalidateOutput === revalidate && await physical.readRevision() === expectedRevision;
+    });
+    return { ...staged, writes };
+  };
   const producers = await loadDispatchSystemProducers();
   const pending = new Map<string, OutboxIntent>();
   const resultContexts = new Map<string, ReceiptResultContext>();
@@ -376,9 +470,17 @@ async function createInstalledDispatcher(
       if (held.state !== 'claimed' || held.claimId !== args['claimId']) throw new Error('Generation progress needs its current held claim.');
       const owner = progressOwners.get(`${intent.intentId}\0${held.claimId}`);
       if (owner === undefined) throw new Error('Generation progress lost its admitted owner fence.');
+      const key = `${intent.intentId}\0${held.claimId}`, original = progressFiles.get(key);
+      if (options.profile === 'images' && (original === undefined || original.consumed || original.json !== stableStringify(args['progress']))) {
+        throw new Error('Images progress requires its actual held private observation execution.');
+      }
+      if (original !== undefined) {
+        original.consumed = true;
+        enrollSystemCommandCommitCheck(ctx, original.current);
+      }
       return stageRichProgress({ intent, context: requireResultContext(intent.intentId),
         ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner } }),
-        progress: args['progress'] as RichRunWire, revision: (await options.store.readRevision()) + 1 }, ctx);
+        progress: args['progress'] as RichRunWire, revision: (await options.store.readRevision()) + 1 }, ctx, original?.files);
     },
   };
   const progressOwners = new Map<string, string>();
@@ -682,11 +784,23 @@ async function createInstalledDispatcher(
                     code: definitive.code, message: definitive.message } }
                 : { kind: 'uncertain' };
             } else {
-              const commitProgress = async (progress: RichRunWire): Promise<void> => {
-                await registry.run(progressCommand.name, { intentId: selected.intentId, claimId: held.claimId, progress },
-                  { actor: input.actor, now: input.nowMs(), operation: input.operation,
-                    operationId: `${held.claimId}:progress:${progress.sequence}` }, { store });
-                committedProgress = progress;
+              const originalFence = input.fence, revalidateAuthority = originalFence.revalidateAuthority;
+              const current = (): boolean | Promise<boolean> => input.fence === originalFence &&
+                originalFence.revalidateAuthority === revalidateAuthority ? revalidateAuthority.call(originalFence) : false;
+              const commitProgress = async (progress: RichRunWire,
+                files: FrameworkFilePayloadOriginInput['files'] = []): Promise<void> => {
+                if (progressFiles.has(heldKey)) throw new Error('Concurrent Images progress execution refused.');
+                // Keep issuer identity private; only unchanged provider wire
+                // crosses the existing Work command JSON boundary.
+                const captured = Object.freeze(files.map(entry => Object.freeze({
+                  path: Object.freeze([...entry.path]), observation: entry.observation })));
+                progressFiles.set(heldKey, { json: stableStringify(progress), files: captured, current, consumed: false });
+                try {
+                  await registry.run(progressCommand.name, { intentId: selected.intentId, claimId: held.claimId, progress },
+                    { actor: input.actor, now: input.nowMs(), operation: input.operation,
+                      operationId: `${held.claimId}:progress:${progress.sequence}` }, { store });
+                  committedProgress = progress;
+                } finally { progressFiles.delete(heldKey); }
               };
               if (options.profile === 'mail' || options.profile === 'judgment') answer = await options.adapter.callProvider(selected);
               else if (options.profile === 'text') answer = await options.adapter.callProvider(selected, { onProgress: commitProgress });
@@ -697,7 +811,11 @@ async function createInstalledDispatcher(
                 if (execution.state !== 'claimed' || execution.claimId !== held.claimId) {
                   throw new Error('Images transport needs its current held claim.');
                 }
+                const receiptRow = await store.load(RECEIPT_MODEL as ModelName, selected.intentId as RecordId);
+                const originalHeader = receiptRow === null ? undefined : readReceiptRow(receiptRow, context!).filePayloadOrigin;
                 answer = await options.adapter.callProvider(selected, { stagedAtMs: original.created,
+                  ...(originalHeader === undefined ? {} : { originalScope: { app: originalHeader.scope.app,
+                    owner: originalHeader.scope.owner, principal: receiptRow!.createdBy } }),
                   onQueued: commitProgress, onProgress: commitProgress });
               }
             }
@@ -802,7 +920,8 @@ async function createInstalledDispatcher(
       await refreshPending();
       const evidence = new Map<string, DispatchReconcileEvidence>();
       const retainedEvidence = new Set<string>();
-      const imageObservations = new Map<string, { receipt: AssociatedReceipt; progress: ImageRunWire }>();
+      const imageObservations = new Map<string, { receipt: AssociatedReceipt; progress: ImageRunWire;
+        files: FrameworkFilePayloadOriginInput['files'] }>();
       const controlObservations = new Map<string, GenerationControlObservation>();
       const observedControlOriginals = new Set<string>();
       const retainedContext = { actor: input.actor, now: input.nowMs(), operation: input.operation,
@@ -878,13 +997,23 @@ async function createInstalledDispatcher(
               const sequence = receipt.result === null ? undefined
                 : (receipt.result as unknown as ImageRunWire).sequence;
               let observed: ImageRunWire | undefined;
+              let observedFiles: FrameworkFilePayloadOriginInput['files'] = [];
+              const receiptRow = await store.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
+              const header = receiptRow === null ? undefined : readReceiptRow(receiptRow,
+                requireResultContext(intent.intentId)).filePayloadOrigin;
               answer = await options.adapter.reconcile(intent, {
+                ...(header === undefined ? {} : { originalScope: { app: header.scope.app,
+                  owner: header.scope.owner, principal: receiptRow!.createdBy } }),
                 stagedAtMs: row.created, ...(sequence === undefined ? {} : { sequence }),
                 onQueued: async () => { throw new Error('Images recovery cannot submit a new job.'); },
                 // Reconciliation only observes the original installed job. Its
                 // confirmed terminal evidence is staged in the existing recovery
                 // batch below; nonterminal observations never authorize ack.
-                onProgress: async progress => { observed = progress; },
+                onProgress: async (progress, files = []) => {
+                  observed = progress;
+                  observedFiles = Object.freeze(files.map(entry => Object.freeze({
+                    path: Object.freeze([...entry.path]), observation: entry.observation })));
+                },
               });
               if (answer?.kind === 'delivered') {
                 const checkedContext = requireResultContext(intent.intentId);
@@ -892,7 +1021,7 @@ async function createInstalledDispatcher(
                     !sameRetainedEvidence(answer, { kind: 'delivered', result: observed }, checkedContext, 'images')) {
                   throw new Error('Images recovery needs its actual confirmed terminal observation.');
                 }
-                imageObservations.set(intent.intentId, { receipt, progress: observed });
+                imageObservations.set(intent.intentId, { receipt, progress: observed, files: observedFiles });
               }
             }
           }
@@ -960,6 +1089,11 @@ async function createInstalledDispatcher(
             if (progressed !== undefined && admitted === undefined) {
               throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
             }
+            if (options.profile === 'images' && imageObservations.has(intentId)) {
+              const admission = input.admission;
+              if (admission === undefined) throw new Error('Images receiving recovery requires its actual current authority fence.');
+              enrollSystemCommandCommitCheck(context, () => admission.fence.revalidateAuthority());
+            }
             return (!rich
               ? await stageReceiptProgress({ intent, outcome, revision,
                 ...(options.profile === 'judgment' ? { context: requireResultContext(intent.intentId) } : {}) }, context)
@@ -967,7 +1101,8 @@ async function createInstalledDispatcher(
                 ...(progressed === undefined || admitted === undefined ? {} : {
                   progressed: { producer: progressed, owner: admitted.owner },
                 }),
-                ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context));
+                ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context,
+                imageObservations.get(intentId)?.files));
           } });
         await refreshPending();
         return outcome;

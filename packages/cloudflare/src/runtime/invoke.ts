@@ -2931,6 +2931,7 @@ interface NativeSourceSendGuard {
   readonly definition: unknown;
   readonly evaluate: (c: HandlerContext, inputs: Readonly<Record<string, unknown>>) => Promise<boolean>;
 }
+const nativeSourceSendOwners = new WeakMap<GeneratedOperationDef, { readonly ownerPackage: string }>();
 const nativeSourceSendGuards = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, NativeSourceSendGuard>>();
 // The State evaluator supplies this exact lexical object. A copied envelope,
 // matching operation id or caller-provided context cannot select a native call.
@@ -3227,7 +3228,10 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     const originalOperation = own(own(definition, 'operations'), def.name);
     const rawGuards = own(originalOperation, 'sendGuards');
     const entries = rawGuards === undefined ? [] : nativeCallArray(rawGuards, 200);
-    if (entries.length === 0) {
+    const generationResults = artifact.models?.some(model => model.fields.some(field =>
+      field.field.kind === 'delivery' && tables.dispatchGenerationTargetProfile(
+        `${field.field.capability}.${field.field.operation}`)?.role === 'original')) === true;
+    if (entries.length === 0 && !generationResults) {
       bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
         stage: work.stageCanonicalSend, read: work.readCanonicalSendStaging }));
       continue;
@@ -3236,7 +3240,21 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     const owners = Object.keys(isUnknownRecord(packages) ? packages : {}).filter(name => def.name.startsWith(`${name}.`))
       .sort((left, right) => right.length - left.length);
     const ownerPackage = owners[0];
-    if (ownerPackage === undefined) throw new AssemblyCorrespondenceError('SEND guard lacks its original lexical package.');
+    if (ownerPackage === undefined) throw new AssemblyCorrespondenceError('SEND lacks its original callable package.');
+    nativeSourceSendOwners.set(def, Object.freeze({ ownerPackage }));
+    if (entries.length === 0) {
+      bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
+        stage: work.stageCanonicalSend, read: work.readCanonicalSendStaging,
+        prepareReceiptOrigin: (frame: ScenarioReceiptDeliveryOriginFrame) => {
+          const active = nativeScenarioExecutions.get(frame.call);
+          if (active === undefined || active.loaded !== loaded || active.asm !== asm ||
+              active.artifact !== artifact || frame.call.def !== def) {
+            throw new AssemblyCorrespondenceError('Receipt requires its actual original live State call.');
+          }
+          return active.prepareReceiptOrigin(frame);
+        } }));
+      continue;
+    }
     const originalRegistry = await importPolicyRegistry(asm, callable.module, def.name, artifact);
     const functions = own(originalRegistry, 'sendWhen');
     const selected = new Map<string, NativeSourceSendGuard>();
@@ -3356,7 +3374,11 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   };
   add(def.descriptor.result?.type, true);
   for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
-    for (const dependency of returned.dependencies) add(dependency.type);
+    for (const dependency of returned.dependencies) {
+      add(dependency.type);
+      // Reserved row metadata still consumes its original owning read policy.
+      if (dependency.field === 'id' && dependency.type === 'text') add(dependency.model, true);
+    }
   }
   for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
     for (const input of guard.guard.inputs) add(input.type);
@@ -6497,7 +6519,7 @@ async function runScenarioExecution(
         return refuseRecordBinding('SEND callback requires its original live State call/checkpoint.');
       }
     };
-    const sourceOpaque = async (selected: NativeSourceSendGuard) => {
+    const sourceOpaque = async (selected: { readonly ownerPackage: string }) => {
       currentSend();
       const opaque = await nativeOpaqueFileStaging(loaded, opts, {
         app: call.context.app, owner: call.checkpoint!.owner, ownerPackage: selected.ownerPackage,
@@ -6581,8 +6603,8 @@ async function runScenarioExecution(
         currentSend();
         if (frame.call !== actualCall) return refuseRecordBinding('Receipt File origin requires its actual source State call.');
         const entries = nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef);
-        const selected = entries?.values().next().value as NativeSourceSendGuard | undefined;
-        if (selected === undefined) return refuseRecordBinding('Guarded receipt lacks its original lexical package.');
+        const selected = nativeSourceSendOwners.get(actualCall.def as GeneratedOperationDef);
+        if (selected === undefined) return refuseRecordBinding('Receipt lacks its original callable package.');
         const opaque = await sourceOpaque(selected), caller = opaque.callable(actualCall.def.name);
         const result = opaque.delivery(frame.model.name, frame.field, frame.send);
         const send = frame.send;
@@ -6602,7 +6624,14 @@ async function runScenarioExecution(
             request: requestOrigin, caller, association, guard: opaque.sendGuard(send.guard!, entries!.get(send.guard!.rule)!.inputDeclaration).declaration,
             declaration, resultDeclarationId };
         const tables = await import('@canlang/state/receipt/tables');
-        if (send.target !== 'std.EmailV1.send') return refuseRecordBinding('This receipt origin consumer requires its released original Email context.');
+        const generation = (await import('@canlang/work/kernel/tables')).dispatchGenerationTargetProfile(send.target);
+        currentSend();
+        if (send.target !== 'std.EmailV1.send' && generation?.role !== 'original') {
+          return refuseRecordBinding('Receipt origin requires its original Email or original Generation result context.');
+        }
+        if (generation?.role === 'original' && declaration.kind !== 'generation') {
+          return refuseRecordBinding('Generation receipt requires the original installed runtime request instance.');
+        }
         const prepared = await opaque.prepareControl({ expectedRevision: frame.revision as Revision,
           model: tables.RECEIPT_MODEL as ModelName, row: frame.row, field: 'result',
           scope: { app: actualCall.context.app, owner: actualCall.checkpoint!.owner, ownerPackage: selected.ownerPackage }, origin });
