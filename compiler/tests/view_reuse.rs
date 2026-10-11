@@ -1492,8 +1492,31 @@ Then
                 .find(|(key, _)| key == "filter")
                 .unwrap()
                 .1;
-            assert!(
-                matches!(&filter.expr, IrExpr::Array(fields) if fields.len() == 1 && matches!(&fields[0].expr, IrExpr::Text(name) if name == "state"))
+            let IrExpr::Array(fields) = &filter.expr else {
+                panic!("{name}: checked filter metadata");
+            };
+            assert_eq!(fields.len(), 1);
+            let IrExpr::Object(meta) = &fields[0].expr else {
+                panic!("{name}: own enum column");
+            };
+            assert!(meta.iter().any(|(key, value)| key == "field"
+                && matches!(&value.expr,IrExpr::Text(value) if value == "state")));
+            assert!(meta.iter().any(|(key,value)| key == "type" && matches!(&value.expr,IrExpr::Text(value) if value == "enum:AgendaEndpoints.Visit.state")));
+            let IrExpr::Object(labels) = &meta
+                .iter()
+                .find(|(key, _)| key == "valueLabels")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("{name}: exact enum cases");
+            };
+            assert_eq!(
+                labels
+                    .iter()
+                    .map(|(key, _)| key.as_str())
+                    .collect::<Vec<_>>(),
+                ["open", "closed"]
             );
         } else {
             assert!(
@@ -1508,8 +1531,9 @@ Then
                 "{name}: {diagnostics:?}"
             );
         }
-        // The exact source still goes through the CLI shipping gate. Even
-        // ready raw endpoints do not release the pending agenda carrier.
+        // The exact source crosses the shipping gate. Supported endpoints
+        // publish their complete source-owned agenda carrier; refusals cannot
+        // publish a partial body.
         std::fs::write(&input, &source).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_can"))
             .args(["compile", "--format=json", "--catalog"])
@@ -1520,14 +1544,14 @@ Then
             .unwrap();
         assert_eq!(
             output.status.code(),
-            Some(10),
+            Some(if supported { 0 } else { 10 }),
             "{name}: {}",
             String::from_utf8_lossy(&output.stdout)
         );
         let refused: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert!(
-            refused.get("modules").is_none(),
-            "{name}: no executable artifact before the owning carrier joins"
+            refused.get("modules").is_some() == supported,
+            "{name}: only complete supported carriers publish"
         );
     }
 }
