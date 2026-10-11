@@ -927,6 +927,222 @@ await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
     }
 
     #[test]
+    fn guarded_email_native_receipt_requires_the_original_whole_ir_preparation() {
+        use super::super::ir::{IrDefault, IrType};
+        use super::super::js::{EmitDecisionSources, emit_program_with_query_sources};
+
+        let source = include_str!("../../tests/fixtures/native-guarded-email.can");
+        let mut db = SourceDb::new();
+        let file = db.add("native-guarded-email.can".into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let guards = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+        let membership = super::super::membership::prepare(&program, &ir, &db, Some(&catalog));
+        let emit = |changed: &IrProgram| {
+            emit_program_with_query_sources(
+                changed,
+                true,
+                &db,
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                EmitDecisionSources {
+                    membership: membership.as_ref(),
+                    send_guards: Some(&guards),
+                    send_guard_gap: None,
+                    read_predicates: None,
+                },
+            )
+        };
+        let delivered = emit(&ir);
+        assert!(
+            delivered.diagnostics.is_empty(),
+            "{:?}",
+            delivered.diagnostics
+        );
+        let descriptor = delivered
+            .operations
+            .iter()
+            .find(|operation| operation.name == "NativeGuardedEmail.deliver")
+            .unwrap();
+        assert_eq!(descriptor.result.as_deref(), Some("int"));
+        assert_eq!(descriptor.disclosure.as_ref().unwrap()["version"], 1);
+        let plain = delivered
+            .operations
+            .iter()
+            .find(|operation| operation.name == "NativeGuardedEmail.plain")
+            .unwrap()
+            .to_json();
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "NativeGuardedEmail.deliver")
+            .unwrap()
+            .id;
+        let original_span = ir.items[owner.0 as usize].span;
+
+        for mutation in 0..10 {
+            let mut changed = ir.clone();
+            if mutation == 9 {
+                changed.items[owner.0 as usize].id =
+                    crate::analysis::SymbolId(changed.items.len() as u32);
+            } else if mutation == 2 || mutation == 3 {
+                let parameter = changed
+                    .items
+                    .iter_mut()
+                    .find(|item| item.canonical == "NativeGuardedEmail.deliver.enabled")
+                    .unwrap();
+                let parameter_span = parameter.span;
+                let IrItemKind::Param {
+                    ty,
+                    default,
+                    default_node,
+                    ..
+                } = &mut parameter.kind
+                else {
+                    panic!("original lexical parameter");
+                };
+                if mutation == 2 {
+                    *ty = IrType::Known(ResolvedType::Scalar(Scalar::Int));
+                } else {
+                    *default = Some(IrDefault::Literal(TypedExpr {
+                        expr: IrExpr::Bool(true),
+                        ty: ResolvedType::Scalar(Scalar::Bool),
+                        span: parameter_span,
+                    }));
+                    *default_node = Some(NodeKey {
+                        file: parameter_span.file,
+                        start: parameter_span.start,
+                        end: parameter_span.end,
+                        kind: SyntaxKind::Literal as u8,
+                    });
+                }
+            } else {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!("original owner scenario");
+                };
+                if mutation == 7 {
+                    let IrStmt::Set { changes, .. } = &mut effects[1] else {
+                        panic!("original Set");
+                    };
+                    let IrExpr::Object(fields) = &mut changes.expr else {
+                        panic!("original Set fields");
+                    };
+                    fields
+                        .iter_mut()
+                        .find(|(name, _)| name == "count")
+                        .unwrap()
+                        .1
+                        .expr = IrExpr::Int(42);
+                } else if mutation == 8 {
+                    let IrStmt::Require { cond, .. } = &mut effects[2] else {
+                        panic!("original late Require");
+                    };
+                    cond.expr = IrExpr::Bool(true);
+                } else {
+                    let IrStmt::Send {
+                        when,
+                        operation,
+                        deployment_binding,
+                        binding,
+                        ..
+                    } = &mut effects[0]
+                    else {
+                        panic!("original guarded SEND");
+                    };
+                    match mutation {
+                        0 => when.as_mut().unwrap().expr = IrExpr::Bool(false),
+                        1 => *when = None,
+                        4 => *operation = "std.EmailV1.edited".into(),
+                        5 => *deployment_binding = Some("NativeGuardedEmail.other".into()),
+                        6 => *binding = Some("copied_attempt".into()),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            assert!(
+                guards.guards(&changed).is_none(),
+                "stale guard registry {mutation}"
+            );
+            assert!(
+                guards.by_owner(&changed).is_none(),
+                "stale source descriptor {mutation}"
+            );
+            assert!(
+                prepare(&program, &changed, &db, Some(&catalog)).is_err(),
+                "fresh mutant {mutation}"
+            );
+            let refused = emit(&changed);
+            assert!(
+                refused
+                    .operations
+                    .iter()
+                    .find(|operation| operation.name == "NativeGuardedEmail.deliver")
+                    .unwrap()
+                    .disclosure
+                    .is_none(),
+                "mutated guarded native receipt {mutation}"
+            );
+            assert!(
+                refused.diagnostics.iter().any(|diagnostic| {
+                    diagnostic.code == "E6008"
+                        && diagnostic.primary == original_span
+                        && diagnostic.message.contains("send dispatch guard")
+                }),
+                "original guarded source refusal {mutation}: {:?}",
+                refused.diagnostics
+            );
+            assert_eq!(
+                refused
+                    .operations
+                    .iter()
+                    .find(|operation| operation.name == "NativeGuardedEmail.plain")
+                    .unwrap()
+                    .to_json(),
+                plain,
+                "unrelated plain SEND {mutation}"
+            );
+        }
+        let raw = super::super::js::emit_program_with_native_source_receipts(&ir, true, &db);
+        assert!(
+            raw.operations
+                .iter()
+                .find(|operation| operation.name == "NativeGuardedEmail.deliver")
+                .unwrap()
+                .disclosure
+                .is_none()
+        );
+        assert!(raw.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "E6008"
+                && diagnostic.primary == original_span
+                && diagnostic.message.contains("send dispatch guard")
+        }));
+        assert_eq!(
+            raw.operations
+                .iter()
+                .find(|operation| operation.name == "NativeGuardedEmail.plain")
+                .unwrap()
+                .to_json(),
+            plain
+        );
+    }
+
+    #[test]
     fn source_ir_type_target_binding_payload_order_and_post_preparation_edits_refuse() {
         let (db, program, ir, catalog) = fixture();
         let prepared = prepare(&program, &ir, &db, Some(&catalog)).unwrap();

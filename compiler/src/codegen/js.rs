@@ -1658,8 +1658,18 @@ fn emit_program_with_sources(
                 &module_path(&entry_name),
                 db,
                 emitter.value_types.as_ref(),
+                emitter.send_guards,
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
+            } else if super::scenario_receipts::has_original_guarded_send(
+                ir,
+                SymbolId(index as u32),
+            ) {
+                emitter.diags.push(Diagnostic::error(
+                    "E6008",
+                    "send dispatch guard needs exact original native receipt and sealed Rule correspondence".into(),
+                    item.span,
+                ));
             } else if super::scenario_receipts::has_original_created_model_result(
                 ir,
                 SymbolId(index as u32),

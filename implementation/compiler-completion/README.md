@@ -4528,3 +4528,41 @@ Images request/File and stored attachment CALL producers.
 
 
 Coordinator defining reviews CLEAR for bf2 analysis and corrected7de codegen; original independent0cb checkpoint review CLEAR at unfinished source scope. Owning created7/.73s, explicit scalar3, inventory2, unchanged169/121/32/native checks and changed strict0 10.66s/fmt/diff0 are reused. Local integration is coherent and scoped, richer native/child File/current query/SEND/application acceptance and all holds remain. Complete checkpoint unchanged.
+
+**Local continuation — original guarded SEND disclosure, 2026-10-11
+(implemented/tested producer; original/native workflows unfinished).**
+The byte-exact original1ead guarded Email now emits scalar native disclosure,
+original SendDispatch Rule and complete lexical inputDeclaration. Retain the
+authored predicate in SEND proof without treating false as a parent branch: SEND
+then Set, late Require and Return remain ordered. Native receipt accepts only
+existing whole-IR sealed preparation; ten guard/header/target/binding/Set/Require/
+owner-ID mutations lose disclosure and preserve original-source E6008. Raw
+unprepared guarded emission refuses, while plain SEND output is unchanged.
+Mirror the existing T14/B9 source rule: omitted standard arrays normalize in the
+owning supplier, without synthesized source inputs or relaxed required scalars.
+
+Owning integration3 pass (source/refusals2 plus failed-only actual CLI/verified
+assembly/Rule/inputDeclaration/installed State case1/.74s with Node24.19). The
+installed witness consumes exact released native catalog/stdlib and existing
+worker State; no fabricated context or native dispatch. Private preparation and
+false-dispatch controls2 pass; unchanged guarded-loop1 is reused from the same
+focused run. Native receipt5/1.71s pass. Affected disclosure31 pass initially;
+the stored Input failure exposed missing named Contract type correspondence in
+the unfinished rich census. Exact defining Contract identity restores the
+original Step.input→Input→Fact[] inventory: failed-only positive1/.09s and
+related refusal1/.09s pass, completing32. Mechanical lint repair only; final
+strictalltargets0 10.48s/fmt0/diff0.
+
+Current actual locked CLI a850 remains incomplete as a workflow: exit10,
+complete=true/omitted0/modules0, ten diagnostics. Two new explicit guarded
+receipt refusals retain the same two original SEND prerequisites; two existing
+SEND-decision diagnostics, rich CALL2 and held C14 equality/poisoned4 remain.
+Original Model-result/Create-before-SEND correspondence and genuine Work/State
+dispatch/replay/late rollback remain owning Compiler/Dev work. Dev conditional
+carrier main3fc and State File[] CALL main42 are released; consume exact required
+joins while continuing Images nominal and original attachment CALL producers.
+Original Images source=job.id needs defining current-admitted reference identity
+observation; no version reinterpretation or source rewrite.58/67/nine and precise
+C14/C23 holds remain unchanged.
+
+Coordinator defining disclosure/type-source and private whole-IR seal/emission reviews CLEAR. Reuse owning integration3, private2/loop1, native5/disclosure32 and strict/fmt outcomes at their recorded scopes. Guarded source producer is reviewed in LOCAL main; real original conditional SEND dispatch/false-skip/late rollback/recovery remains Dev-owned native work. No source witness grants native/full-plan acceptance or releases held criteria.

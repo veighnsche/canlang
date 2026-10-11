@@ -11056,3 +11056,20 @@ qualification remain. All precise native preparation/publication and other
 human holds persist; this checkpoint does not establish full workflow acceptance.
 
 Coordinator defining authentic issuance/observation and retained/current-authority replay/commit reviews CLEAR. Primary normal emission caught the final8fca unescaped diagnostic apostrophe. Exact aa299 quote-only correction then fresh primary affected row-ID11/11 PASS241.988291ms, zero failure/cancel/skip, and normal State/DO/CF/root0 qualify final source. Reuse unchanged related57 outcomes only. This finite original row-ID source component is closed in LOCAL main after deadline. Compiler exact occurrence emitter and Dev genuine native row/reference/receiving adoption retain their separate unfinished criteria; no Contracts carrier, new intrinsic, version reinterpretation or native/full-plan/hold release. Coverage reconciled incrementally; complete checkpoint unchanged.
+
+2026-10-11 — preserve original guarded SEND as durable dispatch
+(implemented/tested producer; native/application workflows unfinished).
+Retain the exact original Boolean SendDispatch occurrence and the existing
+sealed prepared Rule/lexical input declaration. A false guard produces the
+owning skipped attempt and continues the parent; no early predicate evaluation
+or branch pruning. Require original owner/source/target/deployment/binding and
+whole-IR preparation before native disclosure; erasing the guard or changing
+the owner ID still retains E6008 from original inventory. Standard array omission
+uses the already accepted T14/B9 source rule, with normalization left to its
+owning supplier. Named Contract source fields retain exact resolved record
+identity just as the defining typer does, restoring the original stored Input
+census without shape inference. Owning source/CLI/installed metadata and
+refusal controls, native5/disclosure32 and strict0 pass; original richer
+SEND/CALL, current authority/replay/rollback and held policies remain separate.
+
+Coordinator independent guarded-SEND defining analysis/source-type and private whole-IR seal/emission reviews CLEAR. Reuse scoped owning results; coherent original producer now joins reviewed Dev main3fc runtime source without implying native execution. Main locked CLI build validates source integration. Required native false guard, ordered parent effects, late rollback and recovery remain Dev-owned; no full-plan or precise hold release. Retained incremental filetree coverage reconciled, complete checkpoint unchanged.

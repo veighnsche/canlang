@@ -17,6 +17,7 @@ use super::ir::{
     IrItemKind, IrOwner, IrProgram, IrStmt, IrType, TypedExpr,
 };
 use super::js::{JsFieldDefault, JsModel, JsModelField, JsModelFieldType, JsValueTypes};
+use super::send_guards::PreparedSendGuard;
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptSource {
@@ -220,6 +221,30 @@ pub(super) fn has_original_created_model_result(
         })
 }
 
+/// Retain the original dispatch requirement even if editable executable SEND
+/// IR no longer contains its predicate. A missing sealed Rule is not a plain SEND.
+pub(super) fn has_original_guarded_send(
+    ir: &IrProgram,
+    scenario: crate::analysis::SymbolId,
+) -> bool {
+    ir.scenario_disclosures
+        .get(&scenario)
+        .is_some_and(|disclosure| {
+            matches!(disclosure, ScenarioDisclosure::Complete(checked)
+                if checked.effects.iter().any(|effect| matches!(effect.kind,
+                    DisclosureEffectKind::Send { when: Some(_), .. })))
+                || disclosure.source_facts().is_some_and(|facts| {
+                    facts.decision_sites.as_ref().is_some_and(|sites| {
+                        sites.iter().any(|site| {
+                            site.owner == scenario
+                                && site.stage
+                                    == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+                        })
+                    })
+                })
+        })
+}
+
 pub(super) fn checked_created_model_result(
     ir: &IrProgram,
     item: &IrItem,
@@ -366,6 +391,7 @@ pub(super) fn collect_native_scenario_receipt(
     entry_module: &str,
     db: Option<&SourceDb>,
     value_types: Option<&JsValueTypes>,
+    send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
 ) -> Option<NativeScenarioReceipt> {
     let IrItemKind::Scenario {
         trusted: false,
@@ -409,7 +435,7 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     }
     let source = transport_source(&checked.source, entry_module)?;
-    if created_model.is_some() {
+    if created_model.is_some() || has_original_guarded_send(ir, item.id) {
         let db = db?;
         super::scenario_calls::checked_source(ir, item, db)?;
         if item.canonical != format!("{}.{}", module.name, item.name)
@@ -422,8 +448,8 @@ pub(super) fn collect_native_scenario_receipt(
             return None;
         }
     }
-    let sites = Sites::collect(ir, item, params, by, guards, effects)?;
-    match_effect_proofs(ir, item, models, checked, &sites, db)?;
+    let sites = Sites::collect(ir, item, params, by, guards, effects, send_guards)?;
+    match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -1730,6 +1756,7 @@ fn match_effect_proofs(
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     sites: &Sites<'_>,
     db: Option<&SourceDb>,
+    send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
 ) -> Option<()> {
     if checked.effects.len() > 200 || checked.effects.len() != sites.effects.len() {
         return None;
@@ -2234,28 +2261,112 @@ fn match_effect_proofs(
                     return None;
                 }
             }
-            (
-                DisclosureEffectKind::Send {
-                    operation,
-                    deployment_binding,
-                },
-                IrStmt::Send {
-                    operation: actual,
-                    deployment_binding: binding,
-                    when: None,
-                    ..
-                },
-            ) => {
-                if proof.node.kind != SyntaxKind::Send as u8
-                    || operation != actual
-                    || deployment_binding != binding
-                    || binding.as_ref().is_none_or(|b| b.is_empty())
-                {
-                    return None;
-                }
+            (DisclosureEffectKind::Send { .. }, statement @ IrStmt::Send { .. }) => {
+                checked_send_guard(ir, owner, proof, statement, send_guards)?;
             }
             _ => return None,
         }
+    }
+    Some(())
+}
+
+fn checked_send_guard(
+    ir: &IrProgram,
+    owner: &IrItem,
+    proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
+    statement: &IrStmt,
+    send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
+) -> Option<()> {
+    let DisclosureEffectKind::Send {
+        operation,
+        deployment_binding,
+        when: original_when,
+    } = &proof.kind
+    else {
+        return None;
+    };
+    let IrStmt::Send {
+        operation: actual,
+        deployment_binding: binding,
+        when,
+        binding: source_binding,
+        span,
+        ..
+    } = statement
+    else {
+        return None;
+    };
+    if proof.node.kind != SyntaxKind::Send as u8
+        || node_span(proof.node) != *span
+        || operation != actual
+        || deployment_binding != binding
+        || binding.as_ref().is_none_or(|b| b.is_empty())
+    {
+        return None;
+    }
+    let (node, predicate) = match (original_when, when) {
+        (None, None) => return Some(()),
+        (Some(node), Some(predicate)) => (node, predicate),
+        _ => return None,
+    };
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let facts = checked.source_facts.as_deref()?;
+    let module = owning_module(ir, *span)?;
+    if checked.scenario != owner.id
+        || facts.scenario != owner.id
+        || facts.node != checked.node
+        || facts.source != checked.source
+        || proof.source != checked.source
+        || module.id != owner.module
+        || owner.canonical != format!("{}.{}", module.name, owner.name)
+        || !source_matches(ir, &proof.source, *span)
+        || node.file != proof.node.file
+        || node.start < proof.node.start
+        || node.end > proof.node.end
+        || predicate.span.file != node.file
+        || predicate.span.start < node.start
+        || predicate.span.end > node.end
+        || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+    {
+        return None;
+    }
+    let mut original_sites = facts.decision_sites.as_ref()?.iter().filter(|site| {
+        site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+            && site.statement == proof.node
+    });
+    let original = original_sites.next()?;
+    if original_sites.next().is_some()
+        || original.owner != owner.id
+        || original.source != proof.source
+        || original.node != *node
+    {
+        return None;
+    }
+    let guard = send_guards?.get(span)?;
+    let expected_rule = format!(
+        "{}.sendWhen.{}.{}.{}",
+        owner.canonical, proof.source.sha256, node.start, node.end
+    );
+    let descriptor = &guard.descriptor;
+    if guard.rule != expected_rule
+        || format!("{:?}", guard.predicate) != format!("{predicate:?}")
+        || descriptor["rule"] != expected_rule
+        || descriptor["owner"] != owner.canonical
+        || descriptor["source"]
+            != serde_json::json!({
+                "path": proof.source.path,
+                "sha256": proof.source.sha256,
+                "module": proof.source.module,
+            })
+        || descriptor["node"] != serde_json::json!({"start": node.start, "end": node.end})
+        || descriptor["statement"] != serde_json::json!({"start": span.start, "end": span.end})
+        || descriptor["target"] != *operation
+        || descriptor["binding"] != serde_json::json!(binding)
+        || descriptor["sourceBinding"] != serde_json::json!(source_binding)
+    {
+        return None;
     }
     Some(())
 }
@@ -3075,6 +3186,7 @@ impl<'a> Sites<'a> {
         by: &'a [IrGuard],
         guards: &'a [IrStmt],
         effects: &'a [IrStmt],
+        send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
     ) -> Option<Self> {
         let mut out = Self::default();
         let mut pending = Vec::new();
@@ -3235,14 +3347,29 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(changes));
                     }
                     IrStmt::Send {
-                        args,
-                        when: None,
-                        span,
-                        ..
+                        args, when, span, ..
                     } => {
+                        if when.is_some() {
+                            let ScenarioDisclosure::Complete(checked) =
+                                ir.scenario_disclosures.get(&owner.id)?
+                            else {
+                                return None;
+                            };
+                            let mut proofs = checked
+                                .effects
+                                .iter()
+                                .filter(|proof| node_span(proof.node) == *span);
+                            let proof = proofs.next()?;
+                            if proofs.next().is_some() {
+                                return None;
+                            }
+                            checked_send_guard(ir, owner, proof, statement, send_guards)?;
+                        }
                         if out.effects.insert(context.site(*span), statement).is_some() {
                             return None;
                         }
+                        // Only request expressions belong to the parent capture.
+                        // The sealed Rule evaluates its predicate at dispatch.
                         push!(Visit::Expression(args));
                     }
                     IrStmt::Transition { record, span, .. } => {
