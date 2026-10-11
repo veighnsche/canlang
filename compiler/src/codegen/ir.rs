@@ -649,6 +649,31 @@ pub fn build(
     if let Err(diagnostic) = program.validate_cohort(db, catalog) {
         return (empty_program(&program.catalog_version), vec![diagnostic]);
     }
+    if !program.standard_completion_handlers.is_empty() {
+        let mut candidate = Cx::new(program, db, catalog);
+        candidate.native_standard_completion = true;
+        let has_hooks = program.effects.scenarios.values().any(|scenario| {
+            matches!(
+                scenario.on,
+                Some(crate::analysis::effects::HandlerSource::Hook { .. })
+            )
+        });
+        candidate.native_hook_context = has_hooks;
+        let (ir, diagnostics) = candidate.build_program();
+        let entry = super::js::pick_entrypoint(&ir)
+            .map(|id| ir.module(id).name.as_str())
+            .unwrap_or("index");
+        let hooks_supported = !has_hooks
+            || super::model_policies::collect_local_policies(&ir, &super::js::module_path(entry))
+                .is_some_and(|policies| !policies.hook_bindings.is_empty());
+        if hooks_supported
+            && ir
+                .standard_completion_sources
+                .valid_public_standard_completions(&ir, db)
+        {
+            return (ir, diagnostics);
+        }
+    }
     if program.effects.scenarios.values().any(|scenario| {
         matches!(
             &scenario.on,
@@ -858,6 +883,7 @@ struct Cx<'a> {
     /// Private candidate permission; build returns this decoding only after the
     /// complete existing owner-policy plan qualifies native callback binding.
     native_hook_context: bool,
+    native_standard_completion: bool,
     diags: Vec<Diagnostic>,
 }
 
@@ -898,6 +924,7 @@ impl<'a> Cx<'a> {
             preference_validators: HashMap::new(),
             page_preference_fields: Vec::new(),
             native_hook_context: false,
+            native_standard_completion: false,
             diags: Vec::new(),
         }
     }
@@ -2098,6 +2125,471 @@ impl CheckedCommittedSources {
 pub struct CheckedStandardCompletionSources {
     pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
     pub(crate) handlers: Vec<CheckedStandardCompletionHandler>,
+    public_admission: Option<PublicStandardCompletionAdmission>,
+}
+
+#[derive(Debug, Clone)]
+struct PublicStandardCompletionAdmission {
+    catalog_version: String,
+    declarations: StandardValueCensus,
+    handlers: Vec<PublicCompletionBody>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct PublicCompletionBody {
+    id: SymbolId,
+    module: ModuleId,
+    canonical: String,
+    span: Span,
+    source: IrEventSource,
+    cohort: Option<IrCohort>,
+    payload: ResolvedType,
+    read: bool,
+    expose_excluded: bool,
+    guards: Vec<PublicCompletionStatement>,
+    effects: Vec<PublicCompletionStatement>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct PublicCompletionExpression {
+    ty: ResolvedType,
+    span: Span,
+    value: PublicCompletionValue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum PublicCompletionValue {
+    Int(i128),
+    Text(String),
+    Bool(bool),
+    Null,
+    Name(String),
+    Member(Box<PublicCompletionExpression>, String),
+    Binary(
+        IrBinOp,
+        Box<PublicCompletionExpression>,
+        Box<PublicCompletionExpression>,
+    ),
+    Unary(IrUnOp, Box<PublicCompletionExpression>),
+    Object(Vec<(String, PublicCompletionExpression)>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum PublicCompletionStatement {
+    Let(String, PublicCompletionExpression, Span),
+    Require(PublicCompletionExpression, Span),
+    Create(String, PublicCompletionExpression, Option<String>, Span),
+    Set(PublicCompletionExpression, PublicCompletionExpression, Span),
+}
+
+struct PublicCompletionProfile<'a> {
+    ir: &'a IrProgram,
+    module: ModuleId,
+    payload: &'a ResolvedType,
+    cohort: Option<&'a IrCohort>,
+    locals: HashMap<String, ResolvedType>,
+}
+
+impl PublicCompletionProfile<'_> {
+    fn scalar(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool) => true,
+            ResolvedType::Nullable(inner) => self.scalar(inner),
+            ResolvedType::Enum { owner: Some(owner), cases } => !cases.is_empty() && self.ir.items.get(owner.0 as usize).is_some_and(|field| field.id == *owner && field.module == self.module && matches!(&field.kind, IrItemKind::Field { ty: IrType::Known(own), .. } if own == ty)),
+            _ => false,
+        }
+    }
+
+    fn model(&self, canonical: &str) -> Option<&IrItem> {
+        let model = self
+            .ir
+            .items
+            .iter()
+            .find(|item| item.canonical == canonical && item.module == self.module)?;
+        let IrItemKind::Model { fields, .. } = &model.kind else {
+            return None;
+        };
+        if !fields.iter().all(|id| self.ir.items.get(id.0 as usize).is_some_and(|field| matches!(&field.kind,
+            IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if field.id == *id && *owner == model.id && self.scalar(ty)))) { return None; }
+        Some(model)
+    }
+
+    fn envelope_type<'a>(&'a self, expr: &TypedExpr) -> Option<&'a ResolvedType> {
+        match &expr.expr {
+            IrExpr::Name(name) if name == "event" && !self.locals.contains_key(name) => {
+                Some(self.payload)
+            }
+            IrExpr::Member { base, field } => {
+                let ty = self.envelope_type(base)?;
+                let ty = ty.nullable_inner().unwrap_or(ty);
+                let ResolvedType::Object(fields) = ty else {
+                    return None;
+                };
+                fields
+                    .iter()
+                    .find(|(name, _)| name == field)
+                    .map(|(_, ty)| ty)
+            }
+            _ => None,
+        }
+    }
+
+    fn expression(&mut self, expr: &TypedExpr) -> Option<PublicCompletionExpression> {
+        self.expression_node(expr, false)
+    }
+
+    fn expression_node(
+        &mut self,
+        expr: &TypedExpr,
+        envelope_shell: bool,
+    ) -> Option<PublicCompletionExpression> {
+        if let Some(expected) = self.envelope_type(expr) {
+            // Anchored member lowering retains untyped intermediate objects;
+            // only a checked leaf's exact owning envelope path can use them.
+            let shell = envelope_shell
+                && expr.ty == ResolvedType::Unknown
+                && matches!(
+                    expected.nullable_inner().unwrap_or(expected),
+                    ResolvedType::Object(_)
+                );
+            if !shell && &expr.ty != expected && expected.nullable_inner() != Some(&expr.ty) {
+                return None;
+            }
+        }
+        let value = match &expr.expr {
+            IrExpr::Int(value) if expr.ty == ResolvedType::Scalar(Scalar::Int) => {
+                PublicCompletionValue::Int(*value)
+            }
+            IrExpr::Text(value)
+                if expr.ty == ResolvedType::Scalar(Scalar::Text)
+                    || matches!(&expr.ty, ResolvedType::Enum { cases, .. } if cases.contains(value)) =>
+            {
+                PublicCompletionValue::Text(value.clone())
+            }
+            IrExpr::Bool(value) if expr.ty == ResolvedType::Scalar(Scalar::Bool) => {
+                PublicCompletionValue::Bool(*value)
+            }
+            IrExpr::Null if expr.ty == ResolvedType::Null => PublicCompletionValue::Null,
+            IrExpr::Name(name)
+                if self.locals.get(name) == Some(&expr.ty)
+                    || self.envelope_type(expr).is_some()
+                    || matches!(&expr.ty, ResolvedType::Enum { cases, .. } if cases.contains(name)) =>
+            {
+                PublicCompletionValue::Name(name.clone())
+            }
+            IrExpr::Member { base, field } if self.envelope_type(expr).is_some() => {
+                PublicCompletionValue::Member(
+                    Box::new(self.expression_node(base, true)?),
+                    field.clone(),
+                )
+            }
+            IrExpr::Binary { op, left, right } => {
+                let null_test = (left.ty == ResolvedType::Null
+                    && right.ty.nullable_inner().is_some())
+                    || (right.ty == ResolvedType::Null && left.ty.nullable_inner().is_some());
+                let same_comparable = left.ty == right.ty
+                    && matches!(
+                        &left.ty,
+                        ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool)
+                            | ResolvedType::Enum { .. }
+                    );
+                let allowed = match op {
+                    IrBinOp::Eq | IrBinOp::Ne => {
+                        expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                            && (null_test || same_comparable)
+                    }
+                    IrBinOp::And | IrBinOp::Or => {
+                        expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                            && left.ty == expr.ty
+                            && right.ty == expr.ty
+                    }
+                    IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {
+                        expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                            && left.ty == ResolvedType::Scalar(Scalar::Int)
+                            && right.ty == left.ty
+                    }
+                    IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul => {
+                        expr.ty == ResolvedType::Scalar(Scalar::Int)
+                            && left.ty == expr.ty
+                            && right.ty == expr.ty
+                    }
+                    _ => false,
+                };
+                if !allowed {
+                    return None;
+                }
+                PublicCompletionValue::Binary(
+                    *op,
+                    Box::new(self.expression(left)?),
+                    Box::new(self.expression(right)?),
+                )
+            }
+            IrExpr::Unary { op, operand }
+                if operand.ty == expr.ty
+                    && ((matches!(op, IrUnOp::Not)
+                        && expr.ty == ResolvedType::Scalar(Scalar::Bool))
+                        || (matches!(op, IrUnOp::Neg)
+                            && expr.ty == ResolvedType::Scalar(Scalar::Int))) =>
+            {
+                PublicCompletionValue::Unary(*op, Box::new(self.expression(operand)?))
+            }
+            _ => return None,
+        };
+        Some(PublicCompletionExpression {
+            ty: expr.ty.clone(),
+            span: expr.span,
+            value,
+        })
+    }
+
+    fn input(&mut self, model: SymbolId, input: &TypedExpr) -> Option<PublicCompletionExpression> {
+        let IrExpr::Object(entries) = &input.expr else {
+            return None;
+        };
+        let IrItemKind::Model { fields, .. } = &self.ir.items.get(model.0 as usize)?.kind else {
+            return None;
+        };
+        let fields = fields.clone();
+        let mut names = HashSet::new();
+        let mut values = Vec::new();
+        for (name, value) in entries {
+            if !names.insert(name) || matches!(name.as_str(), "id" | "version" | "parent" | "team")
+            {
+                return None;
+            }
+            let field = fields
+                .iter()
+                .filter_map(|id| self.ir.items.get(id.0 as usize))
+                .find(|field| field.name == *name)?;
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(ty),
+                server,
+                modifiers,
+                ..
+            } = &field.kind
+            else {
+                return None;
+            };
+            if *owner != model
+                || server.is_some()
+                || modifiers.machine
+                || (&value.ty != ty
+                    && !(value.ty == ResolvedType::Null && ty.nullable_inner().is_some()))
+            {
+                return None;
+            }
+            values.push((name.clone(), self.expression(value)?));
+        }
+        Some(PublicCompletionExpression {
+            ty: input.ty.clone(),
+            span: input.span,
+            value: PublicCompletionValue::Object(values),
+        })
+    }
+
+    fn statements(&mut self, statements: &[IrStmt]) -> Option<Vec<PublicCompletionStatement>> {
+        let mut output = Vec::new();
+        for statement in statements {
+            let value = match statement {
+                IrStmt::Let { name, value, span } => {
+                    let value_snapshot = self.expression(value)?;
+                    self.locals.insert(name.clone(), value.ty.clone());
+                    PublicCompletionStatement::Let(name.clone(), value_snapshot, *span)
+                }
+                IrStmt::Require { cond, span } if cond.ty == ResolvedType::Scalar(Scalar::Bool) => {
+                    PublicCompletionStatement::Require(self.expression(cond)?, *span)
+                }
+                IrStmt::Create {
+                    model,
+                    input,
+                    when: None,
+                    binding,
+                    span,
+                } => {
+                    let model_id = self.model(model)?.id;
+                    PublicCompletionStatement::Create(
+                        model.clone(),
+                        self.input(model_id, input)?,
+                        binding.clone(),
+                        *span,
+                    )
+                }
+                IrStmt::Set {
+                    record,
+                    changes,
+                    when: None,
+                    span,
+                } => {
+                    let cohort = self.cohort?;
+                    let IrExpr::Name(name) = &record.expr else {
+                        return None;
+                    };
+                    if cohort.bind.as_ref() != Some(name)
+                        || self.locals.contains_key(name)
+                        || record.ty
+                            != (ResolvedType::Record {
+                                symbol: cohort.model,
+                                stored: true,
+                            })
+                    {
+                        return None;
+                    }
+                    let model = self.ir.items.get(cohort.model.0 as usize)?;
+                    self.model(&model.canonical)?;
+                    let record_snapshot = PublicCompletionExpression {
+                        ty: record.ty.clone(),
+                        span: record.span,
+                        value: PublicCompletionValue::Name(name.clone()),
+                    };
+                    PublicCompletionStatement::Set(
+                        record_snapshot,
+                        self.input(cohort.model, changes)?,
+                        *span,
+                    )
+                }
+                _ => return None,
+            };
+            output.push(value);
+        }
+        Some(output)
+    }
+}
+
+impl PublicCompletionBody {
+    fn collect(ir: &IrProgram) -> Option<Vec<Self>> {
+        let facts = &ir.standard_completion_sources.handlers;
+        if facts.is_empty() {
+            return None;
+        }
+        let current = ir
+            .items
+            .iter()
+            .filter(|item| {
+                matches!(
+                    item.kind,
+                    IrItemKind::Scenario {
+                        event_source: Some(IrEventSource::StandardCompleted { .. }),
+                        ..
+                    }
+                )
+            })
+            .count();
+        if current != facts.len() {
+            return None;
+        }
+        let mut ids = HashSet::new();
+        let mut bodies = Vec::new();
+        for fact in facts {
+            if !ids.insert(fact.id) {
+                return None;
+            }
+            let item = ir.items.get(fact.id.0 as usize)?;
+            let IrItemKind::Scenario {
+                params,
+                trusted: true,
+                event_source:
+                    Some(
+                        source @ IrEventSource::StandardCompleted {
+                            source: event,
+                            canonical_operation,
+                            result_type,
+                            binding,
+                            from,
+                        },
+                    ),
+                hook: None,
+                result: None,
+                by,
+                cohort,
+                guards,
+                effects,
+                read,
+                expose_excluded,
+                ..
+            } = &item.kind
+            else {
+                return None;
+            };
+            let completion = &fact.completion;
+            if item.id != fact.id
+                || item.module != fact.module
+                || item.canonical != fact.canonical
+                || item.span != fact.span
+                || !params.is_empty()
+                || !by.is_empty()
+                || *read
+                || completion.capability != "std.EmailV1"
+                || completion.op != "send"
+                || completion.result_type != "EmailAccepted"
+                || event != &completion.source
+                || canonical_operation != "std.EmailV1.send"
+                || result_type != "EmailAccepted"
+                || completion.binding.as_ref() != Some(binding)
+                || completion.from.as_ref() != Some(from)
+                || cohort != &fact.cohort
+            {
+                return None;
+            }
+            if let Some(cohort) = cohort
+                && (cohort.kind != IrCohortKind::Model
+                    || cohort.parent.is_some()
+                    || !ir.items.get(cohort.model.0 as usize).is_some_and(|model| {
+                        model.id == cohort.model
+                            && model.module == item.module
+                            && matches!(model.kind, IrItemKind::Model { .. })
+                    }))
+            {
+                return None;
+            }
+            let mut profile = PublicCompletionProfile {
+                ir,
+                module: item.module,
+                payload: &completion.payload,
+                cohort: cohort.as_ref(),
+                locals: HashMap::new(),
+            };
+            let guards = profile.statements(guards)?;
+            let effects = profile.statements(effects)?;
+            bodies.push(Self {
+                id: item.id,
+                module: item.module,
+                canonical: item.canonical.clone(),
+                span: item.span,
+                source: source.clone(),
+                cohort: cohort.clone(),
+                payload: completion.payload.clone(),
+                read: *read,
+                expose_excluded: *expose_excluded,
+                guards,
+                effects,
+            });
+        }
+        Some(bodies)
+    }
+}
+
+impl CheckedStandardCompletionSources {
+    pub(crate) fn has_public_standard_completion_fact(&self) -> bool {
+        self.public_admission.is_some()
+    }
+
+    pub(crate) fn valid_public_standard_completions(&self, ir: &IrProgram, db: &SourceDb) -> bool {
+        let Some(fact) = &self.public_admission else {
+            return false;
+        };
+        !self.sources.is_empty()
+            && ir.catalog_version == fact.catalog_version
+            && self.sources.iter().all(|(id, path, hash)| {
+                db.get(*id).is_some_and(|source| {
+                    source.path == *path
+                        && source.sha256 == *hash
+                        && sha256_hex(source.text.as_bytes()) == *hash
+                })
+            })
+            && StandardValueCensus::collect(ir).is_some_and(|census| census == fact.declarations)
+            && PublicCompletionBody::collect(ir).is_some_and(|handlers| handlers == fact.handlers)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2973,6 +3465,52 @@ impl<'a> Cx<'a> {
         original == lowered
     }
 
+    fn public_completion_bodies_match(&self, bodies: &[PublicCompletionBody]) -> bool {
+        for body in bodies {
+            let Some(fact) = self
+                .program
+                .standard_completion_handlers
+                .iter()
+                .find(|fact| fact.id == body.id)
+            else {
+                return false;
+            };
+            if self.standard_completion_source(body.id).is_none() {
+                return false;
+            }
+            let Some(node) = self.node(&fact.node) else {
+                return false;
+            };
+            let authored: Vec<_> = kids(node)
+                .into_iter()
+                .filter(|node| node.kind == SyntaxKind::DoBlock)
+                .flat_map(kids)
+                .filter(|node| {
+                    node.kind != SyntaxKind::Description
+                        && !(node.children.is_empty()
+                            && ((node.kind == SyntaxKind::Name && self.text(node.span) == "do")
+                                || (node.kind == SyntaxKind::Punct && self.text(node.span) == ";")))
+                })
+                .map(|node| (node.kind, node.span))
+                .collect();
+            let lowered: Vec<_> = body
+                .guards
+                .iter()
+                .chain(&body.effects)
+                .map(|statement| match statement {
+                    PublicCompletionStatement::Let(_, _, span) => (SyntaxKind::Let, *span),
+                    PublicCompletionStatement::Require(_, span) => (SyntaxKind::Require, *span),
+                    PublicCompletionStatement::Create(_, _, _, span) => (SyntaxKind::Create, *span),
+                    PublicCompletionStatement::Set(_, _, span) => (SyntaxKind::Set, *span),
+                })
+                .collect();
+            if authored != lowered {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Build the program: modules, rule maps, items, suites.
     fn build_program(&mut self) -> (IrProgram, Vec<Diagnostic>) {
         self.check_standard_completion_census();
@@ -3038,6 +3576,7 @@ impl<'a> Cx<'a> {
                 .collect(),
         };
         let standard_completion_sources = CheckedStandardCompletionSources {
+            public_admission: None,
             sources: committed_sources.sources.clone(),
             handlers: self
                 .program
@@ -3089,6 +3628,22 @@ impl<'a> Cx<'a> {
                 Some(CheckedStandardValueInventory {
                     catalog_version: program.catalog_version.clone(),
                     census,
+                });
+        }
+        if self.native_standard_completion
+            && self.diags.is_empty()
+            && self
+                .catalog
+                .is_some_and(|catalog| self.program.catalog_version == catalog.version())
+            && let Some(declarations) = StandardValueCensus::collect(&program)
+            && let Some(handlers) = PublicCompletionBody::collect(&program)
+            && self.public_completion_bodies_match(&handlers)
+        {
+            program.standard_completion_sources.public_admission =
+                Some(PublicStandardCompletionAdmission {
+                    catalog_version: program.catalog_version.clone(),
+                    declarations,
+                    handlers,
                 });
         }
         fn empty_schema_source(node: &SyntaxNode) -> bool {
@@ -7715,12 +8270,15 @@ impl<'a> Cx<'a> {
         // retain their checked identity and existing `{event}` handler ABI.
         let event_source = match &data.on {
             Some(crate::analysis::effects::HandlerSource::StdDeliveryCompleted { .. }) => {
-                // Internal provenance does not release native handler publication.
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    format!("cannot lower scenario {}: standard handler triggers await the native terminal carrier", symbol.canonical),
-                    symbol.span,
-                ));
+                // Only the complete source-backed Email candidate can release
+                // this bounded native profile; all other graphs rebuild refused.
+                if !self.native_standard_completion {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        format!("cannot lower scenario {}: standard handler triggers await the native terminal carrier", symbol.canonical),
+                        symbol.span,
+                    ));
+                }
                 self.standard_completion_source(symbol.id)
             }
             Some(crate::analysis::effects::HandlerSource::Event(event)) => {
