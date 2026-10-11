@@ -8220,12 +8220,25 @@ async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, '
 }
 
 /** Private original issuer association. Work JSON carries correspondence only. */
+interface NativeIdentityRemovalIngress {
+  readonly profile: import('@canlang/interfaces').IngressBinding;
+  readonly rawBodySha256: string;
+}
+interface NativeIdentityRemovalVerifiedIngress {
+  readonly original: import('@canlang/contracts').VerifiedTeamsMemberRemovedEnvelope;
+  readonly retained: NativeIdentityRemovalIngress;
+  readonly verify: (now: number) => Promise<void>;
+}
+/** Explicit trusted host configuration for the defining Interfaces verifier. */
+export type NativeIdentityRemovalIngressInstallation = Pick<
+  Parameters<typeof import('@canlang/interfaces').createIdentityRemovalIngressVerifier>[0], 'keys' | 'isCurrent'>;
 interface NativeIdentityRemovalSource {
   readonly identities: IdentityStore;
   readonly scope: import('@canlang/contracts').WorkScope;
   readonly original: import('@canlang/contracts').VerifiedTeamsMemberRemovedEnvelope;
   readonly request: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0];
   readonly routes: Awaited<ReturnType<typeof checkedPrivateSourceRoutes>>;
+  readonly ingress?: NativeIdentityRemovalIngress;
   readonly verify: (now: number) => Promise<void>;
 }
 const nativeIdentityRemovalSources = new WeakMap<AssembledModules,
@@ -8262,10 +8275,15 @@ export async function createCanonicalIdentityRemovalSource(opts: {
   readonly resolveCaller: () => Promise<ResolvedIdentity>;
   readonly now: () => number;
   readonly deploymentBase?: string;
+  readonly ingress?: NativeIdentityRemovalIngressInstallation;
 }) {
   const event = 'teams.member_removed';
   const scope = Object.freeze({ ...opts.scope });
   const binding = Object.freeze({ ...opts.binding });
+  const ingress = opts.ingress, installedCurrent = ingress?.isCurrent, installedKeys = ingress?.keys;
+  if (ingress !== undefined && (typeof installedCurrent !== 'function' || typeof installedKeys !== 'function')) {
+    throw new AssemblyCorrespondenceError('Removal ingress requires its explicit paired trusted verifier installation.');
+  }
   const fields = ['team_id', 'member_user_id', 'removed_by', 'namespace', 'operationId'] as const;
   const input = localPolicyObject(opts.originalRequest, [...fields]);
   if (Object.keys(input).length !== fields.length || fields.some(field => typeof input[field] !== 'string' || input[field] === '') ||
@@ -8289,8 +8307,14 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     throw new AssemblyCorrespondenceError('This removal source join requires ordinary checked handlers of its original app.');
   }
   const routeFacts = committedSourceData(routes.map(route => ({ handler: route.handler, invocation: route.invocation })));
+  let verification: { readonly originals: WeakSet<object>; captured?: NativeIdentityRemovalVerifiedIngress } | undefined;
+  const verified = new WeakMap<object, NativeIdentityRemovalVerifiedIngress>();
+  let originalVerifier: import('@canlang/interfaces').IngressVerifier | undefined;
+  let originalVerify: import('@canlang/interfaces').IngressVerifier['verify'] | undefined;
   let active = true;
   let installedSource: NativeIdentityRemovalSource | undefined;
+  const acceptedSources = new WeakSet<NativeIdentityRemovalSource>();
+  const restoreRegistration = new WeakMap<NativeIdentityRemovalSource, () => void>();
   const verifyHost = async (now: number) => {
     if (!active || identities.readMemberRemovalOccurrence !== read ||
         (await opts.ownerStorage.forTrustedScope(scope, now)).store !== store) {
@@ -8309,11 +8333,11 @@ export async function createCanonicalIdentityRemovalSource(opts: {
       throw new AssemblyCorrespondenceError('Removal source closed or lost its original reader during admission.');
     }
   };
-  const original = async (now: number) => {
+  const lookupOriginal = async (now: number) => {
     await verifyHost(now);
     // Original receiver and exact captured arguments; never a mutation fallback.
     const envelope = await read.call(identities, request);
-    if (envelope === null) throw new AssemblyCorrespondenceError('Original removal occurrence is absent.');
+    if (envelope === null) { await verifyHost(now); return null; }
     if (envelope.namespace !== binding.namespace || envelope.operationKind !== event || envelope.deliveryId !== null ||
         envelope.operationId !== request.operationId || envelope.removedBy.kind !== 'user' || envelope.removedBy.id !== request.removed_by ||
         envelope.membershipRemoval.team_id !== request.team_id || envelope.membershipRemoval.user.kind !== 'user' ||
@@ -8324,8 +8348,37 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     await verifyHost(now);
     return envelope;
   };
-  const associate = async (now: number) => {
-    const envelope = await original(now);
+  const original = async (now: number) => {
+    const envelope = await lookupOriginal(now);
+    if (envelope === null) throw new AssemblyCorrespondenceError('Original removal occurrence is absent.');
+    return envelope;
+  };
+  const verifyIngress = async (now: number): Promise<void> => {
+    if (ingress === undefined || ingress.isCurrent !== installedCurrent || ingress.keys !== installedKeys ||
+        originalVerifier === undefined || originalVerifier.verify !== originalVerify) {
+      throw new AssemblyCorrespondenceError('Removal ingress lost its original paired verifier configuration.');
+    }
+    await verifyHost(now);
+    if (installedCurrent!.call(ingress) !== true) {
+      throw new AssemblyCorrespondenceError('Removal ingress key/profile lifetime is no longer current.');
+    }
+    if (!active || ingress.isCurrent !== installedCurrent || ingress.keys !== installedKeys ||
+        originalVerifier.verify !== originalVerify || identities.readMemberRemovalOccurrence !== read ||
+        stableStringify(opts.binding) !== stableStringify(binding)) {
+      throw new AssemblyCorrespondenceError('Removal ingress changed or closed during currentness checks.');
+    }
+  };
+  const associate = async (now: number, authenticated?: NativeIdentityRemovalVerifiedIngress) => {
+    const retainedIngress = authenticated?.retained;
+    if (authenticated !== undefined && verified.get(authenticated.original) !== authenticated) {
+      throw new AssemblyCorrespondenceError('Removal ingress requires its exact private verifier causation.');
+    }
+    if (authenticated !== undefined) await authenticated.verify(now);
+    const current = await original(now);
+    const envelope = authenticated?.original ?? current;
+    if (stableStringify(envelope) !== stableStringify(current)) {
+      throw new AssemblyCorrespondenceError('Removal ingress lost its genuine original SELECT-only occurrence.');
+    }
     const verify = async (currentNow: number) => {
       if (stableStringify(await original(currentNow)) !== stableStringify(envelope)) {
         throw new AssemblyCorrespondenceError('Removal source differs from its original issued outcome.');
@@ -8339,16 +8392,27 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     if (byOccurrence === undefined) { byOccurrence = new Map(); byStore.set(store, byOccurrence); }
     const previous = byOccurrence.get(envelope.producerEventId);
     if (previous !== undefined && (previous.identities !== identities || stableStringify(previous.scope) !== stableStringify(scope) ||
-        stableStringify(previous.request) !== stableStringify(request) || stableStringify(previous.original) !== stableStringify(envelope))) {
+        stableStringify(previous.request) !== stableStringify(request) || stableStringify(previous.original) !== stableStringify(envelope) ||
+        stableStringify(previous.ingress ?? null) !== stableStringify(retainedIngress ?? null))) {
       throw new AssemblyCorrespondenceError('Removal source cannot replace an original installed association.');
     }
-    const source: NativeIdentityRemovalSource = Object.freeze({ identities, scope, original: envelope, request, routes, verify });
+    const source: NativeIdentityRemovalSource = Object.freeze({ identities, scope, original: envelope, request, routes, verify,
+      ...(retainedIngress === undefined ? {} : { ingress: retainedIngress }) });
+    const previousInstalled = installedSource, registry = byOccurrence;
     byOccurrence.set(envelope.producerEventId, source);
     installedSource = source;
+    if (authenticated !== undefined) restoreRegistration.set(source, () => {
+      // An intervening successful/other-host registration is never overwritten.
+      if (registry.get(envelope.producerEventId) === source) {
+        if (previous === undefined) registry.delete(envelope.producerEventId);
+        else registry.set(envelope.producerEventId, previous);
+      }
+      if (installedSource === source) installedSource = active ? previousInstalled : undefined;
+    });
     return source;
   };
-  const route = async () => {
-    const now = opts.now(), source = await associate(now);
+  const routeRegistered = async (now: number, source: NativeIdentityRemovalSource,
+    authenticated?: NativeIdentityRemovalVerifiedIngress) => {
     const handlersModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'removal handler association');
     const stageHandler = requireProducerFn(handlersModule, 'stageHandlerOccurrence', 'removal handler association') as
       typeof import('@canlang/work/kernel/handler-occurrence').stageHandlerOccurrence;
@@ -8363,6 +8427,8 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     const existing = await store.cohortLoad({ model: occurrenceModel, id: source.original.producerEventId as RecordId, expectedRevision: revision });
     if (existing !== null) {
       const retained = await readNativeIdentityRemovalSource(opts, store, source.original.producerEventId, scope, now, revision);
+      if (authenticated !== undefined) await authenticated.verify(opts.now());
+      acceptedSources.add(source);
       return { status: 'replayed' as const, occurrenceId: source.original.producerEventId, handlers: retained.handlers };
     }
     const context = workStageContext(store, { actor: `identity:${event}`, now, operation: event });
@@ -8375,17 +8441,125 @@ export async function createCanonicalIdentityRemovalSource(opts: {
       handlers.push({ handler: selected.handler, kind: 'ordinary', occurrenceId: staged.occurrence.occurrenceId });
     }
     const terminal = await stageReceipt({ occurrenceId: source.original.producerEventId, status: 'completed',
-      result: { kind: 'identity-removal-source', event, scope, envelope: source.original, handlers } }, context);
+      result: { kind: 'identity-removal-source', event, scope, envelope: source.original, handlers,
+        ...(source.ingress === undefined ? {} : { ingress: source.ingress }) } }, context);
     if (terminal.writes?.length !== 1 || (terminal.outboxAck?.length ?? 0) !== 0) {
       throw new AssemblyCorrespondenceError('Removal source requires one original source receipt without provider acknowledgement.');
     }
     await source.verify(now);
     await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+    // Recheck the paired ingress/source/host after the last assembly await and
+    // immediately before the existing atomic expected-revision State commit.
+    if (authenticated !== undefined) {
+      await authenticated.verify(opts.now());
+      await source.verify(opts.now());
+      await authenticated.verify(opts.now());
+    }
     await store.commit({ expectedRevision: revision, writes: [...writes, ...terminal.writes], history: [], receipt: null,
       outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+    acceptedSources.add(source);
     return { status: 'completed' as const, occurrenceId: source.original.producerEventId, handlers };
   };
+  const route = async (authenticated?: NativeIdentityRemovalVerifiedIngress) => {
+    let source: NativeIdentityRemovalSource | undefined;
+    try {
+      const now = opts.now();
+      source = await associate(now, authenticated);
+      const result = await routeRegistered(now, source, authenticated);
+      restoreRegistration.delete(source);
+      return result;
+    } catch (error) {
+      if (source !== undefined) { restoreRegistration.get(source)?.(); restoreRegistration.delete(source); }
+      // A refused sink attempt cannot poison a later correct-body verification,
+      // even when the genuine SELECT reader reuses its same original object.
+      if (authenticated !== undefined && verified.get(authenticated.original) === authenticated) {
+        verified.delete(authenticated.original);
+      }
+      throw error;
+    }
+  };
+  let ingressPorts: Pick<import('@canlang/interfaces').IngressDeps, 'bindings' | 'verifier' | 'sink'> | undefined;
+  if (ingress !== undefined) {
+    // A SELECT lookup pins the exact original object BEFORE the library's later
+    // crypto/currentness awaits. captureVerified runs synchronously only after
+    // the defining verifier has completed every one of those checks.
+    const readOriginalOccurrence: NonNullable<IdentityStore['readMemberRemovalOccurrence']> = async candidate => {
+      const captured = localPolicyObject(candidate, [...fields]);
+      if (Object.keys(captured).length !== fields.length || stableStringify(captured) !== stableStringify(request)) {
+        throw new AssemblyCorrespondenceError('Removal ingress cannot substitute its original cause arguments.');
+      }
+      const attempt = verification;
+      if (attempt === undefined) throw new AssemblyCorrespondenceError('Removal ingress read requires its current verifier execution.');
+      const envelope = await lookupOriginal(opts.now());
+      if (verification !== attempt) throw new AssemblyCorrespondenceError('Removal ingress closed its original verifier execution.');
+      if (envelope !== null) attempt.originals.add(envelope);
+      return envelope;
+    };
+    const captureVerified = (envelope: import('@canlang/contracts').VerifiedTeamsMemberRemovedEnvelope, rawBodySha256: string): void => {
+      const attempt = verification;
+      if (!active || attempt === undefined || attempt.captured !== undefined || !attempt.originals.has(envelope) || identities.readMemberRemovalOccurrence !== read ||
+          ingress.isCurrent !== installedCurrent || ingress.keys !== installedKeys || originalVerifier?.verify !== originalVerify ||
+          !/^[a-f0-9]{64}$/.test(rawBodySha256)) {
+        throw new AssemblyCorrespondenceError('Removal ingress capture requires its live exact original verifier object and raw-body SHA-256.');
+      }
+      const retained = Object.freeze({ profile: binding, rawBodySha256 });
+      const previous = verified.get(envelope);
+      if (previous !== undefined && stableStringify(previous.retained) !== stableStringify(retained)) {
+        throw new AssemblyCorrespondenceError('Removal ingress cannot change authenticated bytes for the same original causation.');
+      }
+      // Keep key material private and require unchanged publication throughout
+      // this sink execution; the defining verifier owns signature selection.
+      const publishedKeys = stableStringify(installedKeys!.call(ingress));
+      if (publishedKeys === 'null') throw new AssemblyCorrespondenceError('Removal ingress keys are not current.');
+      attempt.captured = Object.freeze({ original: envelope, retained, verify: async (now: number) => {
+        await verifyIngress(now);
+        if (stableStringify(installedKeys!.call(ingress)) !== publishedKeys) {
+          throw new AssemblyCorrespondenceError('Removal ingress key publication changed after original verification.');
+        }
+      } });
+    };
+    const interfaces = await loadProducerModule('@canlang/interfaces', 'original signed Identity ingress');
+    const createVerifier = requireProducerFn(interfaces, 'createIdentityRemovalIngressVerifier', 'original signed Identity ingress') as
+      typeof import('@canlang/interfaces').createIdentityRemovalIngressVerifier;
+    originalVerifier = createVerifier(Object.freeze({ binding, clock: Object.freeze({ nowMs: opts.now }),
+      keys: () => installedKeys!.call(ingress),
+      isCurrent: () => active && ingress.isCurrent === installedCurrent && ingress.keys === installedKeys &&
+        identities.readMemberRemovalOccurrence === read && stableStringify(opts.binding) === stableStringify(binding) &&
+        installedCurrent!.call(ingress) === true,
+      readOriginalOccurrence, captureVerified }));
+    originalVerify = originalVerifier?.verify;
+    if (typeof originalVerify !== 'function') throw new AssemblyCorrespondenceError('Removal ingress installation did not return the existing verifier port.');
+    ingressPorts = Object.freeze({
+      bindings: Object.freeze({ bindingFor: (namespace: string) => active && namespace === binding.namespace ? binding : null }),
+      verifier: Object.freeze({ verify: async (selected: import('@canlang/interfaces').IngressBinding,
+        input: Parameters<import('@canlang/interfaces').IngressVerifier['verify']>[1]) => {
+        if (selected !== binding || verification !== undefined) return null;
+        const attempt: { readonly originals: WeakSet<object>; captured?: NativeIdentityRemovalVerifiedIngress } =
+          { originals: new WeakSet<object>() };
+        verification = attempt;
+        try {
+          await verifyIngress(opts.now());
+          const envelope = await originalVerify!.call(originalVerifier!, binding, input);
+          await verifyIngress(opts.now());
+          const captured = attempt.captured;
+          if (envelope === null || captured === undefined || captured.original !== envelope) return null;
+          await captured.verify(opts.now());
+          verified.set(envelope, captured);
+          return envelope;
+        } catch { return null; }
+        finally { if (verification === attempt) verification = undefined; }
+      } }),
+      sink: Object.freeze({ accept: async (context: import('@canlang/interfaces').DelegatedContext, event: unknown) => {
+        const authenticated = typeof context.causation === 'object' && context.causation !== null ? verified.get(context.causation) : undefined;
+        if (authenticated === undefined || context.actor !== null || context.team !== binding.team || context.owner !== binding.owner ||
+            context.namespace !== binding.namespace || stableStringify(committedSourceData(event)) !== stableStringify(authenticated.original)) return { accepted: false };
+        await route(authenticated);
+        return { accepted: true };
+      } }),
+    });
+  }
   return Object.freeze({
+    ...(ingressPorts === undefined ? {} : { ingress: ingressPorts }),
     /** Explicit original command/retry. Credential and actual SQL owner checks precede fresh issuance. */
     async issue() {
       await verifyHost(opts.now());
@@ -8407,7 +8581,11 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     /** Cold/lost-ack recovery is SELECT-only until genuine Work route staging. */
     recover: route,
     async invoke(handler: string) {
-      const now = opts.now(), source = await associate(now);
+      const now = opts.now(), source = installedSource?.ingress === undefined ? await associate(now) : installedSource;
+      if (source.ingress !== undefined && (!acceptedSources.has(source) ||
+          nativeIdentityRemovalSource(opts.asm, opts.artifact, store, identities, source.original.producerEventId, scope) !== source)) {
+        throw new AssemblyCorrespondenceError('Removal handler requires its accepted original source association.');
+      }
       const retained = await readNativeIdentityRemovalSource(opts, store, source.original.producerEventId, scope, now);
       const selected = retained.handlers.find(route => privateSourceMember(route, 'handler') === handler);
       if (selected === undefined) throw new AssemblyCorrespondenceError('Removal source has no selected original ordinary route.');
@@ -8417,6 +8595,11 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     },
     close() {
       active = false;
+      verification = undefined;
+      if (installedSource !== undefined) {
+        restoreRegistration.get(installedSource)?.();
+        restoreRegistration.delete(installedSource);
+      }
       const registered = nativeIdentityRemovalSources.get(opts.asm)?.get(opts.artifact)?.get(store);
       if (installedSource !== undefined && registered?.get(installedSource.original.producerEventId) === installedSource) {
         registered.delete(installedSource.original.producerEventId);
@@ -8436,9 +8619,10 @@ async function readNativeIdentityRemovalSource(opts: Pick<CanonicalRetainedHandl
   const row = expectedRevision === undefined ? await store.load(model, occurrence as RecordId)
     : await store.cohortLoad({ model, id: occurrence as RecordId, expectedRevision });
   if (row === null || row.archivedAt !== null) throw new AssemblyCorrespondenceError('Removal source has no original physical source receipt.');
-  const receipt = read(row), result = localPolicyObject(receipt.result, ['kind', 'event', 'scope', 'envelope', 'handlers']);
+  const receipt = read(row), result = localPolicyObject(receipt.result, ['kind', 'event', 'scope', 'envelope', 'handlers', 'ingress']);
   const handlers = nativeCallArray(result.handlers, 200);
-  if (Object.keys(result).length !== 5 || receipt.status !== 'completed' || receipt.code !== null || receipt.message !== null ||
+  if (Object.keys(result).length !== (source.ingress === undefined ? 5 : 6) ||
+      stableStringify(result.ingress ?? null) !== stableStringify(source.ingress ?? null) || receipt.status !== 'completed' || receipt.code !== null || receipt.message !== null ||
       receipt.occurrenceId !== occurrence || result.kind !== 'identity-removal-source' || result.event !== 'teams.member_removed' ||
       stableStringify(result.scope) !== stableStringify(scope) || stableStringify(result.envelope) !== stableStringify(source.original) ||
       handlers.length !== source.routes.length) {
