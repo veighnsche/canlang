@@ -1,18 +1,18 @@
 {
   "date": "2026-10-11",
-  "integrated_source_pin": "900bd5a479a995ea1cb1d852b9ee8f9412b48239",
+  "integrated_source_pin": "705870631b26308771405cba6f662fb7d6b273f2",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2231,
+    "commit_count_since_checkpoint": 2232,
     "net_path_deltas": 10970,
     "history_touched_paths": 11007,
     "history_only_paths": 6,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9467,
-    "scope": "Incremental local intake of 900bd5a479a995ea1cb1d852b9ee8f9412b48239 onto main 6e4ef863e67af282da2d8b9723eaf3dc615e1bd5. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+    "scope": "Incremental local intake of 705870631b26308771405cba6f662fb7d6b273f2 onto main ac2397c673c0130a46ba30a6f2c46b3762d0405e. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
   },
   "methods": [
     "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -65935,5 +65935,5 @@
   "lanes": "Four existing local workers retain their assigned plans and precise holds. Coordinator alone integrates committed or human-authorized prepared changes into local main. No remote publication or PR gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Incremental local intake of 900bd5a479a995ea1cb1d852b9ee8f9412b48239 onto main 6e4ef863e67af282da2d8b9723eaf3dc615e1bd5. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+  "current_maintenance_summary": "Incremental local intake of 705870631b26308771405cba6f662fb7d6b273f2 onto main ac2397c673c0130a46ba30a6f2c46b3762d0405e. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
 }
