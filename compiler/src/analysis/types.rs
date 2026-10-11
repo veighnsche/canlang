@@ -4455,7 +4455,8 @@ impl<'a> Typer<'a> {
 
     /// Event payload behind a handler's `on=`, when it names a
     /// validated declared event: single-segment local events and
-    /// `Cap.event` capability events. Queues, timers, model hooks,
+    /// `Cap.event` capability events, and the fixed Identity removal payload.
+    /// Queues, timers, model hooks,
     /// change events, completions and unknown sources yield `None`
     /// (their payloads stay opaque).
     fn on_event_payload(
@@ -4475,6 +4476,15 @@ impl<'a> Typer<'a> {
             return Some(event.payload.clone());
         }
         let segments = path_segments(on, text);
+        if segments == ["teams", "member_removed"] {
+            // TeamsMemberRemovedEvent retains the removed subject. Remover and
+            // causation belong to the separate verified ingress envelope.
+            return Some(ResolvedType::Object(vec![
+                ("team_id".into(), ResolvedType::Scalar(Scalar::Text)),
+                ("membership_id".into(), ResolvedType::Scalar(Scalar::Text)),
+                ("user".into(), ResolvedType::Scalar(Scalar::User)),
+            ]));
+        }
         let symbol = match segments.len() {
             1 => self.prod_or_imported(module, segments[0]).filter(|id| {
                 matches!(

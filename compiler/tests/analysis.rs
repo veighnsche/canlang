@@ -1105,9 +1105,9 @@ fn draft_outcome_table() {
         // the two owning assignments resolve without any domain conversion.
         ("draft/CanRent.can", 536),
         ("draft/CanReport.can", 16),
-        // Stored commitments reuse their owning request kind, clearing only
-        // the five distinct enum-owner comparisons and assignments.
-        ("draft/CanShift.can", 94),
+        // Stored commitments reuse their owning request kind. The released
+        // Teams removed subject also clears account: expected user?, found opaque.
+        ("draft/CanShift.can", 93),
         ("draft/CanStats.can", 28),
         // The location-name sort derives from an imported Location. This
         // isolated row keeps that import opaque; the full source closure

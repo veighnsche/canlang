@@ -451,20 +451,14 @@ fn operations_descriptors_golden() {
 
 /// Trusted (`on=`) event handlers are not user operations: they stay out
 /// of the descriptors (here only the policy read op is described). The
-/// handler trigger itself keeps its pre-existing `E6008`; descriptor
-/// derivation adds nothing.
+/// fixed member-removal trigger now has its private event descriptor;
+/// descriptor derivation never exposes it as a user operation.
 #[test]
 fn trusted_handlers_excluded_from_descriptors() {
     let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario audit on=teams.member_removed\n  do\n   let x = 1\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (artifact, diags, catalog_path) = compile_source(src);
     let _ = std::fs::remove_file(&catalog_path);
-    assert_eq!(diags.len(), 1, "only the trigger diagnostic: {diags:?}");
-    assert_eq!(diags[0].code, "E6008");
-    assert!(
-        diags[0].message.contains("handler triggers"),
-        "trigger diagnostic: {:?}",
-        diags[0].message
-    );
+    assert!(diags.is_empty(), "fixed trusted event lowering: {diags:?}");
     let json = artifact::to_json(&artifact);
     let parsed = canlang_compiler::json::parse(&json).expect("artifact JSON parses");
     let ops = parsed

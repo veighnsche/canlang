@@ -28,6 +28,11 @@ pub(super) struct PreparedSendInput {
     pub name: String,
     pub type_id: String,
     pub value: TypedExpr,
+    /// Original lexical declaration; never reconstructed from an emitted name.
+    pub declaration: NodeKey,
+    pub symbol: Option<SymbolId>,
+    pub owner: SymbolId,
+    pub ordinal: usize,
 }
 
 #[derive(Clone)]
@@ -471,7 +476,20 @@ fn free_inputs(
             .find_map(|child| name_text(child, &source.text))
             .ok_or_else(|| gap("SEND lexical name missing original token", Some(node.span)))?
             .to_string();
-        let type_id = serial_type(&ty, program, ir, 0).ok_or_else(|| {
+        let (declaration, symbol) = match binding {
+            Binding::Symbol(id) => {
+                let SymbolKind::Param { type_node, .. } = resolved.symbols[id.0 as usize].kind
+                else {
+                    unreachable!("declaration_type admits only owning parameters")
+                };
+                (type_node, Some(*id))
+            }
+            Binding::Let { node }
+            | Binding::CreateAs { node }
+            | Binding::CohortChild { node, .. } => (*node, None),
+            _ => unreachable!("declaration_type admits only original lexical declarations"),
+        };
+        let type_id = input_type(&ty, program, ir, symbol, 0).ok_or_else(|| {
             gap(
                 "free SEND lexical type has no canonical finite codec",
                 Some(node.span),
@@ -496,6 +514,10 @@ fn free_inputs(
             name: name.clone(),
             type_id,
             value: TypedExpr::new(IrExpr::Name(name), ty, node.span),
+            declaration,
+            symbol,
+            owner,
+            ordinal: inputs.len(),
         });
     }
     let mut pending = vec![(predicate, 0usize)];
@@ -598,6 +620,49 @@ fn free_inputs(
         ));
     }
     Ok(inputs)
+}
+
+/// Keep only exact catalog-produced nominal leaves and source-owned aliases.
+/// The emitter additionally requires their sealed schema inventory.
+fn input_type(
+    ty: &ResolvedType,
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    symbol: Option<SymbolId>,
+    depth: usize,
+) -> Option<String> {
+    if depth > 64 {
+        return None;
+    }
+    match ty {
+        ResolvedType::Nullable(inner) => Some(format!(
+            "{}?",
+            input_type(inner, program, ir, symbol, depth + 1)?
+        )),
+        ResolvedType::Array { element, .. } => Some(format!(
+            "{}[]",
+            input_type(element, program, ir, symbol, depth + 1)?
+        )),
+        _ => {
+            if let Some(alias) = symbol.and_then(|id| ir.value_constraints.get(&id)?.alias) {
+                let item = ir.items.get(alias.0 as usize)?;
+                let original = program.symbols.get(alias.0 as usize)?;
+                if item.id != alias
+                    || original.id != alias
+                    || item.canonical != original.canonical
+                    || item.module != original.module
+                    || ir.value_constraints.get(&alias)?.alias != Some(alias)
+                {
+                    return None;
+                }
+                return Some(item.canonical.clone());
+            }
+            if let Some(name) = crate::analysis::types::checked_standard_nominal_name(ty) {
+                return Some(name.to_string());
+            }
+            serial_type(ty, program, ir, depth)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -760,8 +825,19 @@ Then
         assert_eq!(js.matches("when:{rule:").count(), 2, "{js}");
         assert_eq!(js.matches("async(c,$can$send$inputs)=>").count(), 2, "{js}");
         assert!(!js.contains("when:()=>"), "{js}");
-        for descriptors in guards.by_owner(&ir).unwrap().values() {
-            assert!(js.contains(&format!("sendGuards:{descriptors}")), "{js}");
+        assert!(
+            js.contains("inputDeclaration:") || js.contains("\"inputDeclaration\":"),
+            "{js}"
+        );
+        for guard in guards.guards(&ir).unwrap().values() {
+            let callable = emitted
+                .callables
+                .iter()
+                .find(|callable| callable.id == guard.rule)
+                .unwrap();
+            assert_eq!(callable.kind, super::super::js::JsCallableKind::Rule);
+            assert_eq!(callable.member, ["sendWhen", guard.rule.as_str()]);
+            assert_eq!(callable.span, guard.predicate.span);
         }
         let mut syntax = Command::new("node")
             .args(["--check", "--input-type=module"])

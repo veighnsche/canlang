@@ -1530,6 +1530,24 @@ fn emit_program_with_sources(
     decisions: EmitDecisionSources<'_>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    for handler in &ir.items {
+        if matches!(
+            &handler.kind,
+            IrItemKind::Scenario {
+                event_source: Some(IrEventSource::TeamsMemberRemoved),
+                ..
+            }
+        ) && db.is_none_or(|db| {
+            !ir.committed_sources
+                .teams_member_removed_matches(ir, handler, db)
+        }) {
+            emitter.unsupported(
+                "teams.member_removed source",
+                "original checked trigger, owner or payload type correspondence unavailable",
+                handler.span,
+            );
+        }
+    }
     emitter.native_source_predicates = native_receipts;
     emitter.send_guard_gap = decisions.send_guard_gap;
     if let Some(membership) = decisions.membership {
@@ -1839,6 +1857,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "history"
             | "input"
             | "join"
+            | "label"
             | "list"
             | "modal"
             | "pagination"
@@ -1855,6 +1874,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "textarea"
             | "title"
             | "tooltip"
+            | "validator"
     )
 }
 
@@ -1906,6 +1926,8 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "input" | "textarea" | "radio" | "select" => {
             matches!(key, "field" | "tone" | "size" | "variant")
         }
+        "label" => matches!(key, "field" | "caption"),
+        "validator" => key == "field",
         "checkbox" => key == "field",
         "range" | "fileInput" => key == "field",
         "progress" => matches!(key, "value" | "max"),
@@ -2274,6 +2296,22 @@ fn collect_authored_form_fields(node: &IrUi, out: &mut Vec<String>) {
     }
     for child in &node.children {
         collect_authored_form_fields(child, out);
+    }
+}
+
+/// Fragments have independent placements and never count as controls.
+/// Stop at the same ownership boundaries as the writable control collector.
+fn collect_authored_form_fragments(node: &IrUi, factory: &str, out: &mut Vec<String>) {
+    if node.factory == "form" || node.row_scope.is_some() {
+        return;
+    }
+    if node.factory == factory
+        && let Some(path) = form_prop_text(node, "field")
+    {
+        out.push(path);
+    }
+    for child in &node.children {
+        collect_authored_form_fragments(child, factory, out);
     }
 }
 
@@ -6616,7 +6654,8 @@ impl<'a> Emitter<'a> {
         view_scope: bool,
     ) -> String {
         // Settle earlier children before later siblings cross a source await.
-        let sequence_children = node.children.iter().any(ui_immediate_uses_async);
+        let sequence_children = node.children.iter().any(ui_immediate_uses_async)
+            || (view_scope && node.factory == "chatBubble");
         if node.factory == "callbackValueCard" {
             if !self.ir.callback_grants.matches_value_list(self.ir, node) {
                 self.unsupported(
@@ -6649,7 +6688,7 @@ impl<'a> Emitter<'a> {
         }
         if matches!(
             node.factory.as_str(),
-            "callbackValueList" | "inspectionValueList"
+            "callbackValueList" | "inspectionValueList" | "textMessageValueList"
         ) {
             if !self.ir.callback_grants.matches_value_list(self.ir, node) {
                 self.unsupported(
@@ -6659,8 +6698,32 @@ impl<'a> Emitter<'a> {
                 );
                 return self.throw_expr("unsupported callback value list");
             }
+            // The released text sink consumes original File/File[] values.
+            // Keep attachment objects untouched: only the admitted host's
+            // source-bound presenter can turn those identities into links.
             let values = &node.props[0].1;
-            let source = self.lower_expr(values);
+            let source = if node.factory == "textMessageValueList" {
+                let original = match &values.expr {
+                    IrExpr::Member { base, field } => match &base.ty {
+                        ResolvedType::Record { symbol, .. } => self
+                            .original_ui_row(base, &self.ir.items[symbol.0 as usize].canonical)
+                            .map(|original| format!("{original}.fields[{}]", js_string(field))),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let Some(original) = original else {
+                    self.unsupported(
+                        "copied message source",
+                        "the original owning stored RowView is required",
+                        values.span,
+                    );
+                    return self.throw_expr("unsupported copied message source");
+                };
+                original
+            } else {
+                self.lower_expr(values)
+            };
             let gate = node
                 .gate
                 .as_ref()
@@ -6692,11 +6755,13 @@ impl<'a> Emitter<'a> {
             let guard = gate
                 .map(|gate| format!("if(!({gate}))return '';"))
                 .unwrap_or_default();
-            if node.factory == "inspectionValueList"
-                && node
-                    .props
-                    .iter()
-                    .any(|(name, value)| name == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            if matches!(
+                node.factory.as_str(),
+                "inspectionValueList" | "textMessageValueList"
+            ) && node
+                .props
+                .iter()
+                .any(|(name, value)| name == "page" && matches!(value.expr, IrExpr::Bool(true)))
             {
                 for helper in ["message", "resolveCaption", "escapeHtml"] {
                     self.ui.insert(helper.to_string());
@@ -6839,6 +6904,19 @@ impl<'a> Emitter<'a> {
                 node.span,
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
+        }
+        if matches!(node.factory.as_str(), "label" | "validator")
+            && (prepared_form.is_none()
+                || !node.children.is_empty()
+                || node.row_scope.is_some()
+                || form_prop_text(node, "field").is_none())
+        {
+            self.unsupported(
+                "owned UI fragment",
+                "only an owned prepared field label or validation outlet lowers",
+                node.span,
+            );
+            return self.throw_expr("unsupported owned field fragment");
         }
         if matches!(node.factory.as_str(), "checkbox" | "range" | "fileInput")
             && (prepared_form.is_none()
@@ -7040,6 +7118,34 @@ impl<'a> Emitter<'a> {
                         .join(",")
                 ));
             }
+            for (factory, property) in [
+                ("label", "authoredLabels"),
+                ("validator", "authoredValidators"),
+            ] {
+                let mut fragments = Vec::new();
+                for child in &node.children {
+                    collect_authored_form_fragments(child, factory, &mut fragments);
+                }
+                let mut placed = std::collections::HashSet::new();
+                if fragments.iter().any(|field| !placed.insert(field)) {
+                    self.unsupported(
+                        "form authored fragments",
+                        &format!("each writable input admits only one authored {factory}"),
+                        node.span,
+                    );
+                    return self.throw_expr("duplicate authored form fragment");
+                }
+                if !fragments.is_empty() {
+                    request.push(format!(
+                        "{property}:[{}]",
+                        fragments
+                            .iter()
+                            .map(|path| js_string(path))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    ));
+                }
+            }
             self.enter_scope();
             // The IIFE owns this private name; nested forms shadow it in
             // their own IIFE without consuming authored binding identities.
@@ -7089,7 +7195,8 @@ impl<'a> Emitter<'a> {
                 None => call,
             };
         }
-        if is_form_field_control(&node.factory)
+        if (is_form_field_control(&node.factory)
+            || matches!(node.factory.as_str(), "label" | "validator"))
             && let Some(prepared) = prepared_form
             && let Some((_, field)) = node.props.iter().find(|(key, _)| key == "field")
         {
@@ -7320,8 +7427,17 @@ impl<'a> Emitter<'a> {
                 } else {
                     String::new()
                 };
+                let fields = if node.children.iter().any(ui_uses_message_values) {
+                    format!(
+                        "Object.defineProperties({{id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}},Object.getOwnPropertyDescriptors({row}.fields))"
+                    )
+                } else {
+                    format!(
+                        "{{...{row}.fields,id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}}"
+                    )
+                };
                 props.push(format!(
-                    "renderRow:{prefix}({row},{child_ctx})=>{{{preserve_row}{row}={{...{row}.fields,id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}};return [{children}];}}"
+                    "renderRow:{prefix}({row},{child_ctx})=>{{{preserve_row}{row}={fields};return [{children}];}}"
                 ));
                 self.exit_scope();
             }
@@ -7694,7 +7810,10 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
         || matches!(
             node.factory.as_str(),
-            "callbackValueList" | "callbackValueCard" | "inspectionValueList"
+            "callbackValueList"
+                | "callbackValueCard"
+                | "inspectionValueList"
+                | "textMessageValueList"
         )
         || node.factory == "form"
         || node.factory == "history"
@@ -7710,13 +7829,20 @@ fn ui_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
         || matches!(
             node.factory.as_str(),
-            "callbackValueList" | "callbackValueCard" | "inspectionValueList"
+            "callbackValueList"
+                | "callbackValueCard"
+                | "inspectionValueList"
+                | "textMessageValueList"
         )
         || node.factory == "form"
         || node.factory == "history"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || node.children.iter().any(ui_uses_async)
+}
+
+fn ui_uses_message_values(node: &IrUi) -> bool {
+    node.factory == "textMessageValueList" || node.children.iter().any(ui_uses_message_values)
 }
 
 fn ui_uses_original_row(node: &IrUi) -> bool {
@@ -7771,8 +7897,10 @@ fn ui_uses_original_row(node: &IrUi) -> bool {
         }
         false
     }
-    matches!(node.factory.as_str(), "history" | "inspectionValueList")
-        || node.props.iter().any(|(_, value)| protected(value))
+    matches!(
+        node.factory.as_str(),
+        "history" | "inspectionValueList" | "textMessageValueList"
+    ) || node.props.iter().any(|(_, value)| protected(value))
         || node.gate.as_ref().is_some_and(protected)
         || node
             .view
@@ -7988,6 +8116,26 @@ impl<'a> Emitter<'a> {
                 Some(item.canonical.clone()),
                 &format!("export const {export}={};", js_string(&item.canonical)),
             );
+        }
+        if let Some(guards) = self.send_guards {
+            let mut guards = guards.values().collect::<Vec<_>>();
+            guards.sort_by(|a, b| a.rule.cmp(&b.rule));
+            for guard in guards {
+                let export = binding_ident("o", &guard.rule);
+                self.callables.push(JsCallable {
+                    id: guard.rule.clone(),
+                    kind: JsCallableKind::Rule,
+                    export: export.clone(),
+                    member: vec!["sendWhen".into(), guard.rule.clone()],
+                    input_style: None,
+                    span: guard.predicate.span,
+                });
+                out.push(
+                    guard.predicate.span,
+                    Some(guard.rule.clone()),
+                    &format!("export const {export}={};", js_string(&guard.rule)),
+                );
+            }
         }
     }
 
@@ -8343,8 +8491,9 @@ impl<'a> Emitter<'a> {
                     continue;
                 };
                 let (identity, input_count) = match source {
-                    IrEventSource::DeliveryProgressed(identity) => (identity, 1),
-                    IrEventSource::StandardCompleted { source, .. } => (source, 4),
+                    IrEventSource::DeliveryProgressed(identity) => (identity.as_str(), 1),
+                    IrEventSource::StandardCompleted { source, .. } => (source.as_str(), 4),
+                    IrEventSource::TeamsMemberRemoved => ("teams.member_removed", 3),
                     _ => continue,
                 };
                 if published.contains(identity) {
@@ -8375,7 +8524,7 @@ impl<'a> Emitter<'a> {
                     js_string(identity),
                     inputs.join(",")
                 ));
-                published.insert(identity.clone());
+                published.insert(identity.to_string());
             }
         }
         if kinds.contains(&"Contract") {
@@ -9199,7 +9348,28 @@ impl<'a> Emitter<'a> {
                         .send_guard_owners
                         .and_then(|owners| owners.get(&item.canonical))
                     {
-                        members.push(format!("sendGuards:{}", descriptor_json(guards)));
+                        let mut descriptors = guards.clone();
+                        let mut complete = true;
+                        for descriptor in descriptors.as_array_mut().into_iter().flatten() {
+                            let guard = self.send_guards.and_then(|guards| {
+                                guards.values().find(|guard| {
+                                    Some(guard.rule.as_str()) == descriptor["rule"].as_str()
+                                })
+                            });
+                            let declaration =
+                                guard.and_then(|guard| self.send_input_declaration(guard));
+                            if let Some(declaration) = declaration {
+                                descriptor["inputDeclaration"] = declaration;
+                            } else {
+                                complete = false;
+                                break;
+                            }
+                        }
+                        if complete {
+                            members.push(format!("sendGuards:{}", descriptor_json(&descriptors)));
+                        } else {
+                            self.unsupported("send dispatch inputs", "original lexical inputs have no complete owning declaration profile", item.span);
+                        }
                     }
                     if let Some(sites) = self.native_call_sites.get(&item.id) {
                         // Dev resolves names to its actual loaded canonical
@@ -9227,6 +9397,9 @@ impl<'a> Emitter<'a> {
                             IrEventSource::Declared(identity)
                             | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
                             IrEventSource::StandardCompleted { source, .. } => Some(source.clone()),
+                            IrEventSource::TeamsMemberRemoved => {
+                                Some("teams.member_removed".into())
+                            }
                             IrEventSource::Committed { model, change } => self
                                 .ir
                                 .items
@@ -10129,6 +10302,11 @@ impl<'a> Emitter<'a> {
             IrEventSource::DeliveryProgressed(_) => {
                 vec![scalar_input("delivery_id", JsMcpField::String, "text")]
             }
+            IrEventSource::TeamsMemberRemoved => vec![
+                scalar_input("team_id", JsMcpField::String, "text"),
+                scalar_input("membership_id", JsMcpField::String, "text"),
+                scalar_input("user", JsMcpField::User, "user"),
+            ],
             IrEventSource::Declared(_) => Vec::new(),
             IrEventSource::StandardCompleted { result_type, .. } => {
                 let result = if result_type.ends_with('?') {
@@ -10786,6 +10964,166 @@ impl<'a> Emitter<'a> {
             IrType::Unknown => return None,
         };
         self.mcp_field_for_resolved(resolved, require_version)
+    }
+
+    /// Frozen lexical inputs keep the original source schema, without rerunning
+    /// defaults. This is declaration data; the native loader owns qualification.
+    fn send_input_declaration(
+        &self,
+        guard: &super::send_guards::PreparedSendGuard,
+    ) -> Option<serde_json::Value> {
+        let mut canonical = Vec::new();
+        let mut artifact = Vec::new();
+        for (ordinal, input) in guard.inputs.iter().enumerate() {
+            let owner = self.ir.items.get(input.owner.0 as usize)?;
+            if input.ordinal != ordinal
+                || owner.id != input.owner
+                || guard.descriptor["owner"].as_str() != Some(owner.canonical.as_str())
+                || input.declaration.file != input.value.span.file
+            {
+                return None;
+            }
+            let (mut field, is_array) = self.mcp_field_for_resolved(&input.value.ty, true)?;
+            let mut min = None;
+            let mut max = None;
+            if let Some(symbol) = input.symbol {
+                let param = self.ir.items.get(symbol.0 as usize)?;
+                let IrItemKind::Param {
+                    owner: declared_owner,
+                    ty: IrType::Known(ty),
+                    array_bounds,
+                    ..
+                } = &param.kind
+                else {
+                    return None;
+                };
+                if param.id != symbol || *declared_owner != input.owner || *ty != input.value.ty {
+                    return None;
+                }
+                min = array_bounds.as_ref().and_then(|bounds| bounds.min);
+                max = array_bounds.as_ref().and_then(|bounds| bounds.max);
+                if let Some(alias) = self
+                    .ir
+                    .value_constraints
+                    .get(&symbol)
+                    .and_then(|constraints| constraints.alias)
+                {
+                    let alias_item = self.ir.items.get(alias.0 as usize)?;
+                    if alias_item.id != alias
+                        || self.ir.value_constraints.get(&alias)?.alias != Some(alias)
+                        || !self
+                            .value_types
+                            .as_ref()?
+                            .aliases
+                            .iter()
+                            .any(|value| value.name == alias_item.canonical)
+                    {
+                        return None;
+                    }
+                    field = JsMcpField::Nominal {
+                        name: alias_item.canonical.clone(),
+                    };
+                }
+            }
+            let nullable = matches!(input.value.ty, ResolvedType::Nullable(_));
+            let base = if let ResolvedType::Nullable(inner) = &input.value.ty {
+                inner.as_ref()
+            } else {
+                &input.value.ty
+            };
+            let array_required = match base {
+                ResolvedType::Array { element, .. } if is_array => {
+                    // The closed input ABI cannot represent nullable elements or nested containers.
+                    if matches!(
+                        element.as_ref(),
+                        ResolvedType::Array { .. } | ResolvedType::Nullable(_)
+                    ) {
+                        return None;
+                    }
+                    Some(false)
+                }
+                _ if !is_array => None,
+                _ => return None,
+            };
+            // Frozen captures always have a slot. Nullability and array bounds
+            // describe its value; they never permit omitting the lexical binding.
+            let required = true;
+            let field_json = serde_json::to_value(&field).ok()?;
+            let mut declaration = serde_json::json!({"name":input.name,"kind":field_json["kind"],"required":required});
+            match &field {
+                JsMcpField::Ref {
+                    model,
+                    require_version,
+                } => {
+                    declaration["model"] = serde_json::json!(model);
+                    declaration["versioned"] = serde_json::json!(require_version);
+                    if nullable {
+                        declaration["nullable"] = serde_json::json!(true);
+                    }
+                    if let Some(required) = array_required {
+                        declaration["array"] = serde_json::json!({"required":required});
+                    }
+                }
+                JsMcpField::Nominal { .. } => {
+                    declaration["valueType"] = serde_json::json!(input.type_id)
+                }
+                JsMcpField::Enum { values } => {
+                    declaration["valueType"] = serde_json::json!(input.type_id);
+                    declaration["enumValues"] = serde_json::json!(values);
+                }
+                JsMcpField::Delivery(_) | JsMcpField::JudgmentDelivery(_) => return None,
+                _ => {
+                    // Match the released State opaque scalar profile exactly.
+                    let mut scalar = base;
+                    if let ResolvedType::Array { element, .. } = scalar {
+                        scalar = element;
+                    }
+                    if !matches!(
+                        scalar,
+                        ResolvedType::Scalar(
+                            Scalar::Text
+                                | Scalar::Int
+                                | Scalar::Decimal
+                                | Scalar::Money
+                                | Scalar::Datetime
+                                | Scalar::Duration
+                                | Scalar::User
+                                | Scalar::Bool
+                                | Scalar::File
+                                | Scalar::Date
+                                | Scalar::Email
+                                | Scalar::Timezone
+                        )
+                    ) {
+                        return None;
+                    }
+                    declaration["valueType"] = serde_json::json!(input.type_id);
+                }
+            }
+            if let Some(min) = min {
+                declaration["min"] = serde_json::json!(min);
+            }
+            if let Some(max) = max {
+                declaration["max"] = serde_json::json!(max);
+            }
+            let source_field = JsOperationField {
+                min,
+                max,
+                name: input.name.clone(),
+                field,
+                value_type: Some(input.type_id.clone()),
+                required,
+                nullable,
+                array_required,
+                default: None,
+                computed_default: false,
+                description: None,
+                choices: None,
+            };
+            canonical.push(declaration);
+            artifact.push(serde_json::to_value(source_field).ok()?);
+        }
+        Some(serde_json::json!({"kind":"inputs","canonical":canonical,"artifact":artifact}))
     }
 
     /// Map one resolved input type to its MCP field plus array flag.
