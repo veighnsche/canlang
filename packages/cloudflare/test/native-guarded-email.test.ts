@@ -183,7 +183,12 @@ test.each([
       assert.equal(queuedReceipt.filePayloadOrigin?.origin.kind, 'delivery-result');
       await identities.removeMembership(membership.membership_id); now += 1000;
       const beforeSkip = await snapshot(db), revision = await native.store.readRevision();
-      const outcome = await drive(dispatch.intentId); assert.equal(outcome.status, 'skipped');
+      const outcome = await drive(dispatch.intentId);
+      // The genuine preclaim guard consumes/ACKs a false occurrence without
+      // allocating a claim. Its public outcome is not-claimed/guard-false;
+      // the canonical skipped receipt and one ACK fence are checked below.
+      assert.ok(outcome.status === 'not-claimed', JSON.stringify(outcome));
+      assert.equal(outcome.reason, 'guard-false');
       assert.equal(sends, 0); assert.equal(mints, 0); assert.equal(await native.store.readRevision(), revision + 1);
       const afterDispatch = await native.store.load(asModel(WORK_DISPATCH_MODEL), asId(dispatch.intentId)); assert.ok(afterDispatch);
       assert.equal(readDispatchRow(afterDispatch).guardVerdict, false); assert.equal(readDispatchRow(afterDispatch).attempts, 0);
@@ -194,7 +199,7 @@ test.each([
       const currentAssociation = (await query(RECEIPT_ASSOCIATION_MODEL)).map(readAssociationRow).find(value => value.deliveryId === dispatch.intentId);
       assert.ok(currentAssociation); assert.equal(currentAssociation.revision, revision + 1);
       const acknowledged = await native.store.outboxGet(dispatch.intentId); assert.ok(acknowledged);
-      assert.equal(acknowledged.status, 'skipped'); assert.deepEqual(acknowledged.intent, original.retained.intent); assert.deepEqual(acknowledged.originalCommit, original.retained.originalCommit);
+      assert.equal(acknowledged.status, 'dispatched'); assert.deepEqual(acknowledged.intent, original.retained.intent); assert.deepEqual(acknowledged.originalCommit, original.retained.originalCommit);
       const afterSkip = await snapshot(db); assert.equal(afterSkip.fence_log!.length, beforeSkip.fence_log!.length + 1);
       await invoke(original.input); assert.deepEqual(await snapshot(db), afterSkip, 'source replay cannot stage a second original SEND');
       assert.deepEqual(await native.store.outboxPending(), []); assert.deepEqual(fileState(), filesBefore);
@@ -206,7 +211,7 @@ test.each([
         value.filePayloadOrigin?.origin.kind === 'delivery-skipped' && value.filePayloadOrigin.origin.send.operationId === negativeSource.operation_id);
       assert.ok(negativeReceipt); assert.equal(negativeReceipt.receipt.status, 'skipped'); assert.equal(sends, 0); assert.equal(mints, 0);
       // Genuine current membership changes between observation and State commit must roll back the entire claim fence.
-      membership = await identities.createMembership({user_id: subject.user_id, team_id: team.team_id, is_owner: false, roles: []});
+      await identities.reactivateMembership(membership.membership_id, {is_owner: false, roles: []});
       const racing = await queue(), held = gate(), find = identities.findMembership;
       let gated = false;
       identities.findMembership = async (teamId, userId) => {
@@ -220,7 +225,7 @@ test.each([
       assert.deepEqual(await snapshot(db), beforeRace); assert.equal(sends, 0); assert.equal(mints, 1);
       // A fresh retry observes the negative membership and skips with no additional mint/provider.
       await drive(racing.retained.intent.intentId); assert.equal(sends, 0); assert.equal(mints, 1);
-      membership = await identities.createMembership({user_id: subject.user_id, team_id: team.team_id, is_owner: false, roles: []});
+      await identities.reactivateMembership(membership.membership_id, {is_owner: false, roles: []});
       const positive = await queue();
       if (modelSnapshot) {
         const live = (await query(MODEL))[0]!;
