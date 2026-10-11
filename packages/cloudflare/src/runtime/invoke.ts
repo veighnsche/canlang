@@ -1413,6 +1413,7 @@ interface StateTransactProducer {
     readonly execute: (call: AdmittedReadScenarioCall) => Promise<unknown>;
   }) => Promise<ReadScenarioResult>;
   createReadInvoker(input: {
+    readonly sourceReadPolicies?: ReadonlyMap<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>;
     readonly registry: ReadonlyMap<string, unknown>;
     readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
     readonly policy: unknown;
@@ -4403,6 +4404,7 @@ function createSourceReadPolicyAdapter(input: {
     const navigation = await createContainmentNavigation({ loaded, store: input.opts.store,
       revision: currentRevision, actorUserId: context.actorUserId, teamId: context.teamId,
       memberships: context.memberships, coherentContext: context, authority: 'viewer',
+      sourceReadOpts: input.opts, sourceObservation: observation,
       ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
     const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
       nativeProjectedRecord(loaded, name, source, navigation, recordView);
@@ -4482,6 +4484,8 @@ async function createContainmentNavigation(input: {
   readonly sourceReadOpts?: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'source' | 'now'>;
   /** Callback authorization stays inside State's complete Identity observation. */
   readonly coherentContext?: import('@canlang/state/policy/grants').ByContext;
+  /** The original live State source lifetime; parent reads borrow this observation. */
+  readonly sourceObservation?: Readonly<ViewerGenerationCallbackReadObservation>;
   readonly fence?: import('@canlang/state/invocation/admission').FenceScope;
   readonly failure?: (error: unknown) => void;
 }) {
@@ -4494,7 +4498,8 @@ async function createContainmentNavigation(input: {
   const projectionSources = new WeakMap<object, StoredRow>();
   const used = new Set<Entry>();
   let reads = 0;
-  const sourceReads = input.sourceReadOpts === undefined || input.coherentContext !== undefined || input.authority !== 'viewer' ||
+  const sourceReads = input.sourceReadOpts === undefined ||
+      input.coherentContext !== undefined && input.sourceObservation === undefined || input.authority !== 'viewer' ||
       loaded.sourceReadPolicies.size === 0
     ? undefined : createSourceReadPolicyAdapter({ loaded,
       opts: { ...input.sourceReadOpts, store }, revision: input.revision,
@@ -4536,6 +4541,7 @@ async function createContainmentNavigation(input: {
       const visible = await producer.projectSource!({ model: model as ModelName, id: id as RecordId,
         readPolicies: policies, policy: loaded.policy as import('@canlang/state/query').CurrentRecordSourcePolicyInput['policy'],
         context: { actorUserId: input.actorUserId, teamId: input.teamId }, memberships: input.memberships, store,
+        ...(input.sourceObservation === undefined ? {} : { observation: input.sourceObservation }),
         ...(input.fence === undefined ? {} : { fence: input.fence }),
       }, async result => {
         if (result.revision !== input.revision) throw new StateError('conflict', 'State changed during parent navigation.');
@@ -9540,19 +9546,22 @@ export async function invokeReadCanonical(
     });
   }
   const model = readModelForOperation(opts.operation);
-  if (model !== null && loaded.ruledModels.has(model)) {
+  if (model !== null && loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) {
     throw ruledReadRefusal(loaded.producers.errors, model);
   }
   // Bound per call (never cached): the store + memberships are
   // request-scoped, while the registry + policy ride the artifact
   // cache. `createReadInvoker` is a trivial closure, so per-call
   // binding costs nothing and pins nothing across workers.
+  const sourceReads = model === null ? undefined : createSourceReadPolicyAdapter({ loaded, opts,
+    revision: await opts.store.readRevision(), now: opts.now ?? Date.now });
   const reader = loaded.producers.transact.createReadInvoker({
     registry: loaded.registry,
     models: loaded.models,
     policy: loaded.policy,
     store: opts.store,
     memberships: opts.memberships,
+    ...(sourceReads === undefined ? {} : { sourceReadPolicies: sourceReads.policies(model!) }),
   });
   const served = await reader({
     envelope: { operation: opts.operation, inputs: opts.inputs },
