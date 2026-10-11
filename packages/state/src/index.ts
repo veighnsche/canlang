@@ -178,7 +178,7 @@ export type { ClockPort } from './invocation/context.js';
 export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/invoke.js';
 export {
   observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
-  bindScenarioReceiptReferenceProducer, type ScenarioReceiptReferenceProducer,
+  bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, type ScenarioReceiptReferenceProducer,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,

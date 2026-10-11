@@ -7,7 +7,7 @@ import { checkedMembershipFact, observeRowGrantAuthority } from '../policy/membe
 import { isEqualOrUnder, isMetadataPath, withPolicyRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, validateByPredicate } from '../policy/roles.js';
 import { FenceConflictError } from '../storage/port.js';
-import { evaluateInstalledReadPolicy, withinInstalledReadObservation } from '../receipt/read-policy-membership.js';
+import { captureInstalledSourceOwnerRows, evaluateInstalledReadPolicy, withinInstalledReadObservation, type InstalledSourceOwnerRows } from '../receipt/read-policy-membership.js';
 import { projectCurrentRecordForViewerPolicy, projectSourceRowFields,
   type BaseQueryInput, type ViewerPageParentPolicy } from './engine.js';
 
@@ -104,15 +104,22 @@ export async function projectInstalledSourceRow(input: {
   readonly observation: Readonly<ViewerGenerationCallbackReadObservation>;
   readonly store: StoragePort;
   readonly owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>;
+  readonly ownerRows?: InstalledSourceOwnerRows;
 }): Promise<InstalledSourceRowProjection> {
   const { read, observation, store } = input;
+  const ownerRows = input.ownerRows === undefined ? undefined : captureInstalledSourceOwnerRows(input.ownerRows);
+  ownerRows?.assertHealthy();
   const allowed: boolean[] = [], grants: { readonly fields: readonly string[] }[] = [];
   for (const grant of read.grants) {
+    ownerRows?.assertHealthy();
     const before = await store.readRevision();
+    ownerRows?.assertHealthy();
     if (before !== observation.revision) throw new FenceConflictError(observation.revision, before);
-    const verdict = await evaluateInstalledReadPolicy(grant.read, observation, store, input.owningObservation);
+    const verdict = await evaluateInstalledReadPolicy(grant.read, observation, store, input.owningObservation, ownerRows);
     if (typeof verdict !== 'boolean') invalid();
+    ownerRows?.assertHealthy();
     const after = await store.readRevision();
+    ownerRows?.assertHealthy();
     if (after !== observation.revision) throw new FenceConflictError(observation.revision, after);
     if (observation.fence !== undefined && observation.fence.revision !== observation.revision) {
       throw new FenceConflictError(observation.revision, observation.fence.revision);
@@ -143,8 +150,18 @@ export async function projectInstalledSourceRowAndAncestors(input: {
   readonly store: StoragePort;
   readonly rows: Map<string, StoredRow>;
   readonly owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>;
+  readonly ownerRows?: InstalledSourceOwnerRows;
 }): Promise<InstalledSourceRowProjection & { readonly decisions: readonly InstalledSourceRowDecision[] }> {
   const { readPolicies, policy, context, revision, fence, store, rows } = input;
+  const ownerRows = input.ownerRows === undefined ? undefined : captureInstalledSourceOwnerRows(input.ownerRows);
+  const checkpoint = async () => {
+    ownerRows?.assertHealthy();
+    const actual = await store.readRevision();
+    ownerRows?.assertHealthy();
+    if (actual !== revision) throw new FenceConflictError(revision, actual);
+    if (fence !== undefined && fence.revision !== revision) throw new FenceConflictError(revision, fence.revision);
+  };
+  ownerRows?.assertHealthy();
   const decisions: InstalledSourceRowDecision[] = [], visited = new Set<string>();
   let model = input.model, row = input.row, target: InstalledSourceRowProjection | undefined;
   const denied = () => deepFreeze({ record: null, allowed: target?.allowed ?? [], grants: target?.grants ?? [], decisions });
@@ -157,13 +174,15 @@ export async function projectInstalledSourceRowAndAncestors(input: {
     const observation = Object.freeze({ context: Object.freeze({ ...context }), row, revision, fence });
     let projected: InstalledSourceRowProjection;
     if ('grants' in read) projected = await projectInstalledSourceRow({ read, observation, store,
-      ...(input.owningObservation === undefined ? {} : { owningObservation: input.owningObservation }) });
+      ...(input.owningObservation === undefined ? {} : { owningObservation: input.owningObservation }),
+      ...(ownerRows === undefined ? {} : { ownerRows }) });
     else {
       const rowPolicy = policy.get(model);
       if (rowPolicy === undefined || !(await evaluateBy(read.by, withPolicyRow(rowPolicy, context, row)))) return denied();
       const legacy = await projectCurrentRecordForViewerPolicy({ policy: rowPolicy, context, row });
       projected = { ...legacy, grants: [] };
     }
+    ownerRows?.assertHealthy();
     if (target === undefined) target = projected;
     decisions.push({ model, id: row.id, allowed: projected.allowed, projection: projected.record });
     if (projected.record === null) return denied();
@@ -174,7 +193,11 @@ export async function projectInstalledSourceRowAndAncestors(input: {
     model = parent.model;
     const parentKey = `${model}\0${parent.id}`;
     if (!rows.has(parentKey)) {
-      const loaded = await store.cohortLoad({ model, id: parent.id, expectedRevision: revision });
+      if (ownerRows !== undefined) await checkpoint();
+      const loaded = ownerRows === undefined
+        ? await store.cohortLoad({ model, id: parent.id, expectedRevision: revision })
+        : await ownerRows.read(model, parent.id);
+      if (ownerRows !== undefined) await checkpoint();
       if (loaded === null) return denied();
       if (loaded.id !== parent.id) invalid();
       rows.set(parentKey, loaded);
@@ -206,7 +229,7 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
   transform?: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[]) => unknown | Promise<unknown>): Promise<unknown> {
   if (input.observation !== undefined) {
     const observation = input.observation;
-    return withinInstalledReadObservation(observation, { store: input.store, model: input.model, id: input.id }, async checkpoint => {
+    return withinInstalledReadObservation(observation, { store: input.store, model: input.model, id: input.id }, async (checkpoint, loadRow, ownerRows) => {
       // Capture the full supplied policy closure while the original lifetime is
       // already leased, before any async checkpoint can change its inputs.
       const store = input.store, model = text(input.model) as ModelName, id = text(input.id) as RecordId;
@@ -216,7 +239,7 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
           input.memberships !== context.memberships || input.fence !== undefined && input.fence !== fence ||
           typeof store.cohortLoad !== 'function' || transform !== undefined && typeof transform !== 'function') invalid();
       await checkpoint();
-      const row = await store.cohortLoad({ model, id, expectedRevision: revision });
+      const row = await loadRow(model, id);
       await checkpoint();
       if (row !== null && row.id !== id) invalid();
       fence?.enroll({ kind: 'query', model, authority: 'viewer' });
@@ -224,6 +247,7 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
       if (row !== null) rows.set(`${model}\0${id}`, row);
       const projected = row === null ? { record: null, allowed: [] } : await projectInstalledSourceRowAndAncestors({
         model, row, readPolicies: reads, policy, context, revision, fence, store, rows, owningObservation: observation,
+        ...(ownerRows === undefined ? {} : { ownerRows }),
       });
       await checkpoint();
       const result = deepFreeze({ record: projected.record, revision });
