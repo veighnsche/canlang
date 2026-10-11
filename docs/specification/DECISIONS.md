@@ -8800,3 +8800,32 @@ Cloudflare emission and strict maintained grant-test noEmit pass0; actual source
 B4's exact HTTP catalog-shape revoked-row and MCP canCall revocation witnesses cover pre-invoker rereads only; no located suspended-body or after-entry witness qualifies late effects. Browser token binding/Origin and effect-boundary choices remain proposals. Automatic approval review rejected the three prepared exact TypeSafe disclosures because general JEV authorization did not clearly authorize this sensitive payload/destination; none executed or transmitted, and the exact human approval question remains pending. Broader source/security review, actual mounted consumers and all precise holds remain.
 
 Integrate the finite JSON-cap/session-CSRF source and pure HTTP exports after independent source/security CLEAR review, preserving the existing portable Work mapper and receipt-leaf import. Reuse the six direct source cases; the failed installed consumer awaits only the exact already-released mapper input and affected retry. Frozen browser/effect requests remain untransmitted pending exact human approval. No installed/native, Origin, presession, late-effect, whole-security or hold release is inferred.
+
+
+### Ungated bound-panel implementation checkpoint — 2026-10-11 (unfinished)
+
+Implement only the existing DESIGN921 ungated panel contract through the
+installed UI binding/items bijection. Private source correspondence protects
+owning cases, receiving/reused labels and save context from edited checked
+tables; current/default selection and version/route remain the existing binding.
+Direct Tab guards continue to refuse until UI defines unavailable options/current
+behavior. The finite CLI/UI consumer and176 affected checks/strict0 qualify this
+producer scope, not preference persistence or full applications. Unchanged
+Loyalty's original IR remains blocked by its unsupported enclosing compact hero;
+Compiler owns that necessary existing-contract prerequisite and the new failing
+original-IR assertion is retained. No new product policy or hold release.
+
+
+### Original compact hero and ungated panels — 2026-10-11 (implemented/tested)
+
+Connect the already accepted compact hero group to installed UI.hero so unchanged
+Loyalty's account/auth scope reaches its exact own bound panels. Preserve children
+and gates; optional checked header captions use the existing sink. Authored
+slots/attributes/empty content stay refused. Original rawIR1/1 and changed native/
+refusal controls now pass;177 affected outcomes and strict0 3.73s qualify this
+finite producer, superseding the preceding unfinished hero failure. Independent
+original body/persistence/browser and guarded option/current joins still require
+their exact producers/owners. Coordinator review is separate; no new product
+policy, full application acceptance or hold release.
+
+Coordinator finite independent source review CLEAR for original c833/004 hero and ungated panel source, case/label ownership, source census, save binding and scope preservation; all owning177 affected outcomes/strict0 are reused. Actual persistence/browser, gated option/current policy and separate original body producers remain open. The Calendar authored-control remainder prerequisite names only the existing Interfaces/UI output and is not product acceptance.
