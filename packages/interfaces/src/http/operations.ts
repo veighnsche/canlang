@@ -452,11 +452,10 @@ export async function handleOperationRequest(
       }
     }
 
-    /* B4 commit-time credential liveness: the session is re-read from
-     * CURRENT store facts just before the commit — a revocation (or
-     * expiry) landing between admission and commit voids the in-flight
-     * operation. IdentityError falls into the shared catch below and
-     * denies with the admission-identical message (no oracle). */
+    /* B4 pre-invoker admission: re-read CURRENT session facts after the
+     * capped body and checked arguments. Revocation or expiry before this
+     * read refuses entry with the admission-identical message. Work already
+     * admitted to the invoker has no retroactive cancellation guarantee. */
     await assertCredentialLive(deps.identity.store, {
       kind: 'session',
       tokenHash: await sha256HexText(sessionToken),

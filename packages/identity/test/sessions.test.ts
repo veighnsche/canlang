@@ -12,6 +12,10 @@ import {
   timingSafeEqualText,
 } from '../src/sessions/tokens.js';
 import {
+  PRESESSION_COOKIE_NAME,
+  buildPreSessionCookie,
+  buildPreSessionClearCookie,
+  parsePreSessionCookie,
   SESSION_COOKIE_NAME,
   buildSessionClearCookie,
   buildSessionCookie,
@@ -205,4 +209,18 @@ test('issued tokens and bearer text hashes retain frozen encoding witnesses', as
   assert.equal(await sha256HexText('Zh'), '9aff73e1b53a5b8178a770de6a1e7d20f7c178e492881c9a92ab78b211f65dc8');
   assert.notEqual(await deriveCsrfToken('Zg'), await deriveCsrfToken('Zh'));
   assert.equal(await verifyCsrfToken('Zh', await deriveCsrfToken('Zg')), false);
+});
+
+
+test('pre-session cookies use host-only ten-minute grammar and existing parsing rules', () => {
+  assert.equal(buildPreSessionCookie('token'), `${PRESESSION_COOKIE_NAME}=token; Path=/; HttpOnly; SameSite=Lax; Max-Age=600; Secure`);
+  assert.equal(buildPreSessionCookie('token', { secure: false }), `${PRESESSION_COOKIE_NAME}=token; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`);
+  assert.equal(buildPreSessionClearCookie(), `${PRESESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
+  assert.equal(buildPreSessionClearCookie({ secure: false }), `${PRESESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  assert.equal(parsePreSessionCookie(['other=x', 'can_presession=first; can_presession=second']), 'first');
+  assert.equal(parsePreSessionCookie('can_presession=a%252Fb'), 'a%2Fb');
+  for (const header of [undefined, 'can_session=x', 'can_presession=', 'can_presession=%zz']) assert.equal(parsePreSessionCookie(header), null);
+  assert.throws(() => buildPreSessionCookie(''), IdentityError);
+  // Even an untyped extra Domain option cannot make this browser binding shared.
+  assert.ok(!buildPreSessionCookie('token', { domain: 'example.com' } as { secure?: boolean }).includes('Domain'));
 });

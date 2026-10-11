@@ -445,6 +445,8 @@ export interface AuthHttpDeps {
   readonly logger: Logger;
   readonly clock: InterfacesClock;
   readonly secureCookies: boolean;
+  /** Explicit canonical host configuration; never derived from the request. */
+  readonly authOrigin?: string;
 }
 export type HttpAuthHandlerFactory = (deps: AuthHttpDeps) => (request: Request) => Promise<Response>;
 export interface HttpAuthJoin {
@@ -1654,6 +1656,7 @@ function buildInterimFetch(
           inviteBaseUrl: new URL('/auth/invite', origin).href,
           sessionMaxAgeSeconds: join.sessionExpiresMs / 1000 },
         limiter: config.limiter, logger: httpLogger, clock: { nowMs: ctx.now }, secureCookies: config.secureCookies,
+        authOrigin: config.origin,
       })(req);
     }
     if (pathname.startsWith("/files/")) {

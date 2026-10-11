@@ -436,20 +436,24 @@ describe("deploy worker main", () => {
     expect(factoryCalls).toBe(1);
   });
 
-  it("POST /mcp/grants routes to the grant handler with the production identityStore", async () => {
+  it("POST /mcp/grants routes with the production identityStore and explicit trusted auth origin", async () => {
     const identityStore = { marker: "prod-identity-store" };
+    const authOrigin = 'https://auth.example';
     const staged = stagedDeployment();
-    const seen: Array<{ req: Request; ctx: { identityStore: unknown } }> = [];
+    const seen: Array<{ req: Request; ctx: { identityStore: unknown; authOrigin?: string } }> = [];
     const fetch = createMainFetch({
       loadStagedDeployment: async () => staged,
-      loadProductionDeps: async () => ({ store: stubStore(), identityStore }),
+      loadProductionDeps: async () => ({ store: stubStore(), identityStore,
+        auth: { origin: authOrigin, secureCookies: true,
+          limiter: { check: async () => { throw new Error('grant routing does not consume auth limiter'); } } },
+        deploymentBase: 'https://deploy.example/app/' }),
       loadGrantHandler: async () => async (req, ctx) => {
         seen.push({ req, ctx });
         return Response.json({ grant: "g1" });
       },
     });
     const res = await fetch(
-      new Request("http://localhost/mcp/grants", { method: "POST", body: "{}" }),
+      new Request("http://localhost/mcp/grants", { method: "POST", body: "{}", headers: { host: 'untrusted.example' } }),
       fullEnv(),
     );
     expect(res.status).toBe(200);
@@ -457,6 +461,8 @@ describe("deploy worker main", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]?.req.url).toBe("http://localhost/mcp/grants");
     expect(seen[0]?.ctx.identityStore).toBe(identityStore);
+    expect(seen[0]?.req.headers.get('host')).toBe('untrusted.example');
+    expect(seen[0]?.ctx.authOrigin).toBe(authOrigin);
   });
 
   it("grants route sits behind the binding gate", async () => {

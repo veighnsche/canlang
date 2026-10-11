@@ -15,9 +15,9 @@
  * CSRF: the session-authed POSTs (logout, select-team, select-team/clear)
  * require the session-bound token via the `x-csrf-token` header or the
  * `_csrf` field. Login has no session yet, so it carries a single-use
- * anonymous pre-session token instead: `GET /auth/login` mints it into
- * the descriptor (`preSessionToken`), the POST presents it back as
- * `_presession`, and every credential-checked login POST consumes it — a
+ * anonymous browser-bound pre-session token instead: `GET /auth/login` mints it into
+ * the descriptor (`preSessionToken`) and host-only cookie, the POST
+ * must present that same cookie and `_presession`, and every credential-checked login POST consumes it — a
  * failed attempt refetches the descriptor (429s and malformed bodies
  * return before the consume). Register/recover/verify stay tokenless and
  * rate-limited: those routes plant no session, so there is nothing for a
@@ -31,6 +31,9 @@ import { CSRF_FIELD, PRESESSION_FIELD, TEAM_FIELD } from '@canlang/contracts';
 import type { BusinessError } from '@canlang/contracts';
 import {
   IdentityError,
+  buildPreSessionCookie,
+  buildPreSessionClearCookie,
+  parsePreSessionCookie,
   buildSessionClearCookie,
   buildSessionCookie,
   clearTeamSelection,
@@ -50,6 +53,7 @@ import { logBusinessError, logInternalError } from '../errors/logging.js';
 import {
   CSRF_HEADER,
   assertPostCsrf,
+  assertTrustedAuthOrigin,
   caughtToBusinessError,
   jsonErrorResponse,
   resolveRequestIdentity,
@@ -187,33 +191,40 @@ async function handleLoginDescriptor(deps: AuthHttpDeps, request: Request): Prom
   const limited = await withRateLimit(deps, LOGIN_DESCRIPTOR_THROTTLE, request);
   if (limited !== null) return limited;
   const { token } = await mintPreSessionToken(deps.identity.store, { clock: deps.identity.clock });
-  return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token }, { 'cache-control': 'no-store' });
+  return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token }, { 'cache-control': 'no-store',
+    'set-cookie': buildPreSessionCookie(token, { secure: deps.secureCookies }) });
 }
 
 async function handleLogin(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const limited = await withRateLimit(deps, '/auth/login', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
-  const consumed = await consumePreSessionToken(deps.identity.store, body[PRESESSION_FIELD], {
-    clock: deps.identity.clock,
-  });
-  if (!consumed) {
+  const presented = body[PRESESSION_FIELD];
+  const browserToken = parsePreSessionCookie(request.headers.get('cookie') ?? undefined);
+  if (browserToken === null || typeof presented !== 'string' || browserToken !== presented) {
     throw new IdentityError('forbidden', 'Invalid or expired login token.');
   }
-  const { token } = await loginWithPassword(
-    deps.identity.store,
-    { email: requiredString(body, 'email'), password: requiredString(body, 'password') },
-    { clock: deps.identity.clock },
-  );
-  return jsonOk(
-    { ok: true },
-    {
+  const consumed = await consumePreSessionToken(deps.identity.store, presented, { clock: deps.identity.clock });
+  let response: Response;
+  try {
+    if (!consumed) throw new IdentityError('forbidden', 'Invalid or expired login token.');
+    const { token } = await loginWithPassword(
+      deps.identity.store,
+      { email: requiredString(body, 'email'), password: requiredString(body, 'password') },
+      { clock: deps.identity.clock },
+    );
+    response = jsonOk({ ok: true }, {
       'set-cookie': buildSessionCookie(token, {
-        maxAgeSeconds: deps.identity.sessionMaxAgeSeconds,
-        secure: deps.secureCookies,
+        maxAgeSeconds: deps.identity.sessionMaxAgeSeconds, secure: deps.secureCookies,
       }),
-    },
-  );
+    });
+  } catch (err) {
+    response = authFailureResponse(deps, err, '/auth/login');
+  }
+  // Separate Set-Cookie fields preserve the new session and clear the consumed
+  // anonymous binding, including failed credential attempts.
+  response.headers.append('set-cookie', buildPreSessionClearCookie({ secure: deps.secureCookies }));
+  return response;
 }
 
 async function handleLogout(deps: AuthHttpDeps, request: Request): Promise<Response> {
@@ -352,6 +363,13 @@ const RECOVER_DESCRIPTOR = (): AuthFormDescriptor =>
 const SELECT_TEAM_DESCRIPTOR = (): AuthFormDescriptor =>
   descriptor('select-team', [{ name: TEAM_FIELD, type: 'text', required: true }], '/auth/select-team');
 
+function authFailureResponse(deps: AuthHttpDeps, err: unknown, pathname: string): Response {
+  if (err instanceof IdentityError) return deny(deps, caughtToBusinessError(err), pathname);
+  logInternalError(deps.logger, err, { route: pathname });
+  const { status, body } = toHttpResponse(fromUnknown(err));
+  return jsonErrorResponse(body, status, { 'cache-control': 'no-store' });
+}
+
 /**
  * Dispatch one `/auth/*` request. Form GETs return interim descriptors;
  * team discovery returns active memberships. The login GET mints a throttled
@@ -362,6 +380,10 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
   const pathname = new URL(request.url).pathname;
   const method = request.method;
   try {
+    if ((method === 'GET' && pathname === '/auth/login') || (method === 'POST' &&
+        ['/auth/login', '/auth/logout', '/auth/select-team', '/auth/select-team/clear'].includes(pathname))) {
+      assertTrustedAuthOrigin(request, deps.authOrigin);
+    }
     if (method === 'GET' && pathname === '/auth/login') return await handleLoginDescriptor(deps, request);
     if (method === 'GET' && pathname === '/auth/register') return jsonOk(REGISTER_DESCRIPTOR());
     // Side-effect-free: the token query only pre-selects the form; the POST consumes it.
@@ -383,13 +405,6 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
     }
     return deny(deps, buildBusinessError('not_found', 'Unknown auth route.'), pathname);
   } catch (err) {
-    if (err instanceof IdentityError) {
-      return deny(deps, caughtToBusinessError(err), pathname);
-    }
-    const incidentId = logInternalError(deps.logger, err, { route: pathname });
-    void incidentId;
-    const error = fromUnknown(err);
-    const { status, body } = toHttpResponse(error);
-    return jsonErrorResponse(body, status, { 'cache-control': 'no-store' });
+    return authFailureResponse(deps, err, pathname);
   }
 }

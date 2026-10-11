@@ -113,8 +113,8 @@ async function resolveGrantIdentity(
       { clock: deps.clock },
     );
     assertAudience(identity.binding, 'mcp-grant');
-    // B4: capture the credential hash at admission; the commit-time
-    // fence re-reads this hash from current store facts.
+    // B4: capture the credential hash at transport admission; the mutation
+    // admission re-read checks current facts immediately before invoker entry.
     return { identity, grantTokenHash: await sha256HexText(token) };
   } catch (err) {
     if (err instanceof IdentityError) {
@@ -179,11 +179,10 @@ async function invokeMutationOutcome(
   envelope: MutationEnvelope,
   grantTokenHash: string,
 ): Promise<ToolCallResult> {
-  /* B4 commit-time credential liveness: the grant is re-read from
-   * CURRENT store facts just before the commit — a revocation (or
-   * expiry) landing between admission and commit voids the in-flight
-   * call with the admission-identical `isError` forbidden (no oracle).
-   * Unexpected store faults stay 500-class, as below. */
+  /* B4 pre-invoker admission: re-read CURRENT grant facts after arguments
+   * and permission checks. Revocation or expiry before this read refuses
+   * entry with admission-identical forbidden. Already admitted invoker work
+   * has no retroactive cancellation guarantee. Unexpected faults stay 500. */
   try {
     await assertCredentialLive(deps.identity.store, {
       kind: 'mcp_grant',

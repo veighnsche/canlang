@@ -995,7 +995,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
       `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +
       `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
       `export { handlePageRequest, handlePagePreferencePost } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
-      `export { caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
+      `export { assertTrustedAuthOrigin, caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
       `export { httpStatusFor } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
       `export { logInternalError } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "logging.js")))};\n` +
       `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,

@@ -31,6 +31,22 @@ export { CSRF_FIELD };
 /** Header carrying the session-bound CSRF token (mirrors identity's). */
 export const CSRF_HEADER = 'x-csrf-token';
 
+/** Browser auth Origin is checked against trusted host configuration only.
+ * Missing Origin still requires the route's cookie binding or session CSRF. */
+export function assertTrustedAuthOrigin(request: Request, authOrigin?: string): void {
+  const presented = request.headers.get('origin');
+  if (presented === null) return;
+  const canonical = (value: string): boolean => {
+    try {
+      const url = new URL(value);
+      return (url.protocol === 'https:' || url.protocol === 'http:') && url.origin === value;
+    } catch { return false; }
+  };
+  if (typeof authOrigin !== 'string' || !canonical(authOrigin) || !canonical(presented) || presented !== authOrigin) {
+    throw new IdentityError('forbidden', 'Invalid authentication origin.');
+  }
+}
+
 export interface RequestIdentity {
   readonly identity: ResolvedIdentity;
   /** Raw session bearer when a session cookie was presented, else null. */

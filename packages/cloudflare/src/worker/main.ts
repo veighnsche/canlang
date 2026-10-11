@@ -158,6 +158,7 @@ export type BuildProductionDepsFn = (env: Record<string, unknown>) => Promise<Pr
 /** P-C `handleMcpGrant` context: `{ identityStore }`. */
 export interface GrantContext {
   readonly identityStore: unknown;
+  readonly authOrigin?: string;
 }
 
 /**
@@ -872,7 +873,8 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       return joinMissingResponse(err);
     }
     if (grant === undefined) return grantPendingResponse();
-    return grant(req, { identityStore: deps.identityStore });
+    return grant(req, { identityStore: deps.identityStore,
+      ...(deps.auth === undefined ? {} : { authOrigin: deps.auth.origin }) });
   }
 
   async function assemblyResponse(req: Request, env: Record<string, unknown>): Promise<Response> {
