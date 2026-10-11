@@ -3429,8 +3429,8 @@
         }
       },
       "remaining_prerequisite": {
-        "prerequisite": "Dev consumes the exact reviewed source profile in the original installed/generated browser/durable CSV consumer and qualifies maximum work/peak-memory at the claimed host scope. Advisory without checked metadata remains advisory; no global quota or full DEL-C01/SR02/48/333 closure or hold release.",
-        "owner": "Dev original installed/generated browser/durable CSV consumer"
+        "owner": "Dev original current-CLI/installed browser and required host profile",
+        "prerequisite": "Original current-CLI/installed browser and any separately required host memory/resource lifetime scope remain unfinished. Stop the satisfied prebuilt Node/Identity/D1 maximum-review criterion; no full DEL-C01/security parent or hold release."
       },
       "stored_field_constraint_slice": {
         "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
@@ -3628,8 +3628,16 @@
         "precedence": "Within explicit byte budget, full Unicode precedes quote validation; full CSV syntax precedes row/cell limits, including malformed quotes after 1001 rows. Explicit byte/depth resource caps may refuse before later content/syntax under the declared profile. Fixed safe errors; no raw disclosure.",
         "behavior": "Preserve exact BOM, CRLF/LF, lone CR, blanks, trailing delimiter, quoted newline, escaped quote, raw cells and malformed field counts until total budget excess. New CsvResourceLimitError for byte/cell limits; CsvTooManyRowsError retains original row classification. Advisory wrapper supports the same optional profile.",
         "validation": "Node24 UI/Interfaces emits pass. Preflight vs original configured parser: 19,608 exhaustive lexical strings of length 0..5 pass. Original grammar 2 + mounted resource 5 = 7/7 pass, zero skip, 496.53ms: exact source-derived 1001 cells, 1 MiB body, depth-3 commit/depth-4 refusal before catalog, late-quote priority, auth/body/CSRF and no effects/disclosure. Independent finite source review CLEAR. Unchanged scalar/date/bounded-alias/current-authority checks reused; no broader native/browser/durable rerun.",
-        "remaining": "Dev consumes the exact reviewed source profile in the original installed/generated browser/durable CSV consumer and qualifies maximum work/peak-memory at the claimed host scope. Advisory without checked metadata remains advisory; no global quota or full DEL-C01/SR02/48/333 closure or hold release.",
-        "source_review": "Coordinator independent finite grammar/preflight/mounted receiver review CLEAR. Retain19,608 parser-correspondence inputs and7/7 affected grammar/resource cases plus owning emits; unchanged scalar/date/alias reused. No original generated/browser/durable max-work/peak-memory or full-parent acceptance."
+        "remaining": "Original current-CLI/installed browser and any separately required host memory/resource lifetime scope remain unfinished. Stop the satisfied prebuilt Node/Identity/D1 maximum-review criterion; no full DEL-C01/security parent or hold release.",
+        "source_review": "Coordinator independent finite grammar/preflight/mounted receiver review CLEAR. Retain19,608 parser-correspondence inputs and7/7 affected grammar/resource cases plus owning emits; unchanged scalar/date/alias reused. No original generated/browser/durable max-work/peak-memory or full-parent acceptance.",
+        "native_consumer": {
+          "source": "ebcc794a923f2e15d26c740b294f926b32e43118",
+          "stage": "Implemented, finite native tested and independently reviewed in LOCAL main after deadline; prebuilt genuine generated/Identity/D1 profile only",
+          "validation": "Actual emitted consumer1/1 PASS3739.36ms; exact1MiB body/depth3/1000rows/2002cells from checked writable width2; complete no-effect bytes/cells/depth/late syntax/CSRF refusals, actual DOM selection/canonical D1 row/history/receipt/fence/readback/replay/current revocation/source readbacks/cleanup. Owning UI/Interfaces/CF and frozen root emit pass; reuse19608 lexical+7 mounted inputs.",
+          "memory_scope": "Node maximum-review request and response samples only: peakRSS312066048B,heap128207008B; separate workerd excluded and synchronous transients may be missed. No absolute wholeprocess ceiling, current CLI or Chromium qualification.",
+          "source_review": "Independent finite producer/consumer/security/resource scope review CLEAR; no unchanged reruns.",
+          "remaining": "Original current-CLI/installed browser and any separately required host memory/resource lifetime scope remain unfinished. Stop the satisfied prebuilt Node/Identity/D1 maximum-review criterion; no full DEL-C01/security parent or hold release."
+        }
       }
     },
     "DEL-C02": {
