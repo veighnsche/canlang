@@ -34,9 +34,38 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
     let mut date_controls = 0;
     let mut disclosure_lists = 0;
     let mut original_agendas = 0;
+    let mut original_ordered_tables = 0;
     while let Some(node) = pending.pop() {
         pending.extend(&node.children);
         let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory == "table" && authored.contains("order=from") {
+            original_ordered_tables += 1;
+            let IrExpr::Array(order) = &node
+                .props
+                .iter()
+                .find(|(key, _)| key == "order")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("original table order");
+            };
+            assert_eq!(order.len(), 1);
+            assert!(matches!(&order[0].expr, IrExpr::Text(value) if value == "from"));
+            assert!(
+                node.props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            );
+            assert!(
+                !diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.message.contains("table order")
+                        && diagnostic.primary.start >= node.span.start
+                        && diagnostic.primary.end <= node.span.end)
+            );
+        }
         if node.factory == "calendar" && authored.contains("calendar Appointment start=") {
             original_agendas += 1;
             for (name, expected) in [
@@ -82,7 +111,9 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                     .iter()
                     .map(|child| child.factory.as_str())
                     .collect::<Vec<_>>(),
-                ["badge", "status", "status", "text", "form", "actions"]
+                [
+                    "badge", "status", "status", "text", "form", "actions", "history"
+                ]
             );
             let attendance = &node.children[4];
             assert!(attendance.props.iter().any(|(key,value)| key == "operation" && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.attendance")));
@@ -136,17 +167,19 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                 checked.symbols[symbol.0 as usize].canonical,
                 "appointments.Appointment"
             );
-            assert!(
-                diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.code == "E6008"
-                        && diagnostic.message.contains("cannot lower history")
-                        && original
-                            [diagnostic.primary.start as usize..diagnostic.primary.end as usize]
-                            .trim()
-                            == "history"),
-                "bare original history remains its exact consumer refusal"
+            let history = &node.children[6];
+            assert_eq!(
+                original[history.span.start as usize..history.span.end as usize].trim(),
+                "history"
             );
+            assert!(history.props.iter().any(|(key,value)| key == "model" && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.Appointment")));
+            assert!(history.props.iter().any(|(key, value)| key == "record"
+                && matches!(&value.expr, IrExpr::Name(value) if value == "row")
+                && value.ty
+                    == canlang_compiler::analysis::types::ResolvedType::Record {
+                        symbol,
+                        stored: true
+                    }));
         }
         if node.factory == "list"
             && (authored.contains("list row.Attempt columns=")
@@ -355,6 +388,10 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         "both original view uses retain their authored disclosure: {diagnostics:?}"
     );
     assert_eq!(date_controls, 1, "original date control occurs once");
+    assert_eq!(
+        original_ordered_tables, 3,
+        "all original CanBook table orders remain in raw checked IR"
+    );
     assert_eq!(
         original_agendas, 1,
         "complete original agenda raw IR is preserved without native acceptance: {diagnostics:?}"

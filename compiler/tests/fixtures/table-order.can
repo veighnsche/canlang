@@ -1,0 +1,21 @@
+app TableOrder
+Given
+ Calendar {title:text}
+ Window in Calendar {from:datetime,until:datetime,available:bool,rank:int,day:date,state:enum(open,closed)}
+ policy Calendar read=public
+ policy Window read=public
+When
+ crud Window by=public fields=available,rank
+Then
+ page /windows title="Ordered windows"
+  list Calendar
+   text row.title
+   table row.Window columns=from,until,available order=from
+    pagination
+   table row.Window columns=from,until,available,rank,day,state order=-from,rank,day display=split
+    pagination
+    text row.from,row.until
+    edit fields=available
+     checkbox available
+    edit fields=rank
+   table row.Window columns=rank,day,state order=rank,-day
