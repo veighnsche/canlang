@@ -4,7 +4,10 @@ import type {
   AppearanceSize,
   HistoryEntry,
   PresentationContext,
+  PageHistoryReader,
+  RowView,
 } from "@canlang/contracts";
+import { BUSINESS_ERROR_CODES } from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import { copy, history, tabs } from "../src/panels.js";
 import { loadHtml } from "./harness.js";
@@ -506,6 +509,103 @@ describe("history", () => {
     } finally {
       await page.close();
     }
+  });
+});
+
+describe("source history", () => {
+  const model = "expense.Expense";
+  const row: RowView = Object.freeze({ id: "rec-1", version: "2", fields: {} });
+  const result = (entries: readonly HistoryEntry[]) => ({ revision: 7 as Awaited<ReturnType<PageHistoryReader>>["revision"], entries });
+  const render = (reader?: PageHistoryReader, locales: string[] = []) => history({
+    context: makeContext({ preferredLocales: locales, ...(reader === undefined ? {} : { readHistory: reader }) }),
+    model, record: row,
+  });
+
+  it("renders the original source locator once in a closed control preserving returned order and null scalars", async () => {
+    let calls = 0;
+    const html = await render(async locator => {
+      calls++;
+      assert.equal(locator.model, model);
+      assert.equal(locator.record, row);
+      return result([
+        makeEntry({ version: 1 as HistoryEntry["version"], change: "create", before: null,
+          actor: "first-actor", after: { status: null } }),
+        makeEntry({ actor: "second-actor", before: { status: null }, after: { status: "filed" } }),
+      ]);
+    });
+    assert.equal(calls, 1);
+    const page = await loadHtml(html);
+    try {
+      const outer = page.document.querySelector("details.collapse");
+      assert.ok(outer);
+      assert.equal(outer.hasAttribute("open"), false);
+      const entries = outer.querySelectorAll("ul > li");
+      assert.equal(entries.length, 2);
+      assert.ok(entries[0]?.textContent?.includes("first-actor"));
+      assert.ok(entries[1]?.textContent?.includes("second-actor"));
+      assert.ok(outer.querySelector("dd:empty"), "nullable scalar renders blank");
+      assert.ok(!html.includes(">null</dd>"), html);
+    } finally { await page.close(); }
+  });
+
+  it("distinguishes genuine empty history from absent and known-refused readers without disclosing details", async () => {
+    for (const [locales, empty, unavailable] of [
+      [[], "No history.", "History unavailable."],
+      [["nl"], "Geen geschiedenis.", "Geschiedenis niet beschikbaar."],
+    ] as const) {
+      const html = await render(async () => result([]), [...locales]);
+      assert.ok(html.includes(empty), html);
+      assert.ok(!html.includes(unavailable), html);
+      const absent = await render(undefined, [...locales]);
+      assert.ok(absent.includes(unavailable), absent);
+      assert.ok(!absent.includes(empty), absent);
+      for (const error of [
+        ...BUSINESS_ERROR_CODES.map(code => Object.assign(new Error("private secret payload"), { code })),
+        Object.assign(new Error("private fence detail"), { name: "FenceConflictError" }),
+      ]) {
+        const refused = await render(async () => { throw error; }, [...locales]);
+        assert.ok(refused.includes(unavailable), refused);
+        assert.ok(!refused.includes(empty), refused);
+        assert.ok(!refused.includes("private") && !refused.includes("secret"), refused);
+      }
+    }
+  });
+
+  it("refuses malformed own locators before invoking the source reader", async () => {
+    let calls = 0, getters = 0;
+    const context = makeContext({ readHistory: async () => { calls++; return result([]); } });
+    const accessor = Object.defineProperty({ version: "2", fields: {} }, "id", {
+      enumerable: true, get: () => { getters++; return "rec-1"; },
+    });
+    const inherited = Object.assign(Object.create({ id: "rec-1", version: "2" }), { fields: {} });
+    for (const record of [accessor, inherited, { ...row, id: "" },
+      { ...row, version: undefined }, { ...row, version: "0" }, { ...row, version: "02" },
+      { ...row, version: "-1" }, { ...row, version: 2 }]) {
+      await assert.rejects(history({ context, model, record: record as RowView }));
+    }
+    await assert.rejects(history({ context, model: "", record: row }));
+    assert.equal(calls, 0);
+    assert.equal(getters, 0);
+  });
+
+  it("refuses foreign malformed and internal-provenance results without a raw fallback", async () => {
+    for (const entries of [
+      [makeEntry({ model: "foreign.Model" as HistoryEntry["model"] })],
+      [makeEntry({ recordId: "foreign-row" as HistoryEntry["recordId"] })],
+      [makeEntry({ version: 1 as HistoryEntry["version"] })],
+      [withExtra(makeEntry(), { auditProjection: { secretFields: ["private"] } })],
+      [makeEntry({ at: Number.NaN })],
+      [makeEntry({ after: { nested: { secret: "private" } } })],
+      [makeEntry({ after: { list: ["private"] } })],
+    ]) await assert.rejects(render(async () => result(entries)));
+    await assert.rejects(render(async () => ({ revision: 7, entries: null }) as unknown as Awaited<ReturnType<PageHistoryReader>>));
+    await assert.rejects(render(async () => ({ revision: Number.NaN, entries: [] }) as unknown as Awaited<ReturnType<PageHistoryReader>>));
+    await assert.rejects(render(async () => undefined as unknown as Awaited<ReturnType<PageHistoryReader>>));
+  });
+
+  it("propagates unexpected reader failures unchanged", async () => {
+    const unexpected = Object.assign(new Error("reader wiring failed"), { code: "unknown_code" });
+    await assert.rejects(render(async () => { throw unexpected; }), error => error === unexpected);
   });
 });
 

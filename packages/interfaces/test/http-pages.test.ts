@@ -10,9 +10,13 @@ import type {
   PageDescriptor,
   PageRecordsQuery,
   PageRecordsReader,
+  PageHistoryReader,
   PageSourceContext,
   PresentationContext,
   ResolvedIdentity,
+  Revision,
+  RowView,
+  RowQueryRunner,
 } from '@canlang/contracts';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import {
@@ -705,6 +709,69 @@ test('native record reads use the exact admitted request scope for full and part
     assert.equal(scopes, 1); assert.equal(reads, 1);
     assert.ok(events.indexOf('admit') < events.indexOf('scope'));
     assert.ok(events.indexOf('scope') < events.indexOf('read'));
+  }
+});
+
+test('page history uses only the admitted current scope for full and partial renders and refuses unavailable or denied reads', async () => {
+  for (const partial of [false, true]) {
+    const row: RowView = { id: 'history-row', version: '7', fields: { title: 'Current authorized row' } };
+    const locator = { model: 'TestApp.Todo', record: row };
+    const result = { revision: 7 as Revision, entries: [] };
+    const events: string[] = [];
+    let currentPrincipal: ResolvedIdentity | undefined;
+    let renderingPrincipal: ResolvedIdentity | undefined;
+    let scopes = 0;
+    let reads = 0;
+    let available = true;
+    let admitted = true;
+    const readHistory: PageHistoryReader = async actual => {
+      reads++; events.push('history');
+      assert.equal(actual, locator); assert.equal(actual.record, row);
+      assert.equal(actual.model, 'TestApp.Todo');
+      assert.equal(currentPrincipal, renderingPrincipal);
+      assert.equal(currentPrincipal?.actor?.user_id, identity.userId);
+      assert.equal(currentPrincipal?.team?.team_id, identity.teamId);
+      return result;
+    };
+    const page = helloPage({
+      admit: async () => {
+        events.push('admit');
+        if (!admitted) throw buildBusinessError('forbidden', 'History page denied.');
+        return {};
+      },
+      render: async context => {
+        renderingPrincipal = context.principal as ResolvedIdentity;
+        assert.equal(context.readHistory, available ? readHistory : undefined);
+        if (context.readHistory === undefined) {
+          throw buildBusinessError('validation', 'Page history is unavailable.');
+        }
+        const observed = await context.readHistory(locator);
+        assert.equal(observed, result);
+        return `<p>history:${observed.revision}</p>`;
+      },
+    });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const query: RowQueryRunner = async () => ({ rows: [], columns: [] });
+    const scopedDeps = { ...deps, createReadScope: (principal: ResolvedIdentity) => {
+      scopes++; events.push('scope'); currentPrincipal = principal;
+      return { query, ...(available ? { readHistory } : {}) };
+    } };
+    const request = () => testRequest(`/hello?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) });
+    const response = await handlePageRequest(scopedDeps, request());
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /<p>history:7<\/p>/);
+    assert.equal(scopes, 1); assert.equal(reads, 1);
+    assert.ok(events.indexOf('admit') < events.indexOf('scope'));
+    assert.ok(events.indexOf('scope') < events.indexOf('history'));
+    available = false;
+    const unavailable = await handlePageRequest(scopedDeps, request());
+    assert.equal(unavailable.status, 400);
+    assert.equal(reads, 1); assert.equal(scopes, 2);
+    admitted = false;
+    const denied = await handlePageRequest(scopedDeps, request());
+    assert.equal(denied.status, 403);
+    assert.equal(reads, 1); assert.equal(scopes, 2);
   }
 });
 

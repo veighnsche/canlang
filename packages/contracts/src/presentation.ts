@@ -19,7 +19,7 @@ import type {
   SealedActionHandle,
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
-import type { HistoryEntry } from "./state.js";
+import type { HistoryEntry, Revision } from "./state.js";
 import type { UserRef } from "./values.js";
 import type { ReceiptProperty } from "./work.js";
 
@@ -233,6 +233,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
    * queries around it and never re-implements policy.
    */
   readonly query: RowQueryRunner;
+  /** Current-authorized history reader supplied only by the admitted page scope. */
+  readonly readHistory?: PageHistoryReader;
   /**
    * Pinned minor-unit currency scales (lane 2 table) for money display;
    * absent scales fail money rendering loudly rather than guessing.
@@ -525,10 +527,19 @@ export type PageDeliveryObserver = (
   selected: readonly ReceiptProperty[],
 ) => Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null>;
 
+/** The owning reader rechecks this original projected row at the page checkpoint. */
+export type PageHistoryReader = (
+  locator: { readonly model: string; readonly record: RowView },
+) => Promise<{
+  readonly revision: Revision;
+  readonly entries: readonly Omit<HistoryEntry, "auditProjection">[];
+}>;
+
 /** One request's authorized readers; this scope itself grants no authority. */
 export interface PageReadScope {
   readonly query: RowQueryRunner;
   readonly readRecords?: PageRecordsReader;
+  readonly readHistory?: PageHistoryReader;
   readonly observeDelivery?: PageDeliveryObserver;
 }
 
@@ -1816,15 +1827,22 @@ export interface TabsProps {
 }
 
 /**
- * `history` authorized audit trail. `entries` are declared HistoryEntry
- * values rendered as collapse groups; an empty list throws.
+ * `history` authorized audit trail. Source rows use the current page reader
+ * inside an initially closed Collapse; explicit entries retain their API.
  */
-export interface HistoryProps {
+export type HistoryProps = {
   readonly context: PresentationContext;
-  readonly entries: ReadonlyArray<HistoryEntry>;
   readonly caption?: MessageValue;
   readonly id?: string;
-}
+} & ({
+  readonly entries: ReadonlyArray<HistoryEntry>;
+  readonly model?: never;
+  readonly record?: never;
+} | {
+  readonly model: string;
+  readonly record: RowView;
+  readonly entries?: never;
+});
 
 /**
  * `copy` selectable value display: a readonly input holding the value plus

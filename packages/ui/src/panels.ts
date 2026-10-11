@@ -35,13 +35,14 @@
 import type {
   CopyProps,
   HistoryProps,
+  HistoryEntry,
   MessageParamValue,
   PageChildren,
   PresentationContext,
   TabsBinding,
   TabsProps,
 } from "@canlang/contracts";
-import { CSRF_FIELD } from "@canlang/contracts";
+import { BUSINESS_ERROR_CODES, CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
@@ -62,6 +63,9 @@ const OPERATION_LABEL = message("Operation", { nl: "Bewerking" });
 const ACTOR_LABEL = message("Actor", { nl: "Actor" });
 const TIME_LABEL = message("Time", { nl: "Tijd" });
 const CHANGE_LABEL = message("Change", { nl: "Wijziging" });
+const HISTORY_LABEL = message("History", { nl: "Geschiedenis" });
+const HISTORY_EMPTY = message("No history.", { nl: "Geen geschiedenis." });
+const HISTORY_UNAVAILABLE = message("History unavailable.", { nl: "Geschiedenis niet beschikbaar." });
 
 /** Default radio-group name when a tabset carries no explicit id. */
 const DEFAULT_TABS_NAME = "tabs";
@@ -278,8 +282,7 @@ function renderRecord(
 ): string {
   const locale = pageLocaleOf(context);
   const rows = Object.entries(record).map(([field, value]) => {
-    const param = toScalarParam(field, value);
-    const formatted = formatScalar(param, {
+    const formatted = value === null ? "" : formatScalar(toScalarParam(field, value), {
       locale,
       timeZone: "UTC",
       ...(context.currencyScales !== undefined ? { currencyScales: context.currencyScales } : {}),
@@ -295,7 +298,9 @@ function renderRecord(
  * plus before/after field scalars. An empty entry list fails closed: there
  * is no history without entries.
  */
-export async function history(props: HistoryProps): Promise<string> {
+async function renderHistoryEntries(props: Pick<HistoryProps, "context" | "caption" | "id"> & {
+  readonly entries: readonly Omit<HistoryEntry, "auditProjection">[];
+}): Promise<string> {
   // history admits no appearance matrix: any runtime appearance key throws.
   appearanceClasses("history", "history", pickAppearance(props));
   if (props.id !== undefined) {
@@ -346,6 +351,55 @@ export async function history(props: HistoryProps): Promise<string> {
     }),
   );
   return `<ul${idAttr("history", props.id)}${label}>${items.join("")}</ul>`;
+}
+
+/** Source history consumes only the current admitted scope's projected reader. */
+export async function history(props: HistoryProps): Promise<string> {
+  if (Object.hasOwn(props, "entries")) {
+    if (props.model !== undefined || props.record !== undefined || props.entries === undefined) {
+      throw new TypeError("history needs either authorized entries or an original source row");
+    }
+    return renderHistoryEntries(props);
+  }
+  appearanceClasses("history", "history", pickAppearance(props));
+  const record = props.record;
+  const id = typeof record === "object" && record !== null ? Object.getOwnPropertyDescriptor(record, "id") : undefined;
+  const version = typeof record === "object" && record !== null ? Object.getOwnPropertyDescriptor(record, "version") : undefined;
+  if (typeof props.model !== "string" || props.model === "" ||
+      id === undefined || !("value" in id) || typeof id.value !== "string" || id.value === "" ||
+      version === undefined || !("value" in version) || typeof version.value !== "string" || !/^[1-9]\d*$/.test(version.value)) {
+    throw new TypeError("history needs an original projected model/row/version");
+  }
+  let entries: readonly Omit<HistoryEntry, "auditProjection">[] | undefined;
+  if (props.context.readHistory !== undefined) {
+    let result;
+    let refused = false;
+    try {
+      result = await props.context.readHistory({ model: props.model, record: record! });
+    } catch (error) {
+      const refusal = typeof error === "object" && error !== null &&
+        (("code" in error && BUSINESS_ERROR_CODES.some(code => code === error.code)) ||
+          ("name" in error && error.name === "FenceConflictError"));
+      if (!refusal) throw error;
+      refused = true;
+    }
+    if (!refused) {
+      if (result === undefined || result === null || !Number.isSafeInteger(result.revision) || result.revision < 0 ||
+        !Array.isArray(result.entries) || result.entries.some(entry =>
+        entry.model !== props.model || entry.recordId !== id.value || Object.hasOwn(entry, "auditProjection")) ||
+        result.entries.length !== 0 && String(result.entries[result.entries.length - 1]!.version) !== version.value) {
+        throw new TypeError("history reader returned an unbound or unprojected result");
+      }
+      entries = result.entries;
+    }
+  }
+  const body = entries === undefined
+    ? `<p role="status" data-can-history="unavailable">${escapeHtml(resolveCaption(HISTORY_UNAVAILABLE, props.context))}</p>`
+    : entries.length === 0
+      ? `<p role="status" data-can-history="empty">${escapeHtml(resolveCaption(HISTORY_EMPTY, props.context))}</p>`
+      : await renderHistoryEntries({ context: props.context, entries });
+  return collapse({ context: props.context, caption: props.caption ?? HISTORY_LABEL, children: [body],
+    ...(props.id === undefined ? {} : { id: props.id }) });
 }
 
 // ---------------------------------------------------------------------------
