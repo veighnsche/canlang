@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ApiGraph, CompileArtifact, MutationEnvelope, OutboxIntent, ProviderBinding, WorkflowNodeMapping } from '@canlang/contracts';
+import type { ApiGraph, CommitBatch, CompileArtifact, MutationEnvelope, OutboxIntent, ProviderBinding, WorkflowNodeMapping } from '@canlang/contracts';
 import { resolveIdentity, createD1IdentityStore, ensureIdentitySchema } from '@canlang/identity';
 import { receiverFromIdentity } from '@canlang/interfaces';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
@@ -23,7 +23,8 @@ import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readOc
   readDispatchImageCorrelation, readDispatchImageControlPin } from '@canlang/work/kernel/tables';
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
-import { planRecoveryScan } from '@canlang/work/recovery';
+import { createRecoveryPlanner } from '@canlang/work-kernel';
+import { distribution as workKernelDistribution } from '@canlang/work-kernel/distribution';
 import { ComfyUINativeAdapter } from '@canlang/services/media/comfyui';
 import { digestGraph } from '@canlang/services/media/mapping';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
@@ -53,6 +54,18 @@ function committed(outcome: MutationOutcome) {
 }
 
 test('compiled Images requests finalize real provider bytes in receiving SQLite and retain native D1 progress on reopen', async t => {
+  // The native planner is qualified only by an explicit test selection after
+  // work-kernel build:wasm. Ordinary package preparation never builds this asset.
+  const backend = process.env['CAN_TEST_RECOVERY_BACKEND'] ?? 'ts';
+  assert.ok(backend === 'ts' || backend === 'wasm', 'explicit recovery test backend must be ts or wasm');
+  const wasm = (globalThis as unknown as {
+    WebAssembly: { Module: new (bytes: Uint8Array) => object };
+  }).WebAssembly;
+  const planner = createRecoveryPlanner(backend === 'ts' ? { backend } : {
+    backend, module: new wasm.Module(await readFile(workKernelDistribution.recoveryWasm)),
+  });
+  let plannerCalls = 0;
+  const planRecoveryScan: typeof planner = input => { plannerCalls++; return planner(input); };
   // Identity/session/membership and domain/Work/receipts share persistent
   // native D1; finalized metadata and bytes share real SQLite transactions.
   // The installed local HTTP protocol is controlled, not a remote Comfy deployment.
@@ -211,8 +224,10 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     let terminalFaultIntent: OutboxIntent | null = null;
     let terminalResponseLost = false;
     let afterControlPin: (() => Promise<void>) | undefined;
+    let observedRecoveryBatches: CommitBatch[] | undefined;
     const dispatcherFor = () => createBoundImagesDispatcher({ store: { ...store,
       async commit(batch) {
+        observedRecoveryBatches?.push(structuredClone(batch));
         const result = await store.commit(batch);
         if (afterControlPin !== undefined && batch.writes.some(write => write.model === WORK_DISPATCH_MODEL &&
             write.kind !== 'remove' && write.row.data['originalIntentId'] !== undefined)) {
@@ -282,7 +297,20 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const retainedSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
     const retainedHistory = await store.historyFor(MODEL, asId(created.id));
     await reopen();
+    const recoveryRevision = await store.readRevision();
+    observedRecoveryBatches = [];
     assert.deepEqual((await recover()).reconciled, [{ intentId: first.intentId, state: 'delivered' }]);
+    const recoveryBatches = observedRecoveryBatches; observedRecoveryBatches = undefined;
+    assert.equal(recoveryBatches.length, 2, 'one maintenance fence, then one atomic reconciliation fence');
+    assert.equal(await store.readRevision(), recoveryRevision + 2);
+    const reconcileBatch = recoveryBatches[1]!;
+    assert.equal(reconcileBatch.expectedRevision, recoveryRevision + 1);
+    assert.equal(reconcileBatch.writes.length, 1);
+    assert.equal(reconcileBatch.writes[0]!.model, WORK_DISPATCH_MODEL);
+    assert.deepEqual(reconcileBatch.outboxAck, [first.intentId]);
+    assert.equal(reconcileBatch.receipt, null);
+    for (const entries of [reconcileBatch.history, reconcileBatch.outbox, reconcileBatch.schedules,
+      reconcileBatch.uniqueClaims, reconcileBatch.uniqueReleases]) assert.deepEqual(entries, []);
     const firstRecoveredDispatch = await store.load(WORK_DISPATCH_MODEL, asId(first.intentId)); assert.ok(firstRecoveredDispatch);
     assert.deepEqual(readDispatchImageCorrelation(firstRecoveredDispatch.data), originalCorrelation);
     assert.equal(prompts.length, 1);
@@ -1046,6 +1074,8 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(revoked.intentId)), beforeDeniedReceipt);
     assert.deepEqual(await readFile(sourcePath), capturedSource);
     assert.deepEqual(await readFile(fixturePath), capturedArtifact);
+    assert.ok(plannerCalls > 0, 'the selected planner must be consumed by the actual durable recovery sweep');
+    t.diagnostic(`actual Images recovery planner backend=${backend}; whole calls=${plannerCalls}`);
   } finally {
     files?.close(); await miniflare?.dispose();
     await new Promise<void>((resolve, reject) => provider.close(error => error ? reject(error) : resolve()));
