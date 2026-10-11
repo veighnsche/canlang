@@ -33,9 +33,121 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
     let mut disclosures = 0;
     let mut date_controls = 0;
     let mut disclosure_lists = 0;
+    let mut original_agendas = 0;
     while let Some(node) = pending.pop() {
         pending.extend(&node.children);
         let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory == "calendar" && authored.contains("calendar Appointment start=") {
+            original_agendas += 1;
+            for (name, expected) in [
+                ("kind", "agenda"),
+                ("model", "appointments.Appointment"),
+                ("startField", "from"),
+                ("endField", "until"),
+            ] {
+                assert!(
+                    node.props.iter().any(|(key, value)| key == name
+                        && matches!(&value.expr, IrExpr::Text(value) if value == expected)),
+                    "{name}: {diagnostics:?}"
+                );
+            }
+            assert!(
+                node.props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            );
+            assert!(
+                !node.props.iter().any(|(key, _)| key == "parent"),
+                "original agenda has no authored parent binding"
+            );
+            assert!(node.row_scope.is_some());
+            let defaults = &node
+                .props
+                .iter()
+                .find(|(key, _)| key == "defaults")
+                .unwrap()
+                .1;
+            let IrExpr::Object(defaults) = &defaults.expr else {
+                panic!("original typed defaults");
+            };
+            assert_eq!(defaults.len(), 1);
+            assert_eq!(defaults[0].0, "state");
+            let IrExpr::Member { base, field } = &defaults[0].1.expr else {
+                panic!("original admitted preference default");
+            };
+            assert!(matches!(&base.expr, IrExpr::Name(name) if name == "preferences"));
+            assert_eq!(field, "appointment_state");
+            assert_eq!(
+                node.children
+                    .iter()
+                    .map(|child| child.factory.as_str())
+                    .collect::<Vec<_>>(),
+                ["badge", "status", "status", "text", "form", "actions"]
+            );
+            let attendance = &node.children[4];
+            assert!(attendance.props.iter().any(|(key,value)| key == "operation" && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.attendance")));
+            let IrExpr::Array(fields) = &attendance
+                .props
+                .iter()
+                .find(|(key, _)| key == "fields")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("original unbound inputs");
+            };
+            assert_eq!(
+                fields
+                    .iter()
+                    .map(|field| match &field.expr {
+                        IrExpr::Text(name) => name.as_str(),
+                        _ => panic!("selected name"),
+                    })
+                    .collect::<Vec<_>>(),
+                ["attend", "reason"]
+            );
+            assert_eq!(
+                attendance
+                    .children
+                    .iter()
+                    .map(|child| child.factory.as_str())
+                    .collect::<Vec<_>>(),
+                ["checkbox", "textarea"]
+            );
+            let IrExpr::Object(arguments) = &attendance
+                .props
+                .iter()
+                .find(|(key, _)| key == "arguments")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("protected original row");
+            };
+            assert_eq!(arguments[0].0, "appointment");
+            let canlang_compiler::analysis::types::ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = arguments[0].1.ty
+            else {
+                panic!("checked own appointment row");
+            };
+            assert_eq!(
+                checked.symbols[symbol.0 as usize].canonical,
+                "appointments.Appointment"
+            );
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.message.contains("cannot lower history")
+                        && original
+                            [diagnostic.primary.start as usize..diagnostic.primary.end as usize]
+                            .trim()
+                            == "history"),
+                "bare original history remains its exact consumer refusal"
+            );
+        }
         if node.factory == "list"
             && (authored.contains("list row.Attempt columns=")
                 || authored.contains("list row.Notice columns="))
@@ -243,6 +355,10 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         "both original view uses retain their authored disclosure: {diagnostics:?}"
     );
     assert_eq!(date_controls, 1, "original date control occurs once");
+    assert_eq!(
+        original_agendas, 1,
+        "complete original agenda raw IR is preserved without native acceptance: {diagnostics:?}"
+    );
     assert_eq!(
         disclosure_lists, 4,
         "original Attempt/Notice lists survive both view uses"
@@ -1210,6 +1326,208 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
         assert!(
             artifact.get("modules").is_none(),
             "{name}: refused source cannot publish"
+        );
+    }
+}
+
+#[test]
+fn agenda_endpoints_retain_checked_owners_and_refuse_unsupported_profiles() {
+    const SOURCE: &str = r#"app AgendaEndpoints
+Given
+ Visit {from:datetime,until:datetime,state:enum(open,closed)}
+ Other {from:datetime}
+ policy Visit read=public
+When
+Then
+ preferences {initial:Visit.state?}
+ page /agenda title="Agenda"
+  calendar Visit start=from end=until filter=state defaults={state=preferences.initial}
+   pagination
+   badge row.state
+   text "First row body"
+   text "Second row body"
+"#;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("agenda-endpoints.can");
+    for (name, source, supported, source_error) in [
+        ("datetime", SOURCE.to_string(), true, false),
+        (
+            "date",
+            SOURCE.replace("from:datetime,until:datetime", "from:date,until:date"),
+            true,
+            false,
+        ),
+        (
+            "foreign",
+            SOURCE.replace("end=until", "end=Other.from"),
+            false,
+            true,
+        ),
+        (
+            "unknown",
+            SOURCE.replace("end=until", "end=absent"),
+            false,
+            true,
+        ),
+        (
+            "multiple",
+            SOURCE.replace("start=from", "start=from,until"),
+            false,
+            true,
+        ),
+        (
+            "nontemporal",
+            SOURCE.replace("from:datetime,until", "from:text,until"),
+            false,
+            false,
+        ),
+        (
+            "nullable",
+            SOURCE.replace("from:datetime,until", "from:datetime?,until"),
+            false,
+            false,
+        ),
+    ] {
+        let mut db = SourceDb::new();
+        let id = db.add(format!("{name}.can"), source.clone());
+        let catalog_path = root.join("packages/values/dist/catalog.json");
+        let (catalog, catalog_diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: root,
+            primary: Span::new(id, 0, 0),
+        });
+        assert!(
+            catalog_diagnostics.is_empty(),
+            "{name}: {catalog_diagnostics:?}"
+        );
+        let (checked, source_diagnostics) = check_program(&db, &[id], catalog.as_ref());
+        if source_error {
+            assert!(
+                !source_diagnostics.is_empty(),
+                "{name}: invalid source selector must refuse"
+            );
+        } else {
+            assert!(
+                source_diagnostics.is_empty(),
+                "{name}: source acceptance stays unchanged: {source_diagnostics:?}"
+            );
+        }
+        let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+        let mut pending = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.pages)
+            .flat_map(|page| &page.render)
+            .collect::<Vec<_>>();
+        let mut agendas = Vec::new();
+        while let Some(node) = pending.pop() {
+            pending.extend(&node.children);
+            if node.factory == "calendar" {
+                agendas.push(node);
+            }
+        }
+        if supported {
+            assert!(diagnostics.is_empty(), "{name}: {diagnostics:?}");
+            assert_eq!(agendas.len(), 1, "{name}");
+            let agenda = agendas[0];
+            for (key, expected) in [
+                ("kind", "agenda"),
+                ("model", "AgendaEndpoints.Visit"),
+                ("startField", "from"),
+                ("endField", "until"),
+            ] {
+                assert!(
+                    agenda.props.iter().any(|(name, value)| name == key
+                        && matches!(&value.expr, IrExpr::Text(value) if value == expected)),
+                    "{name}: {key}"
+                );
+            }
+            assert!(
+                agenda
+                    .props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true))),
+                "{name}"
+            );
+            assert_eq!(
+                agenda
+                    .row_scope
+                    .as_ref()
+                    .map(|(row, view)| (row.as_str(), view.as_str())),
+                Some(("row", "rowView"))
+            );
+            assert_eq!(
+                agenda
+                    .children
+                    .iter()
+                    .map(|node| node.factory.as_str())
+                    .collect::<Vec<_>>(),
+                ["badge", "text", "text"]
+            );
+            assert!(
+                agenda
+                    .children
+                    .windows(2)
+                    .all(|pair| pair[0].span.start < pair[1].span.start),
+                "{name}: authored order"
+            );
+            let defaults = &agenda
+                .props
+                .iter()
+                .find(|(key, _)| key == "defaults")
+                .unwrap()
+                .1;
+            let IrExpr::Object(defaults) = &defaults.expr else {
+                panic!("{name}: original defaults object");
+            };
+            assert_eq!(defaults.len(), 1);
+            assert_eq!(defaults[0].0, "state");
+            assert!(matches!(&defaults[0].1.expr, IrExpr::Member { base, field }
+                if field == "initial" && matches!(&base.expr, IrExpr::Name(name) if name == "preferences")));
+            let filter = &agenda
+                .props
+                .iter()
+                .find(|(key, _)| key == "filter")
+                .unwrap()
+                .1;
+            assert!(
+                matches!(&filter.expr, IrExpr::Array(fields) if fields.len() == 1 && matches!(&fields[0].expr, IrExpr::Text(name) if name == "state"))
+            );
+        } else {
+            assert!(
+                agendas.is_empty(),
+                "{name}: unsupported endpoint cannot acquire a row profile"
+            );
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.message.contains("calendar")),
+                "{name}: {diagnostics:?}"
+            );
+        }
+        // The exact source still goes through the CLI shipping gate. Even
+        // ready raw endpoints do not release the pending agenda carrier.
+        std::fs::write(&input, &source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(&catalog_path)
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(10),
+            "{name}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let refused: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            refused.get("modules").is_none(),
+            "{name}: no executable artifact before the owning carrier joins"
         );
     }
 }
