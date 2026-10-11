@@ -616,7 +616,7 @@
         "stale": "Every page/choices/action/reminder/dispatch reevaluates current owner data, not frozen old eligibility",
         "replay": "Read/derive never creates duplicated employees/grants/assignments",
         "failure": "Unavailable identity/source cannot fabricate work eligibility",
-        "uncertain": "Shared context broad active-work requirement versus explicit role-only null-scope admission remains recorded in GAP-CA-03",
+        "uncertain": "Explicit operator-wide role-only scope is resolved in GAP-CA-03; distinguish its authentic execution from Employee-only site/candidate authority and truthful empty viewer results",
         "crash": "G-READ-01",
         "restart": "G-READ-02",
         "upgrade": "G-UPG-01"
