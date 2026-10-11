@@ -24,6 +24,11 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@v4
         with:
+          node-version: "22.0.0"
+      - name: Retain declared minimum Node executable
+        run: echo "CAN_MINIMUM_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
@@ -62,6 +67,10 @@ jobs:
         run: bun run verify:installed-types --skip-build
       - name: Verify installed Worker and assets
         run: bun run verify:installed-worker --skip-build
+      - name: Verify minimum Node installed declarations
+        run: '"$CAN_MINIMUM_NODE22" scripts/verify-installed-types.mjs --skip-build --minimum-node22'
+      - name: Verify minimum Node installed runtime and assets
+        run: '"$CAN_MINIMUM_NODE22" scripts/verify-installed-worker.mjs --skip-build --minimum-node22'
       - name: Verify deterministic library build (B5 reproducibility)
         run: |
           set -euo pipefail

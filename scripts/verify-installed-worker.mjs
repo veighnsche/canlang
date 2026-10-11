@@ -2,6 +2,7 @@
 /**
  * Real tarball regression for the installed Worker build and asset inventory.
  * Run with Node 24 and Bun on PATH; --skip-build uses already built packages.
+ * --minimum-node22 selects exactly Node22.0.0 with its permission flag.
  * The verification child cannot read the checkout. Bun/workerd subprocesses
  * do not inherit Node permissions, so producer entry realpaths and emitted
  * bytes are checked separately. No workspace links or testkit are installed.
@@ -16,6 +17,9 @@ import { dirname, isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+const minimumNode22 = process.argv.includes('--minimum-node22');
+if (minimumNode22) assert.equal(process.version, 'v22.0.0', 'Minimum-engine qualification requires exactly Node22.0.0');
+const permissionFlag = minimumNode22 ? '--experimental-permission' : '--permission';
 const inside = (file, directory) => {
   const path = relative(directory, file);
   return path === '' || (!isAbsolute(path) && path !== '..' && !path.startsWith('../'));
@@ -236,7 +240,7 @@ async function verifyConsumer(checkout) {
   installedFile(pathToFileURL(servingControl));
   // Execute the exact control directly: node:test honors the pattern without
   // CLI file discovery or test-runner child isolation outside this permission.
-  execFileSync(process.execPath, ['--permission', `--allow-fs-read=${process.env.TMPDIR}`, `--allow-fs-write=${process.env.TMPDIR}`,
+  execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${process.env.TMPDIR}`, `--allow-fs-write=${process.env.TMPDIR}`,
     '--test-name-pattern=serves deep-equal output', servingControl],
   { cwd: consumer, env: process.env, stdio: 'inherit' });
 
@@ -414,7 +418,7 @@ if (process.argv[2] === '--consumer') {
   await verifyConsumer(process.argv[3]);
 } else {
   const checkout = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
-  assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'Use Node 24 or newer for the filesystem permission regression');
+  if (!minimumNode22) assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'Use Node 24 or newer for the filesystem permission regression');
   if (!process.argv.includes('--skip-build')) execFileSync('bun', ['run', 'build'], { cwd: checkout, stdio: 'inherit' });
   const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'canlang-installed-worker-'));
   const consumer = join(scratch, 'consumer');
@@ -445,6 +449,6 @@ if (process.argv[2] === '--consumer') {
   execFileSync('bun', ['install', '--ignore-scripts'], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
   const script = join(consumer, 'verify.mjs');
   copyFileSync(fileURLToPath(import.meta.url), script);
-  execFileSync(process.execPath, ['--permission', `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, '--allow-child-process', script, '--consumer', checkout], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
+  execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, '--allow-child-process', script, '--consumer', checkout, ...(minimumNode22 ? ['--minimum-node22'] : [])], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
   console.log(`Installed Worker verification passed. Evidence: ${join(consumer, 'evidence.json')}`);
 }

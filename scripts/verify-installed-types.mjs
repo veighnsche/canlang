@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-/** Tarball-only declaration acceptance. --skip-build uses existing producer outputs. */
+/** Tarball-only declaration acceptance. --skip-build uses existing producer outputs.
+ * Default Node24 permission profile; --minimum-node22 requires Node22.0.0. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -11,6 +12,9 @@ const json = file => JSON.parse(readFileSync(file, 'utf8'));
 const save = (file, value) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 const inside = (file, dir) => { const rel = relative(dir, file); return !isAbsolute(rel) && rel !== '..' && !rel.startsWith('../'); };
 const packageName = specifier => specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0];
+const minimumNode22 = process.argv.includes('--minimum-node22');
+if (minimumNode22) assert.equal(process.version, 'v22.0.0', 'Minimum-engine qualification requires exactly Node22.0.0');
+const permissionFlag = minimumNode22 ? '--experimental-permission' : '--permission';
 
 async function consumerCheck(checkout) {
   const consumer = realpathSync(process.cwd());
@@ -134,7 +138,7 @@ async function consumerCheck(checkout) {
 
 if (process.argv[2] === '--consumer') await consumerCheck(process.argv[3]);
 else {
-  assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'Use Node 24+ for checkout read denial');
+  if (!minimumNode22) assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'Use Node 24+ for checkout read denial');
   const checkout = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
   if (!process.argv.includes('--skip-build')) execFileSync('bun', ['run', 'build'], { cwd: checkout, stdio: 'inherit' });
   const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'canlang-installed-types-'));
@@ -156,5 +160,5 @@ else {
   // Bun pm pack rewrites workspace ranges to versions; overrides force every owner to its actual tarball.
   const script = join(consumer, 'verify.mjs');
   copyFileSync(fileURLToPath(import.meta.url), script);
-  execFileSync(process.execPath, ['--permission', `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, script, '--consumer', checkout], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
+  execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, script, '--consumer', checkout, ...(minimumNode22 ? ['--minimum-node22'] : [])], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
 }
