@@ -1063,6 +1063,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   const bound = boundPlans.get(def);
   const modelInputs = frameworkModelInputs.get(def);
   if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
+      !bound.plan.queries?.some(query => query.dependencies.some(dep => dep.field === 'parent')) &&
       ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) || invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
   }
@@ -1091,6 +1092,10 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if (bound.resultModel !== undefined && bound.plan.queries?.some(query => {
     const read = readPolicies?.get(query.model); return read === undefined || !('grants' in read);
   })) return invalid('model query influences require their complete original source field grants.');
+  if (bound.plan.queries?.some(query => query.dependencies.some(dep => dep.field === 'parent') &&
+      (readPolicies?.get(query.model) === undefined || !('grants' in readPolicies.get(query.model)!)))) {
+    return invalid('parent query metadata requires its complete original source and ancestor grants.');
+  }
   if ([...modelInputs?.values() ?? []].some(inputs => [...inputs.values()].some(model => {
     const read = readPolicies?.get(model.model); return read === undefined || !('grants' in read);
   }))) return invalid('model SEND lexical inputs require their complete original source field grants.');
@@ -1149,24 +1154,33 @@ const querySlots = new WeakMap<ScenarioReceiptQuerySlot, { execution: QueryExecu
  * The saved snapshot and selected result always retain the private plain row. */
 function queryPredicateRecord(execution: QueryExecution, index: number, store: StoragePort): ProjectedRecord {
   const candidate = execution.candidates[index]!, data: Record<string, unknown> = {};
+  const read = (field: string, value: () => unknown): unknown => {
+    try {
+      const state = capture(execution.call, store), owner = execution.owner;
+      ownerHealthy(owner);
+      if (owner.executingCall !== execution.call || owner.stage !== execution.stage ||
+          execution.activeSlot !== candidate.slot || !owner.busy || state.pending !== 0 || state.returnId !== null) {
+        return invalid('query field read requires its original active predicate candidate.');
+      }
+      if (candidate.pendingRead !== null) return invalid('query field read omitted its immediate source marker.');
+      if (!execution.plan.dependencies.some(dep => dep.role === 'control' && dep.field === field)) return invalid('query predicate read is outside its checked control closure.');
+      const observed = value();
+      candidate.pendingRead = field;
+      candidate.reads.set(field, (candidate.reads.get(field) ?? 0) + 1);
+      return observed;
+    } catch (error) { execution.owner.capture.poisoned = true; throw error; }
+  };
   for (const field of Object.keys(candidate.record.data)) Object.defineProperty(data, field, {
-    enumerable: true, get: () => {
-      try {
-        const state = capture(execution.call, store), owner = execution.owner;
-        ownerHealthy(owner);
-        if (owner.executingCall !== execution.call || owner.stage !== execution.stage ||
-            execution.activeSlot !== candidate.slot || !owner.busy || state.pending !== 0 || state.returnId !== null) {
-          return invalid('query field read requires its original active predicate candidate.');
-        }
-        if (candidate.pendingRead !== null) return invalid('query field read omitted its immediate source marker.');
-        if (!execution.plan.dependencies.some(dep => dep.role === 'control' && dep.field === field)) return invalid('query predicate read is outside its checked control closure.');
-        candidate.pendingRead = field;
-        candidate.reads.set(field, (candidate.reads.get(field) ?? 0) + 1);
-        return candidate.record.data[field];
-      } catch (error) { execution.owner.capture.poisoned = true; throw error; }
-    },
+    enumerable: true, get: () => read(field, () => candidate.record.data[field]),
   });
-  return Object.freeze({ ...candidate.record, data: Object.freeze(data) });
+  const record = { ...candidate.record, data: Object.freeze(data) };
+  Object.defineProperty(record, 'parent', { enumerable: true, get: () => read('parent', () => {
+    const parent = candidate.row.parent;
+    if (parent == null || !execution.plan.dependencies.some(dep => dep.field === 'parent' && dep.type === parent.model) ||
+        stableStringify(parent) !== stableStringify(candidate.record.parent)) return invalid('query requires its actual declared owner-row parent metadata.');
+    return parent;
+  }) });
+  return Object.freeze(record);
 }
 function resultWire(bound: BoundPlan, result: unknown): void {
   if (bound.resultModel !== undefined) { modelResultWire(result); return; }
@@ -2045,8 +2059,9 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
       throw error;
     }
   };
-  const readable = (value: Awaited<ReturnType<typeof project>>) => value.record !== null && fields.every(field =>
-    value.grants.some(grant => grant.fields.includes(field)) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
+  const readable = (value: Awaited<ReturnType<typeof project>>) => value.record !== null && fields.every(field => field === 'parent'
+    ? value.record!.parent !== null && value.record!.parent.model === state.bound.artifactModels.get(model)?.parent
+    : value.grants.some(grant => grant.fields.includes(field)) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
   const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
     async (model, id) => { healthy(); const value = await owner.session!.views.final.get(model, id); healthy(); return value; }, healthy));
   healthy();
@@ -2098,11 +2113,11 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       const base = { model: plan.model, modelDescriptor: queryModelDescriptor(state.bound, plan), authority: 'viewer' as const,
         policy: producer.policy, context, memberships, store: adapter, archived: plan.archived,
         ...(plan.order.length === 0 ? {} : { order: plan.order }), ...(plan.limit === null ? {} : { limit: plan.limit }) };
-      const requiredFields = [...new Set(plan.dependencies.filter(dep => dep.role === 'control').map(dep => dep.field))];
+      const requiredFields = [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))];
       const observed = await queryRecordsObserved(base, async (record, row) => {
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
-        if (state.bound.resultModel !== undefined) await observeModelQuerySourceAuthority(call, store, owner, state,
+        if (state.bound.resultModel !== undefined || plan.dependencies.some(dep => dep.field === 'parent')) await observeModelQuerySourceAuthority(call, store, owner, state,
           plan.model, row, plan.dependencies.map(dependency => dependency.field));
         const slot = Object.freeze({});
         const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(),
@@ -2214,7 +2229,11 @@ export function observeScenarioReceiptQueryDependency(call: AdmittedCall, store:
     if (query === undefined || query.call !== call || query.owner !== owner || query.stage !== owner?.stage ||
         query.activeSlot !== input.slot || !owner.busy || state.pending !== 0 || state.returnId !== null) return invalid('query field observation requires its actual active candidate slot.');
     const dependency = query.plan.dependencies.find(dep => dep.id === input.dependencyId), candidate = query.candidates[issued!.index]!;
-    if (dependency === undefined || dependency.role !== 'control' || !Object.hasOwn(candidate.record.data, dependency.field) ||
+    const observed = dependency?.field === 'parent'
+      ? candidate.row.parent != null && candidate.row.parent.model === dependency.type &&
+        stableStringify(candidate.row.parent) === stableStringify(candidate.record.parent)
+      : dependency !== undefined && Object.hasOwn(candidate.record.data, dependency.field);
+    if (dependency === undefined || dependency.role !== 'control' || !observed ||
         candidate.pendingRead !== dependency.field) return invalid('query source marker must match its immediate actual control field read.');
     candidate.pendingRead = null;
     candidate.markers.set(dependency.field, (candidate.markers.get(dependency.field) ?? 0) + 1);
@@ -3397,13 +3416,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           for (const candidate of observed.candidates) {
             const current = await currentSavedRow(plan.model, candidate.row);
             if (current === null) return false;
-            if (bound.resultModel !== undefined) {
+            if (bound.resultModel !== undefined || plan.dependencies.some(dep => dep.field === 'parent')) {
               const producer = referenceProducers.get(consumer);
               if (producer?.app !== input.app || producer.readPolicies?.has(plan.model) !== true) return false;
               const source = await sourceProjection(producer, plan.model, current);
-              if (source === null || plan.dependencies.some(dependency =>
-                !source.grants.some(grant => grant.fields.includes(dependency.field)) ||
-                !Object.hasOwn(source.record!.data, dependency.field))) return false;
+              if (source === null || plan.dependencies.some(dependency => dependency.field === 'parent'
+                ? source.record!.parent === null || source.record!.parent.model !== dependency.type
+                : !source.grants.some(grant => grant.fields.includes(dependency.field)) ||
+                  !Object.hasOwn(source.record!.data, dependency.field))) return false;
             }
             currentRows.push(current);
           }
@@ -3411,7 +3431,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
             policy: input.policy, context: { actorUserId, teamId }, memberships,
             store: { ...input.store, readRevision: () => input.store.readRevision(), query: async () => currentRows },
             archived: plan.archived, ...(plan.order.length === 0 ? {} : { order: plan.order }) }, () => true,
-          [...new Set(plan.dependencies.filter(dep => dep.role === 'control').map(dep => dep.field))]);
+          [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))]);
         } catch (error) { if (error instanceof StateError) return false; throw error; }
       }
       return true;
