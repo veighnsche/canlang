@@ -107,6 +107,13 @@ export interface HandlerFormattingScope {
 }
 
 /** Handler context threaded as the first argument (`c`) of emitted handlers. */
+/** Original emitted guard marker and real lexical values. The owning seam
+ * freezes each value through its checked declaration before its first await. */
+export interface NativeSendWhen {
+  readonly rule: string;
+  readonly inputs: Readonly<Record<string, unknown>>;
+}
+
 export interface HandlerContext {
   /** Trusted host origin plus app mount prefix; link construction grants no access. */
   readonly deploymentBase?: string;
@@ -135,7 +142,7 @@ export interface HandlerContext {
    */
   readonly canonical?: CanonicalEffectsScope;
   /** Checked bound send staging; installed by the canonical seam, never commits. */
-  readonly sendDeferred?: (operation: string, request: unknown, binding: string) => Promise<DeliveryRef>;
+  readonly sendDeferred?: (operation: string, request: unknown, binding: string, when?: NativeSendWhen) => Promise<DeliveryRef>;
   /** Lexical package is checked producer metadata; the seam owns app/owner identity. */
   readonly scheduleDeferred?: (key: string, at: DatetimeValue, event: string, payload: unknown, ownerPackage: string) => Promise<void>;
   readonly cancelDeferred?: (key: string, ownerPackage: string) => Promise<void>;

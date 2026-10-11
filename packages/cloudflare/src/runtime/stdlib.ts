@@ -60,7 +60,7 @@ import type {
   RecordParent,
   StoredRow,
 } from '@canlang/contracts';
-import type { CanonicalEffectsScope, HandlerContext } from './context.js';
+import type { CanonicalEffectsScope, HandlerContext, NativeSendWhen } from './context.js';
 import { app_url as appUrlProducer, equalValue as equalValueProducer, ValueError } from '@canlang/values';
 import { sameNativeReference } from './native-records.js';
 import { hasRole as stateCallerRole, type HandlerRoleContext } from '@canlang/state/effects/guards';
@@ -316,10 +316,28 @@ export async function send(
   c: HandlerContext,
   operation: string,
   request: unknown,
-  options: { readonly binding?: string; readonly when?: () => boolean | Promise<boolean> } = {},
+  options: { readonly binding?: string; readonly when?: NativeSendWhen } = {},
 ) {
-  if (options.when !== undefined) {
-    return unsupported('send', 'dispatch guards require current-state dispatch qualification.');
+  const whenProperty = Object.getOwnPropertyDescriptor(options, 'when');
+  let when: NativeSendWhen | undefined;
+  if ('when' in options) {
+    const value: unknown = whenProperty !== undefined && 'value' in whenProperty ? whenProperty.value : undefined;
+    if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+        Reflect.ownKeys(value).length !== 2 ||
+        ['rule', 'inputs'].some(key => {
+          const property = Object.getOwnPropertyDescriptor(value, key);
+          return property === undefined || !('value' in property) || !property.enumerable;
+        })) {
+      return unsupported('send', 'dispatch guards require their original emitted rule and lexical inputs.');
+    }
+    const rule: unknown = Object.getOwnPropertyDescriptor(value, 'rule')!.value;
+    const inputs: unknown = Object.getOwnPropertyDescriptor(value, 'inputs')!.value;
+    if (typeof rule !== 'string' || rule === '' || rule.length > 4096 || typeof inputs !== 'object' ||
+        inputs === null || Array.isArray(inputs) || ![Object.prototype, null].includes(Object.getPrototypeOf(inputs))) {
+      return unsupported('send', 'dispatch guards require their original emitted rule and lexical inputs.');
+    }
+    when = Object.freeze({ rule, inputs: inputs as Readonly<Record<string, unknown>> });
   }
   if (c.canonical === undefined || c.sendDeferred === undefined) {
     return unsupported('send', 'bound send staging requires canonical execution.');
@@ -327,7 +345,8 @@ export async function send(
   if (typeof options.binding !== 'string' || options.binding === '') {
     throw new Error('send requires its checked logical capability binding.');
   }
-  return c.sendDeferred(operation, request, options.binding);
+  return when === undefined ? c.sendDeferred(operation, request, options.binding)
+    : c.sendDeferred(operation, request, options.binding, when);
 }
 
 /** Not in B1: domain-event emission needs the L3 effects pipeline. */
