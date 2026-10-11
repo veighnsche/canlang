@@ -189,6 +189,9 @@ describe("deploy bundle (P-B)", () => {
     });
     expect(bundle.modules["vendor/state/fanout/work-loader.js"]).toBeUndefined();
     expect(bundle.modules["vendor/state/receipt/work-loader.js"]).toBeUndefined();
+    expect(bundle.modules["vendor/state/storage/history-bounded-fixtures.js"]).toBeUndefined();
+    expect(bundle.modules["vendor/state/query/history.js"]).toContain("queryRecordHistoryForViewer");
+    expect(bundle.modules["vendor/state/storage/sqlite-codecs.js"]).toContain("toBoundedHistory");
     expect(Object.keys(bundle.modules).some((key) => key.endsWith("work-loader.js"))).toBe(false);
   });
 
@@ -938,6 +941,10 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     expect(stagedSourceStage).toMatch(/requireProducerFn\(state,\s*["']readOwnerMutationSourceStage["'],\s*["']committed model source lifetime["']\)/);
     expect(invoke).toContain("../vendor/state/receipt/join.js");
     expect(invoke).toContain("../vendor/state/receipt/index.js");
+    expect(invoke).toContain("../vendor/state/query/index.js");
+    expect(invoke).not.toContain("../vendor/state/query.js");
+    expect(bundle.modules['vendor/state/query/index.js']).toContain('queryRecordHistoryForViewer');
+    expect(bundle.modules['vendor/state/query/history.js']).toBeDefined();
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/join.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/observer.js");
     expect(invoke).toContain("../vendor/work/receipt/index.js");
@@ -1016,6 +1023,8 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       "vendor/work/observation/association.js",
       "vendor/state/index.js",
       "vendor/state/mutation/source-finalization.js",
+      "vendor/state/query/index.js",
+      "vendor/state/query/history.js",
     ]) {
       const missing = { ...bundle.modules };
       delete missing[key];
