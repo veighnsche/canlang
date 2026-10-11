@@ -20,9 +20,10 @@ const REDIRECT = 'https://app.example/callback';
 const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 
-function postJson(path: string, body: unknown, opts: { cookie?: string; csrf?: string } = {}): Request {
+function postJson(path: string, body: unknown, opts: { cookie?: string; csrf?: string; origin?: string } = {}): Request {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (opts.csrf !== undefined) headers['x-csrf-token'] = opts.csrf;
+  if (opts.origin !== undefined) headers['origin'] = opts.origin;
   return testRequest(path, {
     method: 'POST',
     headers,
@@ -591,4 +592,42 @@ test('mounted register, authorize and token retain valid S256 and collapsed veri
     if (verifier === VERIFIER) assert.ok(body['access_token']);
     else assert.equal(body['error'], 'invalid_grant');
   }
+});
+
+
+test('authorize Origin uses trusted config while code and PKCE exchange stays nonbrowser', async () => {
+  const t = await createTestOAuthDeps();
+  const client_id = await register(t);
+  const body = { client_id, redirect_uri: REDIRECT, code_challenge: CHALLENGE, code_challenge_method: 'S256' };
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  let issued = 0;
+  const create = t.identity.store.createAuthCode.bind(t.identity.store);
+  t.identity.store.createAuthCode = async input => { issued++; return create(input); };
+  const deps = { ...t.deps, authOrigin: 'https://test.invalid' };
+  for (const origin of ['https://foreign.invalid', 'null', 'broken', 'https://test.invalid/']) {
+    const response = await handleOAuthRequest(deps, postJson('/oauth/authorize', body,
+      { cookie: t.identity.cookie, csrf, origin }));
+    assert.equal(response.status, 403);
+    assert.equal(issued, 0);
+  }
+  assert.equal((await handleOAuthRequest(t.deps, postJson('/oauth/authorize', body,
+    { cookie: t.identity.cookie, csrf, origin: 'https://test.invalid' }))).status, 403);
+  assert.equal(issued, 0);
+  const authorized = await handleOAuthRequest(deps, postJson('/oauth/authorize', body,
+    { cookie: t.identity.cookie, csrf, origin: 'https://test.invalid' }));
+  assert.equal(authorized.status, 302); assert.equal(issued, 1);
+  const code = new URL(authorized.headers.get('location')!).searchParams.get('code')!;
+  const exchange = postForm('/oauth/token', { grant_type: 'authorization_code', client_id,
+    redirect_uri: REDIRECT, code, code_verifier: VERIFIER });
+  exchange.headers.set('origin', 'https://foreign.invalid');
+  assert.equal((await handleOAuthRequest(deps, exchange)).status, 200);
+  // Missing Origin retains session + CSRF, rather than replacing them.
+  assert.equal((await handleOAuthRequest(deps, postJson('/oauth/authorize', body,
+    { cookie: t.identity.cookie }))).status, 403);
+  assert.equal(issued, 1);
+  assert.equal((await handleOAuthRequest(deps, postJson('/oauth/authorize', body,
+    { cookie: t.identity.cookie, csrf }))).status, 302);
+  assert.equal(issued, 2);
+  const registration = postJson('/oauth/register', { redirect_uris: [REDIRECT] }, { origin: 'null' });
+  assert.equal((await handleOAuthRequest(deps, registration)).status, 201);
 });

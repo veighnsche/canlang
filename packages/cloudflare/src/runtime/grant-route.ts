@@ -32,7 +32,7 @@
 
 import type { BusinessErrorCode, McpGrant, ResolvedIdentity } from "@canlang/contracts";
 import { CSRF_FIELD } from "@canlang/contracts";
-import { parseJsonBody, JSON_BODY_MAX_BYTES } from "@canlang/interfaces";
+import { assertTrustedAuthOrigin, parseJsonBody, JSON_BODY_MAX_BYTES } from "@canlang/interfaces";
 import type { IdentityStore } from "./env-assembly.js";
 
 /** Identity package root (resolves via the workspace link + exports map). */
@@ -138,10 +138,15 @@ function jsonError(message: string, status: number): Response {
  */
 export async function handleMcpGrant(
   req: Request,
-  ctx: { identityStore: IdentityStore },
+  ctx: { identityStore: IdentityStore; authOrigin?: string },
 ): Promise<Response> {
   if (req.method.toUpperCase() !== "POST") {
     return jsonError("method not allowed", 405);
+  }
+  try {
+    assertTrustedAuthOrigin(req, ctx.authOrigin);
+  } catch {
+    return jsonError("Invalid authentication origin.", 403);
   }
   let identity: GrantIdentityProducer;
   try {

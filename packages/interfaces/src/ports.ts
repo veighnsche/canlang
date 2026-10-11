@@ -220,11 +220,13 @@ export interface PagePreferenceStore {
 }
 
 /** Defining auth dependencies; absent mail refuses mail-producing flows before effects. */
-export interface AuthHttpDeps extends Pick<HttpDeps, 'clock' | 'logger' | 'limiter' | 'secureCookies'> {
+export interface AuthHttpDeps extends Pick<HttpDeps, 'clock' | 'logger' | 'limiter' | 'secureCookies' | 'authOrigin'> {
   readonly identity: Omit<IdentityDeps, 'mail'> & { readonly mail?: MailPort };
 }
 
 export interface HttpDeps extends PageHttpDeps {
+  /** Trusted canonical HTTP(S) auth origin; never derived from a request. */
+  readonly authOrigin?: string;
   readonly invoker: OperationInvoker;
   readonly inputChoices?: InputChoiceLookup;
   readonly catalog: SchemaCatalog;
@@ -526,6 +528,8 @@ export interface IngressDeps {
 
 /** Assembled OAuth dependencies (subset of HttpDeps + store). */
 export interface OAuthDeps {
+  /** Trusted canonical HTTP(S) auth origin, independent of metadata URLs. */
+  readonly authOrigin?: string;
   readonly identity: IdentityDeps;
   readonly limiter: RateLimiter;
   readonly logger: Logger;

@@ -111,22 +111,52 @@ test('installed bundled auth joins real local D1 sessions, teams and canonical o
     assert.equal((await request('/auth/login')).status, 500);
     await update('http://localhost');
     assert.ok(await identities.findUserByEmail(member.email), 'Reconfiguration preserves the actual same D1 identity data.');
+    const credentialRows = async () => Promise.all(['identity_presession_tokens', 'identity_sessions', 'identity_mcp_grants']
+      .map(async table => (await db.prepare(`SELECT * FROM ${table}`).all()).results
+        .map(value => JSON.stringify(value)).sort()));
     const login = async (email: string) => {
-      const descriptor = await request('/auth/login');
+      const descriptor = await request('/auth/login', undefined, { origin: 'http://localhost' });
       assert.equal(descriptor.status, 200);
+      const descriptorCookie = descriptor.headers.get('set-cookie')!;
+      assert.match(descriptorCookie, /^can_presession=/);
+      assert.match(descriptorCookie, /HttpOnly/); assert.match(descriptorCookie, /SameSite=Lax/);
+      assert.match(descriptorCookie, /Max-Age=600/); assert.doesNotMatch(descriptorCookie, /(?:; Domain=|; Secure)/);
+      const presessionCookie = descriptorCookie.split(';')[0]!;
       const { preSessionToken } = await descriptor.json() as { preSessionToken: string };
       const body = { email, password, _presession: preSessionToken };
-      const signedIn = await request('/auth/login', body);
+      if (email === member.email) {
+        for (const origin of ['https://foreign.example', 'null']) {
+          const beforeOrigin = await credentialRows();
+          assert.equal((await request('/auth/login', undefined, { origin })).status, 403);
+          assert.equal((await request('/auth/login', body, { cookie: presessionCookie, origin })).status, 403);
+          assert.deepEqual(await credentialRows(), beforeOrigin, 'Origin refusal neither issues nor consumes credentials');
+        }
+      }
+      const loginHeaders = { cookie: presessionCookie, origin: 'http://localhost' };
+      const signedIn = await request('/auth/login', body, loginHeaders);
       assert.equal(signedIn.status, 200);
-      const setCookie = signedIn.headers.get('set-cookie')!;
+      const responseCookies = signedIn.headers.getSetCookie();
+      assert.equal(responseCookies.length, 2);
+      const setCookie = responseCookies.find(value => value.startsWith('can_session='))!;
+      const clearedPresession = responseCookies.find(value => value.startsWith('can_presession='))!;
+      assert.match(clearedPresession, /^can_presession=;/);
+      assert.match(clearedPresession, /Max-Age=0/);
+      assert.match(clearedPresession, /HttpOnly/); assert.match(clearedPresession, /SameSite=Lax/);
+      assert.doesNotMatch(clearedPresession, /; Domain=/);
       assert.match(setCookie, /HttpOnly/); assert.match(setCookie, /SameSite=Lax/);
       assert.match(setCookie, /Max-Age=604800/); assert.doesNotMatch(setCookie, /; Secure/);
-      assert.equal((await request('/auth/login', body)).status, 403);
+      assert.equal((await request('/auth/login', body, loginHeaders)).status, 403);
       const cookie = setCookie.split(';')[0]!;
       const token = decodeURIComponent(cookie.slice('can_session='.length));
-      return { cookie, 'x-csrf-token': await deriveCsrfToken(token) };
+      return { cookie, 'x-csrf-token': await deriveCsrfToken(token), origin: 'http://localhost' };
     };
     const headers = await login(member.email);
+    for (const origin of ['https://foreign.example', 'null']) {
+      const beforeOrigin = await credentialRows();
+      assert.equal((await request('/auth/select-team', { [TEAM_FIELD]: team.team_id }, { ...headers, origin })).status, 403);
+      assert.equal((await request('/mcp/grants', { client_id: 'auth-join' }, { ...headers, origin })).status, 403);
+      assert.deepEqual(await credentialRows(), beforeOrigin, 'good CSRF does not permit foreign-Origin cookie mutation');
+    }
     assert.equal((await request('/auth/select-team', { [TEAM_FIELD]: team.team_id }, { cookie: headers.cookie })).status, 403);
     assert.equal((await request('/auth/select-team', { [TEAM_FIELD]: team.team_id }, headers)).status, 200);
     const call = () => ({ operation_id: uuidv7(Date.now(), 1), inputs: {} });

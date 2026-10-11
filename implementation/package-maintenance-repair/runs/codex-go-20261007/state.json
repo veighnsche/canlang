@@ -930,8 +930,8 @@
       }
     },
     "TECH-I02": {
-      "planning_status": "blocked",
-      "state": "Finite grant body/CSRF source implemented, tested and reviewed in local main; installed host and browser/effect policy unfinished.",
+      "planning_status": "defining-browser-effect-decision-released-implementation-unfinished",
+      "state": "Atomic presession and browser-cookie/Origin finite producer/source-security/installed-D1 scopes reviewed and integrated; Dev genuine browser/effect consumers unfinished",
       "files": [
         "packages/identity/src/authentication/oauth.ts",
         "packages/identity/src/sessions/presession.ts",
@@ -968,11 +968,11 @@
       "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open",
       "commit": "1eeedb6d",
       "remaining_prerequisite": {
-        "prerequisite": "Exact pending human disclosure approval for the three frozen browser/effect Choice bodies, defining Origin/presession/revoke-during-effect contract and genuine mounted consumers; affected installed grant consumer after available main mapper intake.",
-        "owner": "Human exact disclosure; Packages defining contract/installed grant consumer; Dev genuine mounted consumers"
+        "prerequisite": "Dev actual mounted browser cookie helpers, genuine suspended-body revocation and after-entry outcome consumers. No complete TECH-I02/native/security/held scope acceptance.",
+        "owner": "Dev genuine mounted browser and pre-invoker/after-entry consumers"
       },
       "browser_effect_contract_consultation": {
-        "status": "prepared; not sent; exact human approval pending after automatic approval review rejection",
+        "status": "three exact approved requests completed and assessed; defining decision accepted; implementation and original security consumers unfinished",
         "authorization": "AGENTS difficult-decision JEV calls preauthorized; coordinator expressly released this finite TECH-I02 decision. Summarized verified contracts only; no source, credentials, app/user/provider data or held legacy payloads.",
         "endpoint": "https://api.typesafe.ai/v1/systemone",
         "requests": [
@@ -1113,7 +1113,123 @@
           }
         ],
         "witness_limit": "Existing B4 source is pre-invoker permission-window control only; requested suspended-body/after-entry retained witness not located and not accepted.",
-        "approval_limit": "Automatic review rejected transmission of summarized internal authentication, CSRF, Origin and revocation-contract details to the external TypeSafe endpoint: general JEV preauthorization did not clearly authorize this specific sensitive payload/destination. No request executed or transmitted; exact human question remains pending."
+        "approval_limit": "Human explicitly approved the three exact saved TECH-I02 browser/effect Choice requests to this endpoint. This supersedes the earlier automatic disclosure rejection only for these exact bodies; credentials used only for Authorization.",
+        "responses": [
+          {
+            "request": 1,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "browser_profile": {
+                  "type": "choice",
+                  "choice": "bound_cookie",
+                  "confidence": 0.87,
+                  "probabilities": {
+                    "bound_cookie": 0.9,
+                    "origin_only": 0.01,
+                    "stored_browser_binding": 0.01,
+                    "defer": 0.08
+                  }
+                },
+                "effect_boundary": {
+                  "type": "choice",
+                  "choice": "pre_invoker",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "pre_invoker": 1.0,
+                    "atomic_commit": 0.0,
+                    "post_effect_check": 0.0,
+                    "defer": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1841,
+                "output_tokens": 103
+              }
+            },
+            "elapsed_ms": 284.3
+          },
+          {
+            "request": 2,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "browser_profile": {
+                  "type": "choice",
+                  "choice": "bound_cookie",
+                  "confidence": 0.92,
+                  "probabilities": {
+                    "bound_cookie": 0.94,
+                    "origin_only": 0.01,
+                    "stored_browser_binding": 0.01,
+                    "defer": 0.04
+                  }
+                },
+                "effect_boundary": {
+                  "type": "choice",
+                  "choice": "pre_invoker",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "pre_invoker": 1.0,
+                    "atomic_commit": 0.0,
+                    "post_effect_check": 0.0,
+                    "defer": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1865,
+                "output_tokens": 103
+              }
+            },
+            "elapsed_ms": 261.63
+          },
+          {
+            "request": 3,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "browser_profile": {
+                  "type": "choice",
+                  "choice": "bound_cookie",
+                  "confidence": 0.83,
+                  "probabilities": {
+                    "bound_cookie": 0.87,
+                    "origin_only": 0.01,
+                    "stored_browser_binding": 0.0,
+                    "defer": 0.12
+                  }
+                },
+                "effect_boundary": {
+                  "type": "choice",
+                  "choice": "pre_invoker",
+                  "confidence": 0.97,
+                  "probabilities": {
+                    "pre_invoker": 0.98,
+                    "atomic_commit": 0.0,
+                    "post_effect_check": 0.01,
+                    "defer": 0.01
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1856,
+                "output_tokens": 103
+              }
+            },
+            "elapsed_ms": 253.61
+          }
+        ],
+        "snapshot_limit": "Frozen approved source facts describe the verification baseline before the separately reviewed cap/CSRF repair. That finite installed criterion is already qualified by Dev/coordinator and reused; advice is applied only to remaining browser binding/Origin and explicit revocation boundary, never to repeat cap work.",
+        "decision": {
+          "browser_profile": "bound_cookie",
+          "effect_boundary": "pre_invoker",
+          "advice": "Jev1.13.0 agrees3/3 on both choices. Browser probabilities0.90/0.94/0.87 and confidence0.87/0.92/0.83; defer0.08/0.04/0.12. Pre-invoker probabilities1/1/0.98 and confidence1/1/0.97. No disagreement; residual browser/defer uncertainty retained as implementation/host qualification risk, not runtime acceptance.",
+          "rationale": "Existing opaque presession token plus host-only cookie gives actual browser correspondence before consume without a new Identity schema/nonce writer. Reject any present foreign/null/malformed Origin against explicitly configured canonical auth origin; missing Origin still requires bound cookie/token or session CSRF. Preserve body caps and separate explicit Bearer/code+PKCE clients. Existing reread establishes only admission before mutation invoker entry; an atomic cross-store revocation/effect fence is absent and is not required or claimed by this selected contract.",
+          "compatibility": "One current presession cookie per browser path/host; a newer descriptor supersedes its browser binding. Keep ten-minute single credential-attempt token semantics, generic refusals and existing store liveness. Multiple independent outstanding browser descriptors would need the separately rejected stored-binding schema, not a silent new promise.",
+          "remaining": "Packages implements cookie lifecycle/compare-before-consume and exact trusted Origin wiring at original cookie mutation routes. Identity store atomic presession consume remains independently owned/unqualified. Dev genuine suspended-body/after-invoker and mounted browser consumers plus coordinator critical review required. No actor/read/commit authority comes from Origin or frozen membership; no unrelated hold release."
+        }
       },
       "partial_grant_body_csrf": {
         "state": "Finite body-cap/session-CSRF producer and installed consumer implemented, tested and independently reviewed in local main; parent unfinished",
@@ -1150,8 +1266,27 @@
         ],
         "contract": "Mandatory atomic consumePreSessionTokenByHash removes one hash and returns original expiry only to its winner. D1 single DELETE RETURNING, Memory synchronous get/delete; public consume checks original expiry after atomic consume, no lookup/delete fallback. Unknown/malformed/expired/replay remain false; exact tenminute expiry consumed false, TTL-1 live. Old lookup/delete APIs retained. CF structural Identity mirror matches.",
         "validation": "Identity emission0; Memory presession5/5 and SQLite D1 adapter2/2. Maintained actual owning CF startLocalDev/Miniflare D1 test1/1 396ms/1.20s process: two genuine handles against same binding produce1true/1false, replay/refusal/deletion, exact expiry and TTL-1. Two direct stdin probes stalled before DB binding, ran zero assertions and were cleaned; successful maintained host control supplies actual D1 qualification. Exact released Dev mandatory cohort wrappers are already in main; no competing wrapper implementation.",
-        "remaining": "Packages original browser cookie/Origin and Dev genuine mounted/suspended-body/after-entry consumers remain. No complete TECH-I02/native/security/hold acceptance.",
+        "remaining": "Dev actual mounted browser cookie helpers, genuine suspended-body revocation and after-entry outcome consumers. No complete TECH-I02/native/security/held scope acceptance.",
         "review": "Exactf971 critical security/source review CLEAR for single D1 DELETE RETURNING/synchronous Memory winner, original expiry and expired deletion, no lookup/delete fallback, matching CF port. Owning Memory5/adapter2/actual two-handle MiniflareD1 case1/emission0 reused."
+      },
+      "browser_cookie_origin_implementation": {
+        "state": "finite source/security and installed-D1 scope implemented,tested,critically reviewed and integrated in local main",
+        "source": [
+          "packages/identity/src/sessions/cookies.ts",
+          "packages/interfaces/src/http/auth.ts",
+          "packages/interfaces/src/http/context.ts",
+          "packages/interfaces/src/ports.ts",
+          "packages/interfaces/src/oauth/routes.ts",
+          "packages/cloudflare/src/runtime/grant-route.ts",
+          "packages/cloudflare/src/worker/assembly.ts",
+          "packages/cloudflare/src/worker/main.ts",
+          "packages/cloudflare/src/deploy/bundle.ts"
+        ],
+        "contract": "Existing token is can_presession host-only HttpOnly SameSiteLax Path/ cookie for600s and descriptor field. Login requires exact cookie/body match before atomic consume/password, new descriptor replaces browser binding, consumed/expired matches clear binding and success preserves separate session/clear Set-Cookie fields. Any presented Origin must equal explicit canonical trusted authOrigin for login descriptor/cookie-mutating auth/OAuth authorize/direct grants; absent config rejects presented Origin, no URL/Host/deployment fallback. Missing Origin still requires binding/sessionCSRF. Assembly forwards checked auth origin, grant mount forwards production auth origin, owning HTTP bundle exports same guard. Explicit bearerMCP and code+PKCE exchange retain independent authentication.",
+        "validation": "Identity/Interfaces/CF emission0; new reviewed State helper outputs emitted0 once to supply current Dev cohort type/runtime prerequisites (no unchanged cohort tests). Cookie grammar/shared parser/serializer4/4 45.71ms process; focused auth/OAuth13/13 2364.09ms, zero token-consume/password/session/mint on browser/Origin refusals, clear/separatecookies/replacement/expiry/rate/defaultCSRF/code+PKCE. Changed CF Origin/mount2/2 51ms/862ms process, zero session lookup/body read/mint for six invalidOrigins and correct host-configforwarding. Actual shipped installed bundle on realD1 auth case1/1 2703.414ms/2969.999ms process: real descriptor cookie, separatecookies/replay, explicittrustedOrigin positives, foreign/nullOrigin no credential-table writes, original two-team/HTTP/MCP/CRUD/readback/mail/logout/rate controls retained.0 affected failures; no unrelated suite or unchanged B4/securityrerun.",
+        "effect_scope": "HTTP/MCP comments now accurately call current credential reread pre-invoker admission after capped body/arguments/permission. No behavior change or retroactive cancellation/atomic cross-store commit claim; original B4 evidence reused.",
+        "remaining": "Dev actual mounted browser cookie helpers, genuine suspended-body revocation and after-entry outcome consumers. No complete TECH-I02/native/security/held scope acceptance.",
+        "review": "Independent critical source/security review CLEAR for exact cookie/body comparison before atomic consumption/password, trusted configured Origin before writes, distinct cookie headers, production forwarding and portable exports; missing-Origin CSRF and separate bearer/PKCE profiles retained. Pre-invoker reread gives no retroactive cancellation. Owning affected checks/emissions and real D1 installed case reused."
       }
     },
     "TECH-F01": {

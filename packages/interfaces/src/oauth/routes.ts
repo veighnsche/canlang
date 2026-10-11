@@ -43,6 +43,7 @@ import { logBusinessError, logInternalError } from '../errors/logging.js';
 import {
   CSRF_HEADER,
   assertPostCsrf,
+  assertTrustedAuthOrigin,
   caughtToBusinessError,
   clientKey,
   jsonErrorResponse,
@@ -309,6 +310,7 @@ async function handleAuthorizeGet(deps: OAuthDeps, request: Request, url: URL): 
 }
 
 async function handleAuthorizePost(deps: OAuthDeps, request: Request): Promise<Response> {
+  assertTrustedAuthOrigin(request, deps.authOrigin);
   const body = await readJsonObject(request);
   const teamValue = body['team'];
   if (teamValue !== undefined && typeof teamValue !== 'string') {

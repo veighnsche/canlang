@@ -8,8 +8,10 @@
  */
 import { parseCookie, stringifySetCookie } from 'cookie';
 import { IdentityError } from '../ports.js';
+import { PRESESSION_TTL_MS } from './presession.js';
 
 export const SESSION_COOKIE_NAME = 'can_session';
+export const PRESESSION_COOKIE_NAME = 'can_presession';
 
 export interface SessionCookieOptions {
   readonly maxAgeSeconds: number;
@@ -46,11 +48,29 @@ export function buildSessionClearCookie(opts: { secure?: boolean; domain?: strin
 export function parseSessionCookie(
   header: string | readonly string[] | undefined,
 ): string | null {
+  return parseNamedCookie(SESSION_COOKIE_NAME, header);
+}
+
+/** Host-only browser binding for the existing ten-minute login token. */
+export function buildPreSessionCookie(token: string, opts: { secure?: boolean } = {}): string {
+  if (token.length === 0) throw new IdentityError('validation', 'Cannot set an empty pre-session cookie.');
+  return serializeSessionCookie(token, PRESESSION_TTL_MS / 1000, opts.secure === undefined ? {} : { secure: opts.secure }, PRESESSION_COOKIE_NAME);
+}
+
+export function buildPreSessionClearCookie(opts: { secure?: boolean } = {}): string {
+  return serializeSessionCookie('', 0, opts.secure === undefined ? {} : { secure: opts.secure }, PRESESSION_COOKIE_NAME);
+}
+
+export function parsePreSessionCookie(header: string | readonly string[] | undefined): string | null {
+  return parseNamedCookie(PRESESSION_COOKIE_NAME, header);
+}
+
+function parseNamedCookie(name: string, header: string | readonly string[] | undefined): string | null {
   if (header === undefined) return null;
   const combined = typeof header === 'string' ? header : header.join('; ');
   const cookies = parseCookie(combined, { decode: (value) => value });
-  for (const [name, rawValue] of Object.entries(cookies)) {
-    if (name.trim() !== SESSION_COOKIE_NAME) continue;
+  for (const [cookieName, rawValue] of Object.entries(cookies)) {
+    if (cookieName.trim() !== name) continue;
     const value = (rawValue ?? '').trim();
     if (value.length === 0) return null;
     try {
@@ -68,6 +88,7 @@ function serializeSessionCookie(
   token: string,
   maxAge: number,
   opts: { secure?: boolean; domain?: string },
+  name: string = SESSION_COOKIE_NAME,
 ): string {
   // Encoding precedes Domain validation, including URIError for lone surrogates.
   const encoded = encodeURIComponent(token);
@@ -77,7 +98,7 @@ function serializeSessionCookie(
   let serialized: string;
   try {
     serialized = stringifySetCookie({
-      name: SESSION_COOKIE_NAME,
+      name,
       value: encoded,
       maxAge,
       ...(opts.domain !== undefined ? { domain: opts.domain } : {}),

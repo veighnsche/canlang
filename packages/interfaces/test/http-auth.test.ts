@@ -5,14 +5,18 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveCsrfToken } from '@canlang/identity';
+import { deriveCsrfToken, sha256HexText, parsePreSessionCookie, buildPreSessionClearCookie } from '@canlang/identity';
+import { createFrozenClock } from '@canlang/identity/testing';
 import { handleAuthRequest } from '../src/http/auth.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import type { TestDeps } from '../src/testing.js';
 
 const PASSWORD = 's3cure-password';
+// Retain the actual descriptor Set-Cookie for legacy login fixtures; do not
+// manufacture a browser binding from a submitted business field.
+const loginCookies = new Map<string, string>();
 
-function post(path: string, body?: unknown, opts: { cookie?: string; csrf?: string } = {}): Request {
+function post(path: string, body?: unknown, opts: { cookie?: string; csrf?: string; origin?: string } = {}): Request {
   const headers: Record<string, string> = {};
   const init: RequestInit & { cookie?: string } = { method: 'POST', headers };
   if (body !== undefined) {
@@ -20,7 +24,10 @@ function post(path: string, body?: unknown, opts: { cookie?: string; csrf?: stri
     init.body = JSON.stringify(body);
   }
   if (opts.csrf !== undefined) headers['x-csrf-token'] = opts.csrf;
-  if (opts.cookie !== undefined) init.cookie = opts.cookie;
+  if (opts.origin !== undefined) headers['origin'] = opts.origin;
+  const token = typeof body === 'object' && body !== null ? (body as Record<string, unknown>)['_presession'] : undefined;
+  const cookie = opts.cookie ?? (typeof token === 'string' ? loginCookies.get(token) : undefined);
+  if (cookie !== undefined) init.cookie = cookie;
   return testRequest(path, init);
 }
 
@@ -56,6 +63,10 @@ async function loginToken(t: TestDeps): Promise<string> {
   const body = (await res.json()) as { preSessionToken?: unknown };
   assert.equal(typeof body.preSessionToken, 'string');
   assert.ok((body.preSessionToken as string).length > 0, 'expected a minted pre-session token');
+  const cookie = res.headers.getSetCookie().find(value => value.startsWith('can_presession='));
+  assert.ok(cookie);
+  assert.equal(parsePreSessionCookie(cookie.split(';', 1)[0]), body.preSessionToken);
+  loginCookies.set(body.preSessionToken as string, cookie.split(';', 1)[0]!);
   return body.preSessionToken as string;
 }
 
@@ -133,6 +144,7 @@ test('login token is single-use: a failed attempt spends it, replay is rejected'
     post('/auth/login', { email: t.identity.email, password: 'wrong-password-1', _presession: token }),
   );
   assert.equal(failed.status, 403);
+  assert.deepEqual(failed.headers.getSetCookie(), [buildPreSessionClearCookie({ secure: false })]);
   assert.equal((await failed.json() as { message: string }).message, 'Invalid email or password.');
   // Replay with correct credentials: the token is spent.
   const replay = await handleAuthRequest(
@@ -147,6 +159,9 @@ test('login token is single-use: a failed attempt spends it, replay is rejected'
     post('/auth/login', { email: t.identity.email, password: PASSWORD, _presession: await loginToken(t) }),
   );
   assert.equal(ok.status, 200);
+  assert.equal(ok.headers.getSetCookie().length, 2);
+  assert.ok(ok.headers.getSetCookie().some(value => value.startsWith('can_session=')));
+  assert.ok(ok.headers.getSetCookie().includes(buildPreSessionClearCookie({ secure: false })));
 });
 
 test('tampered pre-session token is rejected before credentials are checked', async () => {
@@ -537,4 +552,72 @@ test('login Set-Cookie carries HttpOnly, SameSite, Max-Age, and Secure when enab
   assert.ok(setCookie.includes('SameSite=Lax'), setCookie);
   assert.ok(setCookie.includes('Max-Age=3600'), setCookie);
   assert.ok(setCookie.includes('Secure'), setCookie);
+});
+
+
+test('browser binding and trusted Origin refuse before token consumption or credentials', async () => {
+  const t = await createTestDeps();
+  const token = await loginToken(t);
+  const foreign = await loginToken(await createTestDeps());
+  const cookie = loginCookies.get(token)!;
+  let consumed = 0, checked = 0, sessions = 0, minted = 0;
+  const store = t.identity.store;
+  const mint = store.createPreSessionToken.bind(store);
+  store.createPreSessionToken = async input => { minted++; return mint(input); };
+  const consume = store.consumePreSessionTokenByHash.bind(store);
+  store.consumePreSessionTokenByHash = async hash => { consumed++; return consume(hash); };
+  const find = store.findUserByEmail.bind(store);
+  store.findUserByEmail = async email => { checked++; return find(email); };
+  const create = store.createSession.bind(store);
+  store.createSession = async input => { sessions++; return create(input); };
+  const deps = { ...t.deps, authOrigin: 'https://test.invalid' };
+  const body = { email: t.identity.email, password: PASSWORD, _presession: token };
+  for (const opts of [{ cookie: '' }, { cookie: 'can_presession=%zz' },
+    { cookie: loginCookies.get(foreign)! }, { cookie, origin: 'https://foreign.invalid' },
+    { cookie, origin: 'null' }, { cookie, origin: 'broken' }, { cookie, origin: 'https://test.invalid/' }]) {
+    const response = await handleAuthRequest(deps, post('/auth/login', body, opts));
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.getSetCookie().length, 0);
+  }
+  // A presented Origin also fails closed when low-level host config is absent;
+  // request URL and forwarded Host cannot supply it.
+  const absent = post('/auth/login', body, { cookie, origin: 'https://test.invalid' });
+  absent.headers.set('x-forwarded-host', 'test.invalid');
+  assert.equal((await handleAuthRequest(t.deps, absent)).status, 403);
+  for (const path of ['/auth/logout', '/auth/select-team', '/auth/select-team/clear']) {
+    assert.equal((await handleAuthRequest(deps, post(path, {}, { origin: 'null' }))).status, 403);
+  }
+  const descriptor = get('/auth/login'); descriptor.headers.set('origin', 'https://foreign.invalid');
+  assert.equal((await handleAuthRequest(deps, descriptor)).status, 403);
+  assert.deepEqual([consumed, checked, sessions, minted], [0, 0, 0, 0]);
+  assert.ok(await store.findPreSessionTokenByHash(await sha256HexText(token)));
+  assert.equal((await handleAuthRequest(deps, post('/auth/login', body, { cookie, origin: 'https://test.invalid' }))).status, 200);
+  assert.deepEqual([consumed, checked, sessions, minted], [1, 1, 1, 0]);
+});
+
+test('a newer descriptor replaces the browser binding and expired matches clear it', async () => {
+  const t = await createTestDeps();
+  const first = await loginToken(t), second = await loginToken(t);
+  const currentCookie = loginCookies.get(second)!;
+  const mismatch = await handleAuthRequest(t.deps, post('/auth/login', {
+    email: t.identity.email, password: PASSWORD, _presession: first,
+  }, { cookie: currentCookie }));
+  assert.equal(mismatch.status, 403);
+  assert.ok(await t.identity.store.findPreSessionTokenByHash(await sha256HexText(first)));
+  assert.ok(await t.identity.store.findPreSessionTokenByHash(await sha256HexText(second)));
+  assert.equal((await handleAuthRequest(t.deps, post('/auth/login', {
+    email: t.identity.email, password: PASSWORD, _presession: second,
+  }, { cookie: currentCookie }))).status, 200);
+  const clock = createFrozenClock(Date.now());
+  const deps = { ...t.deps, identity: { ...t.deps.identity, clock } };
+  const descriptor = await handleAuthRequest(deps, get('/auth/login'));
+  const { preSessionToken } = await descriptor.json() as { preSessionToken: string };
+  const cookie = descriptor.headers.getSetCookie()[0]!.split(';', 1)[0]!;
+  clock.advance(600_000);
+  const expired = await handleAuthRequest(deps, post('/auth/login', {
+    email: t.identity.email, password: PASSWORD, _presession: preSessionToken,
+  }, { cookie }));
+  assert.equal(expired.status, 403);
+  assert.deepEqual(expired.headers.getSetCookie(), [buildPreSessionClearCookie({ secure: false })]);
+  assert.equal(await t.identity.store.findPreSessionTokenByHash(await sha256HexText(preSessionToken)), null);
 });

@@ -14,7 +14,7 @@
  * malformed body/client_id, 429 on oversized streaming body. The response
  * carries ONLY the four documented keys (no hashes, no internals).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildSessionCookie, deriveCsrfToken, resolveIdentity, sha256HexText } from "@canlang/identity";
 import { JSON_BODY_MAX_BYTES } from '@canlang/interfaces';
 import { createMemoryIdentityStore } from "@canlang/identity/testing";
@@ -66,6 +66,46 @@ function grantRequest(cookie: string | null, body: unknown, csrf?: string): Requ
 }
 
 describe("handleMcpGrant", () => {
+  it('checks explicit trusted Origin before session lookup or body reads and retains session CSRF without Origin', async () => {
+    const { store, user, team } = await seedTeam();
+    const { cookie, csrf } = await seedSession(store, user.user_id, team.team_id);
+    const authOrigin = 'https://auth.example';
+    let lookups = 0; let issued = 0;
+    const lookup = store.findSessionByTokenHash.bind(store);
+    const mint = store.createMcpGrant.bind(store);
+    store.findSessionByTokenHash = async hash => { lookups++; return lookup(hash); };
+    store.createMcpGrant = async input => { issued++; return mint(input); };
+    const ctx = { identityStore: store, authOrigin };
+    for (const origin of ['https://foreign.example', 'null', 'not a URL',
+      `${authOrigin}/path`, 'https://user:password@auth.example', '']) {
+      const request = grantRequest(cookie, { client_id: 'origin-client' }, csrf);
+      request.headers.set('origin', origin);
+      const reads = vi.spyOn(request.body!, 'getReader');
+      try {
+        const response = await handleMcpGrant(request, ctx);
+        expect(response.status, origin).toBe(403);
+        expect(await response.json()).toEqual({ error: 'Invalid authentication origin.' });
+        expect(lookups).toBe(0); expect(issued).toBe(0);
+        expect(reads).not.toHaveBeenCalled();
+      } finally { reads.mockRestore(); }
+    }
+    const missingCsrf = await handleMcpGrant(grantRequest(cookie, { client_id: 'origin-client' }), ctx);
+    expect(missingCsrf.status).toBe(403); expect(issued).toBe(0);
+    for (const origin of [undefined, authOrigin]) {
+      const request = grantRequest(cookie, { client_id: 'origin-client' }, csrf);
+      if (origin !== undefined) request.headers.set('origin', origin);
+      const response = await handleMcpGrant(request, ctx);
+      expect(response.status).toBe(200);
+      const body = await response.json() as Record<string, unknown>;
+      expect(Object.keys(body).sort()).toEqual(['grant_id', 'team_id', 'token', 'user_id']);
+      const resolved = await resolveIdentity(store, { mcp_grant_token: body['token'] as string });
+      expect(resolved.binding.kind).toBe('mcp_grant');
+      expect(resolved.actor?.user_id).toBe(user.user_id);
+      expect(resolved.team?.team_id).toBe(team.team_id);
+    }
+    expect(issued).toBe(2);
+  });
+
   it("405s non-POST methods", async () => {
     const { store } = await seedTeam();
     const res = await handleMcpGrant(
