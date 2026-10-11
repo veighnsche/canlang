@@ -3297,7 +3297,7 @@
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
-      "state": "Bounded storage and original State/Work membership/progress/lifecycle are implemented,tested,reviewed in local main; original Dev native consumer unfinished.",
+      "state": "Original storage, State/Work and genuine native cohort outputs implemented,tested and reviewed in local main; exact logical/physical bound defining-record reconciliation pending.",
       "files": [
         "packages/state/src/fanout/membership.ts",
         "packages/state/src/fanout/progress.ts",
@@ -3309,8 +3309,8 @@
         "packages/state/src/storage/durable-object.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Dev genuine changed original source freeze and retained native scheduler using exact current bounded State storage/capture/lifecycle/checkpoint helpers.",
-        "owner": "Dev native consumer"
+        "prerequisite": "Reconcile accepted direct physical1..100 refusal with original saved logical200 upper bounds and actual100 transports; no new implementation or unchanged check required if distinction accepted.",
+        "owner": "Capability defining cohort contract"
       },
       "finite_shared_implementation": {
         "input": "Reviewed defining original profile at Capability25fc84368e41522bd5ea9c0da1f8e6fbccff49cb plus coordinatorb346c633aa6e9821c7207b20dc2d796051a2f359 and exact Packages storage dispatch. No query scan/recovery policy or held preparation release.",
@@ -3330,6 +3330,13 @@
           "remaining": "Finite correction source/security review CLEAR and locally integrated; only changed caller/native qualification remains."
         },
         "critical_review": "Independent profile review CLEAR with12c finite all-column correction: numeric-affinity text/blob cannot bypass pre-host aggregate withholding; same generic nonretryable data-null limit, valid numeric metadata retained. Reuse all owning25/emissions; unreachable oversized per-point fixtures supply no acceptance. Root integrates only a4/12c deltas, preserving other source and holds."
+      },
+      "original_native_consumer": {
+        "source": "5f9878f05cb561f0ebbc7bfd1663bbd2840696fe",
+        "scope": "Original installed native private source and retained scheduler with existing exact frozen membership, current authority, fences, claim/release/checkpoints/order/replay/terminal coverage. Original logical metadata remains; actual transports cap100.",
+        "validation": "Original full499/500/501/1000 workflow1/1 171258.51ms; infrastructure/healthy sibling1/1 5428ms and actualD1/SQLiteDO terminal-prefix restart2/2 2974ms reused; owning storage25/State12/Work55+8 reused. State/CF emit,frozen root noEmit,boundary0.0fail/cancel/skip. Original failed historical200 rejection corrected only in actual transport selection, preserving original assertions.",
+        "review": "Independent finite native caller source review CLEAR: captured/same-fence mandatory reads and owned-commit revision advance, loud/refused overlays, no generic fallback, full unfiltered membership/checkpoint/current authority/empty-only wrap.",
+        "remaining": "Only defining logical/physical bound record reconciliation for this selected packet; opaque File/event/current-grant/provider/original-app/Office/T04/T11/G2-G3 and all holds are separate."
       }
     },
     "DEL-U01-appearance": {
