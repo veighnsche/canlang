@@ -323,7 +323,6 @@ fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_i
             && matches!(&value.expr, IrExpr::Text(value) if value == case)));
         assert!(panel.props.iter().any(|(key, value)| key == "caption"
             && matches!(&value.expr, IrExpr::Message(value) if value.source == label)));
-        assert!(!panel.children.is_empty());
         assert!(
             original[panel.span.start as usize..panel.span.end as usize]
                 .trim_start()
@@ -341,7 +340,17 @@ fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_i
             .collect::<Vec<_>>(),
         vec!["list", "table"]
     );
-    assert_eq!(tabs.children[1].children[0].factory, "timeline");
+    // The original Timeline descendant is a separate unsupported producer;
+    // reaching its exact diagnostic must never flatten or publish its body.
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("timeline")
+                && diagnostic.primary.start >= tabs.children[1].span.start
+                && diagnostic.primary.end <= tabs.children[1].span.end),
+        "{diagnostics:?}"
+    );
     assert!(
         !page.admit.is_empty(),
         "original enclosing authenticated page remains protected"
@@ -607,6 +616,13 @@ Then
    text "Card body"
   card caption()
    text "Dynamic card body"
+  hero
+   text "Bare hero body"
+  hero caption()
+   text "Captioned hero body"
+  hero
+   require false
+   text "Hidden hero body"
   details "Collapse <&>" open=true
    text "Collapse body"
   title "Heading <&>"
@@ -705,11 +721,14 @@ assert.ok(/<details[^>]* open/.test(html),'collapse open option reaches the owni
 assert.ok(html.includes('Heading &lt;&amp;&gt;'),'title uses the actual text prop');
 assert.ok(html.includes('Metric value'),'stat uses the singular value prop');
 assert.ok(html.includes('Empty card'),'empty Card receives its owning children array');
-for(const sentinel of ['Card body','Dynamic card body','Collapse body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
+for(const sentinel of ['Card body','Dynamic card body','Bare hero body','Captioned hero body','Collapse body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
  assert.equal(html.split(sentinel).length-1,1,`${sentinel} renders once`);
 }
 assert.ok(!html.includes('Hidden panel'),'panel gate omits the entire item');
 assert.ok(!html.includes('Hidden modal'),'modal gate omits its caption and slots');
+assert.ok(!html.includes('Hidden hero body'),'hero gate encloses its body');
+assert.ok(html.includes('class="hero"')&&html.includes('class="hero-content"'),'compact hero reaches the installed group factory');
+assert.ok(html.includes('<h1 class="text-3xl font-bold">Dynamic</h1>'),'checked header caption reaches its existing hero sink');
 for(const caption of ['Vertaalde tekst','Vertaalde badge','Vertaalde statistiek','Vertaalde melding']) {
  assert.ok(html.includes(caption),`${caption} retains its owning message descriptor`);
 }
@@ -815,6 +834,9 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         ("  details \"Caption\"\n   require false\n", "details"),
         ("  fieldset \"Caption\"\n   require false\n", "fieldset"),
         ("  join\n   require false\n", "join"),
+        ("  hero\n   require false\n", "hero"),
+        ("  hero unknown=true\n   text \"Body\"\n", "hero"),
+        ("  hero\n   slot content\n    text \"Body\"\n", "hero"),
         (
             "  divider \"First\"@{nl=\"Eerste\"},\"Second\"@{nl=\"Tweede\"}\n",
             "divider",

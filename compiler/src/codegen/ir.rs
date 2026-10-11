@@ -10872,6 +10872,7 @@ impl<'a> Cx<'a> {
             "input" | "textarea" | "radio" | "select" => {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
+            "hero" => self.decode_compact_hero(scope, node, row_ctx),
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
             "fab" => Some(self.decode_fab(scope, node, row_ctx)),
             "chat_bubble" => Some(self.decode_chat_bubble(scope, node, row_ctx)),
@@ -10903,6 +10904,58 @@ impl<'a> Cx<'a> {
                 None
             }
         }
+    }
+
+    /// The compact hero is a scope-transparent group. Authored slots need
+    /// their separate owning producer and must never flatten into children.
+    fn decode_compact_hero(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "hero", &[]);
+        if !ui_attributes(self.db, node).is_empty() {
+            return None;
+        }
+        if kids(node)
+            .into_iter()
+            .any(|child| child.kind == SyntaxKind::Slot)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower compact hero: authored slots need a separate factory profile"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let mut props = Vec::new();
+        if kids(node)
+            .into_iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+        {
+            let caption = self.decode_single_ui_caption(scope, node, "hero")?;
+            props.push(("caption".to_string(), caption));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower compact hero: needs a nonempty content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "hero".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     /// Expand only the checked local declaration in its owning module scope.

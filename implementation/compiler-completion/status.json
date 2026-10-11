@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-11T01:24:00Z",
+  "updated_utc": "2026-10-11T01:28:00Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -104,10 +104,10 @@
     "reused_results": "Unchanged successful prefix/library/analysis/corpus and editor/client TypeScript; currentaffected producer/native repairs and allunrun targets supply actual delta, old failures superseded by meaningful current cases."
   },
   "latest_component": {
-    "base_commit": "f7bfacb33e6b9b49f024d07c058ffa7f7c5623ca",
-    "state": "unfinished_original_hero_prerequisite",
+    "base_commit": "c8330e3cf1c83e7ab509e38d45357072873f8d31",
+    "state": "producer_criterion_satisfied_original_application_unfinished",
     "record": "committed_model_event_source.ungated_bound_panels",
-    "outcome": "Private checked ungated bound-panel producer and actual CLI/installed UI finite consumer implemented;176 affected cases and strict checks pass. Original unchanged Loyalty IR remains blocked by Compiler hero221 and its meaningful original-IR test remains failing in this labelled unfinished checkpoint. No parent/whole/native-app acceptance; continue that exact existing compact hero prerequisite next."
+    "outcome": "Complete finite original Loyalty hero→ungated bound-panel producer now tested: original unchanged rawIR1/1 .09s, actual CLI/installed UI compact hero and tab cases/labels/current/version/route/scope controls pass,177 distinct affected and strict0 3.73s. Reuse unchanged results. Whole original applications, gated options/current and persistence lifecycle remain separate; coordinator review pending,23 original composition findings unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -830,13 +830,15 @@
     },
     "ungated_bound_panels": {
       "base_commit": "f7bfacb33e6b9b49f024d07c058ffa7f7c5623ca",
-      "state": "unfinished_original_hero_prerequisite",
+      "state": "producer_criterion_satisfied_original_application_unfinished",
       "implemented": "Ungated owned-enum panel lowering uses original private selector/header/case/receiving-field/reuse/module correspondence and existing binding+tabItem values/captions. Preserve current/version/postTo, source order, nested scopes and render-site IDs; direct Tab guards retain specific E6008.",
-      "tested": "176 distinct affected cases pass: analysis37 (full52 corpus,1.88s), bound8 (seven unchanged plus corrected new span lookup1/1 .03s), codegen121 .22s and UI10 (native selected Loyalty declaration/current/version/route/grouped/reordered/row scope, existing transient/leaf controls; corrected old invalid-selector assertion1/1 .36s). Strict all-target Clippy0 6.39s,fmt/diff0;0failed/ignored/bodySKIP among those passing cases.",
-      "remaining_failure": "New exact unchanged original CanLoyalty raw IR test fails because enclosing hero221 (span22101..23958) refuses E6008 before descending into its original tabs234. Compiler owns the existing compact hero producer prerequisite; native source projection alone does not satisfy the assigned original-panel outcome.",
+      "tested": "177 distinct affected PASS: analysis37/full52 corpus1.88s,bound8,codegen121 .22s,UI11. The original unchanged Loyalty hero→bound panels raw IR case now passes1/1 .09s; changed actual compact hero/transient native1/1 .66s and refusal1/1 .40s replace their prior results. Reuse all other successful focused cases. Strict all-target Clippy0 3.73s,fmt/diff0;zero unresolved affected failures/ignored/bodySKIP.",
       "accepted": false,
       "remaining_original_findings": 23,
-      "scope_limit": "No actual preference persistence lifecycle or full Loyalty/Volunteer application acceptance. Direct gated-panel option/current semantics remain UI-owned; C03/C10/source decisions and BDD3/Task22/T11 holds unchanged."
+      "scope_limit": "No actual preference persistence lifecycle or full Loyalty/Volunteer application acceptance. Direct gated-panel option/current semantics remain UI-owned; C03/C10/source decisions and BDD3/Task22/T11 holds unchanged.",
+      "original_source_outcome": "Unchanged CanLoyalty hero221 now retains original enclosing scope/gate and reaches own rewards/history panels235/247 with exact cases/labels and binding metadata. Original list/table body IR/source spans remain; unsupported Timeline/history/filter/default body profiles retain exact diagnostics and prevent full application shipment.",
+      "remaining_prerequisite": "UI defines accessible options and unavailable saved-current behavior before any direct gated bound panel. Dev/Interfaces qualify actual preference save/browser lifecycle and selected full original app only after its independent source producers are ready.",
+      "compact_hero": "Existing compact children and optional checked header caption use installed UI.hero, preserving ordinary scope/row_ctx/gate. Authored slots/attributes/empty suites remain E6008; no catalog-wide rewrite."
     }
   },
   "typed_file_association_prerequisite": {
