@@ -232,6 +232,9 @@ export interface ScenarioReceiptAssociation {
     readonly model: ModelName;
     readonly row: StoredRow;
     readonly secretFields: ReadonlyArray<string>;
+    /** Retained original ordered File field occurrences; the owning runtime
+     * matches the whole source census and independently revalidates authority. */
+    readonly files?: readonly RetainedFinalizedFile[];
   }>;
   readonly intrinsics?: ReadonlyArray<{
     readonly dependencyId: string; readonly kind: 'operation-id'; readonly wire: string;
