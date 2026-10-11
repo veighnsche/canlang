@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ArtifactOperationInput, CompileArtifact, MutationEnvelope, ResolvedIdentity, StoragePort } from '@canlang/contracts';
+import type { ArtifactOperationInput, CompileArtifact, MutationEnvelope, MutationResult, ResolvedIdentity, StoragePort } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
@@ -54,6 +54,28 @@ async function refusesUnassociatedReplay(
   assert.equal(error.operation_id, request.operation_id); assert.equal(error.retryable, false);
   assert.deepEqual(await snapshot(), before);
 }
+async function replaysWithoutEffects(
+  invoker: ReturnType<typeof buildInvoker>, store: StoragePort,
+  request: MutationEnvelope, identity: ResolvedIdentity, expectedResult: unknown,
+): Promise<MutationResult> {
+  const receiptKey = { app: APP, owner: identity.team!.team_id, principal: identity.actor!.user_id,
+    operation: asOperation(request.operation), operationId: asOperationId(request.operation_id) };
+  const snapshot = async () => {
+    const rows = await store.query({ model: MODEL, authority: 'owner', archived: 'include' });
+    return { revision: await store.readRevision(), rows,
+      history: await Promise.all(rows.map(row => store.historyFor(MODEL, row.id))),
+      outbox: await store.outboxPending(), schedules: await store.schedulesDue(Number.MAX_SAFE_INTEGER, 1_000),
+      receipt: await store.readReceipt(receiptKey) };
+  };
+  const before = await snapshot();
+  assert.equal(before.receipt?.outcome.status, 'committed');
+  assert.ok(Object.hasOwn(before.receipt!.outcome, 'scenario'), 'supported replay retains genuine original capture');
+  const replay = committed(await invoker.invokeMutation(request, identity), 'replayed');
+  assert.equal(replay.operation_id, request.operation_id);
+  assert.deepEqual(replay.result, expectedResult);
+  assert.deepEqual(await snapshot(), before);
+  return replay;
+}
 async function artifact(): Promise<CompileArtifact> {
   return JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
 }
@@ -84,11 +106,19 @@ async function memberWorld() {
 
 test('actual compiled scenarios preserve typed staging, receipts and persisted D1 replay', async () => {
   const compiled = await artifact();
-  for (const name of ['increment', 'twice', 'rollback', 'echo', 'born', 'observedVersion']) {
-    assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.${name}`)?.result, { type: 'int' });
+  for (const [name, type] of [
+    ['increment', 'int'], ['twice', 'int'], ['rollback', 'int'], ['echo', 'int'],
+    ['observedVersion', 'int'], ['finish', 'void'], ['boundNullable', 'int?'], ['boundArray', 'int[]'],
+  ] as const) {
+    const result = compiled.operations?.find(op => op.name === `${APP}.${name}`)?.result;
+    assert.ok(result?.disclosure, `${name} requires genuine emitted disclosure`);
+    assert.deepEqual(result, { type, disclosure: result.disclosure });
+    assert.equal(result.disclosure.version, 1);
+    assert.ok(result.disclosure.returns.length > 0);
+    assert.equal(result.disclosure.source.path, 'packages/cloudflare/test/fixtures/typed-scenario-values.can');
   }
-  assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.finish`)?.result, { type: 'void' });
-  assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.discard`)?.result, { type: 'void' });
+  assert.equal(compiled.operations?.find(op => op.name === `${APP}.born`)?.result?.type, 'int');
+  assert.equal(compiled.operations?.find(op => op.name === `${APP}.discard`)?.result?.type, 'void');
   for (const [name, fieldName] of [['boundNullable', 'value'], ['boundArray', 'values']] as const) {
     const field: ArtifactOperationInput | undefined = compiled.operations?.find((op) => op.name === `${APP}.${name}`)?.inputs.fields.find((field) => field.name === fieldName);
     assert.equal(field?.computedDefault, true);
@@ -101,7 +131,7 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
   try {
     const asm = await assemble(compiled, join(dir, 'modules'));
     d1 = await openD1(join(dir, 'd1'));
-    const invoker = buildInvoker(compiled, asm, d1.store, {
+    let invoker = buildInvoker(compiled, asm, d1.store, {
       memberships: world.memberships, now: () => FIXED_NOW,
     });
     const create = envelope('Counter.create', {});
@@ -275,7 +305,6 @@ canApp = function() {
     assert.equal(bornReceipt?.resolvedDefaults[`0:${MODEL}.count`], '1');
     assert.equal(bornReceipt?.outcome.status, 'committed');
     if (bornReceipt?.outcome.status === 'committed') assert.equal(bornReceipt.outcome.result, '2');
-    assert.equal(committed(await invoker.invokeMutation(bornRequest, world.identity), 'replayed').result, '2');
 
     // Both the admitted parameter and record getter must become native bigint.
     const increment = envelope('increment', { counter: ref(1), delta: '9007199254740993' });
@@ -301,7 +330,7 @@ canApp = function() {
     const finished = committed(await invoker.invokeMutation(finish, world.identity));
     assert.ok(Object.hasOwn(finished, 'result'));
     assert.equal(finished.result, null);
-    await refusesUnassociatedReplay(invoker, d1.store, finish, world.identity);
+    await replaysWithoutEffects(invoker, d1.store, finish, world.identity, null);
     assert.equal(committed(await invoker.invokeMutation(envelope('observedVersion', {
       counter: ref(4),
     }), world.identity)).result, '4');
@@ -321,9 +350,21 @@ canApp = function() {
     assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), beforeRefusal);
     assert.equal((await d1.store.readReceipt(receiptIdentity(finish)))?.outcome.status, 'committed');
     assert.doesNotThrow(() => JSON.stringify([large, twice, finished, receipt]));
+
+    // Persisted supported replay must survive a physical reopen while its
+    // original dependency row remains live and currently readable.
+    await d1.worker.dispose(); d1 = undefined;
+    d1 = await openD1(join(dir, 'd1'));
+    invoker = buildInvoker(compiled, asm, d1.store, { memberships: world.memberships, now: () => FIXED_NOW });
+    assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), beforeRefusal);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), beforeHistory);
+    await replaysWithoutEffects(invoker, d1.store, increment, world.identity, large.result);
+    await replaysWithoutEffects(invoker, d1.store, finish, world.identity, null);
+    await replaysWithoutEffects(invoker, d1.store, nullableDefault, world.identity, '7');
+    await replaysWithoutEffects(invoker, d1.store, arrayDefault, world.identity, ['7']);
+
     const discard = envelope('discard', { counter: ref(5) });
     assert.equal(committed(await invoker.invokeMutation(discard, world.identity)).result, null);
-    await refusesUnassociatedReplay(invoker, d1.store, discard, world.identity);
     const archived = await d1.store.load(MODEL, asId(row.id));
     assert.equal(archived?.archivedAt, FIXED_NOW);
     assert.equal(archived?.version, 6);
@@ -344,9 +385,11 @@ canApp = function() {
     assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), archived);
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), archivedHistory);
     const revision = await d1.store.readRevision();
-    assert.equal(committed(await reopened.invokeMutation(increment, world.identity), 'replayed').result, large.result);
-    await refusesUnassociatedReplay(reopened, d1.store, finish, world.identity);
-    await refusesUnassociatedReplay(reopened, d1.store, discard, world.identity);
+    // Archiving ends the captured dependency's current readable lifetime;
+    // a saved scalar cannot bypass that boundary after another physical reopen.
+    const withheld = await replaysWithoutEffects(reopened, d1.store, increment, world.identity, null);
+    assert.deepEqual(withheld.records, []);
+    await replaysWithoutEffects(reopened, d1.store, finish, world.identity, null);
     assert.equal(committed(await reopened.invokeMutation(nullableDefault, world.identity), 'replayed').result, '7');
     assert.deepEqual(committed(await reopened.invokeMutation(arrayDefault, world.identity), 'replayed').result, ['7']);
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(nullableDefault)), nullableReceipt);
@@ -357,6 +400,61 @@ canApp = function() {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// These are required genuine compiled replay criteria, including after physical D1 reopen.
+// They await the owning Compiler Complete/effect-site proof; no synthetic association is installed.
+for (const operation of ['born', 'discard'] as const) {
+  test(`actual compiled ${operation} preserves successful receipt replay through D1 reopen`, async () => {
+    const compiled = await artifact();
+    const dir = await mkdtemp(join(tmpdir(), `can-typed-${operation}-replay-`));
+    const world = await memberWorld();
+    let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+    try {
+      const asm = await assemble(compiled, join(dir, 'modules'));
+      d1 = await openD1(join(dir, 'd1'));
+      const invoker = buildInvoker(compiled, asm, d1.store, { memberships: world.memberships, now: () => FIXED_NOW });
+      let inputs: MutationEnvelope['inputs'] = {};
+      if (operation === 'discard') {
+        const created = committed(await invoker.invokeMutation(envelope('Counter.create', { count: '7' }), world.identity));
+        const original = created.records![0] as { id: string; version: number };
+        inputs = { counter: { id: original.id, version: String(original.version) } };
+      }
+      const request = envelope(operation, inputs);
+      const revision = await d1.store.readRevision();
+      const outcome = committed(await invoker.invokeMutation(request, world.identity));
+      const expectedResult = operation === 'born' ? '2' : null;
+      assert.equal(outcome.result, expectedResult);
+      assert.equal(await d1.store.readRevision(), revision + 1);
+      const rows = await d1.store.query({ model: MODEL, authority: 'owner', archived: 'include' });
+      assert.equal(rows.length, 1);
+      const row = rows[0]!;
+      assert.equal(row.data['count'], operation === 'born' ? '2' : '7');
+      assert.equal(row.version, operation === 'born' ? 1 : 2);
+      assert.equal(row.archivedAt, operation === 'born' ? null : FIXED_NOW);
+      const history = await d1.store.historyFor(MODEL, row.id);
+      assert.deepEqual(history.map(entry => entry.change), operation === 'born' ? ['create', 'update'] : ['create', 'archive']);
+      const receiptKey = { app: APP, owner: world.identity.team!.team_id, principal: world.identity.actor!.user_id,
+        operation: asOperation(request.operation), operationId: asOperationId(request.operation_id) };
+      const receipt = await d1.store.readReceipt(receiptKey);
+      assert.equal(receipt?.outcome.status, 'committed');
+      if (receipt?.outcome.status === 'committed') assert.equal(receipt.outcome.result, expectedResult);
+      if (operation === 'born') assert.equal(receipt?.resolvedDefaults[`0:${MODEL}.count`], '1');
+      await replaysWithoutEffects(invoker, d1.store, request, world.identity, expectedResult);
+      const savedRevision = await d1.store.readRevision();
+      await d1.worker.dispose(); d1 = undefined;
+      d1 = await openD1(join(dir, 'd1'));
+      assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner', archived: 'include' }), rows);
+      assert.deepEqual(await d1.store.historyFor(MODEL, row.id), history);
+      assert.deepEqual(await d1.store.readReceipt(receiptKey), receipt);
+      assert.equal(await d1.store.readRevision(), savedRevision);
+      const reopened = buildInvoker(compiled, asm, d1.store, { memberships: world.memberships, now: () => FIXED_NOW });
+      await replaysWithoutEffects(reopened, d1.store, request, world.identity, expectedResult);
+    } finally {
+      await d1?.worker.dispose();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+}
 
 test('synthetic compatibility: absent result metadata keeps unknown bigint refusal', async () => {
   const legacy = await artifact();
