@@ -10465,3 +10465,30 @@ Coordinator defining Identity occurrence review CLEAR and local integration afte
 2026-10-11 — lazy portable receipt observer resolution (reviewed loader component).
 
 The actual workerd import refused top-level new URL(observer.js,import.meta.url) before Office could reach browser/WHERE. Keep exact module-owned ./observer.js as a relative constant and resolve through the same lazy actual import. No fallback or supplied metadata changes identity; exact absence remains distinct from present initialization/nested dependency failure. Independent defining review CLEAR; reuse Node1 and genuine pinned2026-07-15 workerd2 plus normal State/DOemit0, primary changed normal State emission0. Dev actual original frozen Office retry remains unfinished. This finite local intake does not accept original native/app/G2/G3/full plans or release precise holds; complete checkpoint unchanged.
+
+## 2026-10-11 — Lazy source drawer details (implemented; native consumer unfinished)
+
+The defining detailsDrawer renderer takes a source occurrence, actual admitted
+RowView and lazy body callback retaining the enclosing aliases. Reuse the existing
+can-row GET selector: inactive/stale/foreign selections render only an opener;
+the matching current row evaluates its body once. Selection creates no authority
+or guessed record read. GET open/close preserves current team/query and other
+occurrences; close removes only its own selector. Existing drawer/dialog hooks
+supply the chrome. open= remains Collapse-only, malformed inputs refuse before
+body effects, and conditional withheld children may leave an empty body.
+
+Contracts/UI/Interfaces emissions and UI browser build pass. Three new UI cases
+and one actual full/partial HTTP case pass; finite source review is CLEAR. Existing
+collapse/collection/page/browser checks are reused. Compiler owns original lazy
+lowering and row/parent closures; Dev owns original admitted native consumer.
+No eager DrawerProps substitute or parent/hold release follows.
+
+Gallery remains a skipped blocked leaf: current File links serve attachments,
+and provider image production supplies no inline preview or thumbnail route.
+Dev must release the actual supported image-serving/thumbnail mechanism and
+current occurrence authorization; Files/Packages will type and consume that
+specific physical/presentation output. Existing collection query/row composition
+can be reused. No image URL, MIME evidence or thumbnail is invented, and the
+separate hoverGallery component does not satisfy the original gallery requirement.
+
+Coordinator defining lazy-details source review CLEAR and LOCAL main integration after deadline. Reuse3 UI+1 genuine full/partial HTTP controls and worker emissions/browser0; changed normal dependency closure/browser/root0. Exact activation selects only the current supplied admitted row and original lazy closure, never grants authority or evaluates inactive/stale/foreign bodies. Compiler original checked lowering and Dev genuine native full/partial adoption remain unfinished. Later Dev gallery direction uses a CSS-responsive view of exact authorized original PNG/JPEG bytes through a protected inline route reusing the full current snapshot/grant/physical checks, with original attachment route retained. No generated thumbnail/dimension/cache evidence is invented. Purpose API resolveFileImage is proposed and actual host route remains unreleased, so that finite native prerequisite is still skipped. Complete filetree checkpoint and precise holds remain unchanged.

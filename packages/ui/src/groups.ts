@@ -31,6 +31,7 @@ import type {
   AccordionProps,
   CarouselProps,
   CollapseProps,
+  DetailsDrawerProps,
   DiffProps,
   FieldsetProps,
   FooterProps,
@@ -48,6 +49,7 @@ import type {
 } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
+import { selectionHref, selectionCloseHref } from "./internal/collection-selection.js";
 import { renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";
@@ -169,6 +171,43 @@ export async function accordion(props: AccordionProps): Promise<string> {
 // ---------------------------------------------------------------------------
 // collapse
 // ---------------------------------------------------------------------------
+
+const CLOSE_DETAILS = message("Close details", { nl: "Details sluiten" });
+
+/** Source detail body is evaluated only for its activated original row. */
+export async function detailsDrawer(props: DetailsDrawerProps): Promise<string> {
+  if ("open" in props) throw new TypeError("details drawer cannot take open");
+  const caption = escapeHtml(captionOf(props.context, requireCaption("details drawer", props.caption)));
+  if (typeof props.occurrence !== "string" || props.occurrence.trim() === "") {
+    throw new TypeError("details drawer requires a nonempty source occurrence");
+  }
+  const idDescriptor = typeof props.record === "object" && props.record !== null
+    ? Object.getOwnPropertyDescriptor(props.record, "id") : undefined;
+  if (idDescriptor === undefined || !("value" in idDescriptor) ||
+      typeof idDescriptor.value !== "string" || idDescriptor.value === "" || typeof props.renderBody !== "function") {
+    throw new TypeError("details drawer requires an original row identity and body callback");
+  }
+  const recordId = idDescriptor.value as string;
+  const href = selectionHref(props.context, props.occurrence, recordId);
+  const closeHref = selectionCloseHref(props.context, props.occurrence);
+  const scope = JSON.stringify([props.context.path, props.occurrence, recordId]);
+  const id = `can-details-${Array.from({ length: scope.length }, (_, index) =>
+    scope.charCodeAt(index).toString(16).padStart(4, "0")).join("")}`;
+  const toggle = `${id}-toggle`, panel = `${id}-panel`, title = `${id}-title`;
+  const opener = `<a class="btn drawer-button" href="${escapeAttr(href)}" aria-controls="${panel}">${caption}</a>`;
+  if (props.context.collectionSelections?.get(props.occurrence) !== recordId) return opener;
+  const children = await props.renderBody(props.record, props.context);
+  const kids = typeof children === "function" ? await children() : children;
+  const body = (await Promise.all(kids)).join("");
+  const close = escapeHtml(resolveCaption(CLOSE_DETAILS, props.context));
+  return `<div class="drawer drawer-end" data-can-split>` +
+    `<input id="${toggle}" type="checkbox" class="drawer-toggle" checked aria-label="${caption}" aria-controls="${panel}">` +
+    `<div class="drawer-content">${opener}</div><div class="drawer-side">` +
+    `<a class="drawer-overlay" href="${escapeAttr(closeHref)}" aria-label="${close}"></a>` +
+    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
+    `<h2 id="${title}">${caption}</h2><a class="btn" data-can-split-close href="${escapeAttr(closeHref)}">${close}</a>` +
+    `${body}</dialog></div></div>`;
+}
 
 /** Native details/summary disclosure group with a required caption. */
 export async function collapse(props: CollapseProps): Promise<string> {

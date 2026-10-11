@@ -27,6 +27,7 @@ import type {
 import { CSRF_FIELD, COLLECTION_FILTER_PREFIX, collectionCursorName, collectionFilterName } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
+import { selectionHref } from "./internal/collection-selection.js";
 import { renderState, rowHeading } from "./components.js";
 import {
   csvFormulaProtect,
@@ -67,17 +68,6 @@ function splitOccurrence(props: Pick<ListProps, "display" | "occurrence">): stri
     throw new TypeError("Split collections require a nonempty source occurrence.");
   }
   return props.occurrence;
-}
-
-function selectionHref(context: PresentationContext, occurrence: string, id: string): string {
-  const current = context.pollUrl ?? context.path;
-  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
-    throw new TypeError("Collection selection requires a same-app relative URL.");
-  }
-  const url = new URL(current, "https://can.invalid");
-  if (url.origin !== "https://can.invalid") throw new TypeError("Invalid collection selection URL.");
-  url.searchParams.set(`can-row:${occurrence}`, id);
-  return `${url.pathname}${url.search}`;
 }
 
 /** One selected authorized body, shared by desktop pane and mobile drawer. */

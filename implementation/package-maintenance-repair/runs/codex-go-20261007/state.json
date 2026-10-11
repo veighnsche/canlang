@@ -5028,6 +5028,37 @@
         ],
         "acceptance_limit": "Defining producer only; no original installed/native mounted File journey, automatic host lifetime integration, gallery image policy, parent acceptance or precise hold release. No pushes; provider-void remains skipped and V05 release-host remains Dev/L7.",
         "coordinator_review": "Independent defining source review CLEAR: private original-object occurrence/capture/lifetime binding, closed pending result withholding, exact receiver forwarding and all spoof/copy/accessor/mutation refusals. Owning47+28/public1 reused, normal changed dependency closure emits/browser/root0. Actual native binding/current authorization/per-open reauthorization remains Dev-owned and unaccepted. No precise hold or full-plan acceptance."
+      },
+      "lazy_details_drawer": {
+        "status": "implemented_tested_reviewed_defining_library_component_in_LOCAL_main; original_source_native_consumers_unfinished",
+        "api": "ui.detailsDrawer(DetailsDrawerProps {context,caption,occurrence,record:RowView,renderBody(record,context),open?:never}); existing collapse remains unchanged.",
+        "behavior": "Inactive/stale/foreign occurrence produces only current same-app GET opener; active callback evaluates once with the original current admitted row/context and retained enclosing aliases. No independent record fetch/grant. Existing split dialog/drawer hooks provide modal chrome; GET close removes only this occurrence selector. IDs include current path/source occurrence/record. Conditional withheld empty body is allowed; open= and malformed locators refuse before body effects. Shared selection helper moved unchanged.",
+        "verified": {
+          "contracts_ui_interfaces_emits": "pass0",
+          "ui_browser": "pass0",
+          "ui_new_scope": "3/3 pass290.159125ms",
+          "interfaces_new_scope": "1/1 pass336.984ms with full/partial, actual scope/row/parent, preserved query/sibling selector, stale/removed/denied contexts and no body work",
+          "finite_source_review": "CLEAR; unchanged collapse/collection/browser/File/page assertions reused."
+        },
+        "remaining_dependencies": [
+          {
+            "owner": "Compiler",
+            "prerequisite": "Lower original details display=drawer with source-owned stable occurrence/current record and a lazy renderBody closure retaining enclosing row/parent aliases. open= stays collapse-only."
+          },
+          {
+            "owner": "Dev",
+            "prerequisite": "Consume actual admitted current generated full/partial renderer and original application/native qualifier; no eager DrawerProps replacement."
+          }
+        ],
+        "acceptance_limit": "No original Compiler/native acceptance or parent/hold release; source UI selection carries no business authority.",
+        "coordinator_review": "Independent defining source review CLEAR: only the exact activated occurrence/current supplied row evaluates its original renderBody closure, preserving current row/context/parent aliases. Open/close GET preserves other selectors/query, IDs distinguish occurrence/record pairs and open= refuses before body work. Reuse3 UI +1 actual full/partial HTTP owning cases and normal browser/emission0; current changed dependency normal closure/browser/root0. Actual Compiler lowering and Dev admitted native consumer remain unaccepted."
+      },
+      "gallery_image_prerequisite": {
+        "status": "bounded_host_direction_available; actual_inline_route_source_unreleased_leaf_skipped",
+        "owner": "Dev actual image-serving host; Files/Packages physical image/presentation contract; Compiler original image-field lowering",
+        "needed": "Dev selected a CSS-responsive view of the exact authorized original File bytes, with new protected GET /files/preview/{model}/{id}/{field}/{ref} sharing current whole-field/parent/Identity/source/physical/lifetime checks. Inline PNG/JPEG only after actual snapshot signature/policy/digest validation; original attachment route retained. No derived thumbnail/dimensions/cache claim. Actual host source/output remains unavailable and Dev-owned; Packages implements only its owning type/collection/UI consumer against the exact released purpose seam.",
+        "verified_gap": "PageFilePresenter exposes attachment links only; actual bound-files serves Content-Disposition:attachment. bound-images creates finalized provider Files, not presentation routes. Files snapshot validates physical facts; PNG/JPEG magic detection supplies no dimensions/thumbnail/inline producer. Existing collection model/parent/where/order/cursor/current rows/renderRow seam suffices; hoverGallery is separate.",
+        "release_condition": "Dev releases the actual protected inline PNG/JPEG route and exact current-row/checked-field purpose API. Proposed PageReadScope.resolveFileImage({model,record:actualRowView,field}) returns preview/original URLs or null; it is not yet a released API or native acceptance. Every preview/open performs fresh protected GET, never DOM/blob-only authority reuse."
       }
     },
     "DEL-D03": {
