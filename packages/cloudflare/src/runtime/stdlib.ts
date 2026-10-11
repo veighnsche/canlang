@@ -53,6 +53,7 @@ import type {
   JudgmentSpec,
   OrderTerm,
   PresentationContext,
+  PageGenerationCallbackDiagnosticsObserver,
   ProjectedRecord,
   QueryPredicate,
   ReadAuthority,
@@ -75,6 +76,19 @@ export {
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
+
+/** Whole historical callback observation through the installed current viewer scope. */
+export function generationCallbackDiagnostics(
+  c: Pick<PresentationContext, 'canonical'>,
+  locator: Parameters<PageGenerationCallbackDiagnosticsObserver>[0],
+): ReturnType<PageGenerationCallbackDiagnosticsObserver> {
+  const canonical = c.canonical;
+  const observe = canonical?.observeGenerationCallbackDiagnostics;
+  if (typeof observe !== 'function') {
+    throw new Error('Generation callback diagnostics require the installed viewer scope.');
+  }
+  return observe.call(canonical, locator);
+}
 
 /** Pure app link construction from explicit host configuration; grants no access. */
 export function app_url(c: Pick<PresentationContext, 'deploymentBase'>, path: string): string {

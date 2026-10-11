@@ -1996,6 +1996,14 @@ export async function assembleWorker(
             if (observe === undefined) throw new Error('assembly: canonical page receipt reader is unavailable.');
             return observe(locator, fields);
           },
+          observeGenerationCallbackDiagnostics: async (
+            locator: Parameters<NonNullable<PageReadScope['observeGenerationCallbackDiagnostics']>>[0],
+          ) => {
+            const current = await selected();
+            const observe = current.observeGenerationCallbackDiagnostics;
+            if (observe === undefined) throw new Error('assembly: canonical page callback reader is unavailable.');
+            return observe.call(current, locator);
+          },
         });
       },
       query: async (invocation, model, args) => {

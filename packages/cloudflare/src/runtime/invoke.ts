@@ -61,6 +61,7 @@ import type {
   ListQueryResult,
   PageDeliveryObserver,
   PageHistoryReader,
+  PageGenerationCallbackDiagnosticsObserver,
   PageReadScope,
   PageRecordsQuery,
   QueryPredicate,
@@ -129,6 +130,7 @@ import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import { createCommittedModelSourceStager, createStandardCompletionSourceCommand } from '@canlang/work';
 import { isConsistentCompletion } from '@canlang/work/receipt';
+import type { ViewerGenerationCallbackReadObservation, ViewerGenerationCallbackSourceReadPolicy } from '@canlang/state/receipt';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -2157,6 +2159,10 @@ export interface LoadedCanonicalDescriptors {
   readonly registry: ReadonlyMap<string, unknown>;
   readonly committedChanges: ReadonlyMap<string, CheckedCommittedChange>;
   readonly standardCompletions?: ReadonlyMap<string, CheckedStandardCompletion>;
+  /** Independent protected observation predicates, never ordinary row grants. */
+  readonly callbackReadGrants: ReadonlyMap<string, readonly CheckedCallbackReadGrant[]>;
+  /** Reader-local original ordinary predicates; the legacy policy table is unchanged. */
+  readonly sourceReadPolicies: ReadonlyMap<string, CheckedPageSourceReadPolicy>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   /** Defining State attachments retain reference/containment identity without field tags. */
   readonly refs: ReadonlyMap<string, readonly { readonly field: string; readonly model: string }[]>;
@@ -2177,6 +2183,25 @@ export interface LoadedCanonicalDescriptors {
   readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
+interface CheckedCallbackReadGrant {
+  readonly rule: string;
+  readonly field: 'request';
+  readonly module: string;
+  readonly app: string;
+  readonly predicate: (context: HandlerContext, row: Record<string, unknown>) => unknown;
+}
+
+interface CheckedPageSourceReadPolicy {
+  readonly app: string;
+  readonly fields: readonly string[];
+  readonly secretFields: readonly string[];
+  readonly grants: readonly {
+    readonly rule: string;
+    readonly fields: readonly string[];
+    readonly predicate: CheckedCallbackReadGrant['predicate'];
+  }[];
+}
+
 /**
  * Per-artifact canonical cache. Artifacts are treated as immutable
  * serving units (digest-pinned upstream), so one load per object
@@ -2193,6 +2218,7 @@ const canonicalCache = new WeakMap<CompileArtifact, {
   rowPolicyAssembly?: AssembledModules;
   committedAssembly?: AssembledModules;
   completionAssembly?: AssembledModules;
+  callbackAssembly?: AssembledModules;
 }>();
 
 const emittedSourceClaims = new WeakMap<object, Map<string, { readonly source: string; readonly claimed: boolean }>>();
@@ -2262,7 +2288,12 @@ function requiresRowReadCorrespondence(artifact: CompileArtifact): boolean {
 
 function requiresVerifiedAssemblyImports(asm: AssembledModules, artifact: CompileArtifact): boolean {
   return hasAssemblerModuleCapability(asm) || requiresScenarioCorrespondence(artifact) || requiresRowReadCorrespondence(artifact) ||
-    requiresCommittedSourceCorrespondence(artifact);
+    requiresCommittedSourceCorrespondence(artifact) || requiresCallbackReadCorrespondence(artifact);
+}
+
+function requiresCallbackReadCorrespondence(artifact: CompileArtifact): boolean {
+  return claimsEmittedSourceProperty(artifact, 'callbackReadGrants') ||
+    claimsEmittedSourceProperty(artifact, 'callbackRead') || canonicalCache.get(artifact)?.callbackAssembly !== undefined;
 }
 
 /** Presence gate only: State still owns descriptor/claim schema validation. */
@@ -2313,7 +2344,7 @@ async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileAr
 
 async function verifyCheckedAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void> {
   const cached = canonicalCache.get(artifact);
-  const original = rowPolicyAssemblies.get(artifact) ?? cached?.rowPolicyAssembly ?? cached?.scenarioAssembly;
+  const original = rowPolicyAssemblies.get(artifact) ?? cached?.rowPolicyAssembly ?? cached?.scenarioAssembly ?? cached?.callbackAssembly;
   if (original !== undefined && asm !== original) throw new AssemblyCorrespondenceError('Checked source requires its original verified assembly.');
   await verifyAssemblerModuleCapability(asm, artifact);
 }
@@ -3146,6 +3177,127 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
   }
 }
 
+/** Load protected callback permission from its complete original checked function.
+ * Its empty selector belongs only to callbackReadGrants, never to readGrants. */
+async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedArtifactDescriptors): Promise<{
+    callbacks: ReadonlyMap<string, readonly CheckedCallbackReadGrant[]>;
+    reads: ReadonlyMap<string, CheckedPageSourceReadPolicy>;
+  }> {
+  const result = new Map<string, readonly CheckedCallbackReadGrant[]>();
+  const reads = new Map<string, CheckedPageSourceReadPolicy>();
+  const claimed = requiresCallbackReadCorrespondence(artifact);
+  if (claimed) await verifyCheckedAssembly(asm, artifact);
+  for (const module of Object.keys(asm.moduleUrls)) {
+    const url = asm.moduleUrls[module];
+    if (typeof url !== 'string' || url === '') continue;
+    let imported: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
+    const own = (value: unknown, key: string): unknown => isUnknownRecord(value)
+      ? readMetadataMember(value, key, 'Callback read source')?.value : undefined;
+    let definition = own(imported, 'appDefinition'), declarations = own(definition, 'models');
+    const hasDeclarations = () => isUnknownRecord(declarations) && Object.keys(declarations).some(model =>
+      own(own(declarations, model), 'callbackReadGrants') !== undefined);
+    if (!hasDeclarations() && !(claimed && isUnknownRecord(declarations))) {
+      // A registry-only claim cannot manufacture a protected model permission.
+      if (claimed && isUnknownRecord(imported) && typeof own(imported, 'canApp') === 'function') {
+        const registry = await importPolicyRegistry(asm, module, 'callback read inventory', artifact);
+        const callbacks = own(registry, 'callbackRead');
+        if (callbacks !== undefined && Object.keys(localPolicyObject(callbacks)).length !== 0) {
+          throw new AssemblyCorrespondenceError('Callback read registry lacks its owning declarations.');
+        }
+      }
+      continue;
+    }
+    await verifyCheckedAssembly(asm, artifact);
+    imported = await importVerifiedAssemblyModule(asm, module, artifact);
+    definition = own(imported, 'appDefinition'); declarations = own(definition, 'models');
+    const app = own(definition, 'id');
+    if (typeof app !== 'string' || app === '' || !isUnknownRecord(declarations)) {
+      throw new AssemblyCorrespondenceError('Callback read source lacks its exact owning app/models.');
+    }
+    const registry = await importPolicyRegistry(asm, module, 'callback read inventory', artifact);
+    const rawCallbacks = own(registry, 'callbackRead'), readRules = own(registry, 'read');
+    const callbacks = rawCallbacks === undefined ? {} : localPolicyObject(rawCallbacks);
+    const rules = new Set<string>();
+    for (const model of Object.keys(declarations)) {
+      const declaration = own(declarations, model), rawGrants = own(declaration, 'callbackReadGrants');
+      const ordinary = own(declaration, 'readGrants');
+      if (ordinary !== undefined) {
+        const canonical = loaded.models.find(candidate => candidate.name === model);
+        const fields = localPolicyObject(own(declaration, 'fields'));
+        const names = Object.keys(fields), secrets = loaded.secretFields.get(model as ModelName);
+        if (canonical === undefined || secrets === undefined || reads.has(model) ||
+            !sameReadStrings([...names].sort(), Object.keys(canonical.fields).sort())) {
+          throw new AssemblyCorrespondenceError('Source read model differs from its exact loaded declaration.');
+        }
+        const entries = readMetadataArray(ordinary, 'Source read declaration', 'readGrants');
+        if (Object.getPrototypeOf(ordinary) !== Array.prototype || Reflect.ownKeys(ordinary as object).length !== entries.length + 1 || entries.length > 200) {
+          throw new AssemblyCorrespondenceError('Source read grants require a bounded original ordinal inventory.');
+        }
+        const policy = readPolicyFacts(own(own(own(registry, 'policy'), 'models'), model), 'Source read policy');
+        const declaredPolicy = readPolicyFacts(own(own(own(definition, 'policy'), 'models'), model), 'Source read declaration policy');
+        if (!sameReadPolicies(policy, declaredPolicy)) throw new AssemblyCorrespondenceError('Source read policy differs from its owning declaration.');
+        const ids: string[] = [], grants: CheckedPageSourceReadPolicy['grants'][number][] = [];
+        const metadata = new Set(['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt']);
+        for (const entry of entries) {
+          const grant = localPolicyObject(entry, ['rule', 'fields', 'by']);
+          const rule = own(grant, 'rule'), selected = own(grant, 'fields'), predicate = own(readRules, typeof rule === 'string' ? rule : '');
+          if (typeof rule !== 'string' || rule === '' || ids.includes(rule) || typeof predicate !== 'function') {
+            throw new AssemblyCorrespondenceError('Source read ordinal lacks its exact original callable.');
+          }
+          const paths = selected === undefined ? names.filter(field => !secrets.has(field)) :
+            readMetadataStrings(selected, 'Source read declaration', 'fields');
+          if (paths.length === 0 || selected !== undefined &&
+              (Object.getPrototypeOf(selected) !== Array.prototype || Reflect.ownKeys(selected as object).length !== paths.length + 1) ||
+              paths.some(path => path.split('.').some(part => part === '') || /[\[\]]/.test(path) ||
+                !names.includes(path.split('.')[0]!) && !metadata.has(path.split('.')[0]!) && path.split('.')[0] !== 'parent' ||
+                path.split('.').includes('callback_diagnostics') || [...secrets].some(secret => path === secret || path.startsWith(`${secret}.`)))) {
+            throw new AssemblyCorrespondenceError('Source read selector differs from its exact declared fields/secrets.');
+          }
+          ids.push(rule); grants.push(Object.freeze({ rule, fields: Object.freeze([...paths]),
+            predicate: predicate as CheckedCallbackReadGrant['predicate'] }));
+        }
+        if (!sameReadStrings(ids, policy.read ?? [])) throw new AssemblyCorrespondenceError('Source read declaration/policy ordinal identities disagree.');
+        reads.set(model, Object.freeze({ app, fields: Object.freeze(names), secretFields: Object.freeze([...secrets]), grants: Object.freeze(grants) }));
+      }
+      if (rawGrants === undefined) continue;
+      const grants = readMetadataArray(rawGrants, 'Callback read source', 'callbackReadGrants');
+      if (Object.getPrototypeOf(rawGrants) !== Array.prototype || Reflect.ownKeys(rawGrants as object).length !== grants.length + 1 ||
+          grants.length > 200 || result.has(model)) {
+        throw new AssemblyCorrespondenceError('Callback read declarations require one bounded owning model inventory.');
+      }
+      const fields = localPolicyObject(own(declaration, 'fields'));
+      const canonical = loaded.models.find(candidate => candidate.name === model);
+      if (canonical === undefined || !sameReadStrings(Object.keys(fields).sort(), Object.keys(canonical.fields).sort())) {
+        throw new AssemblyCorrespondenceError('Callback read model differs from its exact loaded declaration.');
+      }
+      const captured: CheckedCallbackReadGrant[] = [];
+      for (const rawGrant of grants) {
+        const grant = localPolicyObject(rawGrant, ['rule', 'field', 'fields']);
+        const rule = own(grant, 'rule'), field = own(grant, 'field'), selected = own(grant, 'fields');
+        if (Reflect.ownKeys(grant).length !== 3 || typeof rule !== 'string' || rule === '' || rules.has(rule) ||
+            field !== 'request' || !loaded.deliveryFields.get(model as ModelName)?.has(field) ||
+            readMetadataArray(selected, 'Callback read source', 'fields').length !== 0 ||
+            Object.getPrototypeOf(selected) !== Array.prototype || Reflect.ownKeys(selected as object).length !== 1) {
+          throw new AssemblyCorrespondenceError('Callback read grant lacks its exact protected delivery selector.');
+        }
+        const predicate = own(callbacks, rule);
+        if (typeof predicate !== 'function') throw new AssemblyCorrespondenceError('Callback read grant lacks its exact owning callable.');
+        rules.add(rule);
+        captured.push(Object.freeze({ rule, field, module, app,
+          predicate: predicate as CheckedCallbackReadGrant['predicate'] }));
+      }
+      result.set(model, Object.freeze(captured));
+    }
+    if (!sameReadStrings([...rules].sort(), Object.keys(callbacks).sort())) {
+      throw new AssemblyCorrespondenceError('Callback read registry/declaration identities disagree.');
+    }
+    await verifyCheckedAssembly(asm, artifact);
+  }
+  return { callbacks: result, reads };
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -3153,6 +3305,7 @@ export async function loadCanonicalDescriptors(
   const claimedScenario = claimsScenarioDisclosure(artifact);
   const claimedRowSource = requiresRowReadCorrespondence(artifact);
   const claimedCommitted = requiresCommittedSourceCorrespondence(artifact);
+  const claimedCallbacks = requiresCallbackReadCorrespondence(artifact);
   const claimedCompletion = claimsEmittedSourceProperty(artifact, 'standardCompletions') ||
     canonicalCache.get(artifact)?.completionAssembly !== undefined;
   // An issued assembly must still match its captured artifact and complete
@@ -3164,8 +3317,12 @@ export async function loadCanonicalDescriptors(
   }
   if (claimedCommitted) await verifyCheckedAssembly(asm, artifact);
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
+  if (claimedCallbacks) await verifyCheckedAssembly(asm, artifact);
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
+    if (claimedCallbacks && cached.callbackAssembly !== asm) {
+      throw new AssemblyCorrespondenceError('Callback read source requires its original checked assembly.');
+    }
     if (claimedCompletion && cached.completionAssembly !== asm) {
       throw new AssemblyCorrespondenceError('Standard completion requires its original checked assembly.');
     }
@@ -3315,7 +3472,10 @@ export async function loadCanonicalDescriptors(
       return type === undefined ? [] : [{ field, label: field, type }];
     }));
   }
+  const sourceReadInventory = await loadCheckedCallbackReadGrants(asm, artifact, loaded);
   const canonical: LoadedCanonicalDescriptors = {
+    callbackReadGrants: sourceReadInventory.callbacks,
+    sourceReadPolicies: sourceReadInventory.reads,
     committedChanges,
     registry: loaded.registry,
     models: loaded.models,
@@ -3348,6 +3508,7 @@ export async function loadCanonicalDescriptors(
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
     ...(rowPolicyAssembly === undefined ? {} : { rowPolicyAssembly }),
+    ...(claimedCallbacks || canonical.callbackReadGrants.size > 0 ? { callbackAssembly: asm } : {}),
     ...(claimedCommitted ? { committedAssembly: asm } : {}),
     ...(claimedCompletion ? { completionAssembly: asm } : {}) });
   return canonical;
@@ -4101,6 +4262,9 @@ async function createContainmentNavigation(input: {
   readonly teamId: string | null;
   readonly memberships: CanonicalMembershipReader;
   readonly authority: 'viewer' | 'owner';
+  /** Callback authorization stays inside State's complete Identity observation. */
+  readonly coherentContext?: import('@canlang/state/policy/grants').ByContext;
+  readonly fence?: import('@canlang/state/invocation/admission').FenceScope;
   readonly failure?: (error: unknown) => void;
 }) {
   const { loaded, store } = input;
@@ -4114,6 +4278,7 @@ async function createContainmentNavigation(input: {
   let reads = 0;
   let viewerProducers: Promise<{
     project: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer;
+    projectPolicy?: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewerPolicy;
     by: typeof import('@canlang/state/policy/roles').evaluateBy;
   }> | undefined;
   const viewer = () => viewerProducers ??= (async () => {
@@ -4122,26 +4287,35 @@ async function createContainmentNavigation(input: {
     return {
       project: requireProducerFn(query, 'projectCurrentRecordForViewer', 'containment viewer projection') as
         typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer,
+      ...(input.coherentContext === undefined ? {} : {
+        projectPolicy: requireProducerFn(query, 'projectCurrentRecordForViewerPolicy', 'containment viewer projection') as
+          typeof import('@canlang/state/query/engine').projectCurrentRecordForViewerPolicy,
+      }),
       by: requireProducerFn(roles, 'evaluateBy', 'containment read admission') as
         typeof import('@canlang/state/policy/roles').evaluateBy,
     };
   })();
   const load = async (model: string, id: string, basis?: StoredRow): Promise<StoredRow | ProjectedRecord> => {
-    const row = basis ?? await store.load(model as ModelName, id as RecordId);
+    const row = basis ?? (input.coherentContext === undefined ? await store.load(model as ModelName, id as RecordId) :
+      await store.cohortLoad({ model: model as ModelName, id: id as RecordId, expectedRevision: input.revision }));
     if (row === null || row.id !== id || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
     if (input.authority === 'owner') return freezeScenarioSnapshot(structuredClone(row)) as StoredRow;
+    if (input.coherentContext !== undefined && loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
     const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
     if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
         !loaded.models.some(candidate => candidate.name === model)) {
       throw new StateError('validation', 'Parent navigation requires a checked model read.');
     }
-    const membership = input.actorUserId !== null && input.teamId !== null
-      ? await input.memberships.findMembership(input.teamId, input.actorUserId) : null;
-    const context = { actorUserId: input.actorUserId, teamId: input.teamId, membership, memberships: input.memberships };
+    const membership = input.coherentContext !== undefined ? input.coherentContext.membership : (input.actorUserId !== null && input.teamId !== null
+      ? await input.memberships.findMembership(input.teamId, input.actorUserId) : null);
+    const context = input.coherentContext ?? { actorUserId: input.actorUserId, teamId: input.teamId, membership, memberships: input.memberships };
     const producer = await viewer();
     if (!(await producer.by(def.by, context))) throw new StateError('not_found', 'Parent record not found.');
     const policy = loaded.policy as ReadonlyMap<ModelName, import('@canlang/state/policy/grants').InterimModelPolicy>;
-    const visible = await producer.project({ policy: policy.get(model as ModelName), context, row });
+    const modelPolicy = policy.get(model as ModelName);
+    const visible = input.coherentContext === undefined
+      ? await producer.project({ policy: modelPolicy, context, row })
+      : await producer.projectPolicy!({ policy: modelPolicy, context, row });
     if (visible.record === null) throw new StateError('not_found', 'Parent record not found.');
     const projected = freezeScenarioSnapshot(structuredClone(visible.record)) as ProjectedRecord;
     projectionSources.set(projected, freezeScenarioSnapshot(structuredClone(row)) as StoredRow);
@@ -4255,6 +4429,8 @@ async function createContainmentNavigation(input: {
       if (input.authority === 'viewer' && JSON.stringify(current) !== JSON.stringify(entry.row)) {
         throw new StateError('forbidden', 'Parent read authority changed during the operation.');
       }
+      input.fence?.enroll({ kind: 'record', model: entry.model as ModelName, id: entry.row!.id, version: entry.row!.version });
+      input.fence?.enroll({ kind: 'query', model: entry.model as ModelName, authority: 'viewer' });
     }
   };
   const reject = (error: unknown): never => { input.failure?.(error); throw error; };
@@ -9396,6 +9572,151 @@ export function createPageReadScopeCanonical(
       await checkpoint();
       return result;
     },
+    ...(requiresCallbackReadCorrespondence(opts.artifact) ? {
+      observeGenerationCallbackDiagnostics: async (locator: Parameters<PageGenerationCallbackDiagnosticsObserver>[0]) => {
+        const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+        const StateError = loaded.producers.errors;
+        const binding = typeof locator.record === 'object' && locator.record !== null
+          ? historyViews.get(locator.record) : undefined;
+        if (binding === undefined || locator.field !== 'request') {
+          throw new StateError('validation', 'Callback diagnostics require the original admitted page record and request field.');
+        }
+        const grants = loaded.callbackReadGrants.get(binding.model)?.filter(grant => grant.field === locator.field);
+        const host = opts.pageReads?.scope;
+        if (grants === undefined || grants.length === 0 || host === undefined ||
+            grants.some(grant => grant.app !== host.app) || opts.identity.team?.team_id !== host.owner) {
+          throw new StateError('validation', 'Callback diagnostics require their checked source and installed owner scope.');
+        }
+        const expectedRevision = await checkpoint();
+        assertCanonicalStore(opts.store, `${binding.model}.read`);
+        assertCanonicalMemberships(opts.memberships, `${binding.model}.read`);
+        const readPolicies = new Map<ModelName, import('@canlang/state/query/engine').ViewerPageParentPolicy | ViewerGenerationCallbackSourceReadPolicy>();
+        let model: ModelName | undefined = binding.model as ModelName;
+        while (model !== undefined) {
+          if (readPolicies.has(model)) throw new StateError('validation', 'Unsupported callback diagnostic containment scope.');
+          const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
+          if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
+              !loaded.models.some(candidate => candidate.name === model)) {
+            throw new StateError('validation', 'Callback diagnostics require their checked model read and containment facts.');
+          }
+          const parent: ModelName | undefined = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model)?.parent;
+          const source = loaded.sourceReadPolicies.get(model);
+          if (source !== undefined) {
+            if (source.app !== host.app) throw new StateError('validation', 'Source read policy differs from its installed app.');
+            const sourceModel = model;
+            readPolicies.set(model, Object.freeze({ fields: source.fields, secretFields: source.secretFields,
+              grants: Object.freeze(source.grants.map(grant => Object.freeze({ fields: grant.fields,
+                read: async (observation: Readonly<ViewerGenerationCallbackReadObservation>) =>
+                  evaluateSourceRead(sourceModel, [grant.predicate], observation) }))),
+              ...(parent === undefined ? {} : { parent }) }));
+          } else {
+            if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+            readPolicies.set(model, { by: def.by, ...(parent === undefined ? {} : { parent }) });
+          }
+          model = parent;
+        }
+        const receiptModule = await loadProducerModule('@canlang/state/receipt', 'state viewer callback diagnostics producer');
+        const observe = requireProducerFn(receiptModule, 'queryGenerationCallbackDiagnosticsForViewer', 'state viewer callback diagnostics producer') as
+          typeof import('@canlang/state/receipt').queryGenerationCallbackDiagnosticsForViewer;
+        const workModule = await loadProducerModule('@canlang/work/receipt', 'work bounded callback diagnostics producer');
+        const readDiagnostics = requireProducerFn(workModule, 'readGenerationCallbackDiagnostics', 'work bounded callback diagnostics producer') as
+          typeof import('@canlang/work/receipt').readGenerationCallbackDiagnostics;
+        const admissionModule = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'state page callback fence producer');
+        const openFence = requireProducerFn(admissionModule, 'openFenceScope', 'state page callback fence producer') as
+          typeof import('@canlang/state/invocation/admission').openFenceScope;
+        const { resolveGenerationCallbackOrigin } = await import('./bound-dispatch.js');
+        await checkpoint();
+        const fence = openFence(expectedRevision as Revision, host.owner), enroll = fence.enroll;
+        fence.enroll = dependency => {
+          if (dependency.kind === 'record' && dependency.model === binding.model && dependency.id === binding.id &&
+              dependency.version !== binding.version) {
+            throw new StateError('conflict', 'Page record changed during rendering; refresh the page.');
+          }
+          enroll.call(fence, dependency);
+        };
+        const now = (opts.now ?? Date.now)();
+        const evaluateSourceRead = async (sourceModel: string,
+          predicates: readonly CheckedCallbackReadGrant['predicate'][],
+          { context, row, revision: currentRevision, fence: currentFence }: Readonly<ViewerGenerationCallbackReadObservation>): Promise<boolean> => {
+            await verifyCheckedAssembly(opts.asm, opts.artifact);
+            const actor = opts.identity.actor, team = opts.identity.team;
+            if (context.actorUserId !== (actor?.user_id ?? null) || context.teamId !== (team?.team_id ?? null) ||
+                context.teamId !== host.owner || currentRevision !== expectedRevision ||
+                !loaded.models.some(model => model.name === sourceModel)) {
+              throw new StateError('validation', 'Source read predicate context differs from its coherent admitted identity/model.');
+            }
+            let failure: unknown;
+            const refuse = (): never => {
+              failure = new StateError('validation', 'Source read predicates cannot perform effects, access raw storage or recursively observe diagnostics.');
+              throw failure;
+            };
+            const readonlyStore = new Proxy(Object.create(null) as StoragePort, {
+              get: refuse, set: refuse, defineProperty: refuse, deleteProperty: refuse, ownKeys: refuse,
+            });
+            const membership = context.membership?.status === 'active' ? context.membership : null;
+            const roles = membership?.roles.map(grant => grant.role) ?? [];
+            const builtinRoles = ['public', ...(context.actorUserId === null ? [] : ['authenticated']),
+              ...(membership === null ? [] : ['members']), ...(membership?.is_owner === true ? ['owner'] : [])];
+            const navigation = await createContainmentNavigation({ loaded, store: opts.store,
+              revision: currentRevision, actorUserId: context.actorUserId, teamId: context.teamId,
+              memberships: context.memberships, coherentContext: context, authority: 'viewer',
+              ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
+            const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
+              nativeProjectedRecord(loaded, name, source, navigation, recordView);
+            await navigation.prepare(sourceModel, row);
+            const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
+              memberships: roles, store: readonlyStore, clock: () => now,
+              canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
+                stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
+                readModel: refuse, readRecords: refuse, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
+              sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
+              qualified: { actor: actor === null ? null : { userId: context.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
+                team: team === null ? null : { teamId: context.teamId!, timezone: team.timezone }, now, source: opts.source ?? 'worker' },
+            });
+            Object.freeze(ctx.memberships); Object.freeze(ctx.caller); Object.freeze(ctx.preferences); Object.freeze(ctx);
+            const nativeRow = recordView(sourceModel, row);
+            let allowed = false;
+            for (const predicate of predicates) {
+              const verdict = await predicate(ctx, nativeRow);
+              if (failure !== undefined) throw failure;
+              if (typeof verdict !== 'boolean') throw new StateError('validation', 'Source read predicates must return bool.');
+              if (verdict) { allowed = true; break; }
+            }
+            await navigation.revalidate();
+            if (failure !== undefined) throw failure;
+            await verifyCheckedAssembly(opts.asm, opts.artifact);
+            return allowed;
+        };
+        const observed = await observe({ store: opts.store, memberships: opts.memberships,
+          model: binding.model as ModelName, recordId: binding.id as RecordId, field: locator.field,
+          schema: loaded.deliveryFields as Parameters<typeof observe>[0]['schema'],
+          policy: loaded.policy as Parameters<typeof observe>[0]['policy'], readPolicies,
+          context: { actorUserId: opts.identity.actor?.user_id ?? null, teamId: opts.identity.team?.team_id ?? null }, fence,
+          callbackRead: async observation => {
+            if (observation.row.id !== binding.id || observation.row.version !== binding.version) {
+              throw new StateError('conflict', 'Callback observation differs from its admitted page record.');
+            }
+            return evaluateSourceRead(binding.model, grants.map(grant => grant.predicate), observation);
+          },
+          resolveOrigin: async (association, store) => {
+            const origin = await resolveGenerationCallbackOrigin({ artifact: opts.artifact, asm: opts.asm,
+              app: host.app, owner: host.owner, ownerPackage: host.ownerPackage, ...association }, store);
+            if (origin === null) throw new StateError('validation', 'Callback diagnostics lack their retained original dispatch correspondence.');
+            return origin;
+          }, readDiagnostics,
+        });
+        await checkpoint();
+        if (observed.outcome === 'withheld') throw new StateError('forbidden', 'Callback diagnostics are not authorized.');
+        if (observed.outcome === 'no-association') return null;
+        if (observed.diagnostic.outcome === 'unsupported') return observed.diagnostic;
+        return Object.freeze({ ...observed.diagnostic, failures: Object.freeze(observed.diagnostic.failures.map(failure => {
+          if (!Number.isSafeInteger(failure.recordedAtMs) || failure.recordedAtMs < 0) {
+            throw new StateError('validation', 'Callback diagnostic timestamp is not a safe non-negative integer.');
+          }
+          return Object.freeze({ ...failure, recordedAtMs: BigInt(failure.recordedAtMs) });
+        })) });
+      },
+    } : {}),
     observeDelivery: async (locator: Parameters<PageDeliveryObserver>[0], selected: Parameters<PageDeliveryObserver>[1]) => {
       const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
       const StateError = loaded.producers.errors;
