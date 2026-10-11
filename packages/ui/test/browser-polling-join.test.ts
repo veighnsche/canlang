@@ -525,3 +525,109 @@ describe('source form polling occurrence lifecycle', () => {
     } finally { await page.close(); }
   });
 });
+
+describe('browser binder marker lifecycle', () => {
+  it('exhausts armed once-action cleanup when a supported attribute hook throws', async () => {
+    const window = new Window({ url: 'https://can.test/jobs' });
+    window.document.body.innerHTML = '<button data-can-once>Action</button><button data-can-once>Sibling</button>';
+    const [control, sibling] = window.document.querySelectorAll('button');
+    assert.ok(control); assert.ok(sibling);
+    const calls: string[] = [];
+    const failure = new Error('attribute cleanup failed');
+    const removeAttribute = control.removeAttribute;
+    const removeEventListener = control.removeEventListener;
+    Object.defineProperty(control, 'removeAttribute', { configurable: true, value: (name: string) => {
+      calls.push(name);
+      Reflect.apply(removeAttribute, control, [name]);
+      if (name === 'disabled') throw failure;
+    } });
+    Object.defineProperty(control, 'removeEventListener', { configurable: true,
+      value: (type: string, listener: unknown, ...rest: unknown[]) => {
+        calls.push(type);
+        Reflect.apply(removeEventListener, control, [type, listener, ...rest]);
+      } });
+    const client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'],
+      fetchImpl: async () => { throw new Error('this lifecycle case must not fetch'); } });
+    try {
+      control.dispatchEvent(new window.Event('click'));
+      sibling.dispatchEvent(new window.Event('click'));
+      assert.equal(control.getAttribute('aria-disabled'), 'true');
+      assert.throws(() => client.stop(), error => error === failure);
+      assert.deepEqual(calls, ['disabled', 'aria-disabled', 'click', 'can:settled']);
+      assert.equal(control.hasAttribute('disabled'), false);
+      assert.equal(control.hasAttribute('aria-disabled'), false);
+      assert.equal(sibling.hasAttribute('disabled'), false, 'a prior hook failure cannot strand the sibling');
+      assert.equal(sibling.hasAttribute('aria-disabled'), false);
+      control.setAttribute('aria-disabled', 'sentinel');
+      control.dispatchEvent(new window.Event('click'));
+      control.dispatchEvent(new window.Event('can:settled'));
+      assert.equal(control.hasAttribute('disabled'), false);
+      assert.equal(control.getAttribute('aria-disabled'), 'sentinel');
+      client.stop(); client.rescan();
+      assert.deepEqual(calls, ['disabled', 'aria-disabled', 'click', 'can:settled']);
+    } finally { client.stop(); await window.happyDOM.close(); }
+  });
+
+  it('disposes removed guard and once markers exactly once while connected siblings stay bound', async () => {
+    const window = new Window({ url: 'https://can.test/jobs' });
+    window.document.body.innerHTML = '<form data-can-guard></form><button id="removed" data-can-once>Action</button><button id="kept" data-can-once>Keep</button><button id="detached" data-can-once>Old</button>';
+    const form = window.document.querySelector('form')!;
+    const removed = window.document.getElementById('removed')!;
+    const kept = window.document.getElementById('kept')!;
+    const detached = window.document.getElementById('detached')!;
+    const removals = new Map<string, number>();
+    for (const [label, target] of [['form', form], ['removed', removed], ['kept', kept], ['detached', detached], ['window', window]] as const) {
+      const original = target.removeEventListener;
+      Object.defineProperty(target, 'removeEventListener', { configurable: true,
+        value: (type: string, listener: unknown, ...rest: unknown[]) => {
+          const key = `${label}:${type}`;
+          removals.set(key, (removals.get(key) ?? 0) + 1);
+          Reflect.apply(original, target, [type, listener, ...rest]);
+        } });
+    }
+    const client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'],
+      fetchImpl: async () => { throw new Error('this lifecycle case must not fetch'); } });
+    try {
+      form.dispatchEvent(new window.Event('input'));
+      const dirty = new window.Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(dirty); assert.equal(dirty.defaultPrevented, true);
+      removed.dispatchEvent(new window.Event('click'));
+      assert.equal(removed.hasAttribute('disabled'), true);
+      assert.equal(removed.getAttribute('aria-disabled'), 'true');
+      detached.dispatchEvent(new window.Event('click'));
+      detached.remove();
+      form.removeAttribute('data-can-guard'); removed.removeAttribute('data-can-once');
+      assert.equal(form.isConnected, true); assert.equal(removed.isConnected, true);
+      client.rescan(); client.rescan();
+      assert.equal(removed.hasAttribute('disabled'), false, 'connected armed control recovers on marker removal');
+      assert.equal(removed.hasAttribute('aria-disabled'), false);
+      assert.equal(detached.hasAttribute('disabled'), true, 'detached swap retains its old state');
+      assert.equal(detached.getAttribute('aria-disabled'), 'true');
+      detached.dispatchEvent(new window.Event('can:settled'));
+      assert.equal(detached.hasAttribute('disabled'), true, 'detached listener is disposed');
+      for (const key of ['form:input', 'form:submit', 'window:beforeunload', 'removed:click', 'removed:can:settled']) {
+        assert.equal(removals.get(key), 1, key);
+      }
+      form.dispatchEvent(new window.Event('input'));
+      const clean = new window.Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(clean); assert.equal(clean.defaultPrevented, false);
+      removed.dispatchEvent(new window.Event('click'));
+      assert.equal(removed.hasAttribute('disabled'), false, 'removed once marker cannot arm a stale action');
+      removed.setAttribute('aria-disabled', 'sentinel');
+      removed.dispatchEvent(new window.Event('can:settled'));
+      assert.equal(removed.getAttribute('aria-disabled'), 'sentinel', 'removed completion listener cannot modify control');
+      kept.dispatchEvent(new window.Event('click')); assert.equal(kept.hasAttribute('disabled'), true);
+      kept.dispatchEvent(new window.Event('can:settled')); assert.equal(kept.hasAttribute('disabled'), false);
+      assert.equal(removals.has('kept:click'), false);
+      kept.dispatchEvent(new window.Event('click'));
+      assert.equal(kept.getAttribute('aria-disabled'), 'true');
+      client.stop(); client.stop(); client.rescan();
+      assert.equal(kept.hasAttribute('disabled'), false, 'connected stop releases armed state');
+      assert.equal(kept.hasAttribute('aria-disabled'), false);
+      assert.equal(detached.hasAttribute('disabled'), true);
+      for (const key of ['form:input', 'form:submit', 'window:beforeunload', 'removed:click', 'removed:can:settled', 'kept:click', 'kept:can:settled', 'detached:click', 'detached:can:settled']) {
+        assert.equal(removals.get(key), 1, key);
+      }
+    } finally { client.stop(); await window.happyDOM.close(); }
+  });
+});
