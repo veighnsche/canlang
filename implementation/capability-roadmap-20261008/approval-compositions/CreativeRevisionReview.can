@@ -276,9 +276,10 @@ package creative
     require budget!=null and budget.active and budget.running<budget.parallel and budget.spent+budget.held+1<=budget.cap
     let revision=template.current
     require revision.digest!=null
+    let validation=revision.digest
     create Run {source=operation.id,conversation,revision,budget,prompt,negative,width,height} as run
     set budget {held=budget.held+1,running=budget.running+1}
-    send Images.submit {value=ImageRequest {source=run.source,revision=1,workflow=revision.definition,validation=revision.digest,prompt,negative,width,height,max_outputs=revision.outputs,max_duration=revision.duration}} when=active_member(run.author,team) and template.active and budget.active and not run.stop_requested and (run.conversation==null or can_use(run.author,run.conversation)) as request
+    send Images.submit {value=ImageRequest {source=run.source,revision=1,workflow=revision.definition,validation,prompt,negative,width,height,max_outputs=revision.outputs,max_duration=revision.duration}} when=active_member(run.author,team) and template.active and budget.active and not run.stop_requested and (run.conversation==null or can_use(run.author,run.conversation)) as request
     set run {request}
     return run
    examples seed=[budget] template=workflow prompt="A quiet garden" negative="" width=512 height=512 conversation=null
