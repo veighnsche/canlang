@@ -8712,3 +8712,23 @@ or remove the original guard to bypass that join. Remaining original30/no
 artifact, full applications and all precise human holds remain open.
 
 Bounded analysis source review is clear: exact selector-owned enum expectation reaches only direct headers, lexical bindings remain first, owning cases are known/distinct/complete and ordinary body/nested/transient scopes are preserved. Reuse the recorded374 affected outcomes and strict checks; original source32→30 clears only Volunteer2. Native panel emission stays E6008 pending its separate defining accessible-options/current-value contract.
+
+### 2026-10-11 — reuse the owning Shift request kind
+
+Assigned C02 authored correction changes only stored `Commitment.kind` to
+`CommitmentRequest.kind`, retaining its complete receiving label descriptor
+and every other original source byte. The exported request declaration owns
+the interface consumed by stored commitments. Accepted field-type reuse at
+DESIGN139 and existing `Notice.kind:DutyNotice.kind` supply the pattern;
+independently declared enums remain distinct even when their cases look equal.
+
+Actual current original25/catalog30→25 removes only the five named comparisons
+and assignments, with24 other source hashes unchanged and remaining diagnostics
+identical modulo the sole -24byte type edit. Isolated Shift100→95; full52 corpus
+assertion1/1 passes1.86s,0fail/ignored/bodySKIP; only Shift's pin changes. Reuse
+prior374 affected outcomes, distinct-owner refusals and strict3.58s; fmt/diff0.
+Keep the original null comparison, opaque member-removed payload, nonactor
+recipient facts and C03 guards untouched. Remaining original25/no artifact,
+native applications and all precise holds remain open.
+
+Coordinator reviewed the exact single type-token edit and retained full labels/source, real differential and affected corpus assertion. The owning enum reference closes only the assigned five source findings; no exported rename, guard or native acceptance changes.
