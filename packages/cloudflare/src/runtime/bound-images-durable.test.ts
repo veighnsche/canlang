@@ -12,12 +12,14 @@ import { resolveIdentity, createD1IdentityStore, ensureIdentitySchema } from '@c
 import { receiverFromIdentity } from '@canlang/interfaces';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
 import { createSqliteFileStore, createSqliteFileBindings } from '@canlang/files/host/sqlite';
-import { sha256Hex } from '@canlang/files/upload';
+import { sha256Hex, stagingKeyForIntent } from '@canlang/files/upload';
+import { blobKeyForFile } from '@canlang/files/finalize';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { associationRowId, readAssociationRow, readReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
-import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow,
+import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
+import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readOccurrenceRow, readScheduleRow, readDispatchRow,
   readDispatchImageCorrelation, readDispatchImageControlPin } from '@canlang/work/kernel/tables';
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
@@ -55,6 +57,8 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
   // native D1; finalized metadata and bytes share real SQLite transactions.
   // The installed local HTTP protocol is controlled, not a remote Comfy deployment.
   let now = Date.now(); const clock = { nowMs: () => now };
+  const sourcePath = resolve('packages/cloudflare/test/fixtures/typed-images-progress.can');
+  const capturedSource = await readFile(sourcePath), capturedArtifact = await readFile(fixturePath);
   let sequence = 0;
   const nextId = () => asOperationId(uuidv7(now, ++sequence));
   let identities!: ReturnType<typeof createD1IdentityStore>;
@@ -67,11 +71,13 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
   const dir = await mkdtemp(join(tmpdir(), 'can-images-durable-'));
   let miniflare: Miniflare | undefined;
   let files: ReturnType<typeof createSqliteFileStore> | undefined;
+  let currentDb: D1Database;
   const open = async () => {
     miniflare = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
       script: 'export default { fetch() { return new Response("ok"); } }',
       d1Databases: { DB: 'images-durable' }, d1Persist: join(dir, 'd1') });
     const db = await miniflare.getD1Database('DB') as unknown as D1Database;
+    currentDb = db;
     await ensureSchema(db); await ensureIdentitySchema(db);
     identities = createD1IdentityStore(db, { clock });
     files = createSqliteFileStore(join(dir, 'files.sqlite'));
@@ -148,6 +154,8 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.equal(finalized.status, 'finalized'); assert.ok('result' in finalized);
     const graphRef = finalized.result.file;
     const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
+    assert.ok(artifact.sources.some(source => resolve(source.path) === sourcePath &&
+      source.sha256 === createHash('sha256').update(capturedSource).digest('hex')));
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
     const definition = (await import(asm.entryUrl)).appDefinition as unknown;
@@ -504,14 +512,243 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.equal(prompts.length, acceptedPrompts); assert.equal(cancellations.length, beforePendingCancels + 1);
     assert.equal(files!.files.listAll().length, acceptedFiles + 1);
 
-    // Reconciliation of an acknowledged current terminal original reuses its
-    // exact retained evidence; it does not finalize or announce another image.
-    const terminalReconcile = await enqueueControl('reconcile');
-    const beforeTerminalObservation = observations; await drive(terminalReconcile);
-    assert.equal(observations, beforeTerminalObservation);
-    assert.deepEqual((await checkedReceipt(terminalReconcile)).result, observedOriginal.result);
-    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), afterControlSchedules);
-    assert.equal(files!.files.listAll().length, acceptedFiles + 1);
+    // Each fresh terminal reconcile admits one new callback at the immutable
+    // original checkpoint. Its own physical acknowledgement prevents repeats.
+    {
+      const resources = async () => {
+        const tables = await currentDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name!='_cf_METADATA' ORDER BY name").all<{name:string}>();
+        assert.equal(tables.success, true);
+        const state: Record<string, readonly Record<string, unknown>[]> = {};
+        for (const {name} of tables.results) {
+          const rows = await currentDb.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all<Record<string, unknown>>();
+          assert.equal(rows.success, true);
+          state[name] = rows.results.sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        }
+        return { state, files: { id: files!.fileStoreId, files: files!.files.listAll(), intents: files!.intents.listAll(),
+          bytes: files!.files.listAll().map(record => files!.blobs.read(blobKeyForFile(record.file.id))),
+          staging: files!.intents.listAll().map(intent => files!.blobs.read(stagingKeyForIntent(intent.intentId))) },
+          transport: [prompts.length, observations, cancellations.length] };
+      };
+      const originalReceipt = await store.load(asModel(RECEIPT_MODEL), asId(acceptedOriginal.intentId)); assert.ok(originalReceipt);
+      const originalDispatch = await store.load(WORK_DISPATCH_MODEL, asId(acceptedOriginal.intentId));
+      const emptyRecovery = async () => {
+        const before = await resources(), revision = await store.readRevision();
+        const recovery = await recover();
+        assert.deepEqual(recovery.released, []); assert.deepEqual(recovery.reconciled, []); assert.deepEqual(recovery.retried, []);
+        assert.equal(await store.readRevision(), revision + 1, 'empty recovery has one actual maintenance commit');
+        const after = await resources();
+        assert.deepEqual(after.files, before.files); assert.deepEqual(after.transport, before.transport);
+        assert.deepEqual(Object.keys(after.state), Object.keys(before.state));
+        for (const name of Object.keys(before.state)) if (!['fence','fence_log'].includes(name))
+          assert.deepEqual(after.state[name], before.state[name], `empty recovery ${name}`);
+        assert.deepEqual(after.state.fence, before.state.fence!.map(row => ({ ...row, revision: Number(row.revision) + 1 })));
+        assert.deepEqual(after.state.fence_log!.filter(row => Number(row.revision) <= revision), before.state.fence_log);
+        const added = after.state.fence_log!.filter(row => Number(row.revision) > revision);
+        assert.equal(added.length, 1); assert.equal(added[0]!.revision, revision + 1);
+        assert.equal(added[0]!.operation, 'unknown'); assert.equal(typeof added[0]!.at, 'number');
+        return after;
+      };
+      const immutable = async () => {
+        assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(acceptedOriginal.intentId)), originalReceipt);
+        assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(acceptedOriginal.intentId)), originalDispatch);
+      };
+      const fire = async (row: Parameters<typeof readScheduleRow>[0]) => {
+        const occurrence = readScheduleRow(row);
+        const answer = await invokeDueScheduleCanonical({ asm, artifact, app: APP,
+          handler: `${APP}.progressed`, store, identities, now: () => now,
+          due: { key: occurrence.key, scope: { app: APP, owner: team.team_id, ownerPackage: APP },
+            occurrenceId: occurrence.occurrenceId, event: occurrence.event, at: occurrence.at } });
+        assert.ok(typeof answer === 'object' && answer !== null && 'status' in answer);
+        return answer;
+      };
+      const freshReconcile = async (revoke = false, revokeDuringStage = false) => {
+        const beforeSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+        const control = await enqueueControl('reconcile');
+        const beforeDrive = await resources();
+        const beforeOriginalHistory = await store.historyFor(MODEL, asId(created.id));
+        if (revokeDuringStage) {
+          const originalStage = workSchedulePutCommand.stage;
+          let revoked = false, stagedRevision = -1;
+          let revokedResources: Awaited<ReturnType<typeof resources>> | undefined;
+          const stage = t.mock.method(workSchedulePutCommand, 'stage', async function (
+            this: typeof workSchedulePutCommand, ...args: Parameters<typeof originalStage>
+          ) {
+            const result = await originalStage.apply(this, args);
+            const payload = args[0]['payload'];
+            if (!revoked && args[0]['event'] === `${APP}.Images.submit.progressed` &&
+                typeof payload === 'object' && payload !== null && 'delivery_id' in payload &&
+                payload.delivery_id === acceptedOriginal.intentId) {
+              revoked = true;
+              stagedRevision = await store.readRevision();
+              await identities.removeMembership(member.membership_id);
+              revokedResources = await resources();
+            }
+            return result;
+          });
+          try {
+            await assert.rejects(() => drive(control), error =>
+              typeof error === 'object' && error !== null && 'code' in error && error.code === 'forbidden');
+            assert.equal(revoked, true, 'the real schedule producer reached its awaited return');
+            assert.ok(revokedResources);
+            assert.equal(await store.readRevision(), stagedRevision, 'Identity revocation changes no owner State revision');
+            assert.deepEqual(await resources(), revokedResources, 'ACK and notification publication refuse atomically');
+            assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), beforeSchedules);
+            assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), beforeOriginalHistory);
+            await immutable();
+            assert.notEqual((await store.outboxGet(control.intentId))?.status, 'dispatched');
+            assert.deepEqual(revokedResources.files, beforeDrive.files); assert.deepEqual(revokedResources.transport, beforeDrive.transport);
+          } finally {
+            stage.mock.restore();
+            await identities.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+          }
+          return null;
+        }
+        if (revoke) {
+          await identities.removeMembership(member.membership_id);
+          const revoked = await drive(control); assert.equal(revoked.status, 'refused-revoked');
+          assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), beforeSchedules);
+          await immutable();
+          const refusalResources = await resources();
+          assert.deepEqual(refusalResources.files, beforeDrive.files); assert.deepEqual(refusalResources.transport, beforeDrive.transport);
+          await identities.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+          let restored = await resources(), restoredRevision = await store.readRevision();
+          const liveClaim = await store.load(WORK_DISPATCH_MODEL, asId(control.intentId)); assert.ok(liveClaim);
+          assert.equal(readDispatchRow(liveClaim).state, 'claimed');
+          assert.equal((await drive(control)).status, 'not-claimed');
+          assert.equal(await store.readRevision(), restoredRevision + 1);
+          const heldMaintenance = await resources();
+          assert.deepEqual(heldMaintenance.files, restored.files); assert.deepEqual(heldMaintenance.transport, restored.transport);
+          for (const name of Object.keys(restored.state)) if (!['fence','fence_log'].includes(name))
+            assert.deepEqual(heldMaintenance.state[name], restored.state[name], `held claim maintenance ${name}`);
+          assert.deepEqual(heldMaintenance.state.fence, restored.state.fence!.map(row => ({ ...row, revision: Number(row.revision) + 1 })));
+          assert.deepEqual(heldMaintenance.state.fence_log!.filter(row => Number(row.revision) <= restoredRevision), restored.state.fence_log);
+          const heldFence = heldMaintenance.state.fence_log!.filter(row => Number(row.revision) > restoredRevision);
+          assert.equal(heldFence.length, 1); assert.equal(heldFence[0]!.revision, restoredRevision + 1);
+          assert.equal(heldFence[0]!.operation, 'unknown'); assert.equal(typeof heldFence[0]!.at, 'number');
+          assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(control.intentId)), liveClaim);
+          await immutable();
+          restored = heldMaintenance; restoredRevision++;
+          // The genuine stale boundary is claimedAt + maxClaimAgeMs <= now.
+          // Zero age at this same clock releases the existing claim without
+          // fabricating a Work row or spending provider observation time.
+          const release = await dispatcher.recover({ ...recoveryOptions(), maxClaimAgeMs: 0, admission: admission() });
+          assert.deepEqual(release.released, [control.intentId]);
+          assert.deepEqual(release.reconciled, []); assert.deepEqual(release.retried, []);
+          assert.equal(await store.readRevision(), restoredRevision + 1);
+          const pendingClaim = await store.load(WORK_DISPATCH_MODEL, asId(control.intentId)); assert.ok(pendingClaim);
+          assert.deepEqual(readDispatchRow(pendingClaim), { ...readDispatchRow(liveClaim), state: 'pending', claimId: null, claimedAtMs: null });
+          assert.equal(pendingClaim.version, liveClaim.version + 1);
+          assert.equal(pendingClaim.created, liveClaim.created); assert.equal(pendingClaim.createdBy, liveClaim.createdBy);
+          const released = await resources();
+          assert.deepEqual(released.files, restored.files); assert.deepEqual(released.transport, restored.transport);
+          for (const name of Object.keys(restored.state)) if (!['records','fence','fence_log'].includes(name))
+            assert.deepEqual(released.state[name], restored.state[name], `stale claim release ${name}`);
+          const otherRecord = (row: Readonly<Record<string, unknown>>) =>
+            row.id !== control.intentId || row.model !== WORK_DISPATCH_MODEL;
+          assert.deepEqual(released.state.records!.filter(otherRecord), restored.state.records!.filter(otherRecord));
+          assert.deepEqual(released.state.fence, restored.state.fence!.map(row => ({ ...row, revision: Number(row.revision) + 1 })));
+          assert.deepEqual(released.state.fence_log!.filter(row => Number(row.revision) <= restoredRevision), restored.state.fence_log);
+          const releaseFence = released.state.fence_log!.filter(row => Number(row.revision) > restoredRevision);
+          assert.equal(releaseFence.length, 1); assert.equal(releaseFence[0]!.revision, restoredRevision + 1);
+          assert.equal(releaseFence[0]!.operation, 'unknown'); assert.equal(typeof releaseFence[0]!.at, 'number');
+          await immutable();
+          assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), beforeSchedules);
+        }
+        const answer = await drive(control); assert.equal(answer.status, 'recorded');
+        assert.ok('state' in answer); assert.equal(answer.state, 'delivered');
+        const schedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+        const added = schedules.filter(row => !beforeSchedules.some(before => before.id === row.id));
+        assert.equal(added.length, 1);
+        const occurrence = readScheduleRow(added[0]!);
+        assert.equal(occurrence.event, `${APP}.Images.submit.progressed`);
+        assert.deepEqual(occurrence.payload, { delivery_id: acceptedOriginal.intentId });
+        assert.deepEqual((await checkedReceipt(control)).result, observedOriginal.result);
+        assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), beforeOriginalHistory);
+        await immutable();
+        const acknowledged = await resources();
+        assert.deepEqual(acknowledged.files, beforeDrive.files); assert.deepEqual(acknowledged.transport, beforeDrive.transport);
+        assert.equal((await store.outboxGet(control.intentId))?.status, 'dispatched');
+        assert.equal(readDispatchRow((await store.load(WORK_DISPATCH_MODEL, asId(control.intentId)))!).state, 'delivered');
+        const fence = await store.readRevision();
+        assert.equal((await drive(control)).status, 'not-pending');
+        assert.equal(await store.readRevision(), fence);
+        assert.deepEqual(await resources(), acknowledged);
+        const maintained = await emptyRecovery();
+        await reopen(); assert.deepEqual(await resources(), maintained);
+        const reopenedMaintained = await emptyRecovery();
+        assert.equal((await drive(control)).status, 'not-pending');
+        assert.deepEqual(await resources(), reopenedMaintained);
+        return added[0]!;
+      };
+      const terminalOccurrence = await freshReconcile();
+      assert.ok(terminalOccurrence);
+      const noticesBefore = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+      const callbackJobHistory = await store.historyFor(MODEL, asId(created.id));
+      assert.equal((await fire(terminalOccurrence)).status, 'completed');
+      const noticesAfter = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+      const notice = noticesAfter.filter(row => !noticesBefore.some(before => before.id === row.id));
+      assert.equal(notice.length, 1); assert.equal(notice[0]!.data.delivery, acceptedOriginal.intentId);
+      const completed = await resources();
+      assert.equal((await fire(terminalOccurrence)).status, 'replayed');
+      assert.deepEqual(await resources(), completed);
+      await reopen(); assert.deepEqual(await resources(), completed);
+      const maintainedCompleted = await emptyRecovery();
+      assert.equal((await fire(terminalOccurrence)).status, 'replayed');
+      assert.deepEqual(await resources(), maintainedCompleted);
+      assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), callbackJobHistory);
+
+      // Finite ordinary owned callback failure/repair; this fixture does not
+      // qualify the separate original application predicates.
+      const setLabel = async (label: string) => {
+        const job = await store.load(MODEL, asId(created.id)); assert.ok(job);
+        committed(await invoker.invokeMutation(envelope('Job.update', { record: { id: created.id, version: String(job.version) }, label }), identity));
+        jobVersion = job.version + 1;
+      };
+      await setLabel('Reject callback');
+      const failedOccurrence = await freshReconcile(); assert.ok(failedOccurrence);
+      const beforeFailure = await resources();
+      const beforeFailedNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+      const beforeFailedJob = await store.load(MODEL, asId(created.id));
+      const beforeFailedJobHistory = await store.historyFor(MODEL, asId(created.id));
+      assert.equal((await fire(failedOccurrence)).status, 'failed');
+      const failedId = readScheduleRow(failedOccurrence).occurrenceId;
+      const failedWork = await store.load(WORK_OCCURRENCE_MODEL, asId(failedId)); assert.ok(failedWork);
+      assert.equal(readOccurrenceRow(failedWork).status, 'failed');
+      assert.equal(readOccurrenceRow(failedWork).code, 'require-false');
+      assert.deepEqual(await store.load(MODEL, asId(created.id)), beforeFailedJob);
+      assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), beforeFailedJobHistory);
+      assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), beforeFailedNotices);
+      await immutable();
+      const afterFailure = await resources();
+      assert.deepEqual(afterFailure.files, beforeFailure.files); assert.deepEqual(afterFailure.transport, beforeFailure.transport);
+      for (const name of Object.keys(beforeFailure.state)) if (!['records','receipts','fence','fence_log','schedules'].includes(name))
+        assert.deepEqual(afterFailure.state[name], beforeFailure.state[name], `authored refusal ${name}`);
+      assert.equal((await fire(failedOccurrence)).status, 'replayed');
+      assert.deepEqual(await resources(), afterFailure);
+      await setLabel('Images');
+      const repairedOccurrence = await freshReconcile(true); assert.ok(repairedOccurrence);
+      assert.notEqual(readScheduleRow(repairedOccurrence).occurrenceId, failedId);
+      const beforeRepairNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+      const repairJobHistory = await store.historyFor(MODEL, asId(created.id));
+      const beforeRepair = await resources();
+      assert.equal((await fire(repairedOccurrence)).status, 'completed');
+      const repairedNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+      const repairedNotice = repairedNotices.filter(row => !beforeRepairNotices.some(before => before.id === row.id));
+      assert.equal(repairedNotice.length, 1); assert.equal(repairedNotice[0]!.data.delivery, acceptedOriginal.intentId);
+      assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), repairJobHistory);
+      assert.deepEqual(await store.load(WORK_OCCURRENCE_MODEL, asId(failedId)), failedWork);
+      await immutable();
+      const repaired = await resources();
+      assert.deepEqual(repaired.files, beforeRepair.files); assert.deepEqual(repaired.transport, beforeRepair.transport);
+      assert.equal((await fire(repairedOccurrence)).status, 'replayed');
+      assert.deepEqual(await resources(), repaired);
+      await reopen(); assert.deepEqual(await resources(), repaired);
+      const maintainedRepaired = await emptyRecovery();
+      assert.equal((await fire(repairedOccurrence)).status, 'replayed');
+      assert.deepEqual(await store.load(WORK_OCCURRENCE_MODEL, asId(failedId)), failedWork);
+      assert.deepEqual(await resources(), maintainedRepaired);
+      await freshReconcile(false, true);
+    }
 
     // Two independently admitted controls retain the same nonterminal original.
     // A recovery page observes it once; the deferred control uses that committed
@@ -581,13 +818,28 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const sharedObservationBudget = maxObservationDurationMs;
     maxObservationDurationMs += 1_000; await reopen();
     const sharedSecondTransport = [prompts.length, cancellations.length, observations];
+    const sharedFileSnapshot = () => ({ records: files!.files.listAll(), intents: files!.intents.listAll(),
+      bytes: files!.files.listAll().map(record => files!.blobs.read(blobKeyForFile(record.file.id))),
+      staging: files!.intents.listAll().map(intent => files!.blobs.read(stagingKeyForIntent(intent.intentId))) });
+    const sharedSecondFiles = sharedFileSnapshot();
     const sharedSecondSweep = await recover();
     assert.ok(sharedSecondSweep.reconciled.some(item => item.intentId === sharedDeferred.intentId && item.state === 'delivered'));
     assert.ok(sharedSecondSweep.reconciled.some(item => item.intentId === sharedOriginal.intentId && item.state === 'delivered'));
     assert.deepEqual([prompts.length, cancellations.length, observations], sharedSecondTransport);
+    assert.deepEqual(sharedFileSnapshot(), sharedSecondFiles);
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(sharedOriginal.intentId)), sharedTerminalRow);
     assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL), sharedAssociationId), sharedAssociation);
-    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), sharedAfterSchedules);
+    const sharedSecondSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    assert.deepEqual(sharedSecondSchedules.filter(row => sharedAfterSchedules.some(before => before.id === row.id)), sharedAfterSchedules);
+    const sharedDeferredSchedules = sharedSecondSchedules.filter(row => !sharedAfterSchedules.some(before => before.id === row.id));
+    assert.equal(sharedDeferredSchedules.length, sharedDeferred.target.endsWith('.reconcile') ? 1 : 0);
+    for (const row of sharedDeferredSchedules) {
+      const occurrence = readScheduleRow(row);
+      assert.equal(occurrence.event, `${APP}.Images.submit.progressed`);
+      assert.equal(occurrence.scopeApp, APP); assert.equal(occurrence.scopeOwner, team.team_id);
+      assert.equal(occurrence.scopeOwnerPackage, APP);
+      assert.deepEqual(occurrence.payload, { delivery_id: sharedOriginal.intentId });
+    }
     assert.deepEqual(await store.load(MODEL, asId(created.id)), sharedJob);
     assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), sharedHistory);
     for (const [index, control] of sharedControls.entries()) {
@@ -603,6 +855,18 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const sharedFinalDispatch = await store.load(WORK_DISPATCH_MODEL, asId(sharedOriginal.intentId)); assert.ok(sharedFinalDispatch);
     assert.equal(sharedFinalDispatch.created, sharedDispatch.created);
     assert.deepEqual(readDispatchImageCorrelation(sharedFinalDispatch.data), sharedCorrelation);
+    assert.equal(files!.files.listAll().length, sharedFileCount + 1);
+    for (const control of sharedControls) assert.equal((await drive(control)).status, 'not-pending');
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), sharedSecondSchedules);
+    await recover(); await reopen(); await recover();
+    for (const control of sharedControls) assert.equal((await drive(control)).status, 'not-pending');
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), sharedSecondSchedules);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(sharedOriginal.intentId)), sharedTerminalRow);
+    assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL), sharedAssociationId), sharedAssociation);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), sharedJob);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), sharedHistory);
+    assert.deepEqual([prompts.length, cancellations.length, observations], sharedSecondTransport);
+    assert.deepEqual(sharedFileSnapshot(), sharedSecondFiles);
     assert.equal(files!.files.listAll().length, sharedFileCount + 1);
     maxObservationDurationMs = sharedObservationBudget; adapter = adapterFor(); dispatcher = await dispatcherFor();
 
@@ -780,6 +1044,8 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.deepEqual((await store.outboxPending()).find(intent => intent.intentId === revoked.intentId), revoked);
     assert.deepEqual(await store.load(MODEL, asId(created.id)), beforeDeniedJob);
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(revoked.intentId)), beforeDeniedReceipt);
+    assert.deepEqual(await readFile(sourcePath), capturedSource);
+    assert.deepEqual(await readFile(fixturePath), capturedArtifact);
   } finally {
     files?.close(); await miniflare?.dispose();
     await new Promise<void>((resolve, reject) => provider.close(error => error ? reject(error) : resolve()));

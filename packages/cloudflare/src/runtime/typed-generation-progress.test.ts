@@ -800,9 +800,12 @@ test('compiled generation streams controlled provider bytes into granted native 
       asId(associationRowId(MODEL, created.id, 'request'))), durableAssociation);
     assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), durableHistory);
     assert.equal(provider.requests.length, terminalRequests);
+    const terminalProbeSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const terminalProbeNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
     const terminalProbe = await control('reconcile');
     assert.equal(terminalProbe.before.data['request_source'], lost.mutation.operation_id);
     assert.equal(terminalProbe.before.data['request_revision'], String(beforeTerminalLoss.version));
+    const terminalProbeHistory = await store.historyFor(MODEL, asId(created.id));
     assert.equal((await drive(terminalProbe.intent.intentId)).status, 'recorded');
     assert.deepEqual(await controlProjection('probe'), { 'result.state': 'succeeded',
       'result.content': durableRun['content'], 'result.used_tokens': durableRun['used_tokens'] });
@@ -811,6 +814,81 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
       asId(associationRowId(MODEL, created.id, 'request'))), durableAssociation);
     assert.deepEqual(await store.load(MODEL, asId(created.id)), terminalProbe.after);
+    const reconciledSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const oldScheduleIds = new Set(terminalProbeSchedules.map(row => row.id));
+    assert.deepEqual(reconciledSchedules.filter(row => oldScheduleIds.has(row.id)), terminalProbeSchedules);
+    const newSchedules = reconciledSchedules.filter(row => !oldScheduleIds.has(row.id));
+    assert.equal(newSchedules.length, 1);
+    const reconciledOccurrence = readScheduleRow(newSchedules[0]!);
+    assert.deepEqual(reconciledOccurrence.payload, { delivery_id: lostIntent.intentId });
+    assert.equal(reconciledOccurrence.event, `${APP}.LLM.generate.progressed`);
+    assert.equal(reconciledOccurrence.scopeApp, APP);
+    assert.equal(reconciledOccurrence.scopeOwner, team.team_id);
+    assert.equal(reconciledOccurrence.scopeOwnerPackage, APP);
+    assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), terminalProbeNotices);
+    const reconciledDue = { key: reconciledOccurrence.key,
+      scope: { app: APP, owner: team.team_id, ownerPackage: APP },
+      occurrenceId: reconciledOccurrence.occurrenceId, event: reconciledOccurrence.event, at: reconciledOccurrence.at };
+    assert.equal((await fire(reconciledDue)).status, 'completed');
+    const reconciledNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+    const oldNoticeIds = new Set(terminalProbeNotices.map(row => row.id));
+    assert.deepEqual(reconciledNotices.filter(row => oldNoticeIds.has(row.id)), terminalProbeNotices);
+    const newNotices = reconciledNotices.filter(row => !oldNoticeIds.has(row.id));
+    assert.equal(newNotices.length, 1);
+    assert.equal(newNotices[0]!.data['delivery'], lostIntent.intentId);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(lostIntent.intentId)), durableTerminalRow);
+    assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
+      asId(associationRowId(MODEL, created.id, 'request'))), durableAssociation);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), terminalProbe.after);
+    assert.equal(provider.requests.length, terminalRequests);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), terminalProbeHistory);
+    // Snapshot the real persisted tables, including canonical receipts/fences,
+    // so duplicate delivery and recovery cannot allocate hidden work.
+    const terminalProbeResources = async () => {
+      const db = await worker.getD1Database('DB') as unknown as D1Database;
+      const tables = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name != '_cf_METADATA' ORDER BY name")
+        .all<{ name: string }>();
+      return Promise.all(tables.results.map(async ({ name }) => ({ name,
+        rows: (await db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all()).results
+          .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))) })));
+    };
+    const afterReconciledHandler = await terminalProbeResources();
+    const afterReconciledRevision = await store.readRevision();
+    assert.equal((await fire(reconciledDue)).status, 'replayed');
+    assert.equal((await drive(terminalProbe.intent.intentId)).status, 'not-pending');
+    assert.equal(await store.readRevision(), afterReconciledRevision);
+    assert.deepEqual(await terminalProbeResources(), afterReconciledHandler);
+    await worker.dispose(); worker = openWorker();
+    const reconciledDatabase = await worker.getD1Database('DB') as unknown as D1Database;
+    await ensureSchema(reconciledDatabase); store = createD1Storage(reconciledDatabase);
+    invoker = invokerFor(); adapter = freshAdapter(); dispatcher = await dispatcherFor();
+    const reconciledRecovery = await recover();
+    assert.deepEqual(reconciledRecovery.released, []);
+    assert.deepEqual(reconciledRecovery.reconciled, []);
+    assert.deepEqual(reconciledRecovery.retried, []);
+    const afterMaintenanceRevision = await store.readRevision();
+    assert.equal(afterMaintenanceRevision, afterReconciledRevision + 1);
+    const afterMaintenance = await terminalProbeResources();
+    assert.deepEqual(afterMaintenance.filter(table => !['fence', 'fence_log'].includes(table.name)),
+      afterReconciledHandler.filter(table => !['fence', 'fence_log'].includes(table.name)));
+    assert.deepEqual(afterMaintenance.find(table => table.name === 'fence')?.rows,
+      [{ id: 1, revision: afterMaintenanceRevision }]);
+    const priorFenceLog = afterReconciledHandler.find(table => table.name === 'fence_log')!.rows;
+    const maintenanceFenceLog = afterMaintenance.find(table => table.name === 'fence_log')!.rows;
+    assert.equal(maintenanceFenceLog.length, priorFenceLog.length + 1);
+    assert.deepEqual(maintenanceFenceLog.filter(row => row['revision'] !== afterMaintenanceRevision), priorFenceLog);
+    const maintenanceEntry = maintenanceFenceLog.filter(row => row['revision'] === afterMaintenanceRevision);
+    assert.equal(maintenanceEntry.length, 1);
+    // The actual receipt-less SystemRegistry maintenance commit uses D1's
+    // existing 'unknown' fence attribution, never a business receipt.
+    assert.equal(maintenanceEntry[0]!['operation'], 'unknown');
+    const maintenanceAt = maintenanceEntry[0]!['at'];
+    assert.ok(typeof maintenanceAt === 'number' && Number.isFinite(maintenanceAt));
+    assert.equal((await drive(terminalProbe.intent.intentId)).status, 'not-pending');
+    assert.equal((await fire(reconciledDue)).status, 'replayed');
+    assert.equal(await store.readRevision(), afterMaintenanceRevision);
+    assert.deepEqual(await terminalProbeResources(), afterMaintenance);
+    assert.equal(provider.requests.length, terminalRequests);
 
     // A process can die after real receipt progress but before Work records it.
     // A fresh stale-claim drive admits the retained terminal/unknown observation.
