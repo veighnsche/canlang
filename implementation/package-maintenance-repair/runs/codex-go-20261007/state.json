@@ -2607,7 +2607,7 @@
     },
     "TECH-SV03": {
       "planning_status": "blocked",
-      "state": "Source-current caller/domain witnesses complete; consequential host/digest contract remains blocked",
+      "state": "Own JSON media graph contract implemented and locally tested; parent remains unfinished for separate original host/File acceptance",
       "files": [
         "packages/services/src/media/mapping.ts",
         "packages/services/src/media/comfyui.ts",
@@ -2617,8 +2617,200 @@
       "read_released": true,
       "result_sha256": "c8b22c143a20f253bc56aa9c1430385d2b1ed94feea832c3323260602961b42c",
       "remaining_prerequisite": {
-        "prerequisite": "Exact submitted media graph domain/identity/digest contract; generic serializer substitution remains unreleased.",
-        "owner": "Services/Files graph contract owners"
+        "prerequisite": "Consume the exact media source unit through original generated/durable host where required. Retain separate File byte-upload/bridge contracts at their existing recorded scope; no inferred human design blocker.",
+        "owner": "Dev/L7 original generated media consumer; Files existing upload/bridge owners"
+      },
+      "graph_domain_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "scope": "Consequential existing graph-domain choice; consultation only with all execution/publication/native-preparation holds preserved.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "One existing media adapter graph hashing, scalar substitution, direct submission and immutable installed submission. File byte upload and bridge authentication are a separate domain and remain unchanged.",
+              "verified_current_behavior": [
+                "The declared graph maps node ids to class names and named unknown-valued inputs. Actual producer/caller witnesses use plain own JSON objects, dense link arrays, strings and finite numbers. No observed production caller requires host objects or executable properties.",
+                "The original digest recursively sorts object keys but reads values directly; the later JSON clone can invoke toJSON, reread getters, omit undefined or coerce nonfinite numbers. The installed path clones before validation. This can hash one graph and submit another.",
+                "The pinned digest identifies the unsubstituted reviewed artifact; only the five already declared business scalar slots are changed before submission. Original job and delivery identities must remain unchanged for retry.",
+                "The recorded negative acceptance requires unsupported accessor/toJSON/undefined/nonfinite graph profiles to refuse before provider effect. Existing pure JSON digests and wire graph values must remain stable. Cancel-only adapters do not submit a graph and must remain usable."
+              ],
+              "outcomes": [
+                "One admitted original graph snapshot supplies canonical artifact digest and the submitted graph after only declared substitutions.",
+                "No user-defined getter or toJSON execution during graph capture; reject unsupported graph values before transport.",
+                "Use the existing sorted-key JSON digest for admitted graphs; no generic serializer replacement or changed provider/job/retry identity.",
+                "Support frozen and null-prototype own data records, dense arrays and valid JSON primitive values; reject cycles and non-JSON own properties. Host Proxy traps are not a CPU sandbox guarantee."
+              ],
+              "uncertainty": "The TypeScript unknown input type is wider than JSON. No arbitrary-JavaScript graph contract has been released. This is an explicit narrowing at this media boundary, with original genuine consumer checks required."
+            },
+            "questions": {
+              "media_graph_domain": {
+                "type": "choice",
+                "instructions": "Which exact media graph domain should be released now to meet the verified existing producer/consumer and refusal outcomes? Compare all alternatives against the same recorded requirements; distinguish a supported contract from an unobserved broader caller.",
+                "criteria": {
+                  "own_json": "Release an own JSON-data graph contract at this exact media boundary. Capture recursively from data descriptors without invoking accessors/toJSON; reject unsupported profiles, hash this snapshot, substitute into it and freeze it. The installed path must capture its original graph before any generic JSON copy. Preserve admitted digests and all original effect/retry identities.",
+                  "evaluated_projection": "Release an explicit broader JavaScript projection contract: evaluate one JSON projection first, pin/hash and submit that projection. Getters/toJSON may run during capture and custom objects may transform. Existing negative refusal requirements would need an explicit compatibility adjustment; do not claim this is the same own-data contract.",
+                  "defer": "Defer source change pending a demonstrated required non-JSON caller and its exact transformation contract. Retain the current mismatch as unresolved, identify the concrete missing witness, and do not substitute a generic serializer."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "One existing media adapter graph hashing, scalar substitution, direct submission and immutable installed submission. File byte upload and bridge authentication are a separate domain and remain unchanged.",
+              "verified_current_behavior": [
+                "The declared graph maps node ids to class names and named unknown-valued inputs. Actual producer/caller witnesses use plain own JSON objects, dense link arrays, strings and finite numbers. No observed production caller requires host objects or executable properties.",
+                "The original digest recursively sorts object keys but reads values directly; the later JSON clone can invoke toJSON, reread getters, omit undefined or coerce nonfinite numbers. The installed path clones before validation. This can hash one graph and submit another.",
+                "The pinned digest identifies the unsubstituted reviewed artifact; only the five already declared business scalar slots are changed before submission. Original job and delivery identities must remain unchanged for retry.",
+                "The recorded negative acceptance requires unsupported accessor/toJSON/undefined/nonfinite graph profiles to refuse before provider effect. Existing pure JSON digests and wire graph values must remain stable. Cancel-only adapters do not submit a graph and must remain usable."
+              ],
+              "outcomes": [
+                "One admitted original graph snapshot supplies canonical artifact digest and the submitted graph after only declared substitutions.",
+                "No user-defined getter or toJSON execution during graph capture; reject unsupported graph values before transport.",
+                "Use the existing sorted-key JSON digest for admitted graphs; no generic serializer replacement or changed provider/job/retry identity.",
+                "Support frozen and null-prototype own data records, dense arrays and valid JSON primitive values; reject cycles and non-JSON own properties. Host Proxy traps are not a CPU sandbox guarantee."
+              ],
+              "uncertainty": "The TypeScript unknown input type is wider than JSON. No arbitrary-JavaScript graph contract has been released. This is an explicit narrowing at this media boundary, with original genuine consumer checks required."
+            },
+            "questions": {
+              "media_graph_domain": {
+                "type": "choice",
+                "instructions": "Choose the smallest complete graph-capture contract for the original digest-to-submit effect described in state. Account for installed configuration capture, stable retry identity and the required non-JSON refusals. Treat a changed refusal policy as a material change.",
+                "criteria": {
+                  "own_json": "Release an own JSON-data graph contract at this exact media boundary. Capture recursively from data descriptors without invoking accessors/toJSON; reject unsupported profiles, hash this snapshot, substitute into it and freeze it. The installed path must capture its original graph before any generic JSON copy. Preserve admitted digests and all original effect/retry identities.",
+                  "evaluated_projection": "Release an explicit broader JavaScript projection contract: evaluate one JSON projection first, pin/hash and submit that projection. Getters/toJSON may run during capture and custom objects may transform. Existing negative refusal requirements would need an explicit compatibility adjustment; do not claim this is the same own-data contract.",
+                  "defer": "Defer source change pending a demonstrated required non-JSON caller and its exact transformation contract. Retain the current mismatch as unresolved, identify the concrete missing witness, and do not substitute a generic serializer."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "One existing media adapter graph hashing, scalar substitution, direct submission and immutable installed submission. File byte upload and bridge authentication are a separate domain and remain unchanged.",
+              "verified_current_behavior": [
+                "The declared graph maps node ids to class names and named unknown-valued inputs. Actual producer/caller witnesses use plain own JSON objects, dense link arrays, strings and finite numbers. No observed production caller requires host objects or executable properties.",
+                "The original digest recursively sorts object keys but reads values directly; the later JSON clone can invoke toJSON, reread getters, omit undefined or coerce nonfinite numbers. The installed path clones before validation. This can hash one graph and submit another.",
+                "The pinned digest identifies the unsubstituted reviewed artifact; only the five already declared business scalar slots are changed before submission. Original job and delivery identities must remain unchanged for retry.",
+                "The recorded negative acceptance requires unsupported accessor/toJSON/undefined/nonfinite graph profiles to refuse before provider effect. Existing pure JSON digests and wire graph values must remain stable. Cancel-only adapters do not submit a graph and must remain usable."
+              ],
+              "outcomes": [
+                "One admitted original graph snapshot supplies canonical artifact digest and the submitted graph after only declared substitutions.",
+                "No user-defined getter or toJSON execution during graph capture; reject unsupported graph values before transport.",
+                "Use the existing sorted-key JSON digest for admitted graphs; no generic serializer replacement or changed provider/job/retry identity.",
+                "Support frozen and null-prototype own data records, dense arrays and valid JSON primitive values; reject cycles and non-JSON own properties. Host Proxy traps are not a CPU sandbox guarantee."
+              ],
+              "uncertainty": "The TypeScript unknown input type is wider than JSON. No arbitrary-JavaScript graph contract has been released. This is an explicit narrowing at this media boundary, with original genuine consumer checks required."
+            },
+            "questions": {
+              "media_graph_domain": {
+                "type": "choice",
+                "instructions": "Given the observed JSON-data callers and the current hash/JSON-copy divergence, which bounded owner decision best preserves admitted workflow behavior while meeting the negative cases? Consider whether evidence supports executable host-value projection or a specific unresolved prerequisite.",
+                "criteria": {
+                  "own_json": "Release an own JSON-data graph contract at this exact media boundary. Capture recursively from data descriptors without invoking accessors/toJSON; reject unsupported profiles, hash this snapshot, substitute into it and freeze it. The installed path must capture its original graph before any generic JSON copy. Preserve admitted digests and all original effect/retry identities.",
+                  "evaluated_projection": "Release an explicit broader JavaScript projection contract: evaluate one JSON projection first, pin/hash and submit that projection. Getters/toJSON may run during capture and custom objects may transform. Existing negative refusal requirements would need an explicit compatibility adjustment; do not claim this is the same own-data contract.",
+                  "defer": "Defer source change pending a demonstrated required non-JSON caller and its exact transformation contract. Retain the current mismatch as unresolved, identify the concrete missing witness, and do not substitute a generic serializer."
+                }
+              }
+            }
+          }
+        ],
+        "status": "consulted",
+        "response_uncertainty": "Typed choice advice cannot establish source correctness or genuine host acceptance; no generated rationale expected.",
+        "authorization": {
+          "human": "Approve these three requests",
+          "scope": "Exact saved three requests and named endpoint; consultation only. All execution/publication holds preserved.",
+          "auto_review_initial_attempt": "Rejected before execution: specific payload/destination disclosure approval required; no requests sent."
+        },
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "media_graph_domain": {
+                "type": "choice",
+                "choice": "own_json",
+                "confidence": 1.0,
+                "probabilities": {
+                  "own_json": 1.0,
+                  "evaluated_projection": 0.0,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 939,
+              "output_tokens": 45
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "media_graph_domain": {
+                "type": "choice",
+                "choice": "own_json",
+                "confidence": 1.0,
+                "probabilities": {
+                  "own_json": 1.0,
+                  "evaluated_projection": 0.0,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 945,
+              "output_tokens": 45
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "media_graph_domain": {
+                "type": "choice",
+                "choice": "own_json",
+                "confidence": 0.98,
+                "probabilities": {
+                  "own_json": 0.99,
+                  "evaluated_projection": 0.0,
+                  "defer": 0.01
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 940,
+              "output_tokens": 45
+            }
+          }
+        ],
+        "adjudication": {
+          "choice": "own_json",
+          "agreement": "3/3 own_json; probabilities 1.0, 1.0, 0.99; confidence 1.0, 1.0, 0.98. No disagreement; typed API provides no rationale.",
+          "decision": "Release own JSON data at the media graph boundary: plain/null-prototype data records, dense arrays, null/boolean/string/finite numbers. Capture descriptors once, reject executable/omitted/coerced profiles, retain canonical digest and original effect identity. No generic serializer or File byte-domain replacement.",
+          "uncertainty": "Advice does not prove source correctness or actual generated host behavior. Proxy traps and modified intrinsics are not sandboxed; graph size policy is unchanged."
+        }
+      },
+      "media_graph_implementation": {
+        "status": "implemented and locally tested; unfinished parent/external acceptance",
+        "files": [
+          "packages/services/src/media/mapping.ts",
+          "packages/services/src/media/comfyui.ts",
+          "packages/services/test/media-comfyui.test.ts",
+          "packages/services/README.md"
+        ],
+        "behavior": "Direct mapping hashes and substitutes into the same detached own-JSON snapshot. Installation snapshots the original graph before JSON conversion. Valid JSON digests unchanged; no getter/toJSON evaluation; non-JSON/cycle/hidden/symbol/sparse/arraymetadata profiles refuse before transport. Original job/delivery/deadline/retry behavior retained. Cancel-only adapters remain unvalidated until submit/install.",
+        "checks": {
+          "runtime": "Node 24.19.0",
+          "services_emit": "PASS",
+          "affected_media_groups": "22/22 PASS, 980.079ms; mapping, direct submit/recovery and installed original-identity/deadline/output/refusal controls",
+          "file_receiving_consumer": "1/1 PASS, 84.562709ms; finalizes downloaded outputs with provider provenance on disk. Uses changed digest producer with unchanged File receiver.",
+          "reuse": "All unrelated original File byte retry/auth/deletion and Services reconciliation/cancellation controls retained; no broad reruns.",
+          "affected_mapping_after_review_fix": "5/5 PASS, 60.043166ms; repeat limited to changed own-output check and related mapping controls. Services emit PASS after edit; other 17 media/1 File controls unchanged and reused."
+        },
+        "remaining": "Coordinator source review and original Dev/L7 generated/durable host acceptance where required; separate File byte-upload domain/bridge authority contracts remain with their existing owners. Publication/native preparation holds unchanged.",
+        "source_review": {
+          "scope": "Finite independent source/test review of original graph capture, canonical digest, direct/installed paths and special own-key cases.",
+          "finding": "Inherited __proto__ output node could pass the existing object check; fixed with Object.hasOwn before output node read.",
+          "disposition": "Concrete finding repaired in same unit; no review-of-review or broader rerun."
+        }
       }
     },
     "TECH-SV04": {

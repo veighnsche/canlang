@@ -2880,11 +2880,11 @@
       },
       "current_execution": {
         "disposition": "open-selected-packet",
-        "next_work": "ready-owner-contract",
+        "next_work": "original-consumer-acceptance",
         "owner": "Services/Files submitted graph domain and digest owner",
-        "accepted_scope": "Source-current caller/domain witnesses complete; consequential host/digest contract remains blocked",
-        "next_action": "Release whether the actual submitted media graph is JSON-source or arbitrary-JS and the exact identity/digest domain using the saved actual caller witnesses; no generic serializer substitution.",
-        "done_when": "The original effect submits the same graph that is hashed, preserves retry identity and rejects the released invalid accessor/toJSON/undefined/nonfinite profiles before provider effect.",
+        "accepted_scope": "Source-current caller/domain witnesses retained. Own JSON media graph contract implemented and locally tested: same captured graph supplies artifact digest and declared substitution/submission; direct/installed invalid graph refusals preserve original effect identity. Parent unfinished.",
+        "next_action": "Coordinator reviews exact local source unit; Dev/L7 consumes it in the original generated/durable media closure where required. Keep separate File byte-upload/bridge contracts with existing owners and preserve all holds; do not rerun unchanged controls.",
+        "done_when": "Original required media producer/consumer accepts the same captured graph/digest and stable retry identity, with recorded negative refusals; separate File requirements remain at their original scope.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV03"
       }
     },
