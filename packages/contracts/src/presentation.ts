@@ -913,6 +913,8 @@ export interface FormProps {
   /** Resolved rendering timezone (team adapter or explicit UTC fallback). */
   readonly timeZone: string;
   readonly fields: ReadonlyArray<FormFieldDef>;
+  /** Existing authored placements; other prepared fields render afterward. */
+  readonly authoredFields?: readonly string[];
   /** Authored body; fields describe its rendered controls for error matching. */
   readonly children?: PageChildren;
   /** Omitted keeps the low-level inline contract; source forms select explicitly. */

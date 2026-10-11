@@ -903,9 +903,10 @@ function outcomeBanner(
  * Canonical bound form. Renders hidden operation/operation_id/CSRF/timezone
  * fields (plus the bound record), one fieldset per field, and the submit
  * row. Update mode requires a record; field paths must be identifiers.
- * Authored children replace only the automatic field body, in authored order.
- * In that mode fields must describe the controls actually rendered: errors
- * for omitted controls then remain visible in the unmatched top banner.
+ * Authored children render in authored order. Explicit authoredFields metadata
+ * appends the remaining prepared fields; absent metadata retains body replacement.
+ * Fields describe the controls actually rendered: errors for omitted controls
+ * remain visible in the unmatched top banner.
  * Transport fields, outcome banners and the submit/cancel row remain canonical.
  */
 export async function form(props: FormProps): Promise<string> {
@@ -917,6 +918,19 @@ export async function form(props: FormProps): Promise<string> {
     throw new Error("form: update mode requires a bound record");
   }
   assertUniqueFieldPaths(props.fields);
+  const authoredPaths = new Set<string>();
+  if (props.authoredFields !== undefined) {
+    const availablePaths = new Set(props.fields.map(field => field.path));
+    for (const path of props.authoredFields) {
+      if (authoredPaths.has(path)) {
+        throw new Error(`duplicate authored field path ${JSON.stringify(path)}: explicit placement must not duplicate inputs`);
+      }
+      if (!availablePaths.has(path)) {
+        throw new Error(`authored field path ${JSON.stringify(path)} is outside its prepared form`);
+      }
+      authoredPaths.add(path);
+    }
+  }
   const names = new Set<string>();
   for (const field of props.fields) {
     names.add(fieldName(props.mode, field.path));
@@ -938,6 +952,11 @@ export async function form(props: FormProps): Promise<string> {
   } else {
     const children = typeof props.children === "function" ? await props.children() : props.children;
     rendered.push(...(await Promise.all(children)));
+    if (props.authoredFields !== undefined) {
+      for (const field of props.fields) {
+        if (!authoredPaths.has(field.path)) rendered.push(await renderField(field, fieldCtx));
+      }
+    }
   }
   const choicesHtml = (props.derived?.inputs ?? []).filter(input =>
     input.choices !== undefined && props.fields.some(field => field.path === input.name),

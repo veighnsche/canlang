@@ -260,6 +260,36 @@ describe("form hidden fields and roots", () => {
     assert.ok(inDrawer.includes('<div class="drawer-side">'));
     assert.ok(inDrawer.includes('<label for="f1-drawer" class="drawer-overlay"'));
     assert.ok(inDrawer.includes('<form action="/submit" method="post">'));
+
+    const orderedProps = makeFormProps({ fields: [field("title"), field("enabled", { type: "bool" }),
+      field("description"), field("note")], cancelHref: "/back", submit: "Publish" });
+    let childrenCalls = 0;
+    const ordered = await form({ ...orderedProps, authoredFields: ["description", "title"], children: () => {
+      childrenCalls++;
+      return [input({ context: orderedProps.context, field: orderedProps.fields[2]!,
+        idPrefix: orderedProps.idPrefix, mode: orderedProps.mode }),
+      input({ context: orderedProps.context, field: orderedProps.fields[0]!,
+        idPrefix: orderedProps.idPrefix, mode: orderedProps.mode })];
+    } });
+    assert.equal(childrenCalls, 1);
+    const paths = ["description", "title", "enabled", "note"];
+    let previous = -1;
+    for (const path of paths) {
+      const name = `name="inputs[${path}]"`;
+      assert.equal(ordered.split(name).length - 1, 1, `one writable control for ${path}`);
+      const position = ordered.indexOf(name);
+      assert.ok(position > previous, `${path} retains authored/remainder order`);
+      previous = position;
+    }
+    assert.ok(ordered.indexOf('<button type="submit"') > previous);
+    assert.ok(ordered.includes('<a class="btn btn-ghost" href="/back">Cancel</a>'));
+    for (const name of ["operation", "operation_id", CSRF_FIELD, "timezone"]) {
+      assert.ok(ordered.includes(`type="hidden" name="${name}"`));
+    }
+    const automatic = await form({ ...orderedProps, authoredFields: ["description", "title"] });
+    assert.ok(automatic.indexOf('name="inputs[title]"') < automatic.indexOf('name="inputs[description]"'));
+    await assert.rejects(form({ ...orderedProps, authoredFields: ["title", "title"], children: [] }), /duplicate authored field path/);
+    await assert.rejects(form({ ...orderedProps, authoredFields: ["missing"], children: [] }), /outside its prepared form/);
   });
 
   it("resolves the submit label and cancel copy per locale", async () => {
