@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_THEME } from '@canlang/contracts';
+import { DEFAULT_THEME, collectionFilterName } from '@canlang/contracts';
 import type {
   AdmittedBindings,
   PageDescriptor,
@@ -14,11 +14,14 @@ import type {
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
+  ColumnMeta,
 } from '@canlang/contracts';
 import { deriveCsrfToken } from '@canlang/identity';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
+import { resolveRequestIdentity } from '../src/http/context.js';
+import { calendar } from '@canlang/ui';
 
 function fakeIdentity(): ResolvedIdentity {
   return {
@@ -29,6 +32,162 @@ function fakeIdentity(): ResolvedIdentity {
     admitted_at: new Date(0).toISOString(),
   };
 }
+
+test('collection enum filters preserve occurrence defaults, explicit clears and the current request context', async () => {
+  const occurrence = 'page:/réports/😀:list:1';
+  const sibling = 'page:/réports/😀:list:2';
+  const fields: ColumnMeta[] = [
+    { field: 'state', label: 'State', type: 'enum:App.Item.state', valueLabels: { open: 'Open', closed: 'Closed' } },
+    { field: 'niveau', label: 'Level', type: 'enum:App.Item.niveau', valueLabels: { haut: 'High', bas: 'Low' } },
+  ];
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/hello', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  let queries = 0;
+  const query: RowQueryRunner = async () => { queries++; return { rows: [], columns: [] }; };
+  const make = (entries: readonly (readonly [string, string])[]) => {
+    const params = new URLSearchParams(entries.map(entry => [...entry] as [string, string]));
+    params.append('unrelated', 'retained');
+    params.append('can-row:original', 'current-row');
+    const request = testRequest(`/hello?${params}`, { cookie: identity.cookie });
+    const context = buildPresentationContext({ request, pathname: '/hello', isPartial: false,
+      appDefaultLocale: 'en', csrfToken: 'original-csrf', principal, query });
+    assert.equal(context.principal, principal); assert.equal(context.invocation, principal);
+    assert.equal(context.query, query); assert.equal(context.csrfToken, 'original-csrf');
+    assert.equal(context.pollUrl, `/hello?${params}`);
+    assert.deepEqual([...context.collectionSelections!], [['original', 'current-row']]);
+    return context;
+  };
+  const absent = make([]).prepareCollectionFilters!;
+  assert.deepEqual(absent(occurrence, fields, { state: 'open', niveau: null }), [{ field: 'state', op: 'eq', value: 'open' }]);
+  assert.deepEqual(absent(occurrence, fields), []);
+  assert.deepEqual(absent(occurrence, fields, { state: null }), []);
+  const entries: [string, string][] = [[collectionFilterName(occurrence, 'state'), ''],
+    [collectionFilterName(occurrence, 'niveau'), 'haut'], [collectionFilterName(sibling, 'state'), 'closed']];
+  const selected = make(entries).prepareCollectionFilters!;
+  const conditions = selected(occurrence, fields, { state: 'open', niveau: 'bas' });
+  assert.deepEqual(conditions, [{ field: 'niveau', op: 'eq', value: 'haut' }]);
+  assert.equal(Object.isFrozen(conditions), true); assert.equal(Object.isFrozen(conditions[0]), true);
+  assert.deepEqual(selected(sibling, fields), [{ field: 'state', op: 'eq', value: 'closed' }]);
+  assert.deepEqual(make(entries).prepareCollectionFilters!(occurrence, fields, { state: 'open', niveau: 'bas' }), conditions,
+    'an explicit empty selector remains clear on the next render');
+  assert.equal(queries, 0);
+});
+
+test('collection enum filters reject malformed source, defaults and current selectors before query or body work', () => {
+  const occurrence = 'page:/hello/list:1';
+  const field: ColumnMeta = { field: 'state', label: 'State', type: 'enum:App.Item.state', valueLabels: { open: 'Open', closed: 'Closed' } };
+  let queries = 0, bodies = 0;
+  const prepare = (entries: [string, string][]) => {
+    const request = testRequest(`/hello?${new URLSearchParams(entries)}`);
+    Object.defineProperty(request, 'json', { value: () => { bodies++; throw new Error('body was read'); } });
+    return buildPresentationContext({ request, pathname: '/hello', isPartial: false, appDefaultLocale: 'en',
+      csrfToken: '', principal: fakeIdentity(), query: async () => { queries++; return { rows: [], columns: [] }; } }).prepareCollectionFilters!;
+  };
+  const refuses = (run: () => unknown) => assert.throws(run, (error: unknown) =>
+    typeof error === 'object' && error !== null && 'code' in error && error.code === 'validation');
+  for (const entries of [
+    [[collectionFilterName(occurrence, 'state'), 'open'], [collectionFilterName(occurrence, 'state'), 'closed']],
+    [[collectionFilterName(occurrence, 'unknown'), 'open']],
+    [[collectionFilterName(occurrence, 'state'), 'unknown']],
+    [['filter[state]', 'open']], [['f[state]', 'open']],
+  ] as [string, string][][]) refuses(() => prepare(entries)(occurrence, [field]));
+  const plain = prepare([]);
+  for (const fields of [[field, field], [{ ...field, field: '' }], [{ ...field, type: 'enum' }],
+    [{ ...field, type: 'App.Item.state' }], [{ ...field, type: 'enum:' }], [{ ...field, valueLabels: {} }],
+    [Object.assign(Object.create({ type: field.type }), { field: field.field, label: field.label, valueLabels: field.valueLabels })]]) {
+    refuses(() => plain(occurrence, fields));
+  }
+  for (const defaults of [{ unknown: 'open' }, { state: 'unknown' }, { state: '' }]) {
+    refuses(() => plain(occurrence, [field], defaults));
+  }
+  refuses(() => plain('', [field]));
+  assert.deepEqual(prepare([[collectionFilterName('other', 'unknown'), 'invalid']])(occurrence, [field], { state: 'open' }),
+    [{ field: 'state', op: 'eq', value: 'open' }], 'other occurrences are owned by their respective consumers');
+  assert.equal(queries, 0); assert.equal(bodies, 0);
+});
+
+test('calendar agenda consumes occurrence enum filters through the unchanged authorized query context', async () => {
+  const occurrence = 'page:/hello/agenda:1';
+  const filter: ColumnMeta = { field: 'state', label: 'State', type: 'enum:Calendar.Booking.state',
+    valueLabels: { open: 'Open', closed: 'Closed' } };
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/hello', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  let queries = 0, bodies = 0, callbacks = 0;
+  const denial = new Error('original authorized query refusal');
+  const filterName = collectionFilterName(occurrence, 'state');
+  const siblingName = collectionFilterName('page:/hello/agenda:2', 'state');
+  const rowName = `can-row:${occurrence}`;
+  const preserved = [['unrelated', 'original'], [siblingName, 'closed'], [rowName, 'selected-booking']] as const;
+  const make = (selection: string | undefined, refuseQuery = false, zeroRows = selection === '') => {
+    const params = new URLSearchParams([...preserved.map(([name, value]) => [name, value]), ['cursor', 'stale-browser-cursor']]);
+    if (selection !== undefined) params.set(collectionFilterName(occurrence, 'state'), selection);
+    const request = testRequest(`/hello?${params}`, { cookie: identity.cookie });
+    Object.defineProperty(request, 'json', { value: () => { bodies++; throw new Error('body was read'); } });
+    const query: RowQueryRunner = async (invocation, model, args) => {
+      queries++;
+      assert.equal(invocation, principal); assert.equal(model, 'Calendar.Booking');
+      assert.deepEqual(args, { order: ['starts'], page: true, occurrence, limit: 3, cursor: 'original-cursor',
+        ...(selection === '' ? {} : { where: { op: 'eq', field: 'state', value: selection ?? 'open' } }) });
+      if (refuseQuery) throw denial;
+      return { rows: zeroRows ? [] : [{ id: 'booking', fields: {
+        starts: '2026-10-11T12:00:00Z', ends: '2026-10-11T13:00:00Z', state: selection === '' ? 'open' : selection ?? 'open',
+      } }], columns: zeroRows ? [] : [filter] };
+    };
+    const context = buildPresentationContext({ request, pathname: '/hello', isPartial: false,
+      appDefaultLocale: 'en', csrfToken: 'original-csrf', principal, query });
+    assert.equal(context.pollUrl, `/hello?${params}`);
+    assert.equal(context.collectionSelections!.get(occurrence), 'selected-booking');
+    return calendar({ kind: 'agenda', context, model: 'Calendar.Booking', startField: 'starts', endField: 'ends',
+      filter: [filter], defaults: { state: 'open' }, order: ['starts'], page: true, occurrence,
+      limit: 3, cursor: 'original-cursor', empty: 'None', renderRow: (row, view) => {
+        callbacks++;
+        assert.equal(view, context); assert.equal(view.principal, principal);
+        return [`<p>original-${row.id}</p>`];
+      } });
+  };
+  const assertGetControls = (html: string) => {
+    assert.ok(html.includes('<form method="get" action="/hello" data-can-agenda-filters>'));
+    for (const [name, value] of preserved) {
+      assert.ok(html.includes(`<input type="hidden" name="${name}" value="${value}">`), `preserves ${name}`);
+    }
+    assert.doesNotMatch(html, /name="cursor"|stale-browser-cursor/);
+  };
+  const defaultHtml = await make(undefined);
+  assert.match(defaultHtml, /original-booking/); assertGetControls(defaultHtml);
+  assert.ok(defaultHtml.includes(`name="${filterName}" class="select"`));
+  assert.ok(defaultHtml.includes('<option value="open" selected>Open</option>'));
+  const explicitHtml = await make('closed');
+  assert.match(explicitHtml, /original-booking/); assertGetControls(explicitHtml);
+  assert.ok(explicitHtml.includes('<option value="closed" selected>Closed</option>'));
+  assert.ok(explicitHtml.includes('<option value="open">Open</option>'));
+  const clearedHtml = await make('', false, false);
+  assertGetControls(clearedHtml);
+  assert.ok(clearedHtml.includes('<option value="" selected>'));
+  assert.doesNotMatch(clearedHtml, /value="(?:open|closed)" selected/);
+  assert.equal(callbacks, 3);
+  const clear = await make('');
+  assert.match(clear, /None/);
+  assert.doesNotMatch(clear, /<option|Open|Closed/);
+  const beforeEmpty = callbacks;
+  const activeEmpty = await make('closed', false, true);
+  assertGetControls(activeEmpty);
+  assert.match(activeEmpty, /None/);
+  assert.ok(activeEmpty.includes(`<button type="submit" name="${filterName}" value="" class="btn">`));
+  assert.equal((activeEmpty.match(/<button/g) ?? []).length, 1);
+  assert.doesNotMatch(activeEmpty, /<option|<select|Open|Closed|original-booking/);
+  assert.equal(callbacks, beforeEmpty);
+  const beforeInvalid = queries;
+  const beforeRefusal = callbacks;
+  await assert.rejects(make('unknown'), (error: unknown) =>
+    typeof error === 'object' && error !== null && 'code' in error && error.code === 'validation');
+  assert.equal(queries, beforeInvalid);
+  assert.equal(callbacks, beforeRefusal);
+  await assert.rejects(make('closed', true), error => error === denial);
+  assert.equal(callbacks, beforeRefusal);
+  assert.equal(bodies, 0);
+});
 
 function fakeQuery(): RowQueryRunner {
   return (async () => {

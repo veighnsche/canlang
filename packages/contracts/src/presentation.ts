@@ -39,6 +39,12 @@ export const CSRF_FIELD = "_csrf";
 /** Opaque, host-verified source form binding; never canonical business input. */
 export const SOURCE_FORM_BINDING_FIELD = "form_binding";
 
+/** Source-occurrence query state only; never mutation inputs or authority. */
+export const COLLECTION_FILTER_PREFIX = "can-filter:";
+export function collectionFilterName(occurrence: string, field: string): string {
+  return `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:${encodeURIComponent(field)}`;
+}
+
 /**
  * Name of the pre-session token field in the login form. Rendered by lane
  * 05 from the `GET /auth/login` descriptor value, read by the lane 6
@@ -168,7 +174,7 @@ export interface PageSourceContext {
   readonly team: { readonly id: string; readonly timezone: string } | null;
   readonly memberships: readonly string[];
   /** Dispatcher-loaded saved values, scoped to this resolved actor and team. */
-  readonly preferences?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly preferences?: Readonly<Record<string, Readonly<Record<string, string | null>>>>;
   /** Version of each saved value (`0` means no saved row yet). */
   readonly preferenceVersions?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly canonical: {
@@ -189,6 +195,12 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly deploymentBase?: string;
   /** Exact-operation form preparation supplied by the request dispatcher. */
   readonly prepareForm?: OperationFormPreparer;
+  /** Current request selection over checked owning enum declarations; no query authority. */
+  readonly prepareCollectionFilters?: (
+    occurrence: string,
+    fields: readonly ColumnMeta[],
+    defaults?: Readonly<Record<string, string | null>>,
+  ) => readonly FilterCondition[];
   /** Viewer locale preference: saved preference, then language priority list. */
   readonly preferredLocales: readonly string[];
   /** Owning app default locale (pinned "en" unless the app declares otherwise). */
@@ -252,7 +264,9 @@ export interface PageDescriptor {
   readonly preferenceFields?: readonly {
     readonly name: string;
     readonly options: readonly string[];
-    readonly defaultValue: string;
+    /** Only the original nullable enum initial default; saved values stay cases. */
+    readonly nullable?: true;
+    readonly defaultValue: string | null;
   }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;
@@ -854,6 +868,10 @@ export interface CalendarAgendaProps {
   readonly startField: string;
   readonly endField: string;
   readonly where?: unknown;
+  /** Checked owning enum filter declarations, not granted row metadata. */
+  readonly filter?: readonly ColumnMeta[];
+  /** Initial selections only; explicit request selection or clear wins. */
+  readonly defaults?: Readonly<Record<string, string | null>>;
   readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;

@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type {
+  ColumnMeta,
   FieldError,
   FormFieldDef,
   FormMode,
@@ -519,6 +520,59 @@ describe("calendar field", () => {
       calendar({ kind: "field", context: ctx, field: field("t", { value: "x" }), idPrefix: "f", mode: "create" }),
       /field "t"/,
     );
+  });
+});
+
+describe("calendar agenda authored enum filters", () => {
+  it("composes data predicates and refuses unavailable or unprojected filters before query or row bodies", async () => {
+    const filterFields: readonly ColumnMeta[] = [{ field: 'state', type: 'enum:Calendar.Appointment.state', label: 'State',
+      valueLabels: { confirmed: 'Confirmed', cancelled: 'Cancelled' } }];
+    const defaults = { state: 'confirmed' };
+    const where = { op: 'eq', field: 'host', value: 'host-1' };
+    let queries = 0;
+    let bodies = 0;
+    const context = makeContext({
+      path: '/appointments',
+      prepareCollectionFilters: (occurrence, fields, actualDefaults) => {
+        assert.equal(occurrence, 'appointments-agenda');
+        assert.equal(fields, filterFields); assert.equal(actualDefaults, defaults);
+        return [{ field: 'state', op: 'eq', value: 'confirmed' }];
+      },
+      query: async (_invocation, model, args) => {
+        queries++;
+        assert.equal(model, 'Calendar.Appointment');
+        assert.deepEqual(args.where, { op: 'and', args: [where,
+          { op: 'eq', field: 'state', value: 'confirmed' }] });
+        return { rows: [], columns: [] };
+      },
+    });
+    const props = { kind: 'agenda' as const, context, model: 'Calendar.Appointment',
+      startField: 'starts', endField: 'ends', empty: 'No appointments',
+      occurrence: 'appointments-agenda', filter: filterFields, defaults, where,
+      renderRow: async () => { bodies++; return ['authored body']; } };
+    await calendar(props);
+    assert.equal(queries, 1); assert.equal(bodies, 0);
+    await assert.rejects(calendar({ ...props, where: () => true }), /data-only where predicate/);
+    await assert.rejects(calendar({ kind: 'agenda', context, model: props.model,
+      startField: props.startField, endField: props.endField, empty: props.empty, defaults }),
+      /defaults require declared filter controls/);
+    await assert.rejects(calendar({ ...props, context: makeContext({ query: context.query }) }),
+      /source filter preparation is unavailable/);
+    assert.equal(queries, 1); assert.equal(bodies, 0);
+
+    const authorizedRow: RowView = { id: 'appointment-1', version: '2', fields: {
+      starts: '2026-10-12T09:00:00Z', ends: '2026-10-12T09:30:00Z', state: 'confirmed',
+    } };
+    await assert.rejects(calendar({ ...props, context: { ...context, query: async () => {
+      queries++; return { rows: [authorizedRow], columns: [] };
+    } } }), /missing authorized filter field "state"/);
+    const missingOwnState: RowView = { id: 'appointment-2', version: '3', fields: {
+      starts: '2026-10-12T10:00:00Z', ends: '2026-10-12T10:30:00Z',
+    } };
+    await assert.rejects(calendar({ ...props, context: { ...context, query: async () => {
+      queries++; return { rows: [authorizedRow, missingOwnState], columns: filterFields };
+    } } }), /row "appointment-2" is missing projected filter field "state"/);
+    assert.equal(queries, 3); assert.equal(bodies, 0);
   });
 });
 

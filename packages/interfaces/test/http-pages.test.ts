@@ -294,7 +294,8 @@ test('page search is a bounded request-local value for full and partial renders'
   assert.deepEqual(observed, ['pen', 'paper']);
 });
 
-test('bound page preference saves only an admitted actor/team enum with CSRF and version', async () => {
+for (const initial of ['all', null] as const) {
+test(`bound page preference saves only an admitted actor/team enum with CSRF and version (initial ${String(initial)})`, async () => {
   const rows = new Map<string, { value: string; version: string }>();
   const keyOf = (key: PagePreferenceKey) => JSON.stringify({
     appId: key.appId, actorUserId: key.actorUserId, teamId: key.teamId,
@@ -312,16 +313,30 @@ test('bound page preference saves only an admitted actor/team enum with CSRF and
   };
   const page = helloPage({
     owner: 'OfficeSupplies',
-    preferenceFields: [{ name: 'view', options: ['all', 'available', 'restock'], defaultValue: 'all' }],
-    admit: async source => ({ preferences: (source as PageSourceContext).preferences }),
-    render: async context => `<p>${context.preferences?.OfficeSupplies?.view}:${context.preferenceVersions?.OfficeSupplies?.view}</p>`,
+    preferenceFields: [{ name: 'view', options: ['all', 'available', 'restock'], defaultValue: initial,
+      ...(initial === null ? { nullable: true as const } : {}) }],
+    admit: async source => {
+      const scoped = source as PageSourceContext;
+      const saved = [...rows.values()][0];
+      assert.equal(Object.hasOwn(scoped.preferences!.OfficeSupplies!, 'view'), true);
+      assert.equal(scoped.preferences?.OfficeSupplies?.view, saved?.value ?? initial);
+      assert.equal(scoped.preferenceVersions?.OfficeSupplies?.view, saved?.version ?? '0');
+      return { preferences: scoped.preferences };
+    },
+    render: async context => {
+      const saved = [...rows.values()][0];
+      assert.equal(context.preferences?.OfficeSupplies?.view, saved?.value ?? initial);
+      assert.equal(context.preferenceVersions?.OfficeSupplies?.view, saved?.version ?? '0');
+      return `<p>${context.preferences?.OfficeSupplies?.view}:${context.preferenceVersions?.OfficeSupplies?.view}</p>`;
+    },
   });
   const { deps, identity } = await createTestDeps({ descriptors: [page] });
   const handler = createHttpHandler({ ...deps, preferences }, spySub());
   const path = `/hello?team=${identity.teamId}&q=paper`;
   const first = await handler(testRequest(path, { cookie: identity.cookie }));
   assert.equal(first.status, 200);
-  assert.match(await first.text(), /<p>all:0<\/p>/);
+  assert.ok((await first.text()).includes(`<p>${String(initial)}:0</p>`));
+  assert.equal(rows.size, 0);
   const token = await deriveCsrfToken(identity.sessionToken);
   const post = (csrf: string, value: string, version: string) => testRequest(path, {
     method: 'POST', cookie: identity.cookie,
@@ -330,8 +345,11 @@ test('bound page preference saves only an admitted actor/team enum with CSRF and
   });
   const badCsrf = await handler(post('bad', 'available', '0'));
   assert.equal(badCsrf.status, 403);
-  const badValue = await handler(post(token, 'foreign', '0'));
-  assert.equal(badValue.status, 400);
+  for (const value of ['foreign', '', 'null']) {
+    const badValue = await handler(post(token, value, '0'));
+    assert.equal(badValue.status, 400);
+  }
+  assert.equal(rows.size, 0);
   const saved = await handler(post(token, 'available', '0'));
   assert.equal(saved.status, 303);
   assert.equal(saved.headers.get('location'), path);
@@ -343,9 +361,22 @@ test('bound page preference saves only an admitted actor/team enum with CSRF and
   assert.match(await current.text(), /<p>available:1<\/p>/);
   const stale = await handler(post(token, 'restock', '0'));
   assert.equal(stale.status, 409);
+  assert.equal(rows.size, 1);
+  assert.deepEqual([...rows.values()], [{ value: 'available', version: '1' }]);
   const missingStore = await createHttpHandler(deps, spySub())(testRequest(path, { cookie: identity.cookie }));
   assert.notEqual(missingStore.status, 200);
+  if (initial === null) {
+    const malformed = helloPage({ owner: 'OfficeSupplies', preferenceFields: [
+      { name: 'view', options: ['all', 'available', 'restock'], defaultValue: null },
+    ] });
+    const bad = await createTestDeps({ descriptors: [malformed] });
+    const malformedResponse = await createHttpHandler({ ...bad.deps, preferences }, spySub())(
+      testRequest(`/hello?team=${bad.identity.teamId}`, { cookie: bad.identity.cookie }));
+    assert.notEqual(malformedResponse.status, 200);
+    assert.deepEqual([...rows.values()], [{ value: 'available', version: '1' }]);
+  }
 });
+}
 
 test('authed GET embeds the derived CSRF token and account teams', async () => {
   const admitted: PageSourceContext[] = [];
