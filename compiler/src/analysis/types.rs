@@ -42,7 +42,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::diagnostic::{Diagnostic, Related};
+use crate::diagnostic::{ConstructCandidates, Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{Punct, SyntaxKind, SyntaxNode, TokenKind};
 
@@ -8517,6 +8517,69 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// A diagnostic-only row scope checks the original body without assigning
+    /// an executable meaning to the unknown word. Distinct required headers
+    /// and catalog slot suites prevent a complete replacement inventory here.
+    fn diagnose_unknown_collection_presentation(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        before: usize,
+    ) {
+        let Some(head) = kids(node)
+            .into_iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+        else {
+            return;
+        };
+        let word = name_text(head, cx.text).unwrap_or("");
+        let domain_checked = kids(node)
+            .into_iter()
+            .find(|child| is_expression(child.kind))
+            .and_then(|domain| self.types.node_types.get(&NodeKey::of(domain)))
+            .is_some_and(|ty| self.model_of_type(ty) == Some(model));
+        let body_checked = kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::UiLeaf)
+            .flat_map(kids)
+            .filter(|value| is_expression(value.kind))
+            .all(|value| {
+                self.scope_row_model(value) == Some(model)
+                    && self
+                        .types
+                        .node_types
+                        .get(&NodeKey::of(value))
+                        .is_some_and(|ty| {
+                            !matches!(ty, ResolvedType::Error | ResolvedType::Unknown)
+                        })
+            });
+        let structural_error = self.diags.iter().any(|diagnostic| {
+            diagnostic.primary.file == cx.file && diagnostic.code.starts_with("E1")
+        });
+        let checked =
+            domain_checked && body_checked && !structural_error && self.diags.len() == before;
+        let gap = if checked {
+            "complete replacement coverage is unknown: board, gallery and calendar require distinct selectors, and catalog collections own different child slots"
+        } else {
+            "complete replacement coverage is unknown: the original model domain or row suite did not finish checking"
+        };
+        let mut diagnostic = Diagnostic::error(
+            "E2001",
+            format!("unknown collection presentation '{word}'; {gap}"),
+            head.span,
+        );
+        diagnostic.construct_candidates = Some(Box::new(ConstructCandidates {
+            version: 1,
+            disposition: "unknown",
+            slot: Some("then.collection-presentation"),
+            ids: Vec::new(),
+            complete: false,
+            context: None,
+        }));
+        self.diags.push(diagnostic);
+    }
+
     /// Walk one presentation widget: type the domain, validate closed
     /// NAME sets, required selector lists and selector navigation
     /// against the domain model, then recurse into nested widgets.
@@ -8535,6 +8598,12 @@ impl<'a> Typer<'a> {
         parent: SyntaxKind,
         tab_case: Option<&ResolvedType>,
     ) {
+        let unknown_presentation = self
+            .tables
+            .unknown_collection_presentations
+            .get(&NodeKey::of(node))
+            .copied();
+        let before_presentation = self.diags.len();
         let domain = kids(node).iter().find(|n| is_expression(n.kind)).copied();
         let mut row_seed: Option<NarrowEnv> = None;
         let mut bound_tab_expected = None;
@@ -8922,6 +8991,11 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if unknown_presentation.is_some()
+                    && let Some(empty) = attribute_value(node, "empty", cx.text)
+                {
+                    self.check_page_static_text(cx, empty, "collection empty");
+                }
                 // Collapse shares Details' expression-valued open option;
                 // retain its checked type instead of treating it as vocabulary.
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("collapse")
@@ -9152,6 +9226,9 @@ impl<'a> Typer<'a> {
                     None
                 },
             );
+        }
+        if let Some(model) = unknown_presentation {
+            self.diagnose_unknown_collection_presentation(cx, node, model, before_presentation);
         }
         if let Some(ty @ ResolvedType::Enum { .. }) = bound_tab_expected {
             let ResolvedType::Enum { cases, owner } = &ty else {

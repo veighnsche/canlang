@@ -388,6 +388,9 @@ pub struct UnresolvedMember {
 /// every resolution the types pass and PR5 consume.
 #[derive(Debug, Clone, Default)]
 pub struct ResolveTables {
+    /// Diagnostic-only owning model for an unknown collection presentation.
+    /// Every recorded node remains an error; this does not authorize execution.
+    pub unknown_collection_presentations: HashMap<NodeKey, SymbolId>,
     /// Same-module presentation declarations, separate from executable symbols.
     pub views: HashMap<(ModuleId, String), NodeKey>,
     /// Checked required stored-model row parameter for each view.
@@ -609,6 +612,54 @@ fn semantic_index(len: usize, kind: &str, span: Span) -> Result<u32, Diagnostic>
             span,
         )
     })
+}
+
+/// Identify an unknown identifier against the actual owning component entries.
+/// Parse only their closed one-entry-per-line declaration form; source-layout
+/// drift leaves the inventory unavailable rather than dropping recognized words.
+fn unknown_presentation_word(word: &str, catalog: Option<&Catalog>) -> bool {
+    if word.is_empty()
+        || word.len() > 64
+        || word == "count"
+        || !word.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_alphabetic() || byte == b'_' || index > 0 && byte.is_ascii_digit()
+        })
+        || catalog.is_some_and(|catalog| catalog.lookup(word).is_some())
+    {
+        return false;
+    }
+    let source = include_str!("../../../packages/ui/src/catalog.ts");
+    let Some((_, declarations)) =
+        source.split_once("const ENTRIES: ReadonlyArray<ComponentCatalogEntry> = [\n")
+    else {
+        return false;
+    };
+    let Some((declarations, _)) = declarations.split_once("\n];") else {
+        return false;
+    };
+    let mut words = HashSet::new();
+    for line in declarations.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some(entry) = line.strip_prefix("{ id: \"") else {
+            return false;
+        };
+        let Some((id, entry)) = entry.split_once("\", js: \"") else {
+            return false;
+        };
+        let Some((_, entry)) = entry.split_once("\", owner: \"") else {
+            return false;
+        };
+        let Some((_, _)) = entry.split_once("\", kind: \"component\", ") else {
+            return false;
+        };
+        if id.is_empty() || !line.ends_with(" },") || !words.insert(id) {
+            return false;
+        }
+    }
+    !words.is_empty() && !words.contains(word)
 }
 
 /// Emit `E2001` for unbound names the types pass did not claim as enum
@@ -6359,6 +6410,29 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::CatalogItem => {
+                if let Some((domain, model)) =
+                    self.unknown_collection_presentation(module, text, node)
+                {
+                    self.walk_expr(module, scope, domain, text, ExprCtx::bare(), diags)?;
+                    let child_scope = self.new_scope(Some(scope), node.span)?;
+                    self.tables.scopes[child_scope.0 as usize].bindings.insert(
+                        "row".to_string(),
+                        Binding::Context(ContextVar::RowModel(model)),
+                    );
+                    self.tables
+                        .unknown_collection_presentations
+                        .insert(NodeKey::of(node), model);
+                    for child in kids(node) {
+                        if child.kind == SyntaxKind::Attribute {
+                            if let Some((_, value)) = attribute_parts(child) {
+                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                            }
+                        } else if is_ui_child(child.kind) {
+                            self.walk_ui(text, module, child_scope, child, diags)?;
+                        }
+                    }
+                    return Ok(());
+                }
                 // Collapse shares Details' expression-valued open option and
                 // must retain the same lexical scope and preference bindings.
                 if kids(node).iter().find_map(|n| name_text(n, text)) == Some("collapse")
@@ -6407,6 +6481,125 @@ impl<'a> Resolver<'a> {
             _ => {}
         }
         Ok(())
+    }
+
+    /// This finite diagnostic slot requires an owning model and direct readable
+    /// text children. It never supplies semantics for a guessed component word.
+    fn unknown_collection_presentation<'n>(
+        &self,
+        module: ModuleId,
+        text: &str,
+        node: &'n SyntaxNode,
+    ) -> Option<(&'n SyntaxNode, SymbolId)> {
+        if has_error(node) {
+            return None;
+        }
+        let head = kids(node)
+            .into_iter()
+            .find(|child| child.kind == SyntaxKind::Name)?;
+        let word = name_text(head, text)?;
+        if !unknown_presentation_word(word, self.catalog) {
+            return None;
+        }
+        let domains = kids(node)
+            .into_iter()
+            .filter(|child| is_expression(child.kind))
+            .collect::<Vec<_>>();
+        let [domain] = domains.as_slice() else {
+            return None;
+        };
+        let mut model_head = *domain;
+        if model_head.kind == SyntaxKind::Query {
+            for clause in kids(model_head)
+                .into_iter()
+                .filter(|child| child.kind == SyntaxKind::QueryClause)
+            {
+                let keyword = kids(clause)
+                    .into_iter()
+                    .find_map(|child| name_text(child, text))?;
+                if !matches!(keyword, "where" | "as")
+                    || clause
+                        .descendants()
+                        .any(|child| child.kind == SyntaxKind::Call)
+                {
+                    return None;
+                }
+            }
+            model_head = kids(model_head)
+                .into_iter()
+                .find(|child| is_expression(child.kind))?;
+        }
+        if model_head.kind != SyntaxKind::NameRef {
+            return None;
+        }
+        let model_name = kids(model_head)
+            .into_iter()
+            .find_map(|child| name_text(child, text))?;
+        let ScopedName::Local(model) = self.lookup_prod(module, model_name)? else {
+            return None;
+        };
+        if !matches!(
+            self.tables.symbols[model.0 as usize].kind,
+            SymbolKind::Model { .. }
+        ) {
+            return None;
+        }
+        for child in kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::Attribute)
+        {
+            let (name, value) = attribute_parts(child)?;
+            if name_text(name, text) != Some("empty")
+                || !matches!(value.kind, SyntaxKind::MessageValue | SyntaxKind::Literal)
+            {
+                return None;
+            }
+        }
+        let children = kids(node)
+            .into_iter()
+            .filter(|child| is_ui_child(child.kind))
+            .collect::<Vec<_>>();
+        if children.is_empty() {
+            return None;
+        }
+        for child in children {
+            if child.kind != SyntaxKind::UiLeaf
+                || kids(child)
+                    .into_iter()
+                    .find_map(|part| name_text(part, text))
+                    != Some("text")
+            {
+                return None;
+            }
+            let values = kids(child)
+                .into_iter()
+                .filter(|part| is_expression(part.kind))
+                .collect::<Vec<_>>();
+            if values.is_empty()
+                || kids(child)
+                    .into_iter()
+                    .any(|part| part.kind == SyntaxKind::Attribute || is_ui_child(part.kind))
+            {
+                return None;
+            }
+            for value in values {
+                if value.kind != SyntaxKind::Member {
+                    return None;
+                }
+                let parts = kids(value);
+                let base = parts.first()?;
+                if base.kind != SyntaxKind::NameRef
+                    || kids(base)
+                        .into_iter()
+                        .find_map(|part| name_text(part, text))
+                        != Some("row")
+                    || parts.iter().any(|part| is_punct(part, text, "?."))
+                {
+                    return None;
+                }
+            }
+        }
+        Some((*domain, model))
     }
 
     // --- Pass 5e: expressions -----------------------------------------------
