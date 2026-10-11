@@ -4014,3 +4014,25 @@ selection and independent callback by/when authority remain a Capability/source
 decision; existing provider error/progress grants cannot supply them.
 
 Coordinator independent finite checked IR/JS and installed native-control reviews CLEAR. Retain owning146 affected assertions, strict all-target Clippy0/fmt and frozen graph22 results without reruns. Checked nonnullable owning Datetime >=now/<now uses the existing QueryPredicate and exact Values codec of trusted Identity admission time, preserving original source/field correspondence, order/once/current canonical query/UI bindings and unsupported-source refusal. Genuine generated child CRUD seeds real State rows and qualifies the ordinary direct-model-domain query; it does not qualify the separately failing ordinary contained-source create. This finite ordinary predicate producer/consumer is accepted; original paginated cursor-time correspondence, Dev parent issuance, original conditional policies/full application, diagnostic selection/source authority and all precise holds remain separate. Complete file-tree checkpoint is unchanged.
+
+**Original typed-scenario artifact repair; create/delete replay unfinished, 2026-10-11.**
+
+Regenerate the unchanged typed-scenario-values.can (57100433) with the actual
+checked CLI --native-scenario-receipts and installed Values catalog. The saved
+JSON now publishes complete source-owned plans/markers for increment,twice,
+finish,rollback,echo,boundNullable,boundArray,observedVersion. Public artifact,
+verified modules and canonical registry correspondence pass;12 genuine State
+Memory cases across8 supported sites capture and replay with unchanged receipt
+and revision. Omitted/supplied/null/empty defaults, large integers, staged writes,
+implicit void and original admitted reference version retain their actual paths.
+No runtime source changes or unchanged compiler reruns; prior146/strict reused.
+
+Original born creates then reads a staged row, and discard deletes one; both
+still decline whole disclosure at the existing mutation/external-effect boundary
+and native Create/Delete site exclusion. Their required replay is unfinished,
+not waived by this artifact repair. Coordinator/defining owner supplies the exact
+create/delete lifetime contract or accepted scope disposition. Packages owns its
+original affected D1/reopen consumers and both test files; readBound stays an
+ordinary read. All precise holds,58/67 and the complete checkpoint remain.
+
+Coordinator focused generated-producer review CLEAR: unchanged source SHA57100433 matches embedded source, module operation descriptors equal artifact descriptors, and all eight claimed sites carry matching actual dependency/intrinsic and return-selection capture, including source omission versus supplied/default/null/empty paths, staged reads, implicit void and admitted reference version. Reuse actual installed artifact/module/registry controls and genuine State Memory12 source cases across8 sites with stable saved receipt/revision. No Compiler runtime source changed or capture metadata was hand-authored. The original ordinary read remains outside mutation capture. Original born(Create then read) and discard(Delete) still lack association at the existing whole-decline/native site exclusion; their required saved replay remains unfinished, with Compiler/native lifetime as defining owner, not waived by regeneration. Packages owns the affected original D1/reopen consumer and genuine descriptor assertions; finish has actual native capture despite its void result type. The artifact prerequisite is integrated and released at this finite producer scope, not whole shared-gate or original profile acceptance. All precise holds and complete checkpoint remain.
