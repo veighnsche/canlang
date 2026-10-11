@@ -8766,3 +8766,16 @@ producer scope, not preference persistence or full applications. Unchanged
 Loyalty's original IR remains blocked by its unsupported enclosing compact hero;
 Compiler owns that necessary existing-contract prerequisite and the new failing
 original-IR assertion is retained. No new product policy or hold release.
+
+
+### Original compact hero and ungated panels — 2026-10-11 (implemented/tested)
+
+Connect the already accepted compact hero group to installed UI.hero so unchanged
+Loyalty's account/auth scope reaches its exact own bound panels. Preserve children
+and gates; optional checked header captions use the existing sink. Authored
+slots/attributes/empty content stay refused. Original rawIR1/1 and changed native/
+refusal controls now pass;177 affected outcomes and strict0 3.73s qualify this
+finite producer, superseding the preceding unfinished hero failure. Independent
+original body/persistence/browser and guarded option/current joins still require
+their exact producers/owners. Coordinator review is separate; no new product
+policy, full application acceptance or hold release.

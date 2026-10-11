@@ -1782,6 +1782,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "fab"
             | "fieldset"
             | "form"
+            | "hero"
             | "history"
             | "input"
             | "join"
@@ -1844,6 +1845,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             matches!(key, "field" | "tone" | "size" | "variant")
         }
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
+        "hero" => key == "caption",
         "join" => matches!(key, "id" | "orientation" | "variant"),
         "badge" => matches!(key, "value" | "caption" | "tone" | "size" | "variant"),
         "status" => matches!(key, "value" | "caption" | "tone" | "size"),
