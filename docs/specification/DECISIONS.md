@@ -9758,3 +9758,5 @@ and Dev's original installed/browser/durable maximum-work and peak-memory
 qualification remain open; no full parent/security acceptance or hold release.
 
 Coordinator finite CSV preflight/mounted receiver review CLEAR and LOCAL main integration after deadline. Reuse19,608 lexical correspondence inputs,7/7 affected grammar/mounted resource outcomes and owning emits. Dev original generated/browser/durable maximum-work/peak-memory qualification remains unfinished; full-plan counts, precise holds and complete checkpoint unchanged.
+
+2026-10-11 — genuine callback fixture reader boundary (implemented/checked/reviewed). Register only packages/cloudflare/test/native-callback-diagnostics.test.ts consuming compiler/tests/fixtures/callback-diagnostics.can. Reuse Packages52ca immutable actual Dev8a reader and own composed fixture check: zero violations, one exact registered reader. Exact import/source/missing-asset/security refusals retained. Coordinator one-pair source review CLEAR and LOCAL intake after deadline; native callback/original application acceptance is separate.
