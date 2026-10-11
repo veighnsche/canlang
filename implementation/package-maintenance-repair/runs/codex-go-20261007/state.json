@@ -8864,7 +8864,7 @@
     "commit": "9f63a132bdffd8d850fdf3c54205fea416ddd232"
   },
   "execution_process": {
-    "cross_chat_coordinator": "01a11903-6033-78b3-b682-ee7f97196adf",
+    "cross_chat_coordinator": "01a11e6b-f4e1-7603-b47d-9d3210c9c6de",
     "package_owner": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
     "validation": "One direct proportionate layer; reuse unchanged accepted results; repeat only for relevant edits, failures or concrete unresolved risks. No nested proof/review chains.",
     "heavy_capacity": "Serialize only genuinely memory-heavy jobs or output conflicts. Fast private TypeScript builds and focused tests with disjoint outputs require no coordinator approval queue.",
@@ -8878,7 +8878,8 @@
       "source": "Observed automation.toml and coordinator handoff; no duplicate package timer."
     },
     "worker_goals": "Do not create or maintain separate worker goals or supervision; retain task list and substantive implementation under current cross-chat coordinator.",
-    "shared_output_incident": "One delegated wrong-cwd ordinary root build refreshed shared dist/cache (26 tasks,8.327s); ended, reported to coordinator and not credited as qualification. Further validation uses exact private package cwd."
+    "shared_output_incident": "One delegated wrong-cwd ordinary root build refreshed shared dist/cache (26 tasks,8.327s); ended, reported to coordinator and not credited as qualification. Further validation uses exact private package cwd.",
+    "dispatch": "Use the human-requested replacement current execution list in queue.json; missing exact owner outputs and holds are excluded from active Packages dispatch, not global stoppers."
   },
   "released_nested_cleanup": "Committed2266088b: single direct validation instructions, retired nested metadata/snapshots; preserved original product fixtures/results and exact H1 advice. No production reduction or parent completion claim.",
   "ui_values_dependency": {
@@ -10162,6 +10163,21 @@
         "limits": "Only exact consumer/Compiler .can asset pair is registered. Current source scan is clean, and owning Dev full derived-CRUD native journey reaches hash assertions at f8dc. No arbitrary fixture or sibling JavaScript API exception, original Volunteer or whole-plan acceptance.",
         "source_inspection": "Exact Dev7bd/cd2 test reads compiler/tests/fixtures/committed_change.can, asserts a unique insertion needle and authors an explicitly derived CRUD composition. It pins original fixture/compiler/catalog hashes, real native CLI artifact input path/authored hash and complete checked artifact/appDefinition census; original hashes are asserted at journey end. Old failed remove run did not reach that end; coordinator-released same complete f8dc native case now does."
       }
+    },
+    "execution_list": {
+      "status": "Human-requested replacement current execution list saved; not implementation or acceptance.",
+      "source": "docs/research/package-library-audit-20261006/repair-queue/queue.json#current_execution and each existing packet current_execution.packages_execution",
+      "coverage": "All26 remaining packet identities exactly once;22 finished identities remain closed. No canonical IDs or acceptance recipes added/removed.",
+      "next": "DEL-R01 minimum Node22.0.0 genuine isolated declaration/runtime consumer qualification; defining input is the existing node>=22 manifests and earliestengine gap. Existing Node24 permission profile and every producer/consumer assertion retained.",
+      "counts": {
+        "local_ready": 1,
+        "exact_owner_output": 23,
+        "human_held": 2,
+        "remaining_packets": 26
+      },
+      "classification_basis": "Focused read-only review of all26 existing current entries and newer retained component evidence; root owns State/Identity/Files classification, finite Values/Work/delivery partitions reviewed independently. Minimum-engine criterion assessed against actual manifests and existing installed scripts; no behavior check run for planning.",
+      "no_reopen": "Atomic recovery, safe explanations, prepared plain action metadata, TV02/TEW01, EC04, contained query parent ABI and earlier accepted components stay closed. Conditional foreign consumers alone remain.",
+      "scope": "LOCAL Packages worktree only; no push, cloud/replacement chat, feature-owner takeover, new implementation criteria or duplicated audit/task identities."
     }
   }
 }
