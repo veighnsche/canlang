@@ -1140,6 +1140,7 @@ interface QueryExecution {
   activeSlot: ScenarioReceiptQuerySlot | null;
   complete: boolean;
   firstSelected: boolean;
+  countSelected: boolean;
 }
 const queryHandles = new WeakMap<ScenarioReceiptQueryHandle, QueryExecution>();
 const querySlots = new WeakMap<ScenarioReceiptQuerySlot, { execution: QueryExecution; index: number }>();
@@ -1197,8 +1198,8 @@ function requireQueryResult(state: Capture | undefined, returned: ScenarioResult
   if (state?.bound.resultModel !== undefined && (state.modelResult?.returnId !== returned.id ||
       state.modelResult.wire !== result)) return invalid('model return requires its actual privately bound current-stage row and wire.');
   if (returned.projection === undefined) {
-    if (returnQueryIds(returned).some(id => !state?.queries.some(query => query.plan.id === id && query.complete && query.firstSelected))) {
-      return invalid('model query influence requires its actual completed first selection, including empty.');
+    if (returnQueryIds(returned).some(id => !state?.queries.some(query => query.plan.id === id && query.complete && (query.firstSelected || query.countSelected)))) {
+      return invalid('model query influence requires its actual completed first or count consumption, including empty.');
     }
     return;
   }
@@ -2085,7 +2086,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
     const producer = queryProducers.get(call.def as GeneratedOperationDef);
     if (plan === undefined || producer === undefined || producer.app !== call.context.app || state.queries.some(query => query.plan.id === plan.id)) return invalid('one actual execution per checked query occurrence required.');
     const execution: QueryExecution = { call, owner, stage: owner.stage, plan, handle: Object.freeze({}), candidates: [],
-      selectedIndices: [], activeSlot: null, complete: false, firstSelected: false };
+      selectedIndices: [], activeSlot: null, complete: false, firstSelected: false, countSelected: false };
     queryHandles.set(execution.handle, execution); state.queries.push(execution);
     const memberships = scenarioReceiptMemberships(owner.call, store);
     const context = { actorUserId: call.context.actor?.userId ?? null, teamId: call.context.team?.teamId ?? null };
@@ -2155,7 +2156,7 @@ export async function selectScenarioReceiptQueryFirstRow(call: AdmittedCall, sto
     const query = queryHandles.get(input.query);
     if (owner === undefined || state.bound.resultModel === undefined || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || query === undefined || query.call !== call || query.owner !== owner ||
-        query.stage !== owner.stage || !query.complete || query.firstSelected ||
+        query.stage !== owner.stage || !query.complete || query.firstSelected || query.countSelected ||
         !state.bound.plan.returns.some(returned => returned.projection === undefined && returnQueryIds(returned).includes(query.plan.id))) {
       return invalid('first requires its genuine completed singular-model query at the original owner stage.');
     }
@@ -2170,6 +2171,31 @@ export async function selectScenarioReceiptQueryFirstRow(call: AdmittedCall, sto
         [...new Set(state.bound.plan.returns.filter(returned => returnQueryIds(returned).includes(query.plan.id))
           .flatMap(returned => returned.dependencies.filter(dependency => dependency.model === query.plan.model).map(dependency => dependency.field)))]);
       query.firstSelected = true; return row;
+    }, call);
+  } catch (error) {
+    state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true;
+    const issued = queryHandles.get(input?.query); if (issued !== undefined) issued.owner.capture.poisoned = true;
+    throw error;
+  }
+}
+/** Consume an actual count occurrence without performing a first-row read.
+ * The owning query evidence retains every original match and false candidate;
+ * this typed int does not attest native arithmetic or mint query authority. */
+export async function bindScenarioReceiptQueryCount(call: AdmittedCall, store: StoragePort, input: {
+  readonly query: ScenarioReceiptQueryHandle;
+}): Promise<bigint> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    object(input, ['query']);
+    const query = queryHandles.get(input.query);
+    if (owner === undefined || state.bound.resultModel === undefined || owner.busy || state.pending !== 0 || state.returnId !== null ||
+        owner.executingCall !== call || query === undefined || query.call !== call || query.owner !== owner ||
+        query.stage !== owner.stage || !query.complete || query.firstSelected || query.countSelected ||
+        !state.bound.plan.returns.some(returned => returned.projection === undefined && returnQueryIds(returned).includes(query.plan.id))) {
+      return invalid('count requires its genuine completed singular-model query at the original owner stage.');
+    }
+    return await ownerOperation(owner, async () => {
+      query.countSelected = true; return BigInt(query.selectedIndices.length);
     }, call);
   } catch (error) {
     state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true;

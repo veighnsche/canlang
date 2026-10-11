@@ -35,6 +35,11 @@ the selected projected record is insufficient. All original matches, false
 candidates, lazy executed markers and ordering remain saved; query limits still
 refuse overflow. Current full source field and Identity authority are checked
 against actual final effects and saved disclosure without predicate replay.
+`bindScenarioReceiptQueryCount(call, store, { query })` consumes a count-only
+occurrence at that same original stage and derives the exact bigint from the
+private complete matched set. First and count consumption are mutually exclusive
+and once-only per occurrence. Counting requires no first-row read, and cannot
+certify native containment queries or subsequent arithmetic.
 General scalar query influence and other model-result profiles remain unsupported.
 
 `createFileReferenceConsumer` is the owning current File read and retention-fact
