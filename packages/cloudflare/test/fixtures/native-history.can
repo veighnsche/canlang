@@ -1,0 +1,12 @@
+app NativeHistory
+Given
+ Entry {label:text="First",token:secret server=random_secret()}
+ policy Entry read=members
+When
+ crud Entry by=owner fields=label
+ ## Two stages update an existing lifetime at one canonical receipt fence.
+ scenario change_twice(entry:Entry) by=owner
+  do
+   set entry {label="Middle"}
+   set entry {label="Last"}
+Then
