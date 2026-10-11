@@ -1558,7 +1558,7 @@
       },
       "membership_removal_source_consultation": {
         "endpoint": "https://api.typesafe.ai/v1/systemone",
-        "authorization": "Direct verified human authorization for all five workers public Canlang design questions; no code/private data/credentials; all holds preserved.",
+        "authorization": "Human directly approved these exact three saved requests and destination in the current local Packages conversation on 2026-10-11; consultation only, all holds preserved.",
         "requests": [
           {
             "model": "jev-latest",
@@ -1639,21 +1639,94 @@
             }
           }
         ],
-        "responses": [],
-        "status": "transmission blocked by automatic review after verified global-human authorization retry; exact three-request approval pending; independent normative typed contract work continues",
+        "responses": [
+          {
+            "request_index": 1,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "membership_removal_source": {
+                  "type": "choice",
+                  "choice": "atomic_removal_occurrence",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "atomic_removal_occurrence": 1.0,
+                    "durable_removal_intent": 0.0,
+                    "require_external_atomic_output": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1086,
+                "output_tokens": 59
+              }
+            }
+          },
+          {
+            "request_index": 2,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "membership_removal_source": {
+                  "type": "choice",
+                  "choice": "atomic_removal_occurrence",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "atomic_removal_occurrence": 1.0,
+                    "durable_removal_intent": 0.0,
+                    "require_external_atomic_output": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1091,
+                "output_tokens": 59
+              }
+            }
+          },
+          {
+            "request_index": 3,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "membership_removal_source": {
+                  "type": "choice",
+                  "choice": "atomic_removal_occurrence",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "atomic_removal_occurrence": 1.0,
+                    "durable_removal_intent": 0.0,
+                    "require_external_atomic_output": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 1094,
+                "output_tokens": 59
+              }
+            }
+          }
+        ],
+        "status": "Completed exactly three approved independent equivalent requests; all select atomic_removal_occurrence, advice only.",
         "automatic_review_rejections": [
           "Initial request rejected: treated source-derived Identity architecture/removal semantics as internal, and authorization as Office-only.",
           "Identical retry after fresh direct human-message read rejected: said retrieved authorization was untrusted tool output and not exact payload/destination approval. No bypass; exact request asked of human."
         ],
-        "authorization_evidence": "Fresh read of original userMessage01a12ac7-94ee-7af3-8d38-d9799f4a4b44 in local thread01a12824-7fa9-7302-a503-b0e9662c2687: human authorizes all five workers to send open-source Canlang design questions to JEV. Automatic review still rejects this membership-removal transmission.",
-        "coordinator_retry": "Same three saved request objects at /private/tmp/canlang-membership-removal-public-requests.json were denied by automatic approval review before execution despite verified direct Canlang JEV authorization. No transmission or advice result claimed. Exact human approval request is pending in coordinator chat; independent ready work continues."
+        "authorization_evidence": "Current direct human answer: Approve these three requests, explicitly tied to packet_state.TECH-I01.membership_removal_source_consultation.requests and https://api.typesafe.ai/v1/systemone. Prior automatic-review rejections are retained as history; this exact authorization allowed execution.",
+        "uncertainty": "jev-1.13.0 selected atomic_removal_occurrence in all three requests, each confidence1.0/probability1.0; no wording disagreement. These immutable requests describe the original pre-implementation facts, so advice supports the bounded batch choice at that stage, not current code correctness or whole workflow acceptance. Confidence is a distribution property, not empirical proof. Existing Identity emission/31 controls/source review are reused; exact technical replay authorizes no new work. Dev trusted host/namespace/cause and current native ingress/receiving-handler authority, Compiler source and broader J2 remain external; all holds unchanged.",
+        "executed_at": "2026-10-11T17:05:14.653798+00:00",
+        "interpretation": "Retain the already released optional atomic occurrence-and-cascade implementation. No source change, new carrier, acceptance expansion, native rerun or hold release follows from this consultation.",
+        "usage_total": {
+          "input_tokens": 3271,
+          "output_tokens": 177
+        }
       },
       "membership_removal_source_prerequisite": {
         "owner": "Packages Identity/Contracts defining removal occurrence; trusted host operation/namespace producer; Compiler source lowering; Dev native ingress consumer",
         "verified_gap": "Existing removeMember has genuine target membership/team/user and owner remover, but separate unfenced removal/grant/invitation calls, no stable operation/namespace input, durable occurrence or rollback/recovery output. Adding raw event.user or an after-commit callback cannot supply required original event semantics.",
         "next_action": "Defining optional atomic removal/retained occurrence is implemented and qualified below. Dev must supply trusted host authentication, namespace and stable original operation cause, real D1 batch adapter/mirror and original durable ingress/handler consumer; Compiler must lower original typed source. Existing broader J2 remains external.",
         "acceptance": "Actual original Identity winning removal retains exact removed subject/team/current principal/trusted namespace/causation, one event identity for exact retry, no event after rollback or unauthorized/last-owner refusal; original recovery/re-admission semantics and native consumer honestly scoped.",
-        "hold_limit": "Only this new external consultation payload is pending approval; existing source/adoption/native/publication holds remain exact. Common fixture repair already committed823 and handed to coordinator; unsupported provider-void remains skipped."
+        "hold_limit": "Exact consultation approved/executed and advice retained; source/adoption/native/publication holds remain exact. Unsupported provider-void remains skipped."
       },
       "membership_removal_subject_contract": {
         "status": "implemented_tested_reviewed_contract_only_in_LOCAL_main; atomic_occurrence_source_unfinished",
@@ -1698,7 +1771,7 @@
             "prerequisite": "Checked original teams.member_removed source lowering consumes Contracts8208 exact removed-subject UserRef/team/membership and durable original envelope, preserving original account/author comparisons."
           }
         ],
-        "acceptance_limit": "Optional bounded global-Identity command only; legacy mutation remains unfenced at its recorded scope. No generic event bus, cross-database J2 acceptance, real workerd batch/native handler qualification, hold release or push. JEV transmission restricted/no advice; source engineering choice was released separately.",
+        "acceptance_limit": "Optional bounded global-Identity command only; legacy mutation remains unfenced at its recorded scope. No generic event bus, cross-database J2 acceptance, real workerd batch/native handler qualification, hold release or push. Approved exact JEV3 all choose atomic removal occurrence; advice supports the original bounded choice only, with engineering checks reused and no scope expansion.",
         "coordinator_review": "Independent defining source review CLEAR: conditional current owner/target/last-owner INSERT, same-batch winner-token cascades, exact retained replay without new authority/effects, rollback/reopen/lostACK/delayed loser controls. Identity emission0/real SQL owning31 reused; changed current integration Identity/CF/root type closure0. Native mirror/real batch host binding/ingress admission remain Dev-owned and unaccepted; no broad J2 or hold release."
       }
     },
