@@ -1,5 +1,81 @@
 # Remaining CanLang work
 
+## Current four-plan execution view — 2026-10-11
+
+This view reconciles the four requested plans at local main
+`d11745e10d240c7e3185fcfc5f67dc8343d06da8`. Their task entries remain authoritative
+for detailed actions and evidence; this index supplies ownership and execution
+order, not a second task ledger. Active/unmerged worker changes are not accepted
+by this snapshot. Apply [finite execution](../AGENTS.md#finite-execution).
+
+| Plan | Remaining at its declared scope | Authoritative execution entry |
+| --- | --- | --- |
+| Packages | **28 of 48 selected packets unfinished:** 15 partial, 12 open, 1 human-held. The packets reference 100 distinct existing canonical IDs; this is not completion of the original 333 duties. | [Queue](../docs/research/package-library-audit-20261006/repair-queue/queue.json): top-level `current_execution` and each existing packet's `current_execution`. Historical `ready` and authorization fields are labeled separately. |
+| Compiler | **9 of 67 canonical references unfinished; 58 finished at recorded scope.** OR-06, OUT-R05, S9-Q01, S9-Q02, S9-Q05, S9-Q07, S9-Q08, SEM-R05, SEM-R08. They overlap across shared producers, consumers, decisions and holds. | [Current remainder](compiler-completion/README.md#current-remainder-and-finite-completion); local work-row labels index residuals without adding canonical tasks. |
+| Capability | **31 of 63 task stages unfinished; 32 accepted stages.** SEQ-005, 010, 011, 021, 022, 024–027, 037–040, 042–048, 051–054, 057–063: 20 contract/implementation/qualification tasks, seven conditional/deferred gates, four cycles attached to actual releases. Stage acceptance is not whole-product acceptance. | [Roadmap](capability-roadmap-20261008/README.md) current execution view reconciles sequence requirements with the coordinator's execution state and later component outcomes. |
+| Can dev server | **T04 and T11 have explicit first-slice implementation/qualification gaps; G2 and G3 remain open.** Other T00–T13 producer/consumer results are reused at their scope; final criterion closure still follows G2. G1 has a recorded passing shared-join result. | [Declared first-slice remainder](can-dev-server/PLAN.md#current-execution-finish-the-declared-first-slice), including existing platform handoffs outside Office supplies. |
+
+These counts use different task/stage units and share outcomes. **Do not sum
+them into an independent-job count, progress percentage or estimate.** An
+accepted output can satisfy several existing references without several new
+implementations, tests or reviews. Historical records below retain their own
+dates and authority; they do not freeze current workers or override these plans.
+
+### Dependency order and independent lanes
+
+1. **Resolve only actual defining gaps.** Packages publishes its selected finite
+   contract/host/resource outputs; Compiler and Capability resolve the named
+   source, membership, event-identity or policy decisions needed by an existing
+   workflow. Obtain the concrete output instead of waiting for an entire plan.
+   Routine reversible implementation choices use the existing contract; difficult
+   design decisions use the existing three-request JEV rule and record advice
+   and uncertainty once. Unspecified wider profiles remain bounded decision
+   gates, not implementation mandates.
+2. **Release connected producers.** Compiler emits checked original
+   declarations/sites/types; Capability supplies actual State/Work
+   authority, observation, persistence and commit-lifetime behavior; Packages
+   owns shared codecs, adapters and gates. Keep sole writers for shared files.
+   Evidence of an already accepted component is a reusable input, not a new
+   intake-only task.
+3. **Connect the missing real consumer.** Dev/UI/Interfaces/Testkit use the
+   actual generated source and owning producer. Finish only the named
+   caller/host/profile and its current authority, order, failure/replay and
+   cleanup criteria. Correct failures in their defining owner. Components may
+   proceed while unrelated policy, original-app, preparation or provider gates
+   are held.
+4. **Finish Office independently.** T04's source-grounded eligible diagnostic
+   branch unlocks T11; exact external-packet authorization gates transmission.
+   Then G2 joins Office A1–A6, followed by the finite G3/A7 study. Files,
+   providers, composed apps, schedules and deployment are outside the declared
+   first slice and do not block it. Retain their existing platform tasks.
+5. **Close selected outcomes once.** Reuse valid results, run changed integration
+   joins proportionately, and perform the required independent final review on
+   the real released scope. A review finding receives its affected correction
+   check; a review verdict does not receive another review packet. Failed support
+   trials are reported with their original denominators rather than repeated
+   until a desired result appears.
+
+### Finishability and preserved release conditions
+
+The package queue's declared dependencies are acyclic. Cross-plan reciprocal
+joins are staged as defining contract → producer → consumer → affected outcome;
+consumer feedback may identify a concrete correction, but does not create a
+whole-plan waiting cycle. The terminal-completion join is now qualified Dev original private late-write
+rollback/replay → Compiler supported public Email publication → Dev changed public
+receiving case. Reviewed8c/main758 satisfies the original private outcome; it
+must not be reopened or wait for that final publication.
+
+Every remaining entry must name a finite deliverable, accountable owner,
+concrete prerequisite and observable exit. If its original requirement does not
+yet select the source/profile/outcome, the next deliverable is that decision and
+its release condition. The full program cannot honestly be declared complete
+while human BDD3/Task22/native preparation, excluded source edits, exact external
+packet disclosure, provider/data/installed-host or other recipient-specific
+gates remain unresolved. This planning refresh preserves them; it neither
+requests their release nor authorizes product implementation or publication.
+
+## Historical consolidated inventory — 2026-10-06
+
 Reconciled from the old three-plan lists against consolidated main `7fd8c6bf4717feeffc70b46819377b74b353e117` on 2026-10-06 (Europe/Brussels). The old checklists and contracts are preserved. Counts and machine task assessments below retain that historical snapshot; the post-migration qualifications below identify newer evidence to reuse before assigning work. This index does not restart implementation.
 
 **Completed scoped first priority:** [package boundaries and Bun/Turborepo](PACKAGE-BOUNDARIES-AND-TURBO.md), committed through main `309644a6881909d8dba32560bc6711f67e00a7ab`, with [independent local migration acceptance](turbo-scheduling/evidence/final-acceptance/migration/README.md). Native discovery/checker probes, package dependencies/exports/producer builds/cycles, installed Worker assets, Turbo cache correctness and local CI/release/documentation cutover are credited at their exact evidence scope. Original native/product/installed-host parents remain open.
@@ -55,7 +131,7 @@ This is a dependency-aware set of work areas, not a new fixed lane allocation. U
 
 ## Execution state
 
-All eight Muse instances remain stopped and the heartbeat remains PAUSED. There are no current lane assignments. This inventory does not create goals, sessions, worktrees, timers or command grants. D’s artifact-preparation port stays human-held. Old runtime IDs, queued-message banners, startup checkboxes and deadlines are historical rather than current dispatch authority.
+At this October 6 historical snapshot, all eight Muse instances were stopped and the heartbeat was PAUSED; there were no lane assignments for that run. These are historical facts, not a stop instruction for the four existing local workers. This inventory creates no goals, sessions, timers or command grants. D’s artifact-preparation port stays human-held. Old runtime IDs, queued-message banners, startup checkboxes and deadlines are historical rather than current dispatch authority.
 
 ## Reconciliation verification
 

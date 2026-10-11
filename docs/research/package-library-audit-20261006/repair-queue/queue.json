@@ -102,6 +102,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "values",
+        "accepted_scope": "accepted narrow reduction; committed 511ecd7",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V01-values"
       }
     },
     {
@@ -206,6 +212,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "work-kernel",
+        "accepted_scope": "accepted narrow reduction; committed 414c16a",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V01-work"
       }
     },
     {
@@ -320,6 +332,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "work-kernel",
+        "accepted_scope": "accepted narrow reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W01-quote"
       }
     },
     {
@@ -438,6 +456,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "work-kernel",
+        "accepted_scope": "independently accepted finite extraction; committed bf075707",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W01-uri"
       }
     },
     {
@@ -562,6 +586,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Values and owning Compiler/serving consumer",
+        "accepted_scope": "Independently accepted owned JSON correction committed d4b041fb; genuine factory/default joins open",
+        "next_action": "Release the genuine descriptor/source owner/revision registration and complete scalar/default carrier and lifetime seam; consume accepted owned-JSON and registration-atomic corrections.",
+        "done_when": "Actual serving registration preserves decimal/default identity and rejects forged schemas, mutation and partial registration under the existing recipes.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V03"
       }
     },
     {
@@ -753,6 +786,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Values TS/Rust and selected supported consumer owners",
+        "accepted_scope": "Finite conformance record hygiene accepted; actual current Wasm prerequisite recorded; production codec/error/lossless/profile/retirement joins remain open",
+        "next_action": "Freeze the smallest existing codec family, public error/carrier and supported-host domain; release joint capacity/startup/retirement semantics before implementation. Keep explicit UTF16 exclusions until their lossless carrier exists.",
+        "done_when": "Selected production decode route preserves ordered values/errors and rejects duplicate tuples or startup/capacity failure; only the explicitly selected released host matrix is qualified.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V04"
       }
     },
     {
@@ -877,6 +919,15 @@
         "implementation_scope": "full substantive join or contract-qualified implementation",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "held-payload-and-external-host",
+        "owner": "Values contract/release-host owners; human for exact held payload",
+        "accepted_scope": "Local source-current host/currency/cache comparisons complete and released; timezone key-equivalence/retention-budget policy remains unselected under its exact consultation payload hold, supported release-host/data gates open.",
+        "next_action": "Do not resend the held timezone consultation. On its explicit release select raw-key equivalence/retention policy; obtain supported ICU/tzdb/currency identities from the actual release-host owner. Reuse completed Node/Bun/cache comparisons.",
+        "done_when": "Existing timezone/calendar/decimal corpus passes on the declared supported data identities, and alias-heavy keys meet the released memory bound without changing public values.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05"
       }
     },
     {
@@ -998,6 +1049,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "state",
+        "accepted_scope": "accepted private mechanical reduction; committed 78ff635",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S01"
       }
     },
     {
@@ -1111,6 +1168,12 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "state",
+        "accepted_scope": "accepted adapter correctness; committed e8c64bc",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S01-own-key"
       }
     },
     {
@@ -1235,6 +1298,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Capability/State owning projection; Dev public/native consumer; Packages shared gate only",
+        "accepted_scope": "independently accepted finite metadata/selector correction; committed89d885a9",
+        "next_action": "Consume released State/Work framework, authored delivery and Identity snapshot inputs. Finish current-authority first-success/read/replay disclosure on the original generated caller; keep legacy/result/lifetime profiles separate.",
+        "done_when": "Original generated HTTP/query/replay caller retains useful authorized fields, hides random_secret and hidden ordinary fields, and replays without repeating effects under existing negative controls.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02"
       }
     },
     {
@@ -1350,6 +1422,15 @@
           "consequential-owner-store-contract-if-selected"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "State/Dev owner-to-store routing integrator",
+        "accepted_scope": "verified conditional mixed-store witness; trusted owner-to-store contract still required",
+        "next_action": "Extend the accepted team-owner D1 routing to the existing app/mixed-root/page/MCP paths using the genuine resolved owner; release the exact deployment binding if absent.",
+        "done_when": "Selected real routes read/write only their resolved owner, preserve explicit public exceptions and refuse unknown/mixed binding before effects.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S03"
       }
     },
     {
@@ -1485,6 +1566,15 @@
         "implementation_scope": "full substantive join or contract-qualified implementation",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Work/State child lifecycle and Dev installed source consumer; resource owners separately",
+        "accepted_scope": "Partial: retained membership, mixed matching handlers and the default installed team-cohort Worker consumer are accepted at their actual source/host scope; broader resource, owner enumeration and original T26 lifecycle joins remain open.",
+        "next_action": "Reuse accepted cursor/fresh-facts/atomic checkpoint, durable restart and default team-cohort Worker results. Finish the original source-app/app-root owner enumeration and selected T26 lifecycle consumer; hand resource policy to S04 rather than redefining it here.",
+        "done_when": "Original selected consumer preserves terminal-prefix progress, fresh B effects, same-child atomic checkpoint, retained membership and unknown read-failure semantics; existing durable outcomes are reused.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W02"
       }
     },
     {
@@ -1763,6 +1853,15 @@
         "implementation_scope": "full substantive join or contract-qualified implementation",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Work-kernel synchronous producer and Dev installed/durable integrator",
+        "accepted_scope": "blocked on packet prerequisites",
+        "next_action": "Select one existing native decision family and release its TS facade, demanded-facts protocol, synchronous ABI/bootstrap/assets and actual host consumer. Do not expand to all registered functions or choose a backend default.",
+        "done_when": "That one released whole-call family preserves f64/presence/alias/cursor/callback demand behavior and single owner staging/conditional commit; existing refusal/fallback negatives remain.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W03"
       }
     },
     {
@@ -1896,7 +1995,16 @@
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
-      "implementation_reference": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state.TECH-I01.bounded_membership_release"
+      "implementation_reference": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state.TECH-I01.bounded_membership_release",
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Identity/Contracts J2 transaction owners; Capability and Dev consumers",
+        "accepted_scope": "Bounded coherent Identity producer, accepted State multi-member saved-disclosure source and installed Dev D1 mirror are released; whole J2/native parent obligations remain open.",
+        "next_action": "Resolve J2 database/transaction placement, mutation fence or supported batch/guard ownership and recovery/last-owner winner semantics. Bounded membership, State saved disclosure and installed mirror are available, not missing prerequisites.",
+        "done_when": "Genuine authoritative store proves one contender wins, loser cannot mint, completed revocation and each selected crash/replay phase retain original policy; no cross-database atomicity inferred.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I01"
+      }
     },
     {
       "family": "IDENTITY / INTERFACES",
@@ -2042,6 +2150,15 @@
           "persisted-security-and-timing-contract-if-changed"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Identity/Interfaces browser/security contract; Dev mounted consumer",
+        "accepted_scope": "independently accepted finite S256 issuance; committed1eeedb6d",
+        "next_action": "Release the existing browser presession/body/Origin/CSRF versus nonbrowser profile and revoke-during-effect outcome; reuse accepted S256 issuance.",
+        "done_when": "Mounted OAuth/browser/nonbrowser consumers retain canonical challenge/verifier/redirect failures and reject hostile origin/presession/body under the released profile without claiming a pre-invoker check is a commit fence.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I02"
       }
     },
     {
@@ -2172,6 +2289,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "external-host-contract",
+        "owner": "Actual deployment/storage/provider host owner; Dev consumes",
+        "accepted_scope": "Finalization/publication/reopen/retention and required offset producer/Interfaces/UI plus finite actual native consumers are implemented/tested/manually reviewed; live external-host/concurrent/power-loss and full parent qualification remain open.",
+        "next_action": "Obtain the declared R2/mounted concurrent-store serialization and interruption/power-loss publication contract and one actual-host qualifier. Required offset/UI/native inputs and serial FS/SQLite finalization/reopen are already available.",
+        "done_when": "On that declared actual host, exact range retry and each original publication interruption either recover the same finalized identity or refuse before immutable acceptance; serial outcomes are not credited as external concurrency.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01"
       }
     },
     {
@@ -2347,6 +2473,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Capability State/Work persistence/census; Compiler typed source; Dev capture/host; Packages ingress adapter",
+        "accepted_scope": "Reviewed State permanent admission/framework/migration/activation source and Files physical cleanup are available; genuine persisted D1 -> Files SQLite consumer implemented/tested for finite coordinator review. Dev all-writer/native/reopen and authenticated ingress dependencies remain; full parents and holds unchanged.",
+        "next_action": "Use released State retirement, Work inventory, Files mechanics, genuine D1-to-SQLite qualifier and finite Dev deletion/reopen outputs. Next finish checked opaque historical declarations/defaults and genuine original receiving capture across State/Work/Compiler/Dev. Separately obtain Dev binding/key/namespace/age and provider-signature profile, then implement per-adapter verification and durable occurrence/delivery/digest/effect correlation.",
+        "done_when": "Original selected shared-reference/opaque workflow retains complete source/type/path and authority correspondence across reopen/migration and refuses retired/missing/foreign/replayed inputs; fresh verified provider event finalizes once. Existing deletion/scalar/collection results remain reusable.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F02"
       }
     },
     {
@@ -2456,6 +2591,12 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "services",
+        "accepted_scope": "independently accepted finite configured UTF8-byte/cancel-identity correction; committed a73df865",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV01"
       }
     },
     {
@@ -2609,6 +2750,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Services provider owner; Capability Work/Dev control-progress consumer",
+        "accepted_scope": "Independently accepted finite stream cancellation-wait correction committed8c8daeb9; broader services open",
+        "next_action": "Reuse accepted stream cleanup and existing immutable maxDurationMs control-window verdict. Consumer persists one creation anchor/deadline and bounds the complete observation including durable waits; separately release safe explanation/evidence lifetime and media jobId recovery correspondence.",
+        "done_when": "Selected actual control consumer cannot renew its window or overwrite late success, reconciles original identity truthfully as succeeded/failed/unknown, and preserves secrecy and cancellation uncertainty.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02"
       }
     },
     {
@@ -2722,6 +2872,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Services/Files submitted graph domain and digest owner",
+        "accepted_scope": "Source-current caller/domain witnesses complete; consequential host/digest contract remains blocked",
+        "next_action": "Release whether the actual submitted media graph is JSON-source or arbitrary-JS and the exact identity/digest domain using the saved actual caller witnesses; no generic serializer substitution.",
+        "done_when": "The original effect submits the same graph that is hashed, preserves retry identity and rejects the released invalid accessor/toJSON/undefined/nonfinite profiles before provider effect.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV03"
       }
     },
     {
@@ -2846,6 +3005,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "services, testkit",
+        "accepted_scope": "accepted private reduction; committed 4d6a781",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV04"
       }
     },
     {
@@ -2963,6 +3128,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "cloudflare",
+        "accepted_scope": "accepted exact shared TS phase extraction; committed dda0ef6",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D01"
       }
     },
     {
@@ -3058,6 +3229,12 @@
         "implementation_scope": "tightly specified technical leaf only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "cloudflare",
+        "accepted_scope": "accepted narrow reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D02"
       }
     },
     {
@@ -3194,6 +3371,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Interfaces CSV resource/current-context owner; Dev installed/browser/durable consumer",
+        "accepted_scope": "Partial: scalar mapping/decoded duplicates, checked date and genuine bounded-alias CSV admission implemented/tested; resource/installed/durable joins open",
+        "next_action": "Select the existing SR02 preallocation row/cell/raw-byte/depth profile and finish the original current-context consumer. Reuse scalar/date/bounded NAME-alias admission; no new equal-normalized witness is demonstrated for those aliases.",
+        "done_when": "Selected mounted/installed CSV caller retains existing blank/default/int64/duplicate semantics and refuses hostile headers/protected paths and resource excess before parser allocation under the released profile.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C01"
       }
     },
     {
@@ -3326,6 +3512,15 @@
           "C03-critical-consent-authority-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Interfaces/UI/Identity review contract; Capability scenario and Dev workflow consumer",
+        "accepted_scope": "Partial: existing CRUD and bounded plain-scenario replay-age delegation implemented/tested; frozen review context/integrity/per-row authority and complete parent qualification remain blocked.",
+        "next_action": "Resolve frozen app/user/team/session/time/expiry and selected private/signed review integrity and per-row authority. Consume existing CRUD/plain-scenario replay and signed CRUD recovery; signed scenario restoration remains a distinct IP07 join.",
+        "done_when": "Actual mounted review commits exactly frozen selected inputs and context, rejects tamper/foreign/expired review before effects and preserves invalid/duplicate/unselected/partial/unknown outcomes and original row order.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02"
       }
     },
     {
@@ -3450,6 +3645,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "interfaces",
+        "accepted_scope": "accepted finite source-row ordering; committed b52a337",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02-order"
       }
     },
     {
@@ -3562,6 +3763,15 @@
         "implementation_scope": "full substantive join or contract-qualified implementation",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "UI and owning emitted markup/initializer producer; Dev browser consumer",
+        "accepted_scope": "Partial: accepted synchronous cleanup and actual staged readonly Chrome page visibility/polling consumer3798f9b1; wider initializer/async disposal/browser/installed profiles remain open.",
+        "next_action": "Settle the existing initializer/selector association and logical versus physical cancellation/resource contract, then qualify the affected emitted browser lifecycle. Reuse accepted synchronous cleanup and real visibility/polling cases.",
+        "done_when": "Actual markup hooks acquire/dispose once and pause/resume/stop/detach/rescan/settle correctly; body-await logout/context changes cannot apply stale views and hook throw cannot strand prior resources.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B01"
       }
     },
     {
@@ -3728,6 +3938,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Dev configured host/router; Compiler app_url lowering; UI/Interfaces/Files browser sinks",
+        "accepted_scope": "Independently accepted immutable asset-table correction committed61e49955; parent mounted/browser/export/print gates open",
+        "next_action": "Consume accepted trusted deploymentBase/context helper. Connect actual host origin/mount configuration, checked Compiler call lowering and mounted route/form/auth/asset/resource producers; finish selected auth/files/export/print journey and released URL lifetime/sink policy.",
+        "done_when": "Original mounted browser journey serves real assets, upload retry/finalized progress and authorized download/print, rejects tainted or expired/revoked/missing resources and does not report body-read failure as success.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02"
       }
     },
     {
@@ -3881,6 +4100,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Dev/Cloudflare command/resource and returned-URL owner",
+        "accepted_scope": "Independently accepted planned ancestry preflight committed 788e5352; wider lifecycle/sidecar/installed gates open",
+        "next_action": "Reuse accepted ancestry, scratch cleanup and primary-error preservation. Release the existing child/whole-command bound and returned-run-URL lifetime, then qualify the selected sidecar/race/partial-write cases.",
+        "done_when": "Contained real output and promised URL remain useful; symlink/phase-failure controls preserve cleanup and original failures, and uncertain Wrangler outcomes never become automatic retry/no-effect.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D03"
       }
     },
     {
@@ -4020,6 +4248,15 @@
           "D04-critical-staged-diagnostic-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Dev/Cloudflare graph/map owner and Compiler artifact producer",
+        "accepted_scope": "Partial: accepted line terminator, unchanged installed staged diagnostics and qualified library CommonJS syntax/binding replacement; namespace/provenance and wider gates open.",
+        "next_action": "Release the existing disjoint emitted namespace/source-map correspondence; finish the selected installed diagnostic and lexer/map error-order caller using current emitted inputs. Preserve accepted line-terminator/CommonJS and staged diagnostic results.",
+        "done_when": "Actual installed diagnostic identifies the original coordinate, preserves tie/order/errors and refuses bootstrap/manifest collisions or invalid loadability before publication.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D04"
       }
     },
     {
@@ -4263,6 +4500,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "human-held",
+        "next_work": "human-held",
+        "owner": "Human native preparation release; Cloudflare/Dev protocol owner after release",
+        "accepted_scope": "held",
+        "next_action": "Preserve P03-P11/D05/Q10/EX12-13 preparation HOLD: no activation/publication/default. Only after explicit release, implement the original selected aggregate resource/protocol/reviewed-byte snapshot gates.",
+        "done_when": "No completion claimed while held. After release the original finite budget/protocol/keyset/byte-snapshot and partial-effect/cleanup recipes must pass; no TS retry or semantic-cap peak-bound claim.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D05"
       }
     },
     {
@@ -4446,6 +4692,15 @@
         "implementation_scope": "full substantive join or contract-qualified implementation",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Dev delivery/release and owning package supported-host consumers",
+        "accepted_scope": "Finite staged runtime/asset/public consumer prerequisites accepted, latest input-choice module/bundle correction3798f9b1; complete release/dependency/supported-host/installed/native qualification remains open.",
+        "next_action": "Reuse current isolated installed declarations/Worker/assets and authored delivery joins. Enumerate only existing selected entry/host requirements and finish their source/lock/tool/emit/pack/consumer correspondence; obtain owning V04/W03 output per selected family without waiting for whole plans.",
+        "done_when": "Each declared selected entry runs its genuine installed dependency closure and supported-host controls with current provenance; stale self-consistent artifacts cannot claim current release. Native preparation remains excluded while held.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01"
       }
     },
     {
@@ -4614,6 +4869,15 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Testkit/Values/State fixture owner; Compiler selector producer; Dev row-cell consumer",
+        "accepted_scope": "Partial: accepted table disposal, DO audit reset, caller scratch cleanup and outside-checkout public runner disposal workflow",
+        "next_action": "Reuse accepted disposal/reset/scratch and checked selector-channel fixes. Finish only the existing conditional EC item whose exact oracle/loader/type/installed gate is available; consume declaration-derived Compiler and Dev selector channels. Leave held TV04/05 untouched.",
+        "done_when": "Original comparator/cleanup errors remain observable; every selected cleanup retains reconstructible independent donor/source and real substrate controls. No oracle expectation edits, evidence deletion or new hash/proof chain.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-E02"
       }
     },
     {
@@ -4722,6 +4986,15 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Interfaces/UI/Identity signed scenario restoration; Capability/State disclosure; Compiler and Dev consumers",
+        "accepted_scope": "Checked CRUD and bounded plain checked-scenario HTTP/CSV retained delegation implemented and affected local checks passed; full packet remains partial pending broader current authority/disclosure/installed/native gates.",
+        "next_action": "Resolve expired signed SCENARIO restoration using its original caller; ordinary scenario lease remains age-refused. Consume released CRUD/plain-scenario replay, signed CRUD recovery and coherent Identity/State source, then finish broader legacy/query/secrecy/row-lifetime consumer correspondence.",
+        "done_when": "Actual retained matching receipt replays under current authority with no repeated effect; unseen expired IDs, changed input and revoked secret access refuse. Frozen review integrity stays with C02.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/REPLAY-IP07"
       }
     },
     {
@@ -4815,6 +5088,12 @@
         "implementation_scope": "tightly specified technical leaf only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "contracts, interfaces",
+        "accepted_scope": "accepted mounted correctness repair; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/PARSER-DP01"
       }
     },
     {
@@ -4948,6 +5227,15 @@
         "implementation_scope": "frozen mechanical/record slice only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "partial-selected-packet",
+        "next_work": "ready-consumer-join",
+        "owner": "Identity/Values/Work-kernel owning runner and selected native/installed consumer",
+        "accepted_scope": "Identity/Work/Values narrow discovery repairs independently accepted; broader original gates open",
+        "next_action": "Reuse accepted discovery and refreshed donor parity (Identity14/Work9/Values30). Attach only the missing genuine consumer provenance to the existing exact reader/observation gate; do not audit the audit or create a second inventory.",
+        "done_when": "Existing owning runner honestly discovers/excludes original tests; missing test/stale dist/changed actual observation fails without changing independent expectations.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/VERIFY-TV01"
       }
     },
     {
@@ -5054,6 +5342,12 @@
         "implementation_scope": "tightly specified technical leaf only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "values",
+        "accepted_scope": "accepted private-leaf reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V02-violations"
       }
     },
     {
@@ -5160,6 +5454,12 @@
         "implementation_scope": "frozen mechanical/record slice only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "values",
+        "accepted_scope": "accepted narrow extraction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V02-gregorian"
       }
     },
     {
@@ -5320,6 +5620,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Capability State/Work admission/resource contract",
+        "accepted_scope": "blocked on packet prerequisites",
+        "next_action": "Select the existing pre-hash/copy canonical byte/depth/node/work bound and exact refusal point for its original caller; do not invent global thresholds or wait on query/cohort policies.",
+        "done_when": "Boundary-valid inputs preserve identity/order/authority and hostile huge/deep inputs refuse before excessive allocation/hash at the released admission boundary.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-admission"
       }
     },
     {
@@ -5481,6 +5790,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Capability State/Work plus actual D1/DO/storage driver owner",
+        "accepted_scope": "Accepted internal per-call viewer selection prerequisite; focused17/17, actual engine projection/archive/fence and admission order retained. Broader task remains open.",
+        "next_action": "Release the selected query/full-scan/recovery budget and refusal/continuation profile. Reuse accepted per-call viewer selection and existing fence/projection/admission outcomes.",
+        "done_when": "Selected actual driver preserves continuation/order/fence and no partial published progress; tiny returned limits cannot mask unbounded scan work.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-query"
       }
     },
     {
@@ -5641,6 +5959,15 @@
           "existing-critical-security-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "ready-owner-contract",
+        "owner": "Capability State and Dev fanout/resource owner",
+        "accepted_scope": "blocked on packet prerequisites",
+        "next_action": "Release finite frozen-membership representation/load/validation and durable continuation for the existing cohort consumer. Keep admission/hash/query policies independently owned.",
+        "done_when": "Original admitted child order/identity, membership and progress bytes persist; hostile cohort refuses before unbounded representation or checkpoint bypass.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-cohort"
       }
     },
     {
@@ -5755,6 +6082,12 @@
         "implementation_scope": "frozen mechanical/record slice only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "ui",
+        "accepted_scope": "accepted narrow extraction; committed 890fc3b",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-U01-appearance"
       }
     },
     {
@@ -5861,6 +6194,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "ui",
+        "accepted_scope": "accepted private reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-U01-draft"
       }
     },
     {
@@ -5992,6 +6331,12 @@
         "implementation_scope": "frozen mechanical/record slice only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "ui",
+        "accepted_scope": "accepted private-leaf reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-A01-error"
       }
     },
     {
@@ -6121,6 +6466,12 @@
         "implementation_scope": "tightly specified technical leaf only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "interfaces",
+        "accepted_scope": "accepted private-leaf reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-A01-binding"
       }
     },
     {
@@ -6252,6 +6603,12 @@
         "implementation_scope": "tightly specified technical leaf only",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "interfaces",
+        "accepted_scope": "accepted private reduction; committed",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-A01-admission"
       }
     },
     {
@@ -6383,6 +6740,12 @@
         "implementation_scope": "ordinary bounded implementation/qualification",
         "special_review_gate_refs": [],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "finished-selected-packet",
+        "owner": "interfaces",
+        "accepted_scope": "accepted private reduction; committed b055ca6",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-A01-canonical"
       }
     },
     {
@@ -6578,6 +6941,15 @@
           "R03-final-selected-critical-review"
         ],
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      },
+      "current_execution": {
+        "disposition": "open-selected-packet",
+        "next_work": "waiting-selected-handoffs",
+        "owner": "Existing independent R01/C01/selected critical reviewer",
+        "accepted_scope": "blocked on packet prerequisites",
+        "next_action": "Review each actually released affected producer/consumer chain once; prepare the final joined critical review after its selected inputs arrive. The historical all-packet edge is final aggregation, not a barrier to implementation or independent component handoff.",
+        "done_when": "Existing selected critical invariants and failure/rollback controls pass on matching actual callers and hosts; record explicit conditional/held/prototype limits. No helper-only parent acceptance or review-of-review.",
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/FINAL-R03"
       }
     }
   ],
@@ -7564,5 +7936,33 @@
     "subsequent_allocation_amendment": "User requested most economical reliable implementation/review settings. Only delegation/historical-role metadata added; prior structural/coverage review remains at its original recorded hashes. Separate bounded allocation consistency review recorded in model-allocation-review.json."
   },
   "model_allocation": "model-allocation.json",
-  "execution_progress_record": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state"
+  "execution_progress_record": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state",
+  "historical_planning_scope": {
+    "fields": [
+      "base",
+      "execution_authorized",
+      "stage",
+      "ready_definition",
+      "counts",
+      "review",
+      "model_allocation"
+    ],
+    "meaning": "These retained fields describe the reviewed planning snapshot, not current dispatch authorization or implementation acceptance. In particular false execution_authorized and 20 ready/27 blocked/1 deferred are historical planning metadata.",
+    "packet_fields": "status, readiness, execution_authorized, owner_lease and delegation retain their historical planning/lease stage. Use each existing packet current_execution for current disposition; do not interpret a proposed file or model allocation as an active writer."
+  },
+  "current_execution": {
+    "stage": "authorized-local-execution; reconciliation of existing records at d11745e10d240c7e3185fcfc5f67dc8343d06da8",
+    "source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state and #completion_snapshot, plus later accepted prerequisite notes already in this queue at the pinned base",
+    "authorization": "Latest human go releases economical repair-queue implementation; preserves explicit native preparation HOLD and foreign compiler ownership.",
+    "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
+    "accounting": "Existing reported snapshot is 20 finished selected packets, 15 partial, 12 open/blocked, 1 human-held = 48. It is separate from historical planning readiness and all 333 canonical identities; no new product acceptance counter or original parent closure.",
+    "rules": "../../../../AGENTS.md#finite-execution",
+    "working_rule": "Make one finite existing requirement or observed failure concrete, emit its exact owner output and proportionate validation once, then hand it to the affected consumer. Reuse unchanged accepted checks; no proof trees, repeated queue scans or record-only intake cycles. No whole-plan completion barrier for a released component.",
+    "dispatch": "ready-owner-contract and ready-consumer-join identify bounded next owner work, not evidence of a live lease or blanket Packages ownership. Packages current state demonstrates no additional independent ready source leaf beyond released cross-owner prerequisites. Preserve all human payload/security/native/publication holds.",
+    "completion": "A packet finishes only at its existing selected acceptance scope. Wider original task/host/native gates retain their own status; external and held outputs are explicitly reported, never silently waived or repeatedly polled.",
+    "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
+    "unresolved_decisions": "V03 source-owner/carrier; V04 selected codec/carrier/retirement; V05 held timezone policy; I01 J2 transaction/recovery; I02 browser/effect boundary; SV02 safe evidence/correlation; SV03 graph identity; C01/S04 resource profiles; C02 review integrity; B01 initializer/cancel; B02 URL sinks/lifetime; D03 command/URL lifetime; D04 namespace/maps; W03 selected synchronous family. These are existing owner decisions, not new architecture projects.",
+    "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
+    "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation."
+  }
 }
