@@ -113,20 +113,25 @@ export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[
 export function checkQueryProjection(returned: Record<string, unknown>, queries: readonly ScenarioReceiptQueryPlan[]): void {
   returned = copy(returned) as Record<string, unknown>;
   const influences = list(returned.influences);
-  if (!Object.hasOwn(returned, 'projection')) {
-    if (influences.length !== 0) fail('query/absence return influence is unsupported; defining provenance/current-authority join required.');
-    return;
-  }
-  const projection = checkProjection(returned.projection, queries);
-  const query = queries.find(query => query.id === projection.queryId)!;
-  const ids: string[] = []; const influenceKinds = new Set<string>();
+  const projection = Object.hasOwn(returned, 'projection') ? checkProjection(returned.projection, queries) : undefined;
+  const ids: string[] = []; const influenceKinds = new Map<string, Set<string>>();
   for (const value of influences) {
     const influence = object(value, ['id', 'kind', 'queryId']); ids.push(text(influence.id));
-    if (!['query-existence', 'query-cardinality', 'query-membership', 'query-order'].includes(String(influence.kind)) || influence.queryId !== query.id) fail('foreign or unsupported query influence.');
-    influenceKinds.add(influence.kind as string);
+    const queryId = text(influence.queryId);
+    if (!['query-existence', 'query-cardinality', 'query-membership', 'query-order'].includes(String(influence.kind)) ||
+        !queries.some(query => query.id === queryId) || projection !== undefined && queryId !== projection.queryId) fail('foreign or unsupported query influence.');
+    const kinds = influenceKinds.get(queryId) ?? new Set<string>();
+    if (kinds.has(influence.kind as string)) fail('duplicate query influence kind.');
+    kinds.add(influence.kind as string); influenceKinds.set(queryId, kinds);
   }
   unique(ids);
-  if (influenceKinds.size !== 4) fail('complete query influence closure required.');
+  if (projection !== undefined && !influenceKinds.has(projection.queryId) ||
+      [...influenceKinds.values()].some(kinds => kinds.size !== 4)) fail('complete query influence closure required.');
+}
+
+/** The existing return influence closure names exactly the retained queries. */
+export function returnQueryIds(returned: ScenarioResultDisclosurePlan['returns'][number]): readonly string[] {
+  return [...new Set(returned.influences.map(influence => influence.queryId!))];
 }
 
 function checkProjection(value: unknown, queries: readonly ScenarioReceiptQueryPlan[]): ScenarioReceiptQueryProjection {
@@ -327,46 +332,52 @@ function compare(left: Candidate, right: Candidate, query: ScenarioReceiptQueryP
 
 export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
   returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema): void {
-  if (returned.projection === undefined) { if (value !== undefined && list(copy(value)).length !== 0) fail('scalar return has foreign query observations.'); return; }
+  const required = returnQueryIds(returned);
+  if (required.length === 0) { if (value !== undefined && list(copy(value)).length !== 0) fail('return has foreign query observations.'); return; }
   const queries = list(copy(value));
-  if (queries.length !== 1) fail('exact selected query association required, including empty domains.');
-  const observed = object(queries[0], ['queryId', 'revision', 'candidates', 'selectedIndices']);
-  const query = plan.queries?.find(query => query.id === returned.projection!.queryId) ?? fail('saved query identity differs.');
-  if (observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
-  const candidates = list(observed.candidates); const identities: string[] = [];
-  for (const value of candidates) {
-    const candidate = object(value, ['row', 'record', 'secretFields', 'matched', 'dependencies']);
-    const original = row(candidate.row), projected = row(candidate.record, true);
-    identities.push(original.id);
-    if (typeof candidate.matched !== 'boolean') fail('saved match must be boolean.');
-    if (query.archived === 'exclude' && original.archivedAt !== null) fail('saved archive selection differs.');
-    const secrets = list(candidate.secretFields).map(text); unique(secrets);
-    const metadata = (value: StoredRow) => ({ ...value, parent: value.parent ?? null, data: null });
-    if (!same(metadata(original), metadata(projected)) || !subset(projected.data, original.data)) fail('saved projection differs from original scan row.');
-    const ids = list(candidate.dependencies).map(text); unique(ids);
-    if (ids.some(id => !query.dependencies.some(dep => dep.id === id))) fail('foreign observed query dependency.');
-    for (const dependency of query.dependencies) {
-      // State closes actual predicate read/marker correspondence before
-      // producing these IDs. Skipped branches have no executed observation;
-      // selected projection and engine order remain mandatory separately.
-      const required = candidate.matched && (dependency.role === 'data' || query.order.some(term => term.field === dependency.field));
-      if (required && !ids.includes(dependency.id)) fail('complete selected data and order observations required.');
-      if (!ids.includes(dependency.id)) continue;
-      if (!Object.hasOwn(projected.data, dependency.field)) fail('actual query observation field is missing.');
-      canonicalWire(dependency.type, projected.data[dependency.field], schema);
+  if (queries.length !== required.length) fail('exact selected query associations required, including empty domains.');
+  const savedIds: string[] = [];
+  for (const saved of queries) {
+    const observed = object(saved, ['queryId', 'revision', 'candidates', 'selectedIndices']);
+    const query = plan.queries?.find(query => query.id === observed.queryId && required.includes(query.id)) ?? fail('saved query identity differs.');
+    savedIds.push(query.id);
+    if (observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
+    const candidates = list(observed.candidates); const identities: string[] = [];
+    for (const value of candidates) {
+      const candidate = object(value, ['row', 'record', 'secretFields', 'matched', 'dependencies']);
+      const original = row(candidate.row), projected = row(candidate.record, true);
+      identities.push(original.id);
+      if (typeof candidate.matched !== 'boolean') fail('saved match must be boolean.');
+      if (query.archived === 'exclude' && original.archivedAt !== null) fail('saved archive selection differs.');
+      const secrets = list(candidate.secretFields).map(text); unique(secrets);
+      const metadata = (value: StoredRow) => ({ ...value, parent: value.parent ?? null, data: null });
+      if (!same(metadata(original), metadata(projected)) || !subset(projected.data, original.data)) fail('saved projection differs from original scan row.');
+      const ids = list(candidate.dependencies).map(text); unique(ids);
+      if (ids.some(id => !query.dependencies.some(dep => dep.id === id))) fail('foreign observed query dependency.');
+      for (const dependency of query.dependencies) {
+        // State closes actual predicate read/marker correspondence before
+        // producing these IDs. Skipped branches have no executed observation;
+        // selected projection and engine order remain mandatory separately.
+        const required = candidate.matched && (dependency.role === 'data' || query.order.some(term => term.field === dependency.field));
+        if (required && !ids.includes(dependency.id)) fail('complete selected data and order observations required.');
+        if (!ids.includes(dependency.id)) continue;
+        if (!Object.hasOwn(projected.data, dependency.field)) fail('actual query observation field is missing.');
+        canonicalWire(dependency.type, projected.data[dependency.field], schema);
+      }
     }
+    unique(identities);
+    const selected = list(observed.selectedIndices);
+    if (selected.some(index => !Number.isSafeInteger(index) || (index as number) < 0 || (index as number) >= candidates.length) ||
+        new Set(selected).size !== selected.length) fail('unique selected candidate indices required.');
+    const typed = candidates as unknown as ScenarioReceiptQueryObservation['candidates'];
+    if (typed.some((candidate, index) => candidate.matched !== selected.includes(index))) fail('selected indices must contain every and only matched candidate.');
+    if (query.limit !== null && selected.length > query.limit) fail('saved query overflow.');
+    for (let index = 1; index < selected.length; index++) {
+      if (compare(typed[selected[index - 1] as number]!, typed[selected[index] as number]!, query) > 0) fail('saved selected order differs from checked query.');
+    }
+    if (returned.projection !== undefined && !same(copy(result), queryProjectionWire(returned.projection, query, typed, selected as number[]))) fail('saved result differs from actual selected projection.');
   }
-  unique(identities);
-  const selected = list(observed.selectedIndices);
-  if (selected.some(index => !Number.isSafeInteger(index) || (index as number) < 0 || (index as number) >= candidates.length) ||
-      new Set(selected).size !== selected.length) fail('unique selected candidate indices required.');
-  const typed = candidates as unknown as ScenarioReceiptQueryObservation['candidates'];
-  if (typed.some((candidate, index) => candidate.matched !== selected.includes(index))) fail('selected indices must contain every and only matched candidate.');
-  if (query.limit !== null && selected.length > query.limit) fail('saved query overflow.');
-  for (let index = 1; index < selected.length; index++) {
-    if (compare(typed[selected[index - 1] as number]!, typed[selected[index] as number]!, query) > 0) fail('saved selected order differs from checked query.');
-  }
-  if (!same(copy(result), queryProjectionWire(returned.projection, query, typed, selected as number[]))) fail('saved result differs from actual selected projection.');
+  unique(savedIds);
 }
 
 export async function savedQueriesReadable(bound: {
@@ -376,21 +387,22 @@ export async function savedQueriesReadable(bound: {
 result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: readonly string[], blocked: readonly string[]) => Promise<ProjectedRecord | null>): Promise<boolean> {
   const returned = association.plan.returns.find(returned => returned.id === association.returnId);
   if (returned === undefined) return false;
-  if (returned.projection === undefined) return true;
+  if (returnQueryIds(returned).length === 0) return true;
   try {
     if (!same(bound.plan, association.plan)) return false;
     checkQueryInventory(bound.plan, bound.type, [...bound.artifactModels.values()], bound.valueSchema);
     checkSavedQueries(association.plan, returned, association.queries, result, bound.valueSchema);
-    canonicalWire(bound.type, result, bound.valueSchema);
-    const query = bound.plan.queries!.find(query => query.id === returned.projection!.queryId)!;
-    const observed = association.queries![0]!;
-    for (const candidate of observed.candidates) {
-      const projected = await savedProjection(query.model, candidate.row, candidate.secretFields, []);
-      if (projected === null || projected.id !== candidate.row.id || projected.version !== candidate.row.version) return false;
-      for (const dependency of query.dependencies) {
-        if (!candidate.dependencies.includes(dependency.id)) continue;
-        if (!Object.hasOwn(projected.data, dependency.field) || !same(projected.data[dependency.field], candidate.record.data[dependency.field])) return false;
-        canonicalWire(dependency.type, projected.data[dependency.field], bound.valueSchema);
+    if (returned.projection !== undefined) canonicalWire(bound.type, result, bound.valueSchema);
+    for (const observed of association.queries!) {
+      const query = bound.plan.queries!.find(query => query.id === observed.queryId)!;
+      for (const candidate of observed.candidates) {
+        const projected = await savedProjection(query.model, candidate.row, candidate.secretFields, []);
+        if (projected === null || projected.id !== candidate.row.id || projected.version !== candidate.row.version) return false;
+        for (const dependency of query.dependencies) {
+          if (!candidate.dependencies.includes(dependency.id)) continue;
+          if (!Object.hasOwn(projected.data, dependency.field) || !same(projected.data[dependency.field], candidate.record.data[dependency.field])) return false;
+          canonicalWire(dependency.type, projected.data[dependency.field], bound.valueSchema);
+        }
       }
     }
     return true;
