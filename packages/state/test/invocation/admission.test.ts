@@ -82,6 +82,38 @@ function recordDef() {
 }
 
 describe('admit', () => {
+  it('bounds raw inputs after revision and before receipts, age, authority or validation', async () => {
+    const { store, memberships, team, alice } = await setup();
+    const calls: string[] = [];
+    const originalRevision = store.readRevision.bind(store);
+    store.readRevision = async () => { calls.push('revision'); return originalRevision(); };
+    store.readReceipt = async () => { calls.push('receipt'); assert.fail('receipt must not be read'); };
+    const error = await captureStateError(admit({
+      def: makeDef(), inputs: { unknown: 'x'.repeat(2_000_000) },
+      context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW - MAX_OPERATION_ID_AGE_MS - 1)),
+      store, memberships: { findMembership: async () => { calls.push('authority'); assert.fail('authority must not be read'); } },
+      admissionMode: 'retained-receipt-only',
+    }));
+    assert.equal(error.code, 'limit'); assert.equal(error.retryable, false);
+    assert.deepEqual(calls, ['revision']); assert.equal(await originalRevision(), 0);
+  });
+
+  it('preserves bounded raw hash replay and retained-only current authority before validation', async () => {
+    const { store, memberships, team, alice } = await setup();
+    const def = makeDef({ inputs: { title: { type: 'scalar', required: false } } });
+    const context = ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW));
+    const inputs = { title: null };
+    const first = await admit({ def, inputs, context, store, memberships });
+    await seedReceipt(store, makeReceipt({ ...receiptIdentityParts(context), inputHash: first.inputHash }));
+    const retained = await admit({ def, inputs, context, store, memberships, admissionMode: 'retained-receipt-only' });
+    assert.ok(retained.replay); assert.equal(retained.inputHash, first.inputHash);
+    await memberships.removeMembership(alice.membership.membership_id);
+    assert.ok((await admit({ def, inputs, context, store, memberships })).replay);
+    assert.equal((await captureStateError(admit({ def, inputs, context, store, memberships,
+      admissionMode: 'retained-receipt-only' }))).code, 'forbidden');
+    assert.equal((await captureStateError(admit({ def, inputs: {}, context, store, memberships }))).code, 'conflict');
+  });
+
   it('admits valid record + scalar inputs with refs, rows, revision, and hash', async () => {
     const { store, memberships, team, alice } = await setup();
     await seedRow(store, MODEL, { id: 'rec-1', data: { title: 't' } });
