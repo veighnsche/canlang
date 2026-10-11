@@ -181,7 +181,7 @@ test('compiled owner admission, managed defaults and positive/negative receipts 
   }
 });
 
-test('bound send refuses an unsupported dispatch guard without evaluating it', async () => {
+test('bound send refuses a callback guard without evaluating it', async () => {
   let evaluations = 0;
   // Refusal must precede any context/transaction access: this is a direct
   // helper refusal witness, not qualification of a dispatched predicate.
@@ -190,8 +190,8 @@ test('bound send refuses an unsupported dispatch guard without evaluating it', a
   });
   await assert.rejects(send(context, 'std.EmailV1.send', {}, {
     binding: 'TypedDurableSend.Mail',
-    when: () => { evaluations++; return false; },
-  }), /unsupported\(send\): dispatch guards require current-state dispatch qualification/);
+    when: (() => { evaluations++; return false; }) as never,
+  }), /unsupported\(send\): dispatch guards require their original emitted rule and lexical inputs/);
   assert.equal(evaluations, 0);
 });
 

@@ -6098,8 +6098,10 @@ async function runScenarioExecution(
         appendDeferredEffects(await stage({ key, scope: selected.scope }, selected.context));
       } catch (error) { deferredFailure(error); }
     },
-    sendDeferred: async (source, request, bindingKey) => {
+    sendDeferred: async (source, request, bindingKey, when) => {
       try {
+        if (when !== undefined) return refuseRecordBinding(
+          "Guarded SEND requires its original installed source predicate and File declaration join.");
         if (child !== undefined) return refuseRecordBinding('Child sends require their defining owner-session join.');
         const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
         if (moduleUrl === undefined) throw new Error('Bound send has no owning compiled module.');

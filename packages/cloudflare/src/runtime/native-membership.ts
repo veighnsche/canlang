@@ -1,12 +1,18 @@
 /** Checked native source join. Public markers describe an occurrence; only the
  * actual State call/read and privately captured native arguments authorize it. */
-import type { ScenarioReceiptSourceOrigin, StoragePort, TeamScope } from '@canlang/contracts';
+import type { ScenarioReceiptSourceOrigin, StoragePort, Team, TeamScope } from '@canlang/contracts';
 import { bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembership,
   bindReadPolicyMembershipProducer, evaluateReadPolicyMembership,
   type ScenarioReceiptMembershipSite, type ScenarioReceiptMembershipHandle,
   type ReadPolicyMembershipHandle, type InstalledSourceReadPredicate,
   type InstalledSourceQueryPredicate } from '@canlang/state';
-import { assertScenarioReceiptCallExecution, stableStringify, type AdmittedCall } from '@canlang/state/invocation';
+import { assertScenarioReceiptCallExecution, stableStringify, type AdmittedCall,
+  bindScenarioReceiptSendMembershipProducer, evaluateScenarioReceiptSendMembership,
+  bindScenarioDispatchMembershipProducer, type ScenarioDispatchMembershipPorts,
+  type ScenarioDispatchMembershipProducer, type ScenarioDispatchMembershipExecution,
+  type ScenarioReceiptSendGuard } from '@canlang/state/invocation';
+import { readDispatchGuardExecution, registerDispatchGuardRevalidation,
+  type DispatchGuardExecution, type DispatchGuardExecutionContext } from '@canlang/work/dispatch';
 import type { GeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { StateError } from '@canlang/state/errors';
 import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
@@ -41,6 +47,16 @@ interface Frame {
   readonly call?: AdmittedCall;
   readonly store?: StoragePort;
   readonly observation?: Observation;
+  readonly sourceSend?: { readonly predicate: string; readonly node: string };
+  readonly dispatch?: {
+    readonly execution: DispatchGuardExecution;
+    readonly context: DispatchGuardExecutionContext;
+    readonly team: Team | null;
+    readonly teamSnapshot: string;
+    observer: ScenarioDispatchMembershipExecution | undefined;
+    captured: { readonly occurrence: Occurrence; readonly person: UserRef; readonly team: Team } | null;
+    completed: boolean;
+  };
   active: boolean;
   pending: boolean;
   failed: boolean;
@@ -52,6 +68,13 @@ const reads = new WeakMap<Read, ReadonlyMap<string, Binding>>();
 const frames = new WeakMap<HandlerContext, Frame>();
 const calls = new WeakMap<AdmittedCall, Frame>();
 const observations = new WeakMap<Observation, Frame>();
+const sourceSends = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, { readonly binding: Binding; readonly node: string }>>();
+const sourceSendCalls = new WeakMap<AdmittedCall, Frame>();
+const dispatches = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
+  readonly binding: Binding;
+  readonly producer: ScenarioDispatchMembershipProducer<DispatchGuardExecution> | undefined;
+}>>();
+const dispatchExecutions = new WeakMap<DispatchGuardExecution, Frame>();
 export function hasNativeOwnerMembership(def: GeneratedOperationDef): boolean { return owners.has(def); }
 const refuse = (message: string): never => { throw new StateError('validation', `Native membership: ${message}`); };
 function fail(frame: Frame, error: unknown): never {
@@ -69,6 +92,19 @@ function checked(c: HandlerContext): Frame {
       return refuse('original live native Team/context required.');
     }
     if (frame.call !== undefined) assertScenarioReceiptCallExecution(frame.call, frame.store!);
+    if (frame.sourceSend !== undefined && sourceSendCalls.get(frame.call!) !== frame) {
+      return refuse('source SEND requires its exact fresh native frame.');
+    }
+    if (frame.dispatch !== undefined) {
+      const dispatch = frame.dispatch;
+      if (dispatchExecutions.get(dispatch.execution) !== frame ||
+          readDispatchGuardExecution(dispatch.execution) !== dispatch.context ||
+          stableStringify(dispatch.team) !== dispatch.teamSnapshot ||
+          (dispatch.team === null ? c.team != null : c.team == null ||
+            c.team.id !== dispatch.team.team_id || c.team.timezone !== dispatch.team.timezone)) {
+        return refuse('dispatch requires its exact live Work execution and original admitted Team.');
+      }
+    }
     return frame;
   } catch (error) { return fail(frame, error); }
 }
@@ -132,6 +168,92 @@ export function bindNativeOwnerMembership(def: GeneratedOperationDef, input: {
   owners.set(def, binding(input.sites, handles));
 }
 
+/** Bind once after State's exact framework SEND inventory. Each source guard
+ * opens a separate fresh native context on its actual still-live State call. */
+export function bindNativeSourceSendMembership(def: GeneratedOperationDef, input: {
+  readonly source: ScenarioReceiptSourceOrigin; readonly app: string;
+  readonly guards: readonly ScenarioReceiptSendGuard[];
+  readonly sites: readonly ScenarioReceiptMembershipSite[];
+}): void {
+  if (sourceSends.has(def)) return refuse('source SEND definition cannot be rebound.');
+  const guards = JSON.parse(stableStringify(input.guards)) as ScenarioReceiptSendGuard[];
+  const rules = new Set<string>();
+  for (const guard of guards) {
+    if (typeof guard.rule !== 'string' || guard.rule.length === 0 || guard.rule.length > 4096 ||
+        rules.has(guard.rule) || guard.owner !== def.name ||
+        stableStringify(guard.source) !== stableStringify(input.source)) {
+      return refuse('exact original source SEND guard inventory required.');
+    }
+    markerKey({ source: guard.source, node: guard.node });
+    rules.add(guard.rule);
+  }
+  if (input.sites.some(site => site.stage !== 'send-dispatch' || site.owner !== def.name ||
+      stableStringify(site.source) !== stableStringify(input.source) ||
+      guards.filter(guard => stableStringify(guard.node) === stableStringify(site.node)).length !== 1)) {
+    return refuse('source SEND membership must belong to its exact original guard.');
+  }
+  const hasMembership = input.sites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'));
+  const handles = hasMembership ? bindScenarioReceiptSendMembershipProducer(def, {
+    source: input.source, app: input.app, sites: input.sites,
+    capture: (call, site, index) => {
+      const frame = sourceSendCalls.get(call);
+      if (frame?.sourceSend === undefined || frame.sourceSend.node !== stableStringify(site.node)) {
+        return refuse('exact source SEND guard capture required.');
+      }
+      return capture(frame, site, index);
+    },
+  }) : [];
+  const complete = binding(input.sites, handles);
+  sourceSends.set(def, new Map(guards.map(guard => {
+    const node = stableStringify(guard.node);
+    const sites = complete.sites.filter(site => stableStringify(site.node) === node);
+    const keys = new Set(sites.map(site => stableStringify(site)));
+    return [guard.rule, Object.freeze({ node, binding: Object.freeze({ sites,
+      occurrences: Object.freeze(complete.occurrences.filter(occurrence => keys.has(occurrence.site))) }) })];
+  })));
+}
+
+/** Deferred membership uses the defining State observer and literal Work
+ * execution ports. No empty observer is registered for a role-only guard. */
+export function bindNativeDispatchMembership(def: GeneratedOperationDef,
+  input: Omit<ScenarioDispatchMembershipPorts<DispatchGuardExecution>, 'readExecution' | 'registerRevalidation' | 'capture'>): void {
+  const previous = dispatches.get(def) ?? new Map();
+  if (typeof input.predicate !== 'string' || input.predicate.length === 0 || input.predicate.length > 4096 ||
+      input.sites.some(site => site.stage !== 'send-dispatch' || site.owner !== def.name ||
+        stableStringify(site.source) !== stableStringify(input.source))) return refuse('exact original dispatch source and predicate required.');
+  if (previous.has(input.predicate)) return refuse('dispatch predicate cannot be rebound.');
+  const hasMembership = input.sites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'));
+  const producer = hasMembership ? bindScenarioDispatchMembershipProducer(def, {
+    source: input.source, app: input.app, predicate: input.predicate, sites: input.sites,
+    store: input.store, memberships: input.memberships, admit: input.admit,
+    readExecution: readDispatchGuardExecution, registerRevalidation: registerDispatchGuardRevalidation,
+    capture: (execution, site, callIndex) => {
+      const frame = dispatchExecutions.get(execution);
+      if (frame?.dispatch === undefined) return refuse('actual dispatch native capture required.');
+      try {
+        checkedNativeDispatch(frame);
+        const value = frame.dispatch.captured;
+        if (!frame.pending || value === null || value.occurrence.site !== stableStringify(site) ||
+            value.occurrence.callIndex !== callIndex) return refuse('once-only original dispatch argument capture required.');
+        frame.dispatch.captured = null;
+        return Object.freeze({ person: value.person, team: value.team });
+      } catch (error) { return fail(frame, error); }
+    },
+  }) : undefined;
+  dispatches.set(def, new Map([...previous, [input.predicate, Object.freeze({
+    binding: binding(input.sites, producer?.sites ?? []), producer })]]));
+}
+
+function checkedNativeDispatch(frame: Frame): void {
+  const dispatch = frame.dispatch;
+  if (dispatch === undefined || !frame.active || frame.failed ||
+      dispatchExecutions.get(dispatch.execution) !== frame ||
+      readDispatchGuardExecution(dispatch.execution) !== dispatch.context ||
+      stableStringify(dispatch.team) !== dispatch.teamSnapshot) {
+    return refuse('exact active native dispatch and admitted Team required.');
+  }
+}
+
 /** Trusted loader only; rule is the exact original policy/query owner key. */
 export function bindNativeReadMembership(read: Read, input: {
   readonly source: ScenarioReceiptSourceOrigin; readonly rule: string;
@@ -174,13 +296,14 @@ function open(c: HandlerContext, frame: Frame): NativeMembershipFrame {
   return Object.freeze({
     assertCompleted() {
       checked(c);
-      if (frame.pending || frame.captured !== null) {
+      if (frame.pending || frame.captured !== null || frame.dispatch?.captured != null) {
         return fail(frame, new StateError('validation', 'Native membership must complete before its owner/read returns.'));
       }
+      if (frame.dispatch !== undefined) frame.dispatch.completed = true;
     },
     close() {
       frame.active = false;
-      if (frame.pending || frame.captured !== null) {
+      if (frame.pending || frame.captured !== null || frame.dispatch?.captured != null) {
         fail(frame, new StateError('validation', 'Native membership owner/read closed with pending work.'));
       }
     },
@@ -202,6 +325,64 @@ export function openNativeOwnerMembershipFrame(c: HandlerContext, call: Admitted
     teamSnapshot: stableStringify(call.context.team), call, store, failure,
     active: true, pending: false, failed: false, error: undefined, captured: null };
   const lifecycle = open(c, frame); calls.set(call, frame); return lifecycle;
+}
+
+/** Only State's source evaluateGuard callback supplies the actual call. Each
+ * guard receives a fresh c while sharing its original owner commit ledger. */
+export function openNativeSourceSendMembershipFrame(c: HandlerContext, call: AdmittedCall,
+  store: StoragePort, predicate: string, failure: (error: unknown) => void): NativeMembershipFrame {
+  assertScenarioReceiptCallExecution(call, store);
+  const nativePrevious = frames.get(c);
+  if (nativePrevious !== undefined) return fail(nativePrevious, new StateError('validation', 'Source SEND needs a fresh native context.'));
+  const installed = sourceSends.get(call.def as GeneratedOperationDef)?.get(predicate);
+  const previous = sourceSendCalls.get(call);
+  if (previous !== undefined && (previous.active || previous.failed || previous.pending || previous.captured !== null)) {
+    return fail(previous, new StateError('validation', 'Source SEND native frame is concurrent or poisoned.'));
+  }
+  if (installed === undefined || (call.context.team === null ? c.team != null : c.team == null ||
+      c.team.id !== call.context.team.teamId || c.team.timezone !== call.context.team.timezone)) {
+    return refuse('actual bound source SEND and corresponding State Team required.');
+  }
+  const frame: Frame = { binding: installed.binding, nativeTeam: c.team, team: call.context.team,
+    teamSnapshot: stableStringify(call.context.team), call, store, failure,
+    sourceSend: Object.freeze({ predicate, node: installed.node }),
+    active: true, pending: false, failed: false, error: undefined, captured: null };
+  const lifecycle = open(c, frame); sourceSendCalls.set(call, frame); return lifecycle;
+}
+
+/** Call at the actual Work evaluator entry, with the original Team that its
+ * installed admission port returns. Copied facts/handles cannot open a frame. */
+export function openNativeDispatchMembershipFrame(c: HandlerContext, def: GeneratedOperationDef,
+  predicate: string, execution: DispatchGuardExecution, actualDispatchTeam: Team | null,
+  failure: (error: unknown) => void): NativeMembershipFrame {
+  const context = readDispatchGuardExecution(execution);
+  const previous = dispatchExecutions.get(execution);
+  if (previous !== undefined) return fail(previous, new StateError('validation', 'Dispatch native execution cannot be reopened.'));
+  const nativePrevious = frames.get(c);
+  if (nativePrevious !== undefined) {
+    registerDispatchGuardRevalidation(execution, () => false);
+    return fail(nativePrevious, new StateError('validation', 'Dispatch needs a fresh native context.'));
+  }
+  const installed = dispatches.get(def)?.get(predicate);
+  if (installed === undefined || context.predicate !== predicate ||
+      context.checkpoint === undefined || (actualDispatchTeam === null ? c.team != null :
+        context.checkpoint.owner !== actualDispatchTeam.team_id || c.team == null ||
+        c.team.id !== actualDispatchTeam.team_id || c.team.timezone !== actualDispatchTeam.timezone)) {
+    // Register refusal before throwing so caught installation misuse cannot claim or skip.
+    registerDispatchGuardRevalidation(execution, () => false);
+    return refuse('exact installed predicate, fresh Work checkpoint and native Team required.');
+  }
+  const dispatch: NonNullable<Frame['dispatch']> = { execution, context, team: actualDispatchTeam,
+    teamSnapshot: stableStringify(actualDispatchTeam), observer: undefined, captured: null, completed: false };
+  const frame: Frame = { binding: installed.binding, nativeTeam: c.team, team: null,
+    teamSnapshot: stableStringify(null), dispatch, failure,
+    active: true, pending: false, failed: false, error: undefined, captured: null };
+  // Native facade misuse must poison the fence even when authored code catches it.
+  registerDispatchGuardRevalidation(execution, () => !frame.active && dispatch.completed &&
+    !frame.failed && !frame.pending && dispatch.captured === null &&
+    stableStringify(dispatch.team) === dispatch.teamSnapshot);
+  dispatch.observer = installed.producer?.open(execution);
+  const lifecycle = open(c, frame); dispatchExecutions.set(execution, frame); return lifecycle;
 }
 
 /** The installed read closure supplies its exact rule, State-issued observation,
@@ -233,7 +414,8 @@ export async function active_member(c: HandlerContext, person: unknown, team: un
     if (frame.pending || frame.captured !== null) return refuse('membership calls must be awaited sequentially.');
     const user = ownObject(person, ['kind', 'id']);
     if (!isUserRef(person) || !Object.isFrozen(person) || user.kind !== 'user' ||
-        frame.team === null || frame.nativeTeam == null || team !== frame.nativeTeam) {
+        (frame.dispatch === undefined ? frame.team === null : frame.dispatch.team === null) ||
+        frame.nativeTeam == null || team !== frame.nativeTeam) {
       return refuse('owning frozen Values user and exact actual native Team required.');
     }
     const key = markerKey(marker);
@@ -243,15 +425,24 @@ export async function active_member(c: HandlerContext, person: unknown, team: un
         'ambiguous original occurrence: Compiler must lower the exact outer decision and derive call chain into the emitted membership marker.');
     }
     frame.pending = true;
-    frame.captured = { occurrence: matches[0]!, person, team: frame.team };
-    const value = frame.call !== undefined
-      ? await evaluateScenarioReceiptMembership(frame.call, frame.store!, { site: matches[0]!.handle })
-      : await evaluateReadPolicyMembership(frame.observation!, { site: matches[0]!.handle });
+    let value: boolean;
+    if (frame.dispatch !== undefined) {
+      if (frame.dispatch.observer === undefined || frame.dispatch.team === null) return refuse('original dispatch membership observer required.');
+      frame.dispatch.captured = { occurrence: matches[0]!, person, team: frame.dispatch.team };
+      value = await frame.dispatch.observer.evaluate({ site: matches[0]!.handle });
+    } else {
+      frame.captured = { occurrence: matches[0]!, person, team: frame.team! };
+      value = frame.call !== undefined
+        ? frame.sourceSend !== undefined
+          ? await evaluateScenarioReceiptSendMembership(frame.call, frame.store!, { site: matches[0]!.handle })
+          : await evaluateScenarioReceiptMembership(frame.call, frame.store!, { site: matches[0]!.handle })
+        : await evaluateReadPolicyMembership(frame.observation!, { site: matches[0]!.handle });
+    }
     checked(c);
-    if (frame.captured !== null) return refuse('State must consume actual arguments before yielding.');
+    if (frame.captured !== null || frame.dispatch?.captured != null) return refuse('State must consume actual arguments before yielding.');
     return value;
   } catch (error) { return fail(frame, error); }
-  finally { frame.pending = false; frame.captured = null; }
+  finally { frame.pending = false; frame.captured = null; if (frame.dispatch !== undefined) frame.dispatch.captured = null; }
 }
 
 /** Subject roles are current source-read decisions. The owning State reader
