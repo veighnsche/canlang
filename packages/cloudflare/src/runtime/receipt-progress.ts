@@ -1,8 +1,10 @@
 import type { AssociatedReceipt, DomainWrite, ModelName, OutboxIntent, ReceiptError, ReceiptResultContext, RecordId } from '@canlang/contracts';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
+import { systemCommandStageRevision } from '@canlang/state';
 import {
   RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow,
   withAssociationRowData, withReceiptRowData, isJudgmentReceiptContext, isJudgmentReceiptPayload,
+  isTextRunReceiptContext, isImageRunReceiptContext,
 } from '@canlang/state/receipt/tables';
 import { applyReceiptProgress } from '@canlang/work/observation/association';
 import { isConsistentCompletion, isTerminalReceiptStatus } from '@canlang/work/receipt';
@@ -12,8 +14,9 @@ export interface ReceiptProgressInput {
   /** Original intent whose bound carrier and Email completion the adapter verified. */
   readonly intent: OutboxIntent;
   readonly outcome: { readonly kind: 'delivered'; readonly result: unknown }
-    | { readonly kind: 'failed'; readonly error: ReceiptError };
-  /** Exact owning nominal declaration verified by the installed judgment adapter. */
+    | { readonly kind: 'failed'; readonly error: ReceiptError }
+    | { readonly kind: 'skipped' };
+  /** Actual original context verified by the installed Judgment/generation adapter. */
   readonly context?: ReceiptResultContext;
   /** Revision of the single owner fence receiving these effects. */
   readonly revision: number;
@@ -23,25 +26,40 @@ export interface ReceiptProgressInput {
 export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: SystemCommandContext): Promise<SystemStaging> {
   const { intent, outcome, revision, context } = input;
   const judgment = isJudgmentReceiptContext(context) && context!.source === intent.target;
-  if ((intent.target !== 'std.EmailV1.send' && !judgment) ||
-      (context !== undefined && !judgment) || typeof intent.intentId !== 'string' || intent.intentId === '') {
-    throw new Error('Receipt progress requires the verified original Email or declared judgment intent.');
+  const skipping = outcome.kind === 'skipped';
+  // Original empty generation receipts use the adapter's real request context.
+  // Run progress and cleanup controls keep their separate owning writers.
+  const generation = skipping && context?.source === intent.target && context.request !== undefined &&
+    (intent.target === 'std.TextGenerationV1.generate' && isTextRunReceiptContext(context) ||
+      intent.target === 'std.ImagesV1.submit' && isImageRunReceiptContext(context));
+  if ((intent.target !== 'std.EmailV1.send' && !judgment && !generation) ||
+      (context !== undefined && !judgment && !generation) || typeof intent.intentId !== 'string' || intent.intentId === '') {
+    throw new Error('Receipt progress requires the verified original Email, Judgment or empty generation intent.');
+  }
+  if (skipping && revision !== systemCommandStageRevision(ctx) + 1) {
+    throw new Error('Skipped receipt requires the actual claim stage commit revision.');
   }
   if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('Receipt progress requires a commit revision.');
   const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
   if (receiptRow === null) return {};
   const retained = readReceiptRow(receiptRow, context);
   if (retained.receipt.deliveryId !== intent.intentId) throw new Error('Receipt progress intent identity disagrees.');
-  const status = outcome.kind === 'delivered' ? 'succeeded' : 'failed';
+  const status = outcome.kind === 'delivered' ? 'succeeded' : skipping ? 'skipped' : 'failed';
   const result = outcome.kind === 'delivered' ? outcome.result : null;
   const error = outcome.kind === 'failed' ? outcome.error : null;
   if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
     : !isConsistentCompletion(status, result, error)) throw new Error('Receipt progress requires a closed decisive completion.');
+  if (skipping && (isTerminalReceiptStatus(retained.receipt.status) || retained.receipt.status !== 'pending' ||
+      retained.receipt.result !== null || retained.receipt.error !== null || retained.contentRef !== null ||
+      retained.resultExpiresAtMs !== null)) {
+    throw new Error('Skipped receipt requires its untouched pending original payload.');
+  }
   if (isTerminalReceiptStatus(retained.receipt.status)) return {};
   if (retained.receipt.status !== 'pending') throw new Error('Receipt progress requires a pending receipt.');
   if (revision <= retained.receipt.revision) throw new Error('Receipt progress revision must advance.');
   const rows = await ctx.query({ model: RECEIPT_ASSOCIATION_MODEL as ModelName,
     where: { op: 'eq', field: 'deliveryId', value: intent.intentId }, authority: 'owner' });
+  if (skipping && rows.length === 0) throw new Error('Skipped receipt requires its current original association.');
   const meta = { nowMs: ctx.now, actor: ctx.actor };
   const writes: DomainWrite[] = [];
   let nextReceipt: AssociatedReceipt = { ...retained.receipt, revision, status, result, error };
