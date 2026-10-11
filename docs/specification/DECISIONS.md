@@ -8689,3 +8689,26 @@ The defining caller contract is reviewed and released at this scope. Qualificati
 The failed native census reflects a missing existing producer intake, not a new current Compiler defect. Consume only bb0104ab js.rs and its defining ordinary_contract_results.rs (16 production lines), preserving all other Compiler paths; actual locked CLI builds0 in3.70s. Exact State1c marker/default admission and Packages4a two gate paths are consumed without duplicating repairs; current State emit/DO asset0 and boundary13/950/1436/zero pass, with owning five controls/unchanged six Images reused. Current original emitted contracts use text?/file?/file[] source strings; correct the stale test expectation without runtime normalization or source narrowing. The complete genuine raw-contract native retirement/race/interruption/reopen now passes1/1 in31491.74ms (31978.17ms total), zero failures/cancellations/skips, retaining unused/raw defaults, integer constraints, complete callable profiles and exact historical closure plus all original authority/receiving/replay/CRUD/receipt/history/version/resource/source and cleanup assertions. The raw capture/install/persistence criterion is satisfied at that scope; the earlier failures remain historical, and opaque payload/current grant/original app and first-slice external/qualification holds remain separate.
 
 Integrate the affected native expectation and result with the already reviewed unchanged capture implementation. The expected raw strings now match actual original CLI output and retain every complete declaration/default/control assertion. This closes the defined capture/install/historical-persistence consumer; reuse the empty-contract and backend results, with no new broad native run or whole-plan acceptance.
+
+### 2026-10-11 — check bound tab headers against their owning enum
+
+Implement the accepted DESIGN921/GRAMMAR502 block rule: an exact owning local
+enum preference supplies its expectation only to direct tab headers. Preserve
+lexical-first lookup, require known/distinct/complete case coverage, and retain
+ordinary body scopes, local guards, nested ownership, selector leaves and
+transient captions. Original Volunteer source and its assignments authentication
+gate remain byte-identical. No source rename or quoted-caption workaround.
+
+Current actual original25 CLI/catalog32→30 removes only the two Volunteer E2001
+findings; every source hash and remaining diagnostic is unchanged. New7 owning
+cases plus367 existing affected outcomes pass374distinct; the full52 corpus
+retains50 pins, updating Volunteer46→44 and the same Loyalty rewards/history
+cases68→66. Strict all-target Clippy0 3.58s, fmt/diff0. Valid bound-source compile
+still retains E6008/no modules. The finite analysis criterion is satisfied;
+native panel lowering and guarded option/current-value behavior remain owning
+Compiler/UI work. Current UI requires exact option/panel correspondence, while
+an unavailable tab gate omits its item; do not invent filtered-current semantics
+or remove the original guard to bypass that join. Remaining original30/no
+artifact, full applications and all precise human holds remain open.
+
+Bounded analysis source review is clear: exact selector-owned enum expectation reaches only direct headers, lexical bindings remain first, owning cases are known/distinct/complete and ordinary body/nested/transient scopes are preserved. Reuse the recorded374 affected outcomes and strict checks; original source32→30 clears only Volunteer2. Native panel emission stays E6008 pending its separate defining accessible-options/current-value contract.

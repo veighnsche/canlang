@@ -1080,7 +1080,9 @@ fn draft_outcome_table() {
         ("draft/CanKnowledge.can", 46),
         ("draft/CanLearn.can", 49),
         ("draft/CanLeave.can", 74),
-        ("draft/CanLoyalty.can", 68),
+        // The same owned bound-tab cases (rewards/history) now resolve;
+        // transient caption tabs and all original source remain unchanged.
+        ("draft/CanLoyalty.can", 66),
         ("draft/CanMail.can", 133),
         ("draft/CanMaintain.can", 110),
         ("draft/CanMember.can", 319),
@@ -1107,7 +1109,9 @@ fn draft_outcome_table() {
         ("draft/CanTable.can", 31),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
-        ("draft/CanVolunteer.can", 46),
+        // Bound tab headers claim only their owning preference enum cases;
+        // the original source and assignments authentication gate stay intact.
+        ("draft/CanVolunteer.can", 44),
         // The checked read-only context call retains proposal.call != null;
         // invocation_references pins its mutation-call invalidation control.
         ("draft/CanWorkbench.can", 73),
