@@ -10885,3 +10885,24 @@ The defining deferred model SEND consumer cannot distinguish an original absent 
 Normal State/Work/DO emissions, State11 and genuine installed Work24 affected outcomes pass (35 distinct), including actual optional absence/denied populated/nullable null-fill, later parent writes, original persistence and immutable reader, all original model/current-authority/rollback controls and nullable reference compatibility. Package boundaries retain13 packages/974 files/zero violations. Coordinator exact release and Dev original source-frame/deferred getters remain; current Identity/File/final checks stay independent, and all precise native preparation/publication/provider holds persist.
 
 Coordinator independent defining frozen-snapshot review CLEAR and exact LOCAL integration after deadline. Original own field names frozen before grant awaits remain distinct from projected data; authentic-profile reader validates declared names/subsets and historical typed File/secret facts, with legacy UNKNOWN presence and no new read/mutation/receipt authority. Preserve current source/ancestor/Identity/stage/lifetime, nullable canonical path and accepted livea890. Reuse35 owning State11/Work24/normal0/graph0; changed normal State/Work/Cloudflare/root0. Dev original native getter/dispatch adoption and full application/provider qualification remain unfinished; exact holds and complete checkpoint unchanged.
+
+## 2026-10-11 — Explicit installed native catalog (implemented; positive producer qualification unfinished)
+
+Emit a Cloudflare-owned native catalog from the complete existing Values catalog,
+changing only the unique external `builtin:active_member` availability. Keep its
+authored signature, StateRead effect, ownership, version, features and every other
+entry. The owning build requires the actual public native facade function to be
+the defining emitted producer and removes stale output before checking imports.
+Expose the installed artifact through `distribution.nativeCatalog` for the
+existing explicit Compiler catalog input; generic Values and defaults stay as-is.
+
+Current Cloudflare emission and changed normal root types pass. The public
+distribution, actual incomplete-producer refusal, stale-output removal and generic
+external preservation control passes; finite source review is clear. The released
+main535b native producer differs from this older local runtime. Coordinator will
+qualify the added unskipped positive/installed artifact assertions after consuming
+the coherent unit into that reviewed closure. No runtime implementation is copied
+or native application acceptance inferred. Original source/marker/frame/current
+Team/awaited lifetime restrictions and all precise human holds remain required.
+
+Coordinator independent defining artifact review CLEAR and exact reviewed-main positive installed qualification after deadline: scoped native artifact emitted, owning2 and genuine real tarball/isolated/permission consumer new catalog/export assertions PASS. Reuse missing-producer/stale refusal owning1; changed normalCF/root0. Complete ordered authored Values envelope differs only active_member availability after exact own-data export identity, generic external/signatures/effects/defaults unchanged. Explicit installed distribution.nativeCatalog path is available to existing Compiler --catalog selection. Genuine original source/runtime/current authority/application consumers and all exact preparation/activation/publication holds remain; complete checkpoint unchanged.

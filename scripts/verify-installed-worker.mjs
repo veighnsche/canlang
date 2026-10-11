@@ -62,6 +62,23 @@ async function verifyConsumer(checkout) {
   installedFile(distributions.values.bindings);
   installedFile(distributions.ui.browser);
 
+  const nativeDistribution = (await import(ownerModule('@canlang/cloudflare/distribution'))).distribution;
+  const nativeCatalog = JSON.parse(readFileSync(installedFile(nativeDistribution.nativeCatalog), 'utf8'));
+  const { CATALOG } = await import(ownerModule('@canlang/values'));
+  const membership = CATALOG.entries.filter(entry => entry.kind === 'builtin' && entry.id === 'active_member');
+  assert.equal(membership.length, 1);
+  assert.equal(membership[0].availability, 'external');
+  assert.equal(membership[0].effects, 'state-read');
+  assert.deepEqual(nativeCatalog, { ...CATALOG, entries: CATALOG.entries.map(entry =>
+    entry === membership[0] ? { ...entry, availability: 'implemented' } : entry) });
+  const nativeStdlibUrl = ownerModule('@canlang/cloudflare/runtime/stdlib');
+  const nativeStdlib = await import(nativeStdlibUrl);
+  const nativeMembership = await import(pathToFileURL(installedFile(new URL('./native-membership.js', nativeStdlibUrl))));
+  const nativeExport = Object.getOwnPropertyDescriptor(nativeStdlib, 'active_member');
+  const nativeOriginal = Object.getOwnPropertyDescriptor(nativeMembership, 'active_member');
+  assert.ok(nativeExport && 'value' in nativeExport && typeof nativeExport.value === 'function');
+  assert.ok(nativeOriginal && 'value' in nativeOriginal && nativeExport.value === nativeOriginal.value);
+
   // A conditional producer exposes different import and require entries. The
   // installed bundler helper must select the ESM entry used by its generated JS.
   const fixture = join(consumer, 'node_modules/conditional-worker-producer');
