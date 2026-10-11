@@ -140,7 +140,8 @@ const boundModel: ArtifactModel = { name: 'App.Record', deleteMode: 'none', fiel
   { name: 'send', field: deliveryDescriptor, nullable: true, required: false, serverOnly: false },
 ] };
 const queuedIntent: OutboxIntent = { intentId: 'delivery/a', operation: asOperation('App.send'),
-  operationId: 'operation/a' as OutboxIntent['operationId'], target: deliveryTarget, arguments: {}, occurrenceIndex: 0 };
+  operationId: 'operation/a' as OutboxIntent['operationId'], target: deliveryTarget,
+  arguments: { binding: 'email', from: 'app', arguments: {} }, occurrenceIndex: 0 };
 function receiptBinding(files: FrameworkFilePayloadOrigin['files'] = []): FrameworkFilePayloadOrigin {
   const caller = { name: asOperation('App.send'), kind: 'scenario' as const,
     result: { type: 'void' as CanTypeId } };
@@ -574,4 +575,25 @@ describe('complete original opaque contract admission (no source qualification)'
       assert.throws(() => admit(set));
     }
   });
+});
+
+it('callable void profiles retain matching disclosure metadata and refuse skew or delivery-void substitution', () => {
+  const source = { path: 'void.can', sha256: 'a'.repeat(64), module: 'void.mjs' };
+  const callable = { id: 'App.void', kind: 'operation' as const, module: source.module, export: 'canApp', member: ['void'] };
+  const result = { type: 'void' as const, disclosure: { version: 1, source,
+    returns: [{ id: 'done', source, dependencies: [], influences: [] }] } };
+  const set: FrameworkOpaqueDeclarationSet = { ...originalContractSet(), sources: [{ path: source.path, sha256: source.sha256 }],
+    declarations: [{ id: 'caller/void', source: { kind: 'callable', source, callable },
+      profile: { kind: 'void', canonical: result, artifact: structuredClone(result) } }] };
+  assert.equal(bindOpaqueFileDeclarations([set], () => {}).size, 1);
+  const skew = structuredClone(set);
+  const profile = skew.declarations[0]!.profile;
+  if (profile.kind !== 'void') throw new Error('expected genuine caller void profile');
+  Object.assign(profile.artifact, { disclosure: { ...result.disclosure, returns: [] } });
+  assert.throws(() => bindOpaqueFileDeclarations([skew], () => {}));
+  const provider = { ...set, declarations: [{ id: 'provider/void',
+    source: { kind: 'delivery' as const, source, context: { kind: 'capability' as const,
+      canonical: deliveryDescriptor, artifact: deliveryDescriptor } },
+    profile: { kind: 'void' as const, canonical: result, artifact: structuredClone(result) } }] };
+  assert.throws(() => bindOpaqueFileDeclarations([provider], () => {}), 'caller void does not define provider R');
 });

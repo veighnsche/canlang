@@ -10069,3 +10069,57 @@ intent/root/receipt controls. Dev owns retrying its failed layout and original
 native/provider workflow; no feature duplication, parent acceptance or hold lift.
 
 Coordinator finite source review CLEAR: exact existing public producer and single defining State fence class are relocated without root/Node relaxation. Owning public12, affected runtime/vendor controls and normal emission reused. Integrated LOCAL main after deadline; Dev consumed exact prerequisites, original callback/Office acceptance remains separate.
+
+## 2026-10-11 — Receipt-only skipped SEND origin (API implemented; consumer unfinished)
+
+The exact guarded SEND producer2b768d85 creates a genuine skipped State receipt
+and association when its original checked guard is false, with null result and
+no Work dispatch, outbox or provider effect. Existing delivery-result requires a
+real intent; it cannot truthfully authenticate this receipt. Null remains an
+opaque retained result, not a File-free control or census exemption.
+
+Add closed FrameworkOpaqueSkippedDeliveryOrigin (delivery-skipped). It carries
+the real skipped delivery identity, logical operation/operationId/target/semantic
+ordinal without intentId, actual request binding/from, full original caller and
+association, complete checked guard declaration and original provider context/
+result declaration. The standard result header, physical lifetime/inventory and
+complete historical declaration/File/default correspondence remain required.
+Resolve genuine skipped/null only as the actual declared R at [] with no-result;
+do not substitute void or allow pending, progress, success or value use. This
+adds no issuer, dispatch or current-authority grant.
+
+JEV3 favored the new closed kind (.98/.86/.97, confidence .97/.79/.95), with no
+rationale, over refactoring existing dispatched origins into a production union.
+Defining Contracts and current State compatibility emissions pass; finite exact
+producer/API review is CLEAR. Reuse unchanged lexical API and opaque/history
+checks. No runtime/header/native census acceptance follows from types.
+
+Capability/State owns the genuine private guard/ordinal/caller/association join,
+actual skipped ledger extension and atomic header/receipt/association persistence,
+closed original row checks and complete historical typed no-result resolution.
+The published ledger has only five fields, so those missing facts must be
+captured during original evaluation, never assumed already present or invented
+from an intent. Dev owns actual same-load/native consumer qualification. Existing
+parent/deletion/ingress dependencies and precise holds remain unchanged.
+
+## 2026-10-11 — Provider void correspondence limit (corrected; exact profile unsupported)
+
+The skipped SEND origin preserves complete original nominal provider R at []
+with no-result. Capability found that its comment also promised explicit provider
+void, although both canonical/artifact delivery descriptors mandate a nominal
+name/fields and State admits explicit void only from a callable source. Delivery
+resolution requires its actual delivery-owned provider-result declaration. Correct
+the promise to that implemented scope; caller/scenario void cannot replace R.
+
+If an original provider requires void, Contracts/Compiler must release its genuine
+historical descriptor correspondence and Capability/State must admit that exact
+delivery-owned profile. This leaf remains unsupported until those defining
+outputs exist. The six original nonvoid TextRun/Images consumers remain ready;
+null is still opaque and retains full historical/default/File census. This is a
+source-comment correction and explicit dependency disposition, with no descriptor
+or runtime relaxation. Reuse unchanged Contracts/State emission and resolver
+evidence; precise holds and parent counts remain intact.
+
+2026-10-11 — original pending/skipped receipt preparation (State/Work component implemented/tested; original native unfinished). Consume exact reviewed Packagesf715 receipt-only skipped provenance without fabricating a queued intent. The existing installed framework producer prepares each actual new receipt at its original private owner stage, using the actual current-stage record, full original request/ordinal/guard and existing State census. Verify caller/source/association/SEND and reassert lifetime after preparation and final R await; same-row replay never renews the header. Keep actual provider R at [] with no-result for skipped/empty/File-free payloads and reject a queued dispatch for the same skipped logical SEND. Complete caller-void disclosure metadata is retained; provider-void remains explicitly unsupported under the current Contracts/Compiler representation. Admit valid explicit nullable:false source metadata. Normal owning emits,26 affected State controls and12 distinct same-store Work controls qualify after correcting actual new fixture brands and thrown-error expectations; prior unchanged scopes are reused. Record once in SEQ039 authored_send.original_receipt_preparation. Dev original installed/native adoption and all genuine holds remain.
+
+Coordinator defining receipt/source review CLEAR; exact7e component integrated after deadline with d974 provider-void clarification preserved. State26 and Work12 affected results reused, including all six actual SEND receipt cases. Original native/application acceptance remains with Dev; no invented intent, weaker census, preparation/activation/publication release or whole-plan credit. Complete checkpoint remains open.
