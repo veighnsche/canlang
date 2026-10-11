@@ -189,6 +189,37 @@ pub(super) struct NativeScenarioReceipt {
 
 /// Nongrant checked result provenance. The owning receipt collector still
 /// seals the actual executable effects, source, descriptors and return sites.
+pub(super) fn has_original_created_model_result(
+    ir: &IrProgram,
+    scenario: crate::analysis::SymbolId,
+) -> bool {
+    let Some(ScenarioDisclosure::Complete(checked)) = ir.scenario_disclosures.get(&scenario) else {
+        return false;
+    };
+    let Some(facts) = checked.source_facts.as_deref() else {
+        return false;
+    };
+    let Some(ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    }) = &facts.result
+    else {
+        return false;
+    };
+    checked.scenario == scenario
+        && facts.scenario == scenario
+        && facts.node == checked.node
+        && facts.source == checked.source
+        && !facts.read
+        && !checked.returns.is_empty()
+        && checked.returns.iter().all(|returned| {
+            returned.source == checked.source
+                && returned
+                    .model_result
+                    .is_some_and(|origin| origin.model() == *model)
+        })
+}
+
 pub(super) fn checked_created_model_result(
     ir: &IrProgram,
     item: &IrItem,
@@ -1138,9 +1169,9 @@ fn inventory_type(field: &JsModelField) -> Option<String> {
     supported_type_id(&type_id).then_some(type_id)
 }
 
-/// The finite source operand uses one genuine containment edge from the
-/// original required scenario input. It is not a general reference traversal.
-fn checked_parent_reference<'a>(
+/// The selected source operand follows at most two genuine containment edges
+/// from its original required input. Each edge retains its own observed site.
+pub(super) fn checked_parent_reference<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     value: &TypedExpr,
@@ -1149,6 +1180,22 @@ fn checked_parent_reference<'a>(
     &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
     &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
 )> {
+    checked_parent_reference_at(ir, owner, value, db, 2)
+}
+
+fn checked_parent_reference_at<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+    remaining: usize,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+)> {
+    if remaining == 0 {
+        return None;
+    }
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let IrItemKind::Scenario {
         params,
@@ -1161,54 +1208,65 @@ fn checked_parent_reference<'a>(
     let IrExpr::Member { base, field } = &value.expr else {
         return None;
     };
-    let IrExpr::Name(name) = &base.expr else {
-        return None;
-    };
-    if field != "parent" {
-        return None;
-    }
-    let mut parameters = params
-        .iter()
-        .filter_map(|id| ir.items.get(id.0 as usize))
-        .filter(|parameter| parameter.name == *name);
-    let parameter = parameters.next()?;
-    let IrItemKind::Param {
-        owner: parameter_owner,
-        ty:
-            IrType::Known(ResolvedType::Record {
-                symbol,
-                stored: true,
-            }),
-        default: None,
-        default_node: None,
-        array_bounds: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
-    let file = db.get(base.span.file)?;
-    if parameters.next().is_some()
-        || *parameter_owner != owner.id
-        || base.ty
-            != (ResolvedType::Record {
-                symbol: *symbol,
-                stored: true,
-            })
+    if field != "parent"
         || base.span.file != value.span.file
         || base.span.start != value.span.start
         || base.span.end >= value.span.end
-        || file
-            .text
-            .get(base.span.start as usize..base.span.end as usize)?
-            != name
+    {
+        return None;
+    }
+    let symbol = match &base.expr {
+        IrExpr::Name(name) => {
+            let mut parameters = params
+                .iter()
+                .filter_map(|id| ir.items.get(id.0 as usize))
+                .filter(|parameter| parameter.name == *name);
+            let parameter = parameters.next()?;
+            let IrItemKind::Param {
+                owner: parameter_owner,
+                ty:
+                    IrType::Known(ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    }),
+                default: None,
+                default_node: None,
+                array_bounds: None,
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            let file = db.get(base.span.file)?;
+            if parameters.next().is_some()
+                || *parameter_owner != owner.id
+                || file
+                    .text
+                    .get(base.span.start as usize..base.span.end as usize)?
+                    != name
+            {
+                return None;
+            }
+            *symbol
+        }
+        IrExpr::Member { field, .. } if field == "parent" => {
+            let (_, parent) = checked_parent_reference_at(ir, owner, base, db, remaining - 1)?;
+            parent.id
+        }
+        _ => return None,
+    };
+    if base.ty
+        != (ResolvedType::Record {
+            symbol,
+            stored: true,
+        })
     {
         return None;
     }
     let inventory = source.stored_contracts.as_deref()?;
     let mut children = inventory
         .iter()
-        .filter(|schema| schema.model && schema.id == *symbol);
+        .filter(|schema| schema.model && schema.id == symbol);
     let child = children.next()?;
     let mut parents = inventory
         .iter()
@@ -1693,6 +1751,7 @@ fn match_effect_proofs(
                     crud,
                     binding: checked_binding,
                     defaults,
+                    inputs: checked_inputs,
                 },
                 IrStmt::Create {
                     model: actual_model,
@@ -1703,8 +1762,23 @@ fn match_effect_proofs(
                 },
             ) => {
                 let db = db?;
+                if crud.is_none() {
+                    checked_scenario_create(
+                        ir,
+                        owner,
+                        models,
+                        checked,
+                        proof,
+                        *sites.effects.get(&site)?,
+                        db,
+                    )?;
+                    continue;
+                }
+                if !checked_inputs.is_empty() {
+                    return None;
+                }
                 let (model_item, descriptor) =
-                    root_effect_model(ir, owner, models, *model, *crud, true)?;
+                    root_effect_model(ir, owner, models, *model, (*crud)?, true)?;
                 if checked_created_model_result(ir, owner).is_some() {
                     ordered_created_model_effects(owner, proof.node, *model, checked_binding, db)?;
                 } else {
@@ -2280,6 +2354,279 @@ fn root_effect_model<'a>(
     Some((item, descriptor))
 }
 
+/// Match this scenario's original populated/contained constructor. The owning
+/// schema supplies defaults and server fields; source supplies explicit operands.
+fn checked_scenario_create(
+    ir: &IrProgram,
+    owner: &IrItem,
+    models: &[JsModel],
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
+    statement: &IrStmt,
+    db: &SourceDb,
+) -> Option<()> {
+    let DisclosureEffectKind::Create {
+        model,
+        crud: None,
+        binding,
+        defaults,
+        inputs,
+    } = &proof.kind
+    else {
+        return None;
+    };
+    let IrStmt::Create {
+        model: target,
+        input,
+        binding: Some(actual),
+        when: None,
+        span,
+    } = statement
+    else {
+        return None;
+    };
+    let facts = checked.source_facts.as_deref()?;
+    let mut sources = facts
+        .creates
+        .as_deref()?
+        .iter()
+        .filter(|source| source.node == proof.node);
+    let original = sources.next()?;
+    if sources.next().is_some()
+        || !defaults.is_empty()
+        || original.source != checked.source
+        || proof.source != checked.source
+        || original.model != *model
+        || original.binding != *binding
+        || original.inputs != *inputs
+        || actual != binding
+        || *span != node_span(proof.node)
+        || input.span != *span
+        || target != &original.definition.canonical
+        || !direct_field_name(binding)
+        || checked_created_model_result(ir, owner) != Some(*model)
+    {
+        return None;
+    }
+    super::scenario_create_sources::checked_created_schema(ir, owner, models, original, db)?;
+    ordered_created_model_effects(owner, proof.node, *model, binding, db)?;
+    checked_created_statements(ir, owner, checked, original, db)?;
+    let authored = checked_effect_node(ir, owner, proof.node, db)?;
+    let text = &db.get(span.file)?.text;
+    let target_node = authored
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::Path)?;
+    let object = authored
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::Object)?;
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let authored_entries: Vec<_> = object
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::ObjectEntry)
+        .collect();
+    let model_item = ir.items.get(model.0 as usize)?;
+    if crate::analysis::NodeKey::of(target_node) != original.target_node
+        || direct_source_path_name(target_node, text)? != model_item.name
+        || entries.len() != inputs.len()
+        || entries.len() != authored_entries.len()
+    {
+        return None;
+    }
+    for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
+        let key = authored
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Name)?;
+        if name != &source.name
+            || crate::analysis::NodeKey::of(key) != source.key_node
+            || key.token()?.text(text) != name
+            || value.ty != source.ty
+            || value.span != node_span(source.value_node)
+        {
+            return None;
+        }
+        if let Some(field) = source.field {
+            let declared = original
+                .definition
+                .fields
+                .iter()
+                .find(|declared| declared.field == field)?;
+            if declared.name != *name {
+                return None;
+            }
+        } else if name != "parent"
+            || !matches!(original.definition.declaration.owner,
+            crate::analysis::resolve::ModelOwner::ChildOf(parent) if source.ty == ResolvedType::Record {symbol:parent,stored:true})
+        {
+            return None;
+        }
+        super::scenario_create_sources::checked_create_operand(
+            ir,
+            original,
+            value,
+            source.value_node,
+            db,
+        )?;
+    }
+    Some(())
+}
+
+fn checked_created_statements(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    db: &SourceDb,
+) -> Option<()> {
+    use crate::analysis::NodeKey;
+    let facts = checked.source_facts.as_deref()?;
+    let scenario = checked_effect_node(ir, owner, facts.node, db)?;
+    let text = &db.get(facts.node.file)?.text;
+    let IrItemKind::Scenario {
+        params,
+        by,
+        guards,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    match (
+        crate::analysis::attribute_value(&scenario, "by", text),
+        by.as_slice(),
+    ) {
+        (None, []) => {}
+        (Some(node), [IrGuard::Role(role)])
+            if node.kind == SyntaxKind::NameRef
+                && matches!(
+                    role.as_str(),
+                    "members" | "owner" | "authenticated" | "public"
+                )
+                && text.get(node.span.start as usize..node.span.end as usize)
+                    == Some(role.as_str()) => {}
+        _ => return None,
+    }
+    for (position, (id, fact)) in params.iter().zip(&facts.parameters).enumerate() {
+        let parameter = ir.items.get(id.0 as usize)?;
+        let IrItemKind::Param {
+            owner: parent,
+            index,
+            default,
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        let authored = checked_effect_node(ir, owner, fact.node, db)?;
+        let name = authored
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Name)?;
+        if *parent != owner.id
+            || *index != position
+            || parameter.module != owner.module
+            || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+            || parameter.span != name.span
+            || name.token()?.text(text) != parameter.name
+        {
+            return None;
+        }
+        match (default, fact.default) {
+            (None, None) => {}
+            (Some(super::ir::IrDefault::Literal(value)), Some(node)) => {
+                super::scenario_create_sources::checked_create_expression(
+                    ir, original, value, node, db,
+                )?;
+            }
+            _ => return None,
+        }
+    }
+    let authored_guards: Vec<_> = scenario
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Require)
+        .collect();
+    let mut blocks = scenario
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::DoBlock);
+    let block = blocks.next()?;
+    if blocks.next().is_some() {
+        return None;
+    }
+    let authored_effects: Vec<_> = block
+        .children
+        .iter()
+        .filter(|node| {
+            !matches!(
+                node.kind,
+                SyntaxKind::Name | SyntaxKind::Trivia | SyntaxKind::Comment
+            )
+        })
+        .collect();
+    if authored_guards.len() != guards.len() || authored_effects.len() != effects.len() {
+        return None;
+    }
+    for (statement, authored) in guards
+        .iter()
+        .zip(authored_guards)
+        .chain(effects.iter().zip(authored_effects))
+    {
+        let (kind, at, value) = match statement {
+            IrStmt::Let { name, value, span } => {
+                let names: Vec<_> = authored
+                    .children
+                    .iter()
+                    .filter(|node| node.kind == SyntaxKind::Name)
+                    .collect();
+                let [keyword, binding] = names.as_slice() else {
+                    return None;
+                };
+                if keyword.token()?.text(text) != "let" || binding.token()?.text(text) != name {
+                    return None;
+                }
+                (SyntaxKind::Let, *span, Some(value))
+            }
+            IrStmt::Require { cond, span } => (SyntaxKind::Require, *span, Some(cond)),
+            IrStmt::Create { span, .. } => (SyntaxKind::Create, *span, None),
+            IrStmt::Return { span, .. } => (SyntaxKind::Return, *span, None),
+            _ => return None,
+        };
+        if authored.kind != kind || authored.span != at {
+            return None;
+        }
+        if let Some(value) = value {
+            let node = authored.children.iter().find(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::NameRef
+                        | SyntaxKind::Literal
+                        | SyntaxKind::Group
+                        | SyntaxKind::Array
+                        | SyntaxKind::Member
+                        | SyntaxKind::Unary
+                        | SyntaxKind::Binary
+                        | SyntaxKind::Call
+                )
+            })?;
+            super::scenario_create_sources::checked_create_expression(
+                ir,
+                original,
+                value,
+                NodeKey::of(node),
+                db,
+            )?;
+        }
+    }
+    Some(())
+}
+
 fn ordered_created_model_effects(
     owner: &IrItem,
     create: crate::analysis::NodeKey,
@@ -2290,8 +2637,11 @@ fn ordered_created_model_effects(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
-    if effects.len() != 2
-        || !matches!(effects.first(), Some(IrStmt::Create {span, ..}) if *span == node_span(create))
+    if effects.len() < 2
+        || !matches!(effects.get(effects.len() - 2), Some(IrStmt::Create {span, ..}) if *span == node_span(create))
+        || effects[..effects.len() - 2]
+            .iter()
+            .any(|effect| !matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }))
     {
         return None;
     }
@@ -2814,10 +3164,11 @@ impl<'a> Sites<'a> {
                         binding: Some(_),
                         span,
                         ..
-                    } if matches!(&input.expr, IrExpr::Object(entries) if entries.is_empty()) => {
+                    } if matches!(&input.expr, IrExpr::Object(_)) => {
                         if out.effects.insert(context.site(*span), statement).is_some() {
                             return None;
                         }
+                        push!(Visit::Expression(input));
                     }
                     IrStmt::Delete {
                         record,

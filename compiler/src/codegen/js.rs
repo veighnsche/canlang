@@ -1650,7 +1650,7 @@ fn emit_program_with_sources(
     }
     if native_receipts {
         let models = emitter.collect_models();
-        for item in &ir.items {
+        for (index, item) in ir.items.iter().enumerate() {
             if let Some(recipe) = super::scenario_receipts::collect_native_scenario_receipt(
                 ir,
                 item,
@@ -1660,6 +1660,15 @@ fn emit_program_with_sources(
                 emitter.value_types.as_ref(),
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
+            } else if super::scenario_receipts::has_original_created_model_result(
+                ir,
+                SymbolId(index as u32),
+            ) {
+                emitter.diags.push(Diagnostic::error(
+                    "E6008",
+                    "created model result needs exact original native source correspondence".into(),
+                    item.span,
+                ));
             }
         }
         if let Some(query_receipts) = query_receipts {
