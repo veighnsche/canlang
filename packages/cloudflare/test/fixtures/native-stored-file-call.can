@@ -1,0 +1,27 @@
+app CanChat uses=[chat]
+package chat
+ use std {TextMessage}
+ Given
+  Conversation {title:text}
+  Branch in Conversation {title:text}
+  Turn in Branch {content:text,attachments:file[] max=8}
+  Run in Branch {account:user}
+  policy Conversation read=members
+  policy Branch read=members
+  policy Turn read=members
+  policy Run read=members
+ When
+  ## TEST-AUTHORED SETUP ONLY: authenticated members CRUD; original CHAT fragment is preserved.
+  crud Conversation by=members fields=title
+  crud Branch by=members fields=title
+  crud Turn by=members fields=content,attachments
+  export scenario ask(branch:Branch,prompt:TextMessage.content,attachments:file[]=[]) by=members -> Run
+   do
+    create Run {parent=branch,account=actor} as run
+    return run
+  scenario regenerate(turn:Turn,title:text) by=members -> Run
+   do
+    create Branch {parent=turn.parent.parent,title} as branch
+    call ask {branch,prompt=turn.content,attachments=turn.attachments} as run
+    return run
+ Then

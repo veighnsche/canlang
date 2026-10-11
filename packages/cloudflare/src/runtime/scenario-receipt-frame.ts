@@ -1,12 +1,14 @@
 /** Private framework bridge. Only actual State invoke can open a lifetime.
  * Generated source receives only observer/selection/call facades, never this constructor.
  */
-import type { CanValue, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall } from '@canlang/state/invocation';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
   selectScenarioReceiptReturn as selectStateReturn,
   executeScenarioReceiptQuery as executeStateQuery,
+  selectScenarioReceiptQueryFirstRow as selectStateQueryFirstRow,
+  bindScenarioReceiptQueryCount as bindStateQueryCount,
   observeScenarioReceiptQueryDependency as observeStateQueryDependency,
   bindScenarioReceiptQueryResult as bindStateQueryResult,
   bindScenarioReceiptModelResult as bindStateModelResult,
@@ -21,6 +23,8 @@ import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow,
 interface NativeQueryProducer {
   readonly record: (model: string, record: ProjectedRecord, read: (field: string) => void, current: () => ProjectedRecord) => Readonly<Record<string, unknown>>;
   readonly encode: (value: unknown) => unknown;
+  /** Trusted receipt host binds only State's genuine selected owner row. */
+  readonly mutableRecord?: (model: string, row: StoredRow) => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
 interface NativeQueryExecution {
   readonly plan: ScenarioReceiptQueryPlan;
@@ -46,8 +50,12 @@ interface QueryFrame {
   failed: boolean;
   error: unknown;
 }
+export type ScenarioReceiptDependencyObserver = (input: {
+  readonly dependencyId: string; readonly model: string; readonly row: StoredRow; readonly field: string;
+}, healthy: () => void) => Promise<readonly FinalizedFileObservation[] | undefined>;
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
+  readonly observeDependency?: ScenarioReceiptDependencyObserver;
   readonly call: AdmittedCall;
   readonly store: StoragePort;
   readonly owner: object;
@@ -151,13 +159,14 @@ export interface ScenarioReceiptFrame {
 export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   store: StoragePort, failure: (error: unknown) => void,
   invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>,
-  queryProducer?: NativeQueryProducer): ScenarioReceiptFrame {
+  queryProducer?: NativeQueryProducer, observeDependency?: ScenarioReceiptDependencyObserver): ScenarioReceiptFrame {
   assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || readFrames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
-  const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, ...(invokeCall === undefined ? {} : { invokeCall }),
+  const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics,
+    ...(observeDependency === undefined ? {} : { observeDependency }), ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
     owner: Object.freeze({}), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
@@ -256,8 +265,11 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
     frame.pending += 1;
     try {
       const row = captureNativeScenarioReceiptRow(nativeRow, frame.owner, model);
+      const files = frame.observeDependency === undefined ? undefined
+        : await frame.observeDependency({ dependencyId, model, row, field }, () => { checked(c); });
+      checked(c);
       await observeStateDependency(frame.call, frame.store,
-        { dependencyId, model: model as ModelName, row, field });
+        { dependencyId, model: model as ModelName, row, field, ...(files === undefined ? {} : { files }) });
       checked(c);
       // This private cache records only actual successful State observation.
       // Native hydration must match the exact evaluated field's canonical wire;
@@ -316,6 +328,70 @@ export function observeScenarioReceiptIntrinsic(c: HandlerContext, dependencyId:
   return operation;
 }
 
+/** Awaited original first(Query) facade. The originating context and exact
+ * issued query array alone locate State's private handle; generic first(array)
+ * remains pure. Compiler owns selecting this helper for its checked occurrence. */
+export function firstQuery(c: HandlerContext, value: unknown): Promise<Record<string, unknown> | null> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0) return fail(frame, new StateError('validation', 'First query selection must follow its completed original query.'));
+    frame.pending += 1;
+    try {
+      const selected = typeof value === 'object' && value !== null ? frame.queryArrays.get(value) : undefined;
+      const query = selected?.query, result = query?.receiptResult;
+      if (query === undefined || result === undefined || query.result !== result || query.bound || query.active !== null ||
+          frame.queryProducer?.mutableRecord === undefined) {
+        return refuse('First query selection requires its exact original receipt query array and owning mutable binder.');
+      }
+      query.bound = true;
+      // This literal handle stays private; no selected projection, copied
+      // row or later owner read can substitute for the defining selection.
+      const row = await selectStateQueryFirstRow(frame.call, frame.store, { query: result.query });
+      checked(c);
+      const first = result.rows[0];
+      if (row === null) {
+        if (first !== undefined) return refuse('First query null differs from its original matched selection.');
+        return null;
+      }
+      if (first === undefined || row.id !== first.record.id || row.version !== first.record.version) {
+        return refuse('First query owner row differs from its original sorted matched selection.');
+      }
+      // The trusted host registers the genuine row before preparing its
+      // existing parent navigation. No projection or later load substitutes.
+      const view = await frame.queryProducer.mutableRecord(query.plan.model, row);
+      checked(c);
+      return view;
+    } catch (error) { return fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {});
+  return operation;
+}
+
+/** Original count(Query) consumes State's handle once and retains Can int.
+ * Ordinary count(array) remains the synchronous Values helper. */
+export function countQuery(c: HandlerContext, value: unknown): Promise<bigint> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Query count must follow its completed original query.'));
+    frame.pending += 1;
+    try {
+      const selected = typeof value === 'object' && value !== null ? frame.queryArrays.get(value) : undefined;
+      const query = selected?.query, result = query?.receiptResult;
+      if (query === undefined || result === undefined || query.result !== result || query.bound || query.active !== null) {
+        return refuse('Query count requires its exact original receipt query array.');
+      }
+      query.bound = true;
+      const count = await bindStateQueryCount(frame.call, frame.store, { query: result.query });
+      checked(c);
+      if (count !== BigInt(result.count)) return refuse('Query count differs from its original matched selection.');
+      return count;
+    } catch (error) { return fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {});
+  return operation;
+}
 
 /** One checked source occurrence enters State's complete current-policy domain.
  * Only native views escape; actual query handles and candidate slots stay private. */
