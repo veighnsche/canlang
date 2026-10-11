@@ -402,10 +402,15 @@ canApp = function() {
 });
 
 // These are required genuine compiled replay criteria, including after physical D1 reopen.
-// They await the owning Compiler Complete/effect-site proof; no synthetic association is installed.
+// The original source supplies the Compiler's checked Complete/effect-site proof.
 for (const operation of ['born', 'discard'] as const) {
   test(`actual compiled ${operation} preserves successful receipt replay through D1 reopen`, async () => {
     const compiled = await artifact();
+    const descriptor = compiled.operations!.find(op => op.name === `${APP}.${operation}`)!;
+    assert.ok(descriptor.result?.disclosure);
+    assert.deepEqual(descriptor.result, { type: operation === 'born' ? 'int' : 'void',
+      disclosure: descriptor.result.disclosure });
+    assert.equal(descriptor.result.disclosure.returns.length, 1);
     const dir = await mkdtemp(join(tmpdir(), `can-typed-${operation}-replay-`));
     const world = await memberWorld();
     let d1: Awaited<ReturnType<typeof openD1>> | undefined;
@@ -432,14 +437,42 @@ for (const operation of ['born', 'discard'] as const) {
       assert.equal(row.version, operation === 'born' ? 1 : 2);
       assert.equal(row.archivedAt, operation === 'born' ? null : FIXED_NOW);
       const history = await d1.store.historyFor(MODEL, row.id);
-      assert.deepEqual(history.map(entry => entry.change), operation === 'born' ? ['create', 'update'] : ['create', 'archive']);
+      assert.deepEqual(history.map(entry => entry.change), operation === 'born' ? ['create'] : ['create', 'archive']);
+      if (operation === 'born') {
+        // A provisional set coalesces into the first committed creation.
+        assert.deepEqual(history.map(entry => ({ model: entry.model, recordId: entry.recordId,
+          version: entry.version, operation: entry.operation, operationId: entry.operationId,
+          actor: entry.actor, at: entry.at, before: entry.before, after: entry.after })), [{
+          model: MODEL, recordId: row.id, version: 1, operation: request.operation,
+          operationId: request.operation_id, actor: world.identity.actor!.user_id,
+          at: FIXED_NOW, before: null, after: { count: '2' },
+        }]);
+      }
       const receiptKey = { app: APP, owner: world.identity.team!.team_id, principal: world.identity.actor!.user_id,
         operation: asOperation(request.operation), operationId: asOperationId(request.operation_id) };
       const receipt = await d1.store.readReceipt(receiptKey);
-      assert.equal(receipt?.outcome.status, 'committed');
-      if (receipt?.outcome.status === 'committed') assert.equal(receipt.outcome.result, expectedResult);
+      assert.ok(receipt); assert.deepEqual(receipt.identity, receiptKey);
+      assert.equal(receipt.outcome.status, 'committed');
+      assert.ok(receipt.outcome.status === 'committed');
+      assert.equal(receipt.outcome.result, expectedResult);
+      const association = receipt.outcome.scenario;
+      assert.ok(association); assert.deepEqual(association.plan, descriptor.result.disclosure);
+      assert.equal(association.resultType, descriptor.result.type);
+      assert.equal(association.returnId, descriptor.result.disclosure.returns[0]!.id);
+      if (operation === 'born') {
+        assert.deepEqual(association.observations.map(observation => observation.row.data['count']), ['1', '2']);
+        for (const observation of association.observations) {
+          assert.equal(observation.model, MODEL); assert.equal(observation.row.id, row.id);
+          assert.equal(observation.row.version, 1); assert.equal(observation.row.created, row.created);
+          assert.equal(observation.row.createdBy, row.createdBy);
+        }
+      } else {
+        assert.deepEqual(association.observations, []);
+        assert.deepEqual(descriptor.result.disclosure.returns[0]!.dependencies, []);
+      }
       if (operation === 'born') assert.equal(receipt?.resolvedDefaults[`0:${MODEL}.count`], '1');
-      await replaysWithoutEffects(invoker, d1.store, request, world.identity, expectedResult);
+      const replay = await replaysWithoutEffects(invoker, d1.store, request, world.identity, expectedResult);
+      assert.deepEqual(replay.records, operation === 'born' ? outcome.records : []);
       const savedRevision = await d1.store.readRevision();
       await d1.worker.dispose(); d1 = undefined;
       d1 = await openD1(join(dir, 'd1'));
@@ -448,7 +481,19 @@ for (const operation of ['born', 'discard'] as const) {
       assert.deepEqual(await d1.store.readReceipt(receiptKey), receipt);
       assert.equal(await d1.store.readRevision(), savedRevision);
       const reopened = buildInvoker(compiled, asm, d1.store, { memberships: world.memberships, now: () => FIXED_NOW });
-      await replaysWithoutEffects(reopened, d1.store, request, world.identity, expectedResult);
+      const persisted = await replaysWithoutEffects(reopened, d1.store, request, world.identity, expectedResult);
+      assert.deepEqual(persisted.records, operation === 'born' ? outcome.records : []);
+      if (operation === 'born') {
+        committed(await reopened.invokeMutation(envelope('Counter.delete', {
+          record: { id: row.id, version: String(row.version) },
+        }), world.identity));
+        assert.equal((await d1.store.load(MODEL, row.id))?.archivedAt, FIXED_NOW);
+        const withheld = await replaysWithoutEffects(reopened, d1.store, request, world.identity, null);
+        assert.deepEqual(withheld.records, []);
+      }
+      await world.memberships.removeMembership(world.identity.membership!.membership_id);
+      const revoked = await replaysWithoutEffects(reopened, d1.store, request, world.identity, null);
+      assert.deepEqual(revoked.records, []);
     } finally {
       await d1?.worker.dispose();
       await rm(dir, { recursive: true, force: true });
@@ -492,10 +537,15 @@ canApp = function() {
 test('explicit-id helper compatibility stages through the same canonical execution', async () => {
   const compiled = await artifact();
   // Historical helper calls over actual model/admission metadata; not emitted Can code.
+  const descriptor = compiled.operations!.find(op => op.name === `${APP}.born`)!;
+  assert.equal(descriptor.result?.type, 'int');
+  // The replacement handler retains its type, but supplies no original capture.
+  delete (descriptor.result as { disclosure?: unknown }).disclosure;
   compiled.modules[0]!.js += `
 const explicitIdCanApp = canApp;
 canApp = function() {
   const registry = explicitIdCanApp();
+  delete registry.operations.find(operation => operation.name === "${APP}.born").result.disclosure;
   registry["${APP}.born"] = async function(c) {
     const row = await create(c, "${MODEL}", {id: c.operation.id, data: {count: "2"}});
     const updated = await set(c, "${MODEL}", row.id, {count: "3"});
