@@ -1034,7 +1034,7 @@
         "stale"
       ],
       "trigger": "Employee active current member with home/location/operator_wide versus inactive/member removed; actual approve role absent or lost; Location active=false.",
-      "expected": "can_work depends on active Employee/current team and home/locations/operator_wide; review actual role remains separate. Source does not add Location.active to can_work. Null-scope original review guards retain role-only behavior; reconcile broad workspace work-identity requirement separately without inventing hidden eligibility rule.",
+      "expected": "can_work depends on active Employee/current team and home/locations/operator_wide; review actual role remains separate. Source does not add Location.active to can_work. Null-scope original review guards retain role-only behavior; employee-only workspace requirement does not narrow explicitly operator-wide role-only scope. Preserve both authentic outcomes without a hidden eligibility rule.",
       "anchors": [
         "draft/shared/Employees.can:8",
         "draft/shared/Employees.can:9",

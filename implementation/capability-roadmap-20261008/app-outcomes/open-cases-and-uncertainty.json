@@ -374,8 +374,8 @@
         "CA-01",
         "CA-13"
       ],
-      "topic": "Related supplier/customer/project reference intent",
-      "required_complete_case_or_evidence": "CanApprove.md requests related supplier/customer/project reference; Document currently declares subject:text? with no typed owning references. Retain this original workflow requirement and its grant/source checks in completion scope rather than dropping it.",
+      "topic": "Manual related-reference input at the original declared scope",
+      "required_complete_case_or_evidence": "Execute authorized original Document intake/edit with the entered supplier/customer/project reference; retain it through edit/reopen and deny unauthorized Document field disclosure. No new typed owner or lookup contract is required by the original source.",
       "anchors": [
         "draft/CanApprove.md:17",
         "draft/CanApprove.can:12",
@@ -387,8 +387,9 @@
         "D",
         "X"
       ],
-      "status": "open expected-case requirement; not acceptance finding",
-      "unresolved_interpretation": "Whether free-form subject fulfills this declared related-reference intent is not settled by the source; no new relation model is chosen here."
+      "status": "source interpretation resolved; original execution requirement open, no native acceptance",
+      "resolved_interpretation": "CanApprove.md17 asks to record a related supplier/customer/project reference without requiring new typed owner models; its authored subject:text? and input subject atCanApprove.can12/85/281 supply the manual representation. WORKSPACE_OPERATOR62 permits related-record links without connected capabilities. Typed lookup/new domain relations are optional proposals, not an original execution prerequisite.",
+      "remaining_owner_and_acceptance": "Authorized original Document intake/edit persists the entered manual reference and exposes it only under existing Document permissions. Owning approve.Document; Compiler authentic lowering, Dev native execution and presentation. Related external record/file authority is not conferred by text."
     },
     {
       "id": "GAP-CA-02",
@@ -421,8 +422,8 @@
         "CA-05",
         "EM-04"
       ],
-      "topic": "Role-only operator-wide versus broad work-identity rule",
-      "required_complete_case_or_evidence": "Execute null-scope admissions with actual approve.reviewer but no active staff viewer grant and site-scope loss with static reviewer role. Retain current source null-scope role-only behavior and current site can_work behavior; separately resolve any intended broader staff policy using balanced requirements.",
+      "topic": "Operator-wide role-only and site current-work scopes are explicit",
+      "required_complete_case_or_evidence": "Execute null-scope admissions with actual current approve.reviewer but no active staff viewer grant, and site-scope loss with static reviewer role. Preserve explicit operator-wide role-only admission, current site can_work and separate Employee candidate viewer grants without adding an employee-only condition.",
       "anchors": [
         "draft/CanApprove.md:73",
         "draft/CanApprove.md:83",
@@ -436,8 +437,9 @@
         "D",
         "X"
       ],
-      "status": "open expected-case requirement; not acceptance finding",
-      "unresolved_interpretation": "Broad workspace instruction says employee-only operations recheck active work identity, whereas CanApprove explicitly retains operator-wide role-only/nonstaff admission. The matrix reports both rather than inventing a hidden active-Employee rule."
+      "status": "source interpretation resolved; original execution requirement open, no native acceptance",
+      "resolved_interpretation": "WORKSPACE_OPERATOR74 applies to employee-only operations. CanApprove.md73/83 explicitly permits current-role operator-wide/nonstaff admission and opaque inputs without candidate Employee grants; original CanApprove.can85/92/198/219 preserves that scope. This is not a hidden employee-only classification or a missing broader staff-policy decision.",
+      "remaining_owner_and_acceptance": "Original null-scope current-role submit/assign/decide admits without active Employee eligibility, while site admissions/read grants lose authority when current can_work fails. Candidate lookup independently follows Employee viewer grants. Owning approve admission/read and employee current work identity; Compiler/Dev authentic source/native execution."
     },
     {
       "id": "GAP-CA-04",
@@ -554,8 +556,8 @@
       "workflow_ids": [
         "LO-01"
       ],
-      "topic": "New Location create eligibility/bootstrap",
-      "required_complete_case_or_evidence": "Test creation under catalog_owner current can_work guard while referencing a new owning Location; source declares no separate seed/bootstrap workflow. Preserve required create workflow rather than assuming a bypass or silently omitting it.",
+      "topic": "Existing operator-wide Employee supplies source-supported new-location admission",
+      "required_complete_case_or_evidence": "Execute original Location.create with genuine active current-member operator-wide Employee and catalog_owner, binding the proposed owning Location through can_work and original snapshot hook. Deny missing role/current work authority. Preserve this source-supported create route without assuming a bypass or silently omitting it.",
       "anchors": [
         "draft/shared/Locations.can:29",
         "draft/shared/Employees.can:9"
@@ -565,8 +567,9 @@
         "D",
         "X"
       ],
-      "status": "open expected-case requirement; not acceptance finding",
-      "unresolved_interpretation": "Exact new-record guard evaluation/bootstrap policy needs shared CRUD/runtime specification evidence; matrix does not choose an admin bypass."
+      "status": "source interpretation resolved; original execution requirement open, no native acceptance",
+      "resolved_interpretation": "Employees.can9 permits matching active current-member Employee with operator_wide=true regardless of prior association with the proposed Location; Locations.can29 separately requires catalog_owner. Thus an existing genuinely provisioned operator-wide employee has a source-supported create path. No admin bypass/new bootstrap policy is necessary for that route; provisioning and actual proposed-row association are not established by source alone.",
+      "remaining_owner_and_acceptance": "Original native Location.create binds its proposed owning row through employee.can_work, admits a genuine active operator-wide/current-member catalog_owner, commits Location and original snapshot hook association, and denies missing role/current work authority. Owning rent_catalog.Location and employee.can_work; Compiler proposed-row/cross-owner lowering and Dev native execution."
     },
     {
       "id": "GAP-LO-02",
@@ -604,7 +607,9 @@
         "X"
       ],
       "status": "open expected-case requirement; not acceptance finding",
-      "unresolved_interpretation": "Precise local_instant nonexistent-time/error and dates-bound behavior needs shared library evidence; no silent default is chosen."
+      "resolved_interpretation": "Original Locations explicitly supplies earlier/later on every local_instant and dates(...,1000). Owning Values timezone.ts207–244 requires that fold, chooses the actual earlier/later candidate and refuses nonexistent local time; temporal.ts321–344 produces half-open dates and fails limit-exceeded before work beyond the supplied bound. State query/engine.ts1285–1293 separately refuses an overflowing explicitly bounded authorized result without truncation. No automatic gap adjustment, unbounded dates, universal query horizon or new temporal design choice is required.",
+      "library_evidence": "Reuse existing Values timezone gap/fold and temporal date-bound controls plus State query aggregate controls. Read-only existing distribution probe: Brussels2026-10-25 02:30 earlier=00:30Z/later=01:30Z;2026-03-29 02:30 nonexistent-time for both;1000 dates succeed/1001 limit-exceeded. Library evidence only; no original native app acceptance.",
+      "remaining_owner_and_acceptance": "Capability retains the complete original live/retained LocationPolicy helper outcomes in this gap. Compiler supplies authentic original lowering and Dev genuine native consumption of unchanged Location/WeeklyHours/DateHours/LocationPolicy expressions. Complete when normal/overnight, overrides/closed touching, inactive/nonpositive intervals, Brussels fold/gap and authored bounds execute through the actual original helpers with errors/evaluation order preserved. No new carrier or whole-owner-plan barrier."
     },
     {
       "id": "GAP-LO-04",
@@ -615,8 +620,8 @@
         "CA-04",
         "CA-05"
       ],
-      "topic": "Inactive Location versus current work eligibility",
-      "required_complete_case_or_evidence": "Demonstrate original source can_work on an inactive Location, and distinguish opening active flag from approve site eligibility. Retain absent Location.active condition as an explicit requirement question rather than inventing denial.",
+      "topic": "Opening activity is separate from current document workplace eligibility",
+      "required_complete_case_or_evidence": "Execute original can_work/document review on an inactive Location with otherwise current work authority, and distinguish opening active flag from approve eligibility. Preserve the original absence of Location.active in can_work while demonstrating current employment/membership/location scope refusal.",
       "anchors": [
         "draft/shared/Employees.can:9",
         "draft/shared/Locations.can:6",
@@ -629,8 +634,9 @@
         "D",
         "X"
       ],
-      "status": "open expected-case requirement; not acceptance finding",
-      "unresolved_interpretation": "Whether inactive catalog sites should block document review is not declared in original CanApprove guards."
+      "status": "source interpretation resolved; original execution requirement open, no native acceptance",
+      "resolved_interpretation": "Employees.can9 and original approval guards atCanApprove.can92/198/219 do not require Location.active. CanApprove.md73 requires current workplace eligibility; Locations.can15/23 expressly gates policy_open/is_open with activity. Inactive-site approval denial would be a separate policy change, not an unmet original interpretation.",
+      "remaining_owner_and_acceptance": "Inactive Location alone does not deny otherwise currently eligible document review; original is_open/policy_open refuse inactive live/retained policy while employment, membership, site scope and current actual reviewer role still apply. Owning employee/approve eligibility and rent_catalog opening; Compiler/Dev authentic native execution."
     }
   ]
 }
