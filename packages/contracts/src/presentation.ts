@@ -845,8 +845,8 @@ export interface OtpProps extends FieldControlProps {
 export interface FilterProps extends FieldControlProps {}
 
 /**
- * `calendar` agenda production: date-grouped read-only agenda over a query
- * in the team timezone. Field production reuses the control props.
+ * `calendar` agenda production: date-grouped authorized collection query
+ * with an optional authored row body. Field production reuses control props.
  */
 export interface CalendarAgendaProps {
   readonly context: PresentationContext;
@@ -854,11 +854,17 @@ export interface CalendarAgendaProps {
   readonly startField: string;
   readonly endField: string;
   readonly where?: unknown;
+  readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;
+  /** Existing finite page read; the query owner binds its cursor to occurrence. */
+  readonly page?: true;
+  readonly occurrence?: string;
   readonly empty: MessageValue;
   /** IANA zone for day grouping/display; defaults to UTC when absent. */
   readonly timeZone?: string;
+  /** Receives only the current authorized row and the dispatcher-owned view. */
+  readonly renderRow?: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
 }
 export interface CalendarFieldProps extends FieldControlProps {}
 export type CalendarProps =

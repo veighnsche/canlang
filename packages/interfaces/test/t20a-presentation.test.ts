@@ -16,7 +16,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import type { IdentityStore } from '@canlang/identity';
-import { ARTIFACT_VERSION } from '@canlang/contracts';
+import { ARTIFACT_VERSION, SOURCE_FORM_BINDING_FIELD } from '@canlang/contracts';
 import type { ArtifactOperation } from '@canlang/contracts';
 import type {
   ClosedInputs,
@@ -25,6 +25,7 @@ import type {
   MutationResult,
   ResolvedIdentity,
   RowQueryRunner,
+  RowView,
 } from '@canlang/contracts';
 import { DEFAULT_THEME } from '@canlang/contracts';
 import type { MutationOutcome } from '../src/ports.js';
@@ -1472,4 +1473,99 @@ test('page context carries identity, query, and metadata through the pilot', asy
   assert.equal(context.path, '/gadgets');
   assert.equal(context.isPartial, false);
   assert.equal(context.appDefaultLocale, 'en');
+});
+
+
+test('calendar agenda page rows prepare distinct signed update forms in the current protected context', async () => {
+  // Real UI + Interfaces component join over authorized RowViews supplied by
+  // this query fixture; no original CanBook/native/State mutation claim.
+  const t = await createTestDeps();
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [GADGET_UPDATE_OP] });
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(97), 'agenda-form-component');
+  const request = testRequest('/agenda', { cookie: t.identity.cookie });
+  const { identity: principal, sessionToken } = await resolveRequestIdentity(t.identity.store, request,
+    { clock: t.deps.clock, teamId: t.identity.teamId });
+  assert.ok(sessionToken);
+  const csrfToken = await csrfTokenForSession(sessionToken);
+  const rows: readonly RowView[] = [
+    { id: 'agenda-g2', version: '7', fields: { from: '2026-10-12T09:00:00Z', until: '2026-10-12T09:30:00Z', title: 'Second gadget' } },
+    { id: 'agenda-g1', version: '3', fields: { from: '2026-10-12T10:00:00Z', until: '2026-10-12T10:30:00Z', title: 'First gadget' } },
+  ];
+  const where = { op: 'eq', field: 'state', value: 'submitted' };
+  const order = ['from'];
+  let queries = 0;
+  const query: RowQueryRunner = async (invocation, model, args) => {
+    queries++;
+    assert.equal(invocation, principal); assert.equal(model, 'Shop.Gadget');
+    assert.equal(args.where, where); assert.equal(args.order, order);
+    assert.deepEqual(args, { where, order, page: true, occurrence: 'agenda-appointment', limit: 2, cursor: 'agenda-cursor' });
+    return { rows, columns: [
+      { field: 'from', type: 'datetime', label: 'From' },
+      { field: 'until', type: 'datetime', label: 'Until' },
+      { field: 'title', type: 'text', label: 'Title' },
+    ] };
+  };
+  const context = buildPresentationContext({ request, pathname: '/agenda', isPartial: false,
+    appDefaultLocale: 'en', csrfToken, principal, query, catalog, clock: t.deps.clock,
+    formBindings, appId: t.deps.app.appId, sessionToken });
+  const callbacks: RowView[] = [];
+  const bodies: string[] = [];
+  const proofs: string[] = [];
+  const operationIds: string[] = [];
+  const html = await calendar({ kind: 'agenda', context, model: 'Shop.Gadget', startField: 'from', endField: 'until',
+    where, order, page: true, occurrence: 'agenda-appointment', limit: 2, cursor: 'agenda-cursor',
+    empty: 'No appointments', timeZone: 'Europe/Brussels',
+    renderRow: async (row, currentContext) => {
+      const index = callbacks.length;
+      assert.equal(row, rows[index]); assert.equal(currentContext, context);
+      assert.equal(currentContext.prepareForm, context.prepareForm);
+      callbacks.push(row);
+      // The generated native row convention keeps authorized fields alongside
+      // id and the original bigint version, rather than a fabricated ref DTO.
+      const nativeRecord = { ...row.fields, id: row.id, version: BigInt(row.version!) };
+      const prepared = await currentContext.prepareForm!({ operation: GADGET_UPDATE_OP.name,
+        occurrence: `agenda-update:${row.id}`, fields: ['title'], authoredFields: ['title'], arguments: { record: nativeRecord } });
+      assert.equal(prepared.status, 'ready');
+      if (prepared.status !== 'ready') throw new Error('expected protected agenda update form');
+      // The existing preparer captures the dispatcher view before its own
+      // prepareForm callback is attached; all resolved protection remains.
+      const { prepareForm: _prepareForm, ...dispatcherView } = currentContext;
+      assert.deepEqual(prepared.props.context, dispatcherView);
+      assert.equal(prepared.props.context.invocation, currentContext.invocation);
+      assert.deepEqual(prepared.props.record, { id: row.id, version: row.version });
+      assert.deepEqual(prepared.props.fields!.map(field => field.path), ['title']);
+      assert.equal(prepared.field('title').context, prepared.props.context);
+      assert.equal(prepared.field('title').field.value, row.fields.title);
+      const body = await form({ ...prepared.props, children: [await renderInput(prepared.field('title'))] });
+      assert.equal(hiddenValue(body, 'operation'), GADGET_UPDATE_OP.name);
+      assert.equal(hiddenValue(body, '_csrf'), csrfToken);
+      assert.equal(hiddenValue(body, 'operation_id'), prepared.props.operationId);
+      const proof = hiddenValue(body, SOURCE_FORM_BINDING_FIELD);
+      assert.ok(proof);
+      // Signed bound refs are carried inside the authentic hidden binding,
+      // rather than duplicate unprotected record/version controls.
+      assert.equal(body.includes('name="inputs[record][id]"'), false);
+      assert.equal(body.includes('name="inputs[record][version]"'), false);
+      assert.ok(body.includes('name="inputs[changes][title]"'));
+      assert.ok(body.includes(`value="${String(row.fields.title)}"`));
+      const bindingContext = { appId: t.deps.app.appId, sessionToken, identity: principal,
+        derived: prepared.derived, operationId: prepared.props.operationId, nowMs: t.deps.clock.nowMs() };
+      const restored = await formBindings.restore(bindingContext, proof, { title: row.fields.title as string });
+      assert.ok(restored);
+      assert.deepEqual({ ...restored }, { title: row.fields.title, record: { id: row.id, version: row.version } });
+      assert.equal(await formBindings.restore({ ...bindingContext, operationId: mintOperationId() }, proof,
+        { title: row.fields.title as string }), null);
+      proofs.push(proof); operationIds.push(prepared.props.operationId); bodies.push(body);
+      return [body];
+    },
+  });
+  assert.equal(queries, 1);
+  assert.deepEqual(callbacks, rows);
+  assert.equal(new Set(proofs).size, 2); assert.equal(new Set(operationIds).size, 2);
+  assert.ok(html.indexOf(bodies[0]!) >= 0);
+  assert.ok(html.indexOf(bodies[0]!) < html.indexOf(bodies[1]!));
+  assert.equal(html.split(`name="${SOURCE_FORM_BINDING_FIELD}"`).length - 1, 2);
+  const unavailable = await context.prepareForm!({ operation: 'Shop.missing', fields: ['title'] });
+  assert.equal(unavailable.status, 'unavailable');
+  assert.equal(t.invoker.mutations.length, 0);
 });
