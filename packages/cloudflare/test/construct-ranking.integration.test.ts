@@ -13,7 +13,7 @@ import { prepareLocalPreviewCapture } from "../src/dev/preview-inputs.js";
 
 const project = resolve(import.meta.dirname, "../../..");
 
-it("retains the actual unknown Office collection coverage gap without a provider call", async () => {
+it("retains the complete Office collection inventory without qualifying source intent or calling a provider", async () => {
   const source = "app OfficeChoice\nGiven\n Supply {name:text,quantity:int?,available:bool=true}\n policy Supply read=members\nWhen\n crud Supply by=members fields=name,quantity,available\nThen\n page / title=\"Supplies\"\n  stock_rows Supply empty=\"No supplies\"\n   text row.name,row.quantity,row.available\n";
   const appRoot = await mkdtemp(join(project, ".can-dev-office-choice-"));
   const runtimeDir = await mkdtemp(join(tmpdir(), "can-office-choice-control-"));
@@ -45,33 +45,47 @@ it("retains the actual unknown Office collection coverage gap without a provider
         ],
       },
       constructRanking: { allowExternal: () => true, transport: { choose: async () => {
-        providerCalls++; throw new Error("incomplete compiler inventory must remain local");
+        providerCalls++; throw new Error("unqualified source intent must remain local");
       } } },
     });
     const client = await attachDevSessionService({ checkoutRoot: project, app: "OfficeChoice",
       profile: "local-d1-identity", runtimeDir });
     const checked = await client.request({ command: "check" }) as SessionCheckResponse;
     expect(checked.state).toBe("errors"); expect(checked.current).toBe(true);
+    expect(checked.preview).toBe("unavailable");
     expect(checked.evidence).toMatchObject({ capture_complete: true, analysis_complete: true,
       diagnostics_reported: 1, diagnostics_omitted: 0, diagnostics_service_omitted: 0 });
     const detail = await client.request({ command: "diagnostic.detail",
       payload: { revision: checked.revision, index: 0 } }) as {
-      source: { sha256: string }; diagnostic: { code: string; primary: { start: number; end: number };
+      current: boolean; source: { sha256: string }; diagnostic: { code: string; message: string; primary: { start: number; end: number };
         construct_candidates: CompilerConstructCandidates };
       construct_help: { disposition: string; grammarCoverage: string; candidateCoverage: string;
-        cards: unknown[]; classification: unknown[] };
+        cards: { id: string; status: string }[]; classification: { id: string; profile: string; working: string }[] };
     };
+    expect(detail.current).toBe(true);
     expect(detail.source.sha256).toBe(createHash("sha256").update(source).digest("hex"));
     expect(detail.diagnostic).toMatchObject({ code: "E2001", primary: { start: 197, end: 207 },
-      construct_candidates: { version: 1, disposition: "unknown", slot: "then.collection-presentation",
-        complete: false, ids: [] } });
-    expect(detail.diagnostic.construct_candidates.context).toBeUndefined();
+      construct_candidates: { version: 1, disposition: "exact", slot: "then.collection-presentation",
+        complete: true, ids: ["can.v1.ui.list", "can.v1.ui.table"], context: {
+          version: 1, messageKind: "unknown_collection_presentation", section: "Then", guess: "stock_rows",
+          exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+          materialIntentChoice: true, evidenceSufficient: false, unsupportedBehaviorProven: false,
+        } } });
+    expect(detail.diagnostic.message).toContain("complete readonly alternatives");
+    for (const exclusion of ["board", "gallery", "calendar", "timeline", "carousel", "hover_gallery", "steps", "text_rotate"])
+      expect(detail.diagnostic.message).toContain(exclusion);
     expect(Buffer.from(source).subarray(197, 207).toString("utf8")).toBe("stock_rows");
-    expect(detail.construct_help).toMatchObject({ disposition: "unknown", grammarCoverage: "unknown",
-      candidateCoverage: "unknown", cards: [], classification: [] });
+    expect(detail.construct_help).toMatchObject({ disposition: "exact", grammarCoverage: "complete",
+      candidateCoverage: "unknown" });
+    expect(detail.construct_help.cards.map(card => card.id)).toEqual(["can.v1.ui.list", "can.v1.ui.table"]);
+    expect(detail.construct_help.cards.every(card => card.status !== "working")).toBe(true);
+    expect(detail.construct_help.classification).toEqual([
+      { id: "can.v1.ui.list", profile: "included", working: "unqualified" },
+      { id: "can.v1.ui.table", profile: "included", working: "unqualified" },
+    ]);
     expect(await client.request({ command: "construct.rank", payload: { revision: checked.revision, index: 0 } }))
       .toMatchObject({ result: { state: "candidate_coverage_unknown",
-        reason: "captured compiler ranking context is incomplete" } });
+        reason: "host profile or diagnostic branch qualification is unavailable" } });
     expect(providerCalls).toBe(0);
     expect(await client.request({ command: "preview.status" })).toMatchObject({ state: "unavailable", serving_build: null });
   } finally {

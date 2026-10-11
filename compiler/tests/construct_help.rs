@@ -431,13 +431,49 @@ fn unknown_office_collection_origin_checks_rows_and_refuses_artifacts() {
             origin["message"]
                 .as_str()
                 .unwrap()
-                .contains("distinct selectors")
+                .contains("complete readonly alternatives")
         );
+        for exclusion in [
+            "board",
+            "gallery",
+            "calendar",
+            "timeline",
+            "carousel",
+            "hover_gallery",
+            "steps",
+            "text_rotate",
+        ] {
+            assert!(
+                origin["message"].as_str().unwrap().contains(exclusion),
+                "{output}"
+            );
+        }
         let candidates = &origin["construct_candidates"];
-        assert_eq!(candidates["disposition"], "unknown");
-        assert_eq!(candidates["complete"], false);
-        assert_eq!(candidates["ids"], json!([]));
-        assert!(candidates.get("context").is_none());
+        assert_eq!(candidates["disposition"], "exact");
+        assert_eq!(candidates["complete"], true);
+        assert_eq!(
+            candidates["ids"],
+            json!(["can.v1.ui.list", "can.v1.ui.table"])
+        );
+        let context = &candidates["context"];
+        assert_eq!(context["messageKind"], "unknown_collection_presentation");
+        assert_eq!(context["section"], "Then");
+        assert_eq!(context["guess"], "stock_rows");
+        for flag in [
+            "exactSourceSpan",
+            "recoveryComplete",
+            "nameFilterComplete",
+            "materialIntentChoice",
+        ] {
+            assert_eq!(context[flag], true, "{output}");
+        }
+        for flag in [
+            "structuralRecovery",
+            "evidenceSufficient",
+            "unsupportedBehaviorProven",
+        ] {
+            assert_eq!(context[flag], false, "{output}");
+        }
         assert_eq!(routing(&output).len(), 1, "{output}");
     }
     let query = OFFICE_UNKNOWN_COLLECTION.replace(
@@ -467,6 +503,10 @@ fn office_collection_abstention_preserves_errors_and_recognized_words() {
     let (result, output) = profile_cli("compile", &invalid_member);
     assert_eq!(result.status.code(), Some(10), "{output}");
     assert!(output.get("modules").is_none());
+    for candidate in routing(&output) {
+        assert_eq!(candidate["complete"], false, "{output}");
+        assert_eq!(candidate["ids"], json!([]), "{output}");
+    }
     assert!(
         output["diagnostics"]
             .as_array()
@@ -510,6 +550,76 @@ fn office_collection_abstention_preserves_errors_and_recognized_words() {
                 .all(|candidate| candidate["slot"] != "then.collection-presentation"),
             "{source}: {output}"
         );
+    }
+}
+
+#[test]
+fn office_collection_inventory_abstains_on_other_models_and_catalog_profile_drift() {
+    use canlang_compiler::{
+        analysis::{
+            catalog::{CatalogRequest, load_catalog},
+            check_program,
+        },
+        source::{SourceDb, Span},
+    };
+    let mut db = SourceDb::new();
+    let file = db.add("no-profile.can".into(), OFFICE_UNKNOWN_COLLECTION.into());
+    let (_, diagnostics) = check_program(&db, &[file], None);
+    let candidate = diagnostics
+        .iter()
+        .find_map(|diagnostic| diagnostic.construct_candidates.as_deref())
+        .expect("owning collection origin");
+    assert!(!candidate.complete, "missing selected profile must abstain");
+    assert!(candidate.ids.is_empty());
+    for source in [
+        OFFICE_UNKNOWN_COLLECTION.replace("available:bool=true", "available:enum(yes,no)=yes"),
+        OFFICE_UNKNOWN_COLLECTION.replace("available:bool=true", "available:date"),
+        OFFICE_UNKNOWN_COLLECTION.replace("available:bool=true", "available:image?"),
+        OFFICE_UNKNOWN_COLLECTION.replace("row.quantity", "row.created"),
+        OFFICE_UNKNOWN_COLLECTION.replace("empty=\"No supplies\"", ""),
+    ] {
+        let (result, output) = profile_cli("check", &source);
+        assert_eq!(result.status.code(), Some(10), "{source}: {output}");
+        for candidate in routing(&output) {
+            assert_eq!(candidate["complete"], false, "{source}: {output}");
+            assert_eq!(candidate["ids"], json!([]), "{source}: {output}");
+        }
+    }
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let original: Value = serde_json::from_slice(
+        &std::fs::read(root.join("packages/values/dist/catalog.json")).unwrap(),
+    )
+    .unwrap();
+    for component in [
+        json!({"id":"tiles","js":"tiles","owner":"lane-05","kind":"component","signature":"tiles(props: TilesProps)","availability":"implemented","profile":"collection","header":"query"}),
+        json!({"id":"list","js":"list","owner":"lane-05","kind":"component","signature":"list(props: ListProps)","availability":"implemented","profile":"collection","header":"sequence","attributes":["columns","order","search","filter","empty","defaults","display"]}),
+        json!({"id":"table","js":"tableV2","owner":"lane-05","kind":"component","signature":"table(props: TableProps)","availability":"implemented","profile":"collection","header":"query","attributes":["columns","order","search","filter","empty","defaults","display"]}),
+    ] {
+        let scratch = tempfile::tempdir().unwrap();
+        let path = scratch.path().join("profile.json");
+        let mut payload = original.clone();
+        payload["entries"].as_array_mut().unwrap().push(component);
+        std::fs::write(&path, serde_json::to_vec(&payload).unwrap()).unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("inventory.can".into(), OFFICE_UNKNOWN_COLLECTION.into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (_, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        let candidate = diagnostics
+            .iter()
+            .find_map(|diagnostic| diagnostic.construct_candidates.as_deref())
+            .expect("owning collection origin");
+        assert_eq!(candidate.disposition, "unknown");
+        assert!(!candidate.complete);
+        assert!(candidate.ids.is_empty());
+        assert!(candidate.context.is_none());
     }
 }
 

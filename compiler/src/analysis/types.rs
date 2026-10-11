@@ -42,7 +42,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::diagnostic::{ConstructCandidates, Diagnostic, Related};
+use crate::diagnostic::{ConstructCandidates, ConstructRankingContext, Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{Punct, SyntaxKind, SyntaxNode, TokenKind};
 
@@ -8698,9 +8698,291 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// A diagnostic-only row scope checks the original body without assigning
-    /// an executable meaning to the unknown word. Distinct required headers
-    /// and catalog slot suites prevent a complete replacement inventory here.
+    /// The existing bare-model scan/table profile has one direct readonly text
+    /// suite, static empty text and three declared scalar columns. This is an
+    /// inventory of complete construct recipes, never keyword substitution.
+    fn office_collection_source_profile(
+        &self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+    ) -> bool {
+        let SymbolKind::Model { fields, .. } = &self.tables.symbols[model.0 as usize].kind else {
+            return false;
+        };
+        if fields.len() != 3 {
+            return false;
+        }
+        let declared = fields
+            .iter()
+            .map(|field| self.decl_type(*field))
+            .collect::<Vec<_>>();
+        if declared != [ResolvedType::Scalar(Scalar::Text), ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Int))), ResolvedType::Scalar(Scalar::Bool)]
+            || fields.iter().any(|field| !matches!(self.tables.symbols[field.0 as usize].kind, SymbolKind::Field { owner, .. } if owner == model))
+        { return false; }
+        // Only authored fields count: created/updated metadata is not a declared
+        // agenda endpoint. This finite model has no enum or image/file selector.
+        let domains = kids(node)
+            .into_iter()
+            .filter(|child| is_expression(child.kind))
+            .collect::<Vec<_>>();
+        let [domain] = domains.as_slice() else {
+            return false;
+        };
+        if domain.kind != SyntaxKind::NameRef
+            || !matches!(self.tables.node_binding.get(&NodeKey::of(domain)), Some(Binding::Symbol(id)) if *id == model)
+        {
+            return false;
+        }
+        let attributes = kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::Attribute)
+            .collect::<Vec<_>>();
+        let [empty] = attributes.as_slice() else {
+            return false;
+        };
+        let Some((name, value)) = attribute_parts(empty) else {
+            return false;
+        };
+        if name_text(name, cx.text) != Some("empty") || string_literal_value(value).is_none() {
+            return false;
+        }
+        let suites = kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::UiLeaf)
+            .collect::<Vec<_>>();
+        let [suite] = suites.as_slice() else {
+            return false;
+        };
+        if kids(suite)
+            .into_iter()
+            .find_map(|child| name_text(child, cx.text))
+            != Some("text")
+        {
+            return false;
+        }
+        let values = kids(suite)
+            .into_iter()
+            .filter(|child| is_expression(child.kind))
+            .collect::<Vec<_>>();
+        if values.len() != fields.len() {
+            return false;
+        }
+        let mut selected = HashSet::new();
+        for value in values {
+            if value.kind != SyntaxKind::Member {
+                return false;
+            }
+            let parts = kids(value);
+            let [receiver, punct, name] = parts.as_slice() else {
+                return false;
+            };
+            if !is_punct(punct, cx.text, ".")
+                || nameref_word(receiver, cx.text) != Some("row")
+                || !matches!(self.tables.node_binding.get(&NodeKey::of(receiver)), Some(Binding::Context(ContextVar::RowModel(id))) if *id == model)
+            {
+                return false;
+            }
+            let Some(field) =
+                name_text(name, cx.text).and_then(|name| self.model_field_named(model, name))
+            else {
+                return false;
+            };
+            if !fields.contains(&field)
+                || !selected.insert(field)
+                || self.types.node_types.get(&NodeKey::of(value)) != Some(&self.decl_type(field))
+            {
+                return false;
+            }
+        }
+        selected.len() == fields.len()
+    }
+
+    /// Account for every collection in the actual owning UI registry and any
+    /// selected component catalog. Unknown additions or changed shapes abstain.
+    fn office_collection_catalog_complete(&self) -> bool {
+        let Some(catalog) = self.catalog else {
+            return false;
+        };
+        let expected = |id: &str| -> Option<(&str, &str, &[&str], bool)> {
+            match id {
+                "list" => Some((
+                    "list",
+                    "query",
+                    &[
+                        "columns", "order", "search", "filter", "empty", "defaults", "display",
+                    ],
+                    false,
+                )),
+                "table" => Some((
+                    "table",
+                    "query",
+                    &[
+                        "columns", "order", "search", "filter", "empty", "defaults", "display",
+                    ],
+                    false,
+                )),
+                "board" => Some((
+                    "board",
+                    "query",
+                    &[
+                        "by", "columns", "order", "search", "filter", "empty", "defaults",
+                    ],
+                    false,
+                )),
+                "calendar" => Some((
+                    "calendar",
+                    "query",
+                    &[
+                        "start", "end", "columns", "order", "search", "filter", "empty", "defaults",
+                    ],
+                    false,
+                )),
+                "timeline" => Some(("timeline", "sequence", &[], true)),
+                "carousel" => Some(("carousel", "sequence", &[], true)),
+                "hover_gallery" => Some(("hoverGallery", "sequence", &[], true)),
+                "steps" => Some(("steps", "sequence", &[], true)),
+                "text_rotate" => Some(("textRotate", "sequence", &[], true)),
+                _ => None,
+            }
+        };
+        let quoted = |line: &str, key: &str| -> Option<String> {
+            let (_, value) = line.split_once(&format!("{key}: \""))?;
+            Some(value.split_once('"')?.0.to_string())
+        };
+        let source = include_str!("../../../packages/ui/src/catalog.ts");
+        let Some((_, declarations)) =
+            source.split_once("const ENTRIES: ReadonlyArray<ComponentCatalogEntry> = [\n")
+        else {
+            return false;
+        };
+        let Some((declarations, _)) = declarations.split_once("\n];") else {
+            return false;
+        };
+        let mut collections = HashSet::new();
+        let mut words = HashSet::new();
+        for line in declarations
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+        {
+            if !line.starts_with("{ id: \"") || !line.ends_with(" },") {
+                return false;
+            }
+            let Some(id) = quoted(line, "id") else {
+                return false;
+            };
+            if !words.insert(id.clone()) {
+                return false;
+            }
+            let line = line
+                .split_once(", notes: ")
+                .map_or(line, |(shape, _)| shape);
+            if quoted(line, "kind").as_deref() != Some("component") {
+                return false;
+            }
+            let Some(profile) = quoted(line, "profile") else {
+                return false;
+            };
+            if profile != "collection" {
+                if line.contains("alternates: ") && line.contains("\"collection\"") {
+                    return false;
+                }
+                continue;
+            }
+            let Some((js, header, attributes, item_slot)) = expected(&id) else {
+                return false;
+            };
+            if quoted(line, "owner").as_deref() != Some("lane-05")
+                || quoted(line, "js").as_deref() != Some(js)
+                || quoted(line, "availability").as_deref() != Some("implemented")
+                || quoted(line, "header").as_deref() != Some(header)
+                || line.contains("alternates: ")
+            {
+                return false;
+            }
+            let actual_attributes = if let Some((_, values)) = line.split_once("attributes: [") {
+                let Some((values, _)) = values.split_once(']') else {
+                    return false;
+                };
+                let Some(values) = values
+                    .split(", ")
+                    .map(|value| value.strip_prefix('"')?.strip_suffix('"'))
+                    .collect::<Option<Vec<_>>>()
+                else {
+                    return false;
+                };
+                values
+            } else {
+                Vec::new()
+            };
+            if actual_attributes != attributes
+                || item_slot
+                    != line
+                        .contains("slots: [{ name: \"item\", required: true, repeatable: true }]")
+                || !item_slot && line.contains("slots: ")
+            {
+                return false;
+            }
+            collections.insert(id);
+        }
+        if collections.len() != 9 {
+            return false;
+        }
+        for id in catalog.ids() {
+            let Some(entry) = catalog.lookup(id) else {
+                return false;
+            };
+            let collection = entry.component.as_ref().is_some_and(|shape| {
+                shape.profile == "collection"
+                    || shape
+                        .alternates
+                        .iter()
+                        .any(|profile| profile == "collection")
+            });
+            if !collection && !collections.contains(id) {
+                continue;
+            }
+            let Some((js, header, attributes, item_slot)) = expected(id) else {
+                return false;
+            };
+            let Some(shape) = &entry.component else {
+                return false;
+            };
+            if entry.js != js
+                || entry.owner != "lane-05"
+                || entry.availability != Availability::Implemented
+                || shape.profile != "collection"
+                || shape.header != header
+                || !shape.alternates.is_empty()
+                || shape
+                    .attributes
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    != attributes
+                || if item_slot {
+                    shape.slots.len() != 1
+                        || shape.slots[0].name != "item"
+                        || !shape.slots[0].required
+                        || !shape.slots[0].repeatable
+                } else {
+                    !shape.slots.is_empty()
+                }
+            {
+                return false;
+            }
+        }
+        // List/table use the current native readonly renderRow profile. Board
+        // lacks a declared enum grouping; calendar lacks declared nonnullable
+        // endpoints. Legacy grammar gallery has no image/file selector or native
+        // factory. The five sequence collections require item slots and have no
+        // current native factories; hover_gallery also needs image values.
+        true
+    }
+
+    /// A diagnostic-only row scope never assigns executable semantics to the
+    /// unknown word, even when the complete alternative inventory is known.
     fn diagnose_unknown_collection_presentation(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -8740,7 +9022,12 @@ impl<'a> Typer<'a> {
         });
         let checked =
             domain_checked && body_checked && !structural_error && self.diags.len() == before;
-        let gap = if checked {
+        let complete = checked
+            && self.office_collection_source_profile(cx, node, model)
+            && self.office_collection_catalog_complete();
+        let gap = if complete {
+            "complete readonly alternatives: list; table with declared columns and display=split. Excluded board: no declared enum grouping; gallery: no image/file selector or native factory; calendar: no declared nonnullable date/datetime endpoints; timeline, carousel, hover_gallery, steps, text_rotate: direct text lacks required item/sequence slots and current native factories (hover_gallery also needs images)"
+        } else if checked {
             "complete replacement coverage is unknown: board, gallery and calendar require distinct selectors, and catalog collections own different child slots"
         } else {
             "complete replacement coverage is unknown: the original model domain or row suite did not finish checking"
@@ -8752,11 +9039,27 @@ impl<'a> Typer<'a> {
         );
         diagnostic.construct_candidates = Some(Box::new(ConstructCandidates {
             version: 1,
-            disposition: "unknown",
+            disposition: if complete { "exact" } else { "unknown" },
             slot: Some("then.collection-presentation"),
-            ids: Vec::new(),
-            complete: false,
-            context: None,
+            ids: if complete {
+                vec!["can.v1.ui.list", "can.v1.ui.table"]
+            } else {
+                Vec::new()
+            },
+            complete,
+            context: complete.then(|| ConstructRankingContext {
+                version: 1,
+                message_kind: "unknown_collection_presentation",
+                section: "Then",
+                guess: word.to_string(),
+                exact_source_span: true,
+                structural_recovery: false,
+                recovery_complete: true,
+                name_filter_complete: true,
+                material_intent_choice: true,
+                evidence_sufficient: false,
+                unsupported_behavior_proven: false,
+            }),
         }));
         self.diags.push(diagnostic);
     }
