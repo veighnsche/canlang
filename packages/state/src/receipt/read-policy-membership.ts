@@ -1,7 +1,7 @@
 /** Membership at a genuine installed source read, never a business owner call.
  * The checked native loader binds literal source/argument/Team ports. Only the
  * owning State reader opens the coherent observation lifetime below. */
-import type { ModelName, ProjectedRecord, RecordId, ScenarioReceiptSourceOrigin, StoragePort, TeamScope } from '@canlang/contracts';
+import type { ModelName, ProjectedRecord, RecordId, ScenarioReceiptSourceOrigin, StoragePort, StoredRow, TeamScope } from '@canlang/contracts';
 import { isUserRef, type UserRef } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from '../invocation/scenario-membership-plan.js';
@@ -39,7 +39,18 @@ interface BoundRead {
   readonly occurrences: readonly string[];
   readonly callCount: number;
 }
+/** Internal receipt-owner row closure, never part of a public read input. */
+export interface InstalledSourceOwnerRows {
+  readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+  readonly assertHealthy: () => void;
+}
+export function captureInstalledSourceOwnerRows(scope: InstalledSourceOwnerRows): InstalledSourceOwnerRows {
+  const value = object(scope, ['read', 'assertHealthy']);
+  if (typeof value.read !== 'function' || typeof value.assertHealthy !== 'function') return fail('owning row closure required.');
+  return Object.freeze({ read: value.read, assertHealthy: value.assertHealthy }) as InstalledSourceOwnerRows;
+}
 interface ReadLifetime {
+  readonly ownerRows: InstalledSourceOwnerRows | undefined;
   readonly read: InstalledRead;
   readonly stage: ReadStage;
   readonly observation: Readonly<ViewerGenerationCallbackReadObservation>;
@@ -96,6 +107,7 @@ function poison(lifetime: ReadLifetime | undefined): void {
 }
 function healthyLifetime(lifetime: ReadLifetime): void {
   for (let current: ReadLifetime | null = lifetime; current !== null; current = current.parent) {
+    current.ownerRows?.assertHealthy();
     const observation = current.observation;
     if (current.closed || current.poisoned || lifetimes.get(observation) !== current ||
         contexts.get(observation.context) !== current || observation.fence !== undefined &&
@@ -103,7 +115,7 @@ function healthyLifetime(lifetime: ReadLifetime): void {
     const parent: ReadLifetime | null = current.parent;
     if (parent !== null && (!parent.pending || parent.navigation === null ||
         parent.navigation !== current.parentNavigation || parent.navigation.child !== current ||
-        parent.store !== current.store || parent.observation.revision !== observation.revision ||
+        parent.store !== current.store || parent.ownerRows !== current.ownerRows || parent.observation.revision !== observation.revision ||
         parent.observation.fence !== observation.fence ||
         parent.observation.context.actorUserId !== observation.context.actorUserId ||
         parent.observation.context.teamId !== observation.context.teamId ||
@@ -117,7 +129,9 @@ function healthyLifetime(lifetime: ReadLifetime): void {
 /** Internal State navigation lease; no caller can issue or replace its observation. */
 export async function withinInstalledReadObservation<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
   input: { readonly store: StoragePort; readonly model: ModelName; readonly id: RecordId },
-  execute: (checkpoint: () => Promise<void>) => Promise<Result>): Promise<Result> {
+  execute: (checkpoint: () => Promise<void>,
+    loadRow: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
+    ownerRows: InstalledSourceOwnerRows | undefined) => Promise<Result>): Promise<Result> {
   const lifetime = observationLifetime(observation); let navigation: ReadNavigation | undefined;
   try {
     object(input, ['store', 'model', 'id']);
@@ -147,7 +161,24 @@ export async function withinInstalledReadObservation<Result>(observation: Readon
     // The owning reader captures metadata synchronously, then performs its
     // first checkpoint before any cohort or source read can yield.
     healthy();
-    const result = await execute(checkpoint);
+    let loading = false;
+    const loadRow = async (model: ModelName, id: RecordId) => {
+      let acquired = false;
+      try {
+        healthy();
+        if (loading) return fail('concurrent navigation row load refused.');
+        loading = true; acquired = true;
+        await checkpoint();
+        const row = lifetime.ownerRows === undefined
+          ? await lifetime.store.cohortLoad({ model, id, expectedRevision: observation.revision })
+          : await lifetime.ownerRows.read(model, id);
+        healthy(); await checkpoint();
+        return row;
+      } catch (error) { poison(lifetime); throw error; }
+      finally { if (acquired) loading = false; }
+    };
+    const result = await execute(checkpoint, loadRow, lifetime.ownerRows);
+    if (loading) return fail('navigation cannot return with an unfinished row load.');
     if (lease.child !== null) return fail('navigation cannot return with an unfinished child source read.');
     await checkpoint();
     return result;
@@ -234,8 +265,9 @@ export function bindReadPolicyMembershipProducer(read: InstalledRead,
  * No public open/registration API can issue a read observation. */
 export async function evaluateInstalledReadPolicy(read: InstalledSourceReadPredicate,
   input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
-  owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>): Promise<boolean> {
-  return evaluateInstalledRead(read, 'read-policy', input, store, observation => read(observation), owningObservation);
+  owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>,
+  ownerRows?: InstalledSourceOwnerRows): Promise<boolean> {
+  return evaluateInstalledRead(read, 'read-policy', input, store, observation => read(observation), owningObservation, ownerRows);
 }
 
 /** Internal viewer query join. The original projected record remains the
@@ -269,16 +301,22 @@ export function executeUnboundReadPredicate(read: InstalledSourceQueryPredicate,
 async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
   input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
   execute: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>,
-  owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>): Promise<boolean> {
+  owningObservation?: Readonly<ViewerGenerationCallbackReadObservation>,
+  ownerRows?: InstalledSourceOwnerRows): Promise<boolean> {
   const parent = owningObservation === undefined ? undefined : observationLifetime(owningObservation);
   let lifetime: ReadLifetime | undefined, parentNavigation: ReadNavigation | null = null;
   try {
+    const capturedOwnerRows = ownerRows === undefined ? undefined : captureInstalledSourceOwnerRows(ownerRows);
     if (owningObservation !== undefined) {
       if (parent === undefined || parent.observation !== owningObservation || parent.store !== store ||
           !parent.pending || parent.navigation === null || parent.navigation.child !== null) {
         return fail('child source read requires its exact live owning navigation.');
       }
       healthyLifetime(parent); parentNavigation = parent.navigation;
+      if (capturedOwnerRows !== undefined && (parent.ownerRows === undefined ||
+          capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy)) {
+        return fail('child source read cannot replace its owning row closure.');
+      }
       if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||
           input.context.actorUserId !== parent.observation.context.actorUserId ||
           input.context.teamId !== parent.observation.context.teamId ||
@@ -292,7 +330,7 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
       return fail('installed query predicate cannot execute as a read policy.');
     }
     const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
-    lifetime = { read, stage, observation, store, bound: bindings.get(read) ?? [],
+    lifetime = { read, stage, observation, store, ownerRows: parent?.ownerRows ?? capturedOwnerRows, bound: bindings.get(read) ?? [],
       parent: parent ?? null, parentNavigation, navigationTargets: parent?.navigationTargets ?? new Set(),
       navigation: null, pending: false, poisoned: false, closed: false, count: 0 };
     lifetimes.set(observation, lifetime); contexts.set(observation.context, lifetime);
