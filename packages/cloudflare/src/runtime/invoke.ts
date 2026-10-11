@@ -3378,9 +3378,31 @@ async function originalAppForOperation(asm: AssembledModules, artifact: CompileA
   return app;
 }
 
+const canonicalStoreLoads = new WeakMap<CompileArtifact, WeakMap<StoragePort, Promise<LoadedCanonicalDescriptors>>>();
+
+/** Executing owners receive genuine definitions unique to their literal store.
+ * Source-only preloads retain the artifact-wide original assembly checks. */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
+  store?: StoragePort,
+): Promise<LoadedCanonicalDescriptors> {
+  const original = await loadCanonicalDescriptorsInternal(asm, artifact);
+  if (store === undefined) return original;
+  let stores = canonicalStoreLoads.get(artifact);
+  if (stores === undefined) { stores = new WeakMap(); canonicalStoreLoads.set(artifact, stores); }
+  const cached = stores.get(store);
+  if (cached !== undefined) return cached;
+  const pending = loadCanonicalDescriptorsInternal(asm, artifact, true);
+  stores.set(store, pending);
+  void pending.catch(() => { if (stores!.get(store) === pending) stores!.delete(store); });
+  return pending;
+}
+
+async function loadCanonicalDescriptorsInternal(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+  freshStoreRegistry = false,
 ): Promise<LoadedCanonicalDescriptors> {
   const claimedScenario = claimsScenarioDisclosure(artifact);
   const claimedRowSource = requiresRowReadCorrespondence(artifact);
@@ -3417,7 +3439,7 @@ export async function loadCanonicalDescriptors(
     else if (claimedScenario) throw new Error('Scenario disclosure differs from its cached source plan.');
     const ownerControl = localOwnerPolicyControls.get(cached.loaded);
     if (ownerControl !== undefined) await ownerControl.verifyAssembly(asm, artifact);
-    return cached.loaded;
+    if (!freshStoreRegistry) return cached.loaded;
   }
   const scenarioAssembly = claimedScenario ? asm : undefined;
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact);
@@ -3596,7 +3618,7 @@ export async function loadCanonicalDescriptors(
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
-  canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
+  if (!freshStoreRegistry) canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }),
     ...(rowPolicyAssembly === undefined ? {} : { rowPolicyAssembly }),
     ...(claimedCallbacks || canonical.callbackReadGrants.size > 0 ? { callbackAssembly: asm } : {}),
     ...(claimedCommitted ? { committedAssembly: asm } : {}),
@@ -6586,7 +6608,7 @@ async function invokeCanonicalMutation(
 ): Promise<MutationResult> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
   const invoke = receiptOnly ? loaded.producers.invoke.invokeRetainedReceiptOnly : loaded.producers.invoke.invoke;
   if (invoke === undefined) {
@@ -7817,7 +7839,7 @@ async function readCheckedRetainedSource(
 /** Freeze every declared route at one source cut; ordinary bodies run later. */
 export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueScheduleOpts) {
   assertCanonicalStore(opts.store, opts.handler);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   if (loaded.standardCompletions?.has(opts.due.event)) {
     throw new AssemblyCorrespondenceError('Completion routing requires its original consumed delivery, not a schedule head.');
   }
@@ -7961,7 +7983,7 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
   selectedSource: CanonicalCommittedCohortOpts['source'], due?: CanonicalDueScheduleOpts['due']) {
   assertCanonicalStore(opts.store, opts.handler);
   assertDeclaredCohortVersion(opts.artifact);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   if (due !== undefined && loaded.standardCompletions?.has(selectedSource.event)) {
     throw new AssemblyCorrespondenceError('Completion cohort requires its original consumed delivery, not a schedule head.');
   }
@@ -8130,7 +8152,7 @@ class DueScheduleChanged extends Error {
 /** Exact Work head + current trusted source handler + terminal receipt, one fence. */
 export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts) {
   assertCanonicalStore(opts.store, opts.handler);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   if (loaded.standardCompletions?.has(opts.due.event)) {
     throw new AssemblyCorrespondenceError('Completion execution requires its original consumed delivery, not a schedule head.');
   }
@@ -8317,7 +8339,7 @@ class RetainedHandlerOccurrenceChanged extends Error {
 export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRetainedHandlerOccurrenceOpts) {
   const { selector } = opts;
   assertCanonicalStore(opts.store, selector.handler);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const routes = await checkedPrivateSourceRoutes(opts, loaded, selector.event, selector.scope);
   const route = routes.find(candidate => candidate.handler === selector.handler);
   if (route === undefined || route.cohort) throw new Error('Retained handler needs its exact ordinary private declaration.');
@@ -8924,7 +8946,7 @@ export async function invokeSelectedReceiptRead(
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
   assertNoReceiptModelCollision(opts.artifact);
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
   assertReceiptReadDef(StateError, loaded.registry);
   const { recordId, field, selected } = assertReceiptReadInputs(StateError, opts.inputs);
@@ -9373,7 +9395,7 @@ export async function invokeReadCanonical(
   if (opts.operation === RECEIPT_READ_OPERATION) {
     return invokeSelectedReceiptRead({ ...opts });
   }
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   if (opts.artifact.operations?.some(op => op.name === opts.operation && op.kind === 'read') &&
       opts.artifact.callables.some(callable => callable.id === opts.operation)) {
     if (opts.selection !== undefined) {
@@ -9457,7 +9479,7 @@ function resolvePageQueryTime(
 export async function queryPageRowsCanonical(
   opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
 ): Promise<ListQueryResult> {
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
   if (opts.args.page !== undefined && opts.args.page !== true) {
     throw new StateError('validation', 'Collection page mode must be explicitly enabled.');
@@ -9639,7 +9661,7 @@ export function createPageReadScopeCanonical(
     const current = await opts.store.readRevision();
     if (revision === undefined) revision = current;
     if (current !== revision) {
-      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       throw new loaded.producers.errors('conflict', 'Page data changed during rendering; refresh the page.');
     }
     return current;
@@ -9647,7 +9669,7 @@ export function createPageReadScopeCanonical(
   return Object.freeze({
     readRecords: async (model: string, query: PageRecordsQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
       const expectedRevision = await checkpoint();
-      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const StateError = loaded.producers.errors;
       assertCanonicalStore(opts.store, `${model}.read`);
       assertCanonicalMemberships(opts.memberships, `${model}.read`);
@@ -9764,7 +9786,7 @@ export function createPageReadScopeCanonical(
       return result;
     },
     readHistory: async (locator: Parameters<PageHistoryReader>[0]) => {
-      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const StateError = loaded.producers.errors;
       const binding = typeof locator.record === 'object' && locator.record !== null
         ? historyViews.get(locator.record) : undefined;
@@ -9816,7 +9838,7 @@ export function createPageReadScopeCanonical(
     },
     ...(requiresCallbackReadCorrespondence(opts.artifact) ? {
       observeGenerationCallbackDiagnostics: async (locator: Parameters<PageGenerationCallbackDiagnosticsObserver>[0]) => {
-        const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+        const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
         const StateError = loaded.producers.errors;
         const binding = typeof locator.record === 'object' && locator.record !== null
           ? historyViews.get(locator.record) : undefined;
@@ -9890,7 +9912,7 @@ export function createPageReadScopeCanonical(
       },
     } : {}),
     observeDelivery: async (locator: Parameters<PageDeliveryObserver>[0], selected: Parameters<PageDeliveryObserver>[1]) => {
-      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const StateError = loaded.producers.errors;
       if (!isUnknownRecord(locator.record)) {
         throw new StateError('validation', 'Delivery observation needs a page query record.');
@@ -13725,7 +13747,7 @@ export type FanoutSchedulerBodyPort = (
 export async function createCanonicalFanoutBody(
   opts: Omit<CanonicalMutationOpts, 'operationId' | 'inputs' | 'now' | 'files'>,
 ): Promise<{ readonly registry: ReadonlyMap<string, unknown>; readonly body: FanoutSchedulerBodyPort }> {
-  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const definition = loaded.registry.get(opts.operation);
   if (definition === undefined || seamDefKind(definition, opts.operation) !== 'scenario') {
     throw new loaded.producers.errors('validation', 'A cohort child needs its owning generated scenario.');
@@ -14500,7 +14522,7 @@ async function maintainFanoutNavigationWithReads(opts: FanoutNavigationMaintenan
       if (assembly === undefined || typeof event !== 'string') {
         throw new AssemblyCorrespondenceError('Completion navigation requires its original installed native source.');
       }
-      const loaded = await loadCanonicalDescriptors(assembly.asm, assembly.artifact);
+      const loaded = await loadCanonicalDescriptors(assembly.asm, assembly.artifact, store);
       const original = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now, revision);
       const route = original.handlers.find(route => privateSourceMember(route, 'handler') === intent.handler);
       if (privateSourceMember(route, 'kind') !== 'fanout' || privateSourceMember(route, 'fanoutId') !== intent.fanoutId ||

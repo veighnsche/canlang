@@ -82,7 +82,7 @@ export async function resolveGenerationCallbackOrigin(input: {
     const value = intent.arguments.arguments.value;
     if (!object(value) || own(value, 'source') !== correlation.requestSource ||
         own(value, 'revision') !== correlation.requestRevision) return null;
-    const loaded = await loadCanonicalDescriptors(input.asm, input.artifact);
+    const loaded = await loadCanonicalDescriptors(input.asm, input.artifact, store);
     const originals = input.artifact.callables.filter(callable => callable.id === intent.operation);
     if (originals.length !== 1) return null;
     const original = originals[0]!;

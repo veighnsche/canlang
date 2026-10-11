@@ -1785,3 +1785,39 @@ for (const mode of ['copied-view', 'copied-array', 'omitted-data', 'count', 'ord
     const receipt = await w.store.readReceipt(w.receiptIdentity); assert.ok(receipt);
     assert.equal(receipt.outcome.status, 'rejected'); assert.equal(readScenarioReceiptAssociation(receipt), null);
   });
+
+
+it('loads genuine per-store definitions over one original module and isolates canonical receipts at equal owner and revision', async () => {
+  const w = await world(false, true, undefined, undefined, false);
+  const second = createTestMemoryStorage();
+  await seedRow(second.store, model, { id: w.row.id,
+    data: { visible: 'second physical store', private: 'second private', token: 'second secret' } });
+  assert.equal(await second.store.readRevision(), await w.store.readRevision());
+  const [firstLoaded, firstAgain, secondLoaded] = await Promise.all([
+    loadCanonicalDescriptors(w.asm, w.artifact, w.store),
+    loadCanonicalDescriptors(w.asm, w.artifact, w.store),
+    loadCanonicalDescriptors(w.asm, w.artifact, second.store),
+  ]);
+  assert.strictEqual(firstLoaded, firstAgain, 'same literal store shares its in-flight genuine load');
+  assert.notStrictEqual(firstLoaded, w.loaded, 'metadata preload definitions are never promoted');
+  assert.notStrictEqual(firstLoaded.registry, secondLoaded.registry);
+  assert.notStrictEqual(firstLoaded.registry.get(operation), secondLoaded.registry.get(operation));
+  const originalModule = await import(w.asm.moduleUrls[modulePath]!);
+  assert.strictEqual((await import(w.asm.moduleUrls[modulePath]!)).canApp, originalModule.canApp,
+    'both genuine registries retain the same original module function');
+  const call = (store: StoragePort) => invokeMutationCanonical({ asm: w.asm, artifact: w.artifact,
+    operation, operationId: w.envelope.operation_id, inputs: w.envelope.inputs,
+    identity: w.identity, app, source: 'consumer fixture', store, memberships: w.identities, now: () => FIXED_NOW });
+  const first = await call(w.store);
+  assert.equal(first.status, 'committed'); assert.equal(first.result, 'original visible');
+  assert.equal(await second.store.readReceipt(w.receiptIdentity), null, 'first commit cannot publish in second store');
+  const firstReceipt = await w.store.readReceipt(w.receiptIdentity); assert.ok(firstReceipt);
+  const secondResult = await call(second.store);
+  assert.equal(secondResult.status, 'committed'); assert.equal(secondResult.result, 'second physical store');
+  const secondReceipt = await second.store.readReceipt(w.receiptIdentity); assert.ok(secondReceipt);
+  assert.deepEqual(await w.store.readReceipt(w.receiptIdentity), firstReceipt);
+  assert.equal((await call(w.store)).status, 'replayed');
+  assert.equal((await call(second.store)).status, 'replayed');
+  assert.deepEqual(await second.store.readReceipt(w.receiptIdentity), secondReceipt);
+  await assert.rejects(loadCanonicalDescriptors({ ...w.asm }, w.artifact, second.store), AssemblyCorrespondenceError);
+});

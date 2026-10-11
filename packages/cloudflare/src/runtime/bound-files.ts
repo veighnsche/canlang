@@ -172,7 +172,7 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       if (first === null) return notFound();
       const caller = receiverFromIdentity(opts.upload.app.appId, identity);
       const scope = { app: caller.app, team: caller.team, owner: caller.owner };
-      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, first.store);
       if (loaded.ruledModels.has(model)) return notFound();
       type ConsumerInput = Parameters<typeof createFileReferenceConsumer>[0];
       const consumer = createFileReferenceConsumer({
