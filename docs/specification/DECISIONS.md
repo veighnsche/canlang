@@ -9867,3 +9867,26 @@ Coordinator independent finite V04 defining contract review CLEAR; existing int/
 2026-10-11 — current installed source row/ancestor/query projection (State implemented/tested; original native unfinished). Reuse the diagnostic reader's captured readPolicies declarations and existing real field/secret projection at ordinary current loads and query/page routes. State owns actual same-R rows, full live declared containment, per-ordinal strict-Bool execution, coherent complete Identity replay and final checks after transforms. Check R around each source rule so a changed checkpoint stops later source execution. Installed source WHERE sees only its candidate's projected values; preserve lazy AST/search, bound fresh-context membership, accepted unbound once-only execution, order/limit and empty-page parent authority. No AST duplication, global public grant, new carrier or ambient actor bypass. Normal emit and95 distinct affected controls qualify after the genuine R-race correction and one new fixture's typed FenceConflictError expectation correction;80 unchanged controls are reused. The current projection and query component is recorded once under SEQ025 ordinary_source_read.current_projection. Dev must adopt the exact API with original checked ordinals/relations and qualify actual source/native behavior; Compiler's original opaque empty-array correction and all genuine holds remain.
 
 Coordinator finite State current projection review CLEAR and LOCAL main integration after deadline. Reuse95 distinct owning controls/normal emit; no original source/native/browser acceptance. Only165 defining source delta imported; unqualified SEND2b exports and older prerequisite changes excluded, preserving current main source. Dev exact native policy/query/ancestor binding and logical-source/verified-callable association remain finite owner joins. Complete checkpoint/full-plan counts and exact holds unchanged.
+
+## 2026-10-11 — Removed browser binding markers (implemented; wider lifecycle unfinished)
+
+For DEL-B01, rescan disposes the existing guarded-form and once-action bindings
+when their own markers disappear, including elements that remain connected.
+This follows the existing poll/generated-form/split rule. Each owned listener is
+removed once, still-marked siblings stay active, and repeated rescan/stop cannot
+restore stale guard/action/completion effects. No new emitted marker, settle
+producer or browser API is introduced.
+
+Coordinator review of b359655f found that removing an armed once marker left
+the connected control disabled after its completion listener was removed. Correct
+disposal to release binder-owned disabled/ARIA state while preserving detached
+swap state. The existing exhaustive cleanup helper attempts both attributes and
+listeners before propagating the first supported hook failure. Owning UI emission
+and browser build pass; the two affected maintained lifecycle cases pass,
+including inflight removal/stop, stale events, detached state and cleanup failure.
+Consume b359655f with this correction for coordinator review. Reuse accepted
+synchronous cleanup, Document visibility and readonly Chrome results. This does not qualify an emitted once-action completion producer or
+physical fetch/body/submission cancellation; those original owner gates and the
+parent remain open. All precise activation/preparation/publication holds remain.
+
+Coordinator relevant marker disposal correction review CLEAR; b359+215 defining UI source/test integrated LOCAL main after deadline. Connected armed controls regain binder-owned state; all cleanup runs before first supported error, detached swap behavior retained. Reuse affected2/2/owning emission/browser build; original broader lifecycle/physical cancellation/source completion/host criteria and holds remain open. Shared Contracts guard source excluded pending actual Work consumption. Complete checkpoint unchanged.

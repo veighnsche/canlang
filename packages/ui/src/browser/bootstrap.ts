@@ -752,16 +752,23 @@ function bindOnceAction(control: ElementLike): () => void {
     control.removeAttribute("aria-disabled");
   };
   control.addEventListener("click", onClick);
-  // Completion/failure releases via the control's own lifecycle: a
-  // swapped-out control unbinds (releasing nothing — the swap owns
-  // the new state); htmx settles release through afterRequest below.
+  // Explicit settlement releases the armed control. A detached swap owns
+  // its replacement state; a still-connected disposal releases our state.
   const onSettled = (): void => {
     release();
   };
   control.addEventListener("can:settled", onSettled);
   return () => {
-    control.removeEventListener("click", onClick);
-    control.removeEventListener("can:settled", onSettled);
+    const releaseState = inflight && control.isConnected;
+    inflight = false;
+    releaseClientResources([
+      ...(releaseState ? [
+        () => control.removeAttribute("disabled"),
+        () => control.removeAttribute("aria-disabled"),
+      ] : []),
+      () => control.removeEventListener("click", onClick),
+      () => control.removeEventListener("can:settled", onSettled),
+    ]);
   };
 }
 
@@ -971,6 +978,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         const entry = bound[index];
         if (entry !== undefined && (!entry.element.isConnected ||
             (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')) ||
+            (entry.binder === 'guarded-form' && !entry.element.hasAttribute('data-can-guard')) ||
+            (entry.binder === 'once-action' && !entry.element.hasAttribute('data-can-once')) ||
             (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form')) ||
             (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')))) {
           bound.splice(index, 1);

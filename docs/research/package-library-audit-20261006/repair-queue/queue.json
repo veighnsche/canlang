@@ -3773,7 +3773,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "ready-owner-contract",
         "owner": "UI and owning emitted markup/initializer producer; Dev browser consumer",
-        "accepted_scope": "Partial: accepted synchronous cleanup and actual staged readonly Chrome page visibility/polling consumer3798f9b1; wider initializer/async disposal/browser/installed profiles remain open.",
+        "accepted_scope": "Retain accepted synchronous cleanup, Document visibility and staged readonly Chrome consumer. Marker teardown component implemented/tested; coordinator b359 review identified connected inflight state leak, now corrected with exhaustive attribute/listener cleanup, detached-swap preservation and affected2/2 PASS. Correction independently reviewed and integrated LOCAL main; original completion/submission/physical-cancel/installed gates remain open.",
         "next_action": "Settle the existing initializer/selector association and logical versus physical cancellation/resource contract, then qualify the affected emitted browser lifecycle. Reuse accepted synchronous cleanup and real visibility/polling cases.",
         "done_when": "Actual markup hooks acquire/dispose once and pause/resume/stop/detach/rescan/settle correctly; body-await logout/context changes cannot apply stale views and hook throw cannot strand prior resources.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B01"

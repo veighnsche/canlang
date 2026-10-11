@@ -3714,7 +3714,14 @@
         "prerequisite": "Settled emitted selector/initializer association and full physical-cancel/resource qualification.",
         "owner": "UI and actual emitted markup/initializer producer owner"
       },
-      "optional_chromium_producer": "See current_goal_turn_actions.optional_node_chromium_producer: finite Node installed producer ready for exact manual integration and Dev original browser consumer; full lifecycle/physical cancellation/host parent gates unchanged."
+      "optional_chromium_producer": "See current_goal_turn_actions.optional_node_chromium_producer: finite Node installed producer ready for exact manual integration and Dev original browser consumer; full lifecycle/physical cancellation/host parent gates unchanged.",
+      "marker_removal_cleanup": {
+        "change": "Existing rescan disposes guard/once bindings on removed markers. Correct coordinator-reviewed b359655f: connected armed once controls release binder-owned disabled/aria-disabled on disposal; detached swapped controls retain old state. Reuse existing exhaustive cleanup to attempt both owned attributes/listeners and propagate the first hook failure; no new selector, completion producer or API.",
+        "verification": "After relevant source correction, Node24 owning UI emission and genuine browser build PASS. Both affected maintained marker lifecycle cases2/2 PASS: inflight connected removal/stop recovery, detached state preserved, stale listeners inert, marked sibling remains bound, exact removals/idempotent teardown; supported removeAttribute failure exhausts other owned cleanup and sibling teardown while preserving first throw. Prior unrelated cleanup/visibility/Chrome outcomes reused.",
+        "stage": "Implemented, affected2/2 component-tested and independently reviewed in LOCAL main after deadline. Connected inflight disposal corrected; detached swap/exhaustive cleanup preserved. Original physical cancellation/emitted completion/installed/full parent remain unfinished; holds unchanged.",
+        "review_correction": "Coordinator found b359655f settled its test control before marker removal, hiding an inflight disabled-state leak. It remains unaccepted without this related source/test correction.",
+        "source_review": "Independent relevant b359+215 correction review CLEAR. Both binder-owned attributes/listeners cleaned before first supported throw; inflight removal/stop, sibling/idempotence and detached state retained. Owning emission/browser build and affected2/2 reused; no unchanged reruns."
+      }
     },
     "DEL-B02": {
       "planning_status": "blocked",
