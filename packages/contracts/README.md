@@ -58,6 +58,15 @@ Identity authority checks at the original owner/stage/physical store. Dev binds
 the real observation privately. These shapes grant no authority and implement
 none of those runtime checks.
 
+A return ordinary dependency may add `queryId` only when Compiler proves it is
+used exclusively while evaluating that existing checked query's candidates.
+State must validate the same authentic source/owner/stage/store and completed
+candidate capture consumed by the return before accepting an absent dependency
+observation for an empty domain or short-circuited predicate. Every actual read,
+including a second hop, remains retained and revalidated. Omitted associations
+keep ordinary dependencies mandatory; intrinsic observations gain no exemption.
+This additive fact implements no Compiler matcher or State permission/recovery.
+
 The additive opaque File ABI is declared in `state.ts` and exported by the root.
 `opaqueDeclarationSets` retains each original installed/source/model/value-type
 closure with complete canonical/artifact inputs, results and explicit void.

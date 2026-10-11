@@ -51,6 +51,31 @@ const containedQueryIdentities: [
   Equal<NonNullable<barrel.ScenarioReceiptQueryObservation['parent']>['row'], state.StoredRow>,
 ] = [true, true, true, true];
 
+type ReturnDependency = barrel.ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+const candidateQueryIdentities: [
+  Equal<barrel.ScenarioResultDisclosurePlan, state.ScenarioResultDisclosurePlan>,
+  Equal<ReturnDependency['queryId'], barrel.ScenarioReceiptQueryPlan['id'] | undefined>,
+] = [true, true];
+
+// Compile-only correspondence. State/Compiler authenticate the actual query,
+// candidate completion and observed reads; these shapes cannot replace them.
+function candidateQueryShapeControls(source: barrel.ScenarioReceiptSourceOrigin,
+  model: barrel.ModelName, type: barrel.CanTypeId, query: barrel.ScenarioReceiptQueryPlan) {
+  const required: ReturnDependency = { id: 'original-parent-read', source,
+    role: 'control', model, field: 'parent', type };
+  const candidateOnly: ReturnDependency = { ...required, queryId: query.id };
+  // @ts-expect-error An existing query identity is a string, never a row/index object.
+  const invalidQuery: ReturnDependency = { ...required, queryId: { id: query.id } };
+  // @ts-expect-error Optional omission does not admit a null association.
+  const nullQuery: ReturnDependency = { ...required, queryId: null };
+  const intrinsicQuery: barrel.ScenarioReceiptIntrinsicDependency = {
+    id: required.id, source, role: 'control', type, kind: 'operation-id',
+    // @ts-expect-error Intrinsic observations remain mandatory and carry no query exemption.
+    queryId: query.id,
+  };
+  return { required, candidateOnly, invalidQuery, nullQuery, intrinsicQuery };
+}
+
 // Compile-only ABI controls. Supplied row/source types do not authenticate an
 // original producer or owner, and empty candidates do not establish authority.
 function containedQueryShapeControls(source: barrel.ScenarioReceiptSourceOrigin,
@@ -236,6 +261,9 @@ function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
 }
 
 describe("assembly conflict picks", () => {
+  it("pins the existing query association for candidate-only ordinary dependencies", () => {
+    expect(candidateQueryIdentities).toEqual([true, true]);
+  });
   it("pins existing contained-query selector and parent-witness declarations", () => {
     expect(containedQueryIdentities).toEqual([true, true, true, true]);
   });

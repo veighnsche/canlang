@@ -209,6 +209,14 @@ export interface ScenarioResultDisclosurePlan {
       readonly model: ModelName;
       readonly field: string;
       readonly type: CanTypeId;
+      /** Exact existing query occurrence when Compiler proves this ordinary
+       * dependency is used exclusively while evaluating that query's candidates.
+       * State checks the authentic source, owner, stage and store, and completed
+       * candidate capture consumed by this return before accepting an absent
+       * dependency observation. Every actual read stays retained and revalidated.
+       * Omission keeps the ordinary dependency mandatory; this declaration grants no authority.
+       */
+      readonly queryId?: string;
     }>;
     /** Optional additive profile; absence preserves existing field-only plans. */
     readonly intrinsics?: ReadonlyArray<ScenarioReceiptIntrinsicDependency>;

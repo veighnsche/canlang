@@ -991,6 +991,36 @@
           "REPLAY-IP07; shared ABI counted once here, original count/first source/replay/native acceptance separate"
         ],
         "coordinator_review": "Independent defining source/shape review CLEAR; exact original admitted or stored-reference selector, retained full parent row/secret evidence including empty domain, omitted legacy unchanged. Reuse owning Contracts/root/newassembly1 controls, no runtime authority from shape. Surgical source insertion preserves newer main Contracts call/File facts. Actual changed main Contracts/StateDO/CF/root emission0; Capability current/saved contained-domain enforcement, Compiler original source correspondence and Dev native binding remain separate."
+      },
+      "candidate_dependency_query_contract": {
+        "status": "implemented_typed_tested_manually_reviewed_CLEAR_shape_in_LOCAL_main; authentic source/runtime consumers unfinished",
+        "source_base": "547c6eb5ca6f7fdab37001cf2cc0287eb719bfcd",
+        "required_outcome": "Original checked candidate-only Branch.parent dependency can represent its existing query association, without requiring invented reads for empty/short-circuited predicates or exempting actual/unassociated observations.",
+        "owner": "Packages shared Contracts defines fact; Compiler exact source/census matcher; Capability/State capture/finalization/saved authority; Dev original private owner/stage/store binding.",
+        "files": [
+          "packages/contracts/src/state.ts",
+          "packages/contracts/test/assembly.test.ts",
+          "packages/contracts/README.md"
+        ],
+        "fact": "readonly queryId?: string on ScenarioResultDisclosurePlan.returns[].dependencies only. Names exact existing ScenarioReceiptQueryPlan.id for source-checked exclusive candidate use; no new carrier/profile/version or owner/stage DTO.",
+        "authority": "Require authentic same source/query occurrence/owner/stage/store plus completed candidate capture consumed by the return before accepting absent dependency observation. Every actual second hop stays captured/retained/revalidated. Unassociated ordinary deps and all intrinsics remain mandatory; shape grants no authority.",
+        "checks": "Contracts emission0; root strict typecheck0; focused existing assembly1/1 PASS with3 unrelated groups skipped. Maintained compile fixture accepts legacy/associated dependencies; rejects nonstring/null and intrinsic association. Defining independent source review CLEAR after comment clarifies absence rather than unobserved read. Comment/doc-only clarification reuses unchanged checks.",
+        "remaining_dependencies": [
+          {
+            "owner": "Compiler",
+            "output": "Emit queryId only for original source-checked exclusively candidate-evaluated ordinary dependency, against verified exact query/call/statement and parent-edge/predicate/census; dependencies with outside use remain unassociated."
+          },
+          {
+            "owner": "Capability/State",
+            "output": "Accept/check optional existing query association in exact dependency shape and identity drift; require declared consumed completed query at same authentic source/owner/stage/store. Update actual child association, return selection, final capture and saved validation; genuine empty/short-circuit succeeds without fabricated observations; retain/revalidate each actual second hop; absent unassociated, foreign/unconsumed/unfinished/forged association refuses."
+          },
+          {
+            "owner": "Dev",
+            "output": "Supply original source-bound owner/stage/store and qualify affected original ask75 consumer after released Compiler/State joins; do not treat typed ABI as runtime authority."
+          }
+        ],
+        "holds": "Exact native preparation/default/activation/publication, V04 and recipient holds preserved; V05 release-host stays Dev/L7; unsupported provider-void skipped.",
+        "coordinator_review": "Manual defining review CLEAR of eight-line additive optional queryId on existing return ordinary dependency only; authentic existing query identity, omitted/intrinsic mandatory behavior, typed legacy/nonstring/null/intrinsic negative controls and precise absence semantics preserved. Shape adds no authority or runtime exemption; current State decoder still refuses unimplemented supplied association. Owning strict/assembly1 reused; changed main Contracts emission/root0. Compiler source-exclusive query/census matcher and Capability actual consumed complete query/current/final/saved authority remain required before Dev original empty/short-circuit acceptance. Shared fact counted once TECH-S02/link existing consumers; no new carrier/profile/version."
       }
     },
     "TECH-S03": {

@@ -11587,3 +11587,20 @@ and unchanged Node24/owner/native outcomes stay credited. Local macOS ARM scope
 only; Linux/other hosts, original authored/native consumers and all holds remain.
 
 Coordinator independent defining staging/installed-consumer review CLEAR and exact three-source/test/gate intake in LOCAL main after deadline. One portable dispatch producer/canonical State identity and deduplicated Files bridge keep all exact producer/missing/refusal assertions. Owning actual Node22.0.0 and additionally changed defaultNode24.19.0 isolated runtime both PASS253modules, checkout denial, genuine Work serving1, productionworkerd401, Wasm/assets and meaningful corruption/missing controls at their consumed closures. Owning direct3/declaration177of13owners/797 external diagnostics reused. Actual changed main CF/root0; source outputs from different closures are not relabelled as MAIN-native. Close only local Mac ARM minimum-engine/finite common producer criterion; other hosts/original authored/native/fullDEL-R01 and precise holds remain open. Complete checkpoint unchanged.
+
+2026-10-11 — Candidate-only ordinary dependency query association (implemented
+typed ABI; original runtime consumer unfinished). Add only optional `queryId`
+to the existing return ordinary dependency, naming its source-checked existing
+query occurrence. Compiler must prove exclusive candidate use; a dependency used
+outside that predicate remains mandatory. State validates authentic source,
+owner/stage/store and completed candidate capture consumed by the return before
+accepting an absent observation. Retain and revalidate every actual second-hop
+read. Legacy omission and mandatory intrinsics are unchanged; shape grants no
+authority. Contracts emission/root types and focused maintained ABI1 pass,
+including legacy/associated shapes and nonstring/null/intrinsic negatives.
+Independent defining source review is CLEAR after clarifying absence wording;
+Compiler source/census matching and Capability capture/recovery remain next
+exact outputs. Reuse prior contained-domain/parent and runtime qualifications;
+no new carrier/profile/version, full app acceptance, push or hold release.
+
+Coordinator manual defining review CLEAR and coherent three-path Contracts/source/type-fixture/README intake after deadline. Optional queryId names an existing query only on original return ordinary dependencies; legacy omission/intrinsics remain mandatory. Actual source-exclusive use, same source/owner/stage/store, completed candidate capture consumed by Return and full current/final/saved authority remain defining Compiler/Capability implementations, not rights from typed shape. Preserve every actual second hop and reject unassociated missing or forged/foreign/unconsumed/unfinished associations. Owning strict/focused assembly1 reused; actual changed main Contracts/root0, no unchanged runtime/consumer rerun or native/full app claim. Shared ABI counted once in existing TECH-S02 and its consumers, precise holds and complete checkpoint unchanged.
