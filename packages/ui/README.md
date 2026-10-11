@@ -58,3 +58,10 @@ bun install --frozen-lockfile   # from the repo root
 bun run --filter @canlang/ui typecheck
 bun run --filter @canlang/ui test
 ```
+
+Source-declared paginated collections use `collectionCursorName(occurrence)`
+for opaque GET continuation state. The original authorized query receives only
+that occurrence's token; its next link preserves team, filters, sibling cursors
+and selected rows. Duplicate/empty own selectors refuse, explicit authored
+`cursor` remains supported, and applying or clearing an own filter resets that
+cursor. UI transport grants no access and does not authenticate the token.

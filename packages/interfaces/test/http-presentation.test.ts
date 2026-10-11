@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_THEME, collectionFilterName } from '@canlang/contracts';
+import { DEFAULT_THEME, collectionCursorName, collectionFilterName } from '@canlang/contracts';
 import type {
   AdmittedBindings,
   PageDescriptor,
@@ -286,13 +286,14 @@ test('table consumes authored occurrence enum defaults and selections without ch
     testRequest('/hello', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
   const filterName = collectionFilterName(occurrence, 'state');
   const siblingName = collectionFilterName('page:/hello/table:2', 'state');
-  const preserved = [['q', 'appointment'], [siblingName, 'cancelled'], [`can-row:${occurrence}`, row.id]] as const;
+  const preserved = [['q', 'appointment'], [siblingName, 'cancelled'], [`can-row:${occurrence}`, row.id],
+    [collectionCursorName('page:/hello/table:2'), 'sibling-current']] as const;
   const denial = new Error('original table query denial');
   let queries = 0, callbacks = 0, bodies = 0;
   const make = (selection: string | undefined, defaultValue: string | null | undefined,
     empty = false, refuseQuery = false, extra: [string, string][] = []) => {
     const params = new URLSearchParams([...preserved.map(([name, value]) => [name, value]),
-      ['cursor', 'stale-cursor'], ...extra]);
+      ['cursor', 'stale-cursor'], [collectionCursorName(occurrence), 'own-stale-cursor'], ...extra]);
     if (selection !== undefined) params.append(filterName, selection);
     const request = testRequest(`/hello?${params}`, { cookie: identity.cookie });
     Object.defineProperty(request, 'json', { value: () => { bodies++; throw new Error('body was read'); } });
@@ -329,6 +330,7 @@ test('table consumes authored occurrence enum defaults and selections without ch
       assert.ok(html.includes(`<input type="hidden" name="${name}" value="${value}">`));
     }
     assert.doesNotMatch(html, /name="cursor"|stale-cursor/);
+    assert.equal(html.includes(`name="${collectionCursorName(occurrence)}"`), false);
   };
   const initial = await make(undefined, 'confirmed');
   assertControls(initial); assert.match(initial, /original protected row body/);
@@ -364,6 +366,74 @@ test('table consumes authored occurrence enum defaults and selections without ch
   assert.equal(queries, beforeInvalid); assert.equal(callbacks, 5);
   await assert.rejects(make('cancelled', 'confirmed', false, true), error => error === denial);
   assert.equal(callbacks, 5); assert.equal(bodies, 0);
+});
+
+test('full and partial table pages forward independent opaque occurrence cursors and preserve current GET state', async () => {
+  const occurrences = ['page:/hello/table:é😀', 'page:/hello/table:two'];
+  const current = ['opaque-first/+%😀', 'opaque-second'];
+  const next = ['\"><img src=x onerror=alert(1)> &/+%😀', 'second-next/+'];
+  const rows: RowView[] = occurrences.map((_occurrence, index) => ({ id: `own-${index}`, version: String(index + 3),
+    fields: { title: `Own row ${index}` } }));
+  const parent = { id: 'own-parent' };
+  const where = { op: 'eq', field: 'active', value: true };
+  const order = ['from'];
+  let invocation: unknown;
+  let queries = 0, callbacks = 0, bodyReads = 0;
+  const descriptor: PageDescriptor = {
+    owner: 'TestApp', path: '/hello', title: 'Hello', admit: async () => ({}),
+    render: async context => {
+      invocation = context.invocation;
+      assert.equal(context.principal, context.invocation);
+      const html: string[] = [];
+      for (const [index, occurrence] of occurrences.entries()) {
+        html.push(await table({ context, model: 'TestApp.Visit', columns: ['title'], parent, where, order,
+          page: true, occurrence, limit: 2, renderRow: (actual, view) => {
+            callbacks++; assert.equal(actual, rows[index]); assert.equal(view, context);
+            assert.equal(actual.version, String(index + 3));
+            return [`<p>own-body-${index}</p>`];
+          } }));
+      }
+      return html.join('');
+    },
+  };
+  const { deps, identity } = await createTestDeps({ descriptors: [descriptor] });
+  const query: RowQueryRunner = async (principal, model, args) => {
+    queries++; assert.equal(principal, invocation); assert.equal(model, 'TestApp.Visit');
+    assert.equal((principal as ResolvedIdentity).actor?.user_id, identity.userId);
+    assert.equal((principal as ResolvedIdentity).team?.team_id, identity.teamId);
+    const index = occurrences.indexOf(args.occurrence!);
+    assert.ok(index >= 0);
+    assert.equal(args.parent, parent); assert.equal(args.where, where); assert.equal(args.order, order);
+    assert.deepEqual(args, { parent, where, order, page: true, occurrence: occurrences[index], limit: 2, cursor: current[index] });
+    return { rows: [rows[index]!], columns: [{ field: 'title', type: 'text', label: 'Title' }], nextCursor: next[index]! };
+  };
+  const params = new URLSearchParams([
+    ['team', identity.teamId], ['q', 'own visits'], ['unrelated', 'retained'],
+    [collectionFilterName(occurrences[0]!, 'state'), 'confirmed'],
+    [`can-row:${occurrences[1]}`, rows[1]!.id],
+    ...occurrences.map((occurrence, index) => [collectionCursorName(occurrence), current[index]!] as [string, string]),
+  ]);
+  for (const partial of [false, true]) {
+    const request = testRequest(`/hello?${params}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) });
+    Object.defineProperty(request, 'json', { value: () => { bodyReads++; throw new Error('body read'); } });
+    const response = await handlePageRequest({ ...deps, query }, request);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /own-body-0/); assert.match(html, /own-body-1/);
+    assert.doesNotMatch(html, /<img src=x/);
+    const links = [...html.matchAll(/href="([^"]*)"/g)].map(match => new URL(match[1]!.replaceAll('&amp;', '&'), 'https://can.invalid'));
+    for (const [index, occurrence] of occurrences.entries()) {
+      const matching = links.filter(url => url.searchParams.get(collectionCursorName(occurrence)) === next[index]);
+      assert.equal(matching.length, 1);
+      const url = matching[0]!;
+      assert.equal(url.origin, 'https://can.invalid'); assert.equal(url.pathname, '/hello');
+      const expected = new URLSearchParams(params);
+      expected.set(collectionCursorName(occurrence), next[index]!);
+      assert.deepEqual([...url.searchParams], [...expected]);
+    }
+  }
+  assert.equal(queries, 4); assert.equal(callbacks, 4); assert.equal(bodyReads, 0);
 });
 
 function fakeQuery(): RowQueryRunner {
