@@ -3297,7 +3297,7 @@
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
-      "state": "Original storage, State/Work and genuine native cohort outputs implemented,tested and reviewed in local main; exact logical/physical bound defining-record reconciliation pending.",
+      "state": "Selected original bounded cohort criterion implemented,tested,independently reviewed and accepted in local main.",
       "files": [
         "packages/state/src/fanout/membership.ts",
         "packages/state/src/fanout/progress.ts",
@@ -3309,8 +3309,8 @@
         "packages/state/src/storage/durable-object.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Reconcile accepted direct physical1..100 refusal with original saved logical200 upper bounds and actual100 transports; no new implementation or unchanged check required if distinction accepted.",
-        "owner": "Capability defining cohort contract"
+        "prerequisite": "None at the selected original cohort representation/continuation scope. Other File,event,query,admission,original-plan and held criteria stay in their own records.",
+        "owner": "Respective defining and consuming owners"
       },
       "finite_shared_implementation": {
         "input": "Reviewed defining original profile at Capability25fc84368e41522bd5ea9c0da1f8e6fbccff49cb plus coordinatorb346c633aa6e9821c7207b20dc2d796051a2f359 and exact Packages storage dispatch. No query scan/recovery policy or held preparation release.",
@@ -3320,7 +3320,7 @@
         "fence_and_anchor": "Each selected read checks one captured expectedRevision before and after actual raw read, before parsing. Genuine D1 interleaving advances the real fence between raw result and codec and all four reads refuse FenceConflictError before hostile decode. Read-only drains/progress use one fixed revision; callers refresh after successful original release/claim/commit. Anchor returns present including archived, disposed only for missing with remove/archive history, otherwise unknown; no business or whole-history decode.",
         "tests": "Contracts and State owning emissions0; actual emitted DO worker rebuilt0. Selected storage23/23 pass across focused runs:15 original new shared cases across3backends plus raw exact/one-over profile, SQL pre-materialization aggregate2, malformed syntax/parity, genuine four-method D1 race and Unicode cursor3. No failures/cancellations/skips remain. Two corrected/new cases2/2(1.148s), Unicode3/3(729.36ms); unchanged18 results reused. Corrected every-returned-column metadata aggregate gate and reachable numeric text/blob2/2 plus prior21 reused: selected25/25,0fail/cancel/skip; final owning Contracts/State/Work emits and actual DO build0.",
         "failed_attempts_and_assessment": "Finite source assessment identified mutable accessor request skew; fixed own descriptor capture and all3backend zero-getter controls passed. One malformed syntax test incorrectly expected State validation; corrected only that assertion to original SyntaxError and reran the affected case. Independent assessment is not the mandatory coordinator critical review.",
-        "remaining": "Original Capability State/Work owning criterion satisfied with55 Memory/8 actualD1-DO and12 State assertions/emissions/boundary, exact result at Capability SEQ005. Dev genuine changed native original consumer remains. Separate query scan/sort/host allocation and all precise holds remain.",
+        "remaining": "Selected storage/State/Work/native criterion satisfied. Reuse qualified outputs; independent query scan/sort and held/native/application requirements remain in their separate tasks.",
         "critical_metadata_correction": {
           "finding": "Coordinator critical review found version/created/updated/archived_at unconditionally returned while only declared text columns were guarded; non-STRICT SQLite affinity permits hostile text/blob metadata.",
           "change": "Count raw byte length of every RECORD_COLUMNS column and withhold every returned column when the complete selected page exceeds12640000. The existing null-data sentinel retains generic nonretryable limit. Valid numeric metadata and ordinary codecs are unchanged.",
@@ -3336,7 +3336,7 @@
         "scope": "Original installed native private source and retained scheduler with existing exact frozen membership, current authority, fences, claim/release/checkpoints/order/replay/terminal coverage. Original logical metadata remains; actual transports cap100.",
         "validation": "Original full499/500/501/1000 workflow1/1 171258.51ms; infrastructure/healthy sibling1/1 5428ms and actualD1/SQLiteDO terminal-prefix restart2/2 2974ms reused; owning storage25/State12/Work55+8 reused. State/CF emit,frozen root noEmit,boundary0.0fail/cancel/skip. Original failed historical200 rejection corrected only in actual transport selection, preserving original assertions.",
         "review": "Independent finite native caller source review CLEAR: captured/same-fence mandatory reads and owned-commit revision advance, loud/refused overlays, no generic fallback, full unfiltered membership/checkpoint/current authority/empty-only wrap.",
-        "remaining": "Only defining logical/physical bound record reconciliation for this selected packet; opaque File/event/current-grant/provider/original-app/Office/T04/T11/G2-G3 and all holds are separate."
+        "remaining": "No remaining selected bounded native cohort criterion; defining logical/physical distinction accepted by Capabilityf019 without new implementation or reruns. Other native/File/provider/application/Office/holds remain separate."
       }
     },
     "DEL-U01-appearance": {
@@ -3573,7 +3573,8 @@
       "DEL-A01-binding",
       "DEL-A01-admission",
       "DEL-A01-canonical",
-      "TECH-S04-admission"
+      "TECH-S04-admission",
+      "TECH-S04-cohort"
     ],
     "partially_completed": [
       "TECH-V03",
@@ -3599,7 +3600,6 @@
       "REPLAY-IP07",
       "TECH-F02",
       "TECH-S03",
-      "TECH-S04-cohort",
       "TECH-S04-query",
       "TECH-SV03",
       "TECH-V05",
@@ -3609,14 +3609,14 @@
       "DEL-D05"
     ],
     "counts": {
-      "finished": 21,
+      "finished": 22,
       "partial": 15,
-      "open_or_blocked": 11,
+      "open_or_blocked": 10,
       "held": 1,
       "total": 48
     },
     "source_basis": "Current queue IDs + explicit independent dispositions/task scope; accepted narrow corrections do not close broad qualification packets",
-    "status_given_to_human": "21/48 finished selected packets,15 partial,11 open or blocked,1 held; selected bounded admission host qualifier complete, wider canonical parents remain."
+    "status_given_to_human": "22/48 finished selected packets,15 partial,10 open or blocked,1 held; original bounded cohort criterion accepted, wider canonical parents unchanged."
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {
