@@ -1,7 +1,7 @@
 /** Node-only trusted composition of original State and physical Files retirement. */
 import { createHash } from 'node:crypto';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ArtifactOperation, CanonicalOperationDescriptor, CompileArtifact, FilePolicy, FileReferenceInventory, FileRetentionPolicy,
+import type { ArtifactModel, ArtifactOperation, CanonicalModelDescriptor, CanonicalOperationDescriptor, CompileArtifact, FilePolicy, FileReferenceInventory, FileRetentionPolicy,
   FileRetirementAuthority, FinalizedFileIdentity, FinalizedFileRef, FrameworkOpaqueDeclaration,
   FrameworkOpaqueDeclarationSet, FrameworkOpaqueValueDefault, Revision, WireValue, WorkScope } from '@canlang/contracts';
 import type { IdentityStore } from '@canlang/identity';
@@ -10,6 +10,8 @@ import { createSqliteFileBindings, type SqliteFileStore } from '@canlang/files/h
 import { checkedFileCleanupRecord } from '@canlang/files/retention';
 import { createD1OwnerRouter, STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
+import { stableStringify } from '@canlang/state/invocation';
+import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 import { encodeValue } from '@canlang/values';
 import type { AssembledModules } from '../runtime/modules.js';
 import { importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from '../runtime/assembly-verification.js';
@@ -58,7 +60,7 @@ function immutable<T>(value: T): T {
   };
   freeze(copy); return copy;
 }
-const equal = (left: unknown, right: unknown): boolean => JSON.stringify(left) === JSON.stringify(right);
+const equal = (left: unknown, right: unknown): boolean => stableStringify(left) === stableStringify(right);
 
 /** Capture original native metadata before normalization or yielding. Never
  * invoke accessors, silently drop members, or coerce native integer literals. */
@@ -123,6 +125,37 @@ function originalDefaults(contracts: Readonly<Record<string, WireValue>>): reado
   }));
 }
 
+/** Install original ordinary capability result profiles. Generation and Judgment
+ * retain their separately defining original-request/specification joins. */
+export function nativeCapabilityResultDeclarations(
+  caller: Extract<FrameworkOpaqueDeclaration['source'], { kind: 'callable' }>,
+  canonicalModels: readonly CanonicalModelDescriptor[], artifactModels: readonly ArtifactModel[],
+): readonly FrameworkOpaqueDeclaration[] {
+  const output: FrameworkOpaqueDeclaration[] = [];
+  for (const model of artifactModels) {
+    const originals = canonicalModels.filter(candidate => candidate.name === model.name);
+    if (originals.length !== 1) throw new Error('File retirement requires one exact original delivery model.');
+    for (const field of model.fields) {
+      if (field.field.kind !== 'delivery') continue;
+      const canonical = originals[0]!.fields[field.name]?.delivery;
+      if (canonical === undefined || !equal(canonical, field.field)) {
+        throw new Error('File retirement original delivery field declarations disagree.');
+      }
+      if ('judgment' in field.field) continue;
+      const generation = dispatchGenerationTargetProfile(`${field.field.capability}.${field.field.operation}`);
+      if (generation !== null) continue;
+      if ('judgment' in canonical) throw new Error('File retirement original delivery variants disagree.');
+      if (output.some(declaration => declaration.source.kind === 'delivery' &&
+          equal(declaration.source.context.canonical, canonical))) continue;
+      output.push({ id: `${caller.callable.id}:delivery:${model.name}:${field.name}:result`,
+        source: { kind: 'delivery', source: caller.source,
+          context: { kind: 'capability', canonical, artifact: field.field } },
+        profile: { kind: 'provider-result', canonical: canonical.result, artifact: field.field.result } });
+    }
+  }
+  return immutable(output);
+}
+
 /** Never runs cleanup on installation; the returned method is trusted host maintenance only. */
 export async function createNativeFileRetirementBinding(input: NativeFileRetirementInput) {
   // Capture original ports/configuration before the first source or database await.
@@ -170,15 +203,21 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   data(packages, scope.ownerPackage);
   const originalContracts = declarationWire(data(definition, 'contracts')) as Readonly<Record<string, WireValue>>;
   const valueDefaults = originalDefaults(originalContracts);
-  const captures: { module: string; definition: unknown; invocations: Readonly<Record<string, WireValue>>; events: Readonly<Record<string, WireValue>> }[] = [];
+  const captures: { module: string; definition: unknown; invocations: Readonly<Record<string, WireValue>>; events: Readonly<Record<string, WireValue>>; sendGuards: Readonly<Record<string, WireValue>> }[] = [];
   const captureInvocations = (modulePath: string, original: unknown) => {
     const operations = data(original, 'operations');
     const invocations: Record<string, WireValue> = {};
     for (const callable of artifact.callables.filter(item => item.module === modulePath && item.kind === 'handler')) {
       Object.defineProperty(invocations, callable.id, { value: declarationWire(data(data(operations, callable.id), 'invocation')), enumerable: true });
     }
+    const sendGuards: Record<string, WireValue> = {};
+    for (const operation of Object.keys(operations as object)) {
+      const declaration = data(operations, operation);
+      if (Object.hasOwn(declaration as object, 'sendGuards')) Object.defineProperty(sendGuards, operation, {
+        value: declarationWire(data(declaration, 'sendGuards')), enumerable: true });
+    }
     const events = declarationWire(data(original, 'events')) as Readonly<Record<string, WireValue>>;
-    captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events });
+    captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events, sendGuards: Object.freeze(sendGuards) });
   };
   captureInvocations(first.path, definition);
   verifyDeclarations = () => {
@@ -188,6 +227,11 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
         throw new Error('File retirement original event declarations changed after capture.');
       }
       const operations = data(captured.definition, 'operations');
+      const guarded = Object.keys(operations as object).filter(id => Object.hasOwn(data(operations, id) as object, 'sendGuards'));
+      if (!equal(guarded, Object.keys(captured.sendGuards))) throw new Error('Original SEND declaration inventory changed.');
+      for (const id of guarded) if (!equal(captured.sendGuards[id], declarationWire(data(data(operations, id), 'sendGuards')))) {
+        throw new Error('Original SEND lexical declaration changed after capture.');
+      }
       for (const id of Object.keys(captured.invocations)) {
         if (!equal(captured.invocations[id], declarationWire(data(data(operations, id), 'invocation')))) {
           throw new Error('File retirement original private invocation changed after capture.');
@@ -228,6 +272,39 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
     }
     declarations.push({ id: `${callable.id}:inputs`, source,
       profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
+    const originalCapture = captures.find(captured => captured.module === callable.module);
+    const guarded = originalCapture?.sendGuards[callable.id];
+    if (guarded !== undefined) {
+      if (!Array.isArray(guarded) || originalCapture === undefined) throw new Error('Original SEND guard inventory must be complete.');
+      const originalPackages = data(originalCapture.definition, 'packages');
+      const owningPackage = Object.keys(originalPackages as object).filter(name => callable.id.startsWith(`${name}.`))
+        .sort((left, right) => right.length - left.length)[0];
+      if (owningPackage === undefined) throw new Error('Original SEND guard lacks its owning lexical package.');
+      for (const entry of guarded) {
+        const guard = entry as unknown as Record<string, unknown>;
+        const profile = data(guard, 'inputDeclaration') as FrameworkOpaqueDeclaration['profile'];
+        const originalSource = data(guard, 'source') as { path: string; sha256: string; module: string };
+        const rule = data(guard, 'rule') as string;
+        const rules = artifact.callables.filter(candidate => candidate.kind === 'rule' && candidate.id === rule &&
+          candidate.module === callable.module && equal(candidate.member, ['sendWhen', rule]));
+        if (Object.keys(guard).sort().join(',') !== 'binding,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target' ||
+            data(guard, 'owner') !== callable.id || originalSource.path !== source.source.path ||
+            originalSource.sha256 !== source.source.sha256 || originalSource.module !== owningPackage ||
+            rules.length !== 1 || rules[0]!.inputStyle !== undefined || profile.kind !== 'inputs') {
+          throw new Error('Original SEND guard lacks its complete owning Compiler declaration.');
+        }
+        const inputs = data(guard, 'inputs') as readonly { name: string; type: import('@canlang/contracts').CanTypeId }[];
+        if (profile.canonical.length !== inputs.length || profile.artifact.length !== inputs.length || inputs.some((input, index) =>
+            profile.canonical[index]?.name !== input.name || profile.artifact[index]?.name !== input.name ||
+            profile.artifact[index]?.valueType !== input.type || profile.canonical[index]?.required !== true ||
+            profile.artifact[index]?.required !== true || ['default', 'computedDefault'].some(key =>
+            Object.hasOwn(profile.canonical[index]!, key) || Object.hasOwn(profile.artifact[index]!, key)))) throw new Error('Original SEND slots must retain their complete required typed declaration.');
+        declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,
+          source: source.source, owner: callable.id, node: data(guard, 'node') as { start: number; end: number },
+          binding: data(guard, 'binding') as string, target: data(guard, 'target') as string, inputs }, profile });
+      }
+    }
+    declarations.push(...nativeCapabilityResultDeclarations(source, loaded.models, artifact.models));
     if (canonical.result !== undefined || operation.result !== undefined) {
       if (canonical.result === undefined || operation.result === undefined || !equal(canonical.result, operation.result)) {
         throw new Error('File retirement original callable results disagree.');

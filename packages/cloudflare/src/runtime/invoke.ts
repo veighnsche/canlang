@@ -81,6 +81,7 @@ import type {
   FileReferenceStoragePort,
   FileValue,
   FrameworkOpaqueSourceRoute,
+  FrameworkFilePayloadOrigin,
   HistoryEntry,
   InvocationContext,
   Membership,
@@ -97,6 +98,7 @@ import type {
   Receipt,
   ReceiptProperty,
   ReceiptResultContext,
+  RetainedOutboxIntent,
   RecordId,
   RecordVersion,
   ResolvedIdentity,
@@ -125,10 +127,12 @@ import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { loadOpaqueFileStaging, type RetainedOpaqueFileSource } from './opaque-file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
-import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite } from '@canlang/state/invocation';
+import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite,
+  ScenarioReceiptSendGuard, ScenarioReceiptSendGuardFrame, ScenarioReceiptSendProducerInput,
+  ScenarioReceiptDeliveryOriginFrame } from '@canlang/state/invocation';
 import { stableStringify } from '@canlang/state/invocation';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
-import { bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
+import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite } from '@canlang/state/invocation';
@@ -2913,8 +2917,70 @@ interface NativeScenarioExecution {
   readonly nextCreateId: () => string;
   readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => Record<string, unknown>;
   readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
+  readonly evaluateSendGuard: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
+  readonly prepareSourceGuardOrigin: (input: ScenarioReceiptSendProducerInput, row: StoredRow,
+    intent: OutboxIntent) => Promise<FrameworkFilePayloadOrigin>;
+  readonly prepareReceiptOrigin: (frame: ScenarioReceiptDeliveryOriginFrame) => Promise<FrameworkFilePayloadOrigin>;
 }
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
+interface NativeSourceSendGuard {
+  readonly guard: ScenarioReceiptSendGuard;
+  readonly logicalGuard: ScenarioReceiptSendGuard;
+  readonly inputDeclaration: Extract<import("@canlang/contracts").FrameworkOpaqueDeclaration["profile"], { kind: "inputs" }>;
+  readonly ownerPackage: string;
+  readonly definition: unknown;
+  readonly evaluate: (c: HandlerContext, inputs: Readonly<Record<string, unknown>>) => Promise<boolean>;
+}
+const nativeSourceSendGuards = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, NativeSourceSendGuard>>();
+// The State evaluator supplies this exact lexical object. A copied envelope,
+// matching operation id or caller-provided context cannot select a native call.
+const nativeSourceSendCalls = new WeakMap<object, { readonly call: AdmittedCall; readonly active: NativeScenarioExecution }>();
+function nativeEmailLexicalType(type: string): boolean {
+  return /^(text|bool|int|decimal|money|date|datetime|duration|user|email|timezone)(\[\])?\?$/.test(type) ||
+    /^(text|bool|int|decimal|money|date|datetime|duration|user|email|timezone)(\[\])?$/.test(type);
+}
+/** Historical SEND views consume only the original same-load typed State wire.
+ * They acquire no native row, receipt, navigation, mutation or read bindings. */
+async function loadNativeSendModelSnapshots(loaded: LoadedCanonicalDescriptors, artifact: CompileArtifact,
+  types: readonly string[]) {
+  const modelTypes = [...new Set(types.filter(type => loaded.models.some(model => model.name === type)))];
+  if (modelTypes.length === 0) return undefined;
+  const ports = await loadProducerModule('@canlang/state', 'state model SEND lexical snapshot');
+  const bind = requireProducerFn(ports, 'bindModelLexicalSnapshotProfile', 'state model SEND lexical snapshot') as
+    typeof import('@canlang/state').bindModelLexicalSnapshotProfile;
+  const read = requireProducerFn(ports, 'readModelLexicalSnapshot', 'state model SEND lexical snapshot') as
+    typeof import('@canlang/state').readModelLexicalSnapshot;
+  const bound = { artifactModels: new Map((artifact.models ?? []).map(model => [model.name as ModelName, model])),
+    canonicalModels: loaded.models,
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
+  const profiles = new Map(modelTypes.map(type => {
+    const profile = bind(bound, type as CanTypeId);
+    if (profile === undefined) throw new loaded.producers.errors('validation', 'SEND model lacks its exact owning snapshot profile.');
+    return [type, profile] as const;
+  }));
+  return Object.freeze({
+    has: (type: string): boolean => profiles.has(type),
+    check: (type: string, wire: unknown): void => { read(profiles.get(type)!, wire); },
+    view: (type: string, wire: unknown, healthy: () => void): Readonly<Record<string, unknown>> => {
+      healthy();
+      const { row, sourcePresence } = read(profiles.get(type)!, wire);
+      const view: Record<string, unknown> = Object.create(null);
+      const declared = loaded.models.find(model => model.name === type)!;
+      for (const field of Object.keys(declared.fields)) Object.defineProperty(view, field, { enumerable: true, get: () => {
+        healthy();
+        if (Object.hasOwn(row.data, field)) return nativeRecordField(loaded, type, field, row.data[field]);
+        if (sourcePresence === null || sourcePresence.fields.includes(field)) {
+          throw new loaded.producers.errors('forbidden', 'SEND snapshot field is not readable.');
+        }
+        return undefined;
+      } });
+      for (const [field, value] of Object.entries(nativeRecordMetadata(row))) Object.defineProperty(view, field,
+        { enumerable: true, get: () => { healthy(); return value; } });
+      healthy(); return Object.freeze(view);
+    },
+  });
+}
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
 /** Only the same-load owning scalar or bounded-text alias inventory selects a codec.
  * Contracts, enums, models, nullable values and containers remain separate profiles. */
@@ -3093,7 +3159,8 @@ async function bindNativeScenarioCalls(asm: AssembledModules, artifact: CompileA
 /** Bind framework authority only from the original checked source module and
  * literal installed producers. Request options cannot supply these ports. */
 async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: CompileArtifact,
-  registry: ReadonlyMap<string, unknown>, producers: CanonicalStateProducers): Promise<void> {
+  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  const { registry, producers } = loaded;
   const deliveryFields = artifact.models?.some(model => model.fields.some(field => field.field.kind === 'delivery')) === true;
   for (const value of registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
@@ -3157,8 +3224,100 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         return Object.freeze({ source, correlation: profile === null ? null :
           profile.role === 'original' ? 'value' as const : 'arguments' as const });
       })) }));
+    const originalOperation = own(own(definition, 'operations'), def.name);
+    const rawGuards = own(originalOperation, 'sendGuards');
+    const entries = rawGuards === undefined ? [] : nativeCallArray(rawGuards, 200);
+    if (entries.length === 0) {
+      bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
+        stage: work.stageCanonicalSend, read: work.readCanonicalSendStaging }));
+      continue;
+    }
+    const packages = own(definition, 'packages');
+    const owners = Object.keys(isUnknownRecord(packages) ? packages : {}).filter(name => def.name.startsWith(`${name}.`))
+      .sort((left, right) => right.length - left.length);
+    const ownerPackage = owners[0];
+    if (ownerPackage === undefined) throw new AssemblyCorrespondenceError('SEND guard lacks its original lexical package.');
+    const originalRegistry = await importPolicyRegistry(asm, callable.module, def.name, artifact);
+    const functions = own(originalRegistry, 'sendWhen');
+    const selected = new Map<string, NativeSourceSendGuard>();
+    const guards: ScenarioReceiptSendGuard[] = [];
+    for (const entry of entries) {
+      const emitted = localPolicyObject(entry, ['rule', 'owner', 'source', 'node', 'statement', 'target', 'binding', 'sourceBinding', 'inputs', 'inputDeclaration']);
+      if (Object.keys(emitted).length !== 10 || emitted.owner !== def.name ||
+          !isUnknownRecord(emitted.source) || emitted.source.path !== plan.source.path ||
+          emitted.source.sha256 !== plan.source.sha256 || emitted.source.module !== ownerPackage ||
+          typeof emitted.rule !== 'string' || selected.has(emitted.rule) ||
+          typeof emitted.target !== 'string' || typeof emitted.binding !== 'string' ||
+          typeof emitted.sourceBinding !== 'string' || emitted.sourceBinding === '') {
+        throw new AssemblyCorrespondenceError('SEND guard differs from its complete original compiler declaration.');
+      }
+      for (const interval of [emitted.node, emitted.statement]) {
+        const node = localPolicyObject(interval, ['start', 'end']);
+        if (Object.keys(node).length !== 2 || !Number.isSafeInteger(node.start) || !Number.isSafeInteger(node.end) ||
+            (node.start as number) < 0 || (node.end as number) <= (node.start as number)) {
+          throw new AssemblyCorrespondenceError('SEND guard has an invalid original physical interval.');
+        }
+      }
+      const rule = artifact.callables.filter(value => value.kind === 'rule' && value.id === emitted.rule &&
+        value.module === callable.module && stableStringify(value.member) === stableStringify(['sendWhen', emitted.rule]));
+      if (rule.length !== 1 || own(module, rule[0]!.export) !== emitted.rule || rule[0]!.inputStyle !== undefined) {
+        throw new AssemblyCorrespondenceError('SEND guard lacks its exact original Rule callable/export identity.');
+      }
+      const evaluate = own(functions, emitted.rule);
+      if (typeof evaluate !== 'function') throw new AssemblyCorrespondenceError('SEND guard lacks its original canApp().sendWhen function.');
+      const inputs = nativeCallArray(emitted.inputs, 200).map(value => {
+        const input = localPolicyObject(value, ['name', 'type']);
+        if (Object.keys(input).length !== 2 || typeof input.name !== 'string' || typeof input.type !== 'string') {
+          throw new AssemblyCorrespondenceError('SEND guard lacks complete original lexical names/types.');
+        }
+        return Object.freeze({ name: input.name, type: input.type as CanTypeId });
+      });
+      const inputDeclaration = captureDispatchPreclaimData(localPolicyObject(emitted.inputDeclaration, ['kind', 'canonical', 'artifact'])) as NativeSourceSendGuard['inputDeclaration'];
+      if (inputDeclaration.kind !== 'inputs' || inputDeclaration.canonical.length !== inputs.length ||
+          inputDeclaration.artifact.length !== inputs.length || inputs.some((input, index) =>
+          inputDeclaration.canonical[index]?.name !== input.name || inputDeclaration.artifact[index]?.name !== input.name ||
+          inputDeclaration.artifact[index]?.valueType !== input.type || inputDeclaration.canonical[index]?.required !== true ||
+          inputDeclaration.artifact[index]?.required !== true || ['default', 'computedDefault'].some(key =>
+          Object.hasOwn(inputDeclaration.canonical[index]!, key) || Object.hasOwn(inputDeclaration.artifact[index]!, key)))) {
+        throw new AssemblyCorrespondenceError('SEND guard lacks its complete required original typed lexical census.');
+      }
+      const guard: ScenarioReceiptSendGuard = captureDispatchPreclaimData({ rule: emitted.rule,
+        owner: def.name, source: plan.source, node: emitted.node as ScenarioReceiptSendGuard['node'],
+        target: emitted.target, binding: emitted.binding, inputs });
+      guards.push(guard);
+      const logicalGuard: ScenarioReceiptSendGuard = captureDispatchPreclaimData({ ...guard, source: emitted.source as unknown as ScenarioReceiptSendGuard['source'] });
+      selected.set(guard.rule, Object.freeze({ guard, logicalGuard, inputDeclaration, ownerPackage, definition,
+        evaluate: evaluate as NativeSourceSendGuard['evaluate'] }));
+    }
+    const live = (call: AdmittedCall): NativeScenarioExecution => {
+      const active = nativeScenarioExecutions.get(call);
+      if (active === undefined || active.loaded !== loaded || active.asm !== asm || active.artifact !== artifact || call.def !== def) {
+        throw new AssemblyCorrespondenceError('SEND requires its unchanged actual live State native call.');
+      }
+      return active;
+    };
     bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
-      stage: work.stageCanonicalSend, read: work.readCanonicalSendStaging }));
+      sendGuards: Object.freeze(guards),
+      evaluateGuard: (frame: ScenarioReceiptSendGuardFrame) => live(frame.call).evaluateSendGuard(frame),
+      stage: async (input: ScenarioReceiptSendProducerInput, context: Parameters<typeof work.stageCanonicalSend>[1]) => {
+        if (input.sourceGuard === undefined) return work.stageCanonicalSend(input, context);
+        const original = nativeSourceSendCalls.get(input.sourceGuard.inputs);
+        if (original === undefined || original.active !== live(original.call)) {
+          throw new AssemblyCorrespondenceError('Guarded stage requires its actual original State lexical evaluation.');
+        }
+        nativeSourceSendCalls.delete(input.sourceGuard.inputs);
+        return work.stageCanonicalSend(input, context, { prepareSourceGuardOrigin:
+          (row: StoredRow, intent: OutboxIntent) => original.active.prepareSourceGuardOrigin(input, row, intent) });
+      },
+      read: work.readCanonicalSendStaging,
+      prepareReceiptOrigin: (frame: ScenarioReceiptDeliveryOriginFrame) => live(frame.call).prepareReceiptOrigin(frame),
+    }));
+    const logical = [...selected.values()][0]!.logicalGuard.source;
+    const state = await import('@canlang/state/invocation');
+    state.bindScenarioReceiptMembershipSource(def, { logical, transport: plan.source });
+    bindNativeSourceSendMembership(def, { source: logical, app, guards: [...selected.values()].map(value => value.logicalGuard),
+      sites: (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch') });
+    nativeSourceSendGuards.set(def, selected);
   }
 }
 
@@ -3198,6 +3357,9 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   add(def.descriptor.result?.type, true);
   for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
     for (const dependency of returned.dependencies) add(dependency.type);
+  }
+  for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
+    for (const input of guard.guard.inputs) add(input.type);
   }
   return [...models];
 }
@@ -3678,18 +3840,18 @@ async function loadCanonicalDescriptorsInternal(
     });
   }
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
-  await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
+  await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioQueries(asm, artifact, canonical);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   for (const [owner, sites] of canonical.membershipSources) {
-    if (sites.every(site => site.stage === 'read-policy' || site.stage === 'read-predicate' || site.stage === 'send-dispatch')) continue;
-    if (sites.some(site => site.stage === 'read-policy' || site.stage === 'read-predicate' || site.stage === 'send-dispatch')) {
-      throw new AssemblyCorrespondenceError('Membership owner mixes independent State lifetimes.');
-    }
+    // Keep each complete original recipe in its defining lifetime. A SEND
+    // predicate and a later ordinary require may share one scenario owner.
+    const ownerSites = sites.filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
+    if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
-    bindNativeOwnerMembership(def, { source: sites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites });
+    bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
@@ -6080,6 +6242,9 @@ async function runScenarioExecution(
     recordEngineFailure(failure);
     throw failure;
   };
+  const sendSnapshots = await loadNativeSendModelSnapshots(loaded, opts.artifact,
+    [...(nativeSourceSendGuards.get(call.def as GeneratedOperationDef)?.values() ?? [])]
+      .flatMap(selected => selected.guard.inputs.map(input => input.type)));
   const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
     ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
@@ -6181,16 +6346,44 @@ async function runScenarioExecution(
     },
     sendDeferred: async (source, request, bindingKey, when) => {
       try {
-        if (when !== undefined) return refuseRecordBinding(
-          "Guarded SEND requires its original installed source predicate and File declaration join.");
+        // Capture original typed lexical values synchronously before the first await.
+        let frozenWhen: import('./context.js').NativeSendWhen | undefined;
+        let guardedDefinition: unknown;
+        if (when !== undefined) {
+          const actual = call as AdmittedCall;
+          const selected = nativeSourceSendGuards.get(actual.def as GeneratedOperationDef)?.get(when.rule);
+          if (source !== 'std.EmailV1.send' || ownerSession === undefined || selected === undefined ||
+              selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
+              selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type))) {
+            return refuseRecordBinding('Guarded SEND requires its original installed Email predicate and typed lexical declaration join.');
+          }
+          guardedDefinition = selected.definition;
+          const raw = localPolicyObject(when.inputs, selected.guard.inputs.map(input => input.name));
+          if (Object.keys(raw).length !== selected.guard.inputs.length) return refuseRecordBinding('Guarded send lacks its complete lexical values.');
+          const wire: Record<string, unknown> = Object.create(null);
+          for (const input of selected.guard.inputs) {
+            const value = localPolicyMember(raw, input.name);
+            if (sendSnapshots?.has(input.type)) {
+              const binding = isUnknownRecord(value) ? recordBindings.get(value) : undefined;
+              const row = binding === undefined ? undefined : ownerRows.get(stagedKey(binding.model, binding.id));
+              if (binding?.model !== input.type || row == null) {
+                return refuseRecordBinding('SEND model lexical requires its original native binding and current owner-stage row.');
+              }
+              // Preserve the exact State-issued current-stage row before any await.
+              // State owns grants, historical wire capture and final revalidation.
+              wire[input.name] = row;
+            } else wire[input.name] = captureDispatchPreclaimData(encodeCanonicalField(StateError, input.type, value, loaded.valueSchema));
+          }
+          frozenWhen = Object.freeze({ rule: when.rule, inputs: Object.freeze(wire) });
+        }
         if (child !== undefined) return refuseRecordBinding('Child sends require their defining owner-session join.');
         const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
         if (moduleUrl === undefined) throw new Error('Bound send has no owning compiled module.');
-        const module: unknown = await import(moduleUrl);
+        const module: unknown = guardedDefinition === undefined ? await import(moduleUrl) : undefined;
         const where = `Bound send ${JSON.stringify(source)}`;
         const member = (value: unknown, key: string): unknown =>
           isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
-        const definition = member(module, 'appDefinition');
+        const definition = guardedDefinition ?? member(module, 'appDefinition');
         const binding = member(member(definition, 'bindings'), bindingKey);
         const capability = member(binding, 'capability');
         const from = member(binding, 'from');
@@ -6240,7 +6433,8 @@ async function runScenarioExecution(
           if (stage === undefined) {
             return refuseRecordBinding('Saved scenario send requires its installed State framework producer.');
           }
-          return await stage(call as AdmittedCall, receiptStore!, { source, request: boundRequest });
+          return await stage(call as AdmittedCall, receiptStore!, { source, request: boundRequest,
+            ...(frozenWhen === undefined ? {} : { when: frozenWhen }) });
         }
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
@@ -6286,7 +6480,123 @@ async function runScenarioExecution(
     const binding = nativeScenarioCalls.get(loaded);
     const invokeCall = loaded.producers.invoke.invokeScenarioReceiptCall;
     const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+    const currentSend = (): void => {
+      assertCall!(actualCall, receiptStore);
+      if (nativeScenarioExecutions.get(actualCall) !== active || call.checkpoint === undefined) {
+        return refuseRecordBinding('SEND callback requires its original live State call/checkpoint.');
+      }
+    };
+    const sourceOpaque = async (selected: NativeSourceSendGuard) => {
+      currentSend();
+      const opaque = await nativeOpaqueFileStaging(loaded, opts, {
+        app: call.context.app, owner: call.checkpoint!.owner, ownerPackage: selected.ownerPackage,
+      }, async () => { currentSend(); });
+      currentSend();
+      if (opaque === null) return refuseRecordBinding('Guarded send requires its installed original File declaration inventory.');
+      return opaque;
+    };
     const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
+      evaluateSendGuard: async (frame: ScenarioReceiptSendGuardFrame): Promise<boolean> => {
+        currentSend();
+        const selected = nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.get(frame.guard.rule);
+        if (frame.call !== actualCall || selected === undefined || stableStringify(frame.guard) !== stableStringify(selected.guard)) {
+          return refuseRecordBinding('SEND evaluator requires its exact original source guard and actual State call.');
+        }
+        let guardOpen = true;
+        const assertGuard = (): void => {
+          currentSend();
+          if (!guardOpen) return refuseRecordBinding('Source SEND native context is closed.');
+        };
+        const inputs: Record<string, unknown> = Object.create(null);
+        for (const input of selected.guard.inputs) {
+          const wire = localPolicyMember(frame.inputs, input.name);
+          Object.defineProperty(inputs, input.name, { enumerable: true,
+            value: sendSnapshots?.has(input.type) ? sendSnapshots.view(input.type, wire, assertGuard)
+              : decodeCanonicalValue(loaded.valueSchema, input.type, wire) });
+        }
+        const guardRead = <Args extends unknown[], Result>(read: (...args: Args) => Promise<Result>) =>
+          async (...args: Args): Promise<Result> => { assertGuard(); const value = await read(...args); assertGuard(); return value; };
+        const reject = (): never => refuseRecordBinding('Source SEND guard context is read only.');
+        const canonical: CanonicalEffectsScope = Object.freeze({ ...scope,
+          stageWrite: reject, createRecord: reject, setRecord: reject, deleteRecord: reject,
+          readModel: guardRead(scope.readModel.bind(scope)),
+          ...(scope.readRecords === undefined ? {} : { readRecords: guardRead(scope.readRecords.bind(scope)) }),
+          ...(scope.observeDelivery === undefined ? {} : { observeDelivery: guardRead(scope.observeDelivery.bind(scope)) }),
+          ...(scope.observeGenerationCallbackDiagnostics === undefined ? {} : {
+            observeGenerationCallbackDiagnostics: guardRead(scope.observeGenerationCallbackDiagnostics.bind(scope)) }) });
+        const fresh = createContext({ caller: { ...ctx.caller, roles: [...ctx.caller.roles] },
+          store: new Proxy(Object.create(null) as StoragePort, { get: reject, set: reject,
+            defineProperty: reject, deleteProperty: reject, ownKeys: reject }),
+          clock: () => { assertGuard(); return admittedNow; },
+          memberships: [...grants], canonical, qualified: actualCall.context,
+          ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
+          ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }) });
+        const membership = openNativeSourceSendMembershipFrame(fresh, actualCall, receiptStore,
+          selected.guard.rule, recordEngineFailure);
+        try {
+          membership.assertCompleted(); currentSend();
+          const accepted: unknown = await selected.evaluate(fresh, Object.freeze(inputs));
+          membership.assertCompleted(); currentSend();
+          if (typeof accepted !== 'boolean') return refuseRecordBinding('Original SEND predicate must return Bool.');
+          if (accepted) nativeSourceSendCalls.set(frame.inputs, { call: actualCall, active });
+          return accepted;
+        } catch (error) { recordEngineFailure(error); throw error; }
+        finally { guardOpen = false; membership.close(); }
+      },
+      prepareSourceGuardOrigin: async (input: ScenarioReceiptSendProducerInput, row: StoredRow, intent: OutboxIntent) => {
+        currentSend();
+        const lexical = input.sourceGuard;
+        const selected = lexical === undefined ? undefined : nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.get(lexical.rule);
+        if (selected === undefined || lexical === undefined || input.operationId !== actualCall.context.operationId ||
+            intent.operationId !== input.operationId || intent.operation !== selected.guard.owner ||
+            intent.target !== selected.guard.target || intent.dispatchGuard !== selected.guard.rule) {
+          return refuseRecordBinding('Source File guard origin requires the actual Work row/outbox and original State capture.');
+        }
+        const opaque = await sourceOpaque(selected), declaration = opaque.sendGuard(selected.guard, selected.inputDeclaration);
+        const { WORK_DISPATCH_MODEL } = await import('@canlang/work/kernel/tables');
+        currentSend();
+        const origin = await opaque.prepare({ expectedRevision: actualCall.revision as Revision,
+          model: WORK_DISPATCH_MODEL as ModelName, row, field: 'sourceGuard',
+          scope: { app: actualCall.context.app, owner: actualCall.checkpoint!.owner, ownerPackage: selected.ownerPackage },
+          origin: { kind: 'send-guard', declaration: declaration.declaration,
+            inputsDeclarationId: declaration.inputsDeclarationId,
+            intent: { intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId,
+              target: intent.target, occurrenceIndex: intent.occurrenceIndex, dispatchGuard: selected.guard.rule } },
+          projection: { kind: 'inputs', path: ['inputs'], declarationId: declaration.inputsDeclarationId },
+          value: lexical.inputs, identity: opts.identity, ...(opts.files === undefined ? {} : { files: opts.files }) });
+        currentSend(); return origin;
+      },
+      prepareReceiptOrigin: async (frame: ScenarioReceiptDeliveryOriginFrame) => {
+        currentSend();
+        if (frame.call !== actualCall) return refuseRecordBinding('Receipt File origin requires its actual source State call.');
+        const entries = nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef);
+        const selected = entries?.values().next().value as NativeSourceSendGuard | undefined;
+        if (selected === undefined) return refuseRecordBinding('Guarded receipt lacks its original lexical package.');
+        const opaque = await sourceOpaque(selected), caller = opaque.callable(actualCall.def.name);
+        const result = opaque.delivery(frame.model.name, frame.field, frame.send);
+        const send = frame.send;
+        const request = 'intentId' in send ? localPolicyObject(send.arguments) as unknown as BoundCapabilityRequest : send.request;
+        if (request === undefined || send.occurrenceIndex === undefined) return refuseRecordBinding('Receipt origin lacks its original request/ordinal.');
+        const association = { model: frame.model.name as ModelName, recordId: frame.record.id, field: frame.field };
+        const declaration = result.declaration, resultDeclarationId = result.resultDeclarationId;
+        const requestOrigin = { binding: request.binding, from: request.from };
+        const origin = 'intentId' in send
+          ? { kind: 'delivery-result' as const, deliveryId: frame.value.id,
+            intent: { intentId: send.intentId, operation: send.operation, operationId: send.operationId,
+              target: send.target, occurrenceIndex: send.occurrenceIndex },
+            request: requestOrigin, caller, association, declaration, resultDeclarationId }
+          : { kind: 'delivery-skipped' as const, deliveryId: frame.value.id,
+            send: { operation: send.operation, operationId: send.operationId as InvocationContext['operationId'],
+              target: send.target, occurrenceIndex: send.occurrenceIndex },
+            request: requestOrigin, caller, association, guard: opaque.sendGuard(send.guard!, entries!.get(send.guard!.rule)!.inputDeclaration).declaration,
+            declaration, resultDeclarationId };
+        const tables = await import('@canlang/state/receipt/tables');
+        if (send.target !== 'std.EmailV1.send') return refuseRecordBinding('This receipt origin consumer requires its released original Email context.');
+        const prepared = await opaque.prepareControl({ expectedRevision: frame.revision as Revision,
+          model: tables.RECEIPT_MODEL as ModelName, row: frame.row, field: 'result',
+          scope: { app: actualCall.context.app, owner: actualCall.checkpoint!.owner, ownerPackage: selected.ownerPackage }, origin });
+        currentSend(); return prepared;
+      },
       prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => {
         if (scenarioReceiptFrame === undefined) return refuseRecordBinding('Native child preparation requires its original installed parent frame.');
         return prepareNativeScenarioInputs(loaded, def, inputs, scenarioReceiptFrame.prepareReference);
@@ -11747,7 +12057,7 @@ async function runFenceGate(input: {
   return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };
 }
 
-import type { DispatchClaimGuard } from '@canlang/work/kernel/commands';
+import type { DispatchClaimGuard, DispatchClaimGuardInput } from '@canlang/work/kernel/commands';
 
 /** Detach trusted host inputs before any asynchronous producer/read can yield.
  * This data capture establishes no Compiler source or dispatch authority. */
@@ -11819,7 +12129,8 @@ export async function driveDispatchIntentWithPreclaim(
       triggerRevision !== undefined && (!Number.isSafeInteger(triggerRevision) || triggerRevision < 0)) {
     throw new Error('Preclaim needs one complete installed async guard and owner fence.');
   }
-  const lexical = captureDispatchPreclaimData(asyncGuard.frozenInputs);
+  const nativePreclaim = nativeEmailPreclaims.get(evaluator);
+  const lexical = nativePreclaim === undefined ? captureDispatchPreclaimData(asyncGuard.frozenInputs) : undefined;
   const pinned = Object.freeze({ ...opts, intent });
   const now = pinned.nowMs();
   if (!['intentId', 'operation', 'operationId', 'target', 'arguments', 'occurrenceIndex']
@@ -11860,9 +12171,10 @@ export async function driveDispatchIntentWithPreclaim(
           retained.originalCommit.createdAt < 0) {
         throw new Error('Preclaim needs exact persisted original outbox publication facts.');
       }
+      const actualLexical = nativePreclaim === undefined ? lexical : await nativePreclaim.prepare(input, retained);
       const snapshot = await readSnapshot.call(pinned, intent);
       if (await store.readRevision() !== input.revision) throw new Error('Preclaim original owner revision changed.');
-      const phase = await runPhase({ stage: input.context, predicate, frozenInputs: lexical, stateSnapshot: snapshot,
+      const phase = await runPhase({ stage: input.context, predicate, frozenInputs: actualLexical, stateSnapshot: snapshot,
         checkpoint: { revision: input.revision, owner }, intent: {
           item: { id: intent.intentId as OutboxId, operationId: data.operationId, source: data.source,
             occurrenceIndex: data.occurrenceIndex, request: retained.intent.arguments,
@@ -11905,6 +12217,177 @@ export async function driveDispatchIntentWithPreclaim(
     }
     return await recordDispatchProviderAttempt({ ...pinned, registry }, intent.intentId, minted, now, runBase);
   } finally { active = false; }
+}
+
+interface NativeEmailPreclaim {
+  prepare(input: DispatchClaimGuardInput, retained: RetainedOutboxIntent): Promise<Readonly<Record<string, unknown>>>;
+}
+const nativeEmailPreclaims = new WeakMap<AsyncGuardEvaluator, NativeEmailPreclaim>();
+
+/** Trusted host installation before any source call. Each returned fence owns
+ * one actual deferred evaluation; lexical values come only from its persisted
+ * original Work row and installed Compiler/State declaration. */
+export async function bindNativeEmailDispatchGuards(input: {
+  readonly asm: AssembledModules; readonly artifact: CompileArtifact;
+  readonly store: StoragePort; readonly identities: IdentityStore;
+  readonly scope: WorkScope; readonly revalidateAuthority: () => boolean | Promise<boolean>;
+  readonly files?: CanonicalFileBinding;
+}): Promise<(intent: OutboxIntent) => DriveDispatchFenceInput> {
+  const { asm, artifact, store, identities, revalidateAuthority } = input;
+  const scope = captureDispatchPreclaimData(input.scope);
+  const loaded = await loadCanonicalDescriptors(asm, artifact, store);
+  const work = await import('@canlang/work/dispatch');
+  const tables = await import('@canlang/work/kernel/tables');
+  const admissions = new WeakMap<import('@canlang/work/dispatch').DispatchGuardExecution, ResolvedIdentity>();
+  const sendSnapshots = await loadNativeSendModelSnapshots(loaded, artifact,
+    [...loaded.registry.values()].flatMap(value => {
+      const def = generatedScenarioDef({ def: value });
+      return def === undefined ? [] : [...(nativeSourceSendGuards.get(def)?.values() ?? [])]
+        .flatMap(selected => selected.guard.inputs.map(slot => slot.type));
+    }));
+  const guards = new Map<string, { def: GeneratedOperationDef; selected: NativeSourceSendGuard }>();
+  for (const value of loaded.registry.values()) {
+    const def = generatedScenarioDef({ def: value });
+    if (def === undefined) continue;
+    for (const selected of nativeSourceSendGuards.get(def)?.values() ?? []) {
+      if (selected.guard.target !== 'std.EmailV1.send' || selected.ownerPackage !== scope.ownerPackage ||
+          selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type))) continue;
+      const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch' &&
+        stableStringify(site.node) === stableStringify(selected.guard.node));
+      bindNativeDispatchMembership(def, { source: selected.logicalGuard.source, app: scope.app,
+        predicate: selected.guard.rule, sites, store, memberships: identities,
+        admit: execution => admissions.get(execution) ?? (() => { throw new Error('Native Email requires its actual fresh dispatch Identity.'); })() });
+      guards.set(selected.guard.rule, { def, selected });
+    }
+  }
+  return intent => {
+    // This carrier selects an installed original declaration only. The actual
+    // retained intent, physical row and original header are checked at stage.
+    const originalIntent = captureDispatchPreclaimData(intent);
+    const installed = guards.get(originalIntent.dispatchGuard ?? '');
+    if (installed === undefined || originalIntent.operation !== installed.selected.guard.owner ||
+        originalIntent.target !== 'std.EmailV1.send' || originalIntent.arguments['binding'] !== installed.selected.guard.binding) {
+      throw new Error('Native Email fence requires its original installed guard/owner/binding.');
+    }
+    const { def, selected } = installed;
+    let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
+      opaque: NonNullable<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>; row: StoredRow;
+      identity: ResolvedIdentity; currentIdentity: () => Promise<ResolvedIdentity> } | undefined;
+    let entered = false, poisoned = false, terminal: unknown;
+    const poison = (error: unknown): void => { if (!poisoned) { poisoned = true; terminal = error; } };
+    const refuse = (error: unknown): never => { poison(error); throw terminal; };
+    const evaluator: AsyncGuardEvaluator = async (predicate, lexical, _snapshot, execution) => {
+      if (entered || staged === undefined) return refuse(new Error('Native Email guard needs its one actual prepared claim stage.'));
+      entered = true;
+      const actual = staged;
+      let open = true;
+      const healthy = (): void => {
+        if (!open || poisoned || staged !== actual || work.readDispatchGuardExecution(execution).predicate !== predicate ||
+            predicate !== selected.guard.rule || stableStringify(lexical) !== stableStringify(actual.lexical) ||
+            work.readDispatchGuardExecution(execution).checkpoint?.revision !== actual.input.revision ||
+            work.readDispatchGuardExecution(execution).checkpoint?.owner !== scope.owner) {
+          return refuse(new Error('Native Email crossed its original Work guard/context/checkpoint.'));
+        }
+      };
+      const reject = (): never => refuse(new Error('Native Email historical guard context is read only; live model/query effects require their owning join.'));
+      const physical = new Proxy(Object.create(null) as StoragePort, {
+        get: reject, set: reject, defineProperty: reject, deleteProperty: reject, ownKeys: reject });
+      const canonical: CanonicalEffectsScope = Object.freeze({ operation: selected.guard.owner,
+        operationId: originalIntent.operationId, stageWrite: reject, createRecord: reject, setRecord: reject,
+        deleteRecord: reject, readModel: reject, readRecords: reject, observeDelivery: reject,
+        builtinRoles: Object.freeze([]) });
+      const identity = actual.identity;
+      if (identity.actor !== null || identity.team?.team_id !== scope.owner) return reject();
+      const c = createContext({ caller: { userId: '', roles: [] }, memberships: [], store: physical,
+        clock: () => { healthy(); return actual.input.context.now; }, canonical,
+        qualified: { actor: null, team: { teamId: identity.team.team_id, timezone: identity.team.timezone },
+          now: actual.input.context.now, source: 'dispatch', operationId: originalIntent.operationId } });
+      const inputs: Record<string, unknown> = Object.create(null);
+      for (const slot of selected.guard.inputs) {
+        const wire = localPolicyMember(actual.lexical, slot.name);
+        Object.defineProperty(inputs, slot.name, { enumerable: true,
+          value: sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy)
+            : decodeCanonicalValue(loaded.valueSchema, slot.type, wire) });
+      }
+      healthy(); admissions.set(execution, identity);
+      let frame: NativeMembershipFrame | undefined;
+      try {
+        frame = openNativeDispatchMembershipFrame(c, def, predicate, execution, identity.team,
+          poison);
+        frame.assertCompleted(); healthy();
+        const answer: unknown = await selected.evaluate(c, Object.freeze(inputs));
+        frame.assertCompleted(); healthy();
+        if (typeof answer !== 'boolean') return refuse(new Error('Original native Email predicate must return Bool.'));
+        work.registerDispatchGuardRevalidation(execution, async () => {
+          if (open || poisoned) return false;
+          await actual.opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row: actual.row,
+            field: 'sourceGuard', binding: actual.row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin }, actual.input.revision, input.files);
+          const current = await actual.currentIdentity();
+          return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
+        });
+        return answer;
+      } catch (error) { return refuse(error); }
+      finally { open = false; frame?.close(); }
+    };
+    nativeEmailPreclaims.set(evaluator, { prepare: async (claim, retained) => {
+      if (staged !== undefined || entered || poisoned || claim.data.state !== 'pending' ||
+          stableStringify(retained.intent) !== stableStringify(originalIntent)) {
+        return refuse(new Error('Native Email requires its actual unchanged original preclaim.'));
+      }
+      const currentIdentity = () => resolvePrivateSourceOwner(identities, scope, claim.context.now);
+      const identity = await currentIdentity();
+      const healthy = async (): Promise<void> => {
+        if (await store.readRevision() !== claim.revision || claim.context.now < 0 ||
+            stableStringify((await currentIdentity()).team) !== stableStringify(identity.team)) {
+          throw new Error('Native Email original owner/checkpoint changed.');
+        }
+      };
+      await healthy();
+      const opaque = await nativeOpaqueFileStaging(loaded, { asm, artifact, store }, scope, healthy);
+      const row = captureDispatchPreclaimData(claim.row), dispatch = tables.readDispatchRow(row);
+      const guard = dispatch.sourceGuard, header = dispatch.filePayloadOrigin;
+      if (opaque === null || guard === undefined || header === undefined || header.origin.kind !== 'send-guard' ||
+          originalIntent.dispatchGuard !== selected.guard.rule || dispatch.guardVerdict !== true ||
+          stableStringify({ rule: guard.rule, source: guard.source, owner: guard.owner, node: guard.node }) !==
+          stableStringify({ rule: selected.guard.rule, source: selected.guard.source, owner: selected.guard.owner, node: selected.guard.node }) ||
+          header.scope.app !== scope.app || header.scope.owner !== scope.owner || header.scope.ownerPackage !== scope.ownerPackage ||
+          stableStringify(header.origin.declaration) !== stableStringify(selected.guard) ||
+          stableStringify(header.origin.intent) !== stableStringify({ intentId: originalIntent.intentId, operation: originalIntent.operation,
+            operationId: originalIntent.operationId, target: originalIntent.target, occurrenceIndex: originalIntent.occurrenceIndex,
+            dispatchGuard: originalIntent.dispatchGuard })) {
+        return refuse(new Error('Native Email lost its original persisted sourceGuard/header/intent correspondence.'));
+      }
+      const declaration = opaque.sendGuard(selected.guard, selected.inputDeclaration);
+      if (header.origin.inputsDeclarationId !== declaration.inputsDeclarationId) return refuse(new Error('Native Email lexical declaration was replaced.'));
+      await opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row, field: 'sourceGuard', binding: header }, claim.revision, input.files);
+      // The original complete historical typed census includes model fields.
+      // revalidateSource above requires the genuine physical observer for every File.
+      opaque.occurrences({ kind: 'inputs', declarationId: declaration.inputsDeclarationId, path: ['inputs'] }, guard.inputs);
+      const lexical = guard.inputs;
+      for (const slot of selected.guard.inputs) {
+        if (sendSnapshots?.has(slot.type)) {
+          sendSnapshots.check(slot.type, localPolicyMember(lexical, slot.name));
+          continue;
+        }
+        if (stableStringify(encodeCanonicalField(loaded.producers.errors, slot.type,
+          localPolicyMember(lexical, slot.name), loaded.valueSchema)) !== stableStringify(localPolicyMember(lexical, slot.name))) {
+          return refuse(new Error('Native Email persisted lexical slot is not canonical.'));
+        }
+      }
+      await healthy();
+      staged = { input: claim, retained, lexical, opaque, row, identity, currentIdentity };
+      return lexical;
+    } });
+    return Object.freeze({ owner: scope.owner, revalidateAuthority: async () => {
+      const actual = staged;
+      if (actual === undefined || poisoned || !entered) return false;
+      const current = await actual.currentIdentity();
+      return current.actor === null && stableStringify(current.team) === stableStringify(actual.identity.team) &&
+        await revalidateAuthority() === true;
+    }, asyncGuard: Object.freeze({ attemptDispatch: work.attemptDispatchAsync, evaluateGuard: evaluator,
+      // Native preclaim ignores this transport slot and supplies verified persisted lexical values.
+      frozenInputs: Object.freeze({}) }) });
+  };
 }
 
 /** Legacy claim-first compatibility path. Guard/evaluator throws leave its
