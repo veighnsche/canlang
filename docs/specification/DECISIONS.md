@@ -11329,3 +11329,24 @@ their separate issuer/source prerequisite and MCP-only refusal. The wider B01
 parent and all precise holds remain unfinished.
 
 Coordinator defining review CLEAR and finite LOCAL main intake after deadline. Independent defining review CLEAR: original checked operation/mode/paths use the existing browser submitter, signing/restoration, source identities, defaults/scalar/ref/CSRF/nonce and successful controls; orphan/mismatch/companion/sealed-handle inputs refuse before effects. Reuse owning12 UI scopes plus1 genuine Interfaces producer/restorer join. Actual changed MAIN Contracts/UI/browser/Interfaces/CF/root emission0; original caller/native browser qualification remains separate. Full-plan/parent counts and complete filetree checkpoint remain unchanged.
+
+## 2026-10-11 — Original Work error observation (TV02 criterion implemented)
+
+Compare the complete actual numeric-text caller observation with the unchanged
+frozen donor, including enumerable own-key names/order. The prior comparison
+filtered actual keys and checked only the donor's extras, hiding a real gap:
+`RowsStateError` omitted `retryable`, `fields` and `conflict`. Restore the original
+optional declarations in donor order, with undefined initial values and existing
+contract types; preserve messages, validation codes and details. Original
+negative controls mutate actual observations and use the same genuine comparison.
+No scalar observations outside the donor domain are added.
+
+Node24 Work-kernel emission and final root types pass. Retain 45 unaffected
+passes from the initial full comparison; after the source repair, rerun only
+28 affected StateError cases and their original negative-control group: 29 pass.
+All 74 scopes now pass or are reused, with the 10,213 primitive observations and
+frozen donor unchanged. Independent finite source review is clear. This closes
+the existing TV02/TEW01 criterion at its stated scope; broader E02, selected
+consumer provenance and native adoption remain separate.
+
+Coordinator defining review CLEAR and finite LOCAL main intake after deadline. Independent defining review CLEAR: restore original optional error fields in donor declaration order and enumerable undefined values; complete actual own-key/order comparator rejects real observation mutations. Reuse74 scopes (45 unchanged plus29 affected rerun) and owning Node24 checks. Actual changed MAIN Work-kernel/root emission0. This closes original TV02/TEW01 only; no VERIFY-TV01, native or broader E02 acceptance. Full-plan/parent counts and complete filetree checkpoint remain unchanged.
