@@ -9,6 +9,7 @@ const dateControl = profile === 'calendar';
 const editBody = profile === 'edit-body';
 const listColumns = profile === 'list-columns';
 const scenarioCheckbox = profile === 'scenario-checkbox';
+const agendaPreference = profile === 'agenda-preference';
 const unboundOperation = dateControl ? 'ViewReuse.Holiday.create' : 'ViewReuse.save';
 const unboundMode = dateControl ? 'create' : 'scenario';
 registerHooks({resolve(specifier, context, next) {
@@ -87,6 +88,10 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     prepareForm:request=>{formCalls.push(request.operation);return context.prepareForm(request);},
   };
   const bindings = await page.admit(renderingContext);
+  if (agendaPreference) {
+    assert.equal(bindings.preferences.ViewReuse.appointment_state, null, 'original nullable enum initial preference admits its implicit null');
+    assert.equal(bindings.preferences.ViewReuse.explicit, 'confirmed', 'authored enum default remains unchanged');
+  }
   const html = await page.render(renderingContext, bindings);
   if (!selected) {
     assert.deepEqual(queries.map(item => item.model), ['ViewReuse.Card'], 'absent/stale/revoked selection never queries details');
@@ -111,6 +116,11 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
   assert.deepEqual(html.replace(/<[^>]*>/g, '').match(/Outer &lt;Card&gt;|Nested &lt;Detail&gt;/g), ['Outer &lt;Card&gt;',...oneUse,...oneUse],
     'each expansion shadows the nested row and restores its own outer row afterward');
   assert.ok(!html.includes('Outer <Card>') && !html.includes('Nested <Detail>'), 'projection text is escaped');
+  if (agendaPreference) {
+    const disclosures = [...html.matchAll(/<details\b[^>]*>/g)];
+    assert.equal(disclosures.length, 1);
+    assert.ok(disclosures.every(match=>!match[0].includes(' open')), 'null initial preference reaches its checked presentation expression as null');
+  }
   if (listColumns && hasDetails) {
     const selected = [...html.matchAll(/<dl>[\s\S]*?<\/dl>/g)].map(match=>match[0]);
     assert.equal(selected.length, 2, 'each nested list expansion renders its selected columns once');
@@ -335,4 +345,5 @@ console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assemb
   ...(editBody ? {nativeAuthoredCheckboxFirst:true, completeWritableRemainder:true} : {}),
   ...(listColumns ? {nativeOrderedAuthorizedListColumns:true, missingColumnsAndProjectionRefuse:true} : {}),
   ...(scenarioCheckbox ? {nativeSelectedScenarioCheckbox:true, protectedBoundRow:true, completeScenarioRemainder:true} : {}),
+  ...(agendaPreference ? {nativeImplicitNullableEnumDefault:true, authoredEnumDefaultPreserved:true} : {}),
   queriesPerRender:source.queries.map(item => item.model)}));
