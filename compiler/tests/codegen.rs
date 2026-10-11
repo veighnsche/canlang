@@ -562,13 +562,17 @@ fn golden_teamtasks_structure() {
         "unavailable filter option is refused"
     );
     assert!(
-        entry.contains("renderRow:($can$l$313a726f77,$can$l$323a726f7756696577)=>"),
-        "row scope"
+        entry.contains("renderRow:async($can$l$313a726f77,$can$l$323a726f7756696577)=>"),
+        "protected edit preparation awaits inside the owning row scope"
     );
+    assert!(entry.contains(".prepareForm({operation:\"TeamTasks.Todo.update\",arguments:{record:$can$l$313a726f77},fields:[\"title\",\"done\",\"assignee\"]"),
+        "bare task edit keeps its allowed update fields and excludes server-created fields");
     assert!(
-        !entry.contains("$can$u$65646974({")
-            && diags.iter().any(|d| d.code == "E6008" && d.message == "cannot lower edit: only bound row edits with fields and no header or body are supported"),
-        "bare edit without fields retains its owning refusal"
+        entry.contains("renderRow:async($can$l$333a726f77,$can$l$343a726f7756696577)=>")
+            && entry.contains(".prepareForm({operation:\"TeamNotes.Note.update\",arguments:{record:$can$l$333a726f77},fields:[\"title\",\"content\"]")
+            && !entry.contains("$can$u$65646974({")
+            && !diags.iter().any(|d| d.code == "E6008" && d.message.starts_with("cannot lower edit:")),
+        "bare edit consumes the protected own row and complete checked update defaults"
     );
     // G12: state-read builtins await; the bare model domain lowers
     // through the shared query contract.
@@ -774,7 +778,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        7,
+        5,
         "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -790,7 +794,7 @@ fn golden_teamtasks_structure() {
     for (profile, count) in [
         ("cannot lower breadcrumbs:", 2),
         ("cannot lower pagination:", 0),
-        ("cannot lower edit:", 2),
+        ("cannot lower edit:", 0),
         ("cannot lower list: option search", 0),
         ("cannot lower list: option filter", 1),
         ("cannot lower list: option display", 0),
@@ -1434,13 +1438,13 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        8,
+        7,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
         ("cannot lower breadcrumbs:", 2),
         ("cannot lower pagination:", 0),
-        ("cannot lower edit:", 1),
+        ("cannot lower edit:", 0),
         ("cannot lower action:", 1),
         ("cannot lower history:", 1),
         ("cannot lower stat:", 1),

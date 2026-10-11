@@ -6,6 +6,208 @@ use canlang_compiler::source::{SourceDb, Span};
 use std::{path::Path, process::Command};
 
 #[test]
+fn original_canbook_bare_edits_keep_the_owning_update_fields_and_rows() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let original = include_str!("../../draft/CanBook.can");
+    let mut db = SourceDb::new();
+    let id = db.add("draft/CanBook.can".into(), original.into());
+    let catalog_path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, _) = check_program(&db, &[id], catalog.as_ref());
+    // Original imports and other unsupported source profiles still prevent
+    // shipment. Inspect only the original bare edit producer in raw IR.
+    let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    let mut pending = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.pages)
+        .flat_map(|page| &page.render)
+        .collect::<Vec<_>>();
+    let mut edits = std::collections::BTreeMap::new();
+    while let Some(node) = pending.pop() {
+        pending.extend(&node.children);
+        let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory != "form" || authored.trim() != "edit" {
+            continue;
+        }
+        let operation = node
+            .props
+            .iter()
+            .find(|(key, _)| key == "operation")
+            .unwrap();
+        let IrExpr::Text(operation) = &operation.1.expr else {
+            panic!("canonical update operation");
+        };
+        let fields = node.props.iter().find(|(key, _)| key == "fields").unwrap();
+        let IrExpr::Array(fields) = &fields.1.expr else {
+            panic!("complete default field selection");
+        };
+        let fields = fields
+            .iter()
+            .map(|field| match &field.expr {
+                IrExpr::Text(value) => value.as_str(),
+                _ => panic!("writable field name"),
+            })
+            .collect::<Vec<_>>();
+        let arguments = node
+            .props
+            .iter()
+            .find(|(key, _)| key == "arguments")
+            .unwrap();
+        let IrExpr::Object(arguments) = &arguments.1.expr else {
+            panic!("protected row arguments");
+        };
+        assert_eq!(arguments.len(), 1);
+        assert_eq!(arguments[0].0, "record");
+        assert!(matches!(arguments[0].1.expr, IrExpr::Name(_)));
+        let canlang_compiler::analysis::types::ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = arguments[0].1.ty
+        else {
+            panic!("stored own row");
+        };
+        assert_eq!(
+            format!("{}.update", checked.symbols[symbol.0 as usize].canonical),
+            *operation
+        );
+        assert!(node.children.is_empty());
+        edits.insert(operation.as_str(), fields);
+    }
+    assert_eq!(
+        edits,
+        std::collections::BTreeMap::from([
+            (
+                "appointments.WeeklyHours.update",
+                vec!["weekday", "opens", "closes", "fold"]
+            ),
+            ("appointments.ClosedDay.update", vec!["day", "reason"]),
+            (
+                "appointments.Window.update",
+                vec!["from", "until", "available"]
+            ),
+            ("appointments.Type.update", vec!["name", "duration", "room"]),
+        ]),
+        "{diagnostics:?}"
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && original[diagnostic.primary.start as usize..diagnostic.primary.end as usize]
+                    .contains("checkbox active")),
+        "Calendar edit body remains unsupported: {diagnostics:?}"
+    );
+}
+
+#[test]
+fn bare_row_edits_use_complete_allowed_defaults_in_the_native_form() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    // The original CanBook lists use this bare edit profile. The existing
+    // complete consumer exercises it with an allowed boolean/text pair and
+    // a nested row, without needing the separately blocked edit body profile.
+    let source = include_str!("fixtures/view-reuse.can")
+        .replace("edit fields=title,flag", "edit")
+        .replace("edit fields=label", "edit")
+        .replace(
+            "flag:bool label=\"Card flag\"}",
+            "flag:bool label=\"Card flag\",internal:text=\"Private\",at:datetime server=now}",
+        )
+        .replace(
+            "crud Card by=public fields=title,flag",
+            "crud Card by=public fields=flag,title",
+        );
+    let input = scratch.path().join("bare-edit.can");
+    let compile = |source: &str| {
+        std::fs::write(&input, source).unwrap();
+        Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap()
+    };
+    let compiled = compile(&source);
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, &compiled.stdout).unwrap();
+    let consumer = Command::new("node")
+        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root)
+        .arg(&artifact)
+        .arg(scratch.path().join("staged"))
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        consumer.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumer.stdout),
+        String::from_utf8_lossy(&consumer.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumer.stdout));
+    for (name, refused) in [
+        (
+            "no-row",
+            source.replace(
+                " page /views title=\"Views\"",
+                " page /views title=\"Views\"\n  edit",
+            ),
+        ),
+        (
+            "update-disabled",
+            source.replace(
+                "crud Card by=public fields=flag,title",
+                "crud Card by=public fields=flag,title update=none",
+            ),
+        ),
+        (
+            "body",
+            source.replace("  edit\n  form", "  edit\n   text row.title\n  form"),
+        ),
+        (
+            "header",
+            source.replace("  edit\n  form", "  edit row\n  form"),
+        ),
+        (
+            "bare-fields-attribute",
+            source.replace("  edit\n  form", "  edit fields\n  form"),
+        ),
+    ] {
+        let output = compile(&refused);
+        assert_eq!(
+            output.status.code(),
+            Some(10),
+            "{name}: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            !artifact["diagnostics"].as_array().unwrap().is_empty(),
+            "{name}"
+        );
+        assert!(
+            artifact.get("modules").is_none(),
+            "{name}: refused source cannot publish"
+        );
+    }
+}
+
+#[test]
 fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();

@@ -12171,9 +12171,10 @@ impl<'a> Cx<'a> {
     ) -> Option<IrUi> {
         self.check_ui_attributes(node, "edit", &["fields"]);
         let attributes = ui_attributes(self.db, node);
-        if attributes.len() != 1
-            || attributes[0].0 != "fields"
-            || attributes[0].1.is_none()
+        if attributes.len() > 1
+            || attributes
+                .first()
+                .is_some_and(|(name, value)| name != "fields" || value.is_none())
             || kids(node).iter().any(|child| {
                 is_expression(child.kind)
                     || matches!(child.kind, SyntaxKind::Path | SyntaxKind::MessageValue)
@@ -12182,7 +12183,7 @@ impl<'a> Cx<'a> {
         {
             self.diags.push(Diagnostic::error(
                 "E6008",
-                "cannot lower edit: only bound row edits with fields and no header or body are supported"
+                "cannot lower edit: only bound row edits with optional fields and no header or body are supported"
                     .to_string(),
                 node.span,
             ));
@@ -12227,18 +12228,22 @@ impl<'a> Cx<'a> {
             ));
             return None;
         };
-        let fields = attributes[0]
-            .1
-            .map(|value| selector_strings(self.db, value))
-            .unwrap_or_default();
         let allowed = self.default_form_fields(operation.op).unwrap_or_default();
+        let explicit_fields = attributes.first();
+        let fields = match explicit_fields {
+            Some((_, Some(value))) => selector_strings(self.db, value),
+            None => allowed.clone(),
+            Some((_, None)) => return None,
+        };
         let mut seen = HashSet::new();
         if fields.is_empty()
             || fields.iter().any(|field| {
                 field.contains('.')
                     || !seen.insert(field.clone())
                     || !allowed.contains(field)
-                    || (!operation.fields.is_empty() && !operation.fields.contains(field))
+                    || (explicit_fields.is_some()
+                        && !operation.fields.is_empty()
+                        && !operation.fields.contains(field))
             })
         {
             self.diags.push(Diagnostic::error(
