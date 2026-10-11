@@ -1,0 +1,959 @@
+//! Private original SEND predicate preparation; no execution authority.
+use std::collections::{BTreeMap, HashMap, HashSet};
+
+use crate::analysis::catalog::Catalog;
+use crate::analysis::resolve::{self, Binding, SymbolId, SymbolKind};
+use crate::analysis::{
+    CheckedProgram, NodeKey, ResolvedType, Scalar, check_program, kids, name_text,
+};
+use crate::diagnostic::Severity;
+use crate::source::{SourceDb, Span};
+use crate::syntax::{self, SyntaxKind, SyntaxNode};
+
+use super::ir::{self, IrExpr, IrItemKind, IrProgram, IrQueryDomain, IrStmt, TypedExpr};
+use super::scenario_decisions::{serial_type, serialize_decision_sources};
+
+#[derive(Debug)]
+pub(super) struct SendGuardGap {
+    pub reason: &'static str,
+    pub span: Option<Span>,
+}
+
+fn gap(reason: &'static str, span: Option<Span>) -> SendGuardGap {
+    SendGuardGap { reason, span }
+}
+
+#[derive(Clone)]
+pub(super) struct PreparedSendInput {
+    pub name: String,
+    pub type_id: String,
+    pub value: TypedExpr,
+}
+
+#[derive(Clone)]
+pub(super) struct PreparedSendGuard {
+    pub rule: String,
+    pub predicate: TypedExpr,
+    pub descriptor: serde_json::Value,
+    pub inputs: Vec<PreparedSendInput>,
+}
+
+/// Only this module constructs a prepared inventory. All editable IR is sealed.
+pub(super) struct PreparedSendGuards {
+    guards: HashMap<Span, PreparedSendGuard>,
+    by_owner: BTreeMap<String, serde_json::Value>,
+    closure: String,
+}
+
+impl PreparedSendGuards {
+    pub fn guards(&self, ir: &IrProgram) -> Option<&HashMap<Span, PreparedSendGuard>> {
+        (self.closure == format!("{ir:?}")).then_some(&self.guards)
+    }
+
+    pub fn by_owner(&self, ir: &IrProgram) -> Option<&BTreeMap<String, serde_json::Value>> {
+        (self.closure == format!("{ir:?}")).then_some(&self.by_owner)
+    }
+}
+
+// Source-proof internals contain maps. Compare the emitted execution closure in
+// stable declaration order; the prepared snapshot additionally seals every field.
+fn execution_closure(ir: &IrProgram) -> String {
+    format!(
+        "{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+        ir.modules,
+        ir.items,
+        ir.read_rules,
+        ir.callback_read_rules,
+        ir.invariants,
+        ir.locks,
+        ir.retention,
+        ir.crud_when,
+        ir.preferences_valid,
+        ir.catalog_version,
+        ir.referenced_builtins,
+        ir.suites,
+        ir.migrations
+    )
+}
+
+pub(super) fn prepare(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Result<PreparedSendGuards, SendGuardGap> {
+    program
+        .validate_cohort(db, catalog)
+        .map_err(|_| gap("checked source cohort mismatch", None))?;
+    let (original, diagnostics) = check_program(db, program.checked_files(), catalog);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == Severity::Error)
+    {
+        return Err(gap("original SEND source no longer checks", None));
+    }
+    if original.types.node_types != program.types.node_types
+        || original.types.symbol_types != program.types.symbol_types
+    {
+        return Err(gap(
+            "original SEND checked type correspondence mismatch",
+            None,
+        ));
+    }
+    let (fresh, diagnostics) = ir::build(&original, db, catalog);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == Severity::Error)
+        || execution_closure(ir) != execution_closure(&fresh)
+        || ir.value_constraints != fresh.value_constraints
+    {
+        return Err(gap("original whole IR execution closure mismatch", None));
+    }
+    let mut trees = Vec::new();
+    for &file in original.checked_files() {
+        let source = db
+            .get(file)
+            .ok_or_else(|| gap("missing original source", None))?;
+        let (tree, diagnostics) = syntax::parse_source(file, &source.text);
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == Severity::Error)
+        {
+            return Err(gap("original SEND CST is invalid", Some(tree.span)));
+        }
+        trees.push((file, tree));
+    }
+    let mut diagnostics = Vec::new();
+    let resolved = resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
+        .map_err(|_| gap("original SEND lexical resolution failed", None))?;
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == Severity::Error)
+    {
+        return Err(gap("original SEND lexical resolution failed", None));
+    }
+    let mut nodes = HashMap::new();
+    for (_, tree) in &trees {
+        for node in tree.descendants() {
+            if nodes.len() >= 200000 {
+                return Err(gap("SEND source census capacity exceeded", Some(node.span)));
+            }
+            nodes.insert(NodeKey::of(node), node);
+        }
+    }
+    let mut guards = HashMap::new();
+    let mut by_owner = BTreeMap::new();
+    for owner in &ir.items {
+        let IrItemKind::Scenario {
+            guards: leading,
+            effects,
+            ..
+        } = &owner.kind
+        else {
+            continue;
+        };
+        let mut sends = Vec::new();
+        collect_sends(leading, &mut sends, 0)?;
+        collect_sends(effects, &mut sends, 0)?;
+        if sends.is_empty() {
+            continue;
+        }
+        let sites =
+            serialize_decision_sources(&original, ir, owner, db, catalog).ok_or_else(|| {
+                gap(
+                    "complete original SEND decision correspondence unavailable",
+                    Some(owner.span),
+                )
+            })?;
+        let sites = sites
+            .iter()
+            .filter(|site| site.stage == "send-dispatch")
+            .collect::<Vec<_>>();
+        if sites.len() != sends.len() {
+            return Err(gap(
+                "original SEND dispatch census mismatch",
+                Some(owner.span),
+            ));
+        }
+        let source_facts = original
+            .scenario_disclosures()
+            .get(&owner.id)
+            .and_then(|disclosure| disclosure.source_facts())
+            .and_then(|facts| facts.decision_sites.as_ref())
+            .ok_or_else(|| gap("original SEND source facts unavailable", Some(owner.span)))?;
+        let mut descriptors = Vec::new();
+        for (send, site) in sends.into_iter().zip(sites) {
+            let IrStmt::Send {
+                operation,
+                when: Some(predicate),
+                deployment_binding,
+                binding,
+                span,
+                ..
+            } = send
+            else {
+                unreachable!()
+            };
+            if predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+                || site.owner != owner.canonical
+                || site.statement.start != span.start
+                || site.statement.end != span.end
+            {
+                return Err(gap(
+                    "original SEND owner/Boolean site mismatch",
+                    Some(*span),
+                ));
+            }
+            let fact = source_facts
+                .iter()
+                .find(|fact| {
+                    fact.stage
+                        == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+                        && fact.statement.file == span.file
+                        && fact.statement.start == span.start
+                        && fact.statement.end == span.end
+                        && fact.node.start == site.node.start
+                        && fact.node.end == site.node.end
+                })
+                .ok_or_else(|| gap("original SEND predicate node mismatch", Some(*span)))?;
+            let source = db
+                .get(span.file)
+                .ok_or_else(|| gap("missing SEND source", Some(*span)))?;
+            if site.source.path != source.path
+                || site.source.sha256 != source.sha256
+                || original
+                    .modules
+                    .get(owner.module.0 as usize)
+                    .is_none_or(|module| module.name != site.source.module)
+            {
+                return Err(gap("original SEND source identity mismatch", Some(*span)));
+            }
+            let node = nodes
+                .get(&fact.node)
+                .ok_or_else(|| gap("missing original SEND predicate CST", Some(*span)))?;
+            let inputs = free_inputs(
+                FreeInputSource {
+                    program: &original,
+                    ir,
+                    db,
+                    resolved: &resolved,
+                    nodes: &nodes,
+                    owner: owner.id,
+                },
+                fact.node,
+                node,
+                predicate,
+            )?;
+            let rule = format!(
+                "{}.sendWhen.{}.{}.{}",
+                owner.canonical, site.source.sha256, site.node.start, site.node.end
+            );
+            let descriptor = serde_json::json!({
+                "rule": rule, "owner": owner.canonical, "source": site.source,
+                "node": site.node, "statement": site.statement,
+                "target": operation, "binding": deployment_binding, "sourceBinding": binding,
+                "inputs": inputs.iter().map(|input| serde_json::json!({"name":input.name,"type":input.type_id})).collect::<Vec<_>>(),
+            });
+            descriptors.push(descriptor.clone());
+            if guards.len() >= 200
+                || guards
+                    .insert(
+                        *span,
+                        PreparedSendGuard {
+                            rule,
+                            predicate: predicate.clone(),
+                            descriptor,
+                            inputs,
+                        },
+                    )
+                    .is_some()
+            {
+                return Err(gap(
+                    "duplicate or excessive original SEND guard",
+                    Some(*span),
+                ));
+            }
+        }
+        by_owner.insert(
+            owner.canonical.clone(),
+            serde_json::Value::Array(descriptors),
+        );
+    }
+    Ok(PreparedSendGuards {
+        guards,
+        by_owner,
+        closure: format!("{ir:?}"),
+    })
+}
+
+fn collect_sends<'a>(
+    statements: &'a [IrStmt],
+    out: &mut Vec<&'a IrStmt>,
+    depth: usize,
+) -> Result<(), SendGuardGap> {
+    if depth > 64 {
+        return Err(gap("SEND statement depth exceeded", None));
+    }
+    for statement in statements {
+        match statement {
+            IrStmt::Send { when: Some(_), .. } => {
+                if out.len() >= 200 {
+                    return Err(gap("SEND dispatch capacity exceeded", None));
+                }
+                out.push(statement);
+            }
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                collect_sends(then_branch, out, depth + 1)?;
+                collect_sends(else_branch, out, depth + 1)?;
+            }
+            IrStmt::For { body, .. } => collect_sends(body, out, depth + 1)?,
+            IrStmt::Match { arms, .. } => {
+                for arm in arms {
+                    collect_sends(&arm.body, out, depth + 1)?;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn contained(outer: NodeKey, inner: NodeKey) -> bool {
+    inner.file == outer.file && inner.start >= outer.start && inner.end <= outer.end
+}
+
+fn declaration_type(
+    program: &CheckedProgram,
+    resolved: &resolve::ResolveTables,
+    nodes: &HashMap<NodeKey, &SyntaxNode>,
+    owner: SymbolId,
+    predicate: NodeKey,
+    key: NodeKey,
+    binding: &Binding,
+) -> Result<Option<ResolvedType>, SendGuardGap> {
+    let fail = || {
+        gap(
+            "free SEND lexical declaration has no supported transport",
+            Some(Span::new(key.file, key.start, key.end)),
+        )
+    };
+    let ty = match binding {
+        Binding::Context(_) | Binding::Builtin { .. } | Binding::Predicate => return Ok(None),
+        Binding::Symbol(id) => {
+            let symbol = resolved.symbols.get(id.0 as usize).ok_or_else(fail)?;
+            let SymbolKind::Param {
+                owner: declared_owner,
+                ..
+            } = symbol.kind
+            else {
+                return Ok(None);
+            };
+            if declared_owner != owner {
+                return Err(fail());
+            }
+            program
+                .types
+                .symbol_types
+                .get(id)
+                .cloned()
+                .ok_or_else(fail)?
+        }
+        Binding::QueryAlias { node } if contained(predicate, *node) => return Ok(None),
+        Binding::Let { node } => {
+            if contained(predicate, *node) {
+                return Ok(None);
+            }
+            let declaration = nodes.get(node).ok_or_else(fail)?;
+            let initializer = kids(declaration)
+                .into_iter()
+                .find(|child| resolve::is_expression(child.kind))
+                .ok_or_else(fail)?;
+            program
+                .types
+                .node_types
+                .get(&NodeKey::of(initializer))
+                .cloned()
+                .ok_or_else(fail)?
+        }
+        Binding::CreateAs { node } => {
+            let declaration = nodes.get(node).ok_or_else(fail)?;
+            if declaration.kind != SyntaxKind::Create {
+                return Err(fail());
+            }
+            let target = kids(declaration)
+                .into_iter()
+                .find(|child| child.kind == SyntaxKind::Path)
+                .ok_or_else(fail)?;
+            let model = *resolved
+                .node_symbol
+                .get(&NodeKey::of(target))
+                .ok_or_else(fail)?;
+            if !matches!(
+                resolved
+                    .symbols
+                    .get(model.0 as usize)
+                    .ok_or_else(fail)?
+                    .kind,
+                SymbolKind::Model { .. }
+            ) {
+                return Err(fail());
+            }
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }
+        }
+        Binding::CohortChild { model, .. } => ResolvedType::Record {
+            symbol: *model,
+            stored: true,
+        },
+        // Defaults and callee bodies are not visited. External lexical query,
+        // loop, effect-result and opaque imported values require their own codec.
+        _ => return Err(fail()),
+    };
+    Ok(Some(ty))
+}
+
+struct FreeInputSource<'a> {
+    program: &'a CheckedProgram,
+    ir: &'a IrProgram,
+    db: &'a SourceDb,
+    resolved: &'a resolve::ResolveTables,
+    nodes: &'a HashMap<NodeKey, &'a SyntaxNode>,
+    owner: SymbolId,
+}
+
+fn free_inputs(
+    source: FreeInputSource<'_>,
+    predicate_key: NodeKey,
+    predicate_node: &SyntaxNode,
+    predicate: &TypedExpr,
+) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
+    let FreeInputSource {
+        program,
+        ir,
+        db,
+        resolved,
+        nodes,
+        owner,
+    } = source;
+    let mut inputs = Vec::<PreparedSendInput>::new();
+    let mut identities = HashMap::<String, String>::new();
+    let mut source_reads = HashSet::new();
+    for node in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::NameRef)
+    {
+        let key = NodeKey::of(node);
+        let Some(binding) = resolved.node_binding.get(&key) else {
+            if program.types.resolved_cases.contains(&key) {
+                continue;
+            }
+            return Err(gap(
+                "SEND source name has no original binding",
+                Some(node.span),
+            ));
+        };
+        let Some(ty) =
+            declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?
+        else {
+            continue;
+        };
+        let source = db
+            .get(key.file)
+            .ok_or_else(|| gap("missing SEND name source", Some(node.span)))?;
+        let name = kids(node)
+            .into_iter()
+            .find_map(|child| name_text(child, &source.text))
+            .ok_or_else(|| gap("SEND lexical name missing original token", Some(node.span)))?
+            .to_string();
+        let type_id = serial_type(&ty, program, ir, 0).ok_or_else(|| {
+            gap(
+                "free SEND lexical type has no canonical finite codec",
+                Some(node.span),
+            )
+        })?;
+        source_reads.insert(node.span);
+        let identity = format!("{binding:?}");
+        if let Some(prior) = identities.get(&name) {
+            if prior != &identity {
+                return Err(gap(
+                    "different free SEND bindings share an emitted name",
+                    Some(node.span),
+                ));
+            }
+            continue;
+        }
+        if inputs.len() >= 200 {
+            return Err(gap("free SEND input capacity exceeded", Some(node.span)));
+        }
+        identities.insert(name.clone(), identity);
+        inputs.push(PreparedSendInput {
+            name: name.clone(),
+            type_id,
+            value: TypedExpr::new(IrExpr::Name(name), ty, node.span),
+        });
+    }
+    let mut pending = vec![(predicate, 0usize)];
+    let mut evaluated = HashSet::new();
+    let mut count = 0usize;
+    while let Some((value, depth)) = pending.pop() {
+        count += 1;
+        if depth > 64 || count > 16384 {
+            return Err(gap(
+                "SEND evaluated name census capacity exceeded",
+                Some(value.span),
+            ));
+        }
+        match &value.expr {
+            IrExpr::Name(name) => {
+                let key = NodeKey {
+                    file: value.span.file,
+                    start: value.span.start,
+                    end: value.span.end,
+                    kind: SyntaxKind::NameRef as u8,
+                };
+                let binding = resolved.node_binding.get(&key).ok_or_else(|| {
+                    gap(
+                        "evaluated SEND name lacks original lexical source",
+                        Some(value.span),
+                    )
+                })?;
+                if declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?
+                    .is_some()
+                {
+                    if !identities.contains_key(name) {
+                        return Err(gap(
+                            "evaluated SEND lexical name differs from source binding",
+                            Some(value.span),
+                        ));
+                    }
+                    evaluated.insert(value.span);
+                }
+            }
+            IrExpr::Member { base, .. }
+            | IrExpr::Unary { operand: base, .. }
+            | IrExpr::Lambda { body: base, .. }
+            | IrExpr::DeliveryRead { record: base, .. } => pending.push((base, depth + 1)),
+            IrExpr::Binary { left, right, .. } => {
+                pending.push((left, depth + 1));
+                pending.push((right, depth + 1));
+            }
+            IrExpr::Call { args, .. }
+            | IrExpr::BoundCall { args, .. }
+            | IrExpr::Array(args)
+            | IrExpr::Format { args, .. } => {
+                pending.extend(args.iter().map(|value| (value, depth + 1)))
+            }
+            IrExpr::Object(fields) => {
+                pending.extend(fields.iter().map(|(_, value)| (value, depth + 1)))
+            }
+            IrExpr::Query(query) => {
+                if let IrQueryDomain::Value { base, .. } = &query.domain {
+                    pending.push((base, depth + 1));
+                }
+                for value in [
+                    &query.parent,
+                    &query.where_pred,
+                    &query.limit,
+                    &query.archived,
+                    &query.select,
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    pending.push((value, depth + 1));
+                }
+            }
+            IrExpr::HasRole { person, .. } => {
+                if let Some(value) = person {
+                    pending.push((value, depth + 1));
+                }
+            }
+            IrExpr::Int(_)
+            | IrExpr::Decimal(_)
+            | IrExpr::Text(_)
+            | IrExpr::Bool(_)
+            | IrExpr::Null
+            | IrExpr::Money { .. }
+            | IrExpr::DurationMs(_)
+            | IrExpr::Date(_)
+            | IrExpr::Datetime(_) => {}
+            _ => {
+                return Err(gap(
+                    "SEND predicate expression has no complete lexical transport",
+                    Some(value.span),
+                ));
+            }
+        }
+    }
+    if source_reads != evaluated {
+        return Err(gap(
+            "source/evaluated free SEND name census differs",
+            Some(predicate.span),
+        ));
+    }
+    Ok(inputs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::resolve::SymbolKind;
+
+    const SOURCE: &str = r#"app SendSources
+use std {TextGenerationV1 as LLM} from=deployment.llm
+Given
+ Branch {enabled:bool}
+ Template {enabled:bool}
+ Run {author:user}
+ derive positive(value:int=abs(-1)):bool=value>0
+ policy Branch read=members
+ policy Template read=members
+ policy Run read=members
+When
+ scenario ask(person:user,branch:Branch,amount:int?,prompt:text) by=members
+  do
+   let allowance=amount
+   require allowance!=null
+   create Run {author=person} as run
+   send LLM.cancel {revision=1,source=prompt} when=active_member(run.author,team) and branch.enabled and allowance>0 and any(Run as candidate,candidate.author==run.author) and positive() as asked
+ scenario generate(person:user,template:Template?,amount:int?,prompt:text) by=members
+  require template!=null
+  do
+   let budget=amount
+   require budget!=null
+   create Run {author=person} as run
+   send LLM.cancel {revision=1,source=prompt} when=active_member(run.author,team) and template.enabled and budget>0 as generated
+Then
+"#;
+
+    fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+        let mut db = SourceDb::new();
+        let file = db.add("send-sources.can".into(), SOURCE.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, program, ir, catalog)
+    }
+
+    #[test]
+    fn original_free_values_keep_declaration_types_and_exclude_context_statics_and_query_aliases() {
+        let (db, program, ir, catalog) = fixture();
+        let prepared = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+        let descriptors = prepared.by_owner(&ir).unwrap();
+        assert_eq!(descriptors.len(), 2);
+        for (owner, names, types, source_binding) in [
+            (
+                "SendSources.ask",
+                vec!["run", "branch", "allowance"],
+                vec!["SendSources.Run", "SendSources.Branch", "int?"],
+                "asked",
+            ),
+            (
+                "SendSources.generate",
+                vec!["run", "template", "budget"],
+                vec!["SendSources.Run", "SendSources.Template?", "int?"],
+                "generated",
+            ),
+        ] {
+            let descriptor = &descriptors[owner][0];
+            assert_eq!(descriptor["owner"], owner);
+            assert_eq!(descriptor["target"], "std.TextGenerationV1.cancel");
+            assert_eq!(descriptor["binding"], "SendSources.LLM");
+            assert_eq!(descriptor["sourceBinding"], source_binding);
+            assert_eq!(descriptor["source"]["path"], "send-sources.can");
+            assert_eq!(
+                descriptor["source"]["sha256"],
+                crate::source::sha256_hex(SOURCE.as_bytes())
+            );
+            let actual_names = descriptor["inputs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|input| input["name"].as_str().unwrap())
+                .collect::<Vec<_>>();
+            let actual_types = descriptor["inputs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|input| input["type"].as_str().unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(actual_names, names);
+            assert_eq!(actual_types, types);
+            let start = descriptor["statement"]["start"].as_u64().unwrap() as u32;
+            let end = descriptor["statement"]["end"].as_u64().unwrap() as u32;
+            let guard = prepared
+                .guards(&ir)
+                .unwrap()
+                .get(&Span::new(program.checked_files()[0], start, end))
+                .unwrap();
+            assert_eq!(guard.descriptor, *descriptor);
+            assert!(guard.rule.starts_with(&format!("{owner}.sendWhen.")));
+            assert_eq!(guard.predicate.ty, ResolvedType::Scalar(Scalar::Bool));
+            for input in &guard.inputs {
+                assert!(matches!(&input.value.expr, IrExpr::Name(name) if name == &input.name));
+                assert_eq!(
+                    serial_type(&input.value.ty, &program, &ir, 0).as_deref(),
+                    Some(input.type_id.as_str())
+                );
+                assert!(matches!(
+                    input.name.as_str(),
+                    "run" | "branch" | "allowance" | "template" | "budget"
+                ));
+            }
+        }
+        let rules = descriptors
+            .values()
+            .map(|values| values[0]["rule"].as_str().unwrap())
+            .collect::<HashSet<_>>();
+        assert_eq!(rules.len(), 2);
+    }
+
+    #[test]
+    fn native_emission_uses_prepared_source_guards_and_fresh_dispatch_context() {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+        let (db, program, ir, catalog) = fixture();
+        let guards = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+        let membership = super::super::membership::prepare(&program, &ir, &db, Some(&catalog));
+        let emitted = super::super::js::emit_program_with_query_sources(
+            &ir,
+            true,
+            &db,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            super::super::js::EmitDecisionSources {
+                membership: membership.as_ref(),
+                send_guards: Some(&guards),
+                send_guard_gap: None,
+                read_predicates: None,
+            },
+        );
+        assert!(
+            !emitted
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains("send dispatch")),
+            "{:?}",
+            emitted.diagnostics
+        );
+        let js = &emitted.entry.js;
+        assert_eq!(js.matches("when:{rule:").count(), 2, "{js}");
+        assert_eq!(js.matches("async(c,$can$send$inputs)=>").count(), 2, "{js}");
+        assert!(!js.contains("when:()=>"), "{js}");
+        for descriptors in guards.by_owner(&ir).unwrap().values() {
+            assert!(js.contains(&format!("sendGuards:{descriptors}")), "{js}");
+        }
+        let mut syntax = Command::new("node")
+            .args(["--check", "--input-type=module"])
+            .stdin(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        syntax
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(js.as_bytes())
+            .unwrap();
+        let output = syntax.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        // The raw public IR entrypoint never receives the sealed preparation.
+        let raw = super::super::js::emit_program_with_native_source_receipts(&ir, true, &db);
+        assert!(
+            raw.diagnostics
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains("dispatch")),
+            "{:?}",
+            raw.diagnostics
+        );
+        let generic = super::super::js::emit_program(&ir);
+        assert!(
+            generic
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains("dispatch")),
+            "{:?}",
+            generic.diagnostics
+        );
+        let scratch = tempfile::tempdir().unwrap();
+        let module = scratch.path().join("emitted.mjs");
+        std::fs::write(&module, js).unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let runner = scratch.path().join("producer-flow.mjs");
+        std::fs::write(&runner,r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
+const require=createRequire(resolve(process.argv[2],'package.json'));
+const values=await import(pathToFileURL(require.resolve('@canlang/stdlib')));
+const js=readFileSync(process.argv[3],'utf8');
+const imports=[...js.matchAll(/import\s*\{([^}]+)\}\s*from\s*[^;]+;/g)].flatMap(match=>match[1].split(',').map(name=>{const parts=name.trim().split(/\s+as\s+/);return {name:parts[0],local:parts.at(-1)}}));
+let calls=0;
+const fresh={team:{id:'fresh-team'},allow:true},root={team:{id:'closed-root'},allow:false};
+const ports={...values,active_member:async(c,person,team,site)=>{assert.equal(c,fresh);assert.equal(team,fresh.team);assert.equal(person.id,'person');assert.equal(site.source.module,'SendSources');calls++;return c.allow;}};
+const body=js.replace(/import\s*\{[^}]+\}\s*from\s*[^;]+;/g,'').replace(/\bexport\s+(?=(?:async\s+)?(?:function|const))/g,'');
+const app=new Function(...imports.map(value=>value.local),body+';return canApp();')(...imports.map(value=>ports[value.name]));
+const guard=app.sendWhen[Object.keys(app.sendWhen).find(key=>key.startsWith('SendSources.generate.'))];
+const inputs={run:{author:{id:'person'}},template:{enabled:true},budget:1n};
+assert.equal(await guard(fresh,inputs),true);
+assert.equal(calls,1);
+fresh.allow=false;
+assert.equal(await guard(fresh,inputs),false);
+assert.equal(calls,2,'complete original short circuit invokes one current read per dispatch');
+assert.equal(root.allow,false,'no captured root is needed or changed');
+await assert.rejects(()=>guard(undefined,inputs));
+const first=new Error('membership-first');
+ports.active_member=async()=>{throw first};
+const failing=new Function(...imports.map(value=>value.local),body+';return canApp();')(...imports.map(value=>ports[value.name]));
+const failed=failing.sendWhen[Object.keys(failing.sendWhen).find(key=>key.startsWith('SendSources.generate.'))];
+await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
+"#).unwrap();
+        let output = Command::new("node")
+            .arg(&runner)
+            .arg(root)
+            .arg(&module)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn source_ir_type_target_binding_payload_order_and_post_preparation_edits_refuse() {
+        let (db, program, ir, catalog) = fixture();
+        let prepared = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "SendSources.generate")
+            .unwrap()
+            .id;
+        for mutation in 0..12 {
+            let mut changed = ir.clone();
+            if mutation == 8 {
+                changed.modules[0].imports[0].from = Some("deployment.edited".into());
+            } else if mutation == 9 {
+                let template = changed
+                    .items
+                    .iter_mut()
+                    .find(|item| item.canonical == "SendSources.generate.template")
+                    .unwrap();
+                let IrItemKind::Param { ty, .. } = &mut template.kind else {
+                    panic!()
+                };
+                *ty = super::super::ir::IrType::Known(ResolvedType::Scalar(Scalar::Bool));
+            } else if mutation == 10 {
+                changed.items[owner.0 as usize].canonical.push_str("Edited");
+            } else if mutation == 11 {
+                changed.catalog_version.push_str("Edited");
+            } else {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!()
+                };
+                if mutation == 7 {
+                    effects.swap(0, 1);
+                } else {
+                    let IrStmt::Send {
+                        operation,
+                        args,
+                        when,
+                        deployment_binding,
+                        binding,
+                        span,
+                    } = &mut effects[3]
+                    else {
+                        panic!()
+                    };
+                    match mutation {
+                        0 => *operation = "std.TextGenerationV1.generate".into(),
+                        1 => *deployment_binding = Some("SendSources.other".into()),
+                        2 => *binding = Some("edited".into()),
+                        3 => when.as_mut().unwrap().expr = IrExpr::Bool(true),
+                        4 => when.as_mut().unwrap().span.start += 1,
+                        5 => span.start += 1,
+                        _ => {
+                            let IrExpr::Object(fields) = &mut args.expr else {
+                                panic!()
+                            };
+                            fields[0].1.expr = IrExpr::Int(2);
+                        }
+                    }
+                }
+            }
+            assert!(
+                prepare(&program, &changed, &db, Some(&catalog)).is_err(),
+                "initial IR mutation {mutation}"
+            );
+            assert!(
+                prepared.guards(&changed).is_none(),
+                "prepared IR mutation {mutation}"
+            );
+            assert!(
+                prepared.by_owner(&changed).is_none(),
+                "prepared descriptors mutation {mutation}"
+            );
+        }
+        let mut foreign_db = SourceDb::new();
+        foreign_db.add("send-sources.can".into(), SOURCE.into());
+        assert!(prepare(&program, &ir, &foreign_db, Some(&catalog)).is_err());
+        let mut edited_db = SourceDb::new();
+        let file = edited_db.add(
+            "send-sources.can".into(),
+            SOURCE.replace("budget>0", "budget>1"),
+        );
+        let (edited, diagnostics) = check_program(&edited_db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(prepare(&edited, &ir, &edited_db, Some(&catalog)).is_err());
+        let (mut edited_types, diagnostics) =
+            check_program(&db, program.checked_files(), Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let template = edited_types
+            .symbols
+            .iter()
+            .find(|symbol| {
+                symbol.canonical == "SendSources.generate.template"
+                    && matches!(symbol.kind, SymbolKind::Param { .. })
+            })
+            .unwrap()
+            .id;
+        edited_types
+            .types
+            .symbol_types
+            .insert(template, ResolvedType::Scalar(Scalar::Bool));
+        assert!(prepare(&edited_types, &ir, &db, Some(&catalog)).is_err());
+    }
+}

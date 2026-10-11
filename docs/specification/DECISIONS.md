@@ -10004,3 +10004,36 @@ Coordinator independently reviewed the required2b State/Work source prerequisite
 Forward installed source policy declarations through existing ordinary/page factories and invocations, capturing before admission awaits and retaining canonical parent/cursor/final checks. Bind an exact checked source WHERE function once before use to select the existing coherent State observation even without active_member sites; marker and membership rule/source/stage must agree in either order. Page definition identity includes complete source fields/secrets/ordered selectors/parent metadata. Associate the actual loaded definition with explicit full logical and emitted source tuples once; require exact installed transport and shared original path/SHA while preserving the logical module census. Never infer encoded module identity, rewrite source recipes or weaken full-tuple/handle checks. Normal State emit and88 affected tests pass, including23 new controls; initial fixture-only typing diagnostics resolved before changed-source execution. Dev original native and Compiler authentic WHERE issuance/pagination remain defining prerequisites, and all holds persist. Record the shared result once under SEQ025 current_projection.canonical_invocation.
 
 Coordinator independent finite80 review CLEAR; full2b/fb/80/corrected690 source dependency closure integrated coherently after deadline, reusing88 owning controls. Dev authentic original callable issuance/fresh native receiving remains required; no public-marker/source-byte attestation or parent acceptance.
+
+2026-10-11 — source-bound frozen SEND guards (implemented producer; native dispatch unfinished).
+
+Use the released native rule/input dispatch ABI. Recheck original source,
+checked types and complete IR before preparing the exact SEND occurrence.
+Capture only real free lexical declarations once at SEND, retaining declaration
+nullability and first-occurrence order; execution receives fresh dispatch c.
+Emit the complete original predicate and source census together. Neither copied
+metadata nor public raw IR prepares this source-bound registry. Unsupported
+free bindings and generic asynchronous closures remain refused.
+
+Three owning checks qualify correspondence, corruption refusals, emitted syntax
+and producer predicate flow. The installed stdlib control supplies its own
+observer stub and grants no native authority. Dev/Work/State own actual frozen
+input validation and post-close current dispatch; Packages owns shared transport
+and catalog gates. Original native/application completion remains uncertain
+until those exact consumers run.
+
+2026-10-11 — private original WHERE callable issuance (implemented; native join unfinished).
+
+Bind source identity to the actual compiled predicate in a module-private WeakMap
+at its original lexical creation point. Only a read-only genuine-module getter
+is exported. This closes the copied-source plus substituted-function gap while
+preserving actual bindings and the complete original predicate. Prepare original
+pure/role-only named-page model predicates independently of membership-call
+inventory, so its absence cannot silently select the captured-root ABI.
+
+The loader must retain the genuine getter and original predicate before a UI
+factory. Returned own data is source correspondence only; actual PageReadScope
+and current read/subject-role authority remain native-owner prerequisites.
+Generic emission and raw public IR do not issue these markers.
+
+Coordinator review CLEAR at the defining Compiler producer scopes; integrated locally after deadline with retained affected results. Callable identity and SEND metadata grant no native authority. Dev/State actual source and post-close dispatch consumers remain unfinished; complete checkpoint and exact holds remain.
