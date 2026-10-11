@@ -104,6 +104,27 @@ fence. Recovery uses the saved values without executing the child. The defining
 State tests use real Files SQLite observations and hand-built descriptors;
 Compiler occurrence emission and genuine native capture need their own adoption.
 
+Reserved scenario row IDs use the existing return dependency with `field: "id"`
+and `type: "text"`; the value comes from row metadata. Bind the original source
+`readPolicies` through `bindScenarioReceiptReferenceProducer` before execution.
+`observeScenarioReceiptRowId(call, store, { dependencyId, model, row })` accepts
+only the actual current-stage owner row and returns its ID. The alternative
+`{ dependencyId, model, reference }` accepts this call's exact `recordRefs` entry,
+including before or after later owner updates. It retains that admission's
+original row and version without renewing issuance. The general dependency
+observer can capture `id` from a current owner row as well.
+
+Any actual source row grant exposing a record permits its ID metadata; complete
+ancestor, Identity and checkpoint checks still apply. Capture rechecks authority
+after its common load, and the private commit guard checks final owner effects
+or the actual captured effects for an admitted reference without an owner.
+Copies, stale rows, other calls/models/sites, removal, archive, replacement and
+lost source/ancestor authority refuse. Saved recovery retains the original
+observation, applies the consuming definition's current original source grants,
+and never executes the source or child. The defining component tests qualify
+this State seam; original Compiler occurrence emission and Dev native capture
+remain separate prerequisites.
+
 ```sh
 bun install --frozen-lockfile   # from the repo root
 bun run --filter @canlang/state typecheck
