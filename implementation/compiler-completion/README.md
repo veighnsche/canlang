@@ -4795,3 +4795,37 @@ Capability owns capture/final/saved completion and Dev private binder.58/67/nine
 C14/C23 and local-only publication hold unchanged.
 
 **Coordinator first/count composition source release:** Independent defining review CLEAR, coherent five-path Compiler source/fixture/test intake after deadline. Owning377/strict/fmt reused; actual changed main locked offline CLI0. Original lazy first/contained count/two constructors/guarded tail/eight influences/SAME Run proof and real source/IR/schema refusals remain. Dev current-source readPolicies, genuine row/query/metadata bindings, authority/rollback/replay/native application remain separate. Exact four-file producer reconciliation resolved earlier count source failure; no invented Compiler workaround. Shared queryId fact e51 is available/main374 for next exact unscoped source matcher. Complete checkpoint and precise holds unchanged.
+
+**Unfinished original ancestor association, 2026-10-12.** Consume only exact
+Packages e51’s return ordinary-dependency queryId source hunk; defining reviewed
+Contracts checks are reused. Original ask75 unscoped Run count keeps genuine
+Run.parent and unfinished query controls, plus distinct ordinary CONTROL reads
+for candidate run.parent.parent and supplied branch.parent. The latter two name
+only their exact original query. Required parameter/Env, selected call/slots,
+Require/CST/predicate, three ChildOf edges and source/type/Return census seal
+association. The receipt matcher accepts only actual borrowed IR occurrences,
+including the established authored-alias→IR-row rewrite; detached same-span and
+foreign/substituted occurrences refuse. Additive omission preserves every other
+ordinary obligation. No parent observation is hoisted or fabricated.
+
+Source8 and matcher3 pass, affected372 across17 targets pass (383 distinct).
+Test-only shadow/canonical-parameter/leading-trivia expectations were corrected,
+failed-only cases retried; unchanged successful cases reused. Strictalltargets0
+16.41s, fmt/diff0. Actual locked original a850 native still exits10 with complete=true,
+omitted0/noartifact and byte-identical8 findings. Whole/corpus/editor/engines reused.
+This qualifies source/matcher/transport only, not an emitted unscoped native plan
+or runtime authority. That Compiler native join awaits Dev’s exact issued-parent
+facade release plus Capability’s active supplied branch.parent receiver repair
+(State57 busy-refuses it), authentic completed/consumed query and current-final-
+saved recovery. Preserve both original lazy ordinary IDs and genuine first-hop
+marker; no generic QueryAlias, waiver, new runtime carrier or held-policy work.
+
+Coordinator independently CLEAR/source-intaken913 first+contained composition
+LOCAL205164516fb7819811e744713fae52b2fe97012a; changedmainCLI0 14.89s, owning377/
+strict/fmt reused. Genuine single-count MAIN-native is accepted1e292020 (1/1,
+122899ms); no further single-count source repair/requalification. State568’s
+invocation-local source-read receiver is reviewed/main69f3aa5f and released for
+Dev original first adapter/retry. Full combined original applications and58/67/nine,
+C14/C23 and local-only publication hold remain unchanged.
+
+**Coordinator candidate-only source matcher:** eb89620d independently reviewed CLEAR and five defining Compiler source/control paths integrated after deadline. Query firsthop remains mandatory, candidate and supplied Branch.parent retain distinct ordinary CONTROL IDs/actual lazy source sites and only exact existing queryId when source-exclusive and matched prepared query. Source/IR/census/type/containment/Return/refusal seals remain. Owning383/strict/fmt reused; main changed locked offlineCLI0. Native unscoped source/facade/active supplied parent/capture/final/saved authority still unfinished; no original app/hold release. Existing untracked pnpm tool-cache is preserved outside staged source and cannot become a stricter feature prerequisite; Packages verifies its ordinary ignore policy. Complete checkpoint unchanged.

@@ -1,0 +1,16 @@
+## Bounded original ask75 source: actual unscoped ancestor count before creation.
+app AncestorCount
+Given
+ Conversation {title:text}
+ Branch in Conversation {title:text}
+ Run in Branch {unfinished:bool=true}
+ policy Conversation read=members
+ policy Branch read=members
+ policy Run read=members
+When
+ scenario ask(branch:Branch) by=members -> Run
+  require count(Run as run where run.parent.parent==branch.parent and run.unfinished)<10
+  do
+   create Run {parent=branch,unfinished=true} as run
+   return run
+Then
