@@ -9581,3 +9581,27 @@ Coordinator finite native adapter source/consumer review CLEAR; exact test and r
 2026-10-11 — installed callback authority/origin hooks (State implemented/tested; original native join unfinished). Extend the existing reader rather than add a carrier or reader: verified callbackRead consumes State's coherent tracked Identity context, actual row and revision/fence; exclusive legacy callbackPolicy remains compatible. Resolve the authentic original dispatch/declaration only after current authority and exact present association; authorized absence needs no fabricated sourceRevision. Association receipt progress revision is not original request revision. Strict Bool, current ordinary delivery identity/whole live parent permissions, origin owner/source, Identity and State checks before Work and after evidence awaits remain mandatory. State emit and affected16 controls pass; reuse unchanged Work/storage/D1 results. Actual native direct-role policy transcription still refuses original can_use/can_view ordinary/parent reads, so Compiler/Dev must supply that exact existing C03 checked conditional consumer inside the authority context; callbackRead alone grants no bypass. Dev owns the verified predicate binding, bounded original dispatch resolver and original source/native rendering. No SEQ025, current-snapshot or whole-app acceptance is claimed.
 
 Coordinator finite State-reader source/test review CLEAR and exact coherent source integrated in LOCAL main. Reuse16 affected controls and unchanged Work/storage/D1 outcomes at their recorded scopes. Genuine original conditional ordinary/parent policies, checked source and native qualification remain unfinished; no SEQ025 acceptance or complete checkpoint is advanced.
+
+## 2026-10-11 — Whole scoped page callback observer (implemented locally; original native join unfinished)
+
+Add the coordinator-released callback observer to the existing PageReadScope,
+presentation input and frozen canonical page context. Both full/partial handlers
+forward exactly the installed function. It accepts only `{record,field}` and
+returns one whole nullable closed diagnostic result, with no selected receipt
+property, raw ID or origin argument. Strip a source-supplied callback observer
+before installing the admitted scope; renderer/source extras grant no access.
+Intake only the published Work diagnostic contract delta f3febc56. Derive the
+native page result from that closed type, changing only failure recordedAtMs to
+standard Can int (`bigint`); Dev owns the validated safe nonnegative Work-number
+conversion. Other source facts/readers and admission order remain unchanged.
+
+Contracts/Interfaces emit and five focused maintained controls passed on Node
+24.19.0, including result/reference/throw preservation, source-injection refusal
+and genuine authenticated full/partial scope forwarding once. Finite independent
+source review is clear. Capability retains the existing current-authority/
+original-origin reader extension, Compiler its actual checked callback registry
+and type/helper emission, and Dev its authentic native binding and original
+consumer qualification. This forwarding unit does not implement their producers
+or claim whole-parent acceptance. Publication/native-preparation holds remain.
+
+Coordinator finite shared contract/Interfaces source/test review CLEAR and exact coherent source integrated in LOCAL main. Reuse5 focused original controls and emits. Existing Work44-line types already match and are preserved rather than reimported. Original conditional State/native authority, Compiler checked output and Dev genuine original source join remain unfinished; no full-parent acceptance or complete checkpoint is advanced.

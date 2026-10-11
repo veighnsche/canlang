@@ -22,6 +22,7 @@ import type { InterfacesClock, SchemaCatalog, SourceFormBindings } from '../port
 import type {
   PageSourceContext,
   PageDeliveryObserver,
+  PageGenerationCallbackDiagnosticsObserver,
   PageRecordsReader,
   PageHistoryReader,
   PresentationContext,
@@ -123,6 +124,7 @@ export interface BuildPresentationContextInput {
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
   readonly observeDelivery?: PageDeliveryObserver;
+  readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
 
 /** Project verified identity facts into the generated page callable contract. */
@@ -172,6 +174,7 @@ export function buildPresentationContext(
   const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory, now: _sourceNow, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
       Pick<PresentationContext, 'deploymentBase' | 'readHistory'>;
+  const { observeGenerationCallbackDiagnostics: _sourceCallbackDiagnostics, ...canonical } = source.canonical;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
   if (url.search.length <= COLLECTION_SELECTION_QUERY_MAX_CHARS + 1) {
@@ -189,9 +192,12 @@ export function buildPresentationContext(
     ...source,
     now: decodeValue('datetime', input.principal.admitted_at) as DatetimeValue,
     canonical: Object.freeze({
-      ...source.canonical,
+      ...canonical,
       readRecords: input.readRecords ?? unavailablePageRecords,
       ...(input.observeDelivery === undefined ? {} : { observeDelivery: input.observeDelivery }),
+      ...(input.observeGenerationCallbackDiagnostics === undefined ? {} : {
+        observeGenerationCallbackDiagnostics: input.observeGenerationCallbackDiagnostics,
+      }),
     }),
     ...(input.deploymentBase === undefined ? {} : { deploymentBase: input.deploymentBase }),
     preferredLocales: parseAcceptLanguage(input.request.headers.get('accept-language')),
