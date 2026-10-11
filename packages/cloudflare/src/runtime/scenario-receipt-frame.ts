@@ -276,7 +276,8 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
     const linkedCandidate = parent === undefined && dependency?.queryId !== undefined
       ? frame.activeQueryCandidate : null;
     const linkedView = linkedCandidate === null ? undefined : frame.queryViews.get(linkedCandidate);
-    let admittedRow: StoredRow | undefined;
+    let nativeSourceRow: StoredRow | undefined;
+    let admittedReference: AdmittedCall['recordRefs'][number] | undefined;
     const healthy = () => {
       checked(c);
       if (parent === undefined && dependency?.queryId !== undefined &&
@@ -287,8 +288,12 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
             stableStringify(dependency.source) !== stableStringify(linkedView.query.plan.source))) {
         return refuse('Supplied parent observation requires its exact checked active query occurrence.');
       }
-      if (admittedRow !== undefined && captureNativeScenarioReceiptRow(nativeRow, frame.owner, model) !== admittedRow) {
+      if (nativeSourceRow !== undefined && captureNativeScenarioReceiptRow(nativeRow, frame.owner, model) !== nativeSourceRow) {
         return refuse('Supplied parent observation changed its original admitted native binding.');
+      }
+      if (admittedReference !== undefined && captureNativeScenarioReceiptReference(sourceView, frame.owner,
+          admittedReference.param) !== admittedReference) {
+        return refuse('Supplied parent observation changed its original parameter admission.');
       }
       if (parent !== undefined && (parent.view.query.active !== parent.candidate || parent.view.query.bound ||
           parent.view.reads.length !== 0 || frame.pending !== 2 || parent.model !== model || parent.dependencyId !== dependencyId || field !== 'parent')) {
@@ -301,12 +306,25 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
     frame.pending += 1;
     try {
       healthy();
-      const row = captureNativeScenarioReceiptRow(nativeRow, frame.owner, model);
-      if (parent === undefined && dependency?.queryId !== undefined &&
-          !frame.call.recordRefs.some(reference => reference.model === model && reference.row === row && reference.id === row.id)) {
-        return refuse('Supplied query parent requires this call’s exact admitted native row.');
+      let row = captureNativeScenarioReceiptRow(nativeRow, frame.owner, model);
+      if (parent === undefined && dependency?.queryId !== undefined) {
+        // Parameter admission and mutable owner reads deliberately have different
+        // pointers. Only the existing private original-parameter binding joins
+        // them; identity/version coincidence cannot substitute for that binding.
+        admittedReference = frame.call.recordRefs.find(reference => {
+          if (reference.model !== model || reference.id !== row.id) return false;
+          try { return captureNativeScenarioReceiptReference(sourceView, frame.owner, reference.param) === reference; }
+          catch { return false; }
+        });
+        if (admittedReference === undefined ||
+            stableStringify(row.parent ?? null) !== stableStringify(admittedReference.row.parent ?? null)) {
+          return refuse('Supplied query parent requires its original admitted parameter and evaluated parent.');
+        }
+        nativeSourceRow = row;
+        // State receives its exact admission pointer and independently reloads
+        // current owner lifetime, parent wire and complete source authority.
+        row = admittedReference.row;
       }
-      if (parent === undefined && dependency?.queryId !== undefined) admittedRow = row;
       const files = frame.observeDependency === undefined ? undefined
         : await frame.observeDependency({ dependencyId, model, row, field }, healthy);
       healthy();

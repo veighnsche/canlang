@@ -229,7 +229,7 @@ test('native parent facade rejects substituted carriers, incomplete markers, aut
 
 // These linked supplied-parent checks require reviewed Contracts queryId and
 // corrected State capture/save validation. They do not qualify native lowering.
-type SuppliedMode = 'normal' | 'both-linked' | 'skipped' | 'copy' | 'current' | 'unassociated' | 'wrong-query' |
+type SuppliedMode = 'joined' | 'joined-staged' | 'normal' | 'both-linked' | 'skipped' | 'copy' | 'current' | 'unassociated' | 'wrong-query' |
   'pending' | 'detached' | 'closed' | 'refused' | 'foreign-context' | 'post-query';
 async function suppliedWorld(mode: SuppliedMode) {
   return world(slice => {
@@ -265,14 +265,18 @@ function bindSuppliedChild(w: Awaited<ReturnType<typeof world>>, mode: SuppliedM
       let frame!: ScenarioReceiptFrame;
       const admitted = owner.call.recordRefs.find(reference => reference.model === PARENT)!;
       assert.ok(admitted);
-      const current = mode === 'current' ? await owner.session.read(PARENT, admitted.row.id) : admitted.row;
+      if (mode === 'joined-staged') await owner.session.stage({ op: 'update', model: PARENT, id: admitted.row.id,
+        data: { title: 'Actual current staged Branch' } }, cause);
+      const current = mode === 'current' || mode === 'joined' || mode === 'joined-staged'
+        ? await owner.session.read(PARENT, admitted.row.id) : admitted.row;
       assert.ok(current);
-      if (mode === 'current') assert.notEqual(current, admitted.row);
+      if (mode === 'current' || mode === 'joined' || mode === 'joined-staged') assert.notEqual(current, admitted.row);
       const supplied: Record<string, unknown> = {};
       Object.defineProperty(supplied, 'parent', { enumerable: true, get: () => {
         const parent = current.parent!; return makeRecordRef(parent.model, parent.id);
       } });
-      bindNativeRecord(supplied, PARENT, current.id, current.version); Object.freeze(supplied);
+      Object.defineProperty(supplied, 'title', { get: () => current.data.title });
+      bindNativeRecord(supplied, PARENT, admitted.row.id, admitted.row.version); Object.freeze(supplied);
       frame = openScenarioReceiptFrame(c, owner.call, w.store, () => {}, undefined, {
         record: (model, record, read, projected) => {
           const view: Record<string, unknown> = {};
@@ -299,6 +303,10 @@ function bindSuppliedChild(w: Awaited<ReturnType<typeof world>>, mode: SuppliedM
         healthy(); return undefined;
       });
       frame.bind(supplied, PARENT, () => current);
+      // Actual scenarioParameters retains this original admission separately
+      // from recordView's genuine mutable current-owner resolver.
+      if (mode !== 'current') frame.bindAdmittedReference(supplied, admitted);
+      if (mode === 'joined-staged') assert.equal(supplied.title, 'Actual current staged Branch');
       try {
         const rows = await nativeQuery(c, 'turns', async run => {
           const account = run.account; queryObserve(c, TURN, run, 'account', 'account-control');
@@ -342,13 +350,18 @@ async function suppliedInput(w: Awaited<ReturnType<typeof world>>, observed?: (r
   } };
 }
 test('query-linked supplied admitted parent remains distinct and awaited at each original candidate', async () => {
-  for (const mode of ['normal', 'both-linked', 'foreign-context', 'skipped'] as const) {
+  for (const mode of ['normal', 'joined', 'joined-staged', 'both-linked', 'foreign-context', 'skipped'] as const) {
     const w = await suppliedWorld(mode), child = bindSuppliedChild(w, mode); let receipt: Receipt | undefined;
     const request = await suppliedInput(w, value => { receipt = value; });
     assert.equal((await invoke(request)).status, 'committed'); assert.ok(receipt);
     const saved = readScenarioReceiptAssociation(receipt)!.calls![0]!.scenario!;
     assert.equal(saved.observations.filter(item => item.dependencyId === 'branch-parent').length, 4);
-    assert.equal(saved.observations.filter(item => item.dependencyId === 'supplied-branch-parent').length, mode === 'skipped' ? 0 : 4);
+    const supplied = saved.observations.filter(item => item.dependencyId === 'supplied-branch-parent');
+    assert.equal(supplied.length, mode === 'skipped' ? 0 : 4);
+    if (mode === 'joined-staged') {
+      assert.ok(supplied.every(item => item.row.data.title === 'branch-a'));
+      assert.equal((await w.store.load(PARENT, asId('branch-a')))!.data.title, 'Actual current staged Branch');
+    }
     assert.deepEqual(saved.queries![0]!.selectedIndices, mode === 'skipped' ? [] : [0, 1]); assert.equal(child.observations, mode === 'skipped' ? 0 : 4);
     if (mode === 'both-linked') assert.ok(saved.queries![0]!.candidates.every(candidate =>
       candidate.dependencies.includes('branch-parent') && candidate.dependencies.includes('supplied-branch-parent')));
