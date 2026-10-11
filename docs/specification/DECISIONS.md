@@ -10391,11 +10391,14 @@ mismatched reuse. A delayed losing attempt cannot revoke re-admitted resources.
 The real D1 batch transaction/rollback primitive is documented by
 [Cloudflare](https://developers.cloudflare.com/d1/worker-api/d1-database/).
 
-Automatic review rejected initial transmission and an identical retry with a
-fresh read of the direct global human authorization; it still requires approval
-for this exact payload/destination. That consultation is pending the human's
-response; no advice or transmission is claimed. The coordinator released the
-bounded engineering choice independently of consultation. Exact saved replay
+After the human approved the exact saved payloads/destination, all three
+independently worded requests executed successfully. jev-1.13.0 selected
+atomic_removal_occurrence3/3, each with probability/confidence1.0. The responses
+and full distributions are retained in the existing TECH-I01 state record.
+They concern the original pre-implementation facts and support the bounded choice
+already released independently; model concentration is advice, not code or native
+qualification. No wording disagreement requires further consultation. Existing
+source checks are reused and all holds remain. Exact saved replay
 returns the immutable original technical outcome after lost acknowledgment,
 reopen or remover revocation, and performs no new removal or cascade. A new
 operation still needs current owner authority. Missing batch capability refuses
