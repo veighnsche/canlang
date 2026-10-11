@@ -23,7 +23,6 @@
  * Single-owner scope only: cross-store atomicity is NOT claimed.
  */
 import { after, describe, it } from 'node:test';
-import { StateError } from '@canlang/state/errors';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -43,6 +42,7 @@ import type { ResolvedIdentity } from '@canlang/contracts';
 import type { RetryPolicy } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { FenceConflictError, StorageConstraintError } from '@canlang/state/storage/port';
+import { StateError } from '@canlang/state/errors';
 import type { OperationRegistry } from '@canlang/state/invocation/registry';
 import type { MembershipReader } from '@canlang/state/policy/roles';
 import {
@@ -418,6 +418,34 @@ async function driveOn(
 
 for (const kind of ['d1', 'do'] as const satisfies ReadonlyArray<SubstrateKind>) {
   describe(`t34-f5 durable on ${kind}`, () => {
+    it('preserves complete Unicode members and cursor order across restart', async () => {
+      await withRestart(kind, 'unicode', async sub => {
+        const world = await setupDurableWorld();
+        const store = await sub.start();
+        assert.equal(store.cohortIdOrder, 'utf8-binary');
+        const ids = ['a', '\u{1f600}', '\ue000'];
+        await seedRecords(store, MODEL, ids);
+        const input = { cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+          cohort: { kind: 'model' as const, owner: world.owner, model: MODEL }, owner: world.owner,
+          bounds: { pageLimit: 1, chunkSize: 1, maxAttempts: 3 }, meta: META };
+        const frozen = await freezeFanoutMembership({ ...input, store });
+        assert.equal(frozen.ok, true);
+        if (!frozen.ok) throw new Error('valid Unicode cohort must freeze completely');
+        assert.deepEqual(frozen.frozen.members, [...ids].sort());
+        assert.deepEqual(await drainChildIds(store, frozen.frozen.fanoutId), [...ids].sort());
+        await sub.kill();
+        const reopened = await sub.start();
+        const replay = await freezeFanoutMembership({ ...input, store: reopened });
+        assert.equal(replay.ok, true);
+        if (!replay.ok) throw new Error('valid Unicode membership must replay');
+        assert.equal(replay.frozen.replayed, true);
+        assert.deepEqual(replay.frozen.members, frozen.frozen.members);
+        const progress = await readFanoutProgress({ store: reopened, fanoutId: frozen.frozen.fanoutId, pageLimit: 1 });
+        assert.equal(progress.pending, 3);
+        assert.equal(progress.terminal, false);
+      });
+    });
+
     it('M1/M4 freeze exact at 501 + late-insert exclusion across restart', async () => {
       await withRestart(kind, 'freeze', async (sub) => {
         const world = await setupDurableWorld();

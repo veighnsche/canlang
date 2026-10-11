@@ -218,6 +218,108 @@ async function childData(
 }
 
 describe('t34-f5 admission: fresh fence per child (M5)', () => {
+  it('freezes 1000 original members and refuses resource excess before any fanout effects', async () => {
+    const limit = (error: unknown) => error instanceof StateError && error.code === 'limit' && error.retryable !== true;
+    for (const count of [1000, 1001]) {
+      const store = createMemoryStorage();
+      const ids = Array.from({ length: count }, (_, index) => `a-${String(index).padStart(4, '0')}`);
+      for (let offset = 0; offset < count; offset += 100) {
+        await store.commit(makeBatch((await store.readRevision()) as number, {
+          writes: ids.slice(offset, offset + 100).map(id => ({ kind: 'insert' as const,
+            model: asModel(MODEL), row: makeRow({ id }) })),
+        }));
+      }
+      const revision = await store.readRevision();
+      let commits = 0;
+      const input = { store: { ...store, commit: async (batch: Parameters<StoragePort['commit']>[0]) => {
+        commits += 1; return store.commit(batch);
+      } }, cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+      cohort: { kind: 'model' as const, owner: 'owner', model: MODEL }, owner: 'owner',
+      bounds: { pageLimit: 100, chunkSize: 100, maxAttempts: 1 }, meta: META };
+      const fanoutId = fanoutIntentRowId(SOURCE, HANDLER, 'model');
+      if (count === 1000) {
+        const outcome = await freezeFanoutMembership(input);
+        assert.equal(outcome.ok, true);
+        if (!outcome.ok) throw new Error('expected original bounded cohort');
+        assert.deepEqual(outcome.frozen.members, ids);
+        const intent = (await store.load(asModel(FANOUT_INTENT_MODEL), asId(fanoutId)))!;
+        const checkpoint = (await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)))!;
+        assert.equal(readFanoutIntentRow(intent).memberCount, 1000);
+        assert.equal(readFanoutCheckpointRow(checkpoint).cursor, null);
+        assert.ok(await store.load(asModel(FANOUT_CHILD_MODEL), asId(fanoutChildRowId(SOURCE, HANDLER, ids[999]!))));
+      } else {
+        await assert.rejects(freezeFanoutMembership(input), limit);
+        assert.equal(commits, 0);
+        assert.equal(await store.readRevision(), revision);
+        assert.equal(await store.load(asModel(FANOUT_INTENT_MODEL), asId(fanoutId)), null);
+        assert.equal(await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)), null);
+        assert.deepEqual(await store.query({ model: asModel(FANOUT_CHILD_MODEL), authority: 'owner', limit: 100 }), []);
+      }
+    }
+    for (const bounds of [{ pageLimit: 101, chunkSize: 100, maxAttempts: 1 },
+      { pageLimit: 100, chunkSize: 101, maxAttempts: 1 }]) {
+      let touches = 0;
+      const store = createMemoryStorage();
+      await assert.rejects(freezeFanoutMembership({ store: { ...store,
+        readRevision: async () => { touches += 1; return store.readRevision(); },
+        load: async () => { touches += 1; return null; },
+        query: async () => { touches += 1; return []; },
+        cohortLoad: async () => { touches += 1; return null; },
+        cohortIdentityPage: async () => { touches += 1; return []; },
+        cohortRowPage: async () => { touches += 1; return []; },
+        cohortAnchorFact: async () => { touches += 1; return 'unknown'; },
+        commit: async batch => { touches += 1; return store.commit(batch); } },
+        cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+        cohort: { kind: 'model', owner: 'owner', model: MODEL }, owner: 'owner', bounds, meta: META }), limit);
+      assert.equal(touches, 0);
+      assert.equal(await store.readRevision(), 0);
+    }
+  });
+
+  it('accepts 200-character member components and refuses 201 before persistence', async () => {
+    for (const length of [200, 201]) {
+      const store = createMemoryStorage(), id = 'a'.repeat(length);
+      await store.commit(makeBatch((await store.readRevision()) as number, {
+        writes: [{ kind: 'insert', model: asModel(MODEL), row: makeRow({ id }) }],
+      }));
+      const revision = await store.readRevision();
+      let commits = 0;
+      const input = { store: { ...store, commit: async (batch: Parameters<StoragePort['commit']>[0]) => {
+        commits += 1; return store.commit(batch);
+      } }, cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+      cohort: { kind: 'model' as const, owner: 'owner', model: MODEL }, owner: 'owner',
+      bounds: { pageLimit: 100, chunkSize: 100, maxAttempts: 1 }, meta: META };
+      if (length === 200) {
+        const outcome = await freezeFanoutMembership(input);
+        assert.equal(outcome.ok, true);
+        if (!outcome.ok) throw new Error('expected bounded member identity');
+        assert.deepEqual(outcome.frozen.members, [id]);
+      } else {
+        await assert.rejects(freezeFanoutMembership(input), error =>
+          error instanceof StateError && error.code === 'limit' && error.retryable !== true);
+        assert.equal(commits, 0);
+        assert.equal(await store.readRevision(), revision);
+        assert.equal(await store.load(asModel(FANOUT_INTENT_MODEL),
+          asId(fanoutIntentRowId(SOURCE, HANDLER, 'model'))), null);
+      }
+    }
+  });
+
+  it('refuses accessor bounds without executing them or touching storage', async () => {
+    const store = createMemoryStorage();
+    let accesses = 0, touches = 0;
+    const bounds = { chunkSize: 100, maxAttempts: 1,
+      get pageLimit() { accesses += 1; return 100; } };
+    await assert.rejects(freezeFanoutMembership({ store: { ...store,
+      readRevision: async () => { touches += 1; return store.readRevision(); } },
+      cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+      cohort: { kind: 'model', owner: 'owner', model: MODEL }, owner: 'owner', bounds, meta: META }),
+      (error: unknown) => error instanceof StateError && error.code === 'validation');
+    assert.equal(accesses, 0);
+    assert.equal(touches, 0);
+    assert.equal(await store.readRevision(), 0);
+  });
+
   it('restarts one bounded retained admission prefix with changed chunk bounds and atomic conflicts', async () => {
     const store = createMemoryStorage();
     await store.commit(makeBatch((await store.readRevision()) as number, {
@@ -258,9 +360,11 @@ describe('t34-f5 admission: fresh fence per child (M5)', () => {
     const restarted: StoragePort = {
       ...store,
       query: async () => { throw new Error('retained admission must not query'); },
-      load: async (model, id) => {
-        if (model === FANOUT_CHILD_MODEL) childLoads += 1;
-        return store.load(model, id);
+      cohortIdentityPage: async () => { throw new Error('retained admission must not enumerate'); },
+      cohortRowPage: async () => { throw new Error('retained admission must not drain child pages'); },
+      cohortLoad: async input => {
+        if (input.model === FANOUT_CHILD_MODEL) childLoads += 1;
+        return store.cohortLoad(input);
       },
       commit: async batch => {
         commits += 1;
@@ -293,6 +397,42 @@ describe('t34-f5 admission: fresh fence per child (M5)', () => {
       expectedVersion: restore.checkpointRow.version, row: withFanoutRowData(restore.checkpointRow,
         { ...readFanoutCheckpointRow(restore.checkpointRow), cursor: 'admit/1' }, META) }] }));
     const first = await capture(1);
+    let boundAccesses = 0;
+    await assert.rejects(admitRetainedFanoutChunk({ ...first,
+      get chunkSize() { boundAccesses += 1; return 1; } }),
+      (error: unknown) => error instanceof StateError && error.code === 'validation');
+    assert.equal(boundAccesses, 0);
+    assert.equal(childLoads, 0);
+    assert.equal(commits, 0);
+    let serialized = 0;
+    await assert.rejects(admitRetainedFanoutChunk({ ...first, intentRow: {
+      ...first.intentRow, data: { ...first.intentRow.data,
+        cohort: { toJSON: () => { serialized += 1; throw new Error('malformed cohort serialized'); } } },
+    } }), (error: unknown) => error instanceof StateError && error.code === 'validation');
+    assert.equal(serialized, 0);
+    assert.equal(childLoads, 0);
+    assert.equal(commits, 0);
+    for (const field of ['members', 'completed'] as const) for (const live of [false, true]) {
+      const oversized = Array.from({ length: 1001 }, (_, index) => `oversized-${index}`);
+      let memberReads = 0;
+      Object.defineProperty(oversized, '0', { enumerable: true, configurable: true,
+        get: () => { memberReads += 1; return 'oversized-0'; } });
+      const original = field === 'members' ? first.intentRow : first.checkpointRow;
+      const changed = { ...original, data: { ...original.data, [field]: oversized,
+        ...(field === 'members' ? { memberCount: 1001 } : {}) } };
+      const current = live ? { ...first, store: { ...restarted,
+        cohortLoad: async (input: Parameters<StoragePort['cohortLoad']>[0]) => input.model ===
+          (field === 'members' ? FANOUT_INTENT_MODEL : FANOUT_CHECKPOINT_MODEL)
+          ? changed : restarted.cohortLoad(input) } } : { ...first,
+        ...(field === 'members' ? { intentRow: changed } : { checkpointRow: changed }) };
+      await assert.rejects(admitRetainedFanoutChunk(current), error =>
+        error instanceof StateError && error.code === 'limit' && error.retryable !== true);
+      assert.equal(memberReads, 0);
+      assert.equal(childLoads, 0);
+      assert.equal(commits, 0);
+      assert.deepEqual(await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)), first.checkpointRow);
+      assert.equal((await childData(store, 'a')).state, 'completed');
+    }
     assert.equal((await admitRetainedFanoutChunk({ ...first,
       intentRow: { ...first.intentRow, version: (first.intentRow.version + 1) as StoredRow['version'] } })).ok, false);
     assert.equal((await admitRetainedFanoutChunk({ ...first,
@@ -355,14 +495,14 @@ describe('t34-f5 admission: fresh fence per child (M5)', () => {
     let cursorFinishes = 0;
     const faultStore: StoragePort = {
       ...store,
-      query: async (query) => {
+      cohortIdentityPage: async (query) => {
         if (query.model === MODEL) {
           domainQueries += 1;
           if (domainUnavailable) {
             throw new Error('current domain query unavailable');
           }
         }
-        return store.query(query);
+        return store.cohortIdentityPage(query);
       },
       commit: async (batch) => {
         if (batch.writes.some((write) =>

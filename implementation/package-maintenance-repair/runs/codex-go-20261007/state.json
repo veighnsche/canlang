@@ -3297,7 +3297,7 @@
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
-      "state": "Actual bounded storage producer implemented,tested and critically reviewed in local main; State/lifecycle/native joined consumers unfinished.",
+      "state": "Bounded storage and original State/Work membership/progress/lifecycle are implemented,tested,reviewed in local main; original Dev native consumer unfinished.",
       "files": [
         "packages/state/src/fanout/membership.ts",
         "packages/state/src/fanout/progress.ts",
@@ -3309,8 +3309,8 @@
         "packages/state/src/storage/durable-object.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Capability changed source/cursor/fence/progress and selected lifecycle consumers; Dev actual original installed native join. Storage critical metadata correction and common typed receipt forwarding are released, not blockers.",
-        "owner": "Capability State consumer and Dev native consumer"
+        "prerequisite": "Dev genuine changed original source freeze and retained native scheduler using exact current bounded State storage/capture/lifecycle/checkpoint helpers.",
+        "owner": "Dev native consumer"
       },
       "finite_shared_implementation": {
         "input": "Reviewed defining original profile at Capability25fc84368e41522bd5ea9c0da1f8e6fbccff49cb plus coordinatorb346c633aa6e9821c7207b20dc2d796051a2f359 and exact Packages storage dispatch. No query scan/recovery policy or held preparation release.",
@@ -3320,7 +3320,7 @@
         "fence_and_anchor": "Each selected read checks one captured expectedRevision before and after actual raw read, before parsing. Genuine D1 interleaving advances the real fence between raw result and codec and all four reads refuse FenceConflictError before hostile decode. Read-only drains/progress use one fixed revision; callers refresh after successful original release/claim/commit. Anchor returns present including archived, disposed only for missing with remove/archive history, otherwise unknown; no business or whole-history decode.",
         "tests": "Contracts and State owning emissions0; actual emitted DO worker rebuilt0. Selected storage23/23 pass across focused runs:15 original new shared cases across3backends plus raw exact/one-over profile, SQL pre-materialization aggregate2, malformed syntax/parity, genuine four-method D1 race and Unicode cursor3. No failures/cancellations/skips remain. Two corrected/new cases2/2(1.148s), Unicode3/3(729.36ms); unchanged18 results reused. Corrected every-returned-column metadata aggregate gate and reachable numeric text/blob2/2 plus prior21 reused: selected25/25,0fail/cancel/skip; final owning Contracts/State/Work emits and actual DO build0.",
         "failed_attempts_and_assessment": "Finite source assessment identified mutable accessor request skew; fixed own descriptor capture and all3backend zero-getter controls passed. One malformed syntax test incorrectly expected State validation; corrected only that assertion to original SyntaxError and reran the affected case. Independent assessment is not the mandatory coordinator critical review.",
-        "remaining": "No pending storage review at this selected source scope. Actual Capability caller/lifecycle and Dev native consumer qualification remain. Query scan/sort and host allocation remain separate; no whole workflow, generic helper quota or hold release.",
+        "remaining": "Original Capability State/Work owning criterion satisfied with55 Memory/8 actualD1-DO and12 State assertions/emissions/boundary, exact result at Capability SEQ005. Dev genuine changed native original consumer remains. Separate query scan/sort/host allocation and all precise holds remain.",
         "critical_metadata_correction": {
           "finding": "Coordinator critical review found version/created/updated/archived_at unconditionally returned while only declared text columns were guarded; non-STRICT SQLite affinity permits hostile text/blob metadata.",
           "change": "Count raw byte length of every RECORD_COLUMNS column and withhold every returned column when the complete selected page exceeds12640000. The existing null-data sentinel retains generic nonretryable limit. Valid numeric metadata and ordinary codecs are unchanged.",
