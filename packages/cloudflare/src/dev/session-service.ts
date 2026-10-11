@@ -633,17 +633,18 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     };
   };
 
-  const check = async (expectedRevision?: string): Promise<SessionCheckResponse> => {
+  const check = async (expectedRevision?: string, requestSignal?: AbortSignal): Promise<SessionCheckResponse> => {
     let result: Awaited<ReturnType<typeof core.check>>;
     try {
-      result = await core.check(expectedRevision);
+      result = await core.check(expectedRevision, requestSignal);
     } catch (error) {
       if (error instanceof DevRevisionConflictError) {
         throw new SessionSocketError("REVISION_CONFLICT", error.message);
       }
       throw error;
+    } finally {
+      artifacts.clear();
     }
-    artifacts.clear();
     if (result.kind === "checked" || result.kind === "build_failed") {
       const index = [...helpByDigest.values()].find(candidate =>
         candidate.revision === result.check.detail.helpIndexRevision);
@@ -898,7 +899,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         (payload.expectedRevision !== core.status().revision || core.status().dirty)) {
         throw new SessionSocketError("REVISION_CONFLICT", "expected revision is not current");
       }
-      return check(payload?.expectedRevision as string | undefined);
+      return check(payload?.expectedRevision as string | undefined, requestSignal);
     }
     if (command.command === "diagnostics" || command.command === "diagnostic.detail") {
       const revision = payload?.revision;
