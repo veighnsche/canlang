@@ -236,7 +236,10 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
   if ((canonical as { default?: { kind: string; value?: unknown } }).default?.kind === 'literal') {
     fileReferenceOccurrences(profile, (canonical as { default: { value: unknown } }).default.value);
   }
-  const modelSnapshot = sendOnly ? bindModelLexicalSnapshotProfile(values, original) : undefined;
+  // Nullable model slots retain their canonical ModelRef/null wire profile.
+  // Only a nonnull lexical model row carries an owning stored-row snapshot.
+  const modelSnapshot = sendOnly && !parseTypeId(original).nullable
+    ? bindModelLexicalSnapshotProfile(values, original) : undefined;
   return { declaration: canonical, profile, ...(modelSnapshot === undefined ? {} : { modelSnapshot }) };
 }
 function nominalResult(values: FileReferenceProfileBound, canonical: unknown, artifact: unknown): FileReferenceProfile {

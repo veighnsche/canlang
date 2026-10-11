@@ -939,9 +939,12 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     const inputs = new Set<string>(), models = new Map<string, ModelLexicalSnapshotProfile>();
     for (const value of list(guard['inputs'])) {
       const input = object(value, ['name', 'type']), name = text(input['name']), type = text(input['type']);
-      if (inputs.has(name) || printTypeId(parseTypeId(type)) !== type) return invalid('exact unique canonical SEND lexical type required.');
+      const parsed = parseTypeId(type);
+      if (inputs.has(name) || printTypeId(parsed) !== type) return invalid('exact unique canonical SEND lexical type required.');
       inputs.add(name);
-      const model = bindModelLexicalSnapshotProfile({ artifactModels: bound.artifactModels, canonicalModels: bound.canonicalModels,
+      // Nullable model inputs use the existing typed ModelRef/null path; a
+      // StoredRow snapshot requires an actual singular nonnull owner row.
+      const model = parsed.nullable ? undefined : bindModelLexicalSnapshotProfile({ artifactModels: bound.artifactModels, canonicalModels: bound.canonicalModels,
         ...(bound.valueSchema === undefined ? {} : { valueSchema: bound.valueSchema }),
         ...(bound.valueTypes === undefined ? {} : { valueTypes: bound.valueTypes }) }, type as CanTypeId);
       if (model !== undefined) models.set(name, model);

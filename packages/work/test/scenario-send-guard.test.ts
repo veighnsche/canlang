@@ -5,7 +5,7 @@ import type { BoundCapabilityRequest, CanTypeId, DeliveryRef, FileReferenceInven
 import { encodeValue, makeUserRef, makeDeliveryRef, SchemaError } from '@canlang/values';
 import { createFrozenClock, createMemoryIdentityStore as createOwningMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
-import { STATE_FILE_REFERENCE_PRODUCER, prepareFrameworkFilePayloadOrigin } from '@canlang/state/storage';
+import { STATE_FILE_REFERENCE_PRODUCER, prepareFrameworkFilePayloadOrigin, StorageConstraintError } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '../src/kernel/file-reference-inventory.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice, type GeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { buildModelTableFromCanonical } from '@canlang/state/mutation/models';
@@ -28,6 +28,8 @@ const rule = 'Guarded.generate.send.0', node = { start: 10, end: 30 };
 const guard = { rule, source, owner: OP, node, binding: BINDING, target: TARGET,
   inputs: [{ name: 'subject', type: 'user' as CanTypeId }, { name: 'enabled', type: 'bool' as CanTypeId }] };
 const modelGuard = { ...guard, inputs: [{ name: 'run', type: MODEL as CanTypeId }, { name: 'enabled', type: 'bool' as CanTypeId }] };
+const nullableModelGuard = { ...modelGuard, inputs: [{ name: 'run', type: `${MODEL}?` as CanTypeId },
+  { name: 'enabled', type: 'bool' as CanTypeId }] };
 const OTHER_MODEL = asModel('Guarded.Other');
 let sequence = 82000;
 const textResult = { name: 'TextRun', fields: [
@@ -60,7 +62,7 @@ function artifact(modelSnapshot = false): ArtifactDescriptorSlice {
 function request(): BoundCapabilityRequest {
   return { binding: BINDING, from: FROM, arguments: { value: { source: 'run-request', revision: '7', prompt: 'Generate' } } };
 }
-async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict = true, initiallyActive = true, receiptMode: 'ordinary' | 'wrong-association' | 'advance-revision' = 'ordinary', profileMode: 'exact' | 'generation-profile' = 'exact') {
+async function world(mode: 'plain' | 'membership' | 'model' | 'nullable-model' = 'plain', verdict = true, initiallyActive = true, receiptMode: 'ordinary' | 'wrong-association' | 'advance-revision' = 'ordinary', profileMode: 'exact' | 'generation-profile' = 'exact') {
   const { memberships, actor, subject, member } = await (async () => {
     if (mode === 'model') {
       const memberships = createOwningMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
@@ -81,7 +83,7 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
   const producers = [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER];
   const { store, probe } = createTestMemoryStorage(authority, producers);
   const original = artifact(mode === 'model'), loaded = loadArtifactDescriptors(original, { by: 'members' });
-  const selectedGuard = mode === 'model' ? modelGuard : guard;
+  const selectedGuard = mode === 'model' ? modelGuard : mode === 'nullable-model' ? nullableModelGuard : guard;
   const def = loaded.registry.get(OP)! as GeneratedOperationDef;
   const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields, containment: loaded.containment,
@@ -118,11 +120,14 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
         { id: providerResult, source: { kind: 'delivery', source, context: installedDelivery },
           profile: { kind: 'provider-result', canonical: canonicalDelivery.result, artifact: originalDelivery.result } },
         { id: guardInputs, source: { kind: 'send-guard', ...selectedGuard }, profile: { kind: 'inputs', canonical: [
-          ...(mode === 'model' ? [{ name: 'run', kind: 'ref' as const, model: MODEL, versioned: true, required: true }] :
+          ...((mode === 'model' || mode === 'nullable-model') ? [{ name: 'run', kind: 'ref' as const, model: MODEL, versioned: true, required: true,
+            ...(mode === 'nullable-model' ? { nullable: true } : {}) }] :
             [{ name: 'subject', kind: 'user' as const, valueType: 'user', required: true }]),
           { name: 'enabled', kind: 'boolean', valueType: 'bool', required: true },
         ], artifact: [
-          ...(mode === 'model' ? [{ name: 'run', field: { kind: 'ref' as const, model: MODEL, requireVersion: true }, valueType: MODEL, required: true }] :
+          ...((mode === 'model' || mode === 'nullable-model') ? [{ name: 'run', field: { kind: 'ref' as const, model: MODEL, requireVersion: true },
+            valueType: mode === 'nullable-model' ? `${MODEL}?` : MODEL, required: true,
+            ...(mode === 'nullable-model' ? { nullable: true } : {}) }] :
             [{ name: 'subject', field: { kind: 'user' as const }, valueType: 'user', required: true }]),
           { name: 'enabled', field: { kind: 'boolean' }, valueType: 'bool', required: true },
         ] } },
@@ -140,6 +145,7 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
   let duringGuard: (() => Promise<void>) | undefined;
   let foreignSite: ReturnType<typeof bindScenarioReceiptSendMembershipProducer>[number] | undefined;
   const modelAccess = { allowed: true, sendAttempts: 0 }, guardSnapshots: StoredRow[] = [];
+  const nullableGuardInputs: Record<string, unknown>[] = [];
   bindScenarioReceiptFrameworkProducer(def, { source, app: APP,
     bindings: [{ binding: BINDING, from: FROM, targets: [{ source: TARGET, correlation: 'value' }] }],
     sendGuards: [selectedGuard], evaluateGuard: async ({ call, inputs }) => {
@@ -153,6 +159,14 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
         assert.deepEqual(row.data.author, encodeValue('user', makeUserRef(subject.user_id)));
         guardSnapshots.push(structuredClone(row));
         allowed = allowed && row.data.stop_requested === false;
+      }
+      if (mode === 'nullable-model') {
+        // This adapter consumes typed nullable refs; it reads no model row or source grant.
+        assert.ok(Object.isFrozen(inputs)); assert.ok(Object.hasOwn(inputs, 'run'));
+        if (inputs.run !== null) {
+          assert.ok(Object.isFrozen(inputs.run));
+        }
+        nullableGuardInputs.push(structuredClone(inputs));
       }
       if (mode === 'membership' && enabled) {
         assert.ok(call.context.team);
@@ -229,7 +243,7 @@ async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict =
       captures++; const pair = pairs.get(call); pairs.delete(call);
       if (pair === undefined) throw new StateError('validation', 'No fresh source SEND native pair.'); return pair;
     } });
-  return { store, probe, memberships, actor, subject, member, table, pairs, preparedOrigins, externalSchedule, modelAccess, guardSnapshots,
+  return { store, probe, memberships, actor, subject, member, table, pairs, preparedOrigins, externalSchedule, modelAccess, guardSnapshots, nullableGuardInputs,
     get receiptPreparations() { return receiptPreparations; },
     set receiptOriginMutation(value: ((origin: FrameworkOpaquePayloadOrigin) => FrameworkOpaquePayloadOrigin) | undefined) { receiptOriginMutation = value; },
     set receiptScope(value: typeof scope | undefined) { receiptScope = value; },
@@ -336,6 +350,57 @@ test('true SEND retains original lexical inputs separately from provider argumen
   const before = await effects(w);
   assert.equal((await run(w)).outcome.status, 'replayed'); assert.equal(w.calls, 1);
   assert.deepEqual(await effects(w), before);
+});
+
+test('nullable model SEND retains canonical versioned ref and explicit null slots through Work origin census', async () => {
+  for (const value of [{ id: ID, version: '1' }, null]) {
+    const w = await world('nullable-model'), lexical = { run: value, enabled: true };
+    const original = structuredClone(lexical);
+    w.duringGuard = async () => { lexical.enabled = false; if (value !== null) value.version = '2'; };
+    const result = await run(w, { lexical }); assert.equal(result.outcome.status, 'committed');
+    assert.deepEqual(w.nullableGuardInputs, [original]); assert.deepEqual(w.guardSnapshots, []);
+    const saved = await effects(w); assert.equal(w.calls, 1); assert.equal(w.stages, 1);
+    assert.equal(saved.dispatch.length, 1); assert.equal(saved.receipts.length, 1); assert.equal(saved.associations.length, 1);
+    const retained = readDispatchRow(saved.dispatch[0]!), sourceGuard = readDispatchSourceGuard(saved.dispatch[0]!.data);
+    assert.deepEqual(sourceGuard, { rule, source, owner: OP, node, inputs: original });
+    assert.deepEqual(retained.sourceGuard, sourceGuard); assert.equal(retained.guardVerdict, true);
+    const origin = retained.filePayloadOrigin; assert.ok(origin); assert.equal(origin.origin.kind, 'send-guard');
+    if (origin.origin.kind !== 'send-guard') assert.fail('Original typed SEND guard origin required.');
+    assert.deepEqual(origin.origin.declaration, nullableModelGuard);
+    assert.equal(origin.origin.inputsDeclarationId, 'guarded/send/inputs');
+    assert.deepEqual(origin.files, []);
+    assert.deepEqual(origin.slot, { model: WORK_DISPATCH_MODEL, id: saved.dispatch[0]!.id,
+      created: saved.dispatch[0]!.created, createdBy: saved.dispatch[0]!.createdBy, field: 'sourceGuard', role: 'deferred-input' });
+    assert.equal(readReceiptRow(saved.receipts[0]!).filePayloadOrigin?.origin.kind, 'delivery-result');
+    assert.equal(saved.outbox.length, 1); assert.equal(saved.outbox[0]!.dispatchGuard, rule);
+    assert.deepEqual(saved.outbox[0]!.arguments, request());
+  }
+});
+
+test('nullable model SEND requires its null slot and refuses malformed or unversioned refs without committed effects', async () => {
+  const invalid = [{ enabled: true }, ...[undefined, { id: ID }, { id: ID, version: null },
+    { id: ID, version: '' }, { id: ID, version: 1 }, { id: ID, version: '1', extra: true }]
+    .map(run => ({ run, enabled: true }))];
+  for (const lexical of invalid) {
+    const w = await world('nullable-model');
+    await assert.rejects(run(w, { lexical }), error => error instanceof StateError || error instanceof SchemaError ||
+      error instanceof StorageConstraintError && error.kind === 'reference');
+    // The lexical type check or the installed opaque origin's versioned-ref census owns refusal.
+    if (!Object.hasOwn(lexical, 'run')) { assert.equal(w.calls, 0); assert.equal(w.stages, 0); }
+    assert.equal(w.receiptPreparations, 0);
+    assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
+  }
+});
+
+test('nullable model SEND rolls back typed ref or null and pending or skipped receipt effects after parent refusal', async () => {
+  for (const value of [{ id: ID, version: '1' }, null]) for (const verdict of [true, false]) {
+    const w = await world('nullable-model', verdict);
+    await assert.rejects(run(w, { lexical: { run: value, enabled: true }, lateRequire: true }),
+      error => error instanceof StateError && error.code === 'forbidden');
+    assert.deepEqual(w.nullableGuardInputs, [{ run: value, enabled: true }]);
+    assert.equal(w.stages, verdict ? 1 : 0); assert.equal(w.receiptPreparations, 1);
+    assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
+  }
 });
 
 test('source SEND guard short circuits and current positive/negative membership decisions fence the outer commit', async () => {
