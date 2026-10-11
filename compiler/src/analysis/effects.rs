@@ -135,9 +135,43 @@ pub struct EffectTables {
     /// (D02b seam): one logical slot per declaration; absent entry
     /// means undescribed. See [`CheckedDescription`].
     pub checked_descriptions: HashMap<NodeKey, CheckedDescription>,
+    /// Original checked event fields used only to validate complete inventory
+    /// correspondence after callers edit the public lowering tables.
+    checked_event_fields: HashMap<SymbolId, CheckedEventFields>,
+}
+
+#[derive(Debug, Clone)]
+struct CheckedEventFields {
+    fields: Vec<FieldData>,
+    descriptions: Vec<Option<String>>,
+    types: Vec<Option<ResolvedType>>,
 }
 
 impl EffectTables {
+    pub(crate) fn event_fields_match_checked(
+        &self,
+        record: &RecordData,
+        types: &TypeTable,
+    ) -> bool {
+        self.checked_event_fields
+            .get(&record.record)
+            .is_some_and(|checked| {
+                checked.fields == record.fields
+                    && record
+                        .fields
+                        .iter()
+                        .zip(&checked.descriptions)
+                        .all(|(field, source)| {
+                            self.description_source(&field.node) == source.as_deref()
+                        })
+                    && record
+                        .fields
+                        .iter()
+                        .zip(&checked.types)
+                        .all(|(field, ty)| types.symbol_types.get(&field.field) == ty.as_ref())
+            })
+    }
+
     /// D03 lowering: source-language text of the checked description
     /// owning `owner`, when the field/parameter declaration carries one.
     ///
@@ -500,7 +534,7 @@ pub struct ModelData {
 }
 
 /// Stored field with its type, initializer, modifiers and label.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldData {
     /// Field symbol.
     pub field: SymbolId,
@@ -529,7 +563,7 @@ pub struct FieldData {
 }
 
 /// One stored-field modifier: `trim`, `unique`, or a `min=`/`max=` bound.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModifierData {
     /// Modifier spelling (`trim`, `min`, `max` or `unique`).
     pub name: String,
@@ -1459,6 +1493,26 @@ impl<'a> Cx<'a> {
             fields: self.record_fields(text, id, node),
             invariants: Vec::new(),
         };
+        if node.kind == SyntaxKind::Event {
+            let descriptions = data
+                .fields
+                .iter()
+                .map(|field| self.out.description_source(&field.node).map(str::to_owned))
+                .collect();
+            let types = data
+                .fields
+                .iter()
+                .map(|field| self.types.symbol_types.get(&field.field).cloned())
+                .collect();
+            self.out.checked_event_fields.insert(
+                id,
+                CheckedEventFields {
+                    fields: data.fields.clone(),
+                    descriptions,
+                    types,
+                },
+            );
+        }
         self.out.records.insert(id, data);
     }
 
