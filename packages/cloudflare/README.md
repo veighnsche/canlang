@@ -106,8 +106,21 @@ participation and are outside this profile.
 Installation requires the complete checked canonical, artifact and value-type
 inventory plus the actual same-load State/Work framework producers. Missing
 value declarations, mixed migrations, changed assignments and opaque framework
-payloads without original checked correspondence refuse. Current zero-contract
-artifacts omit `valueTypes` and do not qualify this installation.
+payloads without original checked correspondence refuse. Capture every original
+own contract declaration and literal default from the verified entry before
+normalization or another await, preserving raw wrappers and native integer
+constraints through the Values wire codec. Install actual callable input/result
+profiles and this detached closure in the same State inventory transaction;
+reopen compares source correspondence and retains the persisted original closure.
+Missing result metadata supplies no explicit void proof. Empty contracts require
+the compiler's explicit `valueTypes: {contracts: []}` inventory.
+
+The complete raw unused-contract native qualification is currently unfinished.
+The preceding Compiler File inventory producer and State native `array`/`nullable`
+wrapper correspondence are released; the actual changed native consumer must
+qualify their joined original source and installed inventory. Opaque
+payload origin producers and current File disclosure/receiving authority remain
+separate requirements; declaration data supplies no grant.
 
 Trusted maintenance calls `retireAndDelete(ref, disposition)` explicitly. State
 fences permanent retirement against the complete installed census; Files checks

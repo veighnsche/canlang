@@ -1,14 +1,16 @@
 /** Node-only trusted composition of original State and physical Files retirement. */
 import { createHash } from 'node:crypto';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, FilePolicy, FileReferenceInventory, FileRetentionPolicy,
-  FileRetirementAuthority, FinalizedFileIdentity, FinalizedFileRef, WorkScope } from '@canlang/contracts';
+import type { ArtifactOperation, CanonicalOperationDescriptor, CompileArtifact, FilePolicy, FileReferenceInventory, FileRetentionPolicy,
+  FileRetirementAuthority, FinalizedFileIdentity, FinalizedFileRef, FrameworkOpaqueDeclaration,
+  FrameworkOpaqueDeclarationSet, FrameworkOpaqueValueDefault, Revision, WireValue, WorkScope } from '@canlang/contracts';
 import type { IdentityStore } from '@canlang/identity';
 import type { ClockPort } from '@canlang/files/ports';
 import { createSqliteFileBindings, type SqliteFileStore } from '@canlang/files/host/sqlite';
 import { checkedFileCleanupRecord } from '@canlang/files/retention';
 import { createD1OwnerRouter, STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
+import { encodeValue } from '@canlang/values';
 import type { AssembledModules } from '../runtime/modules.js';
 import { importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from '../runtime/assembly-verification.js';
 import { loadCanonicalDescriptors } from '../runtime/invoke.js';
@@ -58,6 +60,69 @@ function immutable<T>(value: T): T {
 }
 const equal = (left: unknown, right: unknown): boolean => JSON.stringify(left) === JSON.stringify(right);
 
+/** Capture original native metadata before normalization or yielding. Never
+ * invoke accessors, silently drop members, or coerce native integer literals. */
+function declarationWire(value: unknown): WireValue {
+  let nodes = 0, textBytes = 0;
+  const ancestors = new Set<object>();
+  const copy = (node: unknown, depth: number): WireValue => {
+    if (++nodes > 20_000 || depth > 32) throw new Error('File retirement declaration capture exceeds its finite bounds.');
+    if (typeof node === 'bigint') return encodeValue('int', node);
+    if (node === null || typeof node === 'boolean') return node;
+    if (typeof node === 'string') {
+      textBytes += Buffer.byteLength(node);
+      if (textBytes > 2_000_000) throw new Error('File retirement declaration text exceeds its finite bounds.');
+      return node;
+    }
+    if (typeof node === 'number' && Number.isFinite(node)) return node;
+    if (typeof node !== 'object' || node === null || ancestors.has(node)) throw new Error('File retirement requires closed original declaration data.');
+    const array = Array.isArray(node), prototype = Object.getPrototypeOf(node);
+    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+      throw new Error('File retirement requires plain original declaration data.');
+    }
+    ancestors.add(node);
+    try {
+      const keys = Reflect.ownKeys(node);
+      if (array) {
+        const length = data(node, 'length');
+        if (typeof length !== 'number' || !Number.isSafeInteger(length) || length > 20_000 || keys.length !== length + 1) {
+          throw new Error('File retirement requires dense original declaration arrays.');
+        }
+        const output: WireValue[] = [];
+        for (let index = 0; index < length; index++) {
+          const descriptor = Object.getOwnPropertyDescriptor(node, String(index));
+          if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) throw new Error('File retirement requires own declaration array data.');
+          output.push(copy(descriptor.value, depth + 1));
+        }
+        return Object.freeze(output) as unknown as WireValue;
+      }
+      const output: Record<string, WireValue> = {};
+      for (const key of keys) {
+        const descriptor = typeof key === 'string' ? Object.getOwnPropertyDescriptor(node, key) : undefined;
+        if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable || typeof key !== 'string') {
+          throw new Error('File retirement requires own enumerable declaration data.');
+        }
+        textBytes += Buffer.byteLength(key);
+        if (textBytes > 2_000_000) throw new Error('File retirement declaration text exceeds its finite bounds.');
+        Object.defineProperty(output, key, { value: copy(descriptor.value, depth + 1), enumerable: true });
+      }
+      return Object.freeze(output);
+    } finally { ancestors.delete(node); }
+  };
+  return copy(value, 0);
+}
+
+function originalDefaults(contracts: Readonly<Record<string, WireValue>>): readonly FrameworkOpaqueValueDefault[] {
+  return Object.freeze(Object.keys(contracts).flatMap(contract => {
+    const fields = data(contracts[contract], 'fields');
+    return Object.keys(fields as object).flatMap(field => {
+      const declaration = data(fields, field);
+      return Object.hasOwn(declaration as object, 'default') ?
+        [Object.freeze({ contract, field, value: data(declaration, 'default') as WireValue })] : [];
+    });
+  }));
+}
+
 /** Never runs cleanup on installation; the returned method is trusted host maintenance only. */
 export async function createNativeFileRetirementBinding(input: NativeFileRetirementInput) {
   // Capture original ports/configuration before the first source or database await.
@@ -83,12 +148,16 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   const digest = `sha256:${createHash('sha256').update(artifactJson).digest('hex')}`;
   const authority: FileRetirementAuthority = Object.freeze({ app: scope.app, stateOwner: scope.ownerPackage,
     stateStoreId, fileStoreId, receiver: Object.freeze({ app: scope.app, team: scope.owner, owner: scope.owner }) });
+  let verifyDeclarations = (): void => {};
   const verifyCurrent = async (): Promise<void> => {
+    verifyDeclarations();
     await verifyAssemblerModuleCapability(asm, artifact);
+    verifyDeclarations();
     if (JSON.stringify(artifact) !== artifactJson || physical.fileStoreId !== fileStoreId) throw new Error('File retirement original host correspondence changed.');
     const team = await identities.findTeamById(scope.owner);
     if (team === null || team.team_id !== scope.owner) throw new Error('File retirement requires the original current team.');
     await verifyAssemblerModuleCapability(asm, artifact);
+    verifyDeclarations();
     if (JSON.stringify(artifact) !== artifactJson || physical.fileStoreId !== fileStoreId) throw new Error('File retirement original host correspondence changed.');
   };
   await verifyCurrent();
@@ -99,11 +168,73 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   if (data(definition, 'id') !== scope.app) throw new Error('File retirement declared app differs from the owner.');
   const packages = data(definition, 'packages');
   data(packages, scope.ownerPackage);
+  const originalContracts = declarationWire(data(definition, 'contracts')) as Readonly<Record<string, WireValue>>;
+  const valueDefaults = originalDefaults(originalContracts);
+  const captures: { module: string; definition: unknown; invocations: Readonly<Record<string, WireValue>> }[] = [];
+  const captureInvocations = (modulePath: string, original: unknown) => {
+    const operations = data(original, 'operations');
+    const invocations: Record<string, WireValue> = {};
+    for (const callable of artifact.callables.filter(item => item.module === modulePath && item.kind === 'handler')) {
+      Object.defineProperty(invocations, callable.id, { value: declarationWire(data(data(operations, callable.id), 'invocation')), enumerable: true });
+    }
+    captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations) });
+  };
+  captureInvocations(first.path, definition);
+  verifyDeclarations = () => {
+    if (!equal(originalContracts, declarationWire(data(definition, 'contracts')))) throw new Error('File retirement original contracts changed after capture.');
+    for (const captured of captures) {
+      const operations = data(captured.definition, 'operations');
+      for (const id of Object.keys(captured.invocations)) {
+        if (!equal(captured.invocations[id], declarationWire(data(data(operations, id), 'invocation')))) {
+          throw new Error('File retirement original private invocation changed after capture.');
+        }
+      }
+    }
+  };
+  for (const emitted of artifact.modules.slice(1)) {
+    if (!artifact.callables.some(item => item.module === emitted.path && item.kind === 'handler')) continue;
+    const imported = await importVerifiedAssemblyModule(asm, emitted.path, artifact);
+    captureInvocations(emitted.path, data(imported, 'appDefinition'));
+    await verifyCurrent();
+  }
   await verifyCurrent();
   const loaded = await loadCanonicalDescriptors(asm, artifact);
   await verifyCurrent();
   if (artifact.models === undefined || loaded.valueTypes === undefined) throw new Error('File retirement requires complete model and value declarations.');
-  const inventory: FileReferenceInventory = immutable({ owner: scope.ownerPackage, snapshotId: `native-file:${digest}`, digest,
+  const inventoryIdentity = Object.freeze({ owner: scope.ownerPackage, snapshotId: `native-file:${digest}`, digest });
+  const declarations: FrameworkOpaqueDeclaration[] = [];
+  for (const callable of artifact.callables) {
+    if (callable.kind !== 'operation' && callable.kind !== 'handler') continue;
+    const emitted = artifact.modules.filter(candidate => candidate.path === callable.module);
+    const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
+    const sources = artifact.sources.filter(source => paths?.includes(source.path));
+    if (sources.length !== 1) throw new Error('File retirement requires one exact original callable source.');
+    const source = { kind: 'callable' as const, source: { ...sources[0]!, module: callable.module }, callable };
+    let operation: ArtifactOperation | undefined, canonical: CanonicalOperationDescriptor;
+    if (callable.kind === 'handler') {
+      const invocation = captures.find(captured => captured.module === callable.module)?.invocations[callable.id];
+      operation = invocation as unknown as ArtifactOperation | undefined;
+      if (operation?.name !== callable.id || operation.kind !== 'scenario') throw new Error('File retirement lacks its original private handler invocation.');
+      const privateLoaded = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [operation] }, { by: () => 'owner' });
+      canonical = data(privateLoaded.registry.get(callable.id), 'descriptor') as CanonicalOperationDescriptor;
+    } else {
+      const operations = artifact.operations?.filter(candidate => candidate.name === callable.id);
+      if (operations?.length !== 1) throw new Error('File retirement lacks its exact original callable operation.');
+      operation = operations[0]!;
+      canonical = data(loaded.registry.get(callable.id), 'descriptor') as CanonicalOperationDescriptor;
+    }
+    declarations.push({ id: `${callable.id}:inputs`, source,
+      profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
+    if (canonical.result !== undefined || operation.result !== undefined) {
+      if (canonical.result === undefined || operation.result === undefined || !equal(canonical.result, operation.result)) {
+        throw new Error('File retirement original callable results disagree.');
+      }
+      declarations.push({ id: `${callable.id}:result`, source,
+        profile: canonical.result.type === 'void' ? { kind: 'void', canonical: { type: 'void' }, artifact: { type: 'void' } } :
+          { kind: 'result', canonical: canonical.result, artifact: operation.result } });
+    }
+  }
+  const baseInventory = immutable({ ...inventoryIdentity,
     canonicalModels: loaded.models, artifactModels: artifact.models, valueTypes: loaded.valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });
   const route = Object.freeze({ app: scope.app, owner: scope.owner, db,
@@ -119,9 +250,22 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   await verifyCurrent();
   const expectedRevision = await store.readRevision();
   await verifyCurrent();
+  const originalSnapshot = await store.readInstalledSnapshot(scope.ownerPackage);
+  await verifyCurrent();
+  const snapshot = installed?.snapshot ?? originalSnapshot ?? { ...inventoryIdentity,
+    installedRevision: (expectedRevision + 1) as Revision, installedAt: clock.nowMs() };
+  const declarationSet: FrameworkOpaqueDeclarationSet = immutable({ id: `${inventoryIdentity.snapshotId}:declarations`,
+    inventory: inventoryIdentity, snapshot, sources: artifact.sources, canonicalModels: loaded.models,
+    artifactModels: artifact.models, valueTypes: loaded.valueTypes, originalContracts, valueDefaults, declarations });
+  if (installed !== null && !equal(installed.inventory.opaqueDeclarationSets, [declarationSet])) {
+    throw new Error('File retirement original installed declaration closure changed.');
+  }
+  // Reopen keeps the persisted original closure and installation facts; fresh
+  // source capture checks correspondence without rebuilding historical data.
+  const inventory: FileReferenceInventory = immutable({ ...baseInventory,
+    opaqueDeclarationSets: installed?.inventory.opaqueDeclarationSets ?? [declarationSet] });
   await store.installFileReferenceInventory({ expectedRevision, authority, inventory,
-    snapshot: installed?.snapshot ?? { owner: inventory.owner, snapshotId: inventory.snapshotId, digest,
-      installedRevision: expectedRevision, installedAt: clock.nowMs() } });
+    snapshot });
   await verifyCurrent();
   const bindings = createSqliteFileBindings(physical, { clock, intentTtlMs, urlBase,
     ...(policy === undefined ? {} : { policy }), fileRetirement: { storage: store, retention } });
