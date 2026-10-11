@@ -89,6 +89,24 @@ function installedInput(s: Awaited<ReturnType<typeof setup>>): MutableDiagnostic
   return { ...input, callbackRead: async () => true, resolveOrigin: async () => origin() };
 }
 
+type SourceRead = NonNullable<ViewerGenerationCallbackDiagnosticInput['callbackRead']>;
+interface SourceReadProfile {
+  parent?: ModelName;
+  fields: string[];
+  secretFields: string[];
+  grants: { fields: string[]; read: SourceRead }[];
+}
+function sourceInput(s: Awaited<ReturnType<typeof setup>>, parent = false) {
+  const input = installedInput(s);
+  const current: SourceReadProfile = { ...(parent ? { parent: PARENT } : {}), fields: ['request', 'title'],
+    secretFields: [], grants: [{ fields: ['request.id'], read: async () => true }] };
+  const ancestor: SourceReadProfile = { fields: ['title'], secretFields: [],
+    grants: [{ fields: ['title'], read: async () => true }] };
+  input.policy = new Map();
+  input.readPolicies = new Map([[MODEL, current], [PARENT, ancestor]]);
+  return { input, current, ancestor };
+}
+
 test('current delivery identity plus explicit callback grant exposes only safe immutable diagnostics without effects', async () => {
   for (const fields of [['request'], ['request.id']]) {
     const s = await setup(), revision = await s.store.readRevision();
@@ -413,5 +431,187 @@ test('installed origin and refusal outputs reject malformed shape, wrong source,
       assert.deepEqual(await queryGenerationCallbackDiagnosticsForViewer(input), { outcome: 'withheld' });
     } else await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), stateCode('validation'));
     assert.equal(s.reads, mode === 'refusal' ? 1 : 0);
+  }
+});
+
+test('source row and parent reads use observed accounts, tracked subjects and relations at the current checkpoint', async () => {
+  for (const mode of ['allowed', 'row-denied', 'parent-denied', 'account', 'subject', 'relation'] as const) {
+    const s = await setup({ parent: true });
+    const subject = await s.memberships.createMembership({ team_id: TEAM, user_id: 'Book', is_owner: false,
+      roles: [{ role: ROLE, granted_at: new Date(FIXED_NOW).toISOString(), granted_by: 'caller' }] });
+    if (mode === 'subject') await s.memberships.removeMembership(subject.membership_id);
+    if (mode === 'relation') await s.write({ op: 'update', model: PARENT, id: asId('shelf'), data: { title: 'Other shelf' } });
+    if (mode === 'account') await s.memberships.createMembership({ team_id: TEAM, user_id: 'other-account',
+      is_owner: false, roles: [] });
+    const { input, current, ancestor } = sourceInput(s, true), revision = await s.store.readRevision();
+    if (mode === 'account') input.context = { actorUserId: 'other-account', teamId: TEAM };
+    current.grants[0]!.read = async ({ context, row, revision: observedRevision, fence }) => {
+      assert.equal(row.id, ID); assert.equal(observedRevision, revision); assert.equal(fence, undefined);
+      assert.notEqual(context.memberships, s.memberships);
+      if (mode === 'row-denied' || row.createdBy !== context.actorUserId || context.teamId === null || row.parent == null) return false;
+      const membership = await context.memberships.findMembership(context.teamId, row.data.title as string);
+      const parent = await s.store.cohortLoad({ model: row.parent.model, id: row.parent.id, expectedRevision: observedRevision });
+      return membership?.status === 'active' && membership.roles.some(role => role.role === ROLE) && parent?.data.title === 'Shelf';
+    };
+    ancestor.grants[0]!.read = async ({ context, row, revision: observedRevision }) => {
+      assert.equal(row.id, 'shelf'); assert.equal(observedRevision, revision);
+      return mode !== 'parent-denied' && row.createdBy === context.actorUserId && context.membership?.status === 'active';
+    };
+    const result = await queryGenerationCallbackDiagnosticsForViewer(input);
+    assert.equal(result.outcome, mode === 'allowed' ? 'observed' : 'withheld', mode);
+    assert.equal(s.reads, mode === 'allowed' ? 1 : 0, mode);
+  }
+});
+
+test('source grant union authorizes only an exact live whole-delivery or identity selector', async () => {
+  for (const selected of ['request', 'request.id', 'request.error', 'request.progress', 'request.id.value', 'createdBy']) {
+    const s = await setup(), { input, current } = sourceInput(s);
+    current.grants = [{ fields: [selected], read: async () => true }];
+    const result = await queryGenerationCallbackDiagnosticsForViewer(input);
+    const allowed = selected === 'request' || selected === 'request.id';
+    assert.equal(result.outcome, allowed ? 'observed' : 'withheld', selected);
+    assert.equal(s.reads, allowed ? 1 : 0, selected);
+  }
+  for (const identityAllowed of [false, true]) {
+    const s = await setup({ parent: true }), { input, current } = sourceInput(s, true), ordinals: number[] = [];
+    current.grants = [
+      { fields: ['request.error', 'parent', 'createdBy'], read: async () => { ordinals.push(0); return true; } },
+      { fields: ['request.id'], read: async () => { ordinals.push(1); return identityAllowed; } },
+      { fields: ['title'], read: async () => { ordinals.push(2); return false; } },
+    ];
+    assert.equal((await queryGenerationCallbackDiagnosticsForViewer(input)).outcome,
+      identityAllowed ? 'observed' : 'withheld');
+    assert.deepEqual(ordinals, [0, 1, 2], 'every source grant executes in its declared order');
+    assert.equal(s.reads, identityAllowed ? 1 : 0);
+  }
+  const expanded = await setup(), { input, current } = sourceInput(expanded);
+  current.grants[0]!.fields = [...current.fields];
+  assert.equal((await queryGenerationCallbackDiagnosticsForViewer(input)).outcome, 'observed');
+});
+
+test('source identity secrets deny callback diagnostics while a separate result secret preserves identity authority', async () => {
+  for (const secret of ['request', 'request.id', 'request.error']) {
+    const s = await setup(), { input, current } = sourceInput(s);
+    current.secretFields = [secret];
+    // Whole-field projections carve out a nested secret. A wholly secret
+    // delivery has no legal identity selector, even if another field is readable.
+    current.grants[0]!.fields = [secret === 'request' ? 'title' : secret === 'request.id' ? 'request' : 'request.id'];
+    const result = await queryGenerationCallbackDiagnosticsForViewer(input);
+    assert.equal(result.outcome, secret === 'request.error' ? 'observed' : 'withheld', secret);
+    assert.equal(s.reads, secret === 'request.error' ? 1 : 0, secret);
+  }
+});
+
+test('source and mixed parent chains require present, live and currently readable parents', async () => {
+  for (const profile of ['source', 'legacy-parent', 'legacy-child'] as const) {
+    for (const mode of ['allowed', 'missing', 'archived', 'unreadable', 'revoked'] as const) {
+      const s = await setup({ parent: true, archive: true }), { input, ancestor } = sourceInput(s, true);
+      const parentMember = await s.memberships.createMembership({ team_id: TEAM, user_id: 'Shelf', is_owner: false,
+        roles: [{ role: ROLE, granted_at: new Date(FIXED_NOW).toISOString(), granted_by: 'caller' }] });
+      ancestor.grants[0]!.read = async ({ context, row }) => {
+        if (context.teamId === null) return false;
+        const member = await context.memberships.findMembership(context.teamId, row.data.title as string);
+        return mode !== 'unreadable' && member?.status === 'active' && member.roles.some(role => role.role === ROLE);
+      };
+      if (profile === 'legacy-parent') {
+        input.policy = s.policy();
+        input.readPolicies = new Map<ModelName, SourceReadProfile | { by: ByPredicate; parent?: ModelName }>([
+          [MODEL, sourceInput(s, true).current], [PARENT, { by: mode === 'unreadable' ? 'owner' :
+            { roleSubject: { role: ROLE, person: 'Shelf' } } }],
+        ]);
+      }
+      if (profile === 'legacy-child') {
+        input.policy = s.policy();
+        input.readPolicies = new Map<ModelName, SourceReadProfile | { by: ByPredicate; parent?: ModelName }>([
+          [MODEL, { by: 'members', parent: PARENT }], [PARENT, ancestor],
+        ]);
+      }
+      if (mode === 'archived') await s.write({ op: 'remove', model: PARENT, id: asId('shelf') });
+      if (mode === 'missing') {
+        const parent = await s.store.load(PARENT, asId('shelf')); assert.ok(parent);
+        await s.store.commit(makeBatch(await s.store.readRevision(), { writes: [
+          { kind: 'remove', model: PARENT, id: parent.id, expectedVersion: parent.version },
+        ] }));
+      }
+      if (mode === 'revoked') await s.memberships.removeMembership(parentMember.membership_id);
+      const result = await queryGenerationCallbackDiagnosticsForViewer(input);
+      assert.equal(result.outcome, mode === 'allowed' ? 'observed' : 'withheld', `${profile}/${mode}`);
+      assert.equal(s.reads, mode === 'allowed' ? 1 : 0);
+    }
+  }
+});
+
+test('source authority observes absent delivery without origin or Work and rejects a dangling association', async () => {
+  for (const dangling of [false, true]) {
+    const s = await setup({ association: false }), { input } = sourceInput(s);
+    const { resolveOrigin: _resolver, ...noOrigin } = input;
+    if (dangling) await s.associate();
+    if (dangling) await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(noOrigin), stateCode('validation'));
+    else assert.deepEqual(await queryGenerationCallbackDiagnosticsForViewer(noOrigin),
+      { outcome: 'no-association', revision: await s.store.readRevision() });
+    assert.equal(s.reads, 0);
+  }
+});
+
+test('source profiles require declared fields, safe selectors and strictly boolean read results', async () => {
+  for (const mode of ['boolean', 'nested-declaration', 'undeclared-selector', 'undeclared-secret', 'diagnostic-selector', 'missing-fields'] as const) {
+    const s = await setup(), { input, current } = sourceInput(s);
+    if (mode === 'boolean') current.grants[0]!.read = async () => 'true' as unknown as boolean;
+    if (mode === 'nested-declaration') current.fields = ['request.id', 'title'];
+    if (mode === 'undeclared-selector') current.grants[0]!.fields = ['undeclared'];
+    if (mode === 'undeclared-secret') current.secretFields = ['undeclared'];
+    if (mode === 'diagnostic-selector') current.grants[0]!.fields = ['request.callback_diagnostics'];
+    if (mode === 'missing-fields') delete (current as Partial<SourceReadProfile>).fields;
+    await assert.rejects(queryGenerationCallbackDiagnosticsForViewer({ ...input,
+      resolveOrigin: async () => { assert.fail('invalid source profile cannot resolve origin'); },
+    }), stateCode('validation'));
+    assert.equal(s.reads, 0, mode);
+  }
+});
+
+test('source profile fields and read functions are captured before predicate awaits', async () => {
+  for (const initialIdentity of [false, true]) {
+    const s = await setup(), { input, current } = sourceInput(s), laterCalls: number[] = [];
+    const firstFields = [initialIdentity ? 'request.id' : 'request.error'];
+    current.grants = [
+      { fields: firstFields, read: async () => {
+        firstFields[0] = initialIdentity ? 'request.error' : 'request.id';
+        current.fields.length = 0;
+        current.secretFields.push('request');
+        current.grants[1]!.read = async () => { assert.fail('replacement predicate must not execute'); };
+        await Promise.resolve(); return true;
+      } },
+      { fields: ['title'], read: async () => { laterCalls.push(1); return true; } },
+    ];
+    const result = await queryGenerationCallbackDiagnosticsForViewer(input);
+    assert.equal(result.outcome, initialIdentity ? 'observed' : 'withheld');
+    assert.deepEqual(laterCalls, [1]);
+    assert.equal(s.reads, initialIdentity ? 1 : 0);
+  }
+});
+
+test('source read and Work awaits refuse Identity revocation and State parent movement', async () => {
+  for (const stage of ['source-read', 'Work'] as const) {
+    for (const movement of ['identity', 'state'] as const) {
+      const s = await setup({ parent: true }), { input, current, ancestor } = sourceInput(s, true);
+      const parentMember = await s.memberships.createMembership({ team_id: TEAM, user_id: 'Shelf', is_owner: false,
+        roles: [{ role: ROLE, granted_at: new Date(FIXED_NOW).toISOString(), granted_by: 'caller' }] });
+      ancestor.grants[0]!.read = async ({ context, row }) => {
+        if (context.teamId === null) return false;
+        const member = await context.memberships.findMembership(context.teamId, row.data.title as string);
+        return member?.status === 'active';
+      };
+      const move = async () => {
+        if (movement === 'identity') await s.memberships.removeMembership(stage === 'Work' ? parentMember.membership_id : s.member.membership_id);
+        else await s.write({ op: 'update', model: PARENT, id: asId('shelf'), data: { title: 'Changed shelf' } });
+      };
+      if (stage === 'source-read') current.grants[0]!.read = async () => { await move(); return true; };
+      else input.readDiagnostics = async (request, store) => {
+        await s.input().readDiagnostics(request, store); await move(); return diagnostic();
+      };
+      await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), movement === 'state'
+        ? (error: unknown) => error instanceof FenceConflictError : stateCode('forbidden'));
+      assert.equal(s.reads, stage === 'Work' ? 1 : 0);
+    }
   }
 });
