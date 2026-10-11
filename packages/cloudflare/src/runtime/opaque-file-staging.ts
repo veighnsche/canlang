@@ -172,6 +172,9 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     if (authored?.kind !== 'delivery' || checked === undefined || !equal(authored, checked) ||
         original.target !== `${checked.capability}.${checked.operation}`) refuse('delivery lacks its exact original model/field/target declaration');
     const matches = set.declarations.filter(candidate => candidate.source.kind === 'delivery' &&
+      // Multiple original callables share this emitted module/source pair.
+      // Keep the installed result declaration issued for THIS exact caller.
+      candidate.id.startsWith(`${caller.callable.id}:delivery:`) &&
       candidate.profile.kind === 'provider-result' && equal(candidate.source.source, caller.source) &&
       equal(candidate.source.context.canonical, checked) && equal(candidate.source.context.artifact, authored) &&
       equal(candidate.profile.canonical, checked.result) && equal(candidate.profile.artifact, authored.result));
