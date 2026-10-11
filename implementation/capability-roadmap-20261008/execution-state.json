@@ -801,7 +801,7 @@
             "pattern": "For each row.request/row.cancellation/row.reconciliation: alert tone=error with require association?.error!=null; localized Submission/Stop/Recovery diagnostic caption; text association?.error?.code,association?.error?.message. For status failed/unknown with authorized error null/withheld, use existing alert tone=warning and localized details-unavailable caption; preserve independently rendered status and never disclose withholding reason. No generic-object text, raw provider response or new status/field/component.",
             "owning_inputs": "Existing DeliveryError/ReceiptError is exactly safe nonnull text code/message; unknown may carry diagnostic, failed incoming completion requires error. Compiler js.rs3840-3862 already selects whole error once per member projection, then locally carves code/message, never requests new error.code selectors. State receipt/join.ts335-360,438-469 rechecks current leaf authority and State revision; Work selected receipt projection leaves withheld error null. UI components.ts67-94/162-164 escapes scalar text; overlays.ts156-164 supplies role=alert. status value/caption alone cannot render these omitted diagnostics.",
             "callback_declaration": {
-              "state": "proposed_not_accepted; JEV3 exact payloads prepared_not_sent; original source hold preserved",
+              "state": "proposed_not_accepted; exact human-authorized JEV3 sent_once; advice split/uncertain; original source hold preserved",
               "existing_gap": "No accepted callback diagnostic property/expression or independent callback-read declaration exists: DESIGN310-312/475/822/838 and GRAMMAR90/98-99. A generic read report alone cannot produce this evidence, and existing error/progress selectors cannot mint callbackPolicy.",
               "candidate": "A: one compiler-owned nonstored typed request.callback_diagnostics selector, only for checked generation operations and their owning progressed ordinary handlers. Exact explicit policy field-selector rows lower independent checked callbackPolicy by/when with fields=[]; ordinary all-fields/whole-request/error/progress grants never implicitly cover this diagnostic surface. This protected-selector exception and the owning closed result are proposed, not existing syntax/type implementation.",
               "ordinary_grants": {
@@ -816,19 +816,69 @@
               "selection_and_placement": "Select the whole owning GenerationCallbackDiagnosticResult once at row.request?.callback_diagnostics; locally carve only checked closed members. Existing alert/text beside Chat225-234/246-249 and Creative202-206/239-242 labels Historical callback refusals, never current provider failure. Withheld/no association/unsupported cannot be converted to complete empty; complete empty is not current callback success. All bound/origin/current checks and snapshotAttribution unsupported remain.",
               "alternatives": "B dedicated callback_read Run.request by/when declaration plus typed property; C described existing read=true scope=authority report plus a new bounded pure evidence expression. Both preserve the same explicit current grants/parent chain and need accepted new source support; neither is an existing working escape. JEV may select D for a remaining concrete decision.",
               "advice": {
-                "state": "prepared_not_sent",
+                "state": "sent_once_human_authorized; advisory_split; no source/permission acceptance",
+                "request_commit": "0a842652",
                 "requests": [
                   "callback-source-request-1.json",
                   "callback-source-request-2.json",
                   "callback-source-request-3.json"
                 ],
+                "responses": [
+                  "callback-source-response-1.json",
+                  "callback-source-response-2.json",
+                  "callback-source-response-3.json"
+                ],
                 "destination": "https://api.typesafe.ai/v1/systemone",
-                "approval": "Earlier automatic review required exact repository payload/destination approval. Prior6cd82aa5 approval covers different bodies; these3 are not sent under it."
+                "authorization": "Human answered Authorize these three requests to the exact0a842652 payload/destination question. Installed authentication; exactly1 call per approved body, no context additions or retry. This consent does not accept the source proposal or release any source/permission/native hold.",
+                "results": [
+                  {
+                    "request": 1,
+                    "model": "jev-1.13.0",
+                    "type": "choice",
+                    "choice": "A",
+                    "confidence": 0.44,
+                    "probabilities": {
+                      "A": 0.58,
+                      "B": 0.06,
+                      "C": 0.06,
+                      "D": 0.3
+                    }
+                  },
+                  {
+                    "request": 2,
+                    "model": "jev-1.13.0",
+                    "type": "choice",
+                    "choice": "D",
+                    "confidence": 0.32,
+                    "probabilities": {
+                      "A": 0.29,
+                      "B": 0.11,
+                      "C": 0.11,
+                      "D": 0.49
+                    }
+                  },
+                  {
+                    "request": 3,
+                    "model": "jev-1.13.0",
+                    "type": "choice",
+                    "choice": "A",
+                    "confidence": 0.24,
+                    "probabilities": {
+                      "A": 0.43,
+                      "B": 0.11,
+                      "C": 0.11,
+                      "D": 0.35
+                    }
+                  }
+                ],
+                "uncertainty": "Choices A,D,A; confidences .44/.32/.24. A probabilities .58/.29/.43; D .30/.49/.35. Two nominal A selections are not consensus or authority; the near competing distributions keep the human decision open. API supplies no explanatory rationale.",
+                "disagreement_investigation": "Existing Compiler types.rs6541-6559/12561-12596 admits only the current delivery selectors/members; State receipt/grants.ts218-222 whole-field paths grant every ordinary receipt property. Simply extending that ordinary property path would silently authorize callbacks and violate A. Distinct State callbackPolicy boundary exists at callback-diagnostics.ts117-118, but Compiler js.rs7755-7798 emits only ordinary readGrants and no distinct callback-policy slot. A can preserve ordinary behavior only through accepted explicit protected-selector semantics and actual checked emission/native selection. Type::Union at types.rs268 alone does not establish a checked source mirror of the owning diagnostic union or its member selection. No extra model calls or qualified-component reruns.",
+                "proposal_after_advice": "Retain A as the smallest candidate to present for human acceptance: one explicit protected virtual selector uses the already separate runtime authority boundary and existing policy form, rather than another declaration or report expression. This is an implementation judgment, not a JEV consensus. Human must choose whether to accept the exact protected-selector/type/authority contract and narrow Chat parent-link disclosure or retain withholding pending another concrete source decision. Whole closed-result typing, exact checked callbackPolicy provenance and native selection are defining Compiler/Packages/Dev outputs after acceptance, not established APIs."
               },
               "human_release_decision": "Accept the exact source selection/declaration contract and independent ordinary/safe-recovery grants, including the explicit Chat Branch parent-link disclosure; then release ONLY the corresponding source-policy/diagnostic presentation correction at draft5a12eb9e CanChat26/28-29/225-234/246-249 and CanCreative29-30/202-206/239-242. No other draft/native preparation/provider/publication hold is released. Coordinator routes accepted declaration to Compiler; Dev binds the emitted consumer; Packages owns any necessary owning interface/presentation support.",
               "finite_exit": "Accepted source contract and scoped hold release, genuine Compiler checked type/selection/independent callbackPolicy and complete current conditional/parent facts; Dev actual original-source State projection and UI/MCP parity; unchanged22 producer checks reused. Original current-snapshot attribution and other whole-app criteria remain separate.",
-              "validation": "One direct exact draft5a12 source/grant/parent-anchor and JSON-body consistency check passed; all63 coordinator task top fields, other task records and shared state preserved. Focused read-only proposal/alternative/permission review found no concrete inconsistency. No product build/test, source edit, request transmission or implementation acceptance; qualified22 producer and native597 checks reused.",
-              "proposal_stage_review": "Coordinator focused source/authority proposal-stage review CLEAR: original drafts have no diagnostic selector or independent callback-read declaration; Chat recovery remains subject to live readable Branch ancestry. Existing terminal fields=parent selector supports the proposed narrow identity/safe-metadata/parent-link disclosure, which is a permission change and remains unaccepted. The three frozen Choice bodies compare new selector/explicit grant, dedicated declaration and typed read-report/expression fairly at the same current authority, correspondence and bounded-output constraints. No request has been transmitted, source implementation approved, private hold released or current-snapshot attribution accepted. Await the already-presented exact-payload transmission approval, then advice and the separate concrete source-contract/permission/hold-release decision. Existing historical diagnostic and ordinary reconcile component acceptance/results remain unchanged; complete checkpoint is unadvanced."
+              "validation": "All3 saved responses match their approved request bodies; exact requests were verified against0a842652 before sending. Focused defining-code investigation addressed the specific selector/authority/type uncertainty without implementation, retries or unchanged product tests. Existing original-anchor/top63 preservation and proposal-stage review results remain valid; current record changes only SEQ025.worker_update.",
+              "proposal_stage_review": "Coordinator focused advice/defining-code review CLEAR: the saved responses match the exact three human-authorized bodies and support A,D,A with confidence .44/.32/.24, without explanatory rationale. Ordinary whole-field grants currently cover ordinary receipt properties; an added diagnostic property must have explicit protected-selector semantics and distinct checked callback authority to avoid implicit disclosure. Existing Compiler types/selectors/emission do not yet implement that boundary. Candidate A remains an implementation proposal, not consensus, source acceptance or permission. The human must decide the exact source contract, narrow Chat parent-link disclosure and corresponding scoped source-hold release. Existing qualified producer/native results are reused; no new source code, requests, grants or whole-plan acceptance follow. Complete checkpoint remains unadvanced."
             }
           },
           "callback_facts": "Actual verified provider receipt/association and progressed notification commit together in text-generation-progress.ts66-136/invoke.ts6291-6366. Original notification has fresh occurrenceId, exact app/owner/package/event and payload only{delivery_id}; no captured provider sequence. Due routing retains exact source receipt handlers and private handler-occurrence route. invokeRetainedHandlerOccurrenceCanonical7766-7795 commits genuine false-require as failed route + Work occurrence receipt with zero business effects; closed safe code=require-false,message=handler requirement rejected the occurrence. Other technical errors leave pending/retry rather than stored terminal refusal. Provider receipt/progress is not rewritten. Terminal failed occurrence receipt is immutable and replays without execution.",
