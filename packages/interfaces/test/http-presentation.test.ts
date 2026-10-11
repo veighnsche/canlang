@@ -16,8 +16,10 @@ import type {
   RowQueryRunner,
   ColumnMeta,
   RowView,
+  PageSourceContext,
 } from '@canlang/contracts';
 import { deriveCsrfToken } from '@canlang/identity';
+import { decodeValue, encodeValue } from '@canlang/values';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
@@ -33,6 +35,86 @@ function fakeIdentity(): ResolvedIdentity {
     admitted_at: new Date(0).toISOString(),
   };
 }
+
+test('page now decodes the trusted admission instant and ignores source, request and renderer clock overrides', () => {
+  const principal = { ...fakeIdentity(), admitted_at: '1969-12-31T23:59:59.999Z' };
+  const source = buildPageSourceContext(principal);
+  assert.deepEqual(source.now, { kind: 'datetime', ms: -1n });
+  assert.equal(Object.isFrozen(source.now), true);
+  assert.equal(encodeValue('datetime', source.now), principal.admitted_at);
+  let clockReads = 0;
+  const context = buildPresentationContext({
+    request: testRequest('/hello?now=2099-01-01T00%3A00%3A00.000Z'), pathname: '/hello',
+    isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal,
+    source: { ...source, now: decodeValue('datetime', '2099-01-01T00:00:00.000Z') as typeof source.now },
+    clock: { nowMs: () => { clockReads++; throw new Error('renderer sampled the clock'); } },
+    query: fakeQuery(),
+  });
+  assert.deepEqual(context.now, source.now);
+  assert.equal(Object.isFrozen(context.now), true);
+  assert.equal(clockReads, 0);
+  for (const admitted_at of ['not-an-instant', '2026-02-30T12:00:00.000Z',
+    '2026-10-11T12:00:00Z', '2026-10-11T12:00:00.000+00:00', '+010000-01-01T00:00:00.000Z']) {
+    const invalid = { ...principal, admitted_at };
+    assert.throws(() => buildPageSourceContext(invalid));
+    assert.throws(() => buildPresentationContext({ request: testRequest('/hello'), pathname: '/hello',
+      isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal: invalid, source, query: fakeQuery() }));
+  }
+});
+
+test('full and partial page guards, discovery and data-only table queries share one admitted now', async () => {
+  let hostTime = Date.UTC(2026, 9, 11, 12, 0, 0, 123);
+  let expectedTime = hostTime;
+  let clockReads = 0, admissions = 0, renders = 0, queries = 0, bodies = 0;
+  const row: RowView = { id: 'visit-one', version: '3', fields: { title: 'Own visit' } };
+  const descriptor: PageDescriptor = {
+    owner: 'TestApp', path: '/hello', title: 'Hello',
+    admit: async context => {
+      admissions++;
+      const source = context as PageSourceContext;
+      assert.deepEqual(source.now, { kind: 'datetime', ms: BigInt(expectedTime) });
+      assert.equal(Object.isFrozen(source.now), true);
+      // An await and later clock movement do not move guards or the body boundary.
+      await Promise.resolve(); hostTime += 60_000;
+      return { admittedNow: source.now };
+    },
+    render: async (context, bindings) => {
+      renders++;
+      assert.deepEqual(context.now, bindings['admittedNow']);
+      assert.equal(encodeValue('datetime', context.now!), (context.principal as ResolvedIdentity).admitted_at);
+      return table({ context, model: 'TestApp.Visit', columns: ['title'],
+        where: { op: 'gte', field: 'from', value: encodeValue('datetime', context.now!) },
+        order: ['from'], page: true, occurrence: 'page:/hello/table:1', limit: 2,
+        renderRow: (actual, view) => {
+          bodies++; assert.equal(actual, row); assert.equal(view, context);
+          assert.deepEqual(view.now, bindings['admittedNow']);
+          return ['<p>Own visit body</p>'];
+        } });
+    },
+  };
+  const { deps } = await createTestDeps({ descriptors: [descriptor] });
+  const query: RowQueryRunner = async (principal, model, args) => {
+    queries++; assert.equal(model, 'TestApp.Visit');
+    const instant = new Date(expectedTime).toISOString();
+    assert.equal((principal as ResolvedIdentity).admitted_at, instant);
+    assert.deepEqual(args, { where: { op: 'gte', field: 'from', value: instant },
+      order: ['from'], page: true, occurrence: 'page:/hello/table:1', limit: 2 });
+    return { rows: [row], columns: [{ field: 'title', label: 'Title', type: 'text' }] };
+  };
+  const timed = { ...deps, query, clock: { nowMs: () => { clockReads++; return hostTime++; } } };
+  for (const partial of [false, true]) {
+    expectedTime = hostTime;
+    const before = clockReads;
+    const response = await handlePageRequest(timed, testRequest('/hello?now=untrusted', {
+      headers: partial ? { 'HX-Request': 'true' } : {},
+    }));
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /Own visit body/);
+    assert.equal(clockReads, before + 1, 'only owning Identity samples the request clock');
+  }
+  assert.equal(admissions, 3, 'full dispatch also admits discovery with the same source instant');
+  assert.equal(renders, 2); assert.equal(queries, 2); assert.equal(bodies, 2);
+});
 
 test('collection enum filters preserve occurrence defaults, explicit clears and the current request context', async () => {
   const occurrence = 'page:/réports/😀:list:1';
