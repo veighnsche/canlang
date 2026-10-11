@@ -12,6 +12,7 @@
  */
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
+import { canonicalUniqueFieldValue } from '../internal/unique-value.js';
 import { encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
@@ -1147,27 +1148,10 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     }
   };
 
-  /**
-   * Unique-key canonicalization: strings as-is; numbers/booleans via
-   * `String()`; bigints via `toString()`; null/undefined/missing claim
-   * nothing (nulls are not unique-constrained); anything else is a caller
-   * error, never a silent skip.
-   */
+  /** Owning field types distinguish user identities from arbitrary objects.
+   * All write phases and final net claims use the same canonical key. */
   const canonicalUnique = (value: unknown, key: string, def: InterimModelDef): string | null => {
-    if (value === null || value === undefined) {
-      return null;
-    }
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-      return String(value);
-    }
-    throw new StateError(
-      'validation',
-      `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(def.model as string)} ` +
-        'must be a scalar value.',
-    );
+    return canonicalUniqueFieldValue(value, key, def.model, def.fields[key]);
   };
 
   /**

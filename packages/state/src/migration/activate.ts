@@ -596,6 +596,7 @@ async function appendStagedPublish(
       Object.hasOwn(liveData, key) ? liveData[key] : undefined,
       key,
       source as string,
+      oldDef.fields[key],
     );
     if (oldValue === null) {
       continue;
@@ -604,7 +605,7 @@ async function appendStagedPublish(
     const sameKey =
       Object.hasOwn(desiredDef.fields, key) &&
       desiredDef.uniqueKeys.includes(key) &&
-      canonicalUniqueValue(newRaw, key, target) === oldValue;
+      canonicalUniqueValue(newRaw, key, target, desiredDef.fields[key]) === oldValue;
     if (renamed || !sameKey) {
       uniqueReleases.push({ model: source, keyName: key, keyValue: oldValue });
     }
@@ -614,6 +615,7 @@ async function appendStagedPublish(
       Object.hasOwn(stagedData, key) ? stagedData[key] : undefined,
       key,
       target,
+      desiredDef.fields[key],
     );
     if (newValue === null) {
       continue;
@@ -622,7 +624,7 @@ async function appendStagedPublish(
     const sameKey =
       Object.hasOwn(oldDef.fields, key) &&
       oldDef.uniqueKeys.includes(key) &&
-      canonicalUniqueValue(oldRaw, key, source as string) === newValue;
+      canonicalUniqueValue(oldRaw, key, source as string, oldDef.fields[key]) === newValue;
     if (renamed || !sameKey) {
       uniqueClaims.push({ model: row.targetModel, keyName: key, keyValue: newValue, recordId: row.recordId });
     }
@@ -675,6 +677,7 @@ function appendDropPublish(
       Object.hasOwn(liveData, key) ? liveData[key] : undefined,
       key,
       drop.model,
+      oldDef.fields[key],
     );
     if (value !== null) {
       uniqueReleases.push({ model: drop.model as ModelName, keyName: key, keyValue: value });
