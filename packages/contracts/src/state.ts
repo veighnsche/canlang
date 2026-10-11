@@ -133,6 +133,19 @@ export interface ScenarioReceiptQueryPlan {
   readonly id: string;
   readonly source: ScenarioReceiptSourceOrigin;
   readonly model: ModelName;
+  /** Optional contained domain; omission preserves existing unscoped plans.
+   * `model` must match the queried ArtifactModel.parent. Compiler associates
+   * the exact parent-selector source with an admitted reference parameter or
+   * a prior checked stored-reference dependency, never a literal row ID.
+   * State resolves it at the original owner/stage/physical store and checks
+   * source, ancestors and full Identity authority before reading children. */
+  readonly parent?: {
+    readonly source: ScenarioReceiptSourceOrigin;
+    readonly model: ModelName;
+    readonly origin:
+      | { readonly kind: 'admitted-reference'; readonly parameter: string }
+      | { readonly kind: 'stored-reference'; readonly dependencyId: string };
+  };
   readonly order: ReadonlyArray<OrderTerm>;
   readonly limit: number | null;
   readonly archived: 'exclude' | 'include';
@@ -153,6 +166,17 @@ export interface ScenarioReceiptQueryProjection {
 export interface ScenarioReceiptQueryObservation {
   readonly queryId: string;
   readonly revision: Revision;
+  /** Genuine retained parent witness for a scoped plan, including an empty
+   * candidates array. Required exactly when the matching plan has `parent`.
+   * State captures the original resolved row and secret-field evidence;
+   * Dev binds that observation privately to its real owner/stage/store.
+   * Recovery rechecks saved parent, ancestors and current full Identity
+   * authority even when no child matched. Shape alone grants no authority. */
+  readonly parent?: {
+    readonly model: ModelName;
+    readonly row: StoredRow;
+    readonly secretFields: readonly string[];
+  };
   /** Full original viewer domain, including false matches. Empty is meaningful. */
   readonly candidates: ReadonlyArray<{
     readonly row: StoredRow; readonly record: ProjectedRecord;

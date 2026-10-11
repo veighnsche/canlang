@@ -45,6 +45,19 @@ supplies genuine originating rows and Files observations, and Compiler supplies
 the exact original CALL-site dependency correspondence. This type implements
 none of those behaviors.
 
+Contained receipt queries add optional `ScenarioReceiptQueryPlan.parent` with
+the checked selector source, canonical parent model and either an
+`admitted-reference` parameter or prior `stored-reference` dependency ID. The
+parent model must match the queried `ArtifactModel.parent`. The corresponding
+`ScenarioReceiptQueryObservation.parent` retains the genuine `StoredRow` and
+secret-field evidence, including when `candidates` is empty. Both fields are
+omitted for existing unscoped queries; State must reject mismatched pairing.
+Compiler owns exact selector/origin correspondence; State owns resolution,
+child-domain filtering, capture and saved/current parent, ancestor and full
+Identity authority checks at the original owner/stage/physical store. Dev binds
+the real observation privately. These shapes grant no authority and implement
+none of those runtime checks.
+
 The additive opaque File ABI is declared in `state.ts` and exported by the root.
 `opaqueDeclarationSets` retains each original installed/source/model/value-type
 closure with complete canonical/artifact inputs, results and explicit void.

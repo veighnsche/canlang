@@ -11421,3 +11421,28 @@ application remain Dev-owned. Original contained/ancestor counts require U17
 parent scope from Capability/Dev; no business-field substitution.
 
 Coordinator independent defining analysis/type/source-admission and codegen/source-seal reviews CLEAR, finite original first-query source in LOCAL main after deadline. Owning412 and actualCLI/installedState1.13s/strict0/fmt reused; actual main locked offline CLI build passes. Eleven defining Compiler source/test/fixture paths imported; duplicate Statea7 and unrelated stopped alternate setup supplier excluded. Current State/native facade remains intact. Dev original private selected-row/current authority/rollback/replay execution and whole apps remain unfinished; all precise holds and complete checkpoint unchanged. Existing U17 view reconciled with accepted direct metadata and exact missing parent selector/witness.
+
+## 2026-10-11 — Contained receipt query parent (Contracts implemented; consumers unfinished)
+
+Extend the existing query plan and observation with optional `parent` fields.
+The plan names the checked selector source, canonical parent model and either
+the admitted reference parameter or prior checked stored-reference dependency.
+The observation retains the genuine parent `StoredRow` and secret-field evidence
+even for an empty child domain. Reuse existing source/model/row types; no new
+carrier, business field, table, registry or receipt version is needed. Omission
+preserves existing unscoped plans. Literal row IDs and reference-only witnesses
+cannot substitute for the declared origin and retained row.
+
+Pinned Node24 Contracts emission and final root type check pass. The focused
+assembly declaration group passes, including compile-only legacy, both origin,
+empty-domain and malformed-shape controls; finite independent source review is
+clear. These checks establish the ABI, not genuine runtime authority.
+Compiler must associate the exact selector/origin, Capability/State must match
+`ArtifactModel.parent`, filter the real child domain and capture/revalidate the
+saved parent, ancestors and full Identity authority at the original owner,
+stage and physical store, and Dev must bind genuine observations privately.
+State must enforce matching plan/observation scope even when no child matched.
+Original count/first consumer qualification remains unfinished; holds and
+unsupported provider-void remain unchanged.
+
+Coordinator independent defining source/shape review CLEAR and finite optional query-record ABI in LOCAL main after deadline. Exact legacy/both-origin/empty-witness and malformed shape controls reused; changed main Contracts/StateDO/CF/root emission0. Main newer call/File Contracts facts preserved by surgical insertion. Shared output counted once; original Capability filter/capture/current saved parent authority, Compiler source origin and Dev private native bindings remain unfinished. No authority from type shape, carrier/version/hold release or full-plan acceptance; complete checkpoint unchanged.
