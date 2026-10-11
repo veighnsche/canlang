@@ -4226,6 +4226,14 @@ impl<'a> Emitter<'a> {
                     format!("({param})=>{body_text}")
                 }
             }
+            IrExpr::PageTimePredicate(_) => {
+                self.unsupported(
+                    "page time predicate",
+                    "only its original checked Table where consumes this carrier",
+                    span,
+                );
+                self.throw_expr("unsupported page time predicate position")
+            }
             IrExpr::Unsupported { what, why } => {
                 self.unsupported(what, why, span);
                 self.throw_expr(&format!("{what} has no lowering"))
@@ -6536,6 +6544,29 @@ impl<'a> Emitter<'a> {
             return self.throw_expr("unsupported calendar agenda profile");
         }
         if node.factory == "table"
+            && let Some((_, value)) = node.props.iter().find(|(key, _)| key == "where")
+            && let IrExpr::PageTimePredicate(predicate) = &value.expr
+        {
+            if predicate.checked_parts(self.ir, node, value).is_none() {
+                self.unsupported(
+                    "table time predicate",
+                    "the original checked source and owning datetime field are required",
+                    value.span,
+                );
+                return self.throw_expr("unsupported table time predicate");
+            }
+            if node.props.iter().any(|(key, value)| {
+                key == "cursor" || (key == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            }) {
+                self.unsupported(
+                    "paginated table time predicate",
+                    "the original query time must be retained by the owning cursor contract",
+                    value.span,
+                );
+                return self.throw_expr("unsupported paginated table time predicate");
+            }
+        }
+        if node.factory == "table"
             && node
                 .props
                 .iter()
@@ -6796,7 +6827,20 @@ impl<'a> Emitter<'a> {
             ));
         }
         for (key, value) in &node.props {
-            let value = if node.factory == "history" && key == "record" {
+            let value = if node.factory == "table"
+                && key == "where"
+                && let IrExpr::PageTimePredicate(predicate) = &value.expr
+            {
+                let (operation, field) = predicate
+                    .checked_parts(self.ir, node, value)
+                    .expect("original table time predicate checked above");
+                self.stdlib.insert("encodeValue".to_string());
+                format!(
+                    "{{op:{},field:{},value:encodeValue(\"datetime\",c.now)}}",
+                    js_string(operation),
+                    js_string(field)
+                )
+            } else if node.factory == "history" && key == "record" {
                 original_history_row
                     .clone()
                     .expect("history row checked above")
@@ -7323,6 +7367,7 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             | IrExpr::DurationMs(_)
             | IrExpr::Date(_)
             | IrExpr::Datetime(_)
+            | IrExpr::PageTimePredicate(_)
             | IrExpr::Unsupported { .. } => false,
         }
     }

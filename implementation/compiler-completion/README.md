@@ -3984,3 +3984,33 @@ Original CanBook conditional membership/parent policy, native full application a
 every other named external/human hold remain. No fake time or original source rewrite.
 
 Coordinator finite checked-table-filter integration review CLEAR, reusing the focused independent owner source review and145 affected/strict0/fmt plus frozen graph22 results. Existing checked owned enum fields/cases/captions and literal/null/receiving-preference defaults feed the already accepted dispatcher/UI carrier with exact source occurrence. Current default/select/clear/sibling query, parent/order/protected row/version, source order/once/first failure and no-row privacy are preserved; nine unsupported source profiles refuse without artifacts. Raw unsupported table/filter/body is retained explicitly, including the corrected original Loyalty regression. This finite producer/installed consumer is accepted. Original425/429 paginated data-only comparisons and admitted request-time/current cursor correspondence, CanBook conditional membership/parent policy and full native application remain named owner joins; all holds and complete checkpoint remain.
+
+**Unfinished original paginated time workflow — finite ordinary predicate join, 2026-10-11.**
+
+Consume reviewed admission-time7f5 and exact Values facade48fc through safe FF
+e4977b24; freeze graph22/22 uncached13.643s. Private checked Table predicates
+retain actual owning nonnullable Datetime field/source and original >=now/<now
+comparison. Existing QueryPredicate receives the owning canonical wire codec of
+trusted Identity-admitted page time; no function, facade coercion or clock is
+invented. Original425/429 raw predicates/body remain, while paginated time retains
+explicit E6008 until the defining original query-time/cursor release.
+
+146 distinct affected assertions pass, including actual CLI/public verified
+modules, resolved Identity, generated child CRUD, Memory State canonical query,
+gte boundary/lt exclusion, enum defaults/clear/occurrences/order, protected
+row/version/seals, source gate/first failure and source/IR refusal controls.
+Strict all-target Clippy0 8.10s,fmt/diff0. Fixture parser/indentation corrections
+retry only failed scopes; unchanged144 affected results are reused. A genuine
+ordinary contained create exposed missing native parent issuance in Dev's
+createRecord and is separately routed/unqualified. The passing query fixture
+uses original Upcoming/Past direct model-domain shape and real generated CRUD,
+without fabricated rows or queries. Coordinator finite source review remains.
+
+Original cursor consultation requires human payload-specific approval; do not
+bypass it. Dev supplies that defining output and the separate native parent
+repair. Original CanBook conditional policy/full application and every precise
+hold remain. The next SEQ025 reader is released, but its authored diagnostic
+selection and independent callback by/when authority remain a Capability/source
+decision; existing provider error/progress grants cannot supply them.
+
+Coordinator independent finite checked IR/JS and installed native-control reviews CLEAR. Retain owning146 affected assertions, strict all-target Clippy0/fmt and frozen graph22 results without reruns. Checked nonnullable owning Datetime >=now/<now uses the existing QueryPredicate and exact Values codec of trusted Identity admission time, preserving original source/field correspondence, order/once/current canonical query/UI bindings and unsupported-source refusal. Genuine generated child CRUD seeds real State rows and qualifies the ordinary direct-model-domain query; it does not qualify the separately failing ordinary contained-source create. This finite ordinary predicate producer/consumer is accepted; original paginated cursor-time correspondence, Dev parent issuance, original conditional policies/full application, diagnostic selection/source authority and all precise holds remain separate. Complete file-tree checkpoint is unchanged.
