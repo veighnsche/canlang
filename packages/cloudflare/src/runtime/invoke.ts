@@ -46,10 +46,12 @@
 import type {
   ArtifactCohortDescriptor,
   ArtifactCommittedChangeDescriptor,
+  ArtifactOperation,
   BoundCapabilityRequest,
   CanTypeId,
   CanValue,
   CanonicalModelDescriptor,
+  CanonicalOperationDescriptor,
   CanonicalNominalResult,
   CanonicalValueTypes,
   ClaimId,
@@ -72,6 +74,8 @@ import type {
   FanoutId,
   FanoutProgress,
   FanoutSkippedReason,
+  FileReferenceStoragePort,
+  FrameworkOpaqueSourceRoute,
   HistoryEntry,
   InvocationContext,
   Membership,
@@ -103,6 +107,7 @@ import type {
   StoredRow,
   UniqueClaim,
   UniqueRelease,
+  WorkScope,
 } from "@canlang/contracts";
 import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
 import { parse as parseJavaScript } from 'acorn';
@@ -113,6 +118,7 @@ import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canla
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
+import { loadOpaqueFileStaging, type RetainedOpaqueFileSource } from './opaque-file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
 import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite } from '@canlang/state/invocation';
 import { stableStringify } from '@canlang/state/invocation';
@@ -3431,6 +3437,43 @@ export interface CanonicalMutationOpts {
   readonly files?: CanonicalFileBinding;
 }
 
+/** Bind the installed original closure to the actual current native descriptors.
+ * State alone lowers input profiles; Work alone produces physical staged rows. */
+async function nativeOpaqueFileStaging(loaded: LoadedCanonicalDescriptors,
+  opts: { readonly artifact: CompileArtifact; readonly asm: AssembledModules; readonly store: StoragePort },
+  scope: WorkScope, verifyOwner: () => Promise<void>) {
+  const store = opts.store as FileReferenceStoragePort;
+  if (typeof store.readFileReferenceInventory !== 'function') return null;
+  if (await store.readFileReferenceInventory(scope.ownerPackage) === null) return null;
+  await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+  await verifyOwner();
+  const operations = new Map<string, { canonical: CanonicalOperationDescriptor; artifact: ArtifactOperation }>();
+  for (const operation of opts.artifact.operations ?? []) {
+    const definition = generatedScenarioDef({ def: loaded.registry.get(operation.name) });
+    if (definition !== undefined) operations.set(operation.name, {
+      canonical: definition.descriptor as CanonicalOperationDescriptor, artifact: operation });
+  }
+  for (const callable of opts.artifact.callables.filter(value => value.kind === 'handler')) {
+    const definition = privateSourceMember(await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact), 'appDefinition');
+    const invocation = privateSourceMember(privateSourceMember(privateSourceMember(definition, 'operations'), callable.id), 'invocation');
+    if (!isUnknownRecord(invocation) || invocation.name !== callable.id || invocation.kind !== 'scenario') {
+      throw new AssemblyCorrespondenceError('Opaque File handler lacks its original private invocation.');
+    }
+    const privateLoaded = loaded.producers.registry.loadArtifactDescriptors(
+      { ...opts.artifact, operations: [invocation] }, { by: () => 'owner' });
+    operations.set(callable.id, { canonical: generatedScenarioDef({ def: privateLoaded.registry.get(callable.id) })!.descriptor,
+      artifact: invocation as unknown as ArtifactOperation });
+  }
+  if (loaded.valueTypes === undefined) throw new AssemblyCorrespondenceError('Opaque File declarations lack original Values types.');
+  return loadOpaqueFileStaging({ store, inventoryOwner: scope.ownerPackage, artifact: opts.artifact,
+    canonicalModels: loaded.models, valueTypes: loaded.valueTypes, operations, scope,
+    verify: async () => {
+      await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+      await verifyOwner();
+      await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+    } });
+}
+
 function seamDefKind(def: unknown, operation: string): string {
   if (!isUnknownRecord(def)) {
     throw new Error(
@@ -5514,8 +5557,42 @@ async function runScenarioExecution(
         // fence retries. Receipt replay never executes this callback.
         const ordinal = scheduleIndex++;
         const occurrenceId = occurrenceIds[ordinal] ??= crypto.randomUUID();
-        appendDeferredEffects(await stage({ key, scope: selected.scope, at: Number(at.ms),
-          event, payload: arguments_, occurrenceId }, selected.context));
+        const request = { key, scope: selected.scope, at: Number(at.ms), event, payload: arguments_, occurrenceId };
+        let effects = await stage(request, selected.context);
+        const opaque = await nativeOpaqueFileStaging(loaded, opts, selected.scope, async () => {
+          if (call.checkpoint?.owner !== selected.scope.owner) throw new Error('Scheduled File owner changed.');
+          if (actorUserId === null || teamId === null ||
+              await readCallerRolesSnapshot(opts.memberships, teamId, actorUserId) !== callerRolesSnapshot) {
+            throw new Error('Scheduled File receiving authority changed.');
+          }
+        });
+        if (opaque !== null) {
+          // Select the genuine producer family by its owning exported name.
+          const tables = await loadProducerModule('@canlang/work/kernel/tables', 'scheduled File row');
+          const model = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'scheduled File row') as ModelName;
+          const actual = (effects.writes ?? []).filter(write => write.kind === 'insert' &&
+            write.model === model && write.row.id === occurrenceId);
+          if (actual.length !== 1 || actual[0]!.kind !== 'insert' || call.checkpoint === undefined) {
+            throw new Error('Scheduled File has no exact genuine staged row and checkpoint.');
+          }
+          const row = actual[0]!.row;
+          const declaration = opaque.event(event);
+          const filePayloadOrigin = await opaque.prepare({ expectedRevision: call.checkpoint.revision,
+            model, row, field: 'payload', scope: selected.scope,
+            origin: { kind: 'event-input', occurrenceId: occurrenceId as OccurrenceId,
+              sourceOccurrence: occurrenceId as OccurrenceId, declaration,
+              lineage: { kind: 'schedule', key, replaces: row.data['replaces'] as OccurrenceId | null },
+              target: { kind: 'schedule' } },
+            projection: { kind: 'inputs', path: [], declarationId: declaration.inputsDeclarationId },
+            value: arguments_, identity: opts.identity, ...(opts.files === undefined ? {} : { files: opts.files }) });
+          for (const occurrence of opaque.occurrences({ kind: 'inputs', path: [],
+            declarationId: declaration.inputsDeclarationId }, arguments_)) {
+            seamGuards.push({ name: 'schedule.file.current', evaluate: async () => opts.files !== undefined &&
+              await opts.files.validate(occurrence.ref, opts.identity, opts.app) });
+          }
+          effects = await stage({ ...request, filePayloadOrigin }, selected.context);
+        }
+        appendDeferredEffects(effects);
       } catch (error) { deferredFailure(error); }
     },
     cancelDeferred: async (key, ownerPackage) => {
@@ -6402,6 +6479,7 @@ export interface CanonicalDueScheduleOpts {
   readonly store: StoragePort;
   readonly identities: IdentityStore;
   readonly now: () => number;
+  readonly files?: CanonicalFileBinding;
   /** Transport bounds only; retained with the source receipt for restart. */
   readonly cohortBounds?: FanoutTriggerJoinBounds;
 }
@@ -7300,7 +7378,22 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
   const revision = await opts.store.readRevision();
   const due = await stageDue(opts.due, context);
   if (due.status !== 'ready') return due;
-  await resolveDueOwner(opts, now);
+  const identity = await resolveDueOwner(opts, now);
+  const opaque = await nativeOpaqueFileStaging(loaded, opts, opts.due.scope,
+    async () => { await resolveDueOwner(opts, now); });
+  let retainedFileSource: RetainedOpaqueFileSource | undefined;
+  const opaqueRoutes: FrameworkOpaqueSourceRoute[] = [];
+  if (opaque !== null) {
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'scheduled File source');
+    const model = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'scheduled File source') as ModelName;
+    const row = await opts.store.load(model, opts.due.occurrenceId as RecordId);
+    const binding = due.occurrence.filePayloadOrigin;
+    if (row === null || binding === undefined || binding.origin.kind !== 'event-input') {
+      throw new Error('Scheduled File source lacks its exact original physical row/header.');
+    }
+    retainedFileSource = { model, row, field: 'payload', binding };
+    await opaque.revalidateSource(retainedFileSource, revision, opts.files);
+  }
   const writes: DomainWrite[] = [...due.effects.writes ?? []];
   const fanouts: Array<{ handler: string; fanoutId: string }> = [];
   const handlers: Array<{ handler: string; occurrenceId: string }> = [];
@@ -7313,9 +7406,37 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
       if (staged.status !== 'ready') return staged;
       writes.push(...staged.staged.writes);
       fanouts.push({ handler: route.handler, fanoutId: staged.staged.fanoutId });
+      if (opaque !== null) {
+        const membership = await loadProducerModule(STATE_FANOUT_MEMBERSHIP_SPECIFIER, 'source File cohort facts');
+        const readIntent = requireProducerFn(membership, 'readPrivateFanoutIntentRow', 'source File cohort facts') as
+          typeof import('@canlang/state/fanout/membership').readPrivateFanoutIntentRow;
+        const intentRows = staged.staged.writes.filter(write => write.kind === 'insert' && write.model === T34F7_FANOUT_INTENT_MODEL);
+        if (intentRows.length !== 1 || intentRows[0]!.kind !== 'insert') throw new Error('Source File cohort has no genuine staged intent.');
+        const frozen = readIntent(intentRows[0]!.row);
+        const declared = emittedPrivateCohort(route.definition, route.handler, opts.due.event, opts.due.scope.owner, captured, inputs);
+        opaqueRoutes.push({ kind: 'fanout', handler: opaque.callable(route.handler), cohort: declared.cohort,
+          fanoutId: staged.staged.fanoutId, members: frozen.members, memberCount: frozen.memberCount,
+          firstChunkCount: staged.staged.writes.filter(write => write.model === T34F7_FANOUT_CHILD_MODEL).length,
+          cursor: staged.staged.cursor });
+      }
     } else {
-      const staged = await stageHandler({ source: { occurrenceId: due.occurrence.occurrenceId,
-        event: opts.due.event, payload: due.occurrence.payload, scope: opts.due.scope }, handler: route.handler }, context);
+      const source = { occurrenceId: due.occurrence.occurrenceId,
+        event: opts.due.event, payload: due.occurrence.payload, scope: opts.due.scope };
+      let staged = await stageHandler({ source, handler: route.handler }, context);
+      if (opaque !== null && staged.status === 'ready') {
+        const declaration = opaque.event(opts.due.event), handler = opaque.callable(route.handler);
+        const filePayloadOrigin = await opaque.prepare({ expectedRevision: revision,
+          model: requireProducerString(handlerModule, 'WORK_HANDLER_OCCURRENCE_MODEL', 'source File handler') as ModelName,
+          row: staged.row, field: 'payload', scope: opts.due.scope,
+          origin: { kind: 'event-input', occurrenceId: staged.row.id as unknown as OccurrenceId,
+            sourceOccurrence: opts.due.occurrenceId as OccurrenceId, declaration,
+            lineage: { kind: 'source', sourceOccurrence: opts.due.occurrenceId as OccurrenceId }, target: { kind: 'handler', handler } },
+          projection: { kind: 'inputs', path: [], declarationId: declaration.inputsDeclarationId },
+          value: due.occurrence.payload, identity, ...(opts.files === undefined ? {} : { files: opts.files }), retainedSource: retainedFileSource! });
+        staged = await stageHandler({ source: { ...source, filePayloadOrigin: retainedFileSource!.binding },
+          handler: route.handler, filePayloadOrigin }, context);
+        if (staged.status === 'ready') opaqueRoutes.push({ kind: 'ordinary', handler, occurrenceId: staged.row.id as unknown as OccurrenceId });
+      }
       if (staged.status === 'refused') return staged;
       // A ready parent cannot already own a retained sibling from an earlier
       // partial intake; refuse disagreement instead of completing that split.
@@ -7325,7 +7446,23 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
     }
   }
   const result = { fanouts, bounds: { ...bounds }, handlers };
-  const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status: 'completed', result }, context);
+  const receiptInput = { occurrenceId: opts.due.occurrenceId, status: 'completed', result };
+  let terminal = await stageReceipt(receiptInput, context);
+  if (opaque !== null) {
+    const write = terminal.writes?.[0];
+    if (terminal.writes?.length !== 1 || write?.kind !== 'insert' || retainedFileSource?.binding.origin.kind !== 'event-input') {
+      throw new Error('Source routing has no exact genuine receipt/event origin.');
+    }
+    const row = write.row;
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'source File receipt');
+    const filePayloadOrigin = await opaque.prepareControl({ expectedRevision: revision,
+      model: requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'source File receipt') as ModelName,
+      row, field: 'result', scope: opts.due.scope,
+      origin: { kind: 'source-routing', occurrenceId: opts.due.occurrenceId as OccurrenceId,
+        revision: (revision + 1) as Revision,
+        recipe: { kind: 'scheduled-routes', event: retainedFileSource.binding.origin, bounds: { ...bounds }, routes: opaqueRoutes } } });
+    terminal = await stageReceipt({ ...receiptInput, filePayloadOrigin }, context);
+  }
   if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Private source cannot acknowledge provider work.');
   const batch: CommitBatch = { expectedRevision: revision,
     writes: [...writes, ...terminal.writes ?? []], history: [...due.effects.history ?? [], ...terminal.history ?? []],
@@ -7334,7 +7471,9 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
     uniqueClaims: [...due.effects.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
     uniqueReleases: [...due.effects.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
   producers?.join.assertFanoutChildJoin(batch);
+  if (opaque !== null) await opaque.revalidateSource(retainedFileSource!, revision, opts.files);
   await resolveDueOwner(opts, now);
+  await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
   await opts.store.commit(batch);
   return { status: 'completed' as const, occurrenceId: opts.due.occurrenceId, result };
 }
@@ -7661,7 +7800,7 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
             uniqueClaims: due.effects.uniqueClaims ?? [], uniqueReleases: due.effects.uniqueReleases ?? [],
             resolvedDefaults: {}, result: null };
         }
-        const status = refusal === undefined ? 'completed' : 'failed';
+        const status = refusal === undefined ? 'completed' as const : 'failed' as const;
         const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status,
           result: business.result ?? null, code: refusal?.code ?? null, message: refusal?.message ?? null }, stageContext);
         if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Due receipt cannot acknowledge outbox work.');
@@ -7693,6 +7832,7 @@ export interface CanonicalRetainedHandlerOccurrenceOpts {
   readonly store: StoragePort;
   readonly identities: IdentityStore;
   readonly now: () => number;
+  readonly files?: CanonicalFileBinding;
 }
 
 class RetainedHandlerOccurrenceChanged extends Error {
@@ -7761,6 +7901,17 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     }
   };
   await verifyCommitted();
+  const opaque = await nativeOpaqueFileStaging(loaded, opts, selector.scope, async () => {
+    await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+    await verifyCommitted();
+  });
+  let retainedFileSource: RetainedOpaqueFileSource | undefined;
+  if (opaque !== null) {
+    if (retained.occurrence.filePayloadOrigin === undefined) throw new Error('Retained handler lacks its original File header.');
+    retainedFileSource = { model: requireProducerString(handlerModule, 'WORK_HANDLER_OCCURRENCE_MODEL', 'retained File handler') as ModelName,
+      row: retained.row, field: 'payload', binding: retained.occurrence.filePayloadOrigin };
+    await opaque.revalidateSource(retainedFileSource, await opts.store.readRevision(), opts.files);
+  }
   const checkedCompletion = loaded.standardCompletions?.get(selector.event);
   const { inputs: fields, captured } = checkedCompletion === undefined
     ? checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload)
@@ -7793,6 +7944,9 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
       await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
       await verifyCommitted();
     }
+    if (opaque !== null) await opaque.revalidateSource(retainedFileSource!, batch.expectedRevision, opts.files);
+    await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+    await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
     return opts.store.commit(batch);
   } };
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: selector.handler, operationId,
@@ -7819,6 +7973,10 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         }
         await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
         await verifyCommitted();
+        if (opaque !== null) {
+          if (call.checkpoint === undefined) throw new Error('Retained File handler has no canonical checkpoint.');
+          await opaque.revalidateSource(retainedFileSource!, call.checkpoint.revision, opts.files);
+        }
         let business: CanonicalExecutionEffects;
         let refusal: { code: string; message: string } | undefined;
         try {
@@ -7836,10 +7994,27 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         const files = await stageFileReferences({ artifact: opts.artifact, effects: business, store: opts.store,
           identity, app: opts.app, refuse: text => { throw new Error(text); } });
         commitGuards = [...business.guards ?? [], ...files.guards];
-        const status = refusal === undefined ? 'completed' : 'failed';
-        const terminal = await stageTerminal({ ...selector, expectedVersion: current.row.version,
+        const status = refusal === undefined ? 'completed' as const : 'failed' as const;
+        const terminalInput = { ...selector, expectedVersion: current.row.version,
           receipt: { status, result: business.result ?? null, code: refusal?.code ?? null,
-            message: refusal?.message ?? null, recordedAtMs: call.context.now } }, currentContext);
+            message: refusal?.message ?? null, recordedAtMs: call.context.now } };
+        let terminal = await stageTerminal(terminalInput, currentContext);
+        if (opaque !== null && terminal.status === 'ready') {
+          const tables = await loadProducerModule('@canlang/work/kernel/tables', 'retained File receipt');
+          const model = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'retained File receipt') as ModelName;
+          const rows = (terminal.effects.writes ?? []).filter(write => write.model === model && write.kind === 'insert');
+          if (rows.length !== 1 || rows[0]!.kind !== 'insert' || call.checkpoint === undefined ||
+              retainedFileSource?.binding.origin.kind !== 'event-input') throw new Error('Retained File result lacks its exact genuine slot/event.');
+          const handler = opaque.callable(selector.handler);
+          const filePayloadOrigin = await opaque.prepare({ expectedRevision: call.checkpoint.revision,
+            model, row: rows[0]!.row, field: 'result', scope: selector.scope,
+            origin: { kind: 'handler-result', occurrenceId: current.row.id as unknown as OccurrenceId,
+              operationId: call.context.operationId, handler, event: retainedFileSource.binding.origin },
+            projection: { kind: 'result', path: [], declarationId: handler.resultDeclarationId,
+              presence: handler.artifact.result?.type === 'void' || refusal !== undefined && business.result == null ? 'no-result' : 'value' },
+            value: business.result ?? null, identity, ...(opts.files === undefined ? {} : { files: opts.files }), retainedSource: retainedFileSource });
+          terminal = await stageTerminal({ ...terminalInput, receipt: { ...terminalInput.receipt, filePayloadOrigin } }, currentContext);
+        }
         if (terminal.status !== 'ready') {
           throw new Error('Retained handler terminal join lost its exact current occurrence.');
         }

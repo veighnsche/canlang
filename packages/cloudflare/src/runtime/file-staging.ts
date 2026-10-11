@@ -13,6 +13,29 @@ export interface CanonicalFileBinding {
   revalidate?(saved: RetainedFinalizedFile, receiver: FinalizedFileReceiver): Promise<boolean>;
 }
 
+type RetainedFileObserver = (saved: RetainedFinalizedFile, verifySource: () => Promise<void>) =>
+  Promise<FinalizedFileObservation | null>;
+const retainedFileObservers = new WeakMap<CanonicalFileBinding, RetainedFileObserver>();
+
+/** Host composition only. The real factory pins its kernel and explicit policy;
+ * copied bindings cannot acquire retained receiving authority. */
+export function registerRetainedCanonicalFileObserver(files: CanonicalFileBinding, observe: RetainedFileObserver): void {
+  if (retainedFileObservers.has(files)) throw new Error('Retained File observer is already installed.');
+  retainedFileObservers.set(files, observe);
+}
+
+/** Call only after the owning retained source/slot/profile checks. A saved
+ * receiver is not a normal actor-null attach or disclosure credential. */
+export async function observeRetainedCanonicalFile(files: CanonicalFileBinding, saved: RetainedFinalizedFile,
+  verifySource: () => Promise<void>): Promise<FinalizedFileObservation | null> {
+  const observe = retainedFileObservers.get(files);
+  if (observe === undefined) return null;
+  await verifySource();
+  const observation = await observe(saved, verifySource);
+  await verifySource();
+  return observation;
+}
+
 export interface FileAttachment {
   readonly ref: string;
   readonly record: string;

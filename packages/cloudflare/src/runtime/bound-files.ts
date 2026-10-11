@@ -1,6 +1,8 @@
 import type { CompileArtifact, FileRetentionPolicy, RetainedFinalizedFile, ModelName, RecordId, ResolvedIdentity, StoragePort } from '@canlang/contracts';
 import type { FinalizedStorePort, StoredFileRecord } from '@canlang/files/ports';
+import { readFinalizedFileObservation } from '@canlang/files/finalize';
 import { createFileReferenceConsumer, StateError } from '@canlang/state';
+import { stableStringify } from '@canlang/state/invocation';
 import type { IdentityStore } from '@canlang/identity';
 import { assertAudience, IdentityError, resolveIdentity } from '@canlang/identity';
 import {
@@ -14,6 +16,7 @@ import type { AssembledModules } from './modules.js';
 import { invokeReadCanonical, loadCanonicalDescriptors } from './invoke.js';
 import type { CanonicalMembershipReader } from './invoke.js';
 import type { CanonicalFileBinding } from './file-staging.js';
+import { registerRetainedCanonicalFileObserver } from './file-staging.js';
 import type { TeamOwnerStorageBoundary } from '../worker/assembly.js';
 import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, verifyAssemblerModuleCapability } from './assembly-verification.js';
 export type { CanonicalFileBinding } from './file-staging.js';
@@ -25,7 +28,7 @@ export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?
     unattachedHorizonMs: retention.unattachedHorizonMs,
     retentionMs: retention.retentionMs,
   });
-  return {
+  const files: CanonicalFileBinding = {
     async observe(ref, identity, app) {
       if (policy === undefined || identity.actor === null) return null;
       return kernel.observeFile(ref, receiverFromIdentity(app, identity), policy);
@@ -54,6 +57,29 @@ export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?
       throw new Error('Committed file attachment requires retry.');
     },
   };
+  const observe = kernel.observeFile, revalidate = kernel.revalidateFile;
+  registerRetainedCanonicalFileObserver(files, async (saved, verifySource) => {
+    // This callback is private host composition. The caller verifies the actual
+    // retained source before the original receiver crosses any kernel seam.
+    if (policy === undefined || stableStringify(saved.retention) !== stableStringify(policy)) return null;
+    const receiver = Object.freeze({ ...saved.receiver });
+    const current = async (): Promise<void> => {
+      await verifySource();
+      if (kernel.observeFile !== observe || kernel.revalidateFile !== revalidate) {
+        throw new Error('Retained File receiving kernel changed.');
+      }
+    };
+    await current();
+    if (!await revalidate.call(kernel, saved, receiver, policy)) return null;
+    await current();
+    const observation = await observe.call(kernel, saved.ref, receiver, policy);
+    await current();
+    if (observation === null || stableStringify(readFinalizedFileObservation(observation)) !== stableStringify(saved)) return null;
+    if (!await revalidate.call(kernel, saved, receiver, policy)) return null;
+    await current();
+    return observation;
+  });
+  return files;
 }
 
 export interface BoundFileHandlerOpts {

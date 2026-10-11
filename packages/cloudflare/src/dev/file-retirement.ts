@@ -170,19 +170,23 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   data(packages, scope.ownerPackage);
   const originalContracts = declarationWire(data(definition, 'contracts')) as Readonly<Record<string, WireValue>>;
   const valueDefaults = originalDefaults(originalContracts);
-  const captures: { module: string; definition: unknown; invocations: Readonly<Record<string, WireValue>> }[] = [];
+  const captures: { module: string; definition: unknown; invocations: Readonly<Record<string, WireValue>>; events: Readonly<Record<string, WireValue>> }[] = [];
   const captureInvocations = (modulePath: string, original: unknown) => {
     const operations = data(original, 'operations');
     const invocations: Record<string, WireValue> = {};
     for (const callable of artifact.callables.filter(item => item.module === modulePath && item.kind === 'handler')) {
       Object.defineProperty(invocations, callable.id, { value: declarationWire(data(data(operations, callable.id), 'invocation')), enumerable: true });
     }
-    captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations) });
+    const events = declarationWire(data(original, 'events')) as Readonly<Record<string, WireValue>>;
+    captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events });
   };
   captureInvocations(first.path, definition);
   verifyDeclarations = () => {
     if (!equal(originalContracts, declarationWire(data(definition, 'contracts')))) throw new Error('File retirement original contracts changed after capture.');
     for (const captured of captures) {
+      if (!equal(captured.events, declarationWire(data(captured.definition, 'events')))) {
+        throw new Error('File retirement original event declarations changed after capture.');
+      }
       const operations = data(captured.definition, 'operations');
       for (const id of Object.keys(captured.invocations)) {
         if (!equal(captured.invocations[id], declarationWire(data(data(operations, id), 'invocation')))) {
@@ -192,7 +196,6 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
     }
   };
   for (const emitted of artifact.modules.slice(1)) {
-    if (!artifact.callables.some(item => item.module === emitted.path && item.kind === 'handler')) continue;
     const imported = await importVerifiedAssemblyModule(asm, emitted.path, artifact);
     captureInvocations(emitted.path, data(imported, 'appDefinition'));
     await verifyCurrent();
@@ -232,6 +235,34 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
       declarations.push({ id: `${callable.id}:result`, source,
         profile: canonical.result.type === 'void' ? { kind: 'void', canonical: { type: 'void' }, artifact: { type: 'void' } } :
           { kind: 'result', canonical: canonical.result, artifact: operation.result } });
+    }
+  }
+  const events = new Set<string>();
+  for (const captured of captures) {
+    for (const event of Object.keys(captured.events)) {
+      const original = data(captured.events, event);
+      // Owning lifecycle schemas are distinct from original declared events.
+      // The Compiler's positive own inputFields carrier identifies the latter.
+      if (!Object.hasOwn(original as object, 'inputFields')) continue;
+      if (events.has(event)) throw new Error('File retirement requires one exact original event module.');
+      events.add(event);
+      const emitted = artifact.modules.filter(candidate => candidate.path === captured.module);
+      const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
+      const sources = artifact.sources.filter(source => paths?.includes(source.path));
+      if (sources.length !== 1) throw new Error('File retirement requires one exact original event source.');
+      // These are detached bytes captured before subsequent imports/DB awaits;
+      // State owns their canonical field conversion, including File wrappers.
+      data(original, 'inputs');
+      const fields = data(original, 'inputFields');
+      if (!Array.isArray(fields)) throw new Error('File retirement requires complete original event input fields.');
+      const operation: ArtifactOperation = { name: event, kind: 'scenario', description: '',
+        inputs: { fields: fields as ArtifactOperation['inputs']['fields'] } };
+      const eventLoaded = loaded.producers.registry.loadArtifactDescriptors(
+        { ...artifact, operations: [operation] }, { by: () => 'owner' });
+      const canonical = data(eventLoaded.registry.get(event), 'descriptor') as CanonicalOperationDescriptor;
+      declarations.push({ id: `${event}:event-inputs`,
+        source: { kind: 'event', source: { ...sources[0]!, module: captured.module }, event },
+        profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
     }
   }
   const baseInventory = immutable({ ...inventoryIdentity,
