@@ -7,6 +7,7 @@ import {pathToFileURL} from 'node:url';
 const [root, artifactPath, scratch, profile] = process.argv.slice(2);
 const dateControl = profile === 'calendar';
 const editBody = profile === 'edit-body';
+const listColumns = profile === 'list-columns';
 const unboundOperation = dateControl ? 'ViewReuse.Holiday.create' : 'ViewReuse.save';
 const unboundMode = dateControl ? 'create' : 'scenario';
 registerHooks({resolve(specifier, context, next) {
@@ -45,7 +46,7 @@ assert.equal(page.title.sourceLocale, 'fr', 'checked owning source locale is can
 // These are the dispatcher-supplied authorized projections consumed by the
 // real collection factory. No hidden fields or privileged lookup are offered.
 const card = Object.freeze({id:uuidv7(FIXED_NOW, 1), version:'1', fields:Object.freeze({title:'Outer <Card>',flag:true})});
-const detail = Object.freeze({id:uuidv7(FIXED_NOW, 2), version:'1', fields:Object.freeze({label:'Nested <Detail>'})});
+const detail = Object.freeze({id:uuidv7(FIXED_NOW, 2), version:'1', fields:Object.freeze({label:'Nested <Detail>', ...(listColumns ? {rank:'7'} : {})})});
 const identity = makeIdentity({actor:null, team:null, membership:null});
 const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(93), 'view-reuse-fixture');
 const columns = Object.entries(generated.appDefinition.models['ViewReuse.Card'].fields)
@@ -53,7 +54,7 @@ const columns = Object.entries(generated.appDefinition.models['ViewReuse.Card'].
 const attributes = tag => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
 const decodeAttribute = value => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'")
   .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
-async function render(preferredLocale, {url='https://example.test/views', hasDetails=true, available=true, selected=false, protection=true, validVersion=true}={}) {
+async function render(preferredLocale, {url='https://example.test/views', hasDetails=true, available=true, selected=false, protection=true, validVersion=true, missingListColumn=false, missingListProjection=false, formCalls}={}) {
   const queries = [];
   const context = buildPresentationContext({
     request:new Request(url, {headers:{'Accept-Language':preferredLocale}}),
@@ -72,11 +73,20 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
       }
       assert.equal(model, 'ViewReuse.Detail', 'no extra model or hidden-field refetch');
       assert.equal(args.parent.id, card.id, 'nested query uses the supplied outer row identity');
-      return {rows:hasDetails?[detail]:[], columns:[]};
+      const firstDetail = queries.filter(item=>item.model === 'ViewReuse.Detail').length === 1;
+      const selectedDetail = missingListProjection && firstDetail ? {...detail, fields:{label:detail.fields.label}} : detail;
+      const detailColumns = listColumns ? [
+        {field:'label', label:'Detail label', type:'text'},
+        ...(!missingListColumn || !firstDetail ? [{field:'rank', label:'Detail rank', type:'int'}] : []),
+      ] : [];
+      return {rows:hasDetails?[selectedDetail]:[], columns:detailColumns};
     },
   });
-  const bindings = await page.admit(context);
-  const html = await page.render(context, bindings);
+  const renderingContext = formCalls === undefined ? context : {...context,
+    prepareForm:request=>{formCalls.push(request.operation);return context.prepareForm(request);},
+  };
+  const bindings = await page.admit(renderingContext);
+  const html = await page.render(renderingContext, bindings);
   if (!selected) {
     assert.deepEqual(queries.map(item => item.model), ['ViewReuse.Card'], 'absent/stale/revoked selection never queries details');
     assert.ok(!html.includes('<form') && !html.includes('role="tablist"'), 'unselected rows never render view controls');
@@ -96,10 +106,19 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
   assert.equal(new Set(queries.map(item => item.args.occurrence)).size, 3,
     'table and the two paged list expansions retain distinct occurrences');
   const oneUse=['Outer &lt;Card&gt;', 'Outer &lt;Card&gt;',
-    ...(hasDetails?['Nested &lt;Detail&gt;']:[]),'Outer &lt;Card&gt;', 'Outer &lt;Card&gt;'];
+    ...(hasDetails?(listColumns?['Nested &lt;Detail&gt;', 'Nested &lt;Detail&gt;']:['Nested &lt;Detail&gt;']):[]),'Outer &lt;Card&gt;', 'Outer &lt;Card&gt;'];
   assert.deepEqual(html.replace(/<[^>]*>/g, '').match(/Outer &lt;Card&gt;|Nested &lt;Detail&gt;/g), ['Outer &lt;Card&gt;',...oneUse,...oneUse],
     'each expansion shadows the nested row and restores its own outer row afterward');
   assert.ok(!html.includes('Outer <Card>') && !html.includes('Nested <Detail>'), 'projection text is escaped');
+  if (listColumns && hasDetails) {
+    const selected = [...html.matchAll(/<dl>[\s\S]*?<\/dl>/g)].map(match=>match[0]);
+    assert.equal(selected.length, 2, 'each nested list expansion renders its selected columns once');
+    for (const columns of selected) {
+      assert.ok(columns.indexOf('Detail rank') < columns.indexOf('Detail label'), 'authored selection preserves column order');
+      assert.match(columns, /<dd>[^]*7[^]*<\/dd>/);
+      assert.ok(columns.includes('Nested &lt;Detail&gt;'), 'authorized field rendering is escaped');
+    }
+  }
   const statuses=[...html.matchAll(/<span class="([^"]*)" aria-label="([^"]*)">/g)]
     .filter(match=>match[1].split(' ').includes('status'));
   assert.equal(statuses.length,2,'checked boolean status uses the existing native factory in both views');
@@ -274,6 +293,16 @@ await render('es', {url:unknownUrl.href});
 await render('es', {url:selectedUrl.href, available:false});
 await render('es', {url:selectedUrl.href, selected:true, hasDetails:false, protection:false});
 await render('es', {url:selectedUrl.href, selected:true, hasDetails:false, validVersion:false});
+if (listColumns) {
+  for (const [missing, refusal] of [
+    [{missingListColumn:true}, /missing columns: rank/],
+    [{missingListProjection:true}, /missing projected fields: rank/],
+  ]) {
+    const formCalls = [];
+    await assert.rejects(render('es', {url:selectedUrl.href, selected:true, ...missing, formCalls}), refusal);
+    assert.deepEqual(formCalls, ['ViewReuse.bind_card'], 'first rejected list stops later row/edit/unbound form preparation');
+  }
+}
 console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assembler → installed UI page admission/render',
   uses:2, sourceLocale:'fr', rerenderLocale:'nl', nestedRowRestored:true, distinctTabControls:true, nativeBooleanStatus:true, sharedEmptyDefault:true,
   nativeUnboundForms:true, distinctStableFormControls:true, declarationInputLabel:true,
@@ -282,4 +311,5 @@ console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assemb
   nativePagedTableAndLists:true, stablePagedOccurrences:true,
   nativeProjectedRowEdits:true, distinctStableEditControls:true, identityOnlyEditSeals:true,
   ...(editBody ? {nativeAuthoredCheckboxFirst:true, completeWritableRemainder:true} : {}),
+  ...(listColumns ? {nativeOrderedAuthorizedListColumns:true, missingColumnsAndProjectionRefuse:true} : {}),
   queriesPerRender:source.queries.map(item => item.model)}));

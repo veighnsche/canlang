@@ -32,9 +32,75 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
     let mut edits = std::collections::BTreeMap::new();
     let mut disclosures = 0;
     let mut date_controls = 0;
+    let mut disclosure_lists = 0;
     while let Some(node) = pending.pop() {
         pending.extend(&node.children);
         let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory == "list"
+            && (authored.contains("list row.Attempt columns=")
+                || authored.contains("list row.Notice columns="))
+        {
+            disclosure_lists += 1;
+            let IrExpr::Array(columns) = &node
+                .props
+                .iter()
+                .find(|(key, _)| key == "columns")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("original authored list column selection");
+            };
+            let columns = columns
+                .iter()
+                .map(|column| match &column.expr {
+                    IrExpr::Text(value) => value.as_str(),
+                    _ => panic!("checked list column path"),
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                columns,
+                if authored.contains("list row.Attempt columns=") {
+                    vec![
+                        "kind",
+                        "from",
+                        "until",
+                        "state",
+                        "host_ok",
+                        "room_ok",
+                        "host_unknown",
+                        "room_unknown",
+                        "host_released",
+                        "room_released",
+                    ]
+                } else {
+                    vec!["kind", "state"]
+                }
+            );
+            assert!(
+                node.props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true)))
+            );
+            let IrExpr::Name(_) = node
+                .props
+                .iter()
+                .find(|(key, _)| key == "parent")
+                .unwrap()
+                .1
+                .expr
+            else {
+                panic!("original list retains its scoped parent row");
+            };
+            assert!(
+                !diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.message.contains("columns")
+                        && diagnostic.primary.start >= node.span.start
+                        && diagnostic.primary.end <= node.span.end)
+            );
+        }
         if node.factory == "form" && node.props.iter().any(|(key, value)| key == "operation"
             && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.ClosedDay.create")) {
             let calendar = node.children.iter().find(|child| child.factory == "calendar")
@@ -177,6 +243,10 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         "both original view uses retain their authored disclosure: {diagnostics:?}"
     );
     assert_eq!(date_controls, 1, "original date control occurs once");
+    assert_eq!(
+        disclosure_lists, 4,
+        "original Attempt/Notice lists survive both view uses"
+    );
     assert!(
         !diagnostics
             .iter()
@@ -203,6 +273,82 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         ]),
         "{diagnostics:?}"
     );
+}
+
+#[test]
+fn original_ordered_list_columns_reach_the_authorized_installed_consumer() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/view-reuse.can")
+        .replace(
+            "Detail in Card {label:text label=\"Detail label\"}",
+            "Detail in Card {label:text label=\"Detail label\",rank:int label=\"Detail rank\"}",
+        )
+        .replace("list row.Detail", "list row.Detail columns=rank,label");
+    let input = scratch.path().join("list-columns.can");
+    let compile = |source: &str| {
+        std::fs::write(&input, source).unwrap();
+        Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap()
+    };
+    let compiled = compile(&source);
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    let consumer = Command::new("node")
+        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root)
+        .arg(&artifact)
+        .arg(scratch.path().join("staged"))
+        .arg("list-columns")
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        consumer.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumer.stdout),
+        String::from_utf8_lossy(&consumer.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumer.stdout));
+    for (name, refused) in [
+        (
+            "unknown-field",
+            source.replace("columns=rank,label", "columns=missing,label"),
+        ),
+        (
+            "missing-selection",
+            source.replace("columns=rank,label", "columns"),
+        ),
+    ] {
+        let output = compile(&refused);
+        assert_eq!(
+            output.status.code(),
+            Some(10),
+            "{name}: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            !artifact["diagnostics"].as_array().unwrap().is_empty(),
+            "{name}"
+        );
+        assert!(
+            artifact.get("modules").is_none(),
+            "{name}: refused source cannot publish"
+        );
+    }
 }
 
 #[test]
