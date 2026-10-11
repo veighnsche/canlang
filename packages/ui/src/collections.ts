@@ -14,6 +14,7 @@ import type {
   CsvImportProps,
   CsvImportReview,
   FilterCondition,
+  GalleryProps,
   ListProps,
   ListQueryArgs,
   MessageValue,
@@ -174,7 +175,7 @@ function sourceSearchForm(context: PresentationContext): string {
 }
 
 /** Refuse a silently truncated/missing summary from the query owner. */
-function sourceCount(props: ListProps, totalCount: number | undefined): string {
+function sourceCount(props: Pick<ListProps, "context" | "count">, totalCount: number | undefined): string {
   if (props.count === undefined) return "";
   if (totalCount === undefined || !Number.isSafeInteger(totalCount) || totalCount < 0) {
     throw new Error("list: authorized pre-pagination count is unavailable");
@@ -276,9 +277,99 @@ export async function list(props: ListProps): Promise<string> {
 }
 
 /** Shared source enum selections retain dispatcher and query ownership. */
+const GALLERY_LOADING = message("Loading image…", { nl: "Afbeelding laden…" });
+const GALLERY_ERROR = message("Image unavailable", { nl: "Afbeelding niet beschikbaar" });
+const GALLERY_PREVIEW = message("Preview image", { nl: "Afbeelding bekijken" });
+const GALLERY_ORIGINAL = message("Open original", { nl: "Origineel openen" });
+const GALLERY_CLOSE = message("Close preview", { nl: "Voorbeeld sluiten" });
+
+function galleryImageUrls(value: unknown): { previewUrl: string; originalUrl: string } | null {
+  if (value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+    throw new TypeError("gallery: image resolver must return own protected URL data");
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (Reflect.ownKeys(value).length !== 2) throw new TypeError("gallery: exact image URL fields required");
+  const urls: Record<string, string> = {};
+  for (const key of ["previewUrl", "originalUrl"]) {
+    const descriptor = descriptors[key];
+    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable ||
+        typeof descriptor.value !== "string" || !descriptor.value.startsWith("/") ||
+        descriptor.value.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(descriptor.value)) {
+      throw new TypeError("gallery: image URLs must be protected same-app relative paths");
+    }
+    const url = new URL(descriptor.value, "https://can.invalid");
+    if (url.origin !== "https://can.invalid" || url.pathname.startsWith("//")) {
+      throw new TypeError("gallery: image URLs must be protected same-app relative paths");
+    }
+    urls[key] = descriptor.value;
+  }
+  return { previewUrl: urls.previewUrl!, originalUrl: urls.originalUrl! };
+}
+
+/** Authorized original-image collection; the host owns all File URL authority. */
+export async function gallery(props: GalleryProps): Promise<string> {
+  if (typeof props.image !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(props.image) ||
+      typeof props.occurrence !== "string" || props.occurrence.trim() === "" ||
+      typeof props.context.resolveFileImage !== "function" || Object.hasOwn(props, "display")) {
+    throw new TypeError("gallery: checked image field, source occurrence and image resolver required; display unsupported");
+  }
+  if (props.controls !== undefined) {
+    assertControls(props.controls, "gallery");
+    assertConsistentContext(props.context, props.controls.context, "gallery");
+  }
+  const { conditions, where } = prepareSourceFilters(props, "gallery");
+  const result = await props.context.query(props.context.invocation, props.model,
+    { ...queryArgs(props, "gallery"), ...(where === undefined ? {} : { where }) });
+  const rows = [...result.rows];
+  const filterControls = sourceFilterControls(props, conditions, result.columns, rows.length === 0, "gallery");
+  const imageColumn = result.columns.find(column => column.field === props.image);
+  if (rows.length !== 0 && imageColumn?.type !== "file") throw new Error("gallery: authorized singular File image column required");
+  if (rows.length === 0 && !result.columns.some(column => column.field === props.image && column.type === "file") &&
+      !result.emptyDeclarations?.some(column => column.field === props.image && column.type === "file")) {
+    throw new Error("gallery: checked File image declaration required");
+  }
+  for (const row of rows) {
+    assertSourceFilterRow(props, row, "gallery");
+    const descriptor = Object.getOwnPropertyDescriptor(row.fields, props.image);
+    if (descriptor === undefined || !("value" in descriptor)) throw new Error("gallery: own projected image field required");
+  }
+  const heading = filterControls + (props.search === undefined ? "" : sourceSearchForm(props.context)) + sourceCount(props, result.totalCount);
+  const resolver = props.context.resolveFileImage;
+  const images: Array<{ previewUrl: string; originalUrl: string } | null> = [];
+  for (const row of rows) images.push(galleryImageUrls(await resolver({ model: props.model, record: row, field: props.image })));
+  const loading = escapeAttr(resolveCaption(GALLERY_LOADING, props.context));
+  const unavailable = escapeHtml(resolveCaption(GALLERY_ERROR, props.context));
+  const preview = escapeAttr(resolveCaption(GALLERY_PREVIEW, props.context));
+  const original = escapeHtml(resolveCaption(GALLERY_ORIGINAL, props.context));
+  const close = escapeHtml(resolveCaption(GALLERY_CLOSE, props.context));
+  const scope = JSON.stringify([props.context.path, props.model, props.parent?.id ?? null, props.occurrence]);
+  const titleId = `can-gallery-${Array.from({ length: scope.length }, (_, index) => scope.charCodeAt(index).toString(16).padStart(4, "0")).join("")}-title`;
+  const items: string[] = [];
+  for (const [index, row] of rows.entries()) {
+    const image = images[index]!;
+    const imageCaption = rowHeading(row, props.model, props.context);
+    const body = props.renderRow === undefined ? "" : await resolveChildren(await props.renderRow(row, props.context));
+    const thumbnail = image === null ? `<p role="status">${unavailable}</p>` :
+      `<button type="button" data-can-gallery-preview data-can-preview-url="${escapeAttr(image.previewUrl)}" data-can-original-url="${escapeAttr(image.originalUrl)}" aria-label="${preview}: ${imageCaption}">` +
+      `<img data-can-gallery-thumb src="${escapeAttr(image.previewUrl)}" loading="lazy" alt="${imageCaption}">` +
+      `<span data-can-gallery-thumb-state role="status"></span></button><a data-can-gallery-original href="${escapeAttr(image.originalUrl)}">${original}</a>`;
+    items.push(`<li>${thumbnail}${body}</li>`);
+  }
+  const body = rows.length === 0 ? (props.controls === undefined
+    ? await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION })
+    : await emptyBody(props.controls, props)) : `<ul class="can-gallery-grid">${items.join("")}</ul>`;
+  const html = heading + `<section data-can-gallery data-can-gallery-loading="${loading}" data-can-gallery-error="${escapeAttr(resolveCaption(GALLERY_ERROR, props.context))}">${body}` +
+    `<dialog data-can-gallery-dialog aria-labelledby="${titleId}"><h2 id="${titleId}">${escapeHtml(resolveCaption(GALLERY_PREVIEW, props.context))}</h2>` +
+    `<button type="button" data-can-gallery-close>${close}</button><p data-can-gallery-state role="status" aria-live="polite"></p>` +
+    `<img data-can-gallery-image hidden alt=""><a data-can-gallery-preview-original hidden>${original}</a></dialog></section>`;
+  return props.controls === undefined ? html + moreNote(props, result.nextCursor) : wrapWithControls(props.controls, html, props);
+}
+
 type SourceFilterProps = Pick<TableProps, "context" | "filter" | "defaults" | "occurrence" | "where">;
 
-export function prepareSourceFilters(props: SourceFilterProps, factory: "calendar agenda" | "table"): {
+export function prepareSourceFilters(props: SourceFilterProps, factory: "calendar agenda" | "table" | "gallery"): {
   readonly conditions: readonly FilterCondition[]; readonly where: unknown;
 } {
   if (props.defaults !== undefined && props.filter === undefined) {
@@ -304,7 +395,7 @@ export function prepareSourceFilters(props: SourceFilterProps, factory: "calenda
   return { conditions, where };
 }
 
-export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, factory: "calendar agenda" | "table"): void {
+export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, factory: "calendar agenda" | "table" | "gallery"): void {
   for (const field of props.filter ?? []) {
     if (!Object.hasOwn(row.fields, field.field)) {
       throw new Error(`${factory}: row "${row.id}" is missing projected filter field "${field.field}"`);
@@ -318,7 +409,7 @@ export function sourceFilterControls(
   conditions: readonly FilterCondition[],
   columns: readonly ColumnMeta[],
   empty: boolean,
-  factory: "calendar agenda" | "table",
+  factory: "calendar agenda" | "table" | "gallery",
 ): string {
   const fields = props.filter ?? [];
   if (fields.length === 0) return "";
@@ -339,7 +430,7 @@ export function sourceFilterControls(
     // accepted selection can still be cleared without disclosing any records.
     return conditions.map(condition => {
       const name = collectionFilterName(occurrence, condition.field);
-      return `<form method="get" action="${action}" data-can-${factory === "table" ? "table" : "agenda"}-filters>${hidden(key => key === name)}` +
+      return `<form method="get" action="${action}" data-can-${factory === "calendar agenda" ? "agenda" : factory}-filters>${hidden(key => key === name)}` +
         `<button type="submit" name="${escapeAttr(name)}" value="" class="btn">${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</button></form>`;
     }).join("");
   }
@@ -355,7 +446,7 @@ export function sourceFilterControls(
     return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
       `<select id="${escapeAttr(name)}" name="${escapeAttr(name)}" class="select">${options}</select>`;
   }).join("");
-  return `<form method="get" action="${action}" data-can-${factory === "table" ? "table" : "agenda"}-filters>${hidden(name => name.startsWith(prefix))}${controls}` +
+  return `<form method="get" action="${action}" data-can-${factory === "calendar agenda" ? "agenda" : factory}-filters>${hidden(name => name.startsWith(prefix))}${controls}` +
     `<button type="submit" class="btn">${escapeHtml(resolveCaption(APPLY_FILTERS, props.context))}</button></form>`;
 }
 

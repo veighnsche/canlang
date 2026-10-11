@@ -45,6 +45,8 @@
  * real DOM and by fakes): `startBrowserClient` takes the document,
  * window, and fetch explicitly and returns a stop handle.
  */
+import { bindGallery } from "./gallery.js";
+import type { ImageFetch, ImageFetchInit } from "./gallery.js";
 import { PollRegion, submitFetchPollFetch } from "./polling.js";
 import type { VisibilityLike } from "./polling.js";
 import { GeneratedSubmitError, submitGeneratedForm } from "../client.js";
@@ -96,7 +98,7 @@ interface FormDataConstructor {
 /** Minimal structural window (satisfied by DOM Window and fakes). */
 export interface WindowLike {
   readonly document: DocumentLike;
-  readonly location: { readonly hash: string; readonly pathname?: string; readonly search?: string };
+  readonly location: { readonly hash: string; readonly pathname?: string; readonly search?: string; readonly href?: string };
   addEventListener(type: string, listener: (event: EventLike) => void): void;
   removeEventListener(type: string, listener: (event: EventLike) => void): void;
   setTimeout(callback: () => void, ms: number): unknown;
@@ -107,6 +109,7 @@ export interface WindowLike {
 /** Client internals shared with binders (fetch, window, poll delivery). */
 export interface ClientInternals {
   readonly fetchImpl: SubmitFetch;
+  readonly imageFetch?: ImageFetch;
   readonly windowRef: WindowLike;
   readonly deliver?: BrowserClientOptions["deliverPollResponse"];
   readonly document: DocumentLike;
@@ -143,6 +146,7 @@ export function registeredBinderIds(): ReadonlyArray<string> {
 export interface BrowserClientOptions {
   readonly window: WindowLike;
   readonly fetchImpl: SubmitFetch;
+  readonly imageFetch?: ImageFetch;
   /** Visibility defaults to the document; native cache suspension supplies an adapter. */
   readonly visibility?: VisibilityLike;
   /**
@@ -877,6 +881,7 @@ registerBinder("guarded-form", bindGuardedForm);
 registerBinder("generated-form", bindGeneratedForm);
 registerBinder("once-action", (root) => bindOnceAction(root));
 registerBinder("split-collection", bindSplitCollection);
+registerBinder("gallery", bindGallery);
 
 /** Scan hooks: selector per core binder id. */
 const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
@@ -885,6 +890,7 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["generated-form", "form[data-can-generated-form]"],
   ["once-action", "[data-can-once]"],
   ["split-collection", "[data-can-split]"],
+  ["gallery", "[data-can-gallery]"],
 ];
 
 /** Live clients by document: starting twice returns the same client. */
@@ -916,6 +922,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
   }
   const internals: ClientInternals = {
     fetchImpl: options.fetchImpl,
+    ...(options.imageFetch === undefined ? {} : { imageFetch: options.imageFetch }),
     windowRef: options.window,
     document,
     visibility: options.visibility ?? document,
@@ -981,7 +988,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
             (entry.binder === 'guarded-form' && !entry.element.hasAttribute('data-can-guard')) ||
             (entry.binder === 'once-action' && !entry.element.hasAttribute('data-can-once')) ||
             (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form')) ||
-            (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')))) {
+            (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
+            (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')))) {
           bound.splice(index, 1);
           entry.stop();
         }
@@ -1039,9 +1047,9 @@ interface NativeWindow {
   removeEventListener(type: string, listener: (event: EventLike) => void): void;
   setTimeout(callback: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
-  fetch(url: string, init: SubmitFetchInit & { readonly credentials: string; readonly cache: string }): Promise<{
+  fetch(url: string, init: (SubmitFetchInit & { readonly credentials: string; readonly cache: string }) | ImageFetchInit): Promise<{
     readonly status: number; readonly redirected?: boolean;
-    readonly headers: { get(name: string): string | null }; text(): Promise<string>;
+    readonly headers: { get(name: string): string | null }; text(): Promise<string>; blob?(): Promise<Blob>;
   }>;
   readonly MutationObserver?: new (callback: () => void) => {
     observe(target: unknown, options: unknown): void; disconnect(): void;
@@ -1069,6 +1077,12 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
     fetchImpl: async (url, init) => {
       const response = await native.fetch(url, { ...init, credentials: 'same-origin', cache: 'no-store' });
       return { status: response.redirected === true ? 409 : response.status, headers: response.headers, text: () => response.text() };
+    },
+    imageFetch: async (url, init) => {
+      const response = await native.fetch(url, init);
+      if (typeof response.blob !== 'function') throw new Error('Gallery preview blob transport is unavailable.');
+      return { status: response.status, ...(response.redirected === undefined ? {} : { redirected: response.redirected }),
+        headers: response.headers, blob: () => response.blob!() };
     },
     onHtmxSwap: (rescan) => {
       const listener = () => rescan();

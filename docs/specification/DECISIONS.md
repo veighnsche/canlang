@@ -10638,3 +10638,76 @@ This control does not qualify installed source or native matching. Unchanged
 checks are reused; provider-void stays skipped and parent/precise holds remain.
 
 Coordinator defining type/guard source review CLEAR and LOCAL integration after deadline. Installed generation-profile is distinct from genuine runtime generation request/source/revision; legacy exact-request/capability/Judgment variants remain. State explicitly refuses the new static mode until Capability releases its authentic original instance matcher. Reuse Contracts public strict0/State0 and structural refusal1/1; changed normal Contracts/State/Work/Cloudflare0. Capability consumes the finite contract without a whole-plan wait, retaining original declaration/source/default/File census and Work correlation even pending/null/skipped. No native acceptance, authority, hold release or complete checkpoint advancement. Separate credential callthrough root17 remains pending.
+
+## 2026-10-11 — Query image gallery (defining consumer implemented; native route unfinished)
+
+Use Dev's released finite choice: responsive CSS displays exact authorized original
+PNG/JPEG bytes from a protected inline GET; original attachment access remains a
+separate current-authorized GET. No generated dimensions, derived thumbnail, cache
+or published File is introduced. The admitted scope resolves an original current
+row and checked single File field to protected preview/original URLs or null.
+Interfaces preserves its actual receiver and strips source-extra injection. URL
+possession supplies no authority; Dev owns genuine native correspondence and
+current credential/row/field/attachment/source/physical/lifetime/digest checks.
+
+Gallery reuses actual collection query/filter/default/order/search/count/page and
+scoped child behavior. Installed CSS supplies responsive layout. Every preview
+fetches fresh same-origin/no-store bytes with redirects refused, then decodes
+PNG/JPEG before display. Native modal/button semantics preserve keyboard/focus
+and authorized row captions. Ordinary empty/loading/unavailable states remain.
+Closing, stopping, retargeting or changing original ownership/outlets withholds
+stale work and releases blobs; delegated events cover retained-root row insertion.
+Acquisition/disposal attempts every owned release while preserving original errors.
+
+Contracts/UI/Interfaces emits and current browser build pass. Three owning gallery
+and five browser controls, thirteen catalog assertions, three discovery/class
+controls and two actual full/partial HTTP gallery controls are qualified. Caption
+double escaping and the catalog's two missing explicit helper/constant entries
+were corrected; only failures and the changed/new lifecycle controls repeated.
+Critical source review identified two lifecycle corrections, now inspected and
+tested. Unchanged results are reused; structural decoder controls certify their
+consumer logic, not a genuine native image host.
+
+A coordinator-found queued close race is corrected: ignore an old close event
+while the dialog is open for a newer activation, as the existing split binder
+does. Current UI emission/browser build and the single new queued-event control
+pass; current close still aborts/revokes/hides/restores focus. Prior controls are
+reused. The timer/DOM adapter checks this lifecycle, not full native qualification.
+
+Compiler owns original gallery Query/image-field/scoped source lowering. Dev owns
+the actual protected inline PNG/JPEG route, native binder/current credential hook
+and installed browser qualification. Those precise dependencies and the parent
+remain unfinished; provider-void stays skipped, V05 remains Dev/L7 and holds remain.
+
+## 2026-10-11 — Request-bound current browser caller (defining callback implemented; native consumer unfinished)
+
+Supply a third trusted createReadScope argument resolveCaller, issued only by the
+page dispatcher. Capture the original browser cookie, selected team, owning store
+and clock before awaiting admission; each call re-runs actual request Identity
+resolution rather than returning its earlier snapshot. Later request header
+changes or bearer grants cannot change this binding. Keep it host-only and strip
+source extras. Terminate it before scope cleanup and check lifetime both before
+and after resolution, so retained or pending calls cannot escape the request.
+
+Interfaces emission passes after two fixture type corrections. Three focused
+current controls pass: source isolation, real full/partial membership changes and
+session revocation across an awaited host step, and pending/late calls withheld
+without an extra lookup after closure. Earlier unchanged checks are reused. Dev
+forwards this exact callback through native scope assembly and compares current
+authority before/after physical File snapshots. No row/File authority, native
+qualification or precise hold release follows from the callback.
+
+Ten direct Cloudflare owner-page fixture calls now supply the required resolver
+using their original session token and actual Identity store/clock. Current
+Cloudflare emission and root typecheck pass; unchanged native/security checks
+are reused. The seven foreign native adaptations are now implemented as a
+patch against exact reviewed main8aeb22c4 sources: five wrappers forward the
+dispatcher's actual third callback unchanged, and two direct scope calls use
+their original token/store/clock-backed Identity resolution. Native/source/
+security assertions are preserved. The temporary changed normal type closure
+has six diagnostics for three missing local retained producer outputs, so it
+does not qualify the complete closure. Coordinator applies the patch with its
+reviewed producers and checks combined types; native callback forwarding remains
+Dev-owned. Temporary source copies are removed, with no native rerun or hold lift.
+
+Coordinator defining gallery, credential and exact common caller correction reviews CLEAR; integrated LOCAL main after deadline. Corrected queued close preserves the reopened activation and releases genuinely closed pages. Reuse9 gallery/browser,13 catalog,3 discovery/class,2 HTTP and3 original current-credential controls plus unchanged normal Contracts/UI/Interfaces/browser emissions. Ten owner-page calls, five native wrappers and two direct native calls retain actual original session/store/clock resolution and source/security assertions. Changed combined Cloudflare/root emission0; finite arity criterion closed. Actual source lowering, native protected image routes and native page current-authority observation remain distinct unfinished Compiler/Dev leaves. No unchanged native rerun, full-plan completion or hold release; complete filetree checkpoint unchanged.

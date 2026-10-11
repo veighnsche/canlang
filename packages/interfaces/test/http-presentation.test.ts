@@ -11,6 +11,7 @@ import type {
   PageDescriptor,
   PageReadScope,
   PageFilePresenter,
+  PageFileImageResolver,
   FileValue,
   PageDeliveryObserver,
   PageGenerationCallbackDiagnosticsObserver,
@@ -29,7 +30,7 @@ import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
 import { resolveRequestIdentity } from '../src/http/context.js';
-import { calendar, detailsDrawer, table, text } from '@canlang/ui';
+import { calendar, detailsDrawer, gallery, table, text } from '@canlang/ui';
 
 function fakeIdentity(): ResolvedIdentity {
   return {
@@ -1115,5 +1116,193 @@ test('closing the actual page scope withholds an unawaited pending File presenta
     assert.equal(await pending, null);
     assert.equal(await captured!.presentFile!(file), null); assert.equal(calls, 1);
     const body = await response.text(); assert.ok(!body.includes('late-file-link')); assert.ok(!body.includes(file.id));
+  }
+});
+
+
+test('image resolver context accepts only explicit trusted input and strips source extras', async () => {
+  const principal = fakeIdentity();
+  const row: RowView = { id: 'current-image-row', version: '4', fields: {} };
+  const locator = { model: 'TestApp.Image', record: row, field: 'image' };
+  let forgedCalls = 0, trustedCalls = 0;
+  const forged: PageFileImageResolver = async () => { forgedCalls++; return { previewUrl: '/forged-preview', originalUrl: '/forged-original' }; };
+  const trusted: PageFileImageResolver = async actual => { assert.equal(actual, locator); trustedCalls++; return null; };
+  const input = { request: testRequest('/images'), pathname: '/images', isPartial: true,
+    appDefaultLocale: 'en', csrfToken: '', principal, query: fakeQuery(),
+    source: { ...buildPageSourceContext(principal), resolveFileImage: forged, resolveCaller: forged } };
+  const absent = buildPresentationContext(input);
+  assert.equal(Object.hasOwn(absent, 'resolveFileImage'), false);
+  assert.equal(Object.hasOwn(absent, 'resolveCaller'), false);
+  const explicit = buildPresentationContext({ ...input, resolveFileImage: trusted });
+  assert.equal(explicit.resolveFileImage, trusted);
+  assert.equal(await explicit.resolveFileImage!(locator), null);
+  assert.equal(trustedCalls, 1); assert.equal(forgedCalls, 0);
+});
+
+test('full and partial galleries consume admitted image resolver rows with the original scope and terminal close', async () => {
+  for (const partial of [false, true]) {
+    for (const output of [{ previewUrl: '/authorized-preview', originalUrl: '/authorized-original' }, null]) {
+      const row: RowView = { id: 'current-image-row', version: '8', fields: { image: makeFileValue('original-image-file') } };
+      const locator = { model: 'TestApp.Image', record: row, field: 'image' };
+      let current: ResolvedIdentity | undefined, source: PageSourceContext | undefined;
+      let queries = 0, resolves = 0, closes = 0;
+      const events: string[] = [];
+      const scope: PageReadScope = {
+        query: async function (this: unknown, invocation, model, args) {
+          assert.equal(this, scope); assert.equal(invocation, current); assert.equal(model, locator.model);
+          assert.deepEqual(args, { occurrence: 'image-scope-gallery', limit: 25 }); queries++;
+          return { rows: [row], columns: [{ field: 'image', type: 'file', label: 'Image' }] };
+        },
+        resolveFileImage: async function (this: unknown, actual) {
+          assert.equal(this, scope); assert.equal(actual.record, row);
+          assert.equal(actual.model, locator.model); assert.equal(actual.field, locator.field);
+          resolves++; events.push('resolve-start'); await Promise.resolve(); events.push('resolve-done');
+          return output;
+        },
+        close: async function (this: unknown) {
+          assert.equal(this, scope); closes++;
+          assert.deepEqual(events, ['resolve-start', 'resolve-done', 'render-done']);
+          await Promise.resolve(); events.push('close-done');
+        },
+      };
+      const page: PageDescriptor = { owner: 'TestApp', path: '/image-scope', title: 'Images',
+        admit: async original => { source = original as PageSourceContext; return {}; },
+        render: async context => {
+          assert.equal(context.principal, current); assert.equal(context.actor, source!.actor);
+          assert.equal(Object.hasOwn(context, 'close'), false);
+          let bodies = 0;
+          const html = await gallery({ context, model: locator.model, image: locator.field,
+            occurrence: 'image-scope-gallery', renderRow: (actual, view) => {
+              assert.equal(actual, row); assert.equal(view, context); assert.equal(actual.version, '8');
+              bodies++; return ['<p>Original image row body</p>'];
+            } });
+          assert.equal(bodies, 1);
+          if (output === null) {
+            assert.ok(html.includes('Image unavailable'));
+            assert.ok(!html.includes('data-can-gallery-preview data-can-preview-url'));
+          } else {
+            assert.ok(html.includes('data-can-preview-url="/authorized-preview"'));
+            assert.ok(html.includes('data-can-original-url="/authorized-original"'));
+            assert.ok(html.includes('data-can-gallery-original href="/authorized-original"'));
+          }
+          events.push('render-done'); return html;
+        },
+      };
+      const { deps, identity } = await createTestDeps({ descriptors: [page] });
+      const response = await handlePageRequest({ ...deps, createReadScope: (principal: ResolvedIdentity, admitted: PageSourceContext) => {
+        current = principal; assert.equal(admitted, source);
+        assert.equal(principal.actor?.user_id, identity.userId); assert.equal(principal.team?.team_id, identity.teamId);
+        return scope;
+      } }, testRequest(`/image-scope?team=${identity.teamId}`, { cookie: identity.cookie,
+        ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+      assert.equal(response.status, 200); assert.ok((await response.text()).includes('Original image row body'));
+      assert.equal(queries, 1); assert.equal(resolves, 1); assert.equal(closes, 1);
+      assert.equal(events.at(-1), 'close-done');
+    }
+  }
+});
+
+
+test('full and partial page scopes re-resolve captured browser credentials and observe current membership and revocation', async () => {
+  const forged = () => { throw new Error('source resolver must not escape'); };
+  const principal = fakeIdentity();
+  const forgedSource = { ...buildPageSourceContext(principal), resolveCaller: forged };
+  const isolated = buildPresentationContext({ request: testRequest('/current-caller'), pathname: '/current-caller',
+    isPartial: true, appDefaultLocale: 'en', csrfToken: '', principal, query: fakeQuery(),
+    source: forgedSource });
+  assert.equal(Object.hasOwn(isolated, 'resolveCaller'), false);
+  for (const partial of [false, true]) {
+    let resolveCaller!: () => Promise<ResolvedIdentity>;
+    let admitted: PageSourceContext | undefined, initial: ResolvedIdentity | undefined;
+    let reads = 0, closes = 0;
+    const page: PageDescriptor = { owner: 'TestApp', path: '/current-caller', title: 'Current caller',
+      admit: async source => { admitted = source as PageSourceContext; return {}; },
+      render: async context => {
+        assert.equal(context.principal, initial); assert.equal(context.actor, admitted!.actor);
+        assert.equal(Object.hasOwn(context, 'resolveCaller'), false);
+        const before = await resolveCaller();
+        assert.equal(before.actor?.user_id, identity.userId); assert.equal(before.team?.team_id, identity.teamId);
+        assert.notEqual(before, initial);
+        const membership = await identity.store.findMembership(identity.teamId, identity.userId);
+        assert.ok(membership);
+        await Promise.resolve(); // Stand-in async host step; no File authority is simulated.
+        const changedRoles = [{ role: 'TestApp.changed_role', granted_at: initial!.admitted_at,
+          granted_by: identity.userId }];
+        await identity.store.setMembershipRoles(membership.membership_id, changedRoles);
+        request.headers.set('cookie', 'can_session=poisoned-replacement');
+        request.headers.set('authorization', 'Bearer foreign-grant');
+        const after = await resolveCaller();
+        assert.equal(after.actor?.user_id, identity.userId); assert.equal(after.team?.team_id, identity.teamId);
+        assert.deepEqual(after.membership?.roles, changedRoles);
+        await identity.store.revokeUserSessions(identity.userId);
+        await assert.rejects(resolveCaller(), error => error instanceof IdentityError);
+        return '<p>Current browser caller checked</p>';
+      },
+    };
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const originalStore = identity.store;
+    const store = { ...originalStore, async findSessionByTokenHash(hash: string) {
+      reads++; return originalStore.findSessionByTokenHash(hash);
+    } };
+    const scope: PageReadScope = { query: fakeQuery(), close: async function (this: unknown) {
+      assert.equal(this, scope); closes++;
+      const atClose = reads;
+      await assert.rejects(resolveCaller(), /Page read scope is closed/);
+      assert.equal(reads, atClose);
+    } };
+    const request = testRequest(`/current-caller?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) });
+    const response = await handlePageRequest({ ...deps, identity: { store },
+      createReadScope: (current: ResolvedIdentity, source: PageSourceContext, resolve) => {
+        initial = current; assert.equal(source, admitted); resolveCaller = resolve; return scope;
+      } }, request);
+    assert.equal(response.status, 200); assert.ok((await response.text()).includes('Current browser caller checked'));
+    assert.equal(closes, 1);
+    const afterClose = reads;
+    await assert.rejects(resolveCaller(), /Page read scope is closed/);
+    assert.equal(reads, afterClose);
+  }
+});
+
+test('page scope termination withholds pending current-caller resolution and late calls without another store read', async () => {
+  for (const partial of [false, true]) {
+    let resolveCaller!: () => Promise<ResolvedIdentity>;
+    let suspend = false, reads = 0, closes = 0;
+    let enter!: () => void, release!: () => void;
+    const entered = new Promise<void>(resolve => { enter = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let pending!: Promise<{ value?: ResolvedIdentity; error?: unknown }>;
+    const page: PageDescriptor = { owner: 'TestApp', path: '/pending-caller', title: 'Pending caller',
+      admit: async () => ({}), render: async context => {
+        assert.equal(Object.hasOwn(context, 'resolveCaller'), false);
+        suspend = true;
+        pending = resolveCaller().then(value => ({ value }), error => ({ error }));
+        await entered;
+        return '<p>Scope ended with a pending host read</p>';
+      } };
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const originalStore = identity.store;
+    const store = { ...originalStore, async findSessionByTokenHash(hash: string) {
+      reads++;
+      const value = await originalStore.findSessionByTokenHash(hash);
+      if (suspend) { enter(); await gate; }
+      return value;
+    } };
+    const scope: PageReadScope = { query: fakeQuery(), close: async function (this: unknown) {
+      assert.equal(this, scope); closes++; await Promise.resolve();
+    } };
+    const response = await handlePageRequest({ ...deps, identity: { store },
+      createReadScope: (_current: ResolvedIdentity, _source: PageSourceContext, resolve) => {
+        resolveCaller = resolve; return scope;
+      } }, testRequest(`/pending-caller?team=${identity.teamId}`, { cookie: identity.cookie,
+        ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(response.status, 200); assert.equal(closes, 1);
+    const afterClose = reads;
+    await assert.rejects(resolveCaller(), /Page read scope is closed/);
+    assert.equal(reads, afterClose);
+    release();
+    const result = await pending;
+    assert.equal(Object.hasOwn(result, 'value'), false);
+    assert.ok(result.error instanceof IdentityError); assert.match(result.error.message, /Page read scope is closed/);
   }
 });

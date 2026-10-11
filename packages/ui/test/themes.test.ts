@@ -33,6 +33,7 @@ const CAN_HOOKS = new Set([
   "can-account",
   "can-brand",
   "can-delivery",
+  "can-gallery-grid",
   "can-more",
   "can-region",
   "can-settings-panel",

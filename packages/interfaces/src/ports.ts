@@ -209,9 +209,12 @@ export interface PageHttpDeps {
    * native source-expression and receipt reads to the same current authority,
    * checked source and physical-store snapshot. No storage/mutation scope escapes.
    * source is the same frozen, preference-bearing context used for admission;
-   * renderer context/metadata cannot supply or replace it.
+   * renderer context/metadata cannot supply or replace it. resolveCaller rechecks
+   * the original browser credentials while this request is active; its result
+   * grants no File/row authority and is never exposed to rendering.
    */
-  readonly createReadScope?: (identity: ResolvedIdentity, source: PageSourceContext) => PageReadScope | Promise<PageReadScope>;
+  readonly createReadScope?: (identity: ResolvedIdentity, source: PageSourceContext,
+    resolveCaller: () => Promise<ResolvedIdentity>) => PageReadScope | Promise<PageReadScope>;
   /** The same checked operation catalog used by canonical HTTP submission. */
   readonly catalog?: SchemaCatalog;
   /** Explicit stable host-private protection; absent leaves bound forms unavailable. */

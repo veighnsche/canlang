@@ -55,6 +55,7 @@ describe("component catalog", () => {
       text: 1,
       content: 1,
       list: 1,
+      gallery: 1,
       table: 1,
       renderState: 1,
       collectionExportLink: 1,
@@ -148,12 +149,20 @@ describe("component catalog", () => {
     }
   });
 
-  it("covers all 68 approved Can words plus 23 infrastructure entries", () => {
+  it("pins the authorized original-image gallery contract", () => {
+    const entry = UI_CATALOG.entries.find(entry => entry.id === "gallery")!;
+    assert.equal(entry.js, "gallery"); assert.equal(entry.availability, "implemented");
+    assert.equal(entry.signature, "gallery(props: GalleryProps)");
+    assert.deepEqual(entry.attributes, ["image", "order", "search", "filter", "empty", "defaults"]);
+    assert.equal(entry.header, "query");
+  });
+
+  it("covers all 69 approved Can words plus 23 infrastructure entries", () => {
     const wordIds = [
       "accordion", "alert", "aura", "avatar", "badge", "breadcrumbs", "button",
       "calendar", "card", "carousel", "chat_bubble", "checkbox", "collapse",
       "countdown", "diff", "divider", "dock", "drawer", "dropdown", "fab",
-      "fieldset", "file_input", "filter", "footer", "hero", "hover_3d",
+      "fieldset", "file_input", "filter", "footer", "gallery", "hero", "hover_3d",
       "hover_gallery", "indicator", "input", "join", "kbd", "label", "link",
       "list", "loading", "mask", "megamenu", "menu", "mockup_browser",
       "mockup_code", "mockup_phone", "mockup_window", "modal", "navbar",
@@ -168,7 +177,7 @@ describe("component catalog", () => {
       "history", "copy", "board", "review", "csv-import", "file",
       "csv-review-form", "csv-preview", "csv-confirm",
     ];
-    assert.equal(wordIds.length, 68);
+    assert.equal(wordIds.length, 69);
     assert.equal(infraIds.length, 23);
     const words = new Set(wordIds);
     const infra = new Set(infraIds);
@@ -185,9 +194,9 @@ describe("component catalog", () => {
         assert.fail(`catalog entry ${entry.id} is neither an approved word nor known infrastructure`);
       }
     }
-    assert.equal(wordCount, 68);
+    assert.equal(wordCount, 69);
     assert.equal(infraCount, 23);
-    assert.equal(UI_CATALOG.entries.length, 91);
+    assert.equal(UI_CATALOG.entries.length, 92);
     for (const id of [...wordIds, ...infraIds]) {
       assert.ok(seen.has(id), `catalog is missing entry ${id}`);
     }
@@ -379,6 +388,7 @@ describe("component catalog", () => {
       // components.ts: internal text/heading fragments (card/title/text/content/state are cataloged).
       renderTextValue: "text-value fragment, not a component",
       rowHeading: "row-heading fragment, not a component",
+      detailsDrawer: "lazy source details renderer; display=drawer is a details modifier, not a standalone word",
       // collections.ts: control primitives (list/table/board/csv-import/export/print are cataloged).
       collectionPagination: "pagination control renderer, not a word",
       collectionShareControls: "share control renderer, not a word",
@@ -407,6 +417,7 @@ describe("component catalog", () => {
       generatedFields: "derived-input field mapper, not a component",
       generatedForm: "generated operation form, not a selectable word",
       projectGeneratedInputs: "submission-projection helper, not a component",
+      NATIVE_BOOLEAN_PRESENCE_PREFIX: "native Boolean presence field-name prefix, not a component",
       // client.ts: submit client for generated forms (T20b), not selectable words.
       applyDocumentRerender: "denial-document swap helper, not a component",
       applyFormRerender: "denial-fragment swap helper, not a component",
@@ -467,7 +478,7 @@ describe("component catalog", () => {
     }
   });
 
-  it("pins zero planned entries: all 91 are honestly implemented", () => {
+  it("pins zero planned entries: all 92 are honestly implemented", () => {
     const planned = UI_CATALOG.entries.filter(
       (entry) => entry.availability !== "implemented",
     );
@@ -476,6 +487,6 @@ describe("component catalog", () => {
       0,
       `planned entries remain: ${planned.map((entry) => `${entry.id}->${entry.js}`).join(", ")}`,
     );
-    assert.equal(UI_CATALOG.entries.length, 91);
+    assert.equal(UI_CATALOG.entries.length, 92);
   });
 });

@@ -7,6 +7,7 @@ import type {
   FilterCondition,
   ListQueryArgs,
   ListQueryResult,
+  GalleryProps,
   OrderSelector,
   PresentationContext,
   RowQueryRunner,
@@ -22,6 +23,7 @@ import {
   controlHref,
   csvImport,
   list,
+  gallery,
   table,
 } from "../src/collections.js";
 import { renderState, rowHeading } from "../src/components.js";
@@ -2539,5 +2541,110 @@ describe("csvImport", () => {
         "admits no appearance",
       );
     }
+  });
+});
+
+describe('gallery', () => {
+  it('preserves the actual authorized query and row scope while emitting original-image preview hooks', async () => {
+    const rows: RowView[] = [
+      { id: 'one', fields: { title: '<First>', image: { kind: 'file', id: 'private-one' }, state: 'ready' } },
+      { id: 'two', fields: { title: 'Second', image: null, state: 'ready' } },
+    ];
+    const columns: ColumnMeta[] = [{ field: 'image', label: 'Image', type: 'file' },
+      { field: 'state', label: 'State', type: 'enum:State', valueLabels: { ready: 'Ready' } }];
+    const filter = [columns[1]!], defaults = { state: 'ready' };
+    const parent = { model: 'Album', id: 'parent-original' }, order = ['title'];
+    const where = { op: 'eq', field: 'visible', value: true } as const;
+    const calls: SeenCall[] = [], resolved: RowView[] = [], bodies: RowView[] = [];
+    const context = makeContext({ path: '/pictures', pollUrl: '/pictures?team=team-one', searchQuery: 'literal',
+      query: stubRunner(calls, { rows, columns, totalCount: 3, nextCursor: 'next-one' }),
+      prepareCollectionFilters: (occurrence, actualFilter, actualDefaults) => {
+        assert.equal(occurrence, 'gallery:é'); assert.equal(actualFilter, filter); assert.equal(actualDefaults, defaults);
+        return [{ field: 'state', op: 'eq', value: 'ready' }];
+      },
+      resolveFileImage: async ({ model, record, field }) => {
+        assert.equal(model, 'Picture'); assert.equal(field, 'image'); resolved.push(record);
+        return record === rows[0] ? { previewUrl: '/files/read/one?inline=1&team=team-one', originalUrl: '/files/read/one?team=team-one' } : null;
+      },
+    });
+    const html = await gallery({ context, model: 'Picture', image: 'image', occurrence: 'gallery:é', parent,
+      where, order, search: ['title'], count: { label: 'Pictures' }, page: true, limit: 10, cursor: 'current', filter, defaults,
+      renderRow: (record, actualContext) => {
+        assert.equal(actualContext, context); assert.equal(record, rows[bodies.length]); bodies.push(record);
+        return [`<p>${parent.id}:${record.id}</p>`];
+      } });
+    assert.equal(calls.length, 1); assert.equal(calls[0]!.invocation, context.invocation);
+    assert.equal(calls[0]!.model, 'Picture');
+    assert.deepEqual(calls[0]!.args, { parent, where: { op: 'and', args: [where, { op: 'eq', field: 'state', value: 'ready' }] },
+      order, search: { fields: ['title'], query: 'literal' }, includeCount: true, limit: 10, cursor: 'current', page: true, occurrence: 'gallery:é' });
+    assert.equal(calls[0]!.args.parent, parent); assert.equal(calls[0]!.args.order, order);
+    assert.deepEqual(resolved, rows); assert.deepEqual(bodies, rows);
+    const page = await loadHtml(html);
+    try {
+      const root = page.document.querySelector('[data-can-gallery]')!;
+      const button = root.querySelector('button[data-can-gallery-preview]')!;
+      assert.equal(button.getAttribute('data-can-preview-url'), '/files/read/one?inline=1&team=team-one');
+      assert.equal(button.getAttribute('data-can-original-url'), '/files/read/one?team=team-one');
+      assert.ok(button.getAttribute('aria-label')!.includes('Preview image: <First>'));
+      assert.equal(button.querySelector('img')!.getAttribute('loading'), 'lazy');
+      assert.ok(button.querySelector('img')!.getAttribute('alt')!.includes('<First>'));
+      assert.equal(root.querySelector('[data-can-gallery-original]')!.getAttribute('href'), '/files/read/one?team=team-one');
+      const previewOriginal = root.querySelector('[data-can-gallery-preview-original]')!;
+      assert.equal(previewOriginal.hasAttribute('href'), false); assert.equal(previewOriginal.hasAttribute('hidden'), true);
+      assert.ok(root.querySelector('[data-can-gallery-thumb-state][role="status"]'));
+      assert.ok(root.querySelector('[data-can-gallery-state][aria-live="polite"]'));
+      assert.ok(root.textContent!.includes('Image unavailable'));
+      const dialog = root.querySelector('dialog')!;
+      assert.equal(page.document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent, 'Preview image');
+      assert.ok(page.document.querySelector('[data-can-gallery-filters]'));
+    } finally { await page.close(); }
+    assert.ok(!html.includes('private-one')); assert.ok(html.includes('rel="next"'));
+    assert.ok(!html.includes('alt="<First>"'));
+  });
+
+  it('renders a localized empty wrapper without treating declaration evidence as image metadata', async () => {
+    let resolves = 0, bodies = 0;
+    const context = makeContext({ preferredLocales: ['nl'], query: async () => ({ rows: [], columns: [],
+      emptyDeclarations: [{ field: 'image', type: 'file' }] }),
+      resolveFileImage: async () => { resolves++; throw new Error('empty collection must not resolve'); } });
+    const html = await gallery({ context, model: 'Picture', image: 'image', occurrence: 'empty-gallery',
+      renderRow: () => { bodies++; return ['body']; } });
+    assert.equal(resolves, 0); assert.equal(bodies, 0);
+    assert.match(html, /data-can-gallery/); assert.match(html, /Afbeelding laden/);
+    assert.match(html, /Afbeelding niet beschikbaar/); assert.ok(!html.includes('data-can-gallery-thumb src='));
+    assert.ok(!html.includes('data-can-gallery-preview data-can-preview-url'));
+  });
+
+  it('refuses invalid source joins and malformed protected views before authored bodies', async () => {
+    const row: RowView = { id: 'one', fields: { image: { kind: 'file', id: 'private-one' } } };
+    const columns: ColumnMeta[] = [{ field: 'image', label: 'Image', type: 'file' }];
+    let queries = 0, resolves = 0, bodies = 0, getters = 0;
+    const context = makeContext({ query: async () => { queries++; return { rows: [row], columns }; },
+      resolveFileImage: async () => { resolves++; return { previewUrl: '/inline', originalUrl: '/original' }; } });
+    const base: GalleryProps = { context, model: 'Picture', image: 'image', occurrence: 'gallery',
+      renderRow: () => { bodies++; return ['body']; } };
+    const { resolveFileImage: _resolver, ...withoutResolver } = context;
+    for (const props of [{ ...base, image: '' }, { ...base, image: 'image.path' }, { ...base, occurrence: '' },
+      { ...base, context: withoutResolver }, { ...base, display: 'split' }, { ...base, defaults: { state: null } }]) {
+      await assert.rejects(gallery(props as GalleryProps));
+    }
+    assert.equal(queries, 0); assert.equal(resolves, 0); assert.equal(bodies, 0);
+    for (const result of [{ rows: [row], columns: [] },
+      { rows: [row, { id: 'two', fields: Object.create(row.fields) }], columns }]) {
+      await assert.rejects(gallery({ ...base, context: { ...context, query: async () => result } }));
+      assert.equal(resolves, 0); assert.equal(bodies, 0);
+    }
+    for (const view of [{ previewUrl: 'https://foreign.test/image', originalUrl: '/original' },
+      { previewUrl: '//foreign.test/image', originalUrl: '/original' },
+      { previewUrl: '/inline#fragment', originalUrl: '/original' },
+      { previewUrl: '/inline', originalUrl: '/bad\\path' },
+      { get previewUrl() { getters++; return '/inline'; }, originalUrl: '/original' }]) {
+      await assert.rejects(gallery({ ...base, context: { ...context, resolveFileImage: async () => view } }), TypeError);
+      assert.equal(bodies, 0);
+    }
+    assert.equal(getters, 0);
+    const failure = new Error('current query refused');
+    await assert.rejects(gallery({ ...base, context: { ...context, query: async () => { throw failure; } } }), error => error === failure);
+    assert.equal(bodies, 0);
   });
 });

@@ -123,8 +123,8 @@ test('native authored RowHistory views retain queried rows and render real curre
       const host = await assembleWorker(artifact,asm,{store,identityStore:identities,now:clock.nowMs,
         http:{createPageHandler: supplied => {
           const deps = supplied as unknown as PageHttpDeps, createScope = deps.createReadScope; assert.ok(createScope);
-          pageDeps = {...deps,createReadScope:async (current, source) => {
-            const scope = await createScope(current, source); assert.ok(scope.readHistory);
+          pageDeps = {...deps,createReadScope:async (current, source, resolveCaller) => {
+            const scope = await createScope(current, source, resolveCaller); assert.ok(scope.readHistory);
             const query = scope.query, readHistory = scope.readHistory;
             return {...scope,query:async (...args:Parameters<typeof query>) => {
               const result = await query(...args); queried=result.rows; return result;

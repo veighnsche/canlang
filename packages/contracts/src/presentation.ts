@@ -250,6 +250,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly readHistory?: PageHistoryReader;
   /** Original File occurrence to current authorized link; a File ID alone grants nothing. */
   readonly presentFile?: PageFilePresenter;
+  /** Current admitted row/checked File field to protected image destinations. */
+  readonly resolveFileImage?: PageFileImageResolver;
   /**
    * Pinned minor-unit currency scales (lane 2 table) for money display;
    * absent scales fail money rendering loudly rather than guessing.
@@ -579,6 +581,7 @@ export interface PageReadScope {
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
   readonly presentFile?: PageFilePresenter;
+  readonly resolveFileImage?: PageFileImageResolver;
   readonly observeDelivery?: PageDeliveryObserver;
   readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
@@ -659,6 +662,21 @@ export interface ListProps {
   readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
+}
+
+/**
+ * Image collection over the same authorized query and original row scopes as
+ * list. The checked image selector names one readable owning File field.
+ * The admitted scope supplies protected PNG/JPEG URLs; URL possession conveys
+ * no authority and every preview/original open performs a fresh current check.
+ */
+export interface GalleryProps extends Omit<ListProps, "columns" | "display" | "renderRow"> {
+  readonly image: string;
+  /** Stable checked source occurrence for this collection's preview dialog. */
+  readonly occurrence: string;
+  readonly filter?: readonly ColumnMeta[];
+  readonly defaults?: Readonly<Record<string, string | null>>;
+  readonly renderRow?: ListProps["renderRow"];
 }
 
 export interface TableProps {
@@ -1824,6 +1842,26 @@ export interface FileLinkView {
  * Renderer props, copied IDs and request metadata cannot establish that binding.
  */
 export type PageFilePresenter = (file: FileValue) => Promise<FileLinkView | null>;
+
+/** Protected exact-original PNG/JPEG preview and attachment download URLs. */
+export interface PageFileImageView {
+  readonly previewUrl: string;
+  readonly originalUrl: string;
+}
+
+/**
+ * Trusted current page scope resolves only an original authorized query row
+ * and its checked single File field. Null withholds an unavailable occurrence.
+ * The host rechecks current Identity, row/field/attachment, source, physical
+ * lifetime, digest and actual PNG/JPEG policy on every media GET. No copied row,
+ * source extra, ID, MIME hint or URL can establish that association. Scope close
+ * terminates its private bindings and pending results.
+ */
+export type PageFileImageResolver = (input: {
+  readonly model: string;
+  readonly record: RowView;
+  readonly field: string;
+}) => Promise<PageFileImageView | null>;
 
 /** `file` display props: field wiring plus the authorized file links. */
 export interface FileProps extends FieldControlProps {

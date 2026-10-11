@@ -121,9 +121,9 @@ test('unchanged native TableFilters page preserves order, nullable defaults and 
         http: { formBindings, preferences, createPageHandler: deps => {
           pageDeps = deps as unknown as PageHttpDeps;
           const original = pageDeps.createReadScope; assert.ok(original);
-          const observed: PageHttpDeps = { ...pageDeps, createReadScope: async (admitted, source) => {
+          const observed: PageHttpDeps = { ...pageDeps, createReadScope: async (admitted, source, resolveCaller) => {
             assert.equal(admitted.admitted_at, identity.admitted_at);
-            const scope = await original(admitted, source);
+            const scope = await original(admitted, source, resolveCaller);
             return { ...scope, query: async (invocation, model, args) => {
               const sequence = querySequence++;
               const result = await scope.query(invocation, model, args);
@@ -185,7 +185,7 @@ test('unchanged native TableFilters page preserves order, nullable defaults and 
       const context = buildPresentationContext({ request: new Request('https://table-page.example.test/table-filters?now=2099-01-01'),
         pathname: '/table-filters', isPartial: true, appDefaultLocale: 'en', csrfToken: '', principal: identity,
         source: { ...source, now: decodeValue('datetime', '2099-01-01T00:00:00.000Z') } as PageSourceContext,
-        query: (await pageDeps.createReadScope!(identity, buildPageSourceContext(identity))).query, clock: { nowMs: () => FIXED_NOW + 999999 } });
+        query: (await pageDeps.createReadScope!(identity, buildPageSourceContext(identity), () => resolveIdentity(identities, { session_token: token }, { clock }))).query, clock: { nowMs: () => FIXED_NOW + 999999 } });
       assert.equal(encodeValue('datetime', context.now!), identity.admitted_at);
       assert.equal(encodeValue('datetime', source.now), identity.admitted_at);
       const unauthenticated = await render(new URLSearchParams(), false); assert.equal(unauthenticated.response.status, 403);
