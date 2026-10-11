@@ -33,7 +33,7 @@ vi.mock("node:child_process", async original => {
     directDeploy.bunCalls++;
     const output = args.find(arg => arg.startsWith("--outfile="))?.slice(10);
     if (output === undefined) throw new Error("missing mocked Bun output");
-    writeFileSync(output, "export const createMcpHandler = () => {}; export const createArtifactRegistry = () => {}; export const createArtifactCatalog = () => {}; export class IdentityError extends Error {} export const receiverFromIdentity = () => {}; export const handleOperationRequest = () => {}; export const handlePageRequest = () => {}; export const handlePagePreferencePost = () => {}; export const handleAuthRequest = () => {}; export const SESSION_EXPIRES_MS = 1; export const createSourceFormBindings = () => {}; ");
+    writeFileSync(output, "export const createMcpHandler = () => {}; export const createArtifactRegistry = () => {}; export const createArtifactCatalog = () => {}; export class IdentityError extends Error {} export const receiverFromIdentity = () => {}; export const handleOperationRequest = () => {}; export const handlePageRequest = () => {}; export const handlePagePreferencePost = () => {}; export const handleAuthRequest = () => {}; export const SESSION_EXPIRES_MS = 1; export const createSourceFormBindings = () => {}; export const parseJsonBody = async () => ({}); export const JSON_BODY_MAX_BYTES = 1048576; ");
     return "";
   } };
 });

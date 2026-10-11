@@ -1,16 +1,19 @@
 /** Actual native app-root artifact, installed preview, Identity and canonical HTTP/MCP. */
 import { randomBytes } from 'node:crypto';
+import { compileFunction, constants } from 'node:vm';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 import { deriveCsrfToken } from '@canlang/identity';
 import { distribution as valuesDistribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../src/dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../src/dev/source-capture.js';
-import { compileCapturedSingleFile } from '../src/dev/compiler-check.js';
-import { createInstalledLocalPreviewBuilder } from '../src/dev/preview-host.js';
 
 const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+// Use the actual installed Node closure. Transformed Vitest namespace accessors
+// cannot establish the browser producer's required original own-data exports.
+const nativeImport = compileFunction('return import(url)', ['url'], {
+  importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+}) as (url: string) => Promise<unknown>;
+
 type RecordView = { id: string; version: string; data: { name: string; enabled: boolean } };
 type Mutation = { status: string; records: RecordView[] };
 function operationId(): string {
@@ -21,6 +24,14 @@ function operationId(): string {
 }
 
 it('serves one app-owned CRUD model with shared app reads and saved-outcome replay', async () => {
+  const { prepareLocalPreviewCapture } = await nativeImport(new URL('../dist/dev/preview-inputs.js', import.meta.url).href) as
+    typeof import('../src/dev/preview-inputs.js');
+  const { captureIsCurrent, captureSingleFileSource } = await nativeImport(new URL('../dist/dev/source-capture.js', import.meta.url).href) as
+    typeof import('../src/dev/source-capture.js');
+  const { compileCapturedSingleFile } = await nativeImport(new URL('../dist/dev/compiler-check.js', import.meta.url).href) as
+    typeof import('../src/dev/compiler-check.js');
+  const { createInstalledLocalPreviewBuilder } = await nativeImport(new URL('../dist/dev/preview-host.js', import.meta.url).href) as
+    typeof import('../src/dev/preview-host.js');
   const capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: repo,
     appPath: join(repo, 'tests/integration/can-dev-server/AppOwnedPreview.can'),
     compilerPath: join(repo, 'compiler/target/debug/can'), catalogPath: fileURLToPath(valuesDistribution.catalog),
@@ -73,7 +84,13 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
       expect(selected.status).toBe(200);
       const page = await request('/'); expect(page.status).toBe(200);
       expect(await page.text()).toContain('App-owned preview');
-      const granted = await request('/mcp/grants', { method: 'POST', headers: { 'content-type': 'application/json' },
+      const missingCsrf = await request('/mcp/grants', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ client_id: 'app-owned-preview-missing-csrf' }) });
+      expect(missingCsrf.status).toBe(403);
+      const refusedGrant = await missingCsrf.json() as { error: string; token?: unknown };
+      expect(refusedGrant.error).toBe('Invalid or missing CSRF token.');
+      expect(Object.hasOwn(refusedGrant, 'token')).toBe(false);
+      const granted = await request('/mcp/grants', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
         body: JSON.stringify({ client_id: 'app-owned-preview-consumer' }) });
       expect(granted.status).toBe(200);
       const grant = await granted.json() as { token: string }; expect(typeof grant.token).toBe('string');

@@ -64,6 +64,12 @@ checks. Their authenticated MCP discovery must be empty when the checked app
 declares no operations. Readiness probes the declared root page, or the first
 declared page when the app has no root route.
 
+Cookie-authenticated `POST /mcp/grants` requires an active team membership,
+`application/json`, and the session-derived `x-csrf-token` (or `_csrf` body
+field). The header takes precedence. The owning JSON parser caps the body at
+1 MiB; unsupported or malformed JSON returns 400, overflow 429 and missing or
+invalid CSRF 403. Protected preview readiness forwards its session-derived CSRF token.
+
 ## `can-platform` CLI (L1 IR-03 delegation target)
 
 Thin `can run|test|build|deploy` entries exec this binary, resolved from
