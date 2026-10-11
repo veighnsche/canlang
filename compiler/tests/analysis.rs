@@ -1098,7 +1098,9 @@ fn draft_outcome_table() {
         ("draft/CanRefer.can", 75),
         ("draft/CanRent.can", 538),
         ("draft/CanReport.can", 16),
-        ("draft/CanShift.can", 100),
+        // Stored commitments reuse their owning request kind, clearing only
+        // the five distinct enum-owner comparisons and assignments.
+        ("draft/CanShift.can", 95),
         ("draft/CanStats.can", 28),
         // The location-name sort derives from an imported Location. This
         // isolated row keeps that import opaque; the full source closure
