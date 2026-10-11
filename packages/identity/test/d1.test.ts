@@ -13,6 +13,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { removeMember } from '../src/teams/membership.js';
 import { IdentityError } from '../src/ports.js';
 import type { IdentityStore } from '../src/ports.js';
 import { createFrozenClock } from '../src/testing.js';
@@ -139,6 +143,7 @@ test('D1 snapshot refuses incomplete, skewed and corrupt facts instead of narrow
 
 /** Adapt node:sqlite to the store's minimal D1 surface (no new deps). */
 function wrapSqlite(db: DatabaseSync): IdentityD1Database {
+  const executions = new WeakMap<object, () => unknown>();
   return {
     prepare(sql: string) {
       return {
@@ -156,7 +161,7 @@ function wrapSqlite(db: DatabaseSync): IdentityD1Database {
             return value;
           });
           const stmt = db.prepare(sql);
-          return {
+          const bound = {
             async first<T>(): Promise<T | null> {
               const row = stmt.get(...args) as T | undefined;
               return row ?? null;
@@ -168,12 +173,26 @@ function wrapSqlite(db: DatabaseSync): IdentityD1Database {
               return { meta: { changes: Number(stmt.run(...args).changes) } };
             },
           };
+          executions.set(bound, () => stmt.run(...args));
+          return bound;
         },
       };
     },
     async exec(sql: string): Promise<unknown> {
       db.exec(sql);
       return undefined;
+    },
+    async batch(statements) {
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const results = statements.map(statement => {
+          const execute = executions.get(statement);
+          assert.ok(execute, 'batch accepts only this real SQL adapter statements');
+          return execute();
+        });
+        db.exec('COMMIT');
+        return results;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
     },
   };
 }
@@ -222,6 +241,7 @@ test('ensureIdentitySchema is idempotent and creates every table', async () => {
     'identity_email_tokens',
     'identity_invitations',
     'identity_mcp_grants',
+    'identity_member_removals',
     'identity_memberships',
     'identity_oauth_clients',
     'identity_presession_tokens',
@@ -668,4 +688,138 @@ test('D1 consumption accepts only definitive own numeric meta.changes 0 or 1', a
     }
     assert.equal(updates, 1);
   }
+});
+
+test('atomic removal occurrence survives lost acknowledgement and reopen without revoking re-admitted resources', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'identity-removal-'));
+  const path = join(directory, 'identity.sqlite');
+  let db = new DatabaseSync(path);
+  try {
+    const d1 = wrapSqlite(db), clock = createFrozenClock(NOW);
+    await ensureIdentitySchema(d1);
+    const store = createD1IdentityStore(d1, { clock });
+    const { user: owner, team } = await setupUserTeam(store);
+    const subject = await store.createUser({ email: 'subject@example.test', password_hash: 'opaque', email_verified: true });
+    const member = await store.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] });
+    const resources = async (hash: string) => ({
+      grant: await store.createMcpGrant({ user_id: subject.user_id, team_id: team.team_id, client_id: 'client', token_sha256: hash, expires_at: new Date(NOW + 100_000).toISOString() }),
+      invitation: await store.createInvitation({ team_id: team.team_id, email: subject.email, grants_owner: false, grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 100_000).toISOString() }),
+    });
+    const old = await resources('old-grant');
+    const input = { team_id: team.team_id, member_user_id: subject.user_id, removed_by: owner.user_id, namespace: 'app:Office', operationId: 'remove-1' };
+    const acknowledgement = new Error('lost durable acknowledgement');
+    const lost = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql),
+      async batch(statements) { await d1.batch!(statements); throw acknowledgement; } }, { clock });
+    await assert.rejects(lost.removeMemberWithOccurrence!(input), error => error === acknowledgement);
+    assert.equal((await store.findMembershipById(member.membership_id))!.status, 'removed');
+    assert.ok((await store.findMcpGrantByTokenHash('old-grant'))!.revoked_at);
+    assert.ok((await store.findInvitationById(old.invitation.invitation_id))!.revoked_at);
+    const original = await store.removeMemberWithOccurrence!(input);
+    assert.deepEqual(original.membershipRemoval, { team_id: team.team_id, membership_id: member.membership_id, user: { kind: 'user', id: subject.user_id } });
+    assert.deepEqual(original.removedBy, { kind: 'user', id: owner.user_id });
+    assert.equal(original.deliveryId, null); assert.equal(original.operationKind, 'teams.member_removed');
+    assert.equal(original.occurredAt, new Date(NOW).toISOString());
+    for (const value of [original, original.membershipRemoval, original.membershipRemoval.user, original.removedBy]) assert.equal(Object.isFrozen(value), true);
+    await store.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    const fresh = await resources('new-grant');
+    db.close(); db = new DatabaseSync(path);
+    const reopenedD1 = wrapSqlite(db), reopened = createD1IdentityStore(reopenedD1, { clock: createFrozenClock(NOW + 10_000) });
+    assert.deepEqual(await reopened.removeMemberWithOccurrence!(input), original);
+    assert.equal((await reopened.findMembershipById(member.membership_id))!.status, 'active');
+    assert.equal((await reopened.findMcpGrantByTokenHash('new-grant'))!.revoked_at, null);
+    assert.equal((await reopened.findInvitationById(fresh.invitation.invitation_id))!.revoked_at, null);
+    for (const changed of [{ ...input, member_user_id: owner.user_id }, { ...input, removed_by: subject.user_id }, { ...input, team_id: 'foreign-team' }]) {
+      await assert.rejects(reopened.removeMemberWithOccurrence!(changed), (error: unknown) => error instanceof IdentityError && error.code === 'conflict');
+    }
+    assert.equal((await reopened.findMembershipById(member.membership_id))!.status, 'active');
+    const next = await reopened.removeMemberWithOccurrence!({ ...input, operationId: 'remove-2' });
+    assert.notEqual(next.producerEventId, original.producerEventId);
+    assert.equal((await reopened.findMcpGrantByTokenHash('new-grant'))!.revoked_at, next.occurredAt);
+    assert.equal((await reopened.findInvitationById(fresh.invitation.invitation_id))!.revoked_at, next.occurredAt);
+  } finally { db.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('atomic removal occurrence real SQL batches roll back and serialize same-key and last-owner winners', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'identity-removal-race-'));
+  const path = join(directory, 'identity.sqlite');
+  const first = new DatabaseSync(path), second = new DatabaseSync(path);
+  try {
+    const d1 = wrapSqlite(first), otherD1 = wrapSqlite(second), clock = createFrozenClock(NOW);
+    await ensureIdentitySchema(d1);
+    const store = createD1IdentityStore(d1, { clock }), other = createD1IdentityStore(otherD1, { clock });
+    const { user: owner, team } = await setupUserTeam(store);
+    const subject = await store.createUser({ email: 'race@example.test', password_hash: 'opaque', email_verified: true });
+    const membership = await store.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: true, roles: [] });
+    await store.createMcpGrant({ user_id: subject.user_id, team_id: team.team_id, client_id: 'client', token_sha256: 'race-grant', expires_at: new Date(NOW + 100_000).toISOString() });
+    const input = { team_id: team.team_id, member_user_id: subject.user_id, removed_by: owner.user_id, namespace: 'app:Office', operationId: 'race' };
+    const snapshot = () => ['identity_member_removals', 'identity_memberships', 'identity_mcp_grants', 'identity_invitations'].map(table => first.prepare(`SELECT * FROM ${table} ORDER BY 1`).all());
+    const before = snapshot();
+    first.exec("CREATE TRIGGER removal_fail BEFORE UPDATE ON identity_mcp_grants BEGIN SELECT RAISE(ABORT, 'cascade failed'); END");
+    await assert.rejects(store.removeMemberWithOccurrence!(input), /cascade failed/);
+    assert.deepEqual(snapshot(), before, 'event insert and membership update roll back with the failing cascade');
+    first.exec('DROP TRIGGER removal_fail');
+    const [a, b] = await Promise.all([store.removeMemberWithOccurrence!(input), other.removeMemberWithOccurrence!(input)]);
+    assert.deepEqual(a, b); assert.equal(first.prepare('SELECT COUNT(*) AS n FROM identity_member_removals').get()!['n'], 1);
+    await store.reactivateMembership(membership.membership_id, { is_owner: true, roles: [] });
+    const results = await Promise.allSettled([
+      store.removeMemberWithOccurrence!({ ...input, operationId: 'owner-a' }),
+      other.removeMemberWithOccurrence!({ ...input, member_user_id: owner.user_id, removed_by: subject.user_id, operationId: 'owner-b' }),
+    ]);
+    assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+    assert.equal((await store.listActiveOwners(team.team_id)).length, 1);
+    const after = snapshot();
+    const unsupported = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql) }, { clock });
+    await assert.rejects(removeMember(unsupported, { team_id: team.team_id, member_user_id: subject.user_id },
+      { removed_by: owner.user_id, occurrence: { namespace: 'app:Office', operationId: 'unsupported' } }),
+      /Atomic membership removal occurrences are not configured/);
+    assert.deepEqual(snapshot(), after);
+    await assert.rejects(store.removeMemberWithOccurrence!({ ...input, namespace: '' }), (error: unknown) => error instanceof IdentityError && error.code === 'validation');
+    assert.deepEqual(snapshot(), after);
+  } finally { second.close(); first.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('delayed losing removal batch preserves re-admitted resources and retained replay conveys no new owner authority', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'identity-removal-delayed-'));
+  const path = join(directory, 'identity.sqlite');
+  const first = new DatabaseSync(path), second = new DatabaseSync(path);
+  try {
+    const d1 = wrapSqlite(first), loserD1 = wrapSqlite(second), clock = createFrozenClock(NOW);
+    await ensureIdentitySchema(d1);
+    const store = createD1IdentityStore(d1, { clock });
+    const { user: owner, team, membership: ownerMembership } = await setupUserTeam(store);
+    const subject = await store.createUser({ email: 'delayed@example.test', password_hash: 'opaque', email_verified: true });
+    const member = await store.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] });
+    const input = { team_id: team.team_id, member_user_id: subject.user_id, removed_by: owner.user_id,
+      namespace: 'app:Office', operationId: 'delayed-loser' };
+    let entered!: () => void, release!: () => void;
+    const batchEntered = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const loser = createD1IdentityStore({ prepare: sql => loserD1.prepare(sql), exec: sql => loserD1.exec(sql),
+      async batch(statements) { entered(); await gate; return loserD1.batch!(statements); } }, { clock });
+    const pending = loser.removeMemberWithOccurrence!(input);
+    await batchEntered; // Its absent-prior lookup and statements are already captured.
+    let original: Awaited<ReturnType<NonNullable<IdentityStore['removeMemberWithOccurrence']>>> | undefined;
+    try {
+      original = await store.removeMemberWithOccurrence!(input);
+      await store.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+      await store.createMcpGrant({ user_id: subject.user_id, team_id: team.team_id, client_id: 'client', token_sha256: 'delayed-fresh-grant', expires_at: new Date(NOW + 100_000).toISOString() });
+      await store.createInvitation({ team_id: team.team_id, email: subject.email, grants_owner: false, grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 100_000).toISOString() });
+    } finally { release(); }
+    assert.ok(original);
+    const snapshot = () => ['identity_member_removals', 'identity_memberships', 'identity_mcp_grants', 'identity_invitations']
+      .map(table => first.prepare(`SELECT * FROM ${table} ORDER BY 1`).all());
+    const beforeLoser = snapshot();
+    assert.deepEqual(await pending, original);
+    assert.deepEqual(snapshot(), beforeLoser, 'the losing attempt token cannot repeat any cascade on fresh resources');
+    assert.equal((await store.findMembershipById(member.membership_id))!.status, 'active');
+    assert.equal((await store.findMcpGrantByTokenHash('delayed-fresh-grant'))!.revoked_at, null);
+    // Technical receipt replay survives loss of the original remover's authority.
+    await store.removeMembership(ownerMembership.membership_id);
+    const withoutAuthority = snapshot();
+    assert.deepEqual(await store.removeMemberWithOccurrence!(input), original);
+    assert.deepEqual(snapshot(), withoutAuthority);
+    await assert.rejects(store.removeMemberWithOccurrence!({ ...input, operationId: 'new-after-remover-removal' }),
+      (error: unknown) => error instanceof IdentityError && error.code === 'forbidden');
+    assert.deepEqual(snapshot(), withoutAuthority, 'a saved outcome cannot authorize a fresh event or removal');
+  } finally { second.close(); first.close(); rmSync(directory, { recursive: true, force: true }); }
 });

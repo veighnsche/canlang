@@ -26,6 +26,8 @@ import type {
 } from '@canlang/contracts';
 import { systemClock, toInstant, webRandom } from './ports.js';
 import { captureMembershipRequest, finishMembershipSnapshot, snapshotData } from './membership-snapshot.js';
+import { captureRemoval, removalEnvelope, type RemovalRow } from './teams/removal-occurrence.js';
+import { IdentityError } from './ports.js';
 import type {
   Clock,
   IdentityStore,
@@ -57,6 +59,7 @@ export function createMemoryIdentityStore(opts?: {
   const grantsByHash = new Map<string, McpGrantId>();
   const oauthClients = new Map<OAuthClientId, OAuthClient>();
   const authCodes = new Map<string, AuthCode>();
+  const removals = new Map<string, RemovalRow>();
 
   const now = () => toInstant(clock.nowMs());
   const step = () => {
@@ -64,6 +67,34 @@ export function createMemoryIdentityStore(opts?: {
   };
 
   return {
+    async removeMemberWithOccurrence(raw) {
+      const { input, digest } = await captureRemoval(raw);
+      const key = JSON.stringify([input.namespace, input.operationId]);
+      const prior = removals.get(key);
+      if (prior !== undefined) return removalEnvelope(prior, input, digest);
+      const remover = [...memberships.values()].find(row => row.team_id === input.team_id && row.user_id === input.removed_by);
+      const target = [...memberships.values()].find(row => row.team_id === input.team_id && row.user_id === input.member_user_id);
+      const subject = users.get(input.member_user_id);
+      if (remover?.status !== 'active' || !remover.is_owner || target?.status !== 'active' || subject === undefined || !users.has(input.removed_by) ||
+          (target.is_owner && [...memberships.values()].filter(row => row.team_id === input.team_id && row.status === 'active' && row.is_owner).length <= 1)) {
+        throw new IdentityError('forbidden', 'Current owner and removable active membership are required.');
+      }
+      // No await occurs between the current checks and publication of all effects.
+      const at = now();
+      const row: RemovalRow = { namespace: input.namespace, operation_id: input.operationId, request_digest: digest,
+        event_id: random.randomUUID(), team_id: target.team_id, membership_id: target.membership_id,
+        user_id: target.user_id, removed_by: remover.user_id, occurred_at: at };
+      const envelope = removalEnvelope(row, input, digest);
+      step();
+      removals.set(key, row);
+      memberships.set(target.membership_id, { ...target, status: 'removed', updated_at: at });
+      for (const [id, grant] of grants) if (grant.user_id === target.user_id && grant.team_id === target.team_id && grant.revoked_at === null) {
+        grants.set(id, { ...grant, revoked_at: at });
+      }
+      for (const [id, invitation] of invitations) if (invitation.team_id === target.team_id && invitation.email.toLowerCase() === subject.email.toLowerCase() &&
+          invitation.accepted_at === null && invitation.revoked_at === null) invitations.set(id, { ...invitation, revoked_at: at });
+      return envelope;
+    },
     revision: () => revision,
 
     async createUser(input) {

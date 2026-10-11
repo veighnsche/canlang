@@ -429,3 +429,43 @@ test('active team page joins live teams, filters actor and status, and bounds cu
   assert.deepEqual(second, expected.slice(100));
   assert.deepEqual(await store.listActiveUserTeamsPage(owner.user_id, expected.at(-1)!.team_id), []);
 });
+
+test('removal occurrence captures the real subject and replays frozen original facts without new effects', async () => {
+  const { store, clock } = setup();
+  const owner = await store.createUser({ email: 'remover@example.test', password_hash: 'opaque', email_verified: true });
+  const subject = await store.createUser({ email: 'removed@example.test', password_hash: 'opaque', email_verified: true });
+  const team = await store.createTeam({});
+  await store.createMembership({ team_id: team.team_id, user_id: owner.user_id, is_owner: true, roles: [] });
+  const membership = await store.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] });
+  const request = { team_id: team.team_id, member_user_id: subject.user_id };
+  const options = { removed_by: owner.user_id, occurrence: { namespace: 'app:Office', operationId: 'remove-original' } };
+  const input = { ...request, ...options.occurrence, removed_by: owner.user_id };
+  const [first, concurrent] = await Promise.all([removeMember(store, request, options), removeMember(store, request, options)]);
+  assert.deepEqual(first, concurrent);
+  assert.deepEqual(first.occurrence.membershipRemoval, { team_id: team.team_id, membership_id: membership.membership_id,
+    user: { kind: 'user', id: subject.user_id } });
+  assert.deepEqual(first.occurrence.removedBy, { kind: 'user', id: owner.user_id });
+  assert.equal(first.occurrence.namespace, options.occurrence.namespace);
+  assert.equal(first.occurrence.operationId, options.occurrence.operationId);
+  for (const value of [first.occurrence, first.occurrence.membershipRemoval, first.occurrence.membershipRemoval.user, first.occurrence.removedBy]) assert.equal(Object.isFrozen(value), true);
+  await store.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+  clock.advance(10_000);
+  const grant = await store.createMcpGrant({ user_id: subject.user_id, team_id: team.team_id, client_id: 'client', token_sha256: 'fresh-removal-grant', expires_at: new Date(NOW + 100_000).toISOString() });
+  const revision = store.revision();
+  assert.deepEqual(await removeMember(store, request, options), first);
+  assert.equal(store.revision(), revision);
+  assert.equal((await store.findMembershipById(membership.membership_id))!.status, 'active');
+  assert.equal((await store.findMcpGrantByTokenHash(grant.token_sha256))!.revoked_at, null);
+  await assert.rejects(store.removeMemberWithOccurrence!({ ...input, member_user_id: owner.user_id }), (error: unknown) => error instanceof IdentityError && error.code === 'conflict');
+  await assert.rejects(store.removeMemberWithOccurrence!({ ...input, removed_by: subject.user_id }), (error: unknown) => error instanceof IdentityError && error.code === 'conflict');
+  const { removeMemberWithOccurrence: _removedCommand, ...legacy } = store;
+  await assert.rejects(removeMember(legacy, request, options), /Atomic membership removal occurrences are not configured/);
+  assert.equal(store.revision(), revision);
+  let getterCalls = 0;
+  const malformed = Object.defineProperty({ ...input }, 'namespace', { enumerable: true, get() { getterCalls++; return 'app:Office'; } });
+  await assert.rejects(store.removeMemberWithOccurrence!(malformed), (error: unknown) => error instanceof IdentityError && error.code === 'validation');
+  assert.equal(getterCalls, 0); assert.equal(store.revision(), revision);
+  const next = await removeMember(store, request, { ...options, occurrence: { ...options.occurrence, operationId: 'remove-next' } });
+  assert.notEqual(next.occurrence.producerEventId, first.occurrence.producerEventId);
+  assert.equal((await store.findMcpGrantByTokenHash(grant.token_sha256))!.revoked_at, next.occurrence.occurredAt);
+});

@@ -10368,7 +10368,7 @@ acceptance remain defining native-owner work. C14 observations remain held.
 
 Coordinator defining source review CLEAR and local integration after deadline; recorded139/strict0/fmt0 reused. Exact original native36→29 diagnostics emits no modules; it is not application acceptance. Complete filetree checkpoint remains unchanged and recipient-specific holds are preserved.
 
-## 2026-10-11 — Original member-removal subject (contract implemented; issuance unfinished)
+## 2026-10-11 — Original member-removal subject (defining source implemented; native consumer unfinished)
 
 The approved DESIGN section6 source teams.member_removed retains
 {team_id,membership_id,user:user}; user is the removed account. Export that exact
@@ -10381,21 +10381,34 @@ issuer must couple these original facts to a winning removal; the receiving
 handler retains actor=null. Contracts owning emission passes; existing consumers
 and checks are unchanged.
 
-The current Identity producer checks authority then separately removes membership
-and revokes team grants/invitations. It has no atomic original occurrence journal,
-namespace/cause input or retained replay/rollback/recovery output. Post-commit
-callbacks and raw event.user cannot supply that missing source. A bounded atomic
-removal plus retained occurrence, recoverable phased intent and exact external
-deferral are proposals under comparison in the existing TECH-I01 JEV3 requests.
-The actual D1 batch transaction/rollback primitive is documented by
+Legacy Identity removal still checks authority then separately removes membership
+and revokes team grants/invitations. Add an optional atomic removal-with-occurrence
+mode with trusted namespace and original operation ID. One conditional insert
+checks actual current owner/target/last owner and persists genuine original facts;
+the same D1 batch applies cascades only for that attempt's winner token. Failure
+rolls back the event and every effect. Unique namespace/operation and digest refuse
+mismatched reuse. A delayed losing attempt cannot revoke re-admitted resources.
+The real D1 batch transaction/rollback primitive is documented by
 [Cloudflare](https://developers.cloudflare.com/d1/worker-api/d1-database/).
 
 Automatic review rejected initial transmission and an identical retry with a
 fresh read of the direct global human authorization; it still requires approval
 for this exact payload/destination. That consultation is pending the human's
-response. The source remains unfinished, with no fabricated envelope or generic
-event bus. Compiler owns checked source lowering and Dev owns actual native
-ingress/handler qualification. Whole J2 and all precise holds remain open.
+response; no advice or transmission is claimed. The coordinator released the
+bounded engineering choice independently of consultation. Exact saved replay
+returns the immutable original technical outcome after lost acknowledgment,
+reopen or remover revocation, and performs no new removal or cascade. A new
+operation still needs current owner authority. Missing batch capability refuses
+before mutation; configuration/storage errors use existing Error semantics rather
+than inventing a business code. Identity emission and31 affected teams/D1 controls
+pass, including real SQL rollback, delayed loser/re-admission and revoked-remover
+replay/new-operation refusal. Finite source review is CLEAR.
+
+Dev owns authenticated host namespace/cause/principal binding, real batch/mirror,
+durable ingress and current receiving-handler admission/native qualification;
+Compiler owns checked original source lowering. The optional local command does
+not make raw envelope data authentic or qualify legacy/cross-store mutation J2.
+No fabricated callback or generic bus is introduced. All precise holds remain.
 
 Coordinator type-contract review CLEAR and local integration after deadline; Contracts emission0 reused. Current engineering choice is the bounded optional atomic Identity removal with retained immutable occurrence, scoped legacy compatibility and unsupported-mode refusal before effects. It uses the existing owning D1 transaction primitive and avoids the extra phase ownership/recovery machinery; external deferral leaves the actual requirement unsatisfied. JEV advice remains unavailable because automatic review denied the identical request before transmission and exact approval is pending. Packages continues the producer with this uncertainty recorded; no type-only event authority or native acceptance is claimed. All exact holds and the complete filetree checkpoint remain unchanged.
 
@@ -10446,3 +10459,5 @@ Coordinator defining library review CLEAR and integration after deadline. Reuse4
 2026-10-11 — preserve queued receipt provenance after original preclaim skip (reviewed State DTO component).
 
 Exact8125f21d allows original queued delivery-result association to retain its immutable header when the same lifetime becomes skipped; delivery-skipped still requires skipped status. Exact association locator/source/callable/receipt revision/replay checks remain. Independent source review CLEAR; reuse28 affected authored/origin/resolver and normal State/DOemit0. Dev still must append actual skipped receipt/association to the same genuine work.dispatch.claim stage preserving ACK/checks with zero provider and no second transaction. This finite local source intake does not establish native claim/source/File issuer/atomicity or whole-plan acceptance. Complete checkpoint and exact holds remain unchanged.
+
+Coordinator defining Identity occurrence review CLEAR and local integration after deadline. Reuse actual SQLite31/Identityemit0; changed normal Identity/CF/root type closure0. Retained replay returns only the original technical outcome and conveys no fresh removing or receiving authority. Dev owns actual real-batch mirror, trusted namespace/original cause/remover and durable ingress/current handler qualification; Compiler owns exact original checked event lowering. JEV remains unsent/unavailable under the pending exact transmission approval, without blocking this reasonable bounded implementation. Broader J2/native/full-plan acceptance, complete filetree checkpoint and precise holds remain unchanged.
