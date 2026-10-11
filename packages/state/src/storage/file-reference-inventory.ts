@@ -8,6 +8,7 @@ import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL, fanoutNavigationRowId
   readFanoutOwnerScanRow, type FanoutNavigationData, type FanoutOwnerScanData } from '../fanout/navigation.js';
 import { fanoutIntentRowId, fanoutChildRowId } from '../fanout/tables.js';
 import { decodeValue } from '@canlang/values';
+import { assertOpaqueDeliveryProfileMatch } from './opaque-file-declarations.js';
 
 const string = Object.freeze({ kind: 'control', value: 'string' } as const);
 const number = Object.freeze({ kind: 'control', value: 'number' } as const);
@@ -195,9 +196,10 @@ function resolveOpaqueField(model: ModelName, value: StoredRow, field: string, c
   const providerProfiles = declarations.declarations.filter(profile => profile.id === origin.resultDeclarationId);
   if (providerProfiles.length !== 1) return invalid('one original provider result declaration required.');
   const provider = providerProfiles[0]!;
-  if (provider.source.kind !== 'delivery' || !sameData(provider.source.context, origin.declaration)) {
+  if (provider.source.kind !== 'delivery' || !sameData(provider.source.source, origin.caller.source)) {
     return invalid('original provider context differs from the result declaration.');
   }
+  assertOpaqueDeliveryProfileMatch(provider.source.context, origin.declaration);
   const callers = declarations.declarations.filter(profile => profile.id === origin.caller.resultDeclarationId);
   if (callers.length !== 1) return invalid('one original caller result declaration required.');
   const caller = callers[0]!;

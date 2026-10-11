@@ -1565,6 +1565,18 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
           } else if (original.kind !== 'delivery-skipped' || send.request === undefined || send.guard === undefined ||
               original.request.binding !== send.request.binding || original.request.from !== send.request.from ||
               stableStringify(original.guard) !== stableStringify(send.guard)) return invalid('skipped receipt origin differs from its original false SEND.');
+          if (original.declaration.kind === 'generation') {
+            const request = 'intentId' in send ? send.arguments as unknown as BoundCapabilityRequest : send.request!;
+            const target = owner.framework!.producer.bindings.find(binding => binding.binding === request.binding &&
+              binding.from === request.from)?.targets.find(target => target.source === send.target);
+            if (target === undefined || target.correlation === null) return invalid('generation receipt requires its checked original request route.');
+            const value = target.correlation === 'value' ? request.arguments['value'] : request.arguments;
+            if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+                original.declaration.request.source !== (value as Record<string, unknown>)['source'] ||
+                original.declaration.request.revision !== (value as Record<string, unknown>)['revision']) {
+              return invalid('generation receipt origin differs from its actual original SEND request.');
+            }
+          }
           writes.push({ ...write, row: prepared });
         }
         effects = { ...effects, writes };

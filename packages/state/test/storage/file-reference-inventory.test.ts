@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import type { ArtifactModel, CanTypeId, DomainWrite, FrameworkFilePayloadOrigin, FrameworkOpaqueDeclarationSet, FrameworkOpaqueValueDefault, InstalledFileReferenceInventory, ModelName, OutboxIntent, RecordVersion, RetainedFinalizedFile, StoredRow, WireValue } from '@canlang/contracts';
 import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import { normalizeValueTypes } from '@canlang/values';
-import { bindOpaqueFileDeclarations } from '../../src/storage/opaque-file-declarations.js';
+import { bindOpaqueFileDeclarations, resolveOpaqueFileProjection } from '../../src/storage/opaque-file-declarations.js';
 import { STATE_FILE_REFERENCE_PRODUCER as producer } from '../../src/storage/index.js';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, assertReceiptJoin, newAssociationRow, newReceiptRow, readReceiptRow, withReceiptRowData } from '../../src/receipt/tables.js';
 import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL,
@@ -352,6 +352,37 @@ function resolveReceipt(row: StoredRow, installed: InstalledFileReferenceInvento
   return producer.resolveOpaqueField!(asModel(RECEIPT_MODEL), row, 'result', { installed, binding });
 }
 
+function generationProfileFixture(source = 'business/a', revision = '0') {
+  const binding = receiptBinding();
+  assert.equal(binding.origin.kind, 'delivery-result');
+  if (binding.origin.kind !== 'delivery-result') throw new Error('wrong fixture');
+  const descriptor = { kind: 'delivery' as const, capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
+    result: { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES.TextRun!.map(leaf => ({ ...leaf })) } };
+  const request = { source, revision };
+  if (source !== 'business/a') {
+    Object.assign(binding.slot, { id: asId('delivery/b') });
+    Object.assign(binding.origin, { deliveryId: 'delivery/b', intent: { ...binding.origin.intent,
+      intentId: 'delivery/b', operationId: 'operation/b' } });
+  }
+  Object.assign(binding.origin, { intent: { ...binding.origin.intent, target: 'std.TextGenerationV1.generate' },
+    declaration: { kind: 'generation', canonical: descriptor, artifact: descriptor, request }, resultDeclarationId: 'text/result' });
+  const installed = resolverInstalled(binding);
+  const set = installed.inventory.opaqueDeclarationSets![0]!;
+  Object.assign(set, { sources: [{ path: binding.origin.caller.source.path, sha256: binding.origin.caller.source.sha256 }],
+    valueTypes: structuredClone(normalizeValueTypes({ contracts: [descriptor.result] }).valueTypes),
+    originalContracts: { TextRun: { fields: Object.fromEntries(descriptor.result.fields.map(field =>
+      [field.name, { type: field.type }])) } } });
+  Object.assign(set, { declarations: [...set.declarations, { id: 'caller/inputs',
+    source: { kind: 'callable', source: binding.origin.caller.source, callable: binding.origin.caller.callable },
+    profile: { kind: 'inputs', canonical: binding.origin.caller.canonical.inputs, artifact: binding.origin.caller.artifact.inputs.fields } }] });
+  Object.assign(set.declarations[0]!.source, { context: { kind: 'generation-profile', canonical: descriptor, artifact: descriptor } });
+  Object.assign(installed.inventory, { valueTypes: set.valueTypes });
+  const context = { source: 'std.TextGenerationV1.generate', declaredResult: descriptor.result, request };
+  const result = (state: 'queued' | 'unknown') => ({ source, revision, sequence: '0', state,
+    content: '', used_tokens: null, detail: null });
+  return { binding, installed, set, context, result };
+}
+
 describe('State receipt owning opaque resolver (structural, not install/census qualification)', () => {
   it('keeps legacy shape validation compatible but requires the exact original header for projection', () => {
     const legacy = newReceiptRow(pendingData(), meta), binding = receiptBinding();
@@ -411,6 +442,101 @@ describe('State receipt owning opaque resolver (structural, not install/census q
         [{ path: [], kind: 'result', declarationId: 'text/result', presence: 'value' }]);
       assert.throws(() => resolveReceipt(edited(row, { result: { ...row.data.result as object, source: 'business/other' } }), installed, binding));
     }
+  });
+
+  it('resolves independently bound Generation requests against one genuinely installed static TextRun profile', async () => {
+    const first = generationProfileFixture();
+    const { store } = createTestMemoryStorage(first.installed.authority, [producer]);
+    await store.installFileReferenceInventory({ expectedRevision: await store.readRevision(), ...first.installed });
+    const installed = await store.readFileReferenceInventory(first.binding.inventory.owner);
+    assert.ok(installed);
+    const bound = bindOpaqueFileDeclarations(installed.inventory.opaqueDeclarationSets!, () => {}).get(first.set.id)!;
+    for (const fixture of [first, generationProfileFixture('business/b', '7')]) {
+      for (const [status, state] of [['pending', 'queued'], ['unknown', 'unknown']] as const) {
+        const row = newReceiptRow({ ...pendingData(), deliveryId: fixture.binding.slot.id, status, result: fixture.result(state), filePayloadOrigin: fixture.binding }, meta, fixture.context);
+        validate(RECEIPT_MODEL, row);
+        const resolved = resolveReceipt(row, installed, fixture.binding);
+        assert.deepEqual(resolved.binding, fixture.binding);
+        assert.deepEqual(resolved.values, [{ path: [], kind: 'result', declarationId: 'text/result', presence: 'value' }]);
+        assert.deepEqual(resolveOpaqueFileProjection(bound, resolved.values[0]!, row.data.result, resolved.binding), []);
+        assert.throws(() => resolveOpaqueFileProjection(bound, resolved.values[0]!, row.data.result));
+        for (const change of [{ source: 'business/foreign' }, { revision: '8' }, { revision: '00' },
+          { state: 'invented' }, { detail: { file: { id: 'foreign-file' } } }, { extra: true }]) {
+          const result = { ...row.data.result as object, ...change };
+          assert.throws(() => resolveReceipt(edited(row, { result }), installed, fixture.binding));
+          assert.throws(() => resolveOpaqueFileProjection(bound, resolved.values[0]!, result, resolved.binding));
+        }
+      }
+      for (const status of ['pending', 'unknown', 'skipped'] as const) {
+        const row = newReceiptRow({ ...pendingData(), deliveryId: fixture.binding.slot.id, status, filePayloadOrigin: fixture.binding }, meta, fixture.context);
+        const resolved = resolveReceipt(row, installed, fixture.binding);
+        assert.deepEqual(resolved.values, [{ path: [], kind: 'result', declarationId: 'text/result', presence: 'no-result' }]);
+        assert.deepEqual(resolveOpaqueFileProjection(bound, resolved.values[0]!, null, resolved.binding), []);
+        // Static ownership still requires the original header before a null shortcut.
+        assert.throws(() => resolveOpaqueFileProjection(bound, resolved.values[0]!, null));
+      }
+    }
+  });
+
+  it('refuses Generation profile/runtime substitution and malformed original request identities', () => {
+    const fixture = generationProfileFixture();
+    const { binding, installed, set } = fixture;
+    const bound = bindOpaqueFileDeclarations([set], () => {}).get(set.id)!;
+    const row = newReceiptRow({ ...pendingData(), result: fixture.result('queued'), filePayloadOrigin: binding }, meta, fixture.context);
+    const projection = { path: [], kind: 'result' as const, declarationId: 'text/result', presence: 'value' as const };
+    const alterations: Array<(changed: FrameworkFilePayloadOrigin) => void> = [
+      changed => Object.assign(changed.origin, { resultDeclarationId: 'foreign/result' }),
+      changed => Object.assign(changed.inventory, { snapshotId: 'foreign/snapshot' }),
+      changed => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.caller.source, { sha256: '1'.repeat(64) });
+      },
+      changed => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.declaration, { kind: 'generation-profile' });
+      },
+      changed => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.declaration, { request: { source: 'business/a', revision: '-1' } });
+      },
+      changed => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.declaration, { request: { source: 'business/a', revision: '00' } });
+      },
+      changed => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.declaration, { request: { source: '', revision: '0' } });
+      },
+      changed => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.declaration, { canonical: { ...changed.origin.declaration.canonical, version: 2 } });
+      },
+    ];
+    for (const alter of alterations) {
+      const changed = structuredClone(binding); alter(changed);
+      assert.throws(() => resolveReceipt(row, installed, changed));
+      assert.throws(() => resolveReceipt(edited(row, { filePayloadOrigin: changed }), installed, changed));
+      assert.throws(() => resolveOpaqueFileProjection(bound, projection, row.data.result, changed));
+      assert.throws(() => resolveOpaqueFileProjection(bound, { ...projection, presence: 'no-result' }, null, changed));
+    }
+    for (const alter of [
+      (changed: FrameworkFilePayloadOrigin) => Object.assign(changed.slot, { id: asId('foreign/delivery') }),
+      (changed: FrameworkFilePayloadOrigin) => Object.assign(changed.scope, { owner: 'foreign/owner' }),
+      (changed: FrameworkFilePayloadOrigin) => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.request, { binding: 'foreign-binding' });
+      },
+      (changed: FrameworkFilePayloadOrigin) => {
+        if (changed.origin.kind === 'delivery-result') Object.assign(changed.origin.request, { from: 'foreign-from' });
+      },
+    ]) {
+      const changed = structuredClone(binding); alter(changed);
+      assert.throws(() => resolveReceipt(row, installed, changed));
+    }
+    assert.throws(() => resolveOpaqueFileProjection(bound, { ...projection, declarationId: 'caller/void' }, row.data.result, binding));
+    const runtimeInstalled = structuredClone(set);
+    if (binding.origin.kind === 'delivery-result') Object.assign(runtimeInstalled.declarations[0]!.source, { context: binding.origin.declaration });
+    const runtimeBound = bindOpaqueFileDeclarations([runtimeInstalled], () => {}).get(set.id)!;
+    const other = generationProfileFixture('business/b', '7');
+    assert.throws(() => resolveOpaqueFileProjection(runtimeBound, projection, other.result('queued'), other.binding));
+    let reads = 0;
+    const accessor = structuredClone(binding);
+    Object.defineProperty(accessor, 'scope', { enumerable: true, get() { reads++; return binding.scope; } });
+    assert.throws(() => resolveOpaqueFileProjection(bound, projection, row.data.result, accessor));
+    assert.equal(reads, 0);
   });
 
   it('refuses lifetime, scope, intent, provider, caller and association drift without current-schema substitution', () => {
@@ -480,17 +606,25 @@ function originalContractSet() {
 
 describe('complete original opaque contract admission (no source qualification)', () => {
   const admit = (set: FrameworkOpaqueDeclarationSet) => bindOpaqueFileDeclarations([set], () => {});
-  it('refuses the static Generation profile until its original request matcher is configured', () => {
-    const set: FrameworkOpaqueDeclarationSet = originalContractSet();
-    const source = { path: 'generation.can', sha256: '0'.repeat(64), module: 'generation.js' };
-    const descriptor = { kind: 'delivery' as const, capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
-      result: { name: 'UninstalledGenerationResult', fields: [] } };
-    Object.assign(set, { sources: [{ path: source.path, sha256: source.sha256 }], declarations: [{
-      id: 'generation/profile', source: { kind: 'delivery', source,
-        context: { kind: 'generation-profile', canonical: descriptor, artifact: descriptor } },
-      profile: { kind: 'provider-result', canonical: descriptor.result, artifact: descriptor.result },
-    }] });
-    assert.throws(() => admit(set), /original Generation profile matching is not configured/);
+  it('admits an owning static Generation profile and refuses malformed or unknown provider contracts', () => {
+    const { set } = generationProfileFixture();
+    assert.equal(admit(set).size, 1);
+    for (const alter of [
+      (changed: FrameworkOpaqueDeclarationSet) => {
+        const entry = changed.declarations[0]!;
+        if (entry.source.kind === 'delivery') Object.assign(entry.source.context.canonical.result,
+          { name: 'UninstalledGenerationResult', fields: [] });
+      },
+      (changed: FrameworkOpaqueDeclarationSet) => {
+        const entry = changed.declarations[0]!;
+        if (entry.source.kind === 'delivery') Object.assign(entry.source.context.canonical.result, { fields: [] });
+      },
+      (changed: FrameworkOpaqueDeclarationSet) => Object.assign(changed.declarations[0]!.source, { context: {
+        kind: 'generation-profile', canonical: deliveryDescriptor, artifact: deliveryDescriptor, request: { source: 'invented', revision: '0' } } }),
+    ]) {
+      const changed = structuredClone(set); alter(changed);
+      assert.throws(() => admit(changed));
+    }
   });
   it('retains null, false, empty defaults, raw trim literals and fields without defaults, including unused contracts', () => {
     const set = originalContractSet();

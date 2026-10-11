@@ -302,7 +302,8 @@ export function createStandardCompletionSourceCommand(options: StandardCompletio
     const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, deliveryId as RecordId);
     if (receiptRow === null) return refuse('persisted delivery receipt is absent.');
     const row = copyData(receiptRow) as StoredRow;
-    closed(row.data, ['deliveryId', 'revision', 'status', 'result', 'error', 'contentRef', 'resultExpiresAtMs']);
+    closed(row.data, ['deliveryId', 'revision', 'status', 'result', 'error', 'contentRef', 'resultExpiresAtMs',
+      ...(Object.hasOwn(row.data, 'filePayloadOrigin') ? ['filePayloadOrigin'] : [])]);
     const receipt = readReceiptRow(row, resultContext), terminal = receipt.receipt;
     if (row.archivedAt !== null || terminal.deliveryId !== deliveryId || terminal.revision < stamp.revision || terminal.revision > revision ||
         row.created < dispatchRow.created || row.updated < row.created || row.updated > ctx.now) return refuse('persisted receipt has invalid original chronology.');
