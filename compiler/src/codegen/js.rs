@@ -7365,6 +7365,19 @@ impl<'a> Emitter<'a> {
                 IrItemKind::Event { fields } if kinds.contains(&"Event") => (fields.clone(), None),
                 _ => continue,
             };
+            let declared_inputs = if matches!(item.kind, IrItemKind::Event { .. }) {
+                let Some(inputs) = self.declared_event_input_fields(item) else {
+                    self.unsupported(
+                        "declared event input fields",
+                        "original fields have no complete owning operation-input carrier",
+                        item.span,
+                    );
+                    continue;
+                };
+                Some(inputs)
+            } else {
+                None
+            };
             let mut members = Vec::new();
             if item.exported {
                 members.push("exported:true".to_string());
@@ -7375,6 +7388,9 @@ impl<'a> Emitter<'a> {
             members.push(self.emit_fields_schema(&fields));
             if matches!(item.kind, IrItemKind::Event { .. }) {
                 members.push(format!("inputs:{{{}}}", self.emit_event_inputs(&fields)));
+                if let Some(inputs) = declared_inputs {
+                    members.push(format!("inputFields:{}", descriptor_json(&inputs)));
+                }
             }
             records.push(format!(
                 "{}:{{{}}}",
@@ -9041,10 +9057,83 @@ impl<'a> Emitter<'a> {
         })
     }
 
-    /// Private trusted admission uses the existing operation profile.
-    /// The runtime admits these event fields, then binds the admitted values
-    /// into the handler's `{event}` envelope. Observed stored ref versions
-    /// remain payload metadata; this descriptor enrolls current references.
+    /// Original declaration inputs only: handler/cohort arguments are separate.
+    fn declared_event_input_fields(&self, declaration: &IrItem) -> Option<Vec<JsOperationField>> {
+        let IrItemKind::Event { fields } = &declaration.kind else {
+            return None;
+        };
+        let mut inputs = Vec::new();
+        for id in fields {
+            let item = self.ir.items.get(id.0 as usize)?;
+            let IrItemKind::Field {
+                owner,
+                ty,
+                default,
+                server,
+                required_array,
+                description,
+                modifiers,
+                ..
+            } = &item.kind
+            else {
+                return None;
+            };
+            if item.id != *id
+                || *owner != declaration.id
+                || item.canonical != format!("{}.{}", declaration.canonical, item.name)
+                || server.is_some()
+                || *required_array
+            {
+                return None;
+            }
+            let (field, is_array) = self.mcp_field_for_type(ty, false)?;
+            // The flat reference carrier names an actual stored model only.
+            if let JsMcpField::Ref { model, .. } = &field
+                && !self.ir.items.iter().any(|item| {
+                    item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
+                })
+            {
+                return None;
+            }
+            let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
+            let mapped_default = js_field_default(default.as_ref(), None);
+            if default.is_some() && mapped_default.is_none() {
+                return None;
+            }
+            let array_bound = |bound: &Option<TypedExpr>| -> Option<Option<u64>> {
+                if !is_array {
+                    return Some(None);
+                }
+                match bound {
+                    None => Some(None),
+                    Some(bound) => match bound.expr {
+                        IrExpr::Int(value) if (0..=9_007_199_254_740_991).contains(&value) => {
+                            Some(Some(value as u64))
+                        }
+                        _ => None,
+                    },
+                }
+            };
+            inputs.push(JsOperationField {
+                min: array_bound(&modifiers.min)?,
+                max: array_bound(&modifiers.max)?,
+                name: item.name.clone(),
+                field,
+                value_type: self.operation_input_value_type(ty),
+                required: default.is_none() && !nullable && !is_array,
+                nullable,
+                array_required: is_array.then_some(false),
+                computed_default: false,
+                default: mapped_default,
+                description: description.clone(),
+                choices: None,
+            });
+        }
+        (!has_duplicate_names(&inputs)).then_some(inputs)
+    }
+
+    /// Private trusted admission reuses original event inputs and separately
+    /// appends handler-owned cohort arguments to its `{event}` envelope.
     fn private_event_invocation(
         &self,
         handler: &IrItem,
@@ -9098,57 +9187,13 @@ impl<'a> Emitter<'a> {
                 ]
             }
         };
-        let fields = match event {
-            IrEventSource::Declared(identity) => {
-                let declaration = self
-                    .ir
-                    .items
-                    .iter()
-                    .find(|item| item.canonical == *identity)?;
-                let IrItemKind::Event { fields } = &declaration.kind else {
-                    return None;
-                };
-                fields.as_slice()
-            }
-            _ => &[],
-        };
-        for id in fields {
-            let item = self.ir.items.get(id.0 as usize)?;
-            let IrItemKind::Field {
-                ty,
-                default,
-                required_array,
-                description,
-                ..
-            } = &item.kind
-            else {
-                return None;
-            };
-            let (field, is_array) = self.mcp_field_for_type(ty, false)?;
-            // The existing flat ref profile represents model identities,
-            // not structural contracts or nested event objects.
-            if let JsMcpField::Ref { model, .. } = &field
-                && !self.ir.items.iter().any(|item| {
-                    item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
-                })
-            {
-                return None;
-            }
-            let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
-            inputs.push(JsOperationField {
-                min: None,
-                max: None,
-                name: item.name.clone(),
-                field,
-                value_type: self.operation_input_value_type(ty),
-                required: default.is_none() && !nullable && (!is_array || *required_array),
-                nullable,
-                array_required: is_array.then_some(*required_array),
-                computed_default: false,
-                default: js_field_default(default.as_ref(), None),
-                description: description.clone(),
-                choices: None,
-            });
+        if let IrEventSource::Declared(identity) = event {
+            let declaration = self
+                .ir
+                .items
+                .iter()
+                .find(|item| item.canonical == *identity)?;
+            inputs.extend(self.declared_event_input_fields(declaration)?);
         }
         let IrItemKind::Scenario {
             description,
