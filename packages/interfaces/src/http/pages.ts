@@ -146,7 +146,9 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
         names.has(field.name) || !Array.isArray(field.options) || field.options.length === 0 ||
         field.options.some(value => typeof value !== 'string' || value === '') ||
         new Set(field.options).size !== field.options.length ||
-        !field.options.includes(field.defaultValue)) {
+        (field.defaultValue === null
+          ? field.nullable !== true
+          : !field.options.includes(field.defaultValue))) {
       throw new Error('Invalid source preference descriptor.');
     }
     names.add(field.name);
@@ -172,7 +174,7 @@ async function preferenceSource(
     throw buildBusinessError('forbidden', 'An active team membership is required.');
   }
   if (deps.preferences === undefined) throw new Error('Page preference persistence is not configured.');
-  const values: Record<string, string> = Object.create(null) as Record<string, string>;
+  const values: Record<string, string | null> = Object.create(null) as Record<string, string | null>;
   const versions: Record<string, string> = Object.create(null) as Record<string, string>;
   for (const field of fields) {
     const key: PagePreferenceKey = {

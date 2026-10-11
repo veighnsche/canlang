@@ -13,7 +13,7 @@
  * `currencyScales` stays absent until the lane-2 table is importable —
  * money rendering fails loudly without it rather than guessing.
  */
-import { DEFAULT_THEME } from '@canlang/contracts';
+import { DEFAULT_THEME, COLLECTION_FILTER_PREFIX, collectionFilterName } from '@canlang/contracts';
 import { makeUserRef } from '@canlang/values';
 import { createOperationFormPreparer } from './forms.js';
 import { buildBusinessError } from '../errors/envelope.js';
@@ -26,6 +26,7 @@ import type {
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
+  FilterCondition,
 } from '@canlang/contracts';
 
 /** Bounds locator extraction only; the complete page query stays in polling state. */
@@ -35,6 +36,59 @@ const COLLECTION_SELECTION_QUERY_MAX_CHARS = 8_192;
 const unavailablePageRecords: PageRecordsReader = async () => {
   throw buildBusinessError('validation', 'Authorized page source reads are not configured.');
 };
+
+/** Request selectors choose only cases from the owning readable enum inventory. */
+function collectionFilterPreparer(params: URLSearchParams): NonNullable<PresentationContext['prepareCollectionFilters']> {
+  const selectors = [...params];
+  return (occurrence, fields, defaults) => {
+    function refuse(): never { throw buildBusinessError('validation', 'Invalid collection filters.'); }
+    const own = (value: object, key: string): unknown => {
+      const property = Object.getOwnPropertyDescriptor(value, key);
+      return property !== undefined && property.enumerable && 'value' in property ? property.value : refuse();
+    };
+    if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
+    let prefix: string;
+    try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
+    const inventories = new Map<string, Set<string>>();
+    for (const column of fields) {
+      if (typeof column !== 'object' || column === null) refuse();
+      const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
+      if (typeof field !== 'string' || field.trim().length === 0 || inventories.has(field) ||
+          typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
+          typeof labels !== 'object' || labels === null || Array.isArray(labels)) refuse();
+      try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+      const cases = Object.keys(labels);
+      if (cases.length === 0 || cases.some(value => value.length === 0)) refuse();
+      inventories.set(field, new Set(cases));
+    }
+    const selected = new Map<string, string | null>();
+    if (defaults !== undefined) {
+      if (typeof defaults !== 'object' || defaults === null || Array.isArray(defaults)) refuse();
+      for (const field of Object.keys(defaults)) {
+        const value = own(defaults, field);
+        if (!inventories.has(field) || (value !== null && (typeof value !== 'string' || !inventories.get(field)!.has(value)))) refuse();
+        selected.set(field, value as string | null);
+      }
+    }
+    const seen = new Set<string>();
+    for (const [key, value] of selectors) {
+      if (key.startsWith('filter[') || key.startsWith('f[')) refuse();
+      if (!key.startsWith(prefix)) continue;
+      let field: string;
+      try { field = decodeURIComponent(key.slice(prefix.length)); } catch { return refuse(); }
+      if (!inventories.has(field) || collectionFilterName(occurrence, field) !== key || seen.has(field) ||
+          (value !== '' && !inventories.get(field)!.has(value))) refuse();
+      seen.add(field);
+      selected.set(field, value === '' ? null : value);
+    }
+    const conditions: FilterCondition[] = [];
+    for (const field of inventories.keys()) {
+      const value = selected.get(field);
+      if (value !== undefined && value !== null) conditions.push(Object.freeze({ field, op: 'eq', value }));
+    }
+    return Object.freeze(conditions);
+  };
+}
 
 /** Inputs to {@link buildPresentationContext}, all dispatcher-supplied. */
 export interface BuildPresentationContextInput {
@@ -153,6 +207,7 @@ export function buildPresentationContext(
     principal: input.principal,
     invocation: input.principal,
     query: input.query,
+    prepareCollectionFilters: collectionFilterPreparer(url.searchParams),
   };
   return input.catalog === undefined ? context : {
     ...context,
