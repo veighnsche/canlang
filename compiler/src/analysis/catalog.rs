@@ -1894,8 +1894,8 @@ pub const T13B_NOMINAL_LEAVES: &[StdNominal] = &[
             ("height", "WorkflowInput"),
         ],
     },
-    // `WorkflowInspection` (services.ts:857); `WorkflowField` stays a
-    // named ref (nested, not an accepted nominal).
+    // `WorkflowInspection` (services.ts:868); `WorkflowField` stays a
+    // named ref to its nested schema, not a standalone importable nominal.
     StdNominal {
         name: "WorkflowInspection",
         fields: &[("fields", "WorkflowField[]")],
@@ -2036,10 +2036,20 @@ pub const T13B_NOMINAL_LEAVES: &[StdNominal] = &[
     },
 ];
 
-/// Nested judgment value shapes referenced by [`JudgmentSpec`]. These
+/// Nested workflow/judgment value shapes referenced by owning schemas. These
 /// are resolvable for descriptor construction but remain non-importable
 /// standalone names, matching the existing nested-shape policy.
 pub const T13B_NESTED_NOMINALS: &[StdNominal] = &[
+    // services.ts:856: four required open-text wire fields; no invented vocab.
+    StdNominal {
+        name: "WorkflowField",
+        fields: &[
+            ("node", "text"),
+            ("key", "text"),
+            ("kind", "text"),
+            ("label", "text"),
+        ],
+    },
     StdNominal {
         name: "JudgmentOption",
         fields: &[("id", "text"), ("description", "text")],
@@ -2074,7 +2084,7 @@ pub const T13B_NESTED_NOMINALS: &[StdNominal] = &[
 /// Look up one nominal leaf schema by accepted nominal name (bare, as
 /// in [`T13A_NOMINAL_TYPES`] / [`T13B_NOMINAL_TYPES`]), across the T13a
 /// and T13b leaf/nested tables. Returns `None` for the scoped-out
-/// Handbook interface, TS-only mapping names, other nested non-nominal
+/// Handbook interface, TS-only mapping names, untranscribed nested
 /// shapes and every unknown name: the caller keeps reporting `E3019`.
 pub fn nominal_schema(name: &str) -> Option<&'static StdNominal> {
     T13A_NOMINAL_LEAVES
@@ -2806,13 +2816,32 @@ mod t13c_tests {
         // TS-only mapping names never resolve (source names do).
         assert_eq!(nominal_schema("ImageRunProgress"), None);
         assert_eq!(nominal_schema("ImageFileOutput"), None);
-        // Nested non-nominal shapes stay refs, not tables.
-        assert_eq!(nominal_schema("WorkflowField"), None);
+        // Unknown nested shapes remain unavailable.
+        assert_eq!(nominal_schema("UnknownWorkflowField"), None);
         // Provider-owned wire names outside the accepted sets stay out.
         assert_eq!(nominal_schema("EmailSendInput"), None);
         assert_eq!(nominal_schema("ErrorReport"), None);
         // Nominals are bare names only; qualified/empty lookups miss.
         assert_eq!(nominal_schema("std.PaymentState"), None);
         assert_eq!(nominal_schema(""), None);
+    }
+
+    #[test]
+    fn workflow_field_nested_schema_preserves_wire_shape_without_importability() {
+        assert_eq!(
+            nominal_schema("WorkflowField").unwrap().fields,
+            &[
+                ("node", "text"),
+                ("key", "text"),
+                ("kind", "text"),
+                ("label", "text")
+            ]
+        );
+        assert!(!is_t13a_nominal("WorkflowField"));
+        assert!(!is_t13b_nominal("WorkflowField"));
+        assert_eq!(
+            nominal_schema("WorkflowInspection").unwrap().fields,
+            &[("fields", "WorkflowField[]")]
+        );
     }
 }

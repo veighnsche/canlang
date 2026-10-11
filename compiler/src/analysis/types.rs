@@ -1176,8 +1176,8 @@ pub(crate) fn completion_envelope(result: Option<ResolvedType>) -> ResolvedType 
 /// object (the frozen tables are acyclic: requests nest messages,
 /// runs nest outputs, nothing nests back). The published `CanDuration`
 /// and `DatetimeValue` contracts use the duration and datetime scalars.
-/// Nested non-nominals (`WorkflowField`) and other unknown named refs
-/// stay opaque — transcribed,
+/// Transcribed nested schemas resolve through their owning named refs.
+/// Unknown named refs stay opaque — transcribed,
 /// never reinterpreted, never guessed.
 fn std_nominal_leaf_type(declared: &str) -> ResolvedType {
     if declared == "CanDuration" {
@@ -9266,10 +9266,8 @@ impl<'a> Typer<'a> {
             }
             SyntaxKind::Collection => {
                 let head = kids(node).iter().find_map(|n| name_text(n, cx.text));
-                let model = domain
-                    .map(|d| self.expr(cx, d, None))
-                    .as_ref()
-                    .and_then(|ty| self.model_of_type(ty));
+                let domain_type = domain.map(|d| self.expr(cx, d, None));
+                let model = domain_type.as_ref().and_then(|ty| self.model_of_type(ty));
                 // Bare-model domains (`list Expense`) never pass through
                 // query typing, so `row` would stay `Error`-typed in
                 // children (killing enum-case claims and member checks).
@@ -9283,6 +9281,18 @@ impl<'a> Typer<'a> {
                             symbol: model,
                             stored: true,
                         });
+                }
+                // WorkflowInspection's nested fields are readonly values.
+                // Seed only their exact transcribed element schema, never a
+                // stored model, under this collection's own shadowing row key.
+                if head == Some("list")
+                    && let Some(d) = domain
+                    && let Some(ResolvedType::Array { element, .. }) = &domain_type
+                    && element.as_ref() == &std_nominal_leaf_type("WorkflowField")
+                {
+                    self.rows
+                        .entry(NodeKey::of(d))
+                        .or_insert_with(|| (**element).clone());
                 }
                 // T07: rows reaching the body satisfy every `where`,
                 // so the domain's own alias facts narrow the
@@ -12302,7 +12312,9 @@ impl<'a> Typer<'a> {
                     .first()
                     .and_then(|name| self.tables.module_scopes[module.0 as usize].prod.get(*name))
                     .and_then(|binding| match binding {
-                        ScopedName::External { provider, name } if provider == "std" => {
+                        ScopedName::External { provider, name }
+                            if provider == "std" && name != "WorkflowField" =>
+                        {
                             nominal_schema(name)
                         }
                         _ => None,
@@ -14657,6 +14669,19 @@ impl<'a> Typer<'a> {
                     }
                     let expect = match op {
                         "==" | "!=" => Some(value.clone()),
+                        "??" if unwrap_groups(parts[2]).kind == SyntaxKind::Array
+                            && !kids(unwrap_groups(parts[2]))
+                                .into_iter()
+                                .any(|child| is_expression(child.kind)) =>
+                        {
+                            // The fallback supplies no elements to infer. Use
+                            // only the checked nullable left array; all nonempty
+                            // and mismatched fallbacks keep ordinary checking.
+                            value
+                                .nullable_inner()
+                                .filter(|inner| matches!(inner, ResolvedType::Array { .. }))
+                                .cloned()
+                        }
                         "in" if matches!(
                             value,
                             ResolvedType::Enum { .. } | ResolvedType::Nullable(_)
@@ -16459,7 +16484,9 @@ impl<'a> Typer<'a> {
                             .get(name)
                     })
                     .and_then(|binding| match binding {
-                        ScopedName::External { provider, name } if provider == "std" => {
+                        ScopedName::External { provider, name }
+                            if provider == "std" && name != "WorkflowField" =>
+                        {
                             nominal_schema(name)
                         }
                         _ => None,
