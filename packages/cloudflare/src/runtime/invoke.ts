@@ -134,7 +134,7 @@ import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import { createCommittedModelSourceStager, createStandardCompletionSourceCommand } from '@canlang/work';
 import { isConsistentCompletion } from '@canlang/work/receipt';
-import type { ViewerGenerationCallbackReadObservation, ViewerGenerationCallbackSourceReadPolicy } from '@canlang/state/receipt';
+import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/receipt';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -3204,7 +3204,8 @@ async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: Co
       ? readMetadataMember(value, key, 'Callback read source')?.value : undefined;
     let definition = own(imported, 'appDefinition'), declarations = own(definition, 'models');
     const hasDeclarations = () => isUnknownRecord(declarations) && Object.keys(declarations).some(model =>
-      own(own(declarations, model), 'callbackReadGrants') !== undefined);
+      own(own(declarations, model), 'callbackReadGrants') !== undefined ||
+      hasAssemblerModuleCapability(asm) && own(own(declarations, model), 'readGrants') !== undefined);
     if (!hasDeclarations() && !(claimed && isUnknownRecord(declarations))) {
       // A registry-only claim cannot manufacture a protected model permission.
       if (claimed && isUnknownRecord(imported) && typeof own(imported, 'canApp') === 'function') {
@@ -4342,6 +4343,110 @@ function freezeScenarioSnapshot(value: unknown): unknown {
   return value;
 }
 
+/** Adapt only original verified source grant functions to the State reader's
+ * actual observation. Callback permission remains independent at its caller. */
+function createSourceReadPolicyAdapter(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly opts: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'store' | 'source'>;
+  readonly revision: Revision;
+  readonly now: () => number;
+  readonly app?: string;
+  readonly owner?: string;
+}) {
+  const { loaded } = input, StateError = loaded.producers.errors;
+  const evaluate = async (sourceModel: string,
+    predicates: readonly { readonly predicate: CheckedCallbackReadGrant['predicate']; readonly owner: string }[],
+    observation: Readonly<ViewerGenerationCallbackReadObservation>,
+    installed: import('@canlang/state/receipt').InstalledSourceReadPredicate): Promise<boolean> => {
+    const { context, row, revision: currentRevision, fence: currentFence } = observation;
+    await verifyCheckedAssembly(input.opts.asm, input.opts.artifact);
+    const actor = input.opts.identity.actor, team = input.opts.identity.team;
+    if (context.actorUserId !== (actor?.user_id ?? null) || context.teamId !== (team?.team_id ?? null) ||
+        (input.owner !== undefined && context.teamId !== input.owner) || currentRevision !== input.revision ||
+        !loaded.models.some(model => model.name === sourceModel)) {
+      throw new StateError('validation', 'Source read predicate context differs from its coherent admitted identity/model.');
+    }
+    let failure: unknown;
+    const refuse = (): never => {
+      failure = new StateError('validation', 'Source read predicates cannot perform effects, access raw storage or recursively observe diagnostics.');
+      throw failure;
+    };
+    const readonlyStore = new Proxy(Object.create(null) as StoragePort, {
+      get: refuse, set: refuse, defineProperty: refuse, deleteProperty: refuse, ownKeys: refuse,
+    });
+    const membership = context.membership?.status === 'active' ? context.membership : null;
+    const roles = membership?.roles.map(grant => grant.role) ?? [];
+    const builtinRoles = ['public', ...(context.actorUserId === null ? [] : ['authenticated']),
+      ...(membership === null ? [] : ['members']), ...(membership?.is_owner === true ? ['owner'] : [])];
+    const navigation = await createContainmentNavigation({ loaded, store: input.opts.store,
+      revision: currentRevision, actorUserId: context.actorUserId, teamId: context.teamId,
+      memberships: context.memberships, coherentContext: context, authority: 'viewer',
+      ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
+    const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
+      nativeProjectedRecord(loaded, name, source, navigation, recordView);
+    await navigation.prepare(sourceModel, row);
+    const actualReadTeam = team === null ? null : Object.freeze({ teamId: context.teamId!, timezone: team.timezone });
+    const nativeRow = recordView(sourceModel, row);
+    let allowed = false;
+    for (const { predicate, owner } of predicates) {
+      const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
+      memberships: roles, store: readonlyStore, clock: input.now,
+      canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
+        stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
+        readModel: refuse, readRecords: refuse, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
+      sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
+      qualified: { actor: actor === null ? null : { userId: context.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
+        team: team === null ? null : { teamId: context.teamId!, timezone: team.timezone }, now: input.now(), source: input.opts.source ?? 'worker' },
+    });
+      Object.freeze(ctx.memberships); Object.freeze(ctx.caller); Object.freeze(ctx.preferences); Object.freeze(ctx);
+      const membershipFrame = openNativeReadMembershipFrame(ctx, installed, observation, owner,
+        actualReadTeam, error => { failure ??= error; });
+      let verdict: unknown;
+      try { verdict = await predicate(ctx, nativeRow); membershipFrame.assertCompleted(); }
+      finally { membershipFrame.close(); }
+      if (failure !== undefined) throw failure;
+      if (typeof verdict !== 'boolean') throw new StateError('validation', 'Source read predicates must return bool.');
+      if (verdict) { allowed = true; break; }
+    }
+    await navigation.revalidate();
+    if (failure !== undefined) throw failure;
+    await verifyCheckedAssembly(input.opts.asm, input.opts.artifact);
+    return allowed;
+  };
+  const policies = (root: string): ReadonlyMap<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy> => {
+    const reads = new Map<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>();
+    let model: ModelName | undefined = root as ModelName, app = input.app;
+    while (model !== undefined) {
+      if (reads.has(model)) throw new StateError('validation', 'Unsupported source read containment scope.');
+      const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
+      if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
+          !loaded.models.some(candidate => candidate.name === model)) {
+        throw new StateError('validation', 'Source projection requires its checked model read and containment facts.');
+      }
+      const parent: ModelName | undefined = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model)?.parent;
+      const source = loaded.sourceReadPolicies.get(model);
+      if (source !== undefined) {
+        app ??= source.app;
+        if (source.app !== app) throw new StateError('validation', 'Source read policy differs from its installed app.');
+        const sourceModel = model;
+        reads.set(model, Object.freeze({ fields: source.fields, secretFields: source.secretFields,
+          grants: Object.freeze(source.grants.map(grant => {
+            const read: import('@canlang/state/receipt').InstalledSourceReadPredicate = observation =>
+              evaluate(sourceModel, [{ predicate: grant.predicate, owner }], observation, read);
+            const owner = bindSourceReadMembership(loaded, read, source.app, grant.rule);
+            return Object.freeze({ fields: grant.fields, read });
+          })), ...(parent === undefined ? {} : { parent }) }));
+      } else {
+        if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+        reads.set(model, { by: def.by, ...(parent === undefined ? {} : { parent }) });
+      }
+      model = parent;
+    }
+    return reads;
+  };
+  return { evaluate, policies };
+}
+
 /** Exact-row containment reads; no model scan or business-reference expansion. */
 async function createContainmentNavigation(input: {
   readonly loaded: LoadedCanonicalDescriptors;
@@ -4351,6 +4456,8 @@ async function createContainmentNavigation(input: {
   readonly teamId: string | null;
   readonly memberships: CanonicalMembershipReader;
   readonly authority: 'viewer' | 'owner';
+  /** Only committed native readers supply their original verified source context. */
+  readonly sourceReadOpts?: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'source' | 'now'>;
   /** Callback authorization stays inside State's complete Identity observation. */
   readonly coherentContext?: import('@canlang/state/policy/grants').ByContext;
   readonly fence?: import('@canlang/state/invocation/admission').FenceScope;
@@ -4365,15 +4472,27 @@ async function createContainmentNavigation(input: {
   const projectionSources = new WeakMap<object, StoredRow>();
   const used = new Set<Entry>();
   let reads = 0;
+  const sourceReads = input.sourceReadOpts === undefined || input.coherentContext !== undefined || input.authority !== 'viewer' ||
+      loaded.sourceReadPolicies.size === 0
+    ? undefined : createSourceReadPolicyAdapter({ loaded,
+      opts: { ...input.sourceReadOpts, store }, revision: input.revision,
+      now: (() => { const now = (input.sourceReadOpts.now ?? Date.now)(); return () => now; })() });
+  const sourcePolicies = new Map<string, ReturnType<NonNullable<typeof sourceReads>['policies']>>();
   let viewerProducers: Promise<{
     project: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer;
     projectPolicy?: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewerPolicy;
+    projectSource?: typeof import('@canlang/state/query').projectCurrentRecordForViewerSourcePolicies;
     by: typeof import('@canlang/state/policy/roles').evaluateBy;
   }> | undefined;
   const viewer = () => viewerProducers ??= (async () => {
     const query = await loadProducerModule('@canlang/state/query/engine', 'containment viewer projection');
     const roles = await loadProducerModule('@canlang/state/policy/roles', 'containment read admission');
+    const source = sourceReads === undefined ? undefined :
+      await loadProducerModule(STATE_QUERY_SPECIFIER, 'containment installed source projection');
     return {
+      ...(source === undefined ? {} : { projectSource:
+        requireProducerFn(source, 'projectCurrentRecordForViewerSourcePolicies', 'containment installed source projection') as
+          typeof import('@canlang/state/query').projectCurrentRecordForViewerSourcePolicies }),
       project: requireProducerFn(query, 'projectCurrentRecordForViewer', 'containment viewer projection') as
         typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer,
       ...(input.coherentContext === undefined ? {} : {
@@ -4385,6 +4504,34 @@ async function createContainmentNavigation(input: {
     };
   })();
   const load = async (model: string, id: string, basis?: StoredRow): Promise<StoredRow | ProjectedRecord> => {
+    if (sourceReads !== undefined) {
+      let policies = sourcePolicies.get(model);
+      if (policies === undefined) { policies = sourceReads.policies(model); sourcePolicies.set(model, policies); }
+      // State loads this committed target and the complete actual ancestor chain.
+      // Neither an earlier projection nor an owner overlay is an input row.
+      await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
+      const producer = await viewer();
+      const visible = await producer.projectSource!({ model: model as ModelName, id: id as RecordId,
+        readPolicies: policies, policy: loaded.policy as import('@canlang/state/query').CurrentRecordSourcePolicyInput['policy'],
+        context: { actorUserId: input.actorUserId, teamId: input.teamId }, memberships: input.memberships, store,
+        ...(input.fence === undefined ? {} : { fence: input.fence }),
+      }, async result => {
+        if (result.revision !== input.revision) throw new StateError('conflict', 'State changed during parent navigation.');
+        if (result.record === null) throw new StateError('not_found', 'Parent record not found.');
+        // Retain the genuine private source only to distinguish a denied field
+        // from an absent optional value. This row supplies no authorization.
+        const original = await store.cohortLoad({ model: model as ModelName, id: id as RecordId,
+          expectedRevision: result.revision });
+        if (original === null || original.id !== id || original.version !== result.record.version) {
+          throw new StateError('conflict', 'State changed during parent navigation.');
+        }
+        await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
+        return { record: result.record, source: original };
+      });
+      const projected = freezeScenarioSnapshot(structuredClone(visible.record)) as ProjectedRecord;
+      projectionSources.set(projected, freezeScenarioSnapshot(structuredClone(visible.source)) as StoredRow);
+      return projected;
+    }
     const row = basis ?? (input.coherentContext === undefined ? await store.load(model as ModelName, id as RecordId) :
       await store.cohortLoad({ model: model as ModelName, id: id as RecordId, expectedRevision: input.revision }));
     if (row === null || row.id !== id || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
@@ -8950,7 +9097,7 @@ async function runReadScenarioSeam(
   const navigationFailures = new Map<string, Error>();
   const navigation = await createContainmentNavigation({ loaded, store: opts.store,
     revision: call.revision, actorUserId: call.actorUserId, teamId: call.teamId,
-    memberships: opts.memberships, authority: 'viewer', failure: error => {
+    memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts, failure: error => {
       if (error instanceof Error) navigationFailures.set(error.message, error);
     } });
   const reader = loaded.producers.transact.createReadInvoker({
@@ -9326,7 +9473,7 @@ export async function queryPageRowsCanonical(
   const navigation = typeof sourceWhere === 'function' ? await createContainmentNavigation({
     loaded, store: opts.store, revision: await opts.store.readRevision(),
     actorUserId: opts.identity.actor?.user_id ?? null, teamId: opts.identity.team?.team_id ?? null,
-    memberships: opts.memberships, authority: 'viewer',
+    memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts,
   }) : undefined;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> =>
     nativeProjectedRecord(loaded, model, row, navigation, recordView);
@@ -9514,7 +9661,7 @@ export function createPageReadScopeCanonical(
       }
       const navigation = await createContainmentNavigation({ loaded, store: opts.store,
         revision: expectedRevision as Revision, actorUserId: opts.identity.actor?.user_id ?? null,
-        teamId: opts.identity.team?.team_id ?? null, memberships: opts.memberships, authority: 'viewer' });
+        teamId: opts.identity.team?.team_id ?? null, memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts });
       const recordView = (name: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
         const view = nativeProjectedRecord(loaded, name, row, navigation, recordView);
         views.set(view, { model: name, id: row.id, version: row.version });
@@ -9685,34 +9832,9 @@ export function createPageReadScopeCanonical(
         const expectedRevision = await checkpoint();
         assertCanonicalStore(opts.store, `${binding.model}.read`);
         assertCanonicalMemberships(opts.memberships, `${binding.model}.read`);
-        const readPolicies = new Map<ModelName, import('@canlang/state/query/engine').ViewerPageParentPolicy | ViewerGenerationCallbackSourceReadPolicy>();
-        let model: ModelName | undefined = binding.model as ModelName;
-        while (model !== undefined) {
-          if (readPolicies.has(model)) throw new StateError('validation', 'Unsupported callback diagnostic containment scope.');
-          const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
-          if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
-              !loaded.models.some(candidate => candidate.name === model)) {
-            throw new StateError('validation', 'Callback diagnostics require their checked model read and containment facts.');
-          }
-          const parent: ModelName | undefined = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model)?.parent;
-          const source = loaded.sourceReadPolicies.get(model);
-          if (source !== undefined) {
-            if (source.app !== host.app) throw new StateError('validation', 'Source read policy differs from its installed app.');
-            const sourceModel = model;
-            readPolicies.set(model, Object.freeze({ fields: source.fields, secretFields: source.secretFields,
-              grants: Object.freeze(source.grants.map(grant => {
-                const read: import('@canlang/state/receipt').InstalledSourceReadPredicate = observation =>
-                  evaluateSourceRead(sourceModel, [{ predicate: grant.predicate, owner }], observation, read);
-                const owner = bindSourceReadMembership(loaded, read, source.app, grant.rule);
-                return Object.freeze({ fields: grant.fields, read });
-              })),
-              ...(parent === undefined ? {} : { parent }) }));
-          } else {
-            if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
-            readPolicies.set(model, { by: def.by, ...(parent === undefined ? {} : { parent }) });
-          }
-          model = parent;
-        }
+        const sourceReads = createSourceReadPolicyAdapter({ loaded, opts,
+          revision: expectedRevision as Revision, app: host.app, owner: host.owner, now: () => now });
+        const readPolicies = sourceReads.policies(binding.model);
         const receiptModule = await loadProducerModule('@canlang/state/receipt', 'state viewer callback diagnostics producer');
         const observe = requireProducerFn(receiptModule, 'queryGenerationCallbackDiagnosticsForViewer', 'state viewer callback diagnostics producer') as
           typeof import('@canlang/state/receipt').queryGenerationCallbackDiagnosticsForViewer;
@@ -9722,7 +9844,7 @@ export function createPageReadScopeCanonical(
         const admissionModule = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'state page callback fence producer');
         const openFence = requireProducerFn(admissionModule, 'openFenceScope', 'state page callback fence producer') as
           typeof import('@canlang/state/invocation/admission').openFenceScope;
-        const { resolveGenerationCallbackOrigin } = await import('./bound-dispatch.js');
+        const { resolveGenerationCallbackOrigin } = await import('./generation-callback-origin.js');
         await checkpoint();
         const fence = openFence(expectedRevision as Revision, host.owner), enroll = fence.enroll;
         fence.enroll = dependency => {
@@ -9733,65 +9855,7 @@ export function createPageReadScopeCanonical(
           enroll.call(fence, dependency);
         };
         const now = (opts.now ?? Date.now)();
-        const evaluateSourceRead = async (sourceModel: string,
-          predicates: readonly { readonly predicate: CheckedCallbackReadGrant['predicate']; readonly owner: string }[],
-          observation: Readonly<ViewerGenerationCallbackReadObservation>,
-          installed: import('@canlang/state/receipt').InstalledSourceReadPredicate): Promise<boolean> => {
-            const { context, row, revision: currentRevision, fence: currentFence } = observation;
-            await verifyCheckedAssembly(opts.asm, opts.artifact);
-            const actor = opts.identity.actor, team = opts.identity.team;
-            if (context.actorUserId !== (actor?.user_id ?? null) || context.teamId !== (team?.team_id ?? null) ||
-                context.teamId !== host.owner || currentRevision !== expectedRevision ||
-                !loaded.models.some(model => model.name === sourceModel)) {
-              throw new StateError('validation', 'Source read predicate context differs from its coherent admitted identity/model.');
-            }
-            let failure: unknown;
-            const refuse = (): never => {
-              failure = new StateError('validation', 'Source read predicates cannot perform effects, access raw storage or recursively observe diagnostics.');
-              throw failure;
-            };
-            const readonlyStore = new Proxy(Object.create(null) as StoragePort, {
-              get: refuse, set: refuse, defineProperty: refuse, deleteProperty: refuse, ownKeys: refuse,
-            });
-            const membership = context.membership?.status === 'active' ? context.membership : null;
-            const roles = membership?.roles.map(grant => grant.role) ?? [];
-            const builtinRoles = ['public', ...(context.actorUserId === null ? [] : ['authenticated']),
-              ...(membership === null ? [] : ['members']), ...(membership?.is_owner === true ? ['owner'] : [])];
-            const navigation = await createContainmentNavigation({ loaded, store: opts.store,
-              revision: currentRevision, actorUserId: context.actorUserId, teamId: context.teamId,
-              memberships: context.memberships, coherentContext: context, authority: 'viewer',
-              ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
-            const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
-              nativeProjectedRecord(loaded, name, source, navigation, recordView);
-            await navigation.prepare(sourceModel, row);
-            const actualReadTeam = team === null ? null : Object.freeze({ teamId: context.teamId!, timezone: team.timezone });
-            const nativeRow = recordView(sourceModel, row);
-            let allowed = false;
-            for (const { predicate, owner } of predicates) {
-              const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
-              memberships: roles, store: readonlyStore, clock: () => now,
-              canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
-                stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
-                readModel: refuse, readRecords: refuse, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
-              sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
-              qualified: { actor: actor === null ? null : { userId: context.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
-                team: team === null ? null : { teamId: context.teamId!, timezone: team.timezone }, now, source: opts.source ?? 'worker' },
-            });
-              Object.freeze(ctx.memberships); Object.freeze(ctx.caller); Object.freeze(ctx.preferences); Object.freeze(ctx);
-              const membershipFrame = openNativeReadMembershipFrame(ctx, installed, observation, owner,
-                actualReadTeam, error => { failure ??= error; });
-              let verdict: unknown;
-              try { verdict = await predicate(ctx, nativeRow); membershipFrame.assertCompleted(); }
-              finally { membershipFrame.close(); }
-              if (failure !== undefined) throw failure;
-              if (typeof verdict !== 'boolean') throw new StateError('validation', 'Source read predicates must return bool.');
-              if (verdict) { allowed = true; break; }
-            }
-            await navigation.revalidate();
-            if (failure !== undefined) throw failure;
-            await verifyCheckedAssembly(opts.asm, opts.artifact);
-            return allowed;
-        };
+        const evaluateSourceRead = sourceReads.evaluate;
         const callbackRead: import('@canlang/state/receipt').InstalledSourceReadPredicate = async observation => {
           if (observation.row.id !== binding.id || observation.row.version !== binding.version) {
             throw new StateError('conflict', 'Callback observation differs from its admitted page record.');

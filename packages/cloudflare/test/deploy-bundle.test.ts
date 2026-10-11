@@ -243,6 +243,8 @@ describe("deploy bundle (P-B)", () => {
     for (const name of [
       "runtime/context.js",
       "runtime/stdlib.js",
+      "runtime/native-membership.js",
+      "runtime/generation-callback-origin.js",
       "runtime/invoke.js",
       "runtime/sourcemap.js",
       "runtime/mcp-registry.js",
