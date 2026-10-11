@@ -692,7 +692,9 @@ impl SourceExpressions<'_> {
                 actual.ty == ResolvedType::Null && token(SyntaxKind::Name)? == "null"
             }
             (IrExpr::Text(value), SyntaxKind::Literal) => {
-                primitive(Scalar::Text)
+                // Checked operand literals retain contextual Email identity.
+                // Schema/default matching keeps its existing Text-only path.
+                (primitive(Scalar::Text) || self.operands && primitive(Scalar::Email))
                     && node
                         .children
                         .iter()

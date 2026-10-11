@@ -5945,6 +5945,12 @@ impl<'a> Cx<'a> {
         if is_enum_ty(ty) && self.program.types.bound_names.contains(&key) {
             return IrExpr::Name(name);
         }
+        // Keep the original resolver's local value identity. Fixture lookup
+        // below is for actual fixture references, including example channels;
+        // it must not substitute `s.budget` for an owning `let budget`.
+        if self.program.types.lexical_value_references.contains(&key) {
+            return IrExpr::Name(name);
+        }
         // Fixture references resolve through the example tables.
         if let Some(id) = self.fixture_in_scope(scope.module, &name) {
             let fixture_name = self.local_name(id);

@@ -3563,6 +3563,10 @@ fn checked_created_statements(
     if authored_guards.len() != guards.len() || authored_effects.len() != effects.len() {
         return None;
     }
+    let guarded_created = effects
+        .iter()
+        .any(|statement| matches!(statement, IrStmt::Send { when: Some(_), .. }))
+        && checked_created_model_result(ir, owner) == Some(original.model);
     for (statement, authored) in guards
         .iter()
         .zip(authored_guards)
@@ -3585,6 +3589,70 @@ fn checked_created_statements(
             }
             IrStmt::Require { cond, span } => (SyntaxKind::Require, *span, Some(cond)),
             IrStmt::Create { span, .. } => (SyntaxKind::Create, *span, None),
+            IrStmt::Set {
+                record,
+                changes,
+                when: None,
+                span,
+            } if guarded_created => {
+                let mut paths = authored
+                    .children
+                    .iter()
+                    .filter(|node| node.kind == SyntaxKind::Path);
+                let receiver = paths.next()?;
+                if paths.next().is_some()
+                    || direct_source_path_name(receiver, text)? != original.binding
+                    || record.span != receiver.span
+                    || original
+                        .expression_types
+                        .iter()
+                        .find(|(node, _)| *node == NodeKey::of(receiver))
+                        .is_none_or(|(_, ty)| ty != &record.ty)
+                {
+                    return None;
+                }
+                created_record_name_matches(
+                    record,
+                    &ResolvedType::Record {
+                        symbol: original.model,
+                        stored: true,
+                    },
+                    &original.binding,
+                    *span,
+                    db,
+                )?;
+                checked_created_object_entries(ir, original, changes, authored, *span, db)?;
+                (SyntaxKind::Set, *span, None)
+            }
+            IrStmt::Send {
+                args,
+                operation,
+                when: Some(_),
+                binding: Some(binding),
+                span,
+                ..
+            } if guarded_created => {
+                let names: Vec<_> = authored
+                    .children
+                    .iter()
+                    .filter(|node| node.kind == SyntaxKind::Name)
+                    .collect();
+                let [send, when, as_word, source_binding] = names.as_slice() else {
+                    return None;
+                };
+                if !operation.starts_with("std.")
+                    || send.token()?.text(text) != "send"
+                    || when.token()?.text(text) != "when"
+                    || as_word.token()?.text(text) != "as"
+                    || source_binding.token()?.text(text) != binding
+                {
+                    return None;
+                }
+                // Existing effect/Sites joins require the exact original
+                // prepared Rule. Its predicate is not a parent expression.
+                checked_created_object_entries(ir, original, args, authored, *span, db)?;
+                (SyntaxKind::Send, *span, None)
+            }
             IrStmt::Call { inputs, span, .. } => {
                 let source_calls =
                     super::scenario_calls::collect_scenario_source_calls(ir, owner, db)?;
@@ -3679,6 +3747,79 @@ fn checked_created_statements(
                 db,
             )?;
         }
+    }
+    Some(())
+}
+
+/// Effect containers are synthetic Unknown objects spanning the statement.
+/// Seal each authored ordered entry through its original typed operand instead.
+fn checked_created_object_entries(
+    ir: &IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    actual: &TypedExpr,
+    statement: &crate::syntax::SyntaxNode,
+    at: Span,
+    db: &SourceDb,
+) -> Option<()> {
+    use crate::analysis::NodeKey;
+    if actual.span != at || actual.ty != ResolvedType::Unknown {
+        return None;
+    }
+    let IrExpr::Object(entries) = &actual.expr else {
+        return None;
+    };
+    let mut objects = statement
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Object);
+    let object = objects.next()?;
+    if objects.next().is_some() {
+        return None;
+    }
+    let authored: Vec<_> = object
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::ObjectEntry)
+        .collect();
+    if entries.len() != authored.len() || entries.len() > 200 {
+        return None;
+    }
+    let text = &db.get(at.file)?.text;
+    let mut seen = HashSet::new();
+    for ((name, value), entry) in entries.iter().zip(authored) {
+        let key = entry
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Name)?;
+        if !seen.insert(name) || key.token()?.text(text) != name {
+            return None;
+        }
+        let operand = entry
+            .children
+            .iter()
+            .find(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::NameRef
+                        | SyntaxKind::Literal
+                        | SyntaxKind::Group
+                        | SyntaxKind::Array
+                        | SyntaxKind::Member
+                        | SyntaxKind::Unary
+                        | SyntaxKind::Binary
+                        | SyntaxKind::Call
+                        | SyntaxKind::Construct
+                        | SyntaxKind::Object
+                )
+            })
+            .unwrap_or(key);
+        super::scenario_create_sources::checked_create_expression(
+            ir,
+            original,
+            value,
+            NodeKey::of(operand),
+            db,
+        )?;
     }
     Some(())
 }
@@ -3790,13 +3931,102 @@ fn ordered_created_model_effects(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
-    if effects.len() < 2
-        || !matches!(effects.get(effects.len() - 2), Some(IrStmt::Create {span, ..}) if *span == node_span(create))
-        || effects[..effects.len() - 2]
-            .iter()
-            .any(|effect| !matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }))
-    {
+    if effects.len() < 2 {
         return None;
+    }
+    let direct = matches!(effects.get(effects.len() - 2),
+        Some(IrStmt::Create {span, ..}) if *span == node_span(create))
+        && effects[..effects.len() - 2]
+            .iter()
+            .all(|effect| matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }));
+    if !direct {
+        let mut creates = effects
+            .iter()
+            .enumerate()
+            .filter(|(_, effect)| matches!(effect, IrStmt::Create { .. }));
+        let (position, statement) = creates.next()?;
+        if creates.next().is_some()
+            || effects[..position]
+                .iter()
+                .any(|effect| !matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }))
+            || !matches!(statement, IrStmt::Create {input, span, ..}
+                if *span == node_span(create) && matches!(&input.expr,
+                    IrExpr::Object(entries) if !entries.is_empty()))
+        {
+            return None;
+        }
+        let [
+            _,
+            IrStmt::Set {
+                record: before,
+                when: None,
+                span: before_at,
+                ..
+            },
+            IrStmt::Send {
+                operation,
+                when: Some(_),
+                binding: Some(sent),
+                span: send_at,
+                ..
+            },
+            IrStmt::Set {
+                record: after,
+                changes,
+                when: None,
+                span: after_at,
+            },
+            tail @ ..,
+        ] = &effects[position..]
+        else {
+            return None;
+        };
+        if !operation.starts_with("std.")
+            || sent.is_empty()
+            || tail.is_empty()
+            || tail[..tail.len() - 1]
+                .iter()
+                .any(|effect| !matches!(effect, IrStmt::Require { .. }))
+        {
+            return None;
+        }
+        let record = ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        };
+        created_record_name_matches(before, &record, binding, *before_at, db)?;
+        created_record_name_matches(after, &record, binding, *after_at, db)?;
+        let IrExpr::Object(entries) = &changes.expr else {
+            return None;
+        };
+        let [(_, delivery)] = entries.as_slice() else {
+            return None;
+        };
+        let ResolvedType::StdDelivery { capability, op } = &delivery.ty else {
+            return None;
+        };
+        if !matches!(&delivery.expr, IrExpr::Name(name) if name == sent)
+            || operation != &format!("{capability}.{}", op.name)
+            || create.end > before_at.start
+            || before_at.end > send_at.start
+            || send_at.end > after_at.start
+        {
+            return None;
+        }
+        let mut previous = create.end;
+        for effect in &effects[position + 1..] {
+            let at = match effect {
+                IrStmt::Set { span, .. }
+                | IrStmt::Send { span, .. }
+                | IrStmt::Require { span, .. }
+                | IrStmt::Return { span, .. } => *span,
+                _ => return None,
+            };
+            if at.file != create.file || at.start < previous {
+                return None;
+            }
+            previous = at.end;
+        }
     }
     let IrStmt::Return {
         value: Some(value),

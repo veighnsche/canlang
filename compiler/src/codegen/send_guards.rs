@@ -794,6 +794,95 @@ Then
     }
 
     #[test]
+    fn original_chat_and_creative_guards_keep_lexical_values_over_same_named_fixtures() {
+        const CHAT: &str = include_str!("../../tests/fixtures/original-a850/CanChat.can");
+        const CREATIVE: &str = include_str!("../../tests/fixtures/original-a850/CanCreative.can");
+        assert_eq!(
+            crate::source::sha256_hex(CREATIVE.as_bytes()),
+            "9e2b7ff93759f2f1a1127db9bee2f12f60235688648aff458466de75c92f65eb"
+        );
+        let mut db = SourceDb::new();
+        let chat = db.add("CanChat.can".into(), CHAT.into());
+        let creative = db.add("CanCreative.can".into(), CREATIVE.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(chat, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[chat, creative], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let prepared =
+            prepare(&program, &ir, &db, Some(&catalog)).expect("original lexical binding census");
+        let descriptors = prepared.by_owner(&ir).unwrap();
+        assert!(descriptors.contains_key("chat.ask"));
+        let descriptor = &descriptors["creative.generate"][0];
+        assert_eq!(descriptor["source"]["path"], "CanCreative.can");
+        assert_eq!(
+            descriptor["source"]["sha256"],
+            crate::source::sha256_hex(CREATIVE.as_bytes())
+        );
+        assert_eq!(
+            descriptor["inputs"],
+            serde_json::json!([
+                {"name":"run","type":"creative.Run"},
+                {"name":"template","type":"creative.Template"},
+                {"name":"budget","type":"creative.Budget?"},
+            ])
+        );
+        // The same-named authored fixture stays available to its original test
+        // channel; the production let is an independent lexical value.
+        assert!(
+            ir.items
+                .iter()
+                .any(|item| item.canonical == "creative.budget"
+                    && matches!(item.kind, IrItemKind::Fixture { .. }))
+        );
+        let guard = prepared
+            .guards(&ir)
+            .unwrap()
+            .values()
+            .find(|guard| guard.descriptor["owner"] == "creative.generate")
+            .unwrap();
+        let budget = guard
+            .inputs
+            .iter()
+            .find(|input| input.name == "budget")
+            .unwrap();
+        assert!(matches!(&budget.value.expr, IrExpr::Name(name) if name == "budget"));
+        assert_eq!(budget.declaration.kind, SyntaxKind::Let as u8);
+        assert_eq!(
+            &db.get(budget.declaration.file).unwrap().text
+                [budget.declaration.start as usize..budget.declaration.end as usize]
+                .trim(),
+            &"let budget=first(Budget as row where row.account==actor order=row.id)"
+        );
+        let mut changed = ir.clone();
+        let owner = changed
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "creative.generate")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+            panic!("original scenario")
+        };
+        let IrStmt::Let { name, .. } = &mut effects[0] else {
+            panic!("original budget declaration")
+        };
+        *name = "foreign_budget".into();
+        assert!(prepared.guards(&changed).is_none());
+        assert!(prepare(&program, &changed, &db, Some(&catalog)).is_err());
+    }
+
+    #[test]
     fn prepared_guards_keep_fresh_context_without_incomplete_native_receipts() {
         use std::io::Write;
         use std::process::{Command, Stdio};
