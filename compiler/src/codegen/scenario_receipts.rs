@@ -138,6 +138,8 @@ pub(super) struct ReceiptDependency {
     pub field: String,
     #[serde(rename = "type")]
     pub type_id: String,
+    #[serde(rename = "queryId", skip_serializing_if = "Option::is_none")]
+    pub query_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -577,6 +579,11 @@ pub(super) fn collect_native_scenario_receipt(
         data_nodes = data_nodes.checked_add(
             9 + 5 * returned.influences.len()
                 + 10 * returned.dependencies.len()
+                + returned
+                    .dependencies
+                    .iter()
+                    .filter(|read| read.query_id.is_some())
+                    .count()
                 + 16 * returned.intrinsics.len(),
         )?;
         if data_nodes > 20_000 {
@@ -774,6 +781,9 @@ pub(super) fn collect_native_scenario_receipt(
             };
             let id_read = field == "id" && dependency.field == dependency.model;
             let parent_read = field == "parent" && dependency.field == dependency.model;
+            if dependency.query_id.is_some() && !parent_read {
+                return None;
+            }
             let transport_type = if id_read {
                 if transition.is_some()
                     || !dependency.calls.is_empty()
@@ -793,7 +803,17 @@ pub(super) fn collect_native_scenario_receipt(
                     return None;
                 }
                 let expression = sites.members.get(&site)?.first()?;
-                let (child, parent) = checked_parent_reference(ir, item, expression, db?)?;
+                let (child, parent) = if dependency.query_id.is_some() {
+                    let (child, parent, query_id) = checked_candidate_parent_association(
+                        ir, item, dependency, expression, db?,
+                    )?;
+                    if !recipe.plan.queries.iter().any(|query| query.id == query_id) {
+                        return None;
+                    }
+                    (child, parent)
+                } else {
+                    checked_parent_reference(ir, item, expression, db?)?
+                };
                 let mut descriptors = models.iter().filter(|model| model.name == child.canonical);
                 let descriptor = descriptors.next()?;
                 if descriptors.next().is_some()
@@ -1007,6 +1027,7 @@ pub(super) fn collect_native_scenario_receipt(
                 model: dependency.model_name.clone(),
                 field: dependency.field_name.clone(),
                 type_id: transport_type,
+                query_id: dependency.query_id.clone(),
             });
         }
         for intrinsic in &returned.intrinsics {
@@ -2923,6 +2944,397 @@ fn checked_parameter_row_id<'a>(
 
 /// The selected source operand follows at most two genuine containment edges
 /// from its original required input. Each edge retains its own observed site.
+/// The two ordinary Branch.parent reads inside the original unscoped Run
+/// predicate are candidate-exclusive. This checks their real IR occurrences;
+/// the optional association neither fabricates a read nor completes a query.
+fn checked_candidate_parent_association<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    dependency: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    expression: &TypedExpr,
+    db: &SourceDb,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    &'a str,
+)> {
+    use crate::analysis::types::CheckedQueryClauseKind;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let query_id = dependency.query_id.as_deref()?;
+    let mut matching = facts
+        .queries
+        .as_deref()?
+        .iter()
+        .filter(|query| query.id == query_id);
+    let query = matching.next()?;
+    let count = query.count.as_ref()?;
+    let [first, candidate, supplied] = count.parent_edges.as_slice() else {
+        return None;
+    };
+    let [input] = query.inputs.as_slice() else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        params,
+        guards,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let mut statements = guards.iter().filter(|statement|
+        matches!(statement, IrStmt::Require {span,..} if *span == node_span(count.statement)));
+    let IrStmt::Require { cond, .. } = statements.next()? else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Lt,
+        left: call,
+        right: bound,
+    } = &cond.expr
+    else {
+        return None;
+    };
+    let (target, args, slots) = match &call.expr {
+        IrExpr::Call { target, args } => (target, args.as_slice(), None),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args.as_slice(), Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [domain] = args else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    let original = scan.source.as_deref()?;
+    let collection = scan.collection_call.as_deref()?;
+    let [alias, clause] = original.clauses.as_slice() else {
+        return None;
+    };
+    let CheckedQueryClauseKind::As { name: source_alias } = &alias.kind else {
+        return None;
+    };
+    let predicate = scan.where_pred.as_deref()?;
+    let IrExpr::Binary {
+        op: IrBinOp::And,
+        left: equality,
+        right: unfinished,
+    } = &predicate.expr
+    else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Eq,
+        left: actual_candidate,
+        right: actual_supplied,
+    } = &equality.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: first_parent,
+        field: candidate_field,
+    } = &actual_candidate.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: row,
+        field: first_field,
+    } = &first_parent.expr
+    else {
+        return None;
+    };
+    let IrExpr::Name(row_name) = &row.expr else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: parameter_expr,
+        field: supplied_field,
+    } = &actual_supplied.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: unfinished_row,
+        field: unfinished_field,
+    } = &unfinished.expr
+    else {
+        return None;
+    };
+    let parameter = ir.items.get(input.1.0 as usize)?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty: IrType::Known(parameter_type),
+        default: None,
+        default_node: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let record = ResolvedType::Record {
+        symbol: query.model,
+        stored: true,
+    };
+    let array = ResolvedType::Array {
+        element: Box::new(record.clone()),
+        ordered: true,
+        nonempty: false,
+    };
+    let edge = if std::ptr::eq(expression, actual_candidate.as_ref()) {
+        candidate
+    } else if std::ptr::eq(expression, actual_supplied.as_ref()) {
+        supplied
+    } else {
+        return None;
+    };
+    let [parent_control, unfinished_control] = query.dependencies.as_slice() else {
+        return None;
+    };
+    let model_schema = checked_first_query_schema(ir, owner, query, db)?;
+    let unfinished_schema = model_schema
+        .fields
+        .iter()
+        .find(|field| field.name == "unfinished")?;
+    let census = facts.expression_types.as_deref()?;
+    let source_text = &db.get(query.node.file)?.text;
+    let source_name = |expression: &TypedExpr, expected: &str| {
+        source_text
+            .get(expression.span.start as usize..expression.span.end as usize)
+            .is_some_and(|text| text.trim() == expected)
+    };
+    if matching.next().is_some()
+        || statements.next().is_some()
+        || facts
+            .queries
+            .as_deref()?
+            .iter()
+            .filter(|other| {
+                other.count.as_ref().is_some_and(|other| {
+                    other.call == count.call || other.statement == count.statement
+                })
+            })
+            .count()
+            != 1
+        || query_id.is_empty()
+        || count.contained_parent.is_some()
+        || query.first.is_some()
+        || query.projection.is_some()
+        || query.cardinality_guard.is_some()
+        || query.limit.is_some()
+        || query.archived
+        || !query.order.is_empty()
+        || query.source != proof.source
+        || dependency.source != query.source
+        || dependency.node != edge.node
+        || dependency.field != edge.child
+        || dependency.model != edge.child
+        || dependency.field_name != "parent"
+        || dependency.role != DependencyRole::Control
+        || !dependency.calls.is_empty()
+        || expression.span != node_span(edge.node)
+        || first.child != query.model
+        || first.parent != candidate.child
+        || model_schema.parent != Some(first.parent)
+        || parent_control.node != first.node
+        || parent_control.model != first.child
+        || parent_control.field != first.child
+        || parent_control.field_name != "parent"
+        || parent_control.model_name != query.model_name
+        || parent_control.ty
+            != (ResolvedType::Record {
+                symbol: first.parent,
+                stored: true,
+            })
+        || parent_control.type_id != ir.items.get(first.parent.0 as usize)?.canonical
+        || unfinished_control.node
+            != crate::analysis::NodeKey::of(&checked_effect_node(
+                ir,
+                owner,
+                unfinished_control.node,
+                db,
+            )?)
+        || node_span(unfinished_control.node) != unfinished.span
+        || unfinished_control.model != query.model
+        || unfinished_control.field != unfinished_schema.id
+        || unfinished_control.field_name != "unfinished"
+        || unfinished_control.model_name != query.model_name
+        || unfinished_control.ty != ResolvedType::Scalar(Scalar::Bool)
+        || unfinished_control.type_id != "bool"
+        || [parent_control, unfinished_control].iter().any(|read| {
+            read.id.is_empty()
+                || read.source != query.source
+                || !read.calls.is_empty()
+                || read.role != DependencyRole::Control
+                || read.query_id.is_some()
+        })
+        || supplied.child != candidate.child
+        || supplied.parent != candidate.parent
+        || first.node != candidate.receiver
+        || supplied.receiver != input.0
+        || candidate_field != "parent"
+        || first_field != "parent"
+        || supplied_field != "parent"
+        || first_parent.span != node_span(first.node)
+        || row.span != node_span(first.receiver)
+        || actual_candidate.span != node_span(candidate.node)
+        || actual_supplied.span != node_span(supplied.node)
+        || parameter_expr.span != node_span(input.0)
+        || *parameter_owner != owner.id
+        || params.get(*index) != Some(&input.1)
+        || parameter.id != input.1
+        || parameter.module != owner.module
+        || parameter_type != &first_parent.ty
+        || parameter_expr.ty != *parameter_type
+        || !matches!(&parameter_expr.expr,IrExpr::Name(name) if name == &parameter.name)
+        || facts.parameters.get(*index)?.parameter != parameter.id
+        || facts.parameters.get(*index)?.default.is_some()
+        || !matches!(target,super::ir::IrCallTarget::Builtin {id,awaited:false} if id == "count")
+        || count.slots != [Some(0)]
+        || slots.is_some_and(|slots| slots != [Some(0)])
+        || call.span != node_span(count.call)
+        || call.ty != ResolvedType::Scalar(Scalar::Int)
+        || !matches!(bound.expr, IrExpr::Int(10))
+        || bound.ty != ResolvedType::Scalar(Scalar::Int)
+        || cond.ty != ResolvedType::Scalar(Scalar::Bool)
+        || domain.ty != array
+        || domain.span != node_span(query.node)
+        || original.node != query.node
+        || original.domain != query.domain
+        || original.domain_type != array
+        || original.result != array
+        || original.projection.is_some()
+        || collection.node != count.call
+        || collection.builtin != "count"
+        || collection.overload != count.overload
+        || collection.query != query.node
+        || collection.model != query.model
+        || Some(collection.alias) != query.alias
+        || collection.predicate.is_some()
+        || Some(alias.node) != query.alias
+        || row_name != "row"
+        || !alias.expressions.is_empty()
+        || clause.kind != CheckedQueryClauseKind::Where
+        || clause.expressions.as_slice() != [query.predicate?]
+        || predicate.span != node_span(query.predicate?)
+        || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        || equality.ty != ResolvedType::Scalar(Scalar::Bool)
+        || row.ty != record
+        || unfinished_row.ty != record
+        || !matches!(&unfinished_row.expr,IrExpr::Name(name) if name == row_name)
+        || !source_name(row, source_alias)
+        || !source_name(unfinished_row, source_alias)
+        || !source_name(parameter_expr, &parameter.name)
+        || unfinished_field != "unfinished"
+        || unfinished.ty != ResolvedType::Scalar(Scalar::Bool)
+        || scan.parent.is_some()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || scan.select.is_some()
+        || scan.select_param.is_some()
+        || !scan.order.is_empty()
+        || scan.contract_collection_call.is_some()
+        || scan.where_async
+        || !matches!(&scan.domain,super::ir::IrQueryDomain::Model(name) if name == &query.model_name)
+        || proof.returns.is_empty()
+        || proof.returns.iter().any(|returned| {
+            returned.source != query.source
+                || returned.node != query.return_node
+                || query.influences.len() != 4
+                || query.influences.iter().any(|influence| {
+                    influence.query_id.as_deref() != Some(query_id)
+                        || !returned.influences.contains(influence)
+                })
+                || !returned.dependencies.iter().any(|read| read == dependency)
+        })
+        || [
+            call.as_ref(),
+            domain,
+            predicate,
+            equality.as_ref(),
+            actual_candidate.as_ref(),
+            actual_supplied.as_ref(),
+            first_parent.as_ref(),
+            row.as_ref(),
+            parameter_expr.as_ref(),
+            unfinished.as_ref(),
+            unfinished_row.as_ref(),
+        ]
+        .iter()
+        .any(|expression| {
+            !census
+                .iter()
+                .any(|(node, ty)| node_span(*node) == expression.span && ty == &expression.ty)
+        })
+    {
+        return None;
+    }
+    let mut schemas = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.id == edge.child);
+    let child = schemas.next()?;
+    let mut parents = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.id == edge.parent);
+    let parent = parents.next()?;
+    if schemas.next().is_some()
+        || parents.next().is_some()
+        || child.parent != Some(parent.id)
+        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(parent.id))
+        || child.canonical != dependency.model_name
+        || parent.canonical != dependency.type_id
+        || dependency.ty
+            != (ResolvedType::Record {
+                symbol: parent.id,
+                stored: true,
+            })
+        || expression.ty != dependency.ty
+        || child.source != query.source
+        || parent.source != query.source
+        || child.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == "parent")
+        })
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, child, db)?;
+    match_stored_contract_schema(ir, parent, db)?;
+    checked_effect_node(ir, owner, count.call, db)?;
+    checked_effect_node(ir, owner, dependency.node, db)?;
+    let authored_alias = checked_effect_node(ir, owner, alias.node, db)?;
+    let alias_names = authored_alias
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Name)
+        .map(|node| node.token().map(|token| token.text(source_text)))
+        .collect::<Option<Vec<_>>>()?;
+    if alias_names != ["as", source_alias.as_str()] {
+        return None;
+    }
+    Some((child, parent, query.id.as_str()))
+}
+
+#[cfg(test)]
+#[path = "scenario_parent_association_tests.rs"]
+mod parent_association_tests;
+
 pub(super) fn checked_parent_reference<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,

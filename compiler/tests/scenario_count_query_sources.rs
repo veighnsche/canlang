@@ -16,6 +16,7 @@ use std::path::Path;
 const CHAT: &str = include_str!("fixtures/original-a850/CanChat.can");
 const CREATIVE: &str = include_str!("fixtures/original-a850/CanCreative.can");
 const BOUNDED: &str = include_str!("fixtures/native-count-turn.can");
+const ANCESTOR: &str = include_str!("fixtures/native-ancestor-count.can");
 const EMPTY: &str = "";
 
 struct Original {
@@ -203,6 +204,197 @@ fn copied_or_derived_count_parent_does_not_acquire_direct_query_provenance() {
 }
 
 #[test]
+fn ancestor_count_retains_distinct_candidate_only_ordinary_parent_reads() {
+    let original = original(ANCESTOR, EMPTY);
+    let disclosures = original.inventory();
+    let owner = original.symbol("AncestorCount.ask");
+    let ScenarioDisclosure::Complete(complete) = &disclosures[&owner] else {
+        panic!(
+            "bounded ancestor source declined: {:?}",
+            disclosures[&owner]
+        );
+    };
+    let retained = counts(&disclosures, owner);
+    assert_eq!(retained.len(), 1);
+    let query = retained[0];
+    let count = query.count.as_ref().unwrap();
+    assert_eq!(
+        text(&original.db, count.statement),
+        "require count(Run as run where run.parent.parent==branch.parent and run.unfinished)<10"
+    );
+    assert_eq!(query.dependencies.len(), 2);
+    assert_eq!(query.dependencies[0].node, count.parent_edges[0].node);
+    assert_eq!(query.dependencies[0].field_name, "parent");
+    assert!(
+        query
+            .dependencies
+            .iter()
+            .all(|read| read.query_id.is_none())
+    );
+    assert_eq!(complete.returns.len(), 1);
+    let returned = &complete.returns[0];
+    assert_eq!(returned.influences, query.influences);
+    assert_eq!(returned.dependencies.len(), 2);
+    for (read, edge) in returned.dependencies.iter().zip(&count.parent_edges[1..]) {
+        assert_eq!(read.node, edge.node);
+        assert_eq!(read.model, edge.child);
+        assert_eq!(read.field, edge.child);
+        assert_eq!(read.model_name, "AncestorCount.Branch");
+        assert_eq!(read.field_name, "parent");
+        assert_eq!(read.role, DependencyRole::Control);
+        assert_eq!(
+            read.ty,
+            ResolvedType::Record {
+                symbol: edge.parent,
+                stored: true
+            }
+        );
+        assert_eq!(read.type_id, "AncestorCount.Conversation");
+        assert_eq!(read.source, query.source);
+        assert_eq!(read.query_id.as_ref(), Some(&query.id));
+        assert!(read.calls.is_empty());
+        assert!(read.node.start >= query.node.start && read.node.end <= query.node.end);
+    }
+    assert_ne!(returned.dependencies[0].id, returned.dependencies[1].id);
+    assert_eq!(
+        text(&original.db, returned.dependencies[0].node),
+        "run.parent.parent"
+    );
+    assert_eq!(
+        text(&original.db, returned.dependencies[1].node),
+        "branch.parent"
+    );
+    assert_eq!(returned.node, query.return_node);
+}
+
+#[test]
+fn ordinary_parent_read_outside_query_keeps_its_mandatory_observation() {
+    let source = ANCESTOR.replace("Then\n", " scenario copy(branch:Branch) by=members -> Branch\n  do\n   create Branch {parent=branch.parent,title=\"copy\"} as copy\n   return copy\nThen\n");
+    let original = original(&source, EMPTY);
+    let disclosures = original.inventory();
+    let ScenarioDisclosure::Complete(complete) =
+        &disclosures[&original.symbol("AncestorCount.copy")]
+    else {
+        panic!(
+            "ordinary original parent source declined: {:?}",
+            disclosures
+        );
+    };
+    assert!(counts(&disclosures, original.symbol("AncestorCount.copy")).is_empty());
+    assert_eq!(complete.returns.len(), 1);
+    assert_eq!(complete.returns[0].dependencies.len(), 1);
+    let read = &complete.returns[0].dependencies[0];
+    assert_eq!(read.field_name, "parent");
+    assert_eq!(text(&original.db, read.node), "branch.parent");
+    assert_eq!(read.query_id, None);
+    assert!(complete.returns[0].influences.is_empty());
+}
+
+#[test]
+fn ancestor_count_parent_source_correspondence_refuses_copied_foreign_and_stale_facts() {
+    let original = original(ANCESTOR, EMPTY);
+    let disclosures = original.inventory();
+    let owner = original.symbol("AncestorCount.ask");
+    let query = counts(&disclosures, owner)[0];
+    let count = query.count.as_ref().unwrap();
+    for mutation in 0..6 {
+        let mut resolve = original.resolve.clone();
+        let mut types = original.types.clone();
+        let mut effects = original.effects.clone();
+        match mutation {
+            0 => {
+                types.selected_calls.get_mut(&count.call).unwrap().slots[0] = None;
+            }
+            1 => {
+                types.node_types.insert(
+                    count.parent_edges[1].node,
+                    ResolvedType::Record {
+                        symbol: query.model,
+                        stored: true,
+                    },
+                );
+            }
+            2 => {
+                types.node_types.insert(
+                    count.parent_edges[2].receiver,
+                    ResolvedType::Record {
+                        symbol: query.model,
+                        stored: true,
+                    },
+                );
+            }
+            3 => {
+                effects
+                    .models
+                    .get_mut(&count.parent_edges[1].child)
+                    .unwrap()
+                    .owner = ModelOwner::ChildOf(query.model);
+            }
+            4 => {
+                resolve.node_binding.insert(
+                    count.parent_edges[0].receiver,
+                    resolve::Binding::Symbol(query.inputs[0].1),
+                );
+            }
+            5 => {
+                effects.scenarios.get_mut(&owner).unwrap().guards[0].cond =
+                    Some(query.predicate.unwrap());
+            }
+            _ => unreachable!(),
+        }
+        let changed =
+            analyze_scenario_disclosure(&original.db, &original.trees, &resolve, &types, &effects);
+        assert_missing(&changed, owner, count.call);
+        assert!(matches!(changed[&owner], ScenarioDisclosure::Declined(_)));
+    }
+    let mut stale = SourceDb::new();
+    stale.add(
+        "CanChat.can".into(),
+        ANCESTOR
+            .replace(" as run where", " as row where")
+            .replace("run.parent.parent", "row.parent.parent")
+            .replace("run.unfinished", "row.unfinished"),
+    );
+    stale.add("CanCreative.can".into(), EMPTY.into());
+    let changed = analyze_scenario_disclosure(
+        &stale,
+        &original.trees,
+        &original.resolve,
+        &original.types,
+        &original.effects,
+    );
+    assert_missing(&changed, owner, count.call);
+    for changed in [
+        ANCESTOR
+            .replace(
+                "  require count",
+                "  do\n   let copied=branch\n   require count",
+            )
+            .replace("==branch.parent", "==copied.parent")
+            .replace("  do\n   create", "   create"),
+        ANCESTOR.replace(
+            "run.parent.parent==branch.parent and run.unfinished",
+            "run.parent==branch and run.unfinished",
+        ),
+    ] {
+        let original = self::original(&changed, EMPTY);
+        let disclosures = original.inventory();
+        assert!(matches!(
+            disclosures[&original.symbol("AncestorCount.ask")],
+            ScenarioDisclosure::Declined(_)
+        ));
+        assert!(
+            disclosures[&original.symbol("AncestorCount.ask")]
+                .source_facts()
+                .unwrap()
+                .queries
+                .as_ref()
+                .is_none_or(|queries| queries.iter().all(|query| query.count.is_none()))
+        );
+    }
+}
+
+#[test]
 fn byte_exact_original_counts_coexist_with_first_and_keep_real_parent_occurrences() {
     let original = original(CHAT, CREATIVE);
     let disclosures = original.inventory();
@@ -312,15 +504,24 @@ fn byte_exact_original_counts_coexist_with_first_and_keep_real_parent_occurrence
             }
         );
     }
-    assert_eq!(unscoped.dependencies.len(), 1);
-    assert_eq!(unscoped.dependencies[0].field_name, "unfinished");
-    assert_eq!(unscoped.dependencies[0].role, DependencyRole::Control);
-    assert!(
-        unscoped
-            .dependencies
-            .iter()
-            .all(|dependency| dependency.field_name != "parent")
+    assert_eq!(unscoped.dependencies.len(), 2);
+    let parent = &unscoped.dependencies[0];
+    assert_eq!(parent.node, fact.parent_edges[0].node);
+    assert_eq!(parent.model, original.symbol("chat.Run"));
+    assert_eq!(
+        parent.field, parent.model,
+        "reserved owning metadata identity"
     );
+    assert_eq!(parent.field_name, "parent");
+    assert_eq!(parent.type_id, "chat.Branch");
+    assert_eq!(parent.role, DependencyRole::Control);
+    assert_eq!(
+        parent.query_id, None,
+        "query-local reads have no ordinary exemption"
+    );
+    assert_eq!(unscoped.dependencies[1].field_name, "unfinished");
+    assert_eq!(unscoped.dependencies[1].role, DependencyRole::Control);
+    assert_eq!(unscoped.dependencies[1].query_id, None);
     for (query, model, operand, parameter) in [
         (chat[1], "chat.Turn", "branch.Turn", "chat.ask.branch"),
         (

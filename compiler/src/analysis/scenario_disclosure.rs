@@ -44,6 +44,9 @@ pub struct DisclosureDependency {
     pub field_name: String,
     pub ty: ResolvedType,
     pub type_id: String,
+    /// Exact candidate-only ordinary occurrence of an existing checked query.
+    /// Other reads, including query-local controls, keep their normal obligation.
+    pub query_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3529,6 +3532,39 @@ impl<'a> Closure<'a> {
                 (node, None, None, Some((receiver, parameter)))
             }
             SyntaxKind::Query => {
+                // This original ancestor scan is a real owning Require, not
+                // a copied count tree or a selected-call annotation alone.
+                let mut statements = scenario
+                    .guards
+                    .iter()
+                    .chain(&scenario.effects)
+                    .filter(|effect| effect.node == statement);
+                let required = statements.next()?;
+                let authored_statement = self.nodes.get(&statement)?;
+                let authored_condition = authored_statement
+                    .children
+                    .iter()
+                    .find(|part| expression(part.kind))
+                    .map(NodeKey::of)?;
+                let authored_call = self.nodes.get(&call)?;
+                let callee = authored_call
+                    .children
+                    .iter()
+                    .find(|part| expression(part.kind))?;
+                if statements.next().is_some()
+                    || required.verb != EffectVerb::Require
+                    || authored_statement.kind != SyntaxKind::Require
+                    || required.cond != Some(authored_condition)
+                    || self.types.node_types.get(&authored_condition)
+                        != Some(&ResolvedType::Scalar(Scalar::Bool))
+                    || authored_call.kind != SyntaxKind::Call
+                    || callee.kind != SyntaxKind::NameRef
+                    || self.word(callee)? != "count"
+                    || !matches!(self.query_binding(NodeKey::of(callee)),
+                        Some(Binding::Builtin {id}) if id == "count")
+                {
+                    return None;
+                }
                 let fact = self.types.checked_collection_calls.get(&call)?;
                 let query = self.types.checked_queries.get(&node)?;
                 let [alias, predicate] = query.clauses.as_slice() else {
@@ -3654,6 +3690,30 @@ impl<'a> Closure<'a> {
                 {
                     return None;
                 }
+                // This is original containment metadata, not an authored
+                // field. Its owning query captures the candidate's first hop.
+                dependencies.push(DisclosureDependency {
+                    id: self.opaque("query-control", first_edge.node, &id).ok()?,
+                    source: self.source(scenario.module, first_edge.node).ok()?,
+                    node: first_edge.node,
+                    calls: Vec::new(),
+                    role: DependencyRole::Control,
+                    model,
+                    field: model,
+                    model_name: owner.canonical.clone(),
+                    field_name: "parent".into(),
+                    ty: ResolvedType::Record {
+                        symbol: first_edge.parent,
+                        stored: true,
+                    },
+                    type_id: self
+                        .resolve
+                        .symbols
+                        .get(first_edge.parent.0 as usize)?
+                        .canonical
+                        .clone(),
+                    query_id: None,
+                });
                 dependencies.push(self.query_dependency(
                     unfinished,
                     scenario.module,
@@ -4484,6 +4544,7 @@ impl<'a> Closure<'a> {
             _ => self.field_type_id(node, field, ty).ok()?,
         };
         Some(DisclosureDependency {
+            query_id: None,
             id: self
                 .opaque(
                     if role == DependencyRole::Data {
@@ -5252,6 +5313,7 @@ impl<'a> Closure<'a> {
                 // Reserved row identity is an owning stored observation. It is
                 // neither an authored field nor a version/context intrinsic.
                 value.reads.push(DisclosureDependency {
+                    query_id: None,
                     id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
                     source: self.source(module, key)?,
                     node: key,
@@ -5321,6 +5383,7 @@ impl<'a> Closure<'a> {
                     .reference_operand_type_id(&expected)
                     .ok_or_else(|| self.fail(key, "missing implicit parent owning declaration"))?;
                 value.reads.push(DisclosureDependency {
+                    query_id: None,
                     id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
                     source: self.source(module, key)?,
                     node: key,
@@ -5502,6 +5565,7 @@ impl<'a> Closure<'a> {
                 self.field_type_id(key, field.id, field_ty)?
             };
             value.reads.push(DisclosureDependency {
+                query_id: None,
                 id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
                 source: self.source(module, key)?,
                 node: key,
@@ -5796,12 +5860,93 @@ impl<'a> Closure<'a> {
                 })
             });
             if let Some(query) = original {
-                // Query-local predicate reads stay solely in query inventory.
-                // Do not manufacture ordinary parent observations or fields.
-                return Ok(vec![ValuePath {
-                    influences: query.influences,
-                    ..ValuePath::default()
-                }]);
+                let mut value = ValuePath::default();
+                let count = query.count.as_ref().expect("checked count source");
+                if !count.parent_edges.is_empty() {
+                    let [first, candidate, supplied] = count.parent_edges.as_slice() else {
+                        return Err(
+                            self.fail(key, "count needs its original three parent occurrences")
+                        );
+                    };
+                    if count.contained_parent.is_some()
+                        || candidate.receiver != first.node
+                        || candidate.child != first.parent
+                        || supplied.child != candidate.child
+                        || supplied.parent != candidate.parent
+                        || self
+                            .checked_count_parent_edge(
+                                candidate.node,
+                                candidate.receiver,
+                                candidate.child,
+                                module,
+                            )
+                            .as_ref()
+                            != Some(candidate)
+                        || self.source(module, candidate.node)? != query.source
+                        || self.source(module, supplied.node)? != query.source
+                    {
+                        return Err(self.fail(key, "count parent occurrence/source mismatch"));
+                    }
+                    let owner = self
+                        .checked_count_model(candidate.child, module)
+                        .ok_or_else(|| self.fail(key, "missing owning query parent model"))?;
+                    let parent = self
+                        .checked_count_model(candidate.parent, module)
+                        .ok_or_else(|| self.fail(key, "missing owning query ancestor model"))?;
+                    value.reads.push(DisclosureDependency {
+                        id: self.opaque(
+                            "read-control",
+                            candidate.node,
+                            &self.call_stamp(calls)?,
+                        )?,
+                        source: query.source.clone(),
+                        node: candidate.node,
+                        calls: Vec::new(),
+                        role: DependencyRole::Control,
+                        model: candidate.child,
+                        field: candidate.child,
+                        model_name: owner.canonical.clone(),
+                        field_name: "parent".into(),
+                        ty: ResolvedType::Record {
+                            symbol: candidate.parent,
+                            stored: true,
+                        },
+                        type_id: parent.canonical.clone(),
+                        query_id: Some(query.id.clone()),
+                    });
+                    value.observed.push((candidate.node, Vec::new()));
+                    // Retain the original supplied edge at its predicate
+                    // occurrence. Native execution must never hoist this read.
+                    let mut supplied_values = self.expr(supplied.node, module, env, calls)?;
+                    if supplied_values.len() != 1 {
+                        return Err(self.fail(key, "count supplied parent path"));
+                    }
+                    let mut supplied_value = self.control(supplied_values.remove(0))?;
+                    let [read] = supplied_value.reads.as_mut_slice() else {
+                        return Err(self.fail(key, "count supplied parent read closure"));
+                    };
+                    if read.node != supplied.node
+                        || read.model != supplied.child
+                        || read.field != supplied.child
+                        || read.field_name != "parent"
+                        || read.ty
+                            != (ResolvedType::Record {
+                                symbol: supplied.parent,
+                                stored: true,
+                            })
+                        || read.source != query.source
+                        || !read.calls.is_empty()
+                        || read.query_id.is_some()
+                        || !supplied_value.intrinsics.is_empty()
+                        || !supplied_value.decisions.is_empty()
+                    {
+                        return Err(self.fail(key, "count supplied parent occurrence mismatch"));
+                    }
+                    read.query_id = Some(query.id.clone());
+                    value.join(&supplied_value);
+                }
+                value.influences = query.influences;
+                return Ok(vec![value]);
             }
         }
         // State retains and reauthorizes the complete child association before
@@ -6465,6 +6610,7 @@ impl<'a> Closure<'a> {
         }
         Ok(vec![ValuePath {
             reads: vec![DisclosureDependency {
+                query_id: None,
                 id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
                 source: self.source(module, key)?,
                 node: key,
@@ -7906,6 +8052,7 @@ impl<'a> Closure<'a> {
             return Err(self.fail(effect.node, "unestablished machine endpoints"));
         }
         let read = DisclosureDependency {
+            query_id: None,
             id: self.opaque(
                 "transition-control",
                 effect.node,
