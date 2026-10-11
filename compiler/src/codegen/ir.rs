@@ -433,7 +433,7 @@ impl CheckedCallbackGrants {
                 .props
                 .iter()
                 .all(|(name, _)| matches!(name.as_str(), "values" | "empty")),
-            "inspectionValueList" => node
+            "inspectionValueList" | "textMessageValueList" => node
                 .props
                 .iter()
                 .all(|(name, _)| matches!(name.as_str(), "values" | "empty" | "page")),
@@ -1662,6 +1662,8 @@ impl IrDeleteMode {
 pub enum IrEventSource {
     Declared(String),
     DeliveryProgressed(String),
+    /// Original removed-account payload, separate from removing attribution.
+    TeamsMemberRemoved,
     Committed {
         model: SymbolId,
         change: IrCommittedChange,
@@ -2531,6 +2533,329 @@ impl CheckedEmptyValueInventory {
 }
 
 impl CheckedCommittedSources {
+    /// Reuse original source ownership for the fixed removal payload. This is
+    /// compiler correspondence only; it authenticates no Identity occurrence.
+    pub(crate) fn teams_member_removed_matches(
+        &self,
+        ir: &IrProgram,
+        handler: &IrItem,
+        db: &SourceDb,
+    ) -> bool {
+        let IrItemKind::Scenario {
+            trusted: true,
+            event_source: Some(IrEventSource::TeamsMemberRemoved),
+            hook: None,
+            guards,
+            effects,
+            ..
+        } = &handler.kind
+        else {
+            return false;
+        };
+        let Some(module) = ir.modules.get(handler.module.0 as usize) else {
+            return false;
+        };
+        if module.id != handler.module
+            || module.file != handler.span.file
+            || handler.canonical != format!("{}.{}", module.name, handler.name)
+            || ir
+                .items
+                .get(handler.id.0 as usize)
+                .is_none_or(|item| item.span != handler.span)
+            || self.sources.is_empty()
+        {
+            return false;
+        }
+        let mut trees = Vec::new();
+        for (id, path, hash) in &self.sources {
+            let Some(source) = db.get(*id) else {
+                return false;
+            };
+            if source.path != *path
+                || source.sha256 != *hash
+                || sha256_hex(source.text.as_bytes()) != *hash
+            {
+                return false;
+            }
+            let (tree, diagnostics) = crate::syntax::parse_source(*id, &source.text);
+            if !diagnostics.is_empty() {
+                return false;
+            }
+            trees.push((*id, tree));
+        }
+        let Some(tree) = trees
+            .iter()
+            .find(|(id, _)| *id == module.file)
+            .map(|(_, tree)| tree)
+        else {
+            return false;
+        };
+        let Some(source) = db.get(module.file) else {
+            return false;
+        };
+        let Some(declaration) = tree.descendants().find(|node| {
+            node.kind == SyntaxKind::Scenario
+                && kids(node).iter().any(|part| {
+                    part.kind == SyntaxKind::Name
+                        && part.span == handler.span
+                        && name_text(db, part).as_deref() == Some(handler.name.as_str())
+                })
+        }) else {
+            return false;
+        };
+        let Some(on) = crate::analysis::attribute_value(declaration, "on", &source.text) else {
+            return false;
+        };
+        if on.kind != SyntaxKind::Path
+            || crate::analysis::path_segments(on, &source.text) != ["teams", "member_removed"]
+        {
+            return false;
+        }
+        // Lexical resolution supplies only contextual identity here. Builtin
+        // availability and payload admission remain their existing owners.
+        let mut diagnostics = Vec::new();
+        let Ok(resolved) =
+            crate::analysis::resolve::try_resolve_program(db, &trees, None, &mut diagnostics)
+        else {
+            return false;
+        };
+        let payload = ResolvedType::Object(vec![
+            ("team_id".into(), ResolvedType::Scalar(Scalar::Text)),
+            ("membership_id".into(), ResolvedType::Scalar(Scalar::Text)),
+            ("user".into(), ResolvedType::Scalar(Scalar::User)),
+        ]);
+        let contextual = |value: &TypedExpr| {
+            matches!(
+                resolved.node_binding.get(&NodeKey {
+                    file: value.span.file,
+                    start: value.span.start,
+                    end: value.span.end,
+                    kind: SyntaxKind::NameRef as u8
+                }),
+                Some(crate::analysis::resolve::Binding::Context(
+                    crate::analysis::resolve::ContextVar::Event
+                ))
+            )
+        };
+        fn event_type(
+            value: &TypedExpr,
+            contextual: &impl Fn(&TypedExpr) -> bool,
+            payload: &ResolvedType,
+            depth: usize,
+        ) -> Result<Option<ResolvedType>, ()> {
+            if depth > 64 {
+                return Err(());
+            }
+            if contextual(value) {
+                return Ok(Some(payload.clone()));
+            }
+            if let IrExpr::Member { base, field } = &value.expr {
+                let Some(base_type) = event_type(base, contextual, payload, depth + 1)? else {
+                    return Ok(None);
+                };
+                return match base_type {
+                    ResolvedType::Object(fields) => fields
+                        .into_iter()
+                        .find(|(name, _)| name == field)
+                        .map(|(_, ty)| Some(ty))
+                        .ok_or(()),
+                    ResolvedType::Scalar(Scalar::User) if field == "id" => {
+                        Ok(Some(ResolvedType::Scalar(Scalar::Text)))
+                    }
+                    _ => Err(()),
+                };
+            }
+            Ok(None)
+        }
+        let mut statements = guards
+            .iter()
+            .chain(effects)
+            .map(|statement| (statement, 0usize))
+            .collect::<Vec<_>>();
+        let mut expressions = Vec::new();
+        let mut count = 0usize;
+        while let Some((statement, depth)) = statements.pop() {
+            count += 1;
+            if count > 20000 || depth > 64 {
+                return false;
+            }
+            let mut add = |value| expressions.push((value, depth));
+            match statement {
+                IrStmt::Let { value, .. } => add(value),
+                IrStmt::Create { input, .. } => add(input),
+                IrStmt::Set {
+                    record, changes, ..
+                } => {
+                    add(record);
+                    add(changes);
+                }
+                IrStmt::Transition { record, .. } | IrStmt::Delete { record, .. } => add(record),
+                IrStmt::Call { target, inputs, .. } => {
+                    add(inputs);
+                    if let Some(value) = target.operand() {
+                        add(value);
+                    }
+                }
+                IrStmt::Emit { payload, .. } => add(payload),
+                IrStmt::Send { args, when, .. } => {
+                    add(args);
+                    if let Some(value) = when {
+                        add(value);
+                    }
+                }
+                IrStmt::Schedule {
+                    key, at, payload, ..
+                } => {
+                    add(key);
+                    add(at);
+                    add(payload);
+                }
+                IrStmt::Cancel { key, .. } => add(key),
+                IrStmt::Return { value, .. } => {
+                    if let Some(value) = value {
+                        add(value);
+                    }
+                }
+                IrStmt::Require { cond, .. } => add(cond),
+                IrStmt::If {
+                    cond,
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    add(cond);
+                    statements.extend(
+                        then_branch
+                            .iter()
+                            .chain(else_branch)
+                            .map(|value| (value, depth + 1)),
+                    );
+                }
+                IrStmt::Match { subject, arms, .. } => {
+                    add(subject);
+                    for arm in arms {
+                        statements.extend(arm.body.iter().map(|value| (value, depth + 1)));
+                    }
+                }
+                IrStmt::For {
+                    domain,
+                    limit,
+                    body,
+                    ..
+                } => {
+                    add(domain);
+                    if let Some(value) = limit {
+                        add(value);
+                    }
+                    statements.extend(body.iter().map(|value| (value, depth + 1)));
+                }
+                IrStmt::Unsupported { .. } => {}
+            }
+        }
+        while let Some((value, depth)) = expressions.pop() {
+            count += 1;
+            if count > 20000 || depth > 64 {
+                return false;
+            }
+            if contextual(value)
+                && (!matches!(&value.expr, IrExpr::Name(name) if name == "event")
+                    || value.ty != payload)
+            {
+                return false;
+            }
+            let Ok(expected) = event_type(value, &contextual, &payload, 0) else {
+                return false;
+            };
+            if let Some(expected) = expected {
+                if value.ty != expected {
+                    return false;
+                }
+                if let IrExpr::Member { field, .. } = &value.expr {
+                    let Some(original) = declaration
+                        .descendants()
+                        .find(|node| node.kind == SyntaxKind::Member && node.span == value.span)
+                    else {
+                        return false;
+                    };
+                    if kids(original)
+                        .iter()
+                        .rfind(|node| node.kind == SyntaxKind::Name)
+                        .and_then(|node| name_text(db, node))
+                        .as_deref()
+                        != Some(field.as_str())
+                    {
+                        return false;
+                    }
+                }
+            }
+            let mut add = |child| expressions.push((child, depth + 1));
+            match &value.expr {
+                IrExpr::Member { base, .. }
+                | IrExpr::Unary { operand: base, .. }
+                | IrExpr::Lambda { body: base, .. }
+                | IrExpr::DeliveryRead { record: base, .. } => add(base),
+                IrExpr::Binary { left, right, .. } => {
+                    add(left);
+                    add(right);
+                }
+                IrExpr::Call { args, .. }
+                | IrExpr::BoundCall { args, .. }
+                | IrExpr::Array(args)
+                | IrExpr::Format { args, .. } => {
+                    for value in args {
+                        add(value);
+                    }
+                }
+                IrExpr::Object(fields) => {
+                    for (_, value) in fields {
+                        add(value);
+                    }
+                }
+                IrExpr::Query(query) => {
+                    if let IrQueryDomain::Value { base, .. } = &query.domain {
+                        add(base);
+                    }
+                    for value in [
+                        &query.parent,
+                        &query.where_pred,
+                        &query.limit,
+                        &query.archived,
+                        &query.select,
+                    ]
+                    .into_iter()
+                    .flatten()
+                    {
+                        add(value);
+                    }
+                }
+                IrExpr::HasRole {
+                    person: Some(value),
+                    ..
+                }
+                | IrExpr::JudgmentSpecification {
+                    options: Some(value),
+                    ..
+                } => add(value),
+                IrExpr::Message(message)
+                | IrExpr::MessageCall {
+                    descriptor: message,
+                    ..
+                } => {
+                    for param in &message.params {
+                        add(&param.value);
+                    }
+                    if let IrExpr::MessageCall { args, .. } = &value.expr {
+                        for value in args {
+                            add(value);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        true
+    }
+
     pub(crate) fn has_standard_value_inventory_fact(&self) -> bool {
         self.standard_value_inventory.is_some()
     }
@@ -5292,12 +5617,26 @@ impl<'a> Cx<'a> {
         // accounts) carry their type when no table anchors the node.
         // The lookup follows the alias rewrite, so a rewritten alias
         // reads its lambda parameter's type.
-        if matches!(ty, ResolvedType::Unknown)
-            && node.kind == SyntaxKind::NameRef
+        if node.kind == SyntaxKind::NameRef
             && let Some(name) = kids(node).iter().find_map(|n| name_text(self.db, n))
         {
             let target = scope.row_rewrite.get(&name).unwrap_or(&name);
-            if let Some(bound) = scope.name_types.get(target) {
+            let contextual_event = matches!(
+                self.program
+                    .types
+                    .contextual_references
+                    .get(&NodeKey::of(node)),
+                Some(crate::analysis::resolve::ContextVar::Event)
+            );
+            if let Some(bound) = scope.name_types.get(target)
+                && (target != "event" || contextual_event)
+                && (matches!(ty, ResolvedType::Unknown)
+                    || contextual_event
+                        && matches!(ty, ResolvedType::Opaque("trusted event payload"))
+                    || scope.callback_values.contains(target)
+                        && crate::analysis::types::checked_standard_nominal_name(bound)
+                            == Some("TextMessage"))
+            {
                 ty = bound.clone();
             }
         }
@@ -6028,9 +6367,15 @@ impl<'a> Cx<'a> {
                         expr.ty = ResolvedType::Unknown;
                     }
                 }
+                let copied_message_member = fields.len() == 1
+                    && matches!(&expr.expr, IrExpr::Name(name) if scope.callback_values.contains(name))
+                    && crate::analysis::types::checked_standard_nominal_name(&expr.ty)
+                        == Some("TextMessage");
                 for (field, field_span) in fields.iter().rev().zip(field_spans.iter().rev()) {
                     let inferred = self.member_ty(&expr.ty, field);
-                    let field_ty = if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
+                    let field_ty = if copied_message_member {
+                        inferred
+                    } else if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
                         ty.clone()
                     } else if !matches!(inferred, ResolvedType::Unknown) {
                         inferred
@@ -8958,6 +9303,21 @@ impl<'a> Cx<'a> {
             return empty;
         };
         let mut scope = Scope::module(symbol.module);
+        if matches!(
+            data.on,
+            Some(crate::analysis::effects::HandlerSource::TeamsMemberRemoved)
+        ) {
+            // This fixed owning source has a checked payload even when the
+            // member checker does not retain its contextual receiver node.
+            scope.name_types.insert(
+                "event".into(),
+                ResolvedType::Object(vec![
+                    ("team_id".into(), ResolvedType::Scalar(Scalar::Text)),
+                    ("membership_id".into(), ResolvedType::Scalar(Scalar::Text)),
+                    ("user".into(), ResolvedType::Scalar(Scalar::User)),
+                ]),
+            );
+        }
         let by = data
             .by
             .as_ref()
@@ -9014,6 +9374,9 @@ impl<'a> Cx<'a> {
                 if data.cohort.is_none() =>
             {
                 Some(IrEventSource::DeliveryProgressed(source.clone()))
+            }
+            Some(crate::analysis::effects::HandlerSource::TeamsMemberRemoved) => {
+                Some(IrEventSource::TeamsMemberRemoved)
             }
             Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
                 let change = match event.as_str() {
@@ -12088,6 +12451,7 @@ impl<'a> Cx<'a> {
             "input" | "textarea" | "radio" | "select" => {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
+            "label" | "validator" => self.decode_field_fragment(scope, node, word),
             "checkbox" => self.decode_bool_checkbox(scope, node, row_ctx),
             "range" | "file_input" => self.decode_owned_control(scope, node, word, row_ctx),
             "progress" => self.decode_integer_progress(scope, node, row_ctx),
@@ -12624,6 +12988,83 @@ impl<'a> Cx<'a> {
             return None;
         }
         Some(self.decode_field_control(scope, node, "checkbox", row_ctx))
+    }
+
+    /// Label and feedback placements consume the same selected writable
+    /// prepared field as its control; they do not introduce another input.
+    fn decode_field_fragment(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+    ) -> Option<IrUi> {
+        let admitted = if word == "label" {
+            &["caption"][..]
+        } else {
+            &[][..]
+        };
+        self.check_ui_attributes(node, word, admitted);
+        let headers: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|child| is_expression(child.kind))
+            .collect();
+        let selector = match headers.as_slice() {
+            [header] => selector_spelling(self.db, header),
+            _ => None,
+        };
+        let owned = selector.as_ref().is_some_and(|selector| {
+            scope.in_field_owner
+                && scope
+                    .form_fields
+                    .as_ref()
+                    .is_some_and(|fields| fields.contains(selector))
+                && scope
+                    .form_bound_fields
+                    .as_ref()
+                    .is_some_and(|fields| !fields.contains(selector))
+                && scope.field_operation.is_some_and(|operation| {
+                    self.default_form_fields(operation)
+                        .is_some_and(|fields| fields.contains(selector))
+                })
+        });
+        let attributes = ui_attributes(self.db, node);
+        if !owned
+            || attributes.len() > admitted.len()
+            || attributes
+                .iter()
+                .any(|(name, value)| !admitted.contains(&name.as_str()) || value.is_none())
+            || kids(node).into_iter().any(|child| {
+                (is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
+                    || child.kind == SyntaxKind::MessageValue
+            })
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: needs one body-free selected owning writable field"),
+                node.span,
+            ));
+            return None;
+        }
+        let mut props = vec![(
+            "field".to_string(),
+            TypedExpr::new(
+                IrExpr::Text(selector?),
+                ResolvedType::Scalar(Scalar::Text),
+                headers[0].span,
+            ),
+        )];
+        for (name, value) in attributes {
+            props.push((name, self.decode_ui_header_value(scope, value?)));
+        }
+        Some(IrUi {
+            view: None,
+            factory: word.to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     fn decode_field_control(
@@ -14795,6 +15236,48 @@ impl<'a> Cx<'a> {
         Some(values)
     }
 
+    /// A copied transcript retains the exact owning stored field and the
+    /// released standard message schema, rather than admitting array shapes.
+    fn text_message_value_source(&mut self, scope: &Scope, head: &SyntaxNode) -> Option<TypedExpr> {
+        let values = self.decode_expr(scope, head);
+        let ResolvedType::Array { element, .. } = &values.ty else {
+            return None;
+        };
+        if crate::analysis::types::checked_standard_nominal_name(element) != Some("TextMessage") {
+            return None;
+        }
+        let IrExpr::Member { base, field } = &values.expr else {
+            return None;
+        };
+        let (
+            IrExpr::Name(alias),
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+        ) = (&base.expr, &base.ty)
+        else {
+            return None;
+        };
+        if scope.in_field_owner
+            || scope.name_types.get(alias) != Some(&base.ty)
+            || scope.row_rewrite.get(alias) != Some(alias)
+        {
+            return None;
+        }
+        let field_id = self.fields.get(&(*model, field.clone()))?;
+        let owner = self.program.symbols.get(model.0 as usize)?;
+        let stored = self.program.symbols.get(field_id.0 as usize)?;
+        if !matches!(&owner.kind, SymbolKind::Model { fields, .. } if fields.contains(field_id))
+            || !matches!(stored.kind, SymbolKind::Field { owner, .. } if owner == *model)
+            || stored.module != owner.module
+            || self.program.types.symbol_types.get(field_id) != Some(&values.ty)
+        {
+            return None;
+        }
+        Some(values)
+    }
+
     /// Bounded copied lists keep authored alias, gates and readonly children.
     fn decode_callback_value_list(
         &mut self,
@@ -14805,6 +15288,10 @@ impl<'a> Cx<'a> {
         inspection_values: Option<TypedExpr>,
     ) -> Option<IrUi> {
         let inspection = inspection_values.is_some();
+        let messages = inspection_values.as_ref().is_some_and(|values| {
+            matches!(&values.ty, ResolvedType::Array { element, .. }
+                if crate::analysis::types::checked_standard_nominal_name(element) == Some("TextMessage"))
+        });
         self.check_ui_attributes(node, "diagnostic list", &["empty"]);
         if ui_attributes(self.db, node)
             .iter()
@@ -14930,6 +15417,7 @@ impl<'a> Cx<'a> {
                     ui_word(self.db, child).as_str(),
                     "text" | "title" | "content" | "alert" | "card"
                 )
+                && !(messages && matches!(ui_word(self.db, child).as_str(), "chat_bubble" | "slot"))
             {
                 self.diags.push(Diagnostic::error("E6008", "inspection value list children require an owning readonly presentation profile".to_string(), child.span));
                 return None;
@@ -14968,15 +15456,17 @@ impl<'a> Cx<'a> {
         inner.form_bound_fields = None;
         inner.name_types.insert(alias.clone(), (**element).clone());
         inner.row_rewrite.insert(alias.clone(), alias.clone());
-        if matches!(
-            element.nullable_inner().unwrap_or(element),
-            ResolvedType::StdNominal {
-                name: "GenerationCallbackDiagnosticResult"
-                    | "GenerationCallbackDiagnosticComplete"
-                    | "GenerationCallbackDiagnosticUnsupported",
-                ..
-            }
-        ) {
+        if messages
+            || matches!(
+                element.nullable_inner().unwrap_or(element),
+                ResolvedType::StdNominal {
+                    name: "GenerationCallbackDiagnosticResult"
+                        | "GenerationCallbackDiagnosticComplete"
+                        | "GenerationCallbackDiagnosticUnsupported",
+                    ..
+                }
+            )
+        {
             inner.callback_values.insert(alias.clone());
         }
         let values = inspection_values.unwrap_or_else(|| self.decode_expr(scope, head));
@@ -15041,7 +15531,9 @@ impl<'a> Cx<'a> {
         let gate = self.decode_gate(scope, node);
         let ui = IrUi {
             view: None,
-            factory: if inspection {
+            factory: if messages {
+                "textMessageValueList"
+            } else if inspection {
                 "inspectionValueList"
             } else {
                 "callbackValueList"
@@ -15083,6 +15575,11 @@ impl<'a> Cx<'a> {
                 }
                 if matches!(ty, ResolvedType::Array { .. })
                     && let Some(values) = self.inspection_value_source(scope, head)
+                {
+                    return self.decode_callback_value_list(scope, node, head, query, Some(values));
+                }
+                if matches!(ty, ResolvedType::Array { .. })
+                    && let Some(values) = self.text_message_value_source(scope, head)
                 {
                     return self.decode_callback_value_list(scope, node, head, query, Some(values));
                 }

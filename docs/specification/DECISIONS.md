@@ -10544,3 +10544,47 @@ Independent review of actual original evaluator source and declared A1–A6 acce
 Dev consumes that exact defining State leaf and joins skipped progress to the genuine Work claim stage. The wrapper retains the actual guard frame and original stage checks, validates untouched pending/no-attempt/no-claim state, and adds the existing receipt/association writer at the actual State commit revision in the same fence as dispatch-false and ACK. Original queued headers and outbox provenance stay immutable; attempted/provider-started, terminal, mismatched current owner/association and revoked authority refuse without a second transaction or provider. Legacy void sends retain their existing no-receipt behavior. State/DO and Cloudflare source checks/emits pass; three owning State controls and two Cloudflare controls pass, including real D1 preclaim and genuine installed State Memory origin/Work/fence skip plus rollback/replay. These controls qualify the component Email path; original compiled guarded SEND and Judgment/Text/Images paths remain unfinished.
 
 Coordinator independent source review CLEAR and LOCAL main integration after deadline: actual Email guard-false receipt/header progression and ACK share the original Work stage and its current revision/authority/fence. Untouched pending receipt/dispatch, owner-field/no-attempt/no-claim/terminal checks refuse before atomic commit; caught/refused work resets/rolls back completely, no provider or second transaction. Reuse owning2 CF/3 State outcomes; exact State812 source/tests are already accepted and counted once. Changed normal CF/root0. Original compiled guarded SEND/Generation context/current native flows remain unfinished; G2/G3 distinction, complete checkpoint and precise holds unchanged.
+
+2026-10-11 — original field fragments, declared SEND rules and copied transcript
+(implemented/tested; native/application joins unfinished).
+
+Use the released prepared-field authoredLabel/authoredValidator flags and
+independent selected-path lists for original placements; fragments do not count
+as writable controls. Reuse existing canonical/artifact input serializers for
+source-bound SEND declarations and expose its genuine Rule callable. Defaults
+remain frozen values, and model references grant no implicit field projection.
+
+Preserve exact owning stored TextMessage[] identity, original RowView and authored
+chat slots through the existing private copied-list seal and static snapshot
+paging. Default inner row shadowing uses only the privately admitted exact message
+profile; other names/member chains are unchanged. Original file[] attachment text
+remains authored and refuses until its defining typed presentation consumer is
+released. Supplier rendering/codec witnesses grant neither File authority nor
+native application acceptance.149 affected/owning cases and strict0 pass; exact
+original diagnostics29→27 retain complete census/SEND refusals and no modules.
+
+2026-10-11 — require captured slots and consume released original File/Teams inputs
+(implemented/tested; native application joins unfinished).
+
+Frozen lexical SEND slot presence is independent of nullable values and empty
+arrays. Emit required:true and keep type/cardinality/bounds; genuine State
+send-guard binding at path[inputs], rather than an ordinary callable profile,
+qualifies this corrected join. The earlier optional-slot output was a defect.
+
+Remove only the copied-message File[] refusal after exact defining0668 release:
+original objects, ordered duplicates and authored slots flow into trusted
+presentFile/UI.text. Bindings in the installed supplier test grant no native
+current-row/attachment or every-open authority. Released477 Teams payload supplies
+the removed User subject, distinct from envelope remover/causation; reuse the
+existing checked source ownership and trusted handler metadata, with exact event
+root type and readonly/unknown/raw refusals. Identity issuance remains external.
+Original27→20 diagnostics/no modules and owning source/consumer checks qualify
+these finite producers; no C14/Task22 hold or complete census boundary is waived.
+
+2026-10-11 — refuse unresolved contextual removal members (implemented/tested;
+native/application joins unfinished). Distinguish an unrelated expression from an
+invalid member chain rooted in the checked removal event. The latter must fail
+source qualification even when its preserved IR type is valid. Exact event.user
+to undeclared event.removedBy corruption now refuses; owning1/1 and strict0 pass.
+
+Coordinator independent defining reviews CLEAR for the coherent corrected original source batch. Required captured slots are distinct from nullable/empty values; genuine send-guard/inputs matching and ordered canonical/Artifact census use the already reviewed State/File/Identity contracts. Contextual unknown member chains now refuse E6008 instead of bypassing source correspondence on unresolved event_type; actual corruption preserves span/type. Reuse owning189/strict0/fmt0 and affected1/strict0, preserve newer shared APIs and count prerequisite intake checkpoints once. Original frozen a850 native20 diagnostics/no modules remains unaccepted; current source/native consumers and precise C14/BDD3/Task22/activation/publication/preparation holds remain. Complete filetree checkpoint unchanged.
