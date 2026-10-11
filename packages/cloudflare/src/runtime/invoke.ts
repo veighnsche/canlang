@@ -1,3 +1,4 @@
+import { createPageFilePresentation, type PageFileOccurrence } from '@canlang/files/bridge';
 /**
  * B1 op-execution path: invoke one callable from an assembled artifact.
  *
@@ -63,6 +64,7 @@ import type {
   PageHistoryReader,
   PageGenerationCallbackDiagnosticsObserver,
   PageReadScope,
+  PageSourceContext,
   PageRecordsQuery,
   QueryPredicate,
   DispatchClaim,
@@ -77,6 +79,7 @@ import type {
   FanoutProgress,
   FanoutSkippedReason,
   FileReferenceStoragePort,
+  FileValue,
   FrameworkOpaqueSourceRoute,
   HistoryEntry,
   InvocationContext,
@@ -135,6 +138,8 @@ import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import { createCommittedModelSourceStager, createStandardCompletionSourceCommand } from '@canlang/work';
 import { isConsistentCompletion } from '@canlang/work/receipt';
 import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/receipt';
+import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
+import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1395,6 +1400,7 @@ interface StateErrorsProducer {
 /** T17b: structural view of the state transaction-port module (bound read port). */
 interface StateTransactProducer {
   createReadPageInvoker?(input: {
+    readonly sourceReadPolicies?: ReadonlyMap<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>;
     readonly registry: ReadonlyMap<string, unknown>;
     readonly models: ReadonlyArray<CanonicalModelDescriptor>;
     readonly containment: ReadonlyMap<string, unknown>;
@@ -4432,7 +4438,7 @@ function createSourceReadPolicyAdapter(input: {
   const evaluate = async (sourceModel: string,
     predicates: readonly { readonly predicate: CheckedCallbackReadGrant['predicate']; readonly owner: string }[],
     observation: Readonly<ViewerGenerationCallbackReadObservation>,
-    installed: import('@canlang/state/receipt').InstalledSourceReadPredicate): Promise<boolean> => {
+    installed: import('@canlang/state/receipt').InstalledSourceReadPredicate | import('@canlang/state/receipt').InstalledSourceQueryPredicate): Promise<boolean> => {
     const { context, row, revision: currentRevision, fence: currentFence } = observation;
     await verifyCheckedAssembly(input.opts.asm, input.opts.artifact);
     const actor = input.opts.identity.actor, team = input.opts.identity.team;
@@ -9188,6 +9194,13 @@ export interface CanonicalReadOpts {
 /** Page-only checked host facts; ordinary operation reads retain their existing options. */
 export interface CanonicalPageReadOpts extends Omit<CanonicalReadOpts, 'operation' | 'inputs' | 'selection'> {
   readonly pageReads?: PageReadsBinding;
+  /** Exact dispatcher-admitted source, before renderer conversion or copying. */
+  readonly pageSource?: PageSourceContext;
+  /** Trusted host joins the originating credentials to the original physical File reader. */
+  readonly pageFiles?: {
+    readonly read: ReturnType<typeof import('./bound-files.js').createBoundFileReadResolver>['read'];
+    readonly resolveCaller: () => Promise<ResolvedIdentity>;
+  };
 }
 
 /** Trusted host File consumption. Locators restrict a fresh read; they grant no authority. */
@@ -9700,8 +9713,111 @@ function resolvePageQueryTime(
 }
 
 /** Page collections retain generated read admission and the defining viewer executor. */
+interface NativePageWhere {
+  readonly source: import('@canlang/contracts').ScenarioReceiptSourceOrigin;
+  readonly owner: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly statement: { readonly start: number; readonly end: number };
+}
+interface NativePagePredicateScope {
+  readonly originals: WeakMap<Function, NativePageWhere>;
+  readonly preferences: HandlerContext['preferences'];
+}
+
+/** Only the original getter in the verified emitted module can recognize its
+ * original lambda. Public metadata is checked for correspondence afterwards. */
+async function bindOriginalPageWhere(opts: CanonicalPageReadOpts,
+  scope: NativePagePredicateScope, where: Function, marker?: unknown): Promise<void> {
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  let selected: NativePageWhere | undefined;
+  for (const module of Object.keys(opts.asm.moduleUrls)) {
+    const imported = await importVerifiedAssemblyModule(opts.asm, module, opts.artifact);
+    const getter = privateSourceMember(imported, 'canReadPredicateSource');
+    if (getter === undefined) continue;
+    if (typeof getter !== 'function') throw new AssemblyCorrespondenceError('Native WHERE lacks its original source getter.');
+    const raw: unknown = getter(where);
+    if (raw === null) continue;
+    const value = localPolicyObject(raw, ['source', 'owner', 'node', 'statement']);
+    const source = localPolicyObject(value.source, ['path', 'sha256', 'module']);
+    const node = localPolicyObject(value.node, ['start', 'end']);
+    const statement = localPolicyObject(value.statement, ['start', 'end']);
+    const interval = (range: Record<string, unknown>): boolean => Reflect.ownKeys(range).length === 2 &&
+      Number.isSafeInteger(range.start) && Number.isSafeInteger(range.end) &&
+      (range.start as number) >= 0 && (range.end as number) > (range.start as number);
+    if (selected !== undefined || Reflect.ownKeys(value).length !== 4 || Reflect.ownKeys(source).length !== 3 ||
+        typeof value.owner !== 'string' || value.owner === '' || value.owner.length > 4096 ||
+        typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
+        typeof source.module !== 'string' || source.module === '' || source.module.length > 4096 ||
+        !opts.artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
+        !interval(node) || !interval(statement) || (node.start as number) < (statement.start as number) ||
+        (node.end as number) > (statement.end as number)) {
+      throw new AssemblyCorrespondenceError('Native WHERE differs from its unique original source occurrence.');
+    }
+    selected = freezeScenarioSnapshot(structuredClone(raw)) as NativePageWhere;
+  }
+  if (selected === undefined || marker !== undefined && stableStringify(committedSourceData(marker)) !== stableStringify(selected)) {
+    throw new AssemblyCorrespondenceError('Native WHERE requires its original callable and corresponding optional source metadata.');
+  }
+  const previous = scope.originals.get(where);
+  if (previous !== undefined && stableStringify(previous) !== stableStringify(selected)) {
+    throw new AssemblyCorrespondenceError('Native WHERE changed its original scope occurrence.');
+  }
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  scope.originals.set(where, selected);
+}
+
+/** Capture dispatcher-loaded values before rendering. They supply preference
+ * values only; fresh State observations supply every authority fact. */
+function capturePagePreferences(opts: CanonicalPageReadOpts): HandlerContext['preferences'] {
+  const source = opts.pageSource;
+  if (source === undefined) return Object.freeze({});
+  if ((source.actor?.id ?? null) !== (opts.identity.actor?.user_id ?? null) ||
+      (source.team?.id ?? null) !== (opts.identity.team?.team_id ?? null)) {
+    throw new AssemblyCorrespondenceError('Page preferences differ from their admitted identity.');
+  }
+  const original = source.preferences;
+  if (original === undefined) return Object.freeze({});
+  const owners = localPolicyObject(original), captured: HandlerContext['preferences'] = Object.create(null);
+  if (!Object.isFrozen(original) || Object.keys(owners).length > 200) {
+    throw new AssemblyCorrespondenceError('Page preferences require their frozen admitted source.');
+  }
+  for (const owner of Object.keys(owners)) {
+    const fields = localPolicyObject(owners[owner]);
+    if (!Object.isFrozen(fields) || Object.keys(fields).length > 200) {
+      throw new AssemblyCorrespondenceError('Page preferences require complete frozen owner values.');
+    }
+    const values: Record<string, unknown> = Object.create(null);
+    for (const field of Object.keys(fields)) {
+      const value = localPolicyMember(fields, field);
+      if (typeof value !== 'string' && value !== null) throw new AssemblyCorrespondenceError('Page preference value is not checked data.');
+      Object.defineProperty(values, field, { value, enumerable: true });
+    }
+    Object.defineProperty(captured, owner, { value: Object.freeze(values), enumerable: true });
+  }
+  return Object.freeze(captured);
+}
+
+function installPagePredicate(loaded: LoadedCanonicalDescriptors, original: NativePageWhere,
+  predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate): void {
+    const sites = loaded.membershipSources.get(original.owner);
+    if (sites !== undefined) {
+      if (sites.some(site => site.stage !== 'read-predicate' || stableStringify(site.source) !== stableStringify(original.source))) {
+        throw new AssemblyCorrespondenceError('Native WHERE membership differs from its original source stage.');
+      }
+      bindNativeReadMembership(predicate, { source: original.source, rule: original.owner, sites });
+    } else bindNativeReadRoleContext(predicate, original.owner);
+    bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
+}
+
 export async function queryPageRowsCanonical(
   opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
+): Promise<ListQueryResult> {
+  return queryPageRowsInScope(opts);
+}
+
+async function queryPageRowsInScope(
+  opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
+  scope?: NativePagePredicateScope,
 ): Promise<ListQueryResult> {
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
@@ -9716,23 +9832,38 @@ export async function queryPageRowsCanonical(
       direction: term.startsWith('-') ? 'desc' : 'asc' };
   });
   const sourceWhere = opts.args.where;
-  const navigation = typeof sourceWhere === 'function' ? await createContainmentNavigation({
-    loaded, store: opts.store, revision: await opts.store.readRevision(),
+  const original = typeof sourceWhere === 'function' ? scope?.originals.get(sourceWhere) : undefined;
+  if (scope !== undefined && typeof sourceWhere === 'function' && original === undefined) {
+    throw new AssemblyCorrespondenceError('Native page WHERE was not bound through its original query scope.');
+  }
+  const expectedRevision = await opts.store.readRevision();
+  const sourceReads = createSourceReadPolicyAdapter({ loaded, opts, revision: expectedRevision,
+    now: scope === undefined ? opts.now ?? Date.now : () => Date.parse(opts.identity.admitted_at),
+    ...(scope === undefined ? {} : { preferences: scope.preferences }) });
+  const navigation = typeof sourceWhere === 'function' && original === undefined ? await createContainmentNavigation({
+    loaded, store: opts.store, revision: expectedRevision,
     actorUserId: opts.identity.actor?.user_id ?? null, teamId: opts.identity.team?.team_id ?? null,
     memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts,
   }) : undefined;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> =>
     nativeProjectedRecord(loaded, model, row, navigation, recordView);
-  const sourceFilter = typeof sourceWhere === 'function'
+  const sourceFilter: import('@canlang/state/receipt').InstalledSourceQueryPredicate | undefined =
+    typeof sourceWhere !== 'function' ? undefined : original === undefined
     ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
       await navigation!.prepare(opts.model, record);
       const matched: unknown = await sourceWhere(recordView(opts.model, record));
-      if (typeof matched !== 'boolean') {
-        throw new StateError('validation', 'Collection source filter must return bool.');
-      }
+      if (typeof matched !== 'boolean') throw new StateError('validation', 'Collection source filter must return bool.');
       return matched;
     }
-    : undefined;
+    : async (record, observation): Promise<boolean> => {
+      if (observation === undefined) {
+        throw new AssemblyCorrespondenceError('Native WHERE requires its genuine current State observation.');
+      }
+      return sourceReads.evaluate(opts.model, [{ owner: original.owner,
+        predicate: (context, row) => sourceWhere(row, context) }], observation, sourceFilter!);
+    };
+  if (original !== undefined && sourceFilter !== undefined) installPagePredicate(loaded, original, sourceFilter);
+  const sourcePolicies = sourceReads.policies(opts.model);
   const selection = {
     ...(sourceFilter !== undefined || opts.args.where === undefined ? {} : { where: opts.args.where as QueryPredicate }),
     ...(order === undefined ? {} : { order }),
@@ -9746,7 +9877,7 @@ export async function queryPageRowsCanonical(
     }
     assertCanonicalStore(opts.store, `${opts.model}.read`);
     assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
-    if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
+    if (loaded.ruledModels.has(opts.model) && !loaded.sourceReadPolicies.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
     const occurrence = opts.args.occurrence;
     const binding = opts.pageReads;
     if (typeof occurrence !== 'string' || occurrence === '' || binding === undefined ||
@@ -9777,7 +9908,7 @@ export async function queryPageRowsCanonical(
     const createReader = loaded.producers.transact.createReadPageInvoker;
     if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
     const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
-      policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+      policy: loaded.policy, store: opts.store, memberships: opts.memberships, sourceReadPolicies: sourcePolicies });
     const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
     return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
       selection: {
@@ -9820,11 +9951,11 @@ export async function queryPageRowsCanonical(
   }
   assertCanonicalStore(opts.store, `${opts.model}.read`);
   assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
-  if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
+  if (loaded.ruledModels.has(opts.model) && !loaded.sourceReadPolicies.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
   const createReader = loaded.producers.transact.createReadPageInvoker;
   if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
   const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
-    policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+    policy: loaded.policy, store: opts.store, memberships: opts.memberships, sourceReadPolicies: sourcePolicies });
   const ordinarySelection = selection.where === undefined ? selection : { ...selection,
     where: resolvePageQueryTime(selection.where, {}, undefined, StateError) };
   return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
@@ -9874,15 +10005,91 @@ function sourceReceiptProjection(
 export function createPageReadScopeCanonical(
   opts: CanonicalPageReadOpts,
 ): PageReadScope {
+  const predicateScope: NativePagePredicateScope = { originals: new WeakMap(), preferences: capturePagePreferences(opts) };
   const bindings = new Map<string, Set<string>>();
   const views = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
   // Predicate candidates and navigation views are not final page admissions.
   // Only the exact objects returned after the owning read revalidation qualify.
   const historyViews = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
   let revision: number | undefined;
+  let closed = false;
+  const pageFiles = opts.pageFiles === undefined ? undefined : Object.freeze({
+    read: opts.pageFiles.read, resolveCaller: opts.pageFiles.resolveCaller,
+  });
+  if (pageFiles !== undefined && (typeof pageFiles.read !== 'function' || typeof pageFiles.resolveCaller !== 'function')) {
+    throw new AssemblyCorrespondenceError('Page Files require their original physical reader and credential closure.');
+  }
+  const fileVersions = new Map<string, RecordVersion>();
+  const fileKey = (occurrence: PageFileOccurrence): string => JSON.stringify([
+    occurrence.model, occurrence.recordId, occurrence.field, occurrence.ref, occurrence.path,
+  ]);
+  const originalFiles = new WeakMap<object, ReadonlyMap<string, FileValue>>();
+  const resolveFileRead = async (occurrence: PageFileOccurrence) => {
+    if (closed || pageFiles === undefined) return null;
+    const rowVersion = fileVersions.get(fileKey(occurrence));
+    if (rowVersion === undefined) return null;
+    await checkpoint();
+    const resolveCaller = async (): Promise<ResolvedIdentity> => {
+      const current = await pageFiles.resolveCaller();
+      if (closed || current.actor?.user_id !== opts.identity.actor?.user_id ||
+          current.team?.team_id !== opts.identity.team?.team_id ||
+          stableStringify(current.binding) !== stableStringify(opts.identity.binding)) {
+        throw new AssemblyCorrespondenceError('Page File credentials differ from the admitted render.');
+      }
+      return current;
+    };
+    const read = await pageFiles.read({ model: occurrence.model, recordId: occurrence.recordId,
+      field: occurrence.field, ref: occurrence.ref, path: occurrence.path, rowVersion }, resolveCaller);
+    await checkpoint();
+    return closed ? null : read;
+  };
+  const originalOccurrences = new WeakMap<FileValue, PageFileOccurrence>();
+  const fileHref = (kind: 'read' | 'preview', occurrence: PageFileOccurrence): string =>
+    '/files/' + kind + '/' + [occurrence.model, occurrence.recordId,
+      occurrence.field, occurrence.ref].map(encodeURIComponent).join('/');
+  const filePresentation = pageFiles === undefined ? undefined : createPageFilePresentation(async occurrence => {
+    const read = await resolveFileRead(occurrence);
+    // A link grants nothing: every GET repeats all current/physical checks.
+    return read === null ? null : Object.freeze({ href: fileHref('read', occurrence) });
+  });
+  const bindFiles = async (loaded: LoadedCanonicalDescriptors, model: string,
+    id: string, version: RecordVersion, wire: Readonly<Record<string, unknown>>,
+    native: Readonly<Record<string, unknown>>): Promise<void> => {
+    if (filePresentation === undefined) return;
+    const ports = await loadProducerModule('@canlang/state', 'state declared File census');
+    const bindProfile = requireProducerFn(ports, 'bindFileReferenceProfile', 'state declared File census') as
+      typeof import('@canlang/state').bindFileReferenceProfile;
+    const occurrences = requireProducerFn(ports, 'fileReferenceOccurrences', 'state declared File census') as
+      typeof import('@canlang/state').fileReferenceOccurrences;
+    const bound = { artifactModels: new Map((opts.artifact.models ?? []).map(item => [item.name as ModelName, item])),
+      canonicalModels: loaded.models,
+      ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+      ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
+    const singular = new Map<string, FileValue>();
+    for (const [field, value] of Object.entries(wire)) {
+      const profile = bindProfile(bound, model as ModelName, field);
+      if (!profile.fileBearing) continue;
+      for (const occurrence of occurrences(profile, value)) {
+        let file: unknown = Object.getOwnPropertyDescriptor(native, field)?.value;
+        for (const part of occurrence.path) {
+          file = typeof file === 'object' && file !== null
+            ? Object.getOwnPropertyDescriptor(file, part)?.value : undefined;
+        }
+        const locator = { model, recordId: id, field, ref: occurrence.ref, path: occurrence.path };
+        filePresentation.bind(file as FileValue, locator);
+        originalOccurrences.set(file as FileValue, Object.freeze({ ...locator, path: Object.freeze([...locator.path]) }));
+        if (occurrence.path.length === 0) singular.set(field, file as FileValue);
+        fileVersions.set(fileKey(locator), version);
+      }
+    }
+    originalFiles.set(native, singular);
+    await checkpoint();
+  };
   const key = (id: string, version: string): string => JSON.stringify([id, version]);
   const checkpoint = async (): Promise<number> => {
+    if (closed) throw new AssemblyCorrespondenceError('Page read scope is closed.');
     const current = await opts.store.readRevision();
+    if (closed) throw new AssemblyCorrespondenceError('Page read scope is closed.');
     if (revision === undefined) revision = current;
     if (current !== revision) {
       const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
@@ -9890,14 +10097,48 @@ export function createPageReadScopeCanonical(
     }
     return current;
   };
-  return Object.freeze({
+  const scope: PageReadScope = Object.freeze({
+    close: () => { closed = true; filePresentation?.close(); fileVersions.clear(); },
+    ...(filePresentation === undefined ? {} : {
+      presentFile: async (file: FileValue) => {
+        try { return await filePresentation.presentFile(file); }
+        catch (failure) { if (closed) return null; throw failure; }
+      },
+      resolveFileImage: async (input: Parameters<NonNullable<PageReadScope['resolveFileImage']>>[0]) => {
+        try {
+          if (closed || typeof input.record !== 'object' || input.record === null) return null;
+          const admitted = historyViews.get(input.record);
+          if (admitted === undefined || admitted.model !== input.model) return null;
+          // Only a declared singular File on the actual final row has this binding.
+          const file = originalFiles.get(input.record)?.get(input.field);
+          const occurrence = file === undefined ? undefined : originalOccurrences.get(file);
+          if (occurrence === undefined || file === undefined ||
+              ![Object.prototype, null].includes(Object.getPrototypeOf(file)) || Reflect.ownKeys(file).length !== 2 ||
+              Object.getOwnPropertyDescriptor(file, 'kind')?.value !== 'file' ||
+              Object.getOwnPropertyDescriptor(file, 'id')?.value !== occurrence.ref) return null;
+          const read = await resolveFileRead(occurrence);
+          if (closed || read === null) return null;
+          const files = await loadProducerModule('@canlang/files/upload', 'owning original image content policy');
+          const detect = requireProducerFn(files, 'detectContentType', 'owning original image content policy') as
+            typeof import('@canlang/files/upload').detectContentType;
+          const actualType = detect(read.bytes);
+          if ((actualType !== 'image/png' && actualType !== 'image/jpeg') || actualType !== read.metadata.contentType) return null;
+          await checkpoint();
+          return closed ? null : Object.freeze({ previewUrl: fileHref('preview', occurrence), originalUrl: fileHref('read', occurrence) });
+        } catch (failure) { if (closed) return null; throw failure; }
+      },
+    }),
+    onQueryBound: function (this: PageReadScope, query: PageReadScope['query']) {
+      if (closed || this !== scope) throw new AssemblyCorrespondenceError('Native page query hook requires its original active scope.');
+      forwardNativeUiQueryBinder(query, async () => scope.query);
+    },
     readRecords: async (model: string, query: PageRecordsQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
       const expectedRevision = await checkpoint();
       const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const StateError = loaded.producers.errors;
       assertCanonicalStore(opts.store, `${model}.read`);
       assertCanonicalMemberships(opts.memberships, `${model}.read`);
-      if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+      if (loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) throw ruledReadRefusal(StateError, model);
       if (!isUnknownRecord(query) || Reflect.ownKeys(query).some(key => typeof key !== 'string' ||
           !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key) ||
           !Object.hasOwn(Object.getOwnPropertyDescriptor(query, key)!, 'value')) ||
@@ -9907,7 +10148,8 @@ export function createPageReadScopeCanonical(
       }
       const navigation = await createContainmentNavigation({ loaded, store: opts.store,
         revision: expectedRevision as Revision, actorUserId: opts.identity.actor?.user_id ?? null,
-        teamId: opts.identity.team?.team_id ?? null, memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts });
+        teamId: opts.identity.team?.team_id ?? null, memberships: opts.memberships, authority: 'viewer',
+        sourceReadOpts: opts, sourcePreferences: predicateScope.preferences });
       const recordView = (name: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
         const view = nativeProjectedRecord(loaded, name, row, navigation, recordView);
         views.set(view, { model: name, id: row.id, version: row.version });
@@ -9944,24 +10186,31 @@ export function createPageReadScopeCanonical(
         throw new StateError('validation', 'Page source limit requires a non-negative safe integer.');
       }
       const where = query.where, dependencies: ProjectedRecord[] = [];
+      const sourceReads = createSourceReadPolicyAdapter({ loaded, opts, revision: expectedRevision as Revision,
+        now: () => Date.parse(opts.identity.admitted_at), preferences: predicateScope.preferences });
+      if (typeof where === 'function') await bindOriginalPageWhere(opts, predicateScope, where);
+      const original = typeof where === 'function' ? predicateScope.originals.get(where) : undefined;
       const selection: CanonicalReadSelection = {
-        ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
+        ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>, observation?: Readonly<ViewerGenerationCallbackReadObservation>) => {
           // Revalidate the complete authorized candidate domain without running
           // checked source predicates a second time, including false candidates.
           dependencies.push(structuredClone(row));
           if (parentBinding !== undefined && (row.parent?.model !== parentBinding.model || row.parent.id !== parentBinding.id)) return false;
           if (typeof where !== 'function') return true;
-          await navigation.prepare(model, row);
-          const matched: unknown = await where(recordView(model, row));
-          if (typeof matched !== 'boolean') throw new StateError('validation', 'Page source predicates must return bool.');
-          return matched;
+          if (original === undefined || observation === undefined) {
+            throw new AssemblyCorrespondenceError('Page source WHERE requires its original current State observation.');
+          }
+          return sourceReads.evaluate(model, [{ owner: original.owner,
+            predicate: (context, nativeRow) => where(nativeRow, context) }], observation, selection.predicate!);
         } } : {}),
         ...(where === undefined || typeof where === 'function' ? {} : { where: where as QueryPredicate }),
         ...(order === undefined ? {} : { order }),
         ...(limit === undefined ? {} : { limit: limit as number }),
       };
+      if (original !== undefined && selection.predicate !== undefined) installPagePredicate(loaded, original, selection.predicate);
       const reader = loaded.producers.transact.createReadInvoker({ registry: loaded.registry,
-        models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+        models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
+        sourceReadPolicies: sourceReads.policies(model) });
       const read = async (selected: CanonicalReadSelection): Promise<CanonicalReadServed> => {
         const served = await reader({ envelope: { operation: `${model}.read`, inputs: {} }, identity: opts.identity,
           selection: selected });
@@ -9993,13 +10242,40 @@ export function createPageReadScopeCanonical(
       for (let index = 0; index < result.length; index++) {
         const row = served.records[index]!;
         historyViews.set(result[index]!, { model, id: row.id, version: row.version });
+        await bindFiles(loaded, model, row.id, row.version, row.data, result[index]!);
       }
+      await checkpoint();
       return Object.freeze(result);
     },
     query: async (_invocation: unknown, model: string, args: ListQueryArgs): Promise<ListQueryResult> => {
       await checkpoint();
-      const result = await queryPageRowsCanonical({ ...opts, model, args });
+      const served = await queryPageRowsInScope({ ...opts, model, args }, predicateScope);
       await checkpoint();
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+      const rows = [];
+      for (const row of served.rows) {
+        const fields = { ...row.fields };
+        if (filePresentation !== undefined) {
+          const ports = await loadProducerModule('@canlang/state', 'state declared File census');
+          const bindProfile = requireProducerFn(ports, 'bindFileReferenceProfile', 'state declared File census') as
+            typeof import('@canlang/state').bindFileReferenceProfile;
+          const bound = { artifactModels: new Map((opts.artifact.models ?? []).map(item => [item.name as ModelName, item])),
+            canonicalModels: loaded.models,
+      ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+      ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
+          for (const [field, value] of Object.entries(fields)) {
+            if (bindProfile(bound, model as ModelName, field).fileBearing) {
+              fields[field] = nativeRecordField(loaded, model, field, value);
+            }
+          }
+          await bindFiles(loaded, model, row.id, Number(row.version) as RecordVersion, row.fields, fields);
+        }
+        const returned = filePresentation === undefined ? row : Object.freeze({ ...row, fields: Object.freeze(fields) });
+        if (filePresentation !== undefined) originalFiles.set(returned, originalFiles.get(fields) ?? new Map());
+        rows.push(returned);
+      }
+      await checkpoint();
+      const result = filePresentation === undefined ? served : { ...served, rows: Object.freeze(rows) };
       for (const row of result.rows) {
         const locator = key(row.id, String(row.version));
         const models = bindings.get(locator) ?? new Set<string>();
@@ -10173,6 +10449,12 @@ export function createPageReadScopeCanonical(
         declaration?.kind === 'delivery' ? declaration.result : undefined);
     },
   });
+  registerNativeUiQueryBinder(scope.query, async (where, marker) => {
+    await checkpoint();
+    await bindOriginalPageWhere(opts, predicateScope, where, marker);
+    await checkpoint();
+  });
+  return scope;
 }
 
 /* ------------------------------------------------------------------ */
