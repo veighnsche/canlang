@@ -1,5 +1,6 @@
 /** Source list predicates use the current projected candidate and State-issued authority. */
 import assert from 'node:assert/strict';
+import type { ModelName } from '@canlang/contracts';
 import { test } from 'node:test';
 import { makeUserRef } from '@canlang/values';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
@@ -10,6 +11,8 @@ import type { ViewerGenerationCallbackReadObservation } from '../../src/receipt/
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { asModel, FIXED_NOW, grant, modelPolicy, policyTable, seedRows } from './fixtures.js';
+import { asId, makeBatch, makeRow } from '../invocation/fixtures.js';
+import { projectCurrentRecordForViewerSourcePolicies, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
 
 const MODEL = asModel('Creative.Run'), TEAM = 'creative-team';
 async function setup() {
@@ -172,5 +175,105 @@ test('installed source grants and bound list membership predicates share one coh
     assert.equal(grants.length, 6, 'ordinary grants and false/AST-skipped candidates retain the complete scanned domain');
     assert.equal(new Set(grants).size, 6, 'source grants receive fresh observations during coherent replay');
     assert.equal(new Set(candidates).size, 4, 'bound source predicate captures reopen for each actual decision');
+  }
+});
+
+
+/** Literal current-row navigation adapters exercise State's shared observation,
+ * not checked emitted-source correspondence or native acceptance. */
+async function navigationFixture() {
+  const s = await setup(), PARENT = asModel('Creative.Project'), ROOT = asModel('Creative.Space');
+  const owner = await s.memberships.createMembership({ team_id: TEAM, user_id: 'parent-owner', is_owner: false, roles: [] });
+  const reader = await s.memberships.createMembership({ team_id: TEAM, user_id: 'root-reader', is_owner: false, roles: [] });
+  const root = makeRow({ id: 'space', data: { reviewer: 'root-reader', title: 'Space', secret: 'ROOT SECRET' } });
+  const parent = { ...makeRow({ id: 'project', data: { owner: 'parent-owner', title: 'Project',
+    settings: { label: 'visible', token: 'TOKEN' }, private_note: 'PARENT SECRET' } }), parent: { model: ROOT, id: root.id } };
+  const children = await Promise.all(['a', 'b', 'c'].map(id => s.store.load(MODEL, asId(id))));
+  await s.store.commit(makeBatch(await s.store.readRevision(), { writes: [
+    { kind: 'insert', model: ROOT, row: root }, { kind: 'insert', model: PARENT, row: parent },
+    ...children.map(row => { assert.ok(row); return { kind: 'update' as const, model: MODEL, id: row.id,
+      expectedVersion: row.version, row: { ...row, version: (row.version + 1) as typeof row.version,
+        parent: { model: PARENT, id: parent.id } } }; }),
+  ] }));
+  const source = { path: 'creative.can', sha256: 'a'.repeat(64), module: 'creative.mjs' };
+  const rule = 'Creative.Project.read0', team = Object.freeze({ teamId: TEAM, timezone: 'UTC' });
+  const frames = new WeakMap<object, ReturnType<typeof makeUserRef>>(), ordered: string[] = [];
+  let handles: ReturnType<typeof bindReadPolicyMembershipProducer>;
+  const parentRead = async (observation: Readonly<ViewerGenerationCallbackReadObservation>) => {
+    ordered.push('parent:0'); frames.set(observation, makeUserRef(observation.row.data.owner as string));
+    return evaluateReadPolicyMembership(observation, { site: handles[0]! });
+  };
+  handles = bindReadPolicyMembershipProducer(parentRead, { source, rule, team: () => team,
+    sites: [{ version: 1, source, owner: rule, node: { start: 40, end: 60 }, statement: { start: 39, end: 61 },
+      stage: 'read-policy', position: [], calls: [{ source, node: { start: 41, end: 59 },
+        target: { kind: 'builtin', id: 'active_member', overload: 0 },
+        arguments: [{ node: { start: 42, end: 43 }, type: 'user' }, { node: { start: 44, end: 45 }, type: 'Team' }],
+        slots: [0, 1], defaults: [], chain: [],
+      }] }], capture: observation => {
+        const person = frames.get(observation); frames.delete(observation); assert.ok(person); return { person, team };
+      } });
+  const reads = new Map<ModelName, ViewerSourceReadPolicy>([
+    [PARENT, { parent: ROOT, fields: ['owner', 'title', 'settings', 'private_note'], secretFields: ['settings.token', 'private_note'], grants: [
+      { fields: ['title'], read: parentRead },
+      { fields: ['owner', 'settings'], read: async ({ context }) => { ordered.push('parent:1'); return context.membership?.status === 'active'; } },
+    ] }],
+    [ROOT, { fields: ['reviewer', 'title', 'secret'], secretFields: ['secret'], grants: [
+      { fields: ['title'], read: async ({ context, row }) => { ordered.push('root:0');
+        return (await context.memberships.findMembership(TEAM, row.data.reviewer as string))?.status === 'active'; } },
+    ] }],
+  ]);
+  const snapshots: string[][] = [];
+  const memberships = { ...s.memberships, findMembershipsSnapshot: async (teamId: string, users: readonly string[]) => {
+    snapshots.push([...users]); return s.memberships.findMembershipsSnapshot(teamId, users);
+  } };
+  return { ...s, input: { ...s.input, memberships }, PARENT, ROOT, owner, reader, reads, ordered, snapshots };
+}
+
+test('ordinary and page WHERE parent navigation shares candidate and complete ordered multi-subject source authority', async () => {
+  for (const page of [false, true]) {
+    const s = await navigationFixture(), seen: string[] = [];
+    const native = nativePredicate(async (record, observation, member) => {
+      seen.push(record.id); assert.equal(record.id, 'a'); assert.deepEqual(record.data, { author: 'author', title: 'accepted' });
+      assert.deepEqual(observation.row.data, record.data); assert.ok(record.parent);
+      const parent = await projectCurrentRecordForViewerSourcePolicies({ model: record.parent.model, id: record.parent.id,
+        readPolicies: s.reads, policy: s.input.policy, context: observation.context, memberships: observation.context.memberships,
+        store: s.store, ...(observation.fence === undefined ? {} : { fence: observation.fence }), observation }, async (result, allowed) => {
+        assert.deepEqual(allowed, [true, true]); assert.equal(result.revision, observation.revision);
+        assert.deepEqual(result.record?.data, { title: 'Project', owner: 'parent-owner', settings: { label: 'visible' } });
+        assert.equal(result.record?.parent?.model, s.ROOT); return result;
+      });
+      return parent.record !== null && await member(record.data.author as string);
+    });
+    const where = { op: 'eq' as const, field: 'title', value: 'accepted' };
+    const result = page ? await queryRecordsPage({ ...s.input, selection: { where }, generatedPredicate: native.predicate })
+      : await queryRecords({ ...s.input, where, predicate: native.predicate });
+    assert.deepEqual(result.records.map(row => row.id), ['a']); assert.deepEqual(seen, ['a', 'a']);
+    assert.deepEqual(s.ordered, ['parent:0', 'parent:1', 'root:0', 'parent:0', 'parent:1', 'root:0']);
+    assert.equal(native.captures, 2); assert.ok(s.snapshots.length >= 2);
+    for (const users of s.snapshots) assert.deepEqual(users, ['caller', 'parent-owner', 'root-reader', 'author']);
+  }
+});
+
+test('ordinary navigation transform and final page transform revocation refuse the shared WHERE subject set', async () => {
+  for (const page of [false, true]) {
+    const s = await navigationFixture(); let transforms = 0;
+    const native = nativePredicate(async (record, observation, member) => {
+      assert.ok(record.parent);
+      const own = await member(record.data.author as string);
+      const parent = await projectCurrentRecordForViewerSourcePolicies({ model: record.parent.model, id: record.parent.id,
+        readPolicies: s.reads, policy: s.input.policy, context: observation.context, memberships: observation.context.memberships,
+        store: s.store, ...(observation.fence === undefined ? {} : { fence: observation.fence }), observation }, async result => {
+        assert.ok(result.record);
+        if (!page && transforms++ === 0) await s.memberships.removeMembership(s.reader.membership_id);
+        return result;
+      });
+      return own && parent.record !== null;
+    });
+    const where = { op: 'eq' as const, field: 'title', value: 'accepted' };
+    if (page) await assert.rejects(queryRecordsPage({ ...s.input, selection: { where }, generatedPredicate: native.predicate }, async result => {
+      transforms++; assert.equal(result.records.length, 1); await s.memberships.removeMembership(s.owner.membership_id); return result;
+    }), refuses);
+    else await assert.rejects(queryRecords({ ...s.input, where, predicate: native.predicate }), refuses);
+    assert.equal(transforms, 1);
   }
 });
