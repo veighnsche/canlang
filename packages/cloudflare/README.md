@@ -97,8 +97,11 @@ or reporting attempts scratch removal while preserving the original failure.
 `dispose`; protected preview URLs expire when their preview owner disposes them.
 
 Normal `run`/`test`/`build`/`deploy` commands currently have no whole-command
-deadline, and the three Bun bundling children have no explicit timeout. The
-compiler check and control-request budgets belong to those separate callers;
+deadline. Each of the three Bun build stages uses a 30-second timeout with
+SIGKILL and a 1 MiB captured-output cap; generated scratch is removed on normal
+failure when cleanup succeeds. This is a stage termination trigger, not a
+whole-command, process-tree or absolute-exit guarantee. Compiler and control
+budgets belong to their separate callers;
 Wrangler has a configured 180-second child timeout, without a process-tree or
 remote rollback guarantee. After an attempted apply fails, the remote outcome
 is unconfirmed: inspect it before manual retry. There is no automatic retry.

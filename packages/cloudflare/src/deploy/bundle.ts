@@ -153,6 +153,12 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
 ];
 /** Deploy dir suffix: `<stem>.deploy/` next to the artifact. */
 export const DEPLOY_DIR_SUFFIX = ".deploy";
+/** Stage-local termination trigger and captured-output cap; not a whole-command
+ * deadline or a guarantee about descendant processes or absolute exit time. */
+const LOCAL_BUN_BUILD_OPTIONS = {
+  stdio: "pipe", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 1_048_576,
+} as const;
+
 /** Thrown error `code` when the built worker entry is missing. */
 export const WORKER_MAIN_MISSING = "worker-main-missing";
 
@@ -911,7 +917,7 @@ export function buildMcpBundle(_repoRoot?: string): string {
     execFileSync(
       "bun",
       ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      { stdio: "pipe" },
+      LOCAL_BUN_BUILD_OPTIONS,
     );
   } catch (err) {
     if (!entryWritten) {
@@ -999,7 +1005,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
     execFileSync(
       "bun",
       ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      { stdio: "pipe" },
+      LOCAL_BUN_BUILD_OPTIONS,
     );
   } catch (err) {
     if (!entryWritten) {
@@ -1585,7 +1591,7 @@ function buildBrowserAssetsModule(
   try {
     writeFileSync(entry, source, "utf8");
     // Whitespace minification removes the random generated-entry path comment.
-    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], { stdio: "pipe" });
+    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], LOCAL_BUN_BUILD_OPTIONS);
     const contents = readFileSync(output, "utf8");
     for (const marker of ["createHandler", "browser assets: selected page collides", "browser assets: selected resource integrity mismatch"]) {
       if (!contents.includes(marker)) throw new Error(`deploy bundle: selected browser assets bundle dropped ${marker}`);
