@@ -13,7 +13,8 @@
  */
 
 import type { FinalizedFileRef } from './files.js';
-import type { CanDuration, CanInt, DatetimeValue, DecimalValue, WireMoney } from './values.js';
+import type { InstantString, TeamsMemberRemovedEvent } from './identity.js';
+import type { CanDuration, CanInt, DatetimeValue, DecimalValue, UserRef, WireMoney } from './values.js';
 import type { Bcp47Tag } from './presentation.js';
 
 /**
@@ -178,6 +179,26 @@ export interface VerifiedIngressEnvelope {
   requestDigest: string;
   /** Originating delivery id when completing a prior send. */
   deliveryId: string | null;
+}
+
+/**
+ * Trusted Identity removal causation, independent of provider deliveries.
+ * The owning Identity store must atomically couple the original payload,
+ * removing principal, namespace, cause and digest to the winning removal.
+ * These types alone do not authenticate, authorize or emit an occurrence;
+ * a raw request user or current remover must not become the removed subject.
+ * The receiving trusted handler retains actor=null; removedBy is attribution.
+ */
+export interface VerifiedTeamsMemberRemovedEnvelope extends VerifiedIngressEnvelope {
+  readonly namespace: string;
+  readonly producerEventId: string;
+  readonly requestDigest: string;
+  readonly operationKind: 'teams.member_removed';
+  readonly deliveryId: null;
+  readonly membershipRemoval: TeamsMemberRemovedEvent;
+  readonly removedBy: UserRef;
+  readonly operationId: string;
+  readonly occurredAt: InstantString;
 }
 
 /**
