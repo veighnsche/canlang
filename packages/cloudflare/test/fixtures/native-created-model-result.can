@@ -1,0 +1,19 @@
+app CreatedRun
+Given
+ Run {count:int=0}
+ Other {count:int=0}
+ contract Result {run:Run}
+ policy Run read=members
+ policy Other read=members
+When
+ crud Run by=members fields=count delete=remove
+ crud Other by=members fields=count delete=remove
+ scenario ask(value:int,note:text) -> Run by=members
+  do
+   create Run {} as run
+   return run
+ scenario regenerate(value:int) -> Run by=members
+  do
+   call ask {note="first",value} as run
+   return run
+Then
