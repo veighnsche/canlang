@@ -170,6 +170,26 @@ describe("local_instant input validation", () => {
 });
 
 describe("local round-trips", () => {
+  it("resolves both supported UTC endpoints under both folds", () => {
+    for (const fold of ["earlier", "later"] as const) {
+      for (const [day, time] of [["0001-01-01", "00:00:00"], ["9999-12-31", "23:59:59"]] as const) {
+        const civil = date(day);
+        const instant = local_instant(civil, time, "UTC", fold);
+        assert.deepEqual(instant, datetime(`${day}T${time}Z`));
+        assert.deepEqual(local_date(instant, "UTC"), civil);
+      }
+    }
+  });
+
+  it("refuses zone-shifted public dates and instants outside the supported range", () => {
+    assert.equal(codeOf(() => local_date(datetime("0001-01-01T00:00:00Z"), "Etc/GMT+1")), "out-of-range");
+    assert.equal(codeOf(() => local_date(datetime("9999-12-31T23:59:59.999Z"), "Etc/GMT-1")), "out-of-range");
+    for (const fold of ["earlier", "later"] as const) {
+      assert.equal(codeOf(() => local_instant(date("0001-01-01"), "00:00", "Etc/GMT-1", fold)), "out-of-range");
+      assert.equal(codeOf(() => local_instant(date("9999-12-31"), "23:59:59", "Etc/GMT+1", fold)), "out-of-range");
+    }
+  });
+
   it("recovers the civil date from a resolved instant in every covered zone", () => {
     const cases: ReadonlyArray<readonly [string, string, string]> = [
       ["2026-01-15", "12:00", "UTC"],

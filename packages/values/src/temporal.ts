@@ -29,7 +29,7 @@
 
 import type { DateValue, DatetimeValue } from "@canlang/contracts/values";
 import { ValueError } from "./errors.js";
-import { daysInMonth } from "./internal/gregorian.js";
+import { daysFromCivil, daysInMonth } from "./internal/gregorian.js";
 import { isDatetime, isDateValue, makeDate, makeDatetime } from "./kinds.js";
 
 /** Milliseconds per civil day. A Can day is exactly 24h (DESIGN L228). */
@@ -55,17 +55,6 @@ export const DATETIME_MAX_MS: bigint = 253402300799999n;
 // ---------------------------------------------------------------------------
 // Pure proleptic-Gregorian civil algorithms (Hinnant). No Date math.
 // ---------------------------------------------------------------------------
-
-/** Days from 1970-01-01 (Unix epoch) to the given civil date. */
-function daysFromCivil(year: number, month: number, day: number): number {
-  const yAdj = month <= 2 ? year - 1 : year;
-  const era = Math.floor(yAdj / 400);
-  const yoe = yAdj - era * 400;
-  const mp = (month + 9) % 12;
-  const doy = Math.floor((153 * mp + 2) / 5) + day - 1;
-  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
-  return era * 146097 + doe - 719468;
-}
 
 /** Inverse of daysFromCivil. Caller must keep the result in 0001-9999. */
 function civilFromDays(z: number): { year: number; month: number; day: number } {
