@@ -8644,3 +8644,13 @@ updated. This closes the assigned source criterion, not native Stock ordering,
 the original composition/application or a whole-plan reference. Remaining
 CRM1/Rent18/Shift9/Volunteer2/Employees2 retain their owners and exact next
 assignment prerequisites. All recipient-specific holds remain.
+
+The assigned CRM353 investigation identifies a defining C10 prerequisite,
+not a demonstrated producer regression: unchanged `Revision.pdf:file?` may
+remain null in the original queued-document examples. Destination checking
+introduced at56521753 admits nonnullable Text/Url/File; the existing UI target
+contract is string-only and treats null as an absent binding. UI/Interfaces/
+Files must release the exact current-authorized finalized File-to-safeURL and
+nullable/no-file behavior before checked lowering and Dev's saved-source
+consumer can join. Skip this blocked issue; keep CRM source and File emission
+unchanged.
