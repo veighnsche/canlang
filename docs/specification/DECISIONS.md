@@ -11117,3 +11117,19 @@ Coordinator corrected generated-form lifecycle/source review CLEAR. Surgical sou
 reviewed defining worker66580460 supplies only the original child-default gate and actual native test/fixture. Admit original supplied scalar/alias slots with literal defaults through their owning codec; computed/omitted/reference-default profiles still refuse before child execution. Preserve checked source/site/schema, once-only inputs, child model result, one root owner session/fence/history/receipt/association, genuine parent late Require rollback/rejected receipt/fence, no-effect replay, missing inputs and current membership denial/restoration. Worker actual CLI/verified installed assembly/real Identity+owner/foreign D1 PASS1/1 18580ms (19.02s process) remains worker-scoped. Actual primary closure ae55 plus focused source/test/fixture PASS1/1 18107ms (18.82s process), zero skips, full resources/source/compiler/catalog currency and awaited cleanup; CF/root0. Historical pre-execution stale Interfaces/compiler refusals and failed concurrent dependent rebuild are retained; normal UI then Interfaces, State and locked compiler7.96s restore current installed closure before failed-only retry. No source/refusal assertion waived. Reuse unchanged accepted C04/Gallery/File PAGE/internal Identity scopes without rerun. This closes this finite explicit input leaf only; populated/contained Ref/File/nullable original applications, guarded SEND and signed ingress remain separate unfinished owners/criteria.
 
 Coordinator independent source and genuine native-control reviews CLEAR. Surgical three-path source/test/fixture intake preserves current main query/model/SEND/authority closure; related owner plan and retained filetree coverage reconciled incrementally. Complete checkpoint unchanged, no full-plan completion or held source/adoption/default/preparation/activation/publication release.
+
+2026-10-11 — retain exact Images nominal and original row-ID source
+(implemented/tested producer; native workflow unfinished).
+ImageRequest joins the existing explicit standard nominal representation;
+WorkflowInput/WorkflowDefinition constructors retain their defining schema.
+Original required stored-model parameter.id uses the released State reserved
+text dependency ABI, with original model/source/type and actual descriptor
+correspondence. It is not a declared field or a version/context intrinsic.
+An unguarded request needs original operand semantics as well as effect sites:
+seal bounded straight-line statements and original subtree types, constructor
+entry order, literals and local bindings. Relevant mutations withdraw native
+disclosure with E6008. Owning source/actual CLI/verified factory and related45
+checks plus strict0 pass; genuine File receiving/current authority/dispatch/
+rollback/replay remains Dev-owned. Rich CALL and precise policy holds remain.
+
+Coordinator independent defining request nominal/type/source whole-IR seal and original Job.id dependency/once-emission reviews CLEAR. Exact original producer/test/fixture preimages integrated coherently; owning45 affected/strict/fmt checks reused, main locked CLI build qualifies source integration only. Genuine native row-ID/File receiving/header/lifetime/current-authority/fence/rollback/replay remains Dev-owned. No fabricated context/row/File authority, version reinterpretation, broader original application/full-plan completion or hold release. Coverage reconciled incrementally; complete checkpoint remains unchanged.
