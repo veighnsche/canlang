@@ -920,7 +920,10 @@ test('native deferred File payload survives its original schedule fence and reop
       assert.equal(object(await invokeDueSourceRoutingCanonical(options)).status,'completed');
       assert.deepEqual(await binding.store.load(model,entryId),originalRow);
       const sourceRow=await binding.store.load(WORK_OCCURRENCE_MODEL,asId(pending.occurrenceId));assert.ok(sourceRow);
-      assert.equal(readOccurrenceRow(sourceRow).status,'completed');
+      const sourceReceipt=readOccurrenceRow(sourceRow);assert.equal(sourceReceipt.status,'completed');
+      assert.ok(sourceReceipt.filePayloadOrigin);assert.equal(sourceReceipt.filePayloadOrigin.slot.model,WORK_OCCURRENCE_MODEL);
+      assert.equal(sourceReceipt.filePayloadOrigin.slot.id,sourceRow.id);assert.equal(sourceReceipt.filePayloadOrigin.slot.field,'result');
+      assert.equal(sourceReceipt.filePayloadOrigin.origin.kind,'source-routing');assert.deepEqual(sourceReceipt.filePayloadOrigin.files,[]);
       const routes=await query(WORK_HANDLER_OCCURRENCE_MODEL);assert.equal(routes.length,1);
       const retained=readHandlerOccurrenceRow(routes[0]!);assert.equal(retained.state,'pending');
       assert.equal(retained.handler,privateHandler);assert.equal(retained.sourceOccurrence,pending.occurrenceId);assert.equal(retained.payload.note,'Retained');
@@ -938,6 +941,15 @@ test('native deferred File payload survives its original schedule fence and reop
       assert.deepEqual(tickResults[1],{wrapped:false},'the original tick also reports its empty navigation check without a write');
       assert.equal(await binding.store.readRevision(),beforeHandlerRevision+1);
       const terminal=await resources();assert.equal(readHandlerOccurrenceRow((await query(WORK_HANDLER_OCCURRENCE_MODEL))[0]!).state,'completed');
+      const terminalRow=await binding.store.load(WORK_OCCURRENCE_MODEL,asId(retained.occurrenceId));assert.ok(terminalRow);
+      const terminalReceipt=readOccurrenceRow(terminalRow);assert.equal(terminalReceipt.status,'completed');
+      assert.ok(terminalReceipt.filePayloadOrigin);assert.equal(terminalReceipt.filePayloadOrigin.slot.model,WORK_OCCURRENCE_MODEL);
+      assert.equal(terminalReceipt.filePayloadOrigin.slot.id,terminalRow.id);assert.equal(terminalReceipt.filePayloadOrigin.slot.field,'result');
+      const resultOrigin=terminalReceipt.filePayloadOrigin.origin;assert.equal(resultOrigin.kind,'handler-result');
+      if(resultOrigin.kind==='handler-result'){
+        assert.equal(resultOrigin.occurrenceId,routes[0]!.id);assert.deepEqual(resultOrigin.event,retained.filePayloadOrigin.origin);
+      }
+      assert.deepEqual(terminalReceipt.filePayloadOrigin.files,[],'genuine declared void result records no File occurrences');
       assert.deepEqual(await binding.store.load(model,entryId),originalRow);
       assert.equal(terminal.a.receipts!.length,routed.a.receipts!.length+1,'one actual private handler canonical receipt');
       assert.deepEqual(terminal.a.records!.filter(row=>row.model===model),beforeRouting.a.records!.filter(row=>row.model===model));
