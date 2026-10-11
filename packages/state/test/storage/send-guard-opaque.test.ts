@@ -141,6 +141,62 @@ function modelSnapshotSet(): FrameworkOpaqueDeclarationSet {
 const snapshotProjection = { path: ['inputs'], kind: 'inputs' as const, declarationId: 'guard/inputs' };
 const modelSnapshot = () => ({ ...makeRow({ data: { packet: { photo: { id: 'one' }, photos: [{ id: 'two' }] } } }), parent: null });
 
+function nullableModelRefSet(exactValueType = false, nestedFiles = true): FrameworkOpaqueDeclarationSet {
+  const set = modelSnapshotSet(), entry = set.declarations[0]!, model = asModel('Guard.Run');
+  if (entry.source.kind !== 'send-guard' || entry.profile.kind !== 'inputs') throw new Error('fixture');
+  Object.assign(entry.source, { inputs: [{ name: 'run', type: 'Guard.Run?' }, { name: 'packet', type: 'Guard.Packet' }] });
+  Object.assign(entry.profile, {
+    canonical: [{ name: 'run', kind: 'ref', model, versioned: true, required: true, nullable: true },
+      { name: 'packet', kind: 'nominal', valueType: 'Guard.Packet', required: true }],
+    artifact: [{ name: 'run', field: { kind: 'ref', model, requireVersion: true }, required: true, nullable: true,
+      ...(exactValueType ? { valueType: 'Guard.Run?' } : {}) },
+      { name: 'packet', field: { kind: 'nominal', name: 'Guard.Packet' }, valueType: 'Guard.Packet', required: true }],
+  });
+  if (!nestedFiles) {
+    Object.assign(entry.source, { inputs: entry.source.inputs.slice(0, 1) });
+    Object.assign(entry.profile, { canonical: entry.profile.canonical.slice(0, 1), artifact: entry.profile.artifact.slice(0, 1) });
+  }
+  return set;
+}
+
+test('nullable SEND model inputs retain canonical versioned refs and the separate nested File census', () => {
+  for (const exactValueType of [false, true]) {
+    const bound = admit(nullableModelRefSet(exactValueType)), refsOnly = admit(nullableModelRefSet(exactValueType, false));
+    for (const run of [{ id: 'ref', version: '1' }, null]) {
+      assert.deepEqual(resolveOpaqueFileProjection(bound, snapshotProjection,
+        { run, packet: { photo: { id: 'one' }, photos: [{ id: 'two' }] } }), [
+        { path: ['packet', 'photo'], ref: 'one' },
+        { path: ['packet', 'photos', 0], ref: 'two' },
+      ]);
+      assert.deepEqual(resolveOpaqueFileProjection(refsOnly, snapshotProjection, { run }), []);
+    }
+  }
+});
+
+test('nullable SEND model refs refuse absent required slots, invalid versions and snapshot-shaped values', () => {
+  const bound = admit(nullableModelRefSet()), packet = { photo: { id: 'one' }, photos: [] };
+  assert.throws(() => resolveOpaqueFileProjection(bound, snapshotProjection, { packet }));
+  for (const run of [undefined, { id: 'ref' }, { id: 'ref', version: undefined },
+    { id: 'ref', version: null }, { id: 'ref', version: '' }, { id: 'ref', version: 0 },
+    { id: 'ref', version: '1', extra: true }, modelSnapshot()]) {
+    assert.throws(() => resolveOpaqueFileProjection(bound, snapshotProjection, { run, packet }));
+  }
+});
+
+test('nullable SEND model ref profiles require exact nullable and original source correspondence', () => {
+  for (const mode of ['source', 'canonical-nullable', 'artifact-nullable', 'missing-nullable', 'value-type', 'version'] as const) {
+    const set = nullableModelRefSet(true), entry = set.declarations[0]!;
+    if (entry.source.kind !== 'send-guard' || entry.profile.kind !== 'inputs') throw new Error('fixture');
+    if (mode === 'source') Object.assign(entry.source.inputs[0]!, { type: 'Guard.Run' });
+    if (mode === 'canonical-nullable') Object.assign(entry.profile.canonical[0]!, { nullable: false });
+    if (mode === 'artifact-nullable') Object.assign(entry.profile.artifact[0]!, { nullable: false });
+    if (mode === 'missing-nullable') delete (entry.profile.artifact[0]! as { nullable?: boolean }).nullable;
+    if (mode === 'value-type') Object.assign(entry.profile.artifact[0]!, { valueType: 'Guard.Run' });
+    if (mode === 'version') Object.assign(entry.profile.artifact[0]!.field, { requireVersion: false });
+    assert.throws(() => admit(set), mode);
+  }
+});
+
 test('SEND model lexical snapshots census nested Files while partial projected fields remain absent', () => {
   const bound = admit(modelSnapshotSet());
   assert.deepEqual(resolveOpaqueFileProjection(bound, snapshotProjection, { run: modelSnapshot() }), [
